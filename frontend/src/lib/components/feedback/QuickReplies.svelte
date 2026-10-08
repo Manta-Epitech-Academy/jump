@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Question, AnswerValue } from '$lib/domain/feedbackForms/schema';
-  import { typesetChat } from '$lib/domain/feedbackForms/schema';
+  import { typeset } from '$lib/domain/typography';
   import { cn } from '$lib/utils';
 
   interface Props {
@@ -62,7 +62,7 @@
       )}
       onclick={() => toggle(opt)}
     >
-      {typesetChat(opt)}
+      {typeset(opt)}
     </button>
   {/each}
 </div>

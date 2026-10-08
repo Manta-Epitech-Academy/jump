@@ -40,7 +40,13 @@ const config = {
     // everywhere with different ones). Anything read from `process.env` here
     // would freeze to whatever the CI build happened to have. So `frame-src`
     // stays computed at request time in hooks.server.ts, appended onto the
-    // header kit.csp sets here.
+    // header kit.csp sets here. `form-action` is absent for the same reason and
+    // a stronger one: the hosts it has to name are the curated
+    // `Workshop_Instance` rows, which are data rather than configuration.
+    //
+    // Both have to be absent rather than merely widened here. A header repeating
+    // a directive keeps the FIRST occurrence and ignores the rest, so a
+    // `form-action` left in this list would silently win over the computed one.
     csp: {
       mode: 'auto',
       directives: {
@@ -61,7 +67,6 @@ const config = {
         'frame-ancestors': ['none'],
         'object-src': ['none'],
         'base-uri': ['self'],
-        'form-action': ['self'],
       },
     },
     // Stale-client recovery after a prod deploy. Each build stamps a version

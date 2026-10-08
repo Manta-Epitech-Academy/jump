@@ -1,6 +1,7 @@
-// The class A writes for closings: authoring a bank question, composing a grid
-// out of those questions, and pointing an event at a grid. Bounded to named rows,
-// reversible, and nothing leaves the platform.
+// The class A writes for closings: authoring a bank question, and composing a grid
+// out of those questions. Pointing an event at a grid is part of the event's
+// configuration (`write_event_config`). Bounded to named rows, reversible, and
+// nothing leaves the platform.
 //
 // There is deliberately no delete, for the reason certificates have none: the
 // configuration reads return keys, so a delete tool would be something a model
@@ -426,62 +427,4 @@ export async function writeClosingTemplate(params: {
       }
     });
   }
-}
-
-async function eventClosingState(eventId: string) {
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    select: {
-      titre: true,
-      closingTemplate: { select: { key: true, label: true } },
-    },
-  });
-  if (!event) return null;
-  return {
-    event: event.titre,
-    grid: event.closingTemplate
-      ? {
-          templateKey: event.closingTemplate.key,
-          label: event.closingTemplate.label,
-        }
-      : null,
-  };
-}
-
-export async function writeEventClosingTemplate(params: {
-  eventId: string;
-  closingTemplateId?: string;
-}): Promise<WriteOutcome> {
-  const before = await eventClosingState(params.eventId);
-  if (!before) {
-    throw new OperationRefusedError(
-      `Événement « ${params.eventId} » introuvable. ${handleProvenanceFr('eventId')}`,
-    );
-  }
-
-  // `?? null` on a possibly-empty string would keep "" and fail the FK; the
-  // intent of an omitted or blank id is "this event holds no closings".
-  const templateId = params.closingTemplateId?.trim() || null;
-  if (templateId) {
-    const exists = await prisma.closing_Template.findUnique({
-      where: { id: templateId },
-      select: { id: true },
-    });
-    if (!exists) {
-      throw new OperationRefusedError(
-        `Grille de closing « ${templateId} » introuvable. ${handleProvenanceFr('closingTemplateId')}`,
-      );
-    }
-  }
-
-  await prisma.event.update({
-    where: { id: params.eventId },
-    data: { closingTemplateId: templateId },
-  });
-
-  return {
-    applied: true,
-    before,
-    after: await eventClosingState(params.eventId),
-  };
 }

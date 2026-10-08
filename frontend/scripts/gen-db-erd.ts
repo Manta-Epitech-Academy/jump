@@ -116,6 +116,13 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'PlanningTemplate',
       'PlanningTemplateDay',
       'PlanningTemplateSlot',
+      // The CTFd activities: the hosts, the contents they serve, what an event
+      // offers, a talent's mirrored progress on one, and the pictures of its cover.
+      'Workshop_Instance',
+      'Workshop_Activity',
+      'EventConfig_Workshop',
+      'Workshop_Participation',
+      'Workshop_CoverImage',
     ],
   },
   {
@@ -173,7 +180,15 @@ const DOMAINS: { title: string; models: string[] }[] = [
   },
   {
     title: "Contenus & Centres d'intérêt",
-    models: ['CmsPage', 'CmsImage', 'Interest', 'TalentInterest'],
+    models: [
+      // What a campus puts on its talents' home: its note, its highlight and the
+      // highlight's picture.
+      'TalentHome_Note',
+      'TalentHome_Highlight',
+      'TalentHome_HighlightImage',
+      'Interest',
+      'TalentInterest',
+    ],
   },
   {
     // Apart from "Configuration & Système" on purpose: these two are a
@@ -194,6 +209,8 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'Sync_Source',
       'Sync_Run',
       'Sync_Cadence',
+      'Sync_PruneHold',
+      'Sync_Request',
       'AdminApi_Token',
       'AdminApi_Call',
     ],

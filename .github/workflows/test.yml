@@ -106,6 +106,13 @@ jobs:
       # file, and still owns the database NAME. It exports DATABASE_URL itself,
       # last, so it wins over the workspace default above.
       TEST_DATABASE_SERVER: postgresql://jump:testpassword@localhost:5432
+      # Nothing else. Every value the suites need is in the tracked
+      # `frontend/.env.test.defaults`, which the wrapper sources here exactly as
+      # it does on a developer's machine. This YAML used to restate them, and a
+      # transcription only drifts in one direction: a new variable landed in that
+      # file, every developer got it, `bun run verify` stayed green, and CI was the
+      # only place it was missing. That is how `WORKSHOP_TICKET_SECRET`
+      # shipped a red required check off a green local gate.
 
     steps:
       - uses: actions/checkout@v6
@@ -182,18 +189,14 @@ jobs:
 
     env:
       TEST_DATABASE_SERVER: postgresql://jump:testpassword@localhost:5432
-      # No PORT / ORIGIN here. `scripts/with-test-db.sh` derives the port from
-      # the worktree and exports it, plus the ORIGIN BetterAuth reads as its base
-      # URL, so anything set here would be a dead override that reads as
-      # configuration. On a CI checkout the derivation lands on 4173.
-      BETTER_AUTH_SECRET: e2e-only-secret-not-used-anywhere-real
-      # Arms `/api/test/login-as`, which 404s without it. That endpoint is how the
-      # suite gets a session for each role: staff log in through Microsoft OAuth
-      # and talents through an emailed OTP, neither of which a headless run walks.
-      LOAD_TEST_SECRET: e2e-only-load-test-secret
-      # Recipients of a Jump send are minors. `redirect` is the fail-safe default;
-      # restated here so a CI run can never be the thing that widens the gate.
-      OUTBOUND_MODE: redirect
+      # Everything else this suite needs comes from `frontend/.env.test.defaults`,
+      # for the reason given in `Unit & Integration Tests` above: the secret
+      # BetterAuth signs with, the one that arms `/api/test/login-as`, the
+      # activities' shared secret, and the `redirect` that keeps outbound trapped.
+      # Each is commented there, once. No PORT or ORIGIN in either place:
+      # `scripts/with-test-db.sh` derives them and exports them last, so a value
+      # set here would be a dead override that reads as configuration. On a CI
+      # checkout the derivation lands on 4173.
       CI: 'true'
 
     steps:

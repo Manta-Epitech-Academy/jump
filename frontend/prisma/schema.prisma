@@ -81,7 +81,6 @@ model bauth_user {
   staffProfile              StaffProfile?
   talent                    Talent?
   invitationsIssued         StaffInvitation[]    @relation("StaffInvitationInvitedBy")
-  cmsPages                  CmsPage[]
   broadcastsCreated         Broadcast[]          @relation("BroadcastCreator")
   templatesCreated          MessageTemplate[]    @relation("MessageTemplateCreator")
   broadcastsReceivedAsStaff BroadcastRecipient[] @relation("BroadcastRecipientStaff")
@@ -209,7 +208,6 @@ model StaffProfile {
   campus                 Campus?                     @relation(fields: [campusId], references: [id])
   closingsConducted      Closing_Record[]
   adminFiles             AdminFile[]
-  cmsImages              CmsImage[]
   presencesMarked        EventPresence[]
   presenceClosuresMade   EventPresenceClosure[]
   imageRightsCorrections ImageRightsDecisionRecord[]
@@ -364,6 +362,13 @@ model Talent {
   /// until it is refused. Objection is per person and permanent until cleared.
   usageAnalyticsOptOutAt      DateTime?
   welcomeSeenAt               DateTime?
+  /// When `anonymizeTalent` erased this talent, stamped once and never cleared.
+  /// The fact that says "erased", so no reader has to infer it from the
+  /// placeholder name the scrub writes. It is what a CTFd instance is answered
+  /// with when it asks which of its accounts to delete
+  /// (`/api/workshops/erasures`): positive proof, read off this row, and
+  /// nothing else.
+  anonymizedAt                DateTime?
   createdAt                   DateTime             @default(now())
   updatedAt                   DateTime             @updatedAt
 
@@ -386,6 +391,7 @@ model Talent {
   schoolingRecords    Schooling_YearRecord[]
   onboardingRecords   Onboarding_Record[]
   notes               Note_TalentNote[]
+  workshopEntries     Workshop_Participation[]
 
   @@index([xp])
   @@index([schoolId])
@@ -740,25 +746,106 @@ model Campus {
   xpRewards        XpReward[]
   signatories      Signatory[]
   syncSources      Sync_Source[]
+  workshopEntries  Workshop_Participation[]
+  homeNote         TalentHome_Note?
+  homeHighlight    TalentHome_Highlight?
 }
 
-model CmsPage {
-  id        String   @id @default(cuid())
-  slug      String
-  eventId   String
-  content   String   @db.Text
+/// « Le mot du campus »: free text a campus puts on its talents' home, in the
+/// Actualités card. Authored over the admin API (`write_talent_home_note`), so
+/// current state, one row per campus, and no row means no note. Who wrote it
+/// and what it said before is in `AdminApi_Call`, which is why there is no
+/// `updatedBy` here.
+///
+/// Markdown, stored exactly as written or refused: no raw HTML, and a picture
+/// only by an https address, which the write copies (`TalentHome_NoteImage`)
+/// since a minor's browser fetches nothing from another host. Rendered at read
+/// time.
+model TalentHome_Note {
+  campusId  String   @id
+  markdown  String   @db.Text
   updatedAt DateTime @updatedAt
-  /// Attribution, not ownership: SetNull so deleting the author's account leaves
-  /// the page standing. It defaulted to RESTRICT, which made anyone who had ever
-  /// edited a page undeletable, reported to the admin as a bare "Erreur lors de
-  /// la suppression du membre".
-  updatedBy String?
 
-  event Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user  bauth_user? @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+  campus Campus                @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  images TalentHome_NoteImage[]
+}
 
-  @@unique([slug, eventId])
-  @@index([eventId])
+/// A picture of a campus note, copied from the address its Markdown names
+/// (`![…](https://…)`) when the note was written, and served by Jump: a
+/// talent's browser fetches nothing from another host. The note keeps the
+/// address as its author wrote it; the renderer finds the copy by that
+/// address. A row exists only for an address the current text still names.
+model TalentHome_NoteImage {
+  /// Storage key, `talent-home/<campusId>/note-<writeId>-<n>.<ext>`: minted by
+  /// the write that copied it, so only the write that replaces it deletes it.
+  key         String  @id
+  campusId    String
+  /// The address as the note's Markdown writes it. A write restating it keeps
+  /// this copy rather than downloading it again (`replacePictures`).
+  sourceUrl   String
+  /// For an animated GIF, its first frame as a WebP, what a talent who asked
+  /// for reduced motion sees instead. Null for a still.
+  stillKey    String? @unique
+  contentType String
+  /// Intrinsic size, so the card reserves the box before the bytes land.
+  width       Int
+  height      Int
+
+  note TalentHome_Note @relation(fields: [campusId], references: [campusId], onDelete: Cascade)
+
+  @@unique([campusId, sourceUrl])
+}
+
+/// The one event a campus invites its talents to sign up for, with a link to an
+/// outside sign-up form. The talent home's blue hero leads with it on a day the
+/// talent has no activity, and lists it as a compact « À venir » line under
+/// the activity on a day they have one (`pickHomeHero`). Chosen
+/// by hand per campus (`write_talent_home_highlight`), never derived from
+/// Salesforce: a JPO or a camp is not something the talent is enrolled in yet.
+///
+/// Its own table rather than columns beside the note, so a half-written
+/// highlight cannot exist: a row is all four fields or nothing.
+model TalentHome_Highlight {
+  campusId  String   @id
+  title     String
+  summary   String
+  /// The event's calendar day. The reader stops showing the highlight once
+  /// that day has passed on the campus clock, so a camp's invitation does not
+  /// outlive the camp.
+  date      DateTime @db.Date
+  /// The sign-up form, https only.
+  url       String
+  updatedAt DateTime @updatedAt
+
+  campus Campus                     @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  image  TalentHome_HighlightImage?
+}
+
+/// The optional picture of a highlighted event, given as an https address and
+/// COPIED into storage, never linked to (`$lib/server/images/remote.ts`, the
+/// circuit an activity's cover uses). A child row rather than nullable columns
+/// on the highlight, so it can never hold half an image, and it goes with its
+/// highlight.
+model TalentHome_HighlightImage {
+  campusId    String @id
+  /// The address it was copied from, handed back by `config_talent_home` so
+  /// the admin can restate the highlight. A write restating it keeps this copy
+  /// rather than downloading it again (`replacePictures`).
+  sourceUrl   String
+  /// Storage key, `talent-home/<campusId>/highlight-<writeId>.<ext>`: minted by
+  /// the write that copied it, so only the write that replaces it deletes it.
+  key         String  @unique
+  /// For an animated GIF, its first frame as a WebP, what a talent who asked
+  /// for reduced motion sees instead. Same proportion as the animation, so the
+  /// size below lays it out too, though it may hold fewer pixels. Null for a
+  /// still.
+  stillKey    String? @unique
+  contentType String
+  /// Intrinsic size, so the hero reserves the box before the bytes land.
+  width       Int
+  height      Int
+
+  highlight TalentHome_Highlight @relation(fields: [campusId], references: [campusId], onDelete: Cascade)
 }
 
 /// One activity in an event's programme, at the hour it runs.
@@ -859,7 +946,6 @@ model Event {
   participations      Participation[]
   closings            Closing_Record[]
   planningSlots       Planning_Slot[]
-  cmsPages            CmsPage[]
   broadcasts          Broadcast[]
   minigameAttempts    MinigameAttempt[]
   presenceClosures    EventPresenceClosure[]
@@ -867,6 +953,10 @@ model Event {
   feedbackSubmissions Feedback_Submission[]
   talentNotes         Note_TalentNote[]
   modules             EventConfig_Module[]
+  shownStatuses       EventConfig_ShownStatus[]
+  workshops           EventConfig_Workshop[]
+  workshopEntries     Workshop_Participation[]
+  syncPruneHold       Sync_PruneHold?
 
   /// Not a second identity - `id` alone is already unique. It exists so the rows
   /// that denormalise `campusId` for one-hop campus scoping can reference the
@@ -904,6 +994,30 @@ model EventConfig_Module {
 
   @@id([eventId, moduleKey])
   @@index([moduleKey])
+}
+
+/// One Salesforce member status the dev space shows for this event. A row's mere
+/// presence = shown, exactly like `EventConfig_Module`: a status the event names
+/// no row for is masked from the dev space (still synced, still in Jump, open to
+/// an admin in « Membres Salesforce »).
+///
+/// Per event, because what the dev team wants to see differs by format: a Coding
+/// Club shows the members Salesforce leaves at CONNECTED, a stage does not. Seeded
+/// at creation from the catalogue's `shownByDefault` words, copied from a template
+/// at a point in time, and Jump-owned afterwards: the sync never writes it.
+///
+/// `Participation.shownInDevSpace` is its projection, recomputed in the same
+/// transaction as any change here (`services/devSpaceVisibility.ts`).
+model EventConfig_ShownStatus {
+  eventId String
+  /// Bound to the catalogue, so an event can only show a word Jump knows.
+  status  String
+
+  event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  definition Sync_MemberStatus @relation(fields: [status], references: [status], onDelete: Restrict)
+
+  @@id([eventId, status])
+  @@index([status])
 }
 
 // A reusable, named event-configuration preset (global), created by staff from
@@ -948,6 +1062,7 @@ model EventConfig_Template {
   closingTemplate Closing_Template?            @relation("EventConfigTemplateClosingTemplate", fields: [closingTemplateId], references: [id], onDelete: Restrict)
   createdBy       StaffProfile?                @relation("EventConfigTemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
   modules         EventConfig_TemplateModule[]
+  shownStatuses   EventConfig_TemplateShownStatus[]
 
   @@index([feedbackFormId])
   @@index([diplomaTemplateId])
@@ -964,6 +1079,19 @@ model EventConfig_TemplateModule {
   template EventConfig_Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@id([templateId, moduleKey])
+}
+
+/// Mirror of `EventConfig_ShownStatus` on the template side, so a preset carries
+/// which Salesforce statuses the dev space shows and applying it is a row copy.
+model EventConfig_TemplateShownStatus {
+  templateId String
+  status     String
+
+  template   EventConfig_Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  definition Sync_MemberStatus    @relation(fields: [status], references: [status], onDelete: Restrict)
+
+  @@id([templateId, status])
+  @@index([status])
 }
 
 /// A certificate Jump can issue at the end of an event: the internship
@@ -1026,7 +1154,16 @@ model Participation {
   talentId       String
   eventId        String
   campusId       String
-  sfMemberStatus String? // raw Salesforce CampaignMember status, e.g. CONNECTED/READY/MEET/DESISTED
+  sfMemberStatus String? // raw Salesforce CampaignMember status, e.g. CONNECTED/READY/MET/DESISTED
+  /// Whether the dev space shows this enrolment: a cached projection of
+  /// `sfMemberStatus` against the event's `EventConfig_ShownStatus` rows, true
+  /// when there is no status at all (a row synced before the column existed; the
+  /// migration's CHECK holds that half). Stored rather than computed because a
+  /// Prisma `where` cannot compare a column with another table's rows, and every
+  /// dev count, list and aggregate filters on it (`visibleParticipationWhere`).
+  /// Written only through `services/devSpaceVisibility.ts` and the sync, in the
+  /// same statement or transaction as whatever it derives from.
+  shownInDevSpace Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1042,6 +1179,7 @@ model Participation {
   @@unique([talentId, eventId])
   @@index([eventId])
   @@index([eventId, sfMemberStatus])
+  @@index([eventId, shownInDevSpace])
   @@index([campusId])
   @@index([talentId])
   @@index([talentId, campusId])
@@ -1164,6 +1302,11 @@ model Feedback_Form {
   // mascot art. Served through the public /api/feedback-forms/[id]/persona-icon
   // proxy; the key changes on every replace so the rendered ?v= URL busts cache.
   personaIconKey String?
+  // The https address the icon was copied from, when an admin API write gave
+  // one. Null for an icon uploaded in the builder, and for none. It is what
+  // lets a write that restates the same address keep the stored copy instead
+  // of downloading it again under a new key.
+  personaIconSourceUrl String?
   status         Feedback_FormStatus @default(draft)
 
   allowsAuthenticatedAccess Boolean @default(true)
@@ -1772,6 +1915,95 @@ model Sync_Cadence {
   updatedAt       DateTime @updatedAt
 }
 
+/// The deletions a full pass wanted to make on one event and did not, because
+/// the roster it was sent could not prove them.
+///
+/// A full pass deletes every enrolment its roster does not mention, so the
+/// roster has to be COMPLETE for that absence to mean anything: non-empty, and
+/// every member resolved to a talent Jump knows. A member the talents push
+/// skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`) may be the very person whose
+/// enrolment the prune would take. When the roster is not complete, the
+/// enrolments it does carry are still written and the removals are held here
+/// instead of applied.
+///
+/// Held, never refused. Refusing the roster failed the call, which closed the
+/// run in error, and a failed run is replayed identically at every tick, so one
+/// campaign with one unresolvable member stopped the sync of every campaign (it
+/// did, on 2026-10-01). A hold costs the other campaigns nothing.
+///
+/// A row exists exactly while the last full pass that carried the event held
+/// removals from it: a later complete roster deletes it, and an `ok` full run
+/// deletes the rows it did not touch, since an event the pass no longer carries
+/// has nothing left to hold. `releasedAt` is the one way out for a campaign
+/// genuinely emptied in Salesforce: an admin confirms it with
+/// `ops_release_prune_hold`, and the NEXT full pass applies the removals if its
+/// fresh roster is still empty, so only a full pass ever deletes an enrolment.
+/// Only an empty roster is released (the migration's CHECK holds it): over
+/// unresolved members, a release would take the enrolment of a talent
+/// Salesforce still lists under an id Jump has not matched.
+///
+/// No reason column: `sentCount = 0` is an empty roster and
+/// `resolvedCount < sentCount` is one with unresolved members, read off the
+/// counts rather than stored beside them.
+model Sync_PruneHold {
+  eventId         String    @id
+  /// Enrolments the prune would have deleted on the last pass that held it.
+  pendingRemovals Int
+  /// Members that pass sent, and how many of them Jump resolved.
+  sentCount       Int
+  resolvedCount   Int
+  firstHeldAt     DateTime  @default(now())
+  lastHeldAt      DateTime
+  /// Set by an admin who confirms the campaign is empty, to let the next full
+  /// pass apply the removals if its roster is still empty.
+  releasedAt      DateTime?
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([lastHeldAt])
+}
+
+/// A person asking for a pass of one mode now, rather than when the cadence
+/// says. Written by `ops_request_sync`, read by `/api/worker/config` on every
+/// tick next to `Sync_Cadence`.
+///
+/// One row per mode, overwritten by the next request, and never consumed:
+/// whether a request is still pending is derived, not stored. It is pending
+/// while no successful run that covers it STARTED after it (`decideSync`), so a
+/// run already in flight when the request lands does not satisfy it (it may
+/// have read Salesforce before the change the person is waiting for), and a run
+/// that fails leaves it pending, exactly as a failed run leaves the watermark.
+/// Nothing has to clear it, so nothing can forget to.
+model Sync_Request {
+  mode        SyncMode @id
+  requestedAt DateTime
+}
+
+/// A Salesforce `CampaignMember` status Jump knows: the vocabulary, not what any
+/// one event does with it. Normalised (trimmed, upper case) like
+/// `Participation.sfMemberStatus`.
+///
+/// Data, not code, because the vocabulary is Salesforce's and moves without a
+/// release: a campus invents a status, the head office renames one for every
+/// campus. `write_sync_member_status` adds or edits a word; there is no delete,
+/// since events and templates reference it and a retired word still names what
+/// old enrolments carry.
+///
+/// A word absent from here is unrecognised: masked from the dev space on every
+/// event and reported by `stats_sync_health` and the weekly digest, which is how a
+/// new word is noticed rather than hidden in silence. `shownByDefault` is what a
+/// newly created event starts showing (`EventConfig_ShownStatus`), copied once.
+/// The four words Salesforce sent at the time ship with the migration.
+model Sync_MemberStatus {
+  status         String   @id
+  shownByDefault Boolean
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  events    EventConfig_ShownStatus[]
+  templates EventConfig_TemplateShownStatus[]
+}
+
 // A signatory whose handwritten signature is printed on the internship
 // certificate (diplôme de stage). `campusId` null = global (e.g. the Director
 // General) and applies to every campus without duplication; a set `campusId`
@@ -1800,38 +2032,9 @@ model AdminFile {
   s3Key        String   @unique
   contentType  String
   size         Int
-  /// SetNull, like its twin `CmsImage` below: this is a SHARED library, so a
-  /// departure must not take everyone's files with it - and cascading also
-  /// stranded the S3 objects, since nothing sweeps a bucket on a foreign key.
-  uploadedById String?
-  createdAt    DateTime @default(now())
-
-  uploadedBy StaffProfile? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
-
-  @@index([uploadedById])
-}
-
-// An image embedded in CMS content (the welcome-message rich text). Bytes live
-// in S3 under `s3Key`; the editor references the image via `/api/cms/images/<id>`.
-// Dimensions are the post-downscale intrinsic size (see `server/cms/image.ts`).
-//
-// Whether an image is still used is determined by the content itself (the
-// `/api/cms/images/<id>` URL inside some `CmsPage.content`), not by a column
-// here, so there is no event link to keep in sync. A row whose id appears in
-// no content is garbage: an abandoned upload, an image edited out of a message,
-// or one whose page was deleted. The GC sweep (`/api/jobs/gc-cms-images`)
-// reclaims those, freeing both the row and the S3 object. This reconciliation
-// exists because S3 and Postgres cannot commit atomically and an abandoned
-// upload fires no server event: it is the safety net, not a substitute for
-// correctness on the happy path. `uploadedById` is kept for attribution and is
-// SetNull so deleting the author never deletes the image.
-model CmsImage {
-  id           String   @id @default(cuid())
-  s3Key        String   @unique
-  contentType  String
-  width        Int
-  height       Int
-  size         Int
+  /// SetNull: this is a SHARED library, so a departure must not take
+  /// everyone's files with it - and cascading also stranded the S3 objects,
+  /// since nothing sweeps a bucket on a foreign key.
   uploadedById String?
   createdAt    DateTime @default(now())
 
@@ -1923,7 +2126,10 @@ model MessageTemplate {
   channel     BroadcastChannel
   subject     String?
   body        String
-  /// Attribution only, SetNull: see `CmsPage.updatedBy`.
+  /// Attribution, not ownership: SetNull so deleting the author's account
+  /// leaves the template standing. It defaulted to RESTRICT, which made anyone
+  /// who had ever written one undeletable, reported to the admin as a bare
+  /// "Erreur lors de la suppression du membre".
   createdById String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -1964,7 +2170,7 @@ model Broadcast {
   subjectSnapshot   String?
   bodySnapshot      String
   status            BroadcastStatus        @default(queued)
-  /// Attribution only, SetNull: see `CmsPage.updatedBy`. A send that has already
+  /// Attribution only, SetNull: see `MessageTemplate.createdById`. A send that has already
   /// gone out is a fact, so it outlives the account that triggered it.
   createdById       String?
   createdAt         DateTime               @default(now())
@@ -2144,8 +2350,10 @@ model XpGrant {
   // onboarding_early_bird→talentId (distinct row from the base because `source`
   // differs), minigame→attemptId, minigame_rank→attemptId,
   // reward→`${rewardId}_${talentId}` (one grant per talent per XpReward, see
-  // XpReward below), admin_adjustment→null (never deduped: Postgres treats NULLs
-  // as distinct under the unique index).
+  // XpReward below), workshop→`${activitySlug}:${talentId}` (one grant per
+  // talent per activity, recomputed on every progress callback rather than
+  // appended per step, see `domain/workshops.ts`), admin_adjustment→null
+  // (never deduped: Postgres treats NULLs as distinct under the unique index).
   sourceId  String?
   amount    Int
   createdAt DateTime      @default(now())
@@ -2176,6 +2384,11 @@ enum XpGrantSource {
   // admin_adjustment correction and is queryable per category. Amount is
   // per-talent (the CTF score), not the activity's difficulty.
   reward
+  // One activity walked on a CTFd instance, recomputed on every progress
+  // callback rather than appended per validated step: a single grant per
+  // (talent, activity), so the talent's timeline carries one line and the
+  // rounded total is exactly `budgetMinutes * WORKSHOP_XP_PER_MINUTE`.
+  workshop
   admin_adjustment
 }
 
@@ -2200,6 +2413,227 @@ model XpReward {
 
   campus Campus? @relation(fields: [campusId], references: [id], onDelete: SetNull)
 
+  @@index([campusId])
+}
+
+// ─── Workshops (the CTFd activities a talent reaches from Jump) ───
+
+/// One deployed CTFd carrying the `workshop_platform` plugin: a HOST, and nothing
+/// else. What a talent walks on it is a `Workshop_Activity`, because a host serves
+/// one content after another (a campus instance passed on to the next request, a
+/// season's instance serving every camp in turn), and everything a talent keeps,
+/// the participation, the XP grant and the name in the timeline, belongs to the
+/// content they walked, not to the machine it ran on.
+///
+/// `baseUrl` is a column and not an environment variable, which is the one place
+/// this diverges from jump-games: there is a single jump-games backend and there
+/// are eleven CTFd hosts, so the address belongs to the row.
+model Workshop_Instance {
+  id         String              @id @default(cuid())
+  /// Stable natural key, and also the ticket audience (`workshop:<slug>`) the
+  /// plugin compares against its own configured instance name. It names the
+  /// host only, so a rotation keeps it.
+  slug       String              @unique
+  /// Origin of the CTFd, no trailing slash: the entry action redirects to
+  /// `<baseUrl>/jump/enter?t=...`. A generated database points this at a
+  /// NON-ROUTABLE host on purpose, because a dev or preprod row carrying the
+  /// real address behind an enabled activity is one click away from handing a
+  /// talent over to a live instance from a validation environment.
+  baseUrl    String
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  activities Workshop_Activity[]
+}
+
+/// One content deployed on a host, the thing a talent walks: what an event
+/// offers, what a participation and an XP grant are filed under, and what the
+/// dashboard shows. Nothing of the subject is TYPED here: the steps and the
+/// description stay in CTFd, exactly as `MinigameConfig` refuses to keep the
+/// jump-games catalogue by hand. What a talent's dashboard shows of it is a
+/// different matter, and is authored here over the API (`write_workshop`, its
+/// `cover`): the `tagline` and the `Workshop_CoverImage` rows. It was first read
+/// back from the instance, and that was dropped on purpose: the people who
+/// configure an activity's look are not the ones who deploy its CTFd, so one
+/// source of truth had to be chosen, and it is the one they hold.
+///
+/// It names the host that serves it, many activities to one host: an activity
+/// is on one host at a time, so every event offering it reaches the same place
+/// without restating where. That host is fixed once a talent has entered it,
+/// because another host would hold fresh accounts and its first report would
+/// take their XP back (`write_workshop`).
+///
+/// `enabled = false` takes an activity out of every dashboard without deleting
+/// the rows pointing at it, which is how one is retired once its host has moved
+/// on to another content.
+model Workshop_Activity {
+  id             String                   @id @default(cuid())
+  /// The plugin's name for the content this host serves, the `workshop.slug` of
+  /// a composed workshop or the `project.slug` of a single subject, exactly as
+  /// the instance's `/admin/workshop/jump` shows it. Never renamed and never
+  /// reused: every XP grant is filed under it. The plugin reports it with every
+  /// progress callback and refuses an entry whose ticket names another, so a
+  /// slug that does not match fails at the door instead of losing XP.
+  slug           String                   @unique
+  instanceId     String
+  /// French name a talent reads on the dashboard, and the name every XP
+  /// timeline row is quoted under.
+  label          String
+  /// The one line the dashboard's activity hero leads with, in place of the
+  /// label. Written only through `write_workshop`'s `cover`, so a call that
+  /// curates what an activity is and names no cover cannot wipe it.
+  tagline        String?
+  enabled        Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  /// Restrict: a host still serving an activity is not one to delete.
+  instance       Workshop_Instance        @relation(fields: [instanceId], references: [id], onDelete: Restrict)
+  events         EventConfig_Workshop[]
+  participations Workshop_Participation[]
+  coverImages    Workshop_CoverImage[]
+
+  @@index([instanceId])
+}
+
+/// Which picture of a cover an image is.
+enum WorkshopCoverKind {
+  /// The cover itself, a still or an animation.
+  media
+  /// A still chosen for it, shown instead when the talent asked for reduced
+  /// motion. Without one, an animation shows its own first frame (`stillKey`).
+  poster
+  /// The subject's character, drawn small above the hero's line.
+  mascot
+}
+
+/// One picture of an activity's cover, authored over the API as an https
+/// address and COPIED into Jump's storage rather than linked to: a minor's
+/// browser fetches nothing from another host (DESIGN.md, avatars), and the
+/// dashboard must not break the day that host moves a file
+/// (`$lib/server/images/remote.ts`).
+///
+/// A row exists only for a picture that was actually copied, so a cover never
+/// holds half an image; an activity with none stands on its label alone.
+model Workshop_CoverImage {
+  activityId  String
+  kind        WorkshopCoverKind
+  /// The address it was copied from, handed back by `config_workshops`
+  /// so the admin can see and restate the cover. A write restating the same
+  /// address for the same kind keeps this copy rather than downloading it
+  /// again (`replacePictures`).
+  sourceUrl   String
+  /// Storage key, `workshops/<activityId>/<kind>-<writeId>.<ext>`: minted by
+  /// the write that copied it, so only the write that replaces it deletes it.
+  key         String            @unique
+  /// For an animated GIF, its first frame as a WebP, shown to a talent who
+  /// asked for reduced motion when the cover names no poster. Same proportion
+  /// as the animation, so the size below lays it out too, though it may hold
+  /// fewer pixels. Null for a still.
+  stillKey    String?           @unique
+  contentType String
+  /// Intrinsic size, so the dashboard reserves the box before the bytes land.
+  width       Int
+  height      Int
+
+  activity Workshop_Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, kind])
+}
+
+/// An event offering an activity: the link, carrying attributes of its own.
+///
+/// Prefixed `EventConfig_` rather than `Workshop_` because the prefix names the
+/// context that owns the WRITE path, and that is event configuration, beside
+/// `EventConfig_Module`. The shape is then exactly the closings one: an event's
+/// configuration points at a catalogue another context owns.
+model EventConfig_Workshop {
+  eventId         String
+  activityId      String
+  /// Where it sits in this event's list, so several activities have an order.
+  position        Int
+  /// The scale parameter. It lives here and not on the catalogue row because the
+  /// same subject runs 2 h at a Coding Club and 3 h at a camp;
+  /// `Workshop_Participation.budgetMinutes` snapshots it at first entry, which is
+  /// what lets a duration be replayed without taking XP back off anybody.
+  durationMinutes Int
+  /// The words THIS event reads the activity aloud with, when the catalogue label
+  /// does not fit the format. Copies `Closing_TemplateQuestion.labelOverride`: the
+  /// wording may follow the event, the identity never moves.
+  labelOverride   String?
+  createdAt       DateTime @default(now())
+
+  event    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// Restrict, like `Event.diplomaTemplateId`: deleting a catalogue row events
+  /// still point at has to fail loudly rather than silently empty a dashboard.
+  activity Workshop_Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
+
+  @@id([eventId, activityId])
+  @@index([activityId])
+}
+
+/// What CTFd says one talent has done on one activity.
+///
+/// A POLLED EXTERNAL MIRROR, not a fact log. `prisma/CLAUDE.md` takes this case
+/// out of the "facts as rows" shape and sends it to a 1:1 typed row updated when
+/// the inbound payload differs, the `TalentSfImport` shape. `solvedSteps` and
+/// `totalSteps` are CTFd's CLAIM, never a count Jump made.
+///
+/// `budgetMinutes` is snapshotted from the link row at first entry, and that is
+/// the whole of how a duration can be replayed without taking XP back off the
+/// people who have already started.
+///
+/// `eventId` and `campusId` record what was true once instead of tracking a
+/// source, which is the test `prisma/CLAUDE.md` states, so they are NOT bound to
+/// `Event(id, campusId)` by a composite key: an event reassigned to another
+/// campus in Salesforce does not rewrite the campus an activity was walked under,
+/// the same call `XpGrant.campusId` and `MinigameAttempt.campusId` make.
+///
+/// They record because `syncTalents` hard-deletes every enrolment a Salesforce
+/// payload omits, the incident that took `Closing_Record` off `Participation`: a
+/// talent can lose the enrolment mid-activity, and these columns plus
+/// `budgetMinutes` are what survives it. It is the ENROLMENT that disappears, not
+/// the event, which no sync ever deletes, so both stay required rather than
+/// nullable: a null here would be a state nothing can produce.
+///
+/// The key `(talent, activity)` encodes a product rule: a content is worth its XP
+/// once per talent, for life. CTFd holds one account per talent per instance and
+/// cannot express which event a validation belongs to, so a key built on the
+/// event would be a key nothing could ever honour. That the same content met
+/// again at a later event pays nothing follows from that, and it is a decision
+/// rather than an accident of the `sourceId`. It is the CONTENT and not the host
+/// because a host changes content: keyed on the host, a regular's second camp on
+/// the season's instance replaced the first camp's XP and stayed pinned to the
+/// first camp's event, budget and room.
+model Workshop_Participation {
+  talentId       String
+  activityId     String
+  eventId        String
+  campusId       String
+  /// Snapshot of `EventConfig_Workshop.durationMinutes`, taken at first entry.
+  budgetMinutes  Int
+  solvedSteps    Int       @default(0)
+  totalSteps     Int       @default(0)
+  /// The grant amount the dashboard has already celebrated. What is still owed a
+  /// celebration is the grant minus this, read off the ledger, so it cannot
+  /// drift from what the profile adds up: a replayed or concurrent callback, or a
+  /// progress that falls and climbs back, owes only what `Talent.xp` gained. Only
+  /// the acknowledgement writes it, with the amount the dashboard showed, and
+  /// only ever upwards, so a stale tab cannot replay a float.
+  xpCelebrated   Int       @default(0)
+  firstEnteredAt DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  talent   Talent            @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  activity Workshop_Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  event    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// Restrict, matching `Participation.campus`: a campus still holding walked
+  /// activities is not one to delete out from under them.
+  campus   Campus            @relation(fields: [campusId], references: [id])
+
+  @@id([talentId, activityId])
+  @@index([activityId])
+  @@index([eventId])
   @@index([campusId])
 }
 
@@ -2335,7 +2769,7 @@ model AdminApi_Call {
   /// later deletion.
   actorUserId String
   /// Operation name, the same vocabulary as the MCP tool names
-  /// (`stats_events_overview`, ...). A plain String so a new operation needs no
+  /// (`config_campus_overview`, ...). A plain String so a new operation needs no
   /// migration; the catalogue lives in `$lib/server/adminApi/operations.ts`.
   operation   String
   /// The validated params. PII-free by construction: this tier serves

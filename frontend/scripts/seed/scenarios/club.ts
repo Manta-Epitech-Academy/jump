@@ -21,7 +21,9 @@ import {
   CLUB_TEMPLATE,
   CLUB_TEMPLATE_QUESTION_KEYS,
 } from '../catalog/closings';
+import { CLUB_CERTIFICATE } from '../catalog/diplomas';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
+import { WORKSHOPS } from '../catalog/workshops';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { conductClosing } from '../factories/closing';
@@ -50,9 +52,64 @@ import type { EventRef } from '../world';
  * two or three closings, on one campus, which is the hole this change exists to
  * fill.
  */
+/** The session at which the season's host served the subject retired since. */
+const ROTATED_SESSION = 6;
+
 const SESSION_OFFSETS = [
   -189, -168, -147, -126, -105, -84, -63, -42, -21, 6,
 ] as const;
+
+const [PACMAN, LINUX, SANTA] = WORKSHOPS;
+
+/**
+ * Which online activities a session offers.
+ *
+ * Two sessions of the ten, and that is the real distribution rather than a
+ * sample: most events offer none at all, so the empty case is what a dashboard
+ * and an export mostly render. The two that do offer one carry the SAME subject
+ * at DIFFERENT durations, which is the whole reason `durationMinutes` sits on the
+ * link and not on the catalogue, and the retired instance is attached beside it,
+ * so an event still pointing at something nobody may enter exists in the data.
+ *
+ * Earlier in the season, the season's host served the subject that is retired
+ * now, and the anchor regular walked it: that host has served two contents in
+ * turn, and the regular's history carries both, each under its own name. That
+ * earlier session (`ROTATED_SESSION`) is a session of its own and not the one
+ * the override sits on.
+ *
+ * THE `labelOverride` GOES ON THE OFFERED ACTIVITY, NOT THE RETIRED ONE, and
+ * that is the whole of why it is here. `listTalentWorkshops` only ever reads a
+ * link whose activity is `enabled`, so an override on the retired row is a column
+ * no screen can reach: the branch it exists to exercise
+ * (`o.labelOverride ?? o.activity.label`) would render nowhere in any generated
+ * dataset. It sits on the PAST session rather than the upcoming one because an
+ * event that has not started offers nothing (`selectWorkshopOfferings`), and the
+ * anchor regular is guaranteed onto every session: the override is therefore
+ * what their « Activités à faire » list on « Mon parcours » reads, deterministically, run after run.
+ *
+ * The upcoming session offers the same subject under its catalogue label, and a
+ * second one nobody has walked yet. Neither shows before its day: the first
+ * because the anchor regular's past session already resolves it, the second
+ * because nothing does, which is the « pas avant le jour J » state.
+ */
+function activitiesFor(session: number, upcoming: boolean) {
+  if (upcoming)
+    return [
+      { slug: PACMAN!.slug, durationMinutes: 150 },
+      { slug: SANTA!.slug, durationMinutes: SANTA!.durationMinutes },
+    ];
+  if (session === ROTATED_SESSION)
+    return [{ slug: LINUX!.slug, durationMinutes: LINUX!.durationMinutes }];
+  if (session !== SESSION_OFFSETS.length - 2) return [];
+  return [
+    {
+      slug: PACMAN!.slug,
+      durationMinutes: PACMAN!.durationMinutes,
+      labelOverride: 'Pacman : apprends à coder une IA',
+    },
+    { slug: LINUX!.slug, durationMinutes: LINUX!.durationMinutes },
+  ];
+}
 
 export const club: Scenario = {
   // Not `coding-club-nice`: `pickCampus` falls back when the preferred campus
@@ -125,6 +182,11 @@ export const club: Scenario = {
           EVENT_MODULES.CLOSINGS,
         ],
         closingTemplateId: clubTemplateId,
+        // One design per series, issued by each of its events: how the live
+        // catalogue is used, and the certificate a PO can export to see a
+        // drawing printed.
+        diplomaTemplateId: id('dpl', CLUB_CERTIFICATE.code),
+        workshops: activitiesFor(session, upcoming),
       });
       sessionEvents.push(event);
       // Two sessions of the season carry a planning, not all ten. Production
@@ -149,6 +211,49 @@ export const club: Scenario = {
         anchorRegular,
       );
       for (const talent of attending) world.enrol(event, talent);
+
+      // The states of an activity, placed rather than drawn, because each one
+      // renders a different thing and a draw either produces them or does not:
+      // the anchor regular walked the retired one back when the season's host
+      // served it, one regular is owed a celebration (the XP arrived while the
+      // Jump tab was in the background, which is the demo), and another has
+      // already seen theirs.
+      if (session === ROTATED_SESSION) {
+        world.enterWorkshop({
+          talent: anchorRegular,
+          event,
+          slug: LINUX!.slug,
+          budgetMinutes: LINUX!.durationMinutes,
+          solvedSteps: LINUX!.totalSteps,
+          totalSteps: LINUX!.totalSteps,
+          at: day,
+          celebrated: true,
+        });
+      } else if (!upcoming && activitiesFor(session, upcoming).length > 0) {
+        const other = attending.find((t) => t.id !== anchorRegular.id);
+        world.enterWorkshop({
+          talent: anchorRegular,
+          event,
+          slug: PACMAN!.slug,
+          budgetMinutes: PACMAN!.durationMinutes,
+          solvedSteps: 6,
+          totalSteps: PACMAN!.totalSteps,
+          at: clock.days(-2),
+          celebrated: false,
+        });
+        if (other) {
+          world.enterWorkshop({
+            talent: other,
+            event,
+            slug: PACMAN!.slug,
+            budgetMinutes: PACMAN!.durationMinutes,
+            solvedSteps: PACMAN!.totalSteps,
+            totalSteps: PACMAN!.totalSteps,
+            at: day,
+            celebrated: true,
+          });
+        }
+      }
 
       if (upcoming) continue;
 
@@ -239,7 +344,7 @@ export const club: Scenario = {
         {
           role: 'talent (closing sans participation)',
           email: anchorRegular.email,
-          note: 'la participation de la première séance a été supprimée après coup ; le closing tient toujours',
+          note: 'la participation de la première séance a été supprimée après coup ; le closing tient toujours. Sur son accueil : Pacman IA commencé et pas fini, que le bandeau bleu propose de continuer chez soi, et sa prochaine séance dans la carte de session ; « Mon parcours » le liste dans « Activités à faire »',
         },
       ],
     });

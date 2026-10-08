@@ -63,7 +63,7 @@ export async function closeRun(
 ): Promise<CloseRunResult> {
   const existing = await prisma.sync_Run.findUnique({
     where: { id },
-    select: { status: true },
+    select: { status: true, mode: true, startedAt: true },
   });
   if (!existing) return { ok: false, reason: 'not_found' };
   if (existing.status !== 'running')
@@ -87,8 +87,27 @@ export async function closeRun(
           },
   });
 
+  if (outcome.status === 'ok' && existing.mode === 'full')
+    await dropHoldsNotCarriedSince(existing.startedAt);
   await trimOldRuns();
   return { ok: true };
+}
+
+/**
+ * Forget the prune holds a successful full pass did not renew.
+ *
+ * A full pass that holds an event's removals stamps its hold during the run,
+ * and one that can prune clears it, so a hold older than the run's start is on
+ * an event that pass did not carry at all: its campaign left the whitelist, or
+ * stopped matching what the worker pulls. Nothing will ever prune it again, so
+ * the hold describes nothing and would sit in `stats_sync_health` forever.
+ * Only on `ok`: a run that failed part-way did not get to every event, and its
+ * absence of a stamp proves nothing.
+ */
+async function dropHoldsNotCarriedSince(runStartedAt: Date): Promise<void> {
+  await prisma.sync_PruneHold.deleteMany({
+    where: { lastHeldAt: { lt: runStartedAt } },
+  });
 }
 
 async function trimOldRuns(): Promise<void> {

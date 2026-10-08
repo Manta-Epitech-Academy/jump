@@ -7,12 +7,13 @@
  * loop is where the promise of the refonte lives (« zéro perte »), and it is
  * only observable with rows.
  *
- * Four properties are worth a test each, and each is a way the sync loses data
- * quietly rather than loudly:
+ * Each property below is worth a test, and each is a way the sync loses data
+ * quietly, or stops for good, rather than failing loudly:
  *  - a failed run must not move the watermark, or its window is skipped;
  *  - a `full` push prunes and an `incremental` one must not, because a deletion
  *    in Salesforce moves no modstamp and so is invisible to any delta;
- *  - a roster Jump cannot resolve is refused rather than applied as an empty one;
+ *  - a full roster that cannot prove its deletions holds them instead of
+ *    applying them, and still succeeds, because a refusal replays at every tick;
  *  - a source on a campus with no external name is never served, which is the
  *    isolation a generated environment rests on;
  *  - a contact Salesforce sent with no name costs its own row and nothing else,
@@ -25,6 +26,8 @@ import { syncEvents, syncParticipations, syncTalents } from '../syncService';
 import { closeRun, lastOkRun, openRun } from '../syncRunService';
 import { getWorkerConfig, listWorkerSources } from '../syncConfigService';
 import { workerConfigAnswerSchema } from '$lib/validation/workerSync';
+import { requestSync } from '$lib/server/adminApi/writes/sync';
+import { getSyncHealth } from '../adminStats/syncHealth';
 import { assertTestDatabase } from './testDatabase';
 
 describe('the worker sync loop (integration)', () => {
@@ -81,6 +84,7 @@ describe('the worker sync loop (integration)', () => {
         where: { campusId: { in: [armedCampusId, darkCampusId] } },
       });
       await prisma.sync_Run.deleteMany({ where: { id: { in: runIds } } });
+      await prisma.sync_Request.deleteMany();
       const created = await prisma.talent.findMany({
         where: { externalId: { in: talents.map((t) => t.external_id) } },
         select: { id: true, userId: true },
@@ -239,24 +243,229 @@ describe('the worker sync loop (integration)', () => {
     ).toBe(2);
   });
 
-  it('refuses a full roster it cannot resolve rather than emptying the event', async () => {
-    const unknownIds = await syncParticipations(
-      eventExternalId,
-      { [`test_ws_ghost_${stamp}`]: 'Met' },
-      'full',
-    );
-    expect(unknownIds).toHaveProperty('error');
+  describe('a full roster that cannot prove its deletions', () => {
+    const ghost = `test_ws_ghost_${stamp}`;
+    const both = {
+      [talents[0].external_id]: 'Met',
+      [talents[1].external_id]: 'Ready',
+    };
+    let eventId = '';
 
-    const empty = await syncParticipations(eventExternalId, {}, 'full');
-    expect(empty).toHaveProperty('error');
+    const enrolled = () => prisma.participation.count({ where: { eventId } });
+    const hold = () =>
+      prisma.sync_PruneHold.findUnique({
+        where: { eventId },
+        select: {
+          pendingRemovals: true,
+          sentCount: true,
+          resolvedCount: true,
+          releasedAt: true,
+        },
+      });
 
-    const event = await prisma.event.findUnique({
-      where: { externalId: eventExternalId },
-      select: { id: true },
+    beforeAll(async () => {
+      const event = await prisma.event.findUnique({
+        where: { externalId: eventExternalId },
+        select: { id: true },
+      });
+      eventId = event!.id;
+      // Both talents enrolled, which is what every case below protects.
+      await syncParticipations(eventExternalId, both, 'full');
     });
-    expect(
-      await prisma.participation.count({ where: { eventId: event!.id } }),
-    ).toBe(2);
+
+    it('holds the removals when no member resolves, and still succeeds', async () => {
+      // The 2026-10-01 shape: one member the talents push skipped, so Jump
+      // knows nobody on the roster. Refusing it failed every replay of the run.
+      const result = await syncParticipations(
+        eventExternalId,
+        { [ghost]: 'Met' },
+        'full',
+      );
+
+      expect(result).toEqual({
+        upserted: 0,
+        skipped: 1,
+        removed: 0,
+        held: true,
+      });
+      expect(await enrolled()).toBe(2);
+      expect(await hold()).toMatchObject({
+        pendingRemovals: 2,
+        sentCount: 1,
+        resolvedCount: 0,
+        releasedAt: null,
+      });
+
+      // Held, and said so: the health answer names the event and which act
+      // lifts it, so a hold cannot sit unnoticed the way a refusal did.
+      const { prunesHeld } = await getSyncHealth();
+      expect(prunesHeld.value).toContainEqual(
+        expect.objectContaining({
+          eventId,
+          cause: 'unresolved_members',
+          pendingRemovals: 2,
+          releasedAt: null,
+        }),
+      );
+    });
+
+    it('holds the removals of an empty roster', async () => {
+      const result = await syncParticipations(eventExternalId, {}, 'full');
+
+      expect(result).toMatchObject({ removed: 0, held: true });
+      expect(await enrolled()).toBe(2);
+      expect(await hold()).toMatchObject({
+        pendingRemovals: 2,
+        sentCount: 0,
+        resolvedCount: 0,
+      });
+    });
+
+    it('keeps an enrolment the roster omits while one of its members is unresolved', async () => {
+      // The case the old guard let through: one member resolves, so the
+      // roster was not "none resolved", and the prune took the enrolment of
+      // a talent the roster may well carry under an id Jump has not matched.
+      const result = await syncParticipations(
+        eventExternalId,
+        { [talents[0].external_id]: 'Met', [ghost]: 'Met' },
+        'full',
+      );
+
+      expect(result).toMatchObject({ upserted: 1, removed: 0, held: true });
+      expect(await enrolled()).toBe(2);
+      expect(await hold()).toMatchObject({
+        pendingRemovals: 1,
+        sentCount: 2,
+        resolvedCount: 1,
+      });
+    });
+
+    it('lifts the hold on the next complete roster, which prunes normally', async () => {
+      const result = await syncParticipations(
+        eventExternalId,
+        { [talents[0].external_id]: 'Met' },
+        'full',
+      );
+
+      expect(result).toMatchObject({ upserted: 1, removed: 1, held: false });
+      expect(await hold()).toBeNull();
+
+      await syncParticipations(eventExternalId, both, 'full');
+      expect(await enrolled()).toBe(2);
+    });
+
+    it('applies the removals once an admin has released the hold', async () => {
+      await syncParticipations(eventExternalId, {}, 'full');
+      await prisma.sync_PruneHold.update({
+        where: { eventId },
+        data: { releasedAt: new Date() },
+      });
+
+      // The release itself deleted nothing: the next full pass does, against
+      // a fresh roster, so only a full pass ever removes an enrolment.
+      expect(await enrolled()).toBe(2);
+      const result = await syncParticipations(eventExternalId, {}, 'full');
+
+      expect(result).toMatchObject({ removed: 2, held: false });
+      expect(await enrolled()).toBe(0);
+      expect(await hold()).toBeNull();
+
+      await syncParticipations(eventExternalId, both, 'full');
+    });
+
+    it('does not spend a release on a roster that arrives with members', async () => {
+      await syncParticipations(eventExternalId, {}, 'full');
+      await prisma.sync_PruneHold.update({
+        where: { eventId },
+        data: { releasedAt: new Date() },
+      });
+
+      // The release said the campaign was empty. It is not any more, and its
+      // unresolved member may be the talent whose enrolment would go.
+      const result = await syncParticipations(
+        eventExternalId,
+        { [talents[0].external_id]: 'Met', [ghost]: 'Met' },
+        'full',
+      );
+
+      expect(result).toMatchObject({ removed: 0, held: true });
+      expect(await enrolled()).toBe(2);
+      expect(await hold()).toMatchObject({
+        pendingRemovals: 1,
+        sentCount: 2,
+        resolvedCount: 1,
+        releasedAt: null,
+      });
+
+      await syncParticipations(eventExternalId, both, 'full');
+      expect(await hold()).toBeNull();
+    });
+
+    it('forgets a hold that a successful full run did not renew', async () => {
+      await syncParticipations(eventExternalId, {}, 'full');
+
+      // Renewed during the run: the pass carried the event, so the hold stays.
+      const renewing = await openRun('full');
+      runIds.push(renewing.id);
+      await syncParticipations(eventExternalId, {}, 'full');
+      await closeRun(renewing.id, {
+        status: 'ok',
+        counters: { events: 1, talents: 0, participations: 0 },
+      });
+      expect(await hold()).not.toBeNull();
+
+      // Not renewed: the event left the pass, so nothing will prune it again
+      // and the hold describes nothing.
+      const leaving = await openRun('full');
+      runIds.push(leaving.id);
+      await closeRun(leaving.id, {
+        status: 'ok',
+        counters: { events: 0, talents: 0, participations: 0 },
+      });
+      expect(await hold()).toBeNull();
+      expect(await enrolled()).toBe(2);
+    });
+
+    it('keeps holds across an incremental run and a failed full run', async () => {
+      await syncParticipations(eventExternalId, {}, 'full');
+
+      // Neither renews a hold, and neither proves an event left the pass: an
+      // incremental never prunes, and a failed full may not have reached it.
+      // Dropping on either would empty `prunesHeld` within one tick.
+      const incremental = await openRun('incremental');
+      runIds.push(incremental.id);
+      await closeRun(incremental.id, {
+        status: 'ok',
+        counters: { events: 0, talents: 0, participations: 0 },
+      });
+      expect(await hold()).not.toBeNull();
+
+      const failed = await openRun('full');
+      runIds.push(failed.id);
+      await closeRun(failed.id, { status: 'error', error: 'boom' });
+      expect(await hold()).not.toBeNull();
+
+      await syncParticipations(eventExternalId, both, 'full');
+      expect(await hold()).toBeNull();
+    });
+
+    it('skips the roster of an event Jump does not know instead of refusing it', async () => {
+      // `syncEvents` skips an event whose campus does not resolve, and the
+      // worker still sends its roster: refusing it would fail the run forever.
+      const result = await syncParticipations(
+        `test_ws_unknown_event_${stamp}`,
+        { [talents[0].external_id]: 'Met' },
+        'full',
+      );
+
+      expect(result).toEqual({
+        upserted: 0,
+        skipped: 1,
+        removed: 0,
+        held: false,
+        eventUnknown: true,
+      });
+    });
   });
 
   it('skips a nameless contact and still reconciles the rest of the batch', async () => {
@@ -342,5 +551,55 @@ describe('the worker sync loop (integration)', () => {
         counters: { events: 0, talents: 0, participations: 0 },
       }),
     ).toEqual({ ok: false, reason: 'not_found' });
+  });
+
+  it('serves a requested pass at the next tick, then goes back to the cadence', async () => {
+    // Earlier cases closed recent ok runs of both modes, so nothing is due on
+    // cadence: whatever the answer says next is the request's doing.
+    expect((await getWorkerConfig()).shouldSync).toBe(false);
+
+    await requestSync({ mode: 'incremental' });
+
+    const asked = await getWorkerConfig();
+    expect(asked).toMatchObject({ shouldSync: true, mode: 'incremental' });
+    const health = await getSyncHealth();
+    expect(health.nextRun.value).toMatchObject({ reason: 'requested' });
+    expect(health.pendingRequests.value.incremental).not.toBeNull();
+
+    // The pass the worker makes on that answer satisfies the request, and the
+    // cadence, which nobody touched, rules again.
+    const run = await openRun('incremental');
+    runIds.push(run.id);
+    await closeRun(run.id, {
+      status: 'ok',
+      counters: { events: 0, talents: 0, participations: 0 },
+    });
+
+    expect((await getWorkerConfig()).shouldSync).toBe(false);
+    expect((await getSyncHealth()).pendingRequests.value).toEqual({
+      full: null,
+      incremental: null,
+    });
+  });
+
+  it('keeps a request pending through a failed run', async () => {
+    await requestSync({ mode: 'full' });
+
+    const failed = await openRun('full');
+    runIds.push(failed.id);
+    await closeRun(failed.id, { status: 'error', error: 'boom' });
+
+    expect(await getWorkerConfig()).toMatchObject({
+      shouldSync: true,
+      mode: 'full',
+    });
+
+    const retried = await openRun('full');
+    runIds.push(retried.id);
+    await closeRun(retried.id, {
+      status: 'ok',
+      counters: { events: 0, talents: 0, participations: 0 },
+    });
+    expect((await getWorkerConfig()).shouldSync).toBe(false);
   });
 });

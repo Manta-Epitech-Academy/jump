@@ -11,6 +11,7 @@ import { platform } from './platform';
 import { stage } from './stage';
 import { club } from './club';
 import { longTail } from './longTail';
+import { campusHome } from './campusHome';
 import { edgeTalents } from './edgeTalents';
 import { minigames } from './minigames';
 import { careers } from './careers';
@@ -23,6 +24,9 @@ export const SCENARIOS: readonly Scenario[] = [
   stage,
   club,
   longTail,
+  // After the events, so its persona's session can sit beside the drawn ones;
+  // its campus was reserved by `platform`, before `club` chose its own.
+  campusHome,
   edgeTalents,
   // After every cohort, because it draws its players from the whole talent
   // population: run earlier, and the 12.4% who play would all come from

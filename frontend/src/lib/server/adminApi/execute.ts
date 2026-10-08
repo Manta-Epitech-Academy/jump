@@ -20,7 +20,7 @@
 import { authorizeOperation, type AdminApiCredential } from './guard';
 import { recordAdminApiCall, type AdminApiCallParams } from './audit';
 import { callerFacingError } from './errors';
-import { auditChangeOf } from './plan';
+import { answerOf, auditChangeOf } from './plan';
 import type { AdminApiOperation, AdminApiOperationName } from './operations';
 
 /**
@@ -75,7 +75,7 @@ export async function executeOperation(input: {
       status: 200,
       change: auditChangeOf(operation.kind, data),
     });
-    return { ok: true, data };
+    return { ok: true, data: answerOf(operation.kind, data) };
   } catch (err) {
     // A caller error answers with its own message, which names what to do
     // instead (the campus that exists, the form that does, the fresh plan

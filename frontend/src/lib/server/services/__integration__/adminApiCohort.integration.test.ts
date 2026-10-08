@@ -22,6 +22,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { schoolYearOf } from '$lib/domain/schoolYear';
+import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
+import { setEventShownStatuses } from '$lib/server/services/devSpaceVisibility';
 import { assertTestDatabase } from './testDatabase';
 import { resolveScope } from '$lib/server/adminApi/scope';
 import { cohortWhere } from '$lib/server/services/adminStats/cohort';
@@ -71,10 +73,15 @@ describe('the cohort in scope (integration)', () => {
       }
     };
 
-    await talent('shown', 'MEET');
+    await talent('shown', 'MET');
     await talent('withdrawn', 'DESISTED');
     // No participation at all: what the campaign prune leaves behind.
     await talent('unenrolled', null);
+    // What the event shows, set the way the config surfaces set it, which is
+    // also what derives each enrolment's visibility.
+    await prisma.$transaction((tx) =>
+      setEventShownStatuses(tx, eventId, ['READY', 'MET']),
+    );
   });
 
   afterAll(async () => {
@@ -134,6 +141,8 @@ describe('the cohort in scope (integration)', () => {
     ]);
 
     expect(unscoped.cohort.definition).toBe(scoped.cohort.definition);
-    expect(unscoped.cohort.definition).toContain('READY ou MEET');
+    expect(unscoped.cohort.definition).toContain(
+      VISIBLE_PARTICIPATION_DEFINITION,
+    );
   });
 });

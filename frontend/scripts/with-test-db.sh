@@ -37,18 +37,36 @@ cd "$(dirname "$0")/.."
 
 # ── Environment, in the one order that survives Prisma ───────────────────────
 #
+# Three layers, in this order: the TRACKED defaults, then the gitignored local
+# override if there is one, then the values this script owns, exported at the
+# bottom.
+#
+# The defaults are tracked and sourced rather than copied because a copy only
+# ever drifts one way. `.env.test.defaults` used to be `.env.test.example`, every
+# developer held a copy of it, and CI held a third transcription in `test.yml`:
+# a new variable reached the two copies a developer runs and never the one that
+# gates the merge, which is how `WORKSHOP_TICKET_SECRET` turned a green local
+# gate into a red required check. Now the file that documents the test
+# environment IS the file every run reads, here and on a runner.
+#
+# `.env.test` stays an override and nothing else. It is not provisioned, it is
+# not required, and a stale one can no longer hide a new default: it only wins on
+# the keys it actually names.
+#
 # `prisma.config.ts` calls `dotenv.config({ path: '../.env' })`, which does NOT
 # overwrite a variable already present in the environment. So DATABASE_URL has to
-# be exported LAST, after .env.test, or the CLI would migrate whatever the
+# be exported LAST, after both files, or the CLI would migrate whatever the
 # repo-root .env points at, which is the shared dev database. The same ordering
 # is what lets this script own PORT and ORIGIN: a stale `.env.test` carrying the
 # old hardcoded 4173 loses to the exports at the bottom of this file.
+set -a
+# shellcheck disable=SC1091
+. ./.env.test.defaults
 if [ -f .env.test ]; then
-  set -a
   # shellcheck disable=SC1091
   . ./.env.test
-  set +a
 fi
+set +a
 
 # ── Which database, and which port ──────────────────────────────────────────
 repo_root=$(git rev-parse --show-toplevel)

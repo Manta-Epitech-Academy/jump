@@ -18,25 +18,25 @@
     title: string;
   };
 
-  // Order mirrors the widget's branch precedence (ongoing → upcoming → rest),
-  // with the two "ongoing" label variants the PR screenshots distinguish first.
+  // Order mirrors the session card's branch precedence (ongoing → upcoming →
+  // rest), with the two "ongoing" variants first: one shows the card, one not.
   const options: Option[] = [
     {
       value: 'active_stage',
       label: 'Stage',
-      title: 'Event en cours : Stage de Seconde',
+      title: 'Stage en cours, avec un planning',
     },
     {
       value: 'active_club',
       label: 'Club',
-      title: 'Event en cours : Coding Club',
+      title: 'Coding Club en cours, sans planning (aucune carte)',
     },
     {
       value: 'upcoming',
       label: 'Prochaine',
       title: 'Prochaine session à venir',
     },
-    { value: 'none', label: 'Rien', title: 'Rien de prévu' },
+    { value: 'none', label: 'Rien', title: 'Rien de prévu (aucune carte)' },
   ];
 
   let busy = $state(false);
@@ -77,7 +77,7 @@
 
 <div
   class="flex w-full items-center gap-1 rounded-xl border border-warning/40 bg-warning/10 px-1 py-0.5 text-xs"
-  title="Aperçu du widget « Planning à venir » (impersonation uniquement). Reclique l'option active pour revenir au réel."
+  title="Aperçu de la carte de session de l'accueil (impersonation uniquement). Reclique l'option active pour revenir au réel."
 >
   <span class="flex shrink-0 items-center gap-1 px-1 epi-chip text-warning">
     <FlaskConical class="h-3 w-3" />

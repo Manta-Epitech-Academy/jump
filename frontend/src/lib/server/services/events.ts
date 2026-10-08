@@ -22,6 +22,7 @@ import {
 } from '$lib/domain/eventReadiness';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { setEventShownStatuses } from '$lib/server/services/devSpaceVisibility';
 
 /**
  * The per-event view model the admin surfaces consume: the events cockpit
@@ -82,6 +83,8 @@ export type AdminEventVM = {
   diplomaTemplateId: string;
   /** The closing grid the event's 1:1s use (id), or "" = it holds none. */
   closingTemplateId: string;
+  /** The Salesforce statuses the dev space shows for this event, sorted. */
+  shownStatuses: string[];
   participations: number;
 };
 
@@ -145,6 +148,7 @@ const ADMIN_EVENT_SELECT = {
   createdAt: true,
   campus: { select: { name: true, timezone: true } },
   modules: { select: { moduleKey: true, settings: true } },
+  shownStatuses: { select: { status: true } },
   _count: {
     select: {
       participations: { where: visibleParticipationWhere },
@@ -230,6 +234,10 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
       feedbackFormId: e.feedbackFormId ?? '',
       diplomaTemplateId: e.diplomaTemplateId ?? '',
       closingTemplateId: e.closingTemplateId ?? '',
+      // Sorted here rather than by the query: the bulk plans compare this list
+      // with sets sorted in code, and a database orders by its collation, which
+      // need not agree with code-unit order once a word carries a space.
+      shownStatuses: e.shownStatuses.map((row) => row.status).sort(),
       participations: e._count.participations,
     };
   });
@@ -242,7 +250,7 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
  * `createdAt`). The single-event wizard save is the authoritative sub-option
  * editor, so it always (re)writes settings. The bulk list edit is a different
  * shape - presence only, across many events - and takes the set-based path in
- * `bulkSetModules` instead of looping this.
+ * `setModulesForEvents` instead of looping this.
  *
  * Race-safe on the PK: the upsert means two admins saving the same event no
  * longer hit a P2002 that rolls the save back.
@@ -282,6 +290,132 @@ async function applyModuleDiff(
   }
 }
 
+/** One online activity an event offers, already resolved to its row. */
+export type EventWorkshopLink = {
+  activityId: string;
+  durationMinutes: number;
+  labelOverride: string | null;
+};
+
+/**
+ * Replaces the activities ONE event offers with `links`, in that order, inside an
+ * open transaction.
+ *
+ * Replaced whole: removing a link takes the activity off that event's dashboards
+ * and nothing else, because a talent's participation holds its own snapshot of
+ * the event, the campus and the minute budget and is not bound to this row. XP
+ * already granted stay granted.
+ */
+async function replaceEventWorkshops(
+  tx: Prisma.TransactionClient,
+  eventId: string,
+  links: readonly EventWorkshopLink[],
+) {
+  await tx.eventConfig_Workshop.deleteMany({ where: { eventId } });
+  if (links.length === 0) return;
+  await tx.eventConfig_Workshop.createMany({
+    data: links.map((link, position) => ({ eventId, position, ...link })),
+  });
+}
+
+/**
+ * Makes many events expose exactly the given module set, inside an open
+ * transaction. Set-based, NOT a per-event diff: two statements regardless of the
+ * selection size - one `deleteMany` to drop every module outside the target set
+ * across all selected events, one `createMany` (skipDuplicates) to add the
+ * target modules to those that lack them. A per-event read-modify-write loop
+ * here meant ~2 round-trips per event inside one interactive transaction (268
+ * events ≈ 536 serial queries, leaning on the bumped 15s tx timeout); the set
+ * form is O(1) in queries.
+ *
+ * `skipDuplicates` is what preserves per-event sub-options: an event that
+ * already has a target module keeps its row (and its `settings`) untouched, so
+ * a bulk apply never resets a campus's tuned settings - only presence changes.
+ *
+ * Takes the caller's transaction so a bulk write that changes more than the
+ * sections (applying a template also sets the shown Salesforce statuses) lands
+ * whole or not at all. `EventService.bulkSetModules` is the standalone form.
+ */
+export async function setModulesForEvents(
+  tx: Prisma.TransactionClient,
+  eventIds: readonly string[],
+  modules: readonly string[],
+) {
+  if (eventIds.length === 0) return;
+  const desired = [
+    ...new Set(modules.filter(isEventModuleKey)),
+  ] as EventModuleKey[];
+  // Default sub-options per target module: the same value the per-event add
+  // path used, computed once instead of per (event × module) pair.
+  const defaults = new Map<EventModuleKey, Prisma.InputJsonValue>(
+    desired.map((key) => [
+      key,
+      parseModuleSettings(key, undefined) as Prisma.InputJsonValue,
+    ]),
+  );
+  await tx.eventConfig_Module.deleteMany({
+    where: {
+      eventId: { in: [...eventIds] },
+      // Empty target set = expose nothing: drop every module (no key filter).
+      ...(desired.length ? { moduleKey: { notIn: desired } } : {}),
+    },
+  });
+  if (desired.length === 0) return;
+  await tx.eventConfig_Module.createMany({
+    data: eventIds.flatMap((eventId) =>
+      desired.map((moduleKey) => ({
+        eventId,
+        moduleKey,
+        settings: defaults.get(moduleKey),
+      })),
+    ),
+    skipDuplicates: true,
+  });
+}
+
+/**
+ * Shows or hides many events in the dev workspace (the `devActivatedAt` gate),
+ * inside an open transaction. Admin-only, cross-campus: the ids are the
+ * authority. On activate only the not-yet-activated rows are stamped, so an
+ * already-activated event keeps its original instant; deactivate clears them all.
+ *
+ * Activation skips events that cannot be shown (`activatableEventWhere`):
+ * flipping their gate would surface nothing, so an activate that appeared to work
+ * would silently be a no-op for them. Read inside the caller's transaction, so a
+ * bulk write that gives events their sections and shows them in the same call is
+ * judged on the sections it has just written. Returns `activated` = events now
+ * effectively shown and `skipped` = events left untouched.
+ */
+export async function setActivationForEvents(
+  tx: Prisma.TransactionClient,
+  eventIds: readonly string[],
+  activate: boolean,
+): Promise<{ activated: number; skipped: number }> {
+  if (eventIds.length === 0) return { activated: 0, skipped: 0 };
+  if (!activate) {
+    await tx.event.updateMany({
+      where: { id: { in: [...eventIds] } },
+      data: { devActivatedAt: null },
+    });
+    return { activated: eventIds.length, skipped: 0 };
+  }
+  const eligible = await tx.event.findMany({
+    where: { id: { in: [...eventIds] }, ...activatableEventWhere },
+    select: { id: true },
+  });
+  const eligibleIds = eligible.map((e) => e.id);
+  if (eligibleIds.length > 0) {
+    await tx.event.updateMany({
+      where: { id: { in: eligibleIds }, devActivatedAt: null },
+      data: { devActivatedAt: new Date() },
+    });
+  }
+  return {
+    activated: eligibleIds.length,
+    skipped: eventIds.length - eligibleIds.length,
+  };
+}
+
 export const EventService = {
   /**
    * Every event as an `AdminEventVM`, newest start date first, cross-campus.
@@ -308,6 +442,11 @@ export const EventService = {
    * campus-tz day, stored at end-of-day so the last day still reads as
    * "ongoing"; empty clears it back to a single-day event. Note an applied
    * planning template also rewrites `endDate` (its last day wins).
+   *
+   * `workshops` is the one part that is optional: the config dialog has no
+   * activity field, so it leaves the event's activities as they are, and only
+   * the admin API's `write_event_config` replaces them, in this same transaction
+   * so a refused save leaves them untouched too.
    */
   async updateEventConfig(
     eventId: string,
@@ -322,6 +461,8 @@ export const EventService = {
       feedbackFormId: string;
       diplomaTemplateId: string;
       closingTemplateId: string;
+      shownStatuses: string[];
+      workshops?: readonly EventWorkshopLink[];
     },
   ) {
     // Surfaces a clean 404 (rather than a transaction-level throw) if the event
@@ -335,16 +476,16 @@ export const EventService = {
         campus: { select: { timezone: true } },
       },
     });
-    // The third spelling of the activation rule, and the one that was missing.
-    // `bulkSetActivation` refuses through `activatableEventWhere` and
-    // `write_event_activation` refuses through `activationBlockers`, but this
-    // path writes `publicName` and `devActivatedAt` in the same call and checked
-    // neither against the other: clearing the public name of an activated event
-    // left it live in the dev workspace under its raw Salesforce title, which is
-    // the one state the rule exists to prevent. It reaches here from both
-    // consumers - the config dialog, and `write_event_config`, whose patch
-    // semantics carry the stored activation forward into a call that only meant
-    // to edit a name.
+    // The activation rule, judged on the configuration being saved rather than
+    // the one stored. `bulkSetActivation` refuses through `activatableEventWhere`;
+    // this path writes `publicName` and `devActivatedAt` in the same call, and
+    // once checked neither against the other: clearing the public name of an
+    // activated event left it live in the dev workspace under its raw Salesforce
+    // title, which is the one state the rule exists to prevent. It reaches here
+    // from both consumers - the config dialog, and `write_event_config`, whose
+    // patch semantics carry the stored activation forward into a call that only
+    // meant to edit a name, and which also shows an event through here, so a
+    // call naming the missing pieces and the activation together succeeds.
     const refusal = data.devActivated
       ? activationRefusal({
           publicName: data.publicName.trim() || null,
@@ -355,9 +496,8 @@ export const EventService = {
         })
       : null;
     if (refusal) throw error(400, refusal);
-    // 23:59 campus-local on the chosen day: `getEventStatus` only flips the
-    // event to "past" once that whole day has elapsed, and `toDateKey` still
-    // resolves it to that day for the émargement créneaux.
+    // 23:59 campus-local on the chosen day, so `toDateKey` resolves it to that
+    // day for the émargement créneaux whatever the campus timezone.
     const endDate = data.endDate
       ? fromWallClock(data.endDate, '23:59', event.campus.timezone)
       : null;
@@ -402,6 +542,12 @@ export const EventService = {
 
     await prisma.$transaction(async (tx) => {
       await applyModuleDiff(tx, eventId, data.modules, data.moduleSettings);
+      // Refuses a word the catalogue does not hold, which rolls the whole save
+      // back: a configuration is saved entirely or not at all.
+      await setEventShownStatuses(tx, eventId, data.shownStatuses);
+      if (data.workshops) {
+        await replaceEventWorkshops(tx, eventId, data.workshops);
+      }
       await tx.event.update({
         where: { id: eventId },
         data: {
@@ -422,94 +568,27 @@ export const EventService = {
 
   /**
    * Makes many events expose exactly the given module set at once (admin list
-   * bulk edit). Set-based, NOT a per-event diff: two statements regardless of the
-   * selection size - one `deleteMany` to drop every module outside the target
-   * set across all selected events, one `createMany` (skipDuplicates) to add the
-   * target modules to those that lack them. A per-event read-modify-write loop
-   * here meant ~2 round-trips per event inside one interactive transaction (268
-   * events ≈ 536 serial queries, leaning on the bumped 15s tx timeout); the set
-   * form is O(1) in queries.
-   *
-   * `skipDuplicates` is what preserves per-event sub-options: an event that
-   * already has a target module keeps its row (and its `settings`) untouched, so
-   * a bulk apply never resets a campus's tuned settings - only presence changes.
-   * Wrapped in a transaction so a failed insert rolls the deletes back. Admin-
-   * only and cross-campus like `updateEventConfig`: the ids are the authority.
+   * bulk edit): {@link setModulesForEvents} in its own transaction, so a failed
+   * insert rolls the deletes back. Admin-only and cross-campus like
+   * `updateEventConfig`: the ids are the authority.
    */
   async bulkSetModules(eventIds: string[], modules: string[]) {
     if (eventIds.length === 0) return;
-    const desired = [
-      ...new Set(modules.filter(isEventModuleKey)),
-    ] as EventModuleKey[];
-    // Default sub-options per target module: the same value the per-event add
-    // path used, computed once instead of per (event × module) pair.
-    const defaults = new Map<EventModuleKey, Prisma.InputJsonValue>(
-      desired.map((key) => [
-        key,
-        parseModuleSettings(key, undefined) as Prisma.InputJsonValue,
-      ]),
+    await prisma.$transaction((tx) =>
+      setModulesForEvents(tx, eventIds, modules),
     );
-    await prisma.$transaction(async (tx) => {
-      await tx.eventConfig_Module.deleteMany({
-        where: {
-          eventId: { in: eventIds },
-          // Empty target set = expose nothing: drop every module (no key filter).
-          ...(desired.length ? { moduleKey: { notIn: desired } } : {}),
-        },
-      });
-      if (desired.length === 0) return;
-      await tx.eventConfig_Module.createMany({
-        data: eventIds.flatMap((eventId) =>
-          desired.map((moduleKey) => ({
-            eventId,
-            moduleKey,
-            settings: defaults.get(moduleKey),
-          })),
-        ),
-        skipDuplicates: true,
-      });
-    });
   },
 
   /**
-   * Shows or hides many events in the dev workspace at once (the `devActivatedAt`
-   * gate). Admin-only, cross-campus: the ids are the authority. On activate only
-   * the not-yet-activated rows are stamped, so an already-activated event keeps
-   * its original instant; deactivate clears them all.
-   *
-   * Activation skips events that expose no module: flipping their gate would
-   * surface nothing (no "Espace dev" badge, absent from the dev switcher - same
-   * rule as `resolveWorkspaceEvents`), so a bulk activate that appeared to work
-   * would silently be a no-op for them. We report how many were skipped instead.
-   * Returns `activated` = events now effectively shown (eligible, ≥1 module) and
-   * `skipped` = section-less events left untouched.
+   * Shows or hides many events in the dev workspace at once (the admin list's
+   * bulk action): {@link setActivationForEvents} in its own transaction.
    */
   async bulkSetActivation(
     eventIds: string[],
     activate: boolean,
   ): Promise<{ activated: number; skipped: number }> {
-    if (eventIds.length === 0) return { activated: 0, skipped: 0 };
-    if (!activate) {
-      await prisma.event.updateMany({
-        where: { id: { in: eventIds } },
-        data: { devActivatedAt: null },
-      });
-      return { activated: eventIds.length, skipped: 0 };
-    }
-    const eligible = await prisma.event.findMany({
-      where: { id: { in: eventIds }, ...activatableEventWhere },
-      select: { id: true },
-    });
-    const eligibleIds = eligible.map((e) => e.id);
-    if (eligibleIds.length > 0) {
-      await prisma.event.updateMany({
-        where: { id: { in: eligibleIds }, devActivatedAt: null },
-        data: { devActivatedAt: new Date() },
-      });
-    }
-    return {
-      activated: eligibleIds.length,
-      skipped: eventIds.length - eligibleIds.length,
-    };
+    return prisma.$transaction((tx) =>
+      setActivationForEvents(tx, eventIds, activate),
+    );
   },
 };

@@ -191,7 +191,8 @@ Le détail qui va avec :
   propriété de la production. La migration qui ajoute la colonne date du 21
   juillet, la dernière sync du 9 : aucune n'a eu lieu depuis qu'elle existe, donc
   les `NULL` sont arithmétiquement obligatoires. Le générateur ne reproduit
-  délibérément pas ce chiffre - voir `World.enrol` et le scénario
+  délibérément pas ce chiffre - voir `World.enrol`, les statuts affichés par
+  chaque événement (`EventConfig_ShownStatus`) et le scénario
   `statuts-salesforce`.
 - Par talent : 0 pour 81, 1 pour 3 665, 2 pour 1 243, 3 pour 276, 4 et plus pour
   129 (jusqu'à 11). Soit **1,437 inscription par talent inscrit** (7 638 sur

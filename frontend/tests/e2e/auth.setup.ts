@@ -31,7 +31,7 @@ setup(
     const secret = process.env.LOAD_TEST_SECRET;
     expect(
       secret,
-      'LOAD_TEST_SECRET must be set for the E2E suite: /api/test/login-as 404s without it (see .env.test.example)',
+      'LOAD_TEST_SECRET must be set for the E2E suite: /api/test/login-as 404s without it (see .env.test.defaults)',
     ).toBeTruthy();
 
     await seedE2eData();

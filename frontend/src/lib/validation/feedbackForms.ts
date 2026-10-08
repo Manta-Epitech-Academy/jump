@@ -30,101 +30,139 @@ const FORM_STATUSES = ['draft', 'published', 'archived'] as const;
 export const IDENTITY_NOT_MULTIPLE_MESSAGE =
   'Une donnée d’identité ne peut pas être un choix multiple';
 
-export const formCreateSchema = z.object({
+/** The settings of a whole form, as the admin API's whole-form write states them. */
+export const formFields = {
   title: z.string().trim().min(1).max(200),
   // Optional, like outro: an empty intro falls back to the default greeting.
   intro: z.string().trim().max(2000).nullish(),
+  outro: z.string().trim().max(2000).nullish(),
+  personaName: z.string().trim().max(100).nullish(),
+  status: z.enum(FORM_STATUSES),
+  allowsAuthenticatedAccess: z.boolean(),
+  allowsPublicAccess: z.boolean(),
+  dashboardNudge: z.boolean(),
+};
+
+export const formCreateSchema = z.object({
+  title: formFields.title,
+  intro: formFields.intro,
 });
 
 // Partial patch for the auto-saving builder (every field optional, edited inline).
 export const formMetaPatchSchema = z.object({
-  title: z.string().trim().min(1).max(200).optional(),
-  intro: z.string().trim().max(2000).nullish(),
-  outro: z.string().trim().max(2000).nullish(),
-  personaName: z.string().trim().max(100).nullish(),
-  status: z.enum(FORM_STATUSES).optional(),
-  allowsAuthenticatedAccess: z.boolean().optional(),
-  allowsPublicAccess: z.boolean().optional(),
-  dashboardNudge: z.boolean().optional(),
+  title: formFields.title.optional(),
+  intro: formFields.intro,
+  outro: formFields.outro,
+  personaName: formFields.personaName,
+  status: formFields.status.optional(),
+  allowsAuthenticatedAccess: formFields.allowsAuthenticatedAccess.optional(),
+  allowsPublicAccess: formFields.allowsPublicAccess.optional(),
+  dashboardNudge: formFields.dashboardNudge.optional(),
 });
 
-export const sectionSchema = z.object({
+export const sectionFields = {
   title: z.string().trim().min(1).max(200),
   intro: z.string().trim().max(2000).nullish(),
-});
+};
 
-export const questionSchema = z
-  .object({
-    key: z
-      .string()
-      .trim()
-      .min(1)
-      .max(60)
-      .regex(/^[a-z0-9_]+$/, 'clé en minuscules, chiffres ou _ uniquement'),
-    sectionId: z.string().nullish(),
-    prompt: z.string().trim().min(1).max(1000),
-    type: z.enum(QUESTION_TYPES),
-    required: z.boolean().default(true),
-    identityField: z.enum(IDENTITY_FIELDS).nullish(),
-    inputKind: z.enum(INPUT_KINDS).nullish(),
-    minSelections: z.number().int().min(0).nullish(),
-    maxSelections: z.number().int().min(0).nullish(),
-    placeholder: z.string().trim().max(300).nullish(),
-  })
-  .refine((v) => v.type === 'text' || v.inputKind == null, {
-    message: 'inputKind ne vaut que pour une question texte',
-    path: ['inputKind'],
-  })
-  .refine((v) => !v.identityField || v.type !== 'multiple', {
-    message: IDENTITY_NOT_MULTIPLE_MESSAGE,
-    path: ['identityField'],
-  })
-  .refine((v) => v.type === 'multiple' || v.minSelections == null, {
-    message: 'minSelections ne vaut que pour un choix multiple',
-    path: ['minSelections'],
-  })
-  .refine((v) => v.type === 'multiple' || v.maxSelections == null, {
-    message: 'maxSelections ne vaut que pour un choix multiple',
-    path: ['maxSelections'],
-  })
-  .refine(
-    (v) =>
-      v.minSelections == null ||
-      v.maxSelections == null ||
-      v.minSelections <= v.maxSelections,
-    { message: 'min doit être ≤ max', path: ['maxSelections'] },
-  );
+export const sectionSchema = z.object(sectionFields);
 
-// Partial patch: every field optional (the editor PATCHes single fields).
-export const questionPatchSchema = z.object({
+/**
+ * The fields of one question, shared by the builder's create endpoint and the
+ * admin API's whole-form write, so a length or the key format lives once.
+ */
+export const questionFields = {
   key: z
     .string()
     .trim()
     .min(1)
     .max(60)
-    .regex(/^[a-z0-9_]+$/)
-    .optional(),
-  sectionId: z.string().nullish(),
-  prompt: z.string().trim().min(1).max(1000).optional(),
-  type: z.enum(QUESTION_TYPES).optional(),
-  required: z.boolean().optional(),
+    .regex(/^[a-z0-9_]+$/, 'clé en minuscules, chiffres ou _ uniquement'),
+  prompt: z.string().trim().min(1).max(1000),
+  type: z.enum(QUESTION_TYPES),
+  required: z.boolean().default(true),
   identityField: z.enum(IDENTITY_FIELDS).nullish(),
   inputKind: z.enum(INPUT_KINDS).nullish(),
   minSelections: z.number().int().min(0).nullish(),
   maxSelections: z.number().int().min(0).nullish(),
   placeholder: z.string().trim().max(300).nullish(),
+};
+
+type QuestionRuleInput = {
+  type: (typeof QUESTION_TYPES)[number];
+  identityField?: (typeof IDENTITY_FIELDS)[number] | null;
+  inputKind?: (typeof INPUT_KINDS)[number] | null;
+  minSelections?: number | null;
+  maxSelections?: number | null;
+};
+
+/**
+ * The rules between the fields of one whole question, applied wherever a whole
+ * question is validated. The single-field PATCH cannot carry them, which is why
+ * `feedbackFormsAdmin.ts` re-checks the identity one against the merged state.
+ */
+export function withQuestionRules<T extends z.ZodType<QuestionRuleInput>>(
+  schema: T,
+) {
+  return schema
+    .refine((v) => v.type === 'text' || v.inputKind == null, {
+      message: 'inputKind ne vaut que pour une question texte',
+      path: ['inputKind'],
+    })
+    .refine((v) => !v.identityField || v.type !== 'multiple', {
+      message: IDENTITY_NOT_MULTIPLE_MESSAGE,
+      path: ['identityField'],
+    })
+    .refine((v) => v.type === 'multiple' || v.minSelections == null, {
+      message: 'minSelections ne vaut que pour un choix multiple',
+      path: ['minSelections'],
+    })
+    .refine((v) => v.type === 'multiple' || v.maxSelections == null, {
+      message: 'maxSelections ne vaut que pour un choix multiple',
+      path: ['maxSelections'],
+    })
+    .refine(
+      (v) =>
+        v.minSelections == null ||
+        v.maxSelections == null ||
+        v.minSelections <= v.maxSelections,
+      { message: 'min doit être ≤ max', path: ['maxSelections'] },
+    );
+}
+
+export const questionSchema = withQuestionRules(
+  z.object({ ...questionFields, sectionId: z.string().nullish() }),
+);
+
+// Partial patch: every field optional (the editor PATCHes single fields).
+// `required` is restated rather than taken from `questionFields`, whose default
+// would turn an absent field into `true` and flip the question on every patch.
+export const questionPatchSchema = z.object({
+  key: questionFields.key.optional(),
+  sectionId: z.string().nullish(),
+  prompt: questionFields.prompt.optional(),
+  type: questionFields.type.optional(),
+  required: z.boolean().optional(),
+  identityField: questionFields.identityField,
+  inputKind: questionFields.inputKind,
+  minSelections: questionFields.minSelections,
+  maxSelections: questionFields.maxSelections,
+  placeholder: questionFields.placeholder,
 });
 
-export const optionSchema = z.object({
+export const optionFields = {
   label: z.string().trim().min(1).max(300),
   kind: z.enum(OPTION_KINDS).default('choice'),
   reaction: z.string().trim().max(500).nullish(),
-});
+};
 
+export const optionSchema = z.object(optionFields);
+
+// `kind` restated for the same reason as `required` above.
 export const optionPatchSchema = z.object({
-  label: z.string().trim().min(1).max(300).optional(),
+  label: optionFields.label.optional(),
   kind: z.enum(OPTION_KINDS).optional(),
-  reaction: z.string().trim().max(500).nullish(),
+  reaction: optionFields.reaction,
 });
 
 export const reorderSchema = z.object({

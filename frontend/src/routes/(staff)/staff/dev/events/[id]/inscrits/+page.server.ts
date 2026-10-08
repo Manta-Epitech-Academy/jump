@@ -57,13 +57,14 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   // Stage countdown context (same source as the dashboard prep hero): the phase
   // the workspace is showing, the effective opening instant, and the day index
   // while the stage runs.
-  const bounds = getLifecycleBounds(timezone);
+  const now = new Date();
+  const bounds = getLifecycleBounds(timezone, now);
   const status = applyPhaseOverride(
     getEventStatus(event, bounds),
     locals.stagePhaseOverride,
   );
   const eventEnd = eventEndOrDefault(event);
-  const { dayN, totalDays } = stageCountdown(event, timezone, bounds.now);
+  const { dayN, totalDays } = stageCountdown(event, timezone, now);
   const countdown = {
     status,
     openDate: composeEventStartInstant(

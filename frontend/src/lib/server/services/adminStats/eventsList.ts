@@ -3,9 +3,9 @@
  *
  * The gap this closes is not a missing figure, it is a missing address. Every
  * other answer in this folder counts events; none of them lists them, so the id
- * that twelve operations take as a parameter was obtainable only from
- * `config_unconfigured_events` (which by construction excludes anything already
- * visible), from `stats_attendance_rate` (past events only) and from
+ * that twelve operations take as a parameter was obtainable only from a list of
+ * the events still to prepare (which by construction excluded anything already
+ * visible), from a since-retired attendance rate (past events only) and from
  * `ops_emargement_coverage` (only where that section is on). An event that was
  * visible and had not happened yet - the most ordinary state an event can be in -
  * had its id in no read at all, and for a leadership token no non-past event id
@@ -22,6 +22,14 @@
  *
  * Built on `scopedEvents`, so no query is added: the view model the admin events
  * cockpit renders already carries every field either projection needs.
+ *
+ * It is also the one list of the events still to prepare (`state: to_prepare`):
+ * a second operation answering exactly that with fewer fields was retired, and
+ * the weekly digest reads this. Which is why the order is the order of what to
+ * act on rather than of the calendar: what is coming, soonest first, then what
+ * is over, most recent first. The cap then keeps the rows that matter for every
+ * filter, the list of events to prepare reads in order of urgency, and a past
+ * event never pushes an upcoming one out of the page.
  */
 
 import {
@@ -33,11 +41,15 @@ import {
 } from '$lib/domain/eventReadiness';
 import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
 import type { EventModuleKey } from '$lib/domain/eventModules';
-import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
+import {
+  HIDDEN_PARTICIPATION_DEFINITION,
+  SYNCED_PARTICIPATION_DEFINITION,
+  VISIBLE_PARTICIPATION_DEFINITION,
+} from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import type { AdminEventVM } from '$lib/server/services/events';
-import { scopedEvents } from './cohort';
+import { hiddenEnrolmentsByEvent, scopedEvents } from './cohort';
 
 /** Hard cap on the returned list, whatever the filters. */
 export const EVENTS_LIST_LIMIT = 100;
@@ -78,10 +90,16 @@ export type EventConfigRow = EventIdentity & {
   configStateLabel: string;
   modules: EventModuleKey[];
   feedbackFormId: string | null;
+  /** The Salesforce statuses the dev space shows for this event. */
+  shownStatuses: string[];
   /** What is not filled in yet. Descriptive: see `activationBlockers`. */
   missing: string[];
   /** What actually stops it from being made visible. Empty = nothing does. */
   activationBlockers: string[];
+  /** Synced into Jump but masked from the dev space, beside `participants`. */
+  hiddenFromDevSpace: number;
+  /** Everything Jump holds for the event, shown or masked. */
+  syncedEnrolments: number;
 };
 
 export type EventsList<Row> = {
@@ -112,7 +130,18 @@ const identityOf = (event: AdminEventVM): EventIdentity => ({
 });
 
 const IDENTITY_DEFINITION =
-  "Un événement par ligne, du plus récent au plus ancien par date de début. « eventId » est l'identifiant à passer aux opérations qui prennent un événement en filtre. « event » est le nom que voient les équipes et les talents. « status » vaut upcoming (à venir), ongoing (en cours) ou past (terminé), calculé dans le fuseau horaire du campus.";
+  "Un événement par ligne : d'abord ceux à venir ou en cours, du plus proche au plus lointain, puis ceux qui sont terminés, du plus récent au plus ancien. « eventId » est l'identifiant à passer aux opérations qui prennent un événement en filtre. « event » est le nom que voient les équipes et les talents. « status » vaut upcoming (à venir), ongoing (en cours) ou past (terminé), calculé dans le fuseau horaire du campus.";
+
+/**
+ * What is coming first, soonest first; then what is over, most recent first.
+ * See the header for why the list is not in calendar order.
+ */
+function byActionability(a: AdminEventVM, b: AdminEventVM): number {
+  const aPast = a.status === 'past';
+  const bPast = b.status === 'past';
+  if (aPast !== bPast) return aPast ? 1 : -1;
+  return aPast ? b.dateTs - a.dateTs : a.dateTs - b.dateTs;
+}
 
 /** The rows a scope selects, filtered and capped once for both projections. */
 async function selectEvents(
@@ -121,12 +150,14 @@ async function selectEvents(
 ): Promise<{ matching: AdminEventVM[]; page: AdminEventVM[] }> {
   const { events } = await scopedEvents(scope);
 
-  const matching = events.filter((event) => {
-    if (params.status && event.status !== params.status) return false;
-    if (!params.state) return true;
-    if (params.state === 'to_prepare') return isEventToPrepare(event);
-    return event.configState === params.state;
-  });
+  const matching = events
+    .filter((event) => {
+      if (params.status && event.status !== params.status) return false;
+      if (!params.state) return true;
+      if (params.state === 'to_prepare') return isEventToPrepare(event);
+      return event.configState === params.state;
+    })
+    .sort(byActionability);
 
   return { matching, page: matching.slice(0, EVENTS_LIST_LIMIT) };
 }
@@ -152,22 +183,29 @@ export async function getEventsConfigList(
   params: EventsListParams = {},
 ): Promise<EventsList<EventConfigRow>> {
   const { matching, page } = await selectEvents(scope, params);
+  const hidden = await hiddenEnrolmentsByEvent(page.map((event) => event.id));
 
   return {
     filters: labels(scope, params),
     events: metric(matching.length, countDefinition),
     list: metric(
-      page.map((event) => ({
-        ...identityOf(event),
-        salesforceName: event.titre,
-        configState: event.configState,
-        configStateLabel: EVENT_CONFIG_STATE_LABELS[event.configState],
-        modules: event.modules,
-        feedbackFormId: event.feedbackFormId || null,
-        missing: eventMissingConfig(event),
-        activationBlockers: activationBlockers(event),
-      })),
-      `${IDENTITY_DEFINITION} « configState » est l'état affiché par la page Événements de l'espace admin : unconfigured (aucune section activée), ready (configuré mais masqué) ou shown (visible dans l'espace dev). « missing » liste ce qui n'est pas renseigné, y compris ce qui n'empêche rien ; « activationBlockers » liste ce qui empêche vraiment de le rendre visible, et une liste vide veut dire qu'un simple basculement suffit. « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION}. Limité à ${EVENTS_LIST_LIMIT} lignes.`,
+      page.map((event) => {
+        const masked = hidden.get(event.id) ?? 0;
+        return {
+          ...identityOf(event),
+          salesforceName: event.titre,
+          configState: event.configState,
+          configStateLabel: EVENT_CONFIG_STATE_LABELS[event.configState],
+          modules: event.modules,
+          feedbackFormId: event.feedbackFormId || null,
+          shownStatuses: event.shownStatuses,
+          missing: eventMissingConfig(event),
+          activationBlockers: activationBlockers(event),
+          hiddenFromDevSpace: masked,
+          syncedEnrolments: event.participations + masked,
+        };
+      }),
+      `${IDENTITY_DEFINITION} « configState » est l'état affiché par la page Événements de l'espace admin : unconfigured (aucune section activée), ready (configuré mais masqué) ou shown (visible dans l'espace dev). « missing » liste ce qui n'est pas renseigné, y compris ce qui n'empêche rien ; « activationBlockers » liste ce qui empêche vraiment de le rendre visible, et une liste vide veut dire qu'un simple basculement suffit. « shownStatuses » liste les statuts Salesforce dont l'espace dev affiche les inscriptions sur cet événement. « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION}. « hiddenFromDevSpace » compte les ${HIDDEN_PARTICIPATION_DEFINITION} « syncedEnrolments » compte les ${SYNCED_PARTICIPATION_DEFINITION} Limité à ${EVENTS_LIST_LIMIT} lignes.`,
     ),
     truncated: matching.length > EVENTS_LIST_LIMIT,
   };
@@ -188,7 +226,7 @@ export async function getEventsDirectory(
     events: metric(matching.length, countDefinition),
     list: metric(
       page.map(identityOf),
-      `${IDENTITY_DEFINITION} « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION} : c'est le nombre d'inscrits, pas le nombre de personnes venues, qui se lit avec stats_attendance_rate. Limité à ${EVENTS_LIST_LIMIT} lignes.`,
+      `${IDENTITY_DEFINITION} « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION} : c'est le nombre d'inscrits, pas le nombre de personnes venues. Limité à ${EVENTS_LIST_LIMIT} lignes.`,
     ),
     truncated: matching.length > EVENTS_LIST_LIMIT,
   };

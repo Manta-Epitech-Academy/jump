@@ -39,7 +39,7 @@
 #
 # Provisioning is not this script's job: .githooks/post-checkout fires on the
 # `git worktree add` below and runs frontend/scripts/setup-worktree.sh, which
-# links .env, seeds .env.test and installs the deps.
+# links .env and installs the deps.
 #
 # Contract when it runs as the hook, verified against Claude Code 2.1.269 rather
 # than taken from the published hook reference, which documents a nested

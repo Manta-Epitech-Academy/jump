@@ -29,7 +29,7 @@
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
-import { getUnconfiguredEvents } from '$lib/server/services/adminStats/unconfiguredEvents';
+import { getEventsConfigList } from '$lib/server/services/adminStats/eventsList';
 import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
 import { getDataFreshness } from '$lib/server/services/adminStats/dataFreshness';
 import {
@@ -73,6 +73,8 @@ export type AdminDigest = {
   summary: {
     eventsToPrepare: number;
     unresolvedSyncErrors: number;
+    prunesHeldEvents: number;
+    unrecognisedSfStatuses: number;
     lastSyncAgeHours: number | null;
     failedPdfJobs: number;
     overdueDeletionRequests: number;
@@ -96,7 +98,9 @@ const link = (href: string, label: string) =>
 export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   const [events, sync, freshness, pdfJobs, deletions, adoption] =
     await Promise.all([
-      getUnconfiguredEvents(),
+      // The events still to prepare, soonest first: the same list
+      // `config_events` answers with `state: to_prepare`.
+      getEventsConfigList({}, { state: 'to_prepare' }),
       getSyncHealth(),
       getDataFreshness(),
       getPdfJobsHealth(),
@@ -112,10 +116,10 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   const onboardingPdfsUrl = `${baseUrl}/staff/admin/onboarding-pdfs`;
   const accountDeletionsUrl = `${baseUrl}/staff/admin/account-deletions`;
 
-  const toPrepare = events.toPrepare.value;
-  const listed = events.events.value.slice(0, LISTED_EVENTS);
+  const toPrepare = events.events.value;
+  const listed = events.list.value.slice(0, LISTED_EVENTS);
   // Counted off the total, NOT off the returned list: that list is itself capped
-  // at UNCONFIGURED_EVENTS_LIMIT, so subtracting from its length made the mail
+  // at EVENTS_LIST_LIMIT, so subtracting from its length made the mail
   // contradict its own lead ("200 événements demandent une action" above a table
   // of 15 plus "et 85 autres") as soon as the cap was reached.
   const remaining = toPrepare - listed.length;
@@ -126,12 +130,15 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   // a pass that is simply not due yet.
   const last = freshness.value;
   const unresolvedErrors = sync.unresolvedErrors.value;
+  const prunesHeld = sync.prunesHeldEvents.value;
+  const unrecognisedStatuses = sync.unrecognisedStatuses.value;
+  const unrecognisedEvents = sync.unrecognisedStatusEvents.value.length;
 
   const eventRows = listed
     .map(
       (e) => `
         <tr>
-          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.titre)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.salesforceName)}</td>
           <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.campus)}</td>
           <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.dateLabel)}</td>
           <td style="padding:6px 10px;border-bottom:1px solid ${BORDER};">${escapeHtml(e.missing.join(', ') || e.configStateLabel)}</td>
@@ -183,10 +190,29 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
         ? 'Aucune erreur en attente.'
         : '';
 
+  // A held prune fails nothing, so without this line it reaches nobody: the run
+  // closes ok and the freshness above reads healthy. Its two ways out are a
+  // member's sync error (the page linked) or confirming that the campaign was
+  // emptied, which only the admin API can do.
+  const prunesHeldLine =
+    prunesHeld > 0
+      ? `<strong>${prunesHeld}</strong> ${plural(prunesHeld, 'événement garde', 'événements gardent')} des inscriptions qu'une reprise complète n'a pas pu confirmer comme retirées de Salesforce, et rien n'y est supprimé sans preuve. Des membres non rattachés se traitent sur ${link(syncErrorsUrl, 'la page dédiée')} ; une campagne réellement vidée se confirme par l'API d'administration.`
+      : '';
+
+  // Same reason as the held prunes: a status Jump does not know fails nothing,
+  // it only masks the enrolment from the dev space, and that is how every
+  // attendee went missing for a month before anyone saw it (#368).
+  const unrecognisedStatusesLine =
+    unrecognisedStatuses > 0
+      ? `<strong>${unrecognisedStatuses}</strong> ${plural(unrecognisedStatuses, 'inscription porte', 'inscriptions portent')} un statut Salesforce que Jump ne connaît pas, sur ${unrecognisedEvents}${sync.unrecognisedStatusEventsTruncated ? ' événements ou plus' : ` ${plural(unrecognisedEvents, 'événement', 'événements')}`} : ${plural(unrecognisedStatuses, 'elle est bien dans Jump mais masquée', 'elles sont bien dans Jump mais masquées')} de l'espace dev. Les statuts reçus et les événements concernés se lisent par l'API d'administration.`
+      : '';
+
   const syncSection = `
     <p style="margin:0 0 8px;">
       ${syncStateLine}
       ${syncErrorsLine}
+      ${prunesHeldLine}
+      ${unrecognisedStatusesLine}
     </p>`;
 
   // Two queues nothing else chases. A failed document means a talent has no
@@ -288,7 +314,7 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     `Événements à préparer : ${toPrepare}`,
     ...listed.map(
       (e) =>
-        `  - ${e.titre} (${e.campus}, ${e.dateLabel}) : ${e.missing.join(', ') || e.configStateLabel}`,
+        `  - ${e.salesforceName} (${e.campus}, ${e.dateLabel}) : ${e.missing.join(', ') || e.configStateLabel}`,
     ),
     remaining > 0 ? `  ... et ${remaining} autre(s).` : '',
     toPrepare > 0 ? `  Voir : ${eventsUrl}` : '',
@@ -324,6 +350,12 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     !last || last.stale ? `  Voir : ${dashboardUrl}` : '',
     `Erreurs de synchronisation à arbitrer : ${unresolvedErrors}`,
     unresolvedErrors > 0 ? `  Voir : ${syncErrorsUrl}` : '',
+    prunesHeld > 0
+      ? `Événements dont une reprise complète a conservé des inscriptions faute de preuve : ${prunesHeld}`
+      : '',
+    unrecognisedStatuses > 0
+      ? `Inscriptions à un statut Salesforce inconnu de Jump, masquées de l'espace dev : ${unrecognisedStatuses}`
+      : '',
   ].filter(Boolean);
 
   return {
@@ -333,6 +365,8 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     summary: {
       eventsToPrepare: toPrepare,
       unresolvedSyncErrors: unresolvedErrors,
+      prunesHeldEvents: prunesHeld,
+      unrecognisedSfStatuses: unrecognisedStatuses,
       lastSyncAgeHours: last?.ageHours ?? null,
       failedPdfJobs,
       overdueDeletionRequests: overdueDeletions,

@@ -2,12 +2,16 @@
 # Provision a git worktree for local development.
 #
 # Git worktrees share the repo's history but NOT untracked files or
-# node_modules, so a freshly-added worktree has no `.env`, no `.env.test` and no
-# installed deps. This links the `.env` from the main checkout, seeds
-# `.env.test` from the example, and installs the frontend deps (whose
-# postinstall regenerates the Prisma client).
+# node_modules, so a freshly-added worktree has no `.env` and no installed deps.
+# This links the `.env` from the main checkout and installs the frontend deps
+# (whose postinstall regenerates the Prisma client).
 #
-# Safe to re-run: neither file is written when it already exists, and `bun
+# The test environment is NOT provisioned here any more, and that is the point:
+# `frontend/.env.test.defaults` is tracked, so a worktree already has it, and
+# `with-test-db.sh` sources it directly. Seeding a per-worktree copy is what let
+# a new variable reach every developer and never CI.
+#
+# Safe to re-run: the link is not rewritten when it already exists, and `bun
 # install` is a no-op when already up to date. Invoked automatically by
 # .githooks/post-checkout on worktree creation, or manually via
 # `bun run setup:worktree`.
@@ -67,16 +71,6 @@ fi
 if [ ! -e "$repo_root/.env" ] && [ -f "$main_root/.env" ]; then
   ln -s "$main_root/.env" "$repo_root/.env"
   echo "[setup-worktree] linked .env from $main_root"
-fi
-
-# `.env.test` deliberately carries no DATABASE_URL, PORT or ORIGIN: with-test-db.sh
-# computes those per worktree and exports them last so they win. The example is
-# therefore the whole file, not a template to fill in, which is what makes
-# copying it the correct provisioning step. Skipping it fails the E2E leg of
-# `bun run verify` on BETTER_AUTH_SECRET, a long way from the cause.
-if [ ! -e "$repo_root/frontend/.env.test" ] && [ -f "$repo_root/frontend/.env.test.example" ]; then
-  cp "$repo_root/frontend/.env.test.example" "$repo_root/frontend/.env.test"
-  echo "[setup-worktree] seeded frontend/.env.test from .env.test.example"
 fi
 
 echo "[setup-worktree] installing frontend deps…"

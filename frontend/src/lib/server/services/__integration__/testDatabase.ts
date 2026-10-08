@@ -15,7 +15,7 @@ export function assertTestDatabase(): void {
     throw new Error(
       `Refusing to run integration tests against a non-test database ` +
         `(DATABASE_URL=${url || '(unset)'}). Start docker-compose.test.yml and ` +
-        `run \`bun run test:integration\`, which loads .env.test.`,
+        `run \`bun run test:integration\`, which loads .env.test.defaults.`,
     );
   }
 }

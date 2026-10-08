@@ -281,38 +281,23 @@ export function cellOf(
   return index.get(cellKey(talentId, day, slot)) ?? PENDING_CELL;
 }
 
-export interface EffectiveStatusContext {
-  sfMemberStatus?: string | null;
-  /** True for single-day events (e.g. 1-day Coding Clubs with 2 slots: morning/afternoon). */
-  isSingleDayEvent?: boolean;
-}
-
 /**
  * Project a cell's displayed status. A still-unmarked talent ("pending") in a
  * CLOSED créneau reads as absent: absence is derived from closure (manual close
  * or the 11h/15h cutoff having passed), never stored as a row. Any stored status
  * (present/late/excused, or a manual absent) wins as-is.
  *
- * Fallback: for single-day events (e.g. 1-day Coding Clubs) where no manual Jump
- * mark was made, if Salesforce marked the participant as MEET, project 'present'.
+ * Only what was marked in Jump counts. A Salesforce status never stands in for a
+ * mark: a sheet that nobody filled in reads as absent rather than borrowing a
+ * presence from another system, and an event nobody marks in Jump is one whose
+ * émargement module should be off.
  */
 export function effectiveStatus(
   stored: CellStatus,
   slotClosed: boolean,
-  context?: EffectiveStatusContext,
 ): CellStatus {
   if (stored !== 'pending') return stored;
-  if (!slotClosed) return 'pending';
-
-  if (
-    context?.isSingleDayEvent &&
-    context?.sfMemberStatus &&
-    context.sfMemberStatus.trim().toUpperCase() === 'MEET'
-  ) {
-    return 'present';
-  }
-
-  return 'absent';
+  return slotClosed ? 'absent' : 'pending';
 }
 
 export interface SlotStats {

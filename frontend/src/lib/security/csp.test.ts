@@ -16,7 +16,7 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { frameSrcDirective, LOCKED_DOWN_CSP } from './csp';
+import { formActionDirective, frameSrcDirective, LOCKED_DOWN_CSP } from './csp';
 
 /** Every file under a directory tree, recursively. */
 function walk(dir: string, out: string[] = []): string[] {
@@ -129,6 +129,60 @@ describe('frame-src, the directive still computed per request', () => {
   it('falls back to the wildcards on a malformed URL rather than throwing', () => {
     expect(frameSrcDirective('not a url')).toBe(frameSrcDirective(undefined));
     expect(frameSrcDirective('')).toBe(frameSrcDirective(undefined));
+  });
+});
+
+describe('form-action, the directive the activities made per request', () => {
+  it('allows nothing but this origin when no activity is curated', () => {
+    expect(formActionDirective([])).toBe("form-action 'self'");
+  });
+
+  /**
+   * The case it exists for. Entering an activity is a POST whose 303 leaves for
+   * a CTFd instance, and Chrome applies `form-action` to the redirect as well as
+   * to the submit, so without the origin the browser blocks the submit and
+   * reports it against the same-origin action URL.
+   */
+  it('names each curated instance origin', () => {
+    const directive = formActionDirective([
+      'https://pacman.ealab.duckdns.org',
+      'http://127.0.0.1:8080',
+    ]);
+    expect(directive).toContain("'self'");
+    expect(directive).toContain('https://pacman.ealab.duckdns.org');
+    expect(directive).toContain('http://127.0.0.1:8080');
+  });
+
+  /** The origin, not the URL: a path would make the whole directive invalid. */
+  it('reduces a base URL to its origin, and says each one once', () => {
+    expect(
+      formActionDirective([
+        'https://pacman.ealab.duckdns.org/jump/enter?t=x',
+        'https://pacman.ealab.duckdns.org',
+      ]),
+    ).toBe("form-action 'self' https://pacman.ealab.duckdns.org");
+  });
+
+  /**
+   * A malformed `baseUrl` must cost one activity that will not open, never a
+   * request that 500s and never a policy that fails open.
+   */
+  it('drops an unparseable base URL rather than throwing', () => {
+    expect(formActionDirective(['not a url'])).toBe("form-action 'self'");
+  });
+});
+
+describe('a directive computed per request is declared nowhere else', () => {
+  /**
+   * A header repeating a directive keeps the FIRST occurrence and ignores the
+   * rest, unlike two policies, which intersect. So a `frame-src` or a
+   * `form-action` left in `kit.csp` would silently win over the computed one,
+   * and the append would read as if it worked while allowing nothing.
+   */
+  it('keeps frame-src and form-action out of kit.csp', () => {
+    const directives = code(CONFIG);
+    expect(directives).not.toMatch(/'frame-src':/);
+    expect(directives).not.toMatch(/'form-action':/);
   });
 });
 

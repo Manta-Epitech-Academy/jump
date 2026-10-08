@@ -14,8 +14,8 @@
  *
  * So the map is declared once, here, and everything else is derived from it: the
  * `.describe()` a model reads before choosing a tool, the French sentence a
- * refusal ends with, what `meta_operations` publishes as `requires` / `provides`,
- * and the guard in `handles.test.ts` that fails when a parameter has no producer
+ * refusal ends with, and the guard in `handles.test.ts` that fails when a
+ * parameter has no producer
  * **its own tier can call**. That last clause is the one that matters: the hole
  * this closes had already happened once, when `stats_feedback_results` required a
  * form id obtainable only from a configuration answer national leadership cannot
@@ -39,11 +39,14 @@ export type HandleKind =
   | 'pdfJobId'
   | 'syncErrorType'
   | 'salesforceCampaignId'
+  | 'sfStatus'
   | 'moduleKey'
   | 'closingTemplateId'
   | 'closingTemplateKey'
   | 'closingQuestionKey'
   | 'closingId'
+  | 'workshopSlug'
+  | 'workshopInstanceSlug'
   | 'usageFeatureKey';
 
 /**
@@ -55,7 +58,8 @@ export type HandleKind =
  * non-empty list in it, and half these lists are empty on any seeded fixture, so
  * the check would have passed on the rows it never reached - a guard that cannot
  * fail, guarding a comment that claimed it did. `covers` earns its place instead
- * by being read: it goes into the `describe()` a model sees.
+ * by being read: wherever a partial producer is named, its slice is named with
+ * it.
  */
 type Producer = {
   operation: AdminApiOperationName;
@@ -65,6 +69,15 @@ type Producer = {
    * it only covers past events is how a parameter looks reachable and is not.
    */
   covers?: string;
+  /**
+   * Set on a partial producer that is the only kind of source some tier can
+   * call, which is the one case where a reader has to be told about it: every
+   * other caller is better served by the producer that returns all of them.
+   * Declared rather than derived because the tiers live on the catalogue, which
+   * is still being built when these sentences are; `handles.test.ts` derives it
+   * from the catalogue and fails when this says otherwise, in either direction.
+   */
+  soleSource?: true;
 };
 
 type Handle = {
@@ -100,6 +113,20 @@ export const HANDLES: Record<HandleKind, Handle> = {
     producedBy: [{ operation: 'stats_feature_usage' }],
   },
 
+  workshopSlug: {
+    what: 'Activity slug, the stable key of one content a CTFd instance serves, exactly as that instance names it.',
+    frNoun: "clés d'activité",
+    frGender: 'f',
+    producedBy: [{ operation: 'config_workshops' }],
+  },
+
+  workshopInstanceSlug: {
+    what: 'Instance slug, the stable key of one deployed CTFd host, whatever content it serves.',
+    frNoun: "clés d'instance",
+    frGender: 'f',
+    producedBy: [{ operation: 'config_workshops' }],
+  },
+
   eventId: {
     what: 'Event id.',
     frNoun: "identifiants d'événement",
@@ -107,14 +134,6 @@ export const HANDLES: Record<HandleKind, Handle> = {
     producedBy: [
       { operation: 'config_events' },
       { operation: 'stats_events' },
-      {
-        operation: 'config_unconfigured_events',
-        covers: 'only events that still need work before their cohort arrives',
-      },
-      {
-        operation: 'stats_attendance_rate',
-        covers: 'only events that have already happened',
-      },
       {
         operation: 'ops_emargement_coverage',
         covers: 'only events with the attendance section enabled',
@@ -129,6 +148,11 @@ export const HANDLES: Record<HandleKind, Handle> = {
         covers:
           'only when grouped by event, and only events whose grid asks the question asked about',
       },
+      {
+        operation: 'stats_sync_health',
+        covers:
+          'only events whose deletions the last full synchronisation pass held back (prunesHeld), or that hold an enrolment whose Salesforce status Jump does not know (unrecognisedStatusEvents)',
+      },
     ],
   },
   formId: {
@@ -137,14 +161,26 @@ export const HANDLES: Record<HandleKind, Handle> = {
     frGender: 'm',
     producedBy: [
       { operation: 'config_feedback_forms' },
-      { operation: 'stats_feedback_results' },
+      // The leadership tier's source, for the same reason as the closing
+      // question key below: the catalogue read above is core-only.
+      {
+        operation: 'stats_feedback_results',
+        covers: 'only questionnaires attached to an event in scope, capped',
+        soleSource: true,
+      },
     ],
   },
   questionKey: {
     what: 'A question\'s stable key inside its form, e.g. "reco". Its wording is not an identifier: it is phrased for students and editable per form.',
     frNoun: 'clés de question',
     frGender: 'f',
-    producedBy: [{ operation: 'stats_feedback_results' }],
+    producedBy: [
+      { operation: 'stats_feedback_results' },
+      {
+        operation: 'config_feedback_forms',
+        covers: 'with formId, every question of that form, answered or not',
+      },
+    ],
   },
   templateName: {
     what: 'Event configuration preset name, which is what identifies it.',
@@ -178,6 +214,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
       {
         operation: 'ops_pdf_jobs_health',
         covers: 'only jobs that can be retried, and only the most recent ones',
+        soleSource: true,
       },
     ],
   },
@@ -196,6 +233,22 @@ export const HANDLES: Record<HandleKind, Handle> = {
         operation: 'config_sync_sources',
         covers:
           'only the campaigns already in the perimeter; a new one is copied from its URL in Salesforce',
+        soleSource: true,
+      },
+    ],
+  },
+  sfStatus: {
+    what: 'Salesforce member status word, as Salesforce sends it (e.g. READY).',
+    frNoun: 'statuts Salesforce',
+    frGender: 'm',
+    producedBy: [
+      // The catalogue and every word actually received, known or not: the one
+      // place a new word Salesforce started sending is read before anybody
+      // adds it.
+      { operation: 'stats_sync_health' },
+      {
+        operation: 'config_event_detail',
+        covers: 'only the statuses that event shows',
       },
     ],
   },
@@ -205,7 +258,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
     frGender: 'f',
     producedBy: [
       { operation: 'config_event_detail' },
-      { operation: 'stats_events_overview' },
+      { operation: 'config_campus_overview' },
     ],
   },
   closingTemplateId: {
@@ -236,6 +289,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
         operation: 'stats_closing_insights',
         covers:
           'only the questions the grids in scope actually ask, and never one answered in free text',
+        soleSource: true,
       },
     ],
   },
@@ -259,8 +313,8 @@ export const HANDLES: Record<HandleKind, Handle> = {
  * not only on this map: two operations may not spell two different things the
  * same way. That is why the closing bank's key is `questionKey` wherever it is
  * taken and `question` is the feedback form's - spelling both `question` did not
- * fail here, it silently told `meta_operations` that `stats_closing_question`
- * needed a value only `stats_feedback_results` hands out. `describeMismatches`
+ * fail here, it silently published that `stats_closing_question` needed a value
+ * only `stats_feedback_results` hands out. `describeMismatches`
  * in `handles.test.ts` is what now refuses that, by comparing each parameter's
  * own `describe()` against the handle this map claims for it.
  */
@@ -268,23 +322,33 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   feature: 'usageFeatureKey',
   eventId: 'eventId',
   formId: 'formId',
+  // The event configuration names each reference after the column it sets, so
+  // the three sit side by side unambiguously in one write.
+  feedbackFormId: 'formId',
   // The feedback form's question key. The closing bank's is `questionKey`, below.
   question: 'questionKey',
-  templateName: 'templateName',
-  // `write_event_template` spells it `name`: the same preset name, which the
-  // operation either creates or overwrites.
+  // The preset name, which `write_event_template` either creates or
+  // overwrites. Nothing applies a preset by name: applying one is copying its
+  // values, which `config_event_templates` returns.
   name: 'templateName',
   // Only the certificate operations take a bare `code` today, and this map is
   // keyed by parameter name across the whole catalogue: a second, unrelated
   // `code` would need one of the two renamed rather than a second entry here.
   code: 'diplomaCode',
-  templateId: 'diplomaTemplateId',
+  diplomaTemplateId: 'diplomaTemplateId',
   jobId: 'pdfJobId',
   errorType: 'syncErrorType',
   salesforceCampaignId: 'salesforceCampaignId',
   modules: 'moduleKey',
-  // The event binding takes an id, like the certificate one beside it; authoring
-  // takes a key, like `write_diploma_template`'s `code`. Both are produced by the
+  // Salesforce status words: the list an event shows (a complete set, like
+  // `modules`), the catalogue entry one write authors, and the two halves of a
+  // bulk add/remove. `status` alone is taken by the event-status filter.
+  shownStatuses: 'sfStatus',
+  memberStatus: 'sfStatus',
+  showStatuses: 'sfStatus',
+  hideStatuses: 'sfStatus',
+  // The event configuration takes an id, like the certificate one beside it;
+  // authoring takes a key, like `write_diploma_template`'s `code`. Both are produced by the
   // same configuration read, which returns a grid's id and its key together.
   closingTemplateId: 'closingTemplateId',
   templateKey: 'closingTemplateKey',
@@ -292,6 +356,16 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // writes alike, precisely because `question` is taken. See the note above.
   questionKey: 'closingQuestionKey',
   closingId: 'closingId',
+  // The activity catalogue's own key, on the write that authors one. Nothing else
+  // in the catalogue takes a bare `slug`, and this map is keyed by parameter name
+  // across the whole catalogue: a second, unrelated `slug` would need one of the
+  // two renamed rather than a second entry here. That is why the host an activity
+  // runs on is `instance` and not a second `slug`.
+  slug: 'workshopSlug',
+  instance: 'workshopInstanceSlug',
+  // The ordered list an event offers, whose entries are addressed by the same
+  // slug, exactly as `modules` is a list addressed by module key.
+  workshops: 'workshopSlug',
 };
 
 const list = (parts: string[]) =>
@@ -300,18 +374,31 @@ const list = (parts: string[]) =>
     : `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}`;
 
 /**
- * The English sentence a model reads on the parameter: what the value is, and
- * every operation that hands one out with the slice it covers.
+ * The producers a parameter and a refusal name: every one that returns all of
+ * them, and a partial one only where it is some tier's sole source.
  *
- * Every producer, not the one that comes to mind. Pointing an event id at
- * `config_unconfigured_events` alone is what left the parameter unusable for
- * anything already visible, and the reader had no way to know.
+ * Not every producer. Each partial one is a slice ("only events with the
+ * attendance section enabled") that concerns the read returning it, not the
+ * parameter taking it, and naming them all cost a sentence of several hundred
+ * characters on every parameter that took an event id - repeated in seventeen
+ * tools, each of which then matched a search for any one of those reads. What
+ * the reader needs is a source that covers everything, which is also what the
+ * incident behind this registry lacked: an event id pointed at the list of
+ * events still to prepare alone, and unusable for anything already visible.
+ */
+function namedProducers(handle: Handle): Producer[] {
+  return handle.producedBy.filter((p) => !p.covers || p.soleSource);
+}
+
+/**
+ * The English sentence a model reads on the parameter: what the value is, and
+ * where to get one.
  */
 export function handleDescribe(kind: HandleKind): string {
   const handle = HANDLES[kind];
   if (handle.unobtainable) return `${handle.what} ${handle.unobtainable.why}`;
 
-  const sources = handle.producedBy
+  const sources = namedProducers(handle)
     .map((p) => (p.covers ? `${p.operation} (${p.covers})` : p.operation))
     .join(', ');
   return `${handle.what} Returned by: ${sources}.`;
@@ -328,28 +415,9 @@ export function handleDescribe(kind: HandleKind): string {
 export function handleProvenanceFr(kind: HandleKind): string {
   const handle = HANDLES[kind];
   if (handle.unobtainable) return handle.unobtainable.frSentence;
-  const ops = list(handle.producedBy.map((p) => p.operation));
+  const named = namedProducers(handle);
+  const ops = list(named.map((p) => p.operation));
   return `Les ${handle.frNoun} sont ${
     handle.frGender === 'f' ? 'renvoyées' : 'renvoyés'
-  } par ${
-    handle.producedBy.length > 1 ? 'les opérations' : "l'opération"
-  } ${ops}.`;
-}
-
-/** The handles an operation hands out, for `meta_operations`. */
-export function handlesProvidedBy(name: AdminApiOperationName): HandleKind[] {
-  return (Object.keys(HANDLES) as HandleKind[]).filter((kind) =>
-    HANDLES[kind].producedBy.some((p) => p.operation === name),
-  );
-}
-
-/** The handles an operation's parameters consume, for `meta_operations`. */
-export function handlesRequiredBy(paramNames: string[]): HandleKind[] {
-  return [
-    ...new Set(
-      paramNames
-        .map((param) => PARAM_HANDLES[param])
-        .filter((kind): kind is HandleKind => kind !== undefined),
-    ),
-  ];
+  } par ${named.length > 1 ? 'les opérations' : "l'opération"} ${ops}.`;
 }

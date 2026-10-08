@@ -61,22 +61,22 @@
 
 import { z } from 'zod';
 import type { AdminApi_TokenTier } from '@prisma/client';
-import { EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
+import {
+  EVENT_MODULES,
+  EVENT_MODULE_KEYS,
+  type EventModuleKey,
+} from '$lib/domain/eventModules';
 import { isCalendarDay, isWallClock } from '$lib/domain/planningTime';
+import {
+  HIGHLIGHT_SUMMARY_MAX,
+  HIGHLIGHT_TITLE_MAX,
+  TALENT_HOME_NOTE_MAX,
+  TALENT_HOME_NOTE_MAX_IMAGES,
+} from '$lib/domain/talentHome';
 import { resolveScope, UnknownScopeError } from './scope';
-import {
-  handleDescribe,
-  handleProvenanceFr,
-  handlesProvidedBy,
-  handlesRequiredBy,
-} from './handles';
+import { handleDescribe, handleProvenanceFr } from './handles';
 import type { WriteOutcome } from './plan';
-import { getEventsOverview } from '$lib/server/services/adminStats/eventsOverview';
 import { getOnboardingFunnel } from '$lib/server/services/adminStats/onboardingFunnel';
-import {
-  getUnconfiguredEvents,
-  UNCONFIGURED_EVENTS_LIMIT,
-} from '$lib/server/services/adminStats/unconfiguredEvents';
 import {
   getEventsConfigList,
   getEventsDirectory,
@@ -147,20 +147,19 @@ import {
   getCampusOverview,
   getFeedbackForms,
   getEventTemplates,
+  getWorkshops,
+  getTalentHomeContent,
 } from '$lib/server/services/adminStats/configuration';
 import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
+import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
 import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
+import { writeDiplomaTemplate } from './writes/diplomas';
+import { writeWorkshop, writeWorkshopInstance } from './writes/workshops';
 import {
-  writeDiplomaTemplate,
-  writeEventDiplomaTemplate,
-} from './writes/diplomas';
-import {
-  writeEventInscritsOptions,
-  writeEventConfig,
-  writeEventActivation,
-  writeEventFeedbackForm,
-  writeEventTemplate,
-} from './writes/events';
+  writeTalentHomeHighlight,
+  writeTalentHomeNote,
+} from './writes/talentHome';
+import { writeEventConfig, writeEventTemplate } from './writes/events';
 import {
   retryPdfJob,
   resolveSyncErrorRows,
@@ -169,18 +168,23 @@ import {
   resetClosingById,
   SCHOOL_RESOLVE_LIMIT,
 } from './writes/ops';
-import { writeSyncCadence, writeSyncSource } from './writes/sync';
 import {
-  writeClosingQuestion,
-  writeClosingTemplate,
-  writeEventClosingTemplate,
-} from './writes/closings';
+  releasePruneHold,
+  requestSync,
+  writeSyncCadence,
+  writeSyncMemberStatus,
+  writeSyncSource,
+} from './writes/sync';
+import { writeClosingQuestion, writeClosingTemplate } from './writes/closings';
+import { writeFeedbackForm, copyFeedbackForm } from './writes/feedbackForms';
 import {
-  bulkEventModules,
-  bulkEventActivation,
-  bulkApplyEventTemplate,
-  BULK_EVENTS_LIMIT,
-} from './writes/bulk';
+  formFields,
+  optionFields,
+  questionFields,
+  sectionFields,
+  withQuestionRules,
+} from '$lib/validation/feedbackForms';
+import { bulkEventConfig, BULK_EVENTS_LIMIT } from './writes/bulk';
 import {
   getEmargementCoverage,
   EMARGEMENT_EVENTS_LIMIT,
@@ -195,10 +199,6 @@ import {
   BROADCASTS_DEFAULT_DAYS,
   BROADCASTS_MAX_DAYS,
 } from '$lib/server/services/adminStats/opsQueues';
-import {
-  getAttendanceRate,
-  ATTENDANCE_EVENTS_LIMIT,
-} from '$lib/server/services/adminStats/attendanceRate';
 import {
   getFeatureUsage,
   getFeatureAdoptionGaps,
@@ -270,8 +270,8 @@ const eventStatus = z
     'Keep only events at this point of their life: upcoming, ongoing or past. Omit for every event.',
   );
 
-// Every source is named, with the slice it covers, and generated from
-// `handles.ts`. This describe used to name one operation that by construction
+// Generated from `handles.ts`, which names the sources that return every event
+// for each tier. This describe used to name one operation that by construction
 // excludes anything already visible, which left the parameter unusable for the
 // commonest state an event can be in - and unusable outright for a leadership
 // token, whose only source returned past events.
@@ -290,7 +290,7 @@ export type AdminApiTier = AdminApi_TokenTier;
 /**
  * What an operation is told about its caller.
  *
- * `tier` decides what a read may describe (see `meta_operations`).
+ * `tier` is the tier of the credential that called.
  * `actorUserId` is the `bauth_user.id` behind the call - the token's owner, or
  * the signed-in admin - which the writes that record accountability elsewhere
  * need: a closing reset stamps its own audit row with a staff profile, and
@@ -444,17 +444,104 @@ function defineWrite<Shape extends z.ZodRawShape>(op: {
   };
 }
 
-export const ADMIN_API_OPERATIONS = {
-  stats_events_overview: defineOperation({
-    description:
-      'Where the events stand: how many are visible in the dev workspace, ready to publish or still to configure, and how many enrolments they total. Broken down per campus and per enabled dev-workspace section. Also lists the school years that have events.',
-    shape: { schoolYear, campus },
-    run: async (params) => getEventsOverview(await resolveScope(params)),
-  }),
+/**
+ * What every picture-taking write accepts, said once so the operations cannot
+ * describe the same copy in different words (`images/remote.ts`).
+ */
+const PICTURE_RULES =
+  'Any proportion and any size: Jump downloads the picture (following redirects), keeps it whole and lays it out itself, never cropping or stretching it. PNG, JPEG, WebP or GIF, animated or not, up to 20 MB (an animated GIF up to 6 MB, since talents load it as it is on their phones); Jump shows a still of an animation to talents who asked for reduced motion. Refused, with the reason: an address that is not public, a file that is not one of those formats (an SVG, AVIF or HEIC is named as such), a picture over about 16 megapixels. An address the call already holds a copy of is not downloaded again, so restating it is free and never fails; to replace a picture, give its new address.';
 
+/**
+ * An https address of a picture Jump is to download and copy. The scheme is
+ * checked here, at the boundary, so every write that takes a picture refuses
+ * the same thing in the same words, and the service under it can be exercised
+ * against a local test server.
+ */
+const httpsPictureUrl = z
+  .string()
+  .url()
+  .refine((value) => value.startsWith('https://'), {
+    message:
+      'An https address is required: Jump downloads the picture from it.',
+  });
+
+function pictureUrl(describe: string) {
+  return httpsPictureUrl.optional().describe(describe);
+}
+
+/**
+ * One answer option of a feedback form, as `write_feedback_form` takes it and
+ * `config_feedback_forms` returns it. Strict at every depth: a misspelt
+ * `optionId` silently dropped would turn a rename into a new option.
+ */
+const feedbackOption = z
+  .strictObject({
+    optionId: z
+      .string()
+      .min(1)
+      .nullish()
+      .describe(
+        'The id config_feedback_forms returned for this option. Keep it to edit the option: a renamed option keeps the answers already given to it. Omit it to create an option.',
+      ),
+    label: optionFields.label.describe(
+      'French, what the respondent picks. Unique within its question: answers are matched on it.',
+    ),
+    kind: optionFields.kind.describe(
+      '"choice" for an ordinary option. "extra" only on a scale question, for an answer outside the scale such as "Je ne sais pas".',
+    ),
+    reaction: optionFields.reaction.describe(
+      'French line the persona says right after this option is picked. Omit for none.',
+    ),
+  })
+  // Named, so the JSON Schema a client reads defines it once and references it,
+  // rather than inlining it in every question that carries options.
+  .meta({ id: 'FeedbackOption' });
+
+const feedbackQuestion = withQuestionRules(
+  z.strictObject({
+    key: questionFields.key.describe(
+      'Stable identifier of the question in this form, lowercase letters, digits and _ only. It is what identifies the question: keep it to edit the question, a new key is a new question.',
+    ),
+    prompt: questionFields.prompt.describe(
+      'French, what the persona asks. May cite {prenom}, {nom}, {campus}, {civilite}.',
+    ),
+    type: questionFields.type.describe(
+      'single, multiple or scale take options (a scale lists them best first); text and textarea take a free answer and no options.',
+    ),
+    required: questionFields.required.describe('Defaults to true.'),
+    identityField: questionFields.identityField.describe(
+      "Makes this a question that collects the respondent's identity, asked to public respondents only (a connected talent is already known). At most one question per field, never on a multiple choice. Omit for an ordinary question.",
+    ),
+    inputKind: questionFields.inputKind.describe(
+      'Text questions only: checks the answer as an e-mail or a phone number. An identity question derives it from its field.',
+    ),
+    minSelections: questionFields.minSelections.describe(
+      'Multiple choice only: fewest options to pick.',
+    ),
+    maxSelections: questionFields.maxSelections.describe(
+      'Multiple choice only: most options to pick, no more than it has options.',
+    ),
+    placeholder: questionFields.placeholder.describe(
+      'French hint shown in an empty text field.',
+    ),
+    options: z
+      .array(feedbackOption)
+      .default([])
+      .describe('The options, in display order.'),
+  }),
+)
+  // Named for the same reason as the option: a form takes questions in two
+  // places (outside any section, and inside each one), and inlined twice the
+  // question was two thirds of this tool's whole schema.
+  .meta({ id: 'FeedbackQuestion' });
+
+/** A dev-workspace section's settings when it has no sub-option to set. */
+const noSubOptions = z.strictObject({}).optional();
+
+export const ADMIN_API_OPERATIONS = {
   stats_events: defineOperation({
     leadership: true,
-    description: `Every event of a périmètre, one row each: its id, the name teams and students see, its campus, its dates, whether it is upcoming, ongoing or past, and how many people are enrolled. Answers "what is running right now", and is where an event id comes from for the operations that take one. Capped at ${EVENTS_LIST_LIMIT} rows.`,
+    description: `Every event of a périmètre, one row each: its id, the name teams and students see, its campus, its dates, whether it is upcoming, ongoing or past, and how many enrolments the dev workspace shows for it. Answers "what is running right now", and is where an event id comes from for the operations that take one. Capped at ${EVENTS_LIST_LIMIT} rows.`,
     shape: { schoolYear, campus, status: eventStatus },
     run: async ({ status, ...scope }) =>
       getEventsDirectory(await resolveScope(scope), { status }),
@@ -467,14 +554,8 @@ export const ADMIN_API_OPERATIONS = {
     run: async (params) => getOnboardingFunnel(await resolveScope(params)),
   }),
 
-  config_unconfigured_events: defineOperation({
-    description: `Events, upcoming or ongoing, that are not visible in the dev workspace yet, soonest first, with what each one is still missing. Configuration state only, no personal data. Capped at ${UNCONFIGURED_EVENTS_LIMIT} events; the "truncated" field tells you whether the cap was reached.`,
-    shape: { schoolYear, campus },
-    run: async (params) => getUnconfiguredEvents(await resolveScope(params)),
-  }),
-
   config_events: defineOperation({
-    description: `Every event of a périmètre, one row each: its id, its public and Salesforce names, its campus, its dates, how many people are enrolled, which dev-workspace sections are on, the feedback form attached to it, its configuration state, and both what is still unset and what actually stops it from being made visible. This is where an event id comes from. Filter by campus, school year, point of life or configuration state. Capped at ${EVENTS_LIST_LIMIT} rows; "truncated" tells you whether the cap was reached.`,
+    description: `Every event of a périmètre, one row each: its id, its public and Salesforce names, its campus, its dates, how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks, which dev-workspace sections are on, the feedback form attached to it, its configuration state, and both what is still unset and what actually stops it from being made visible. This is where an event id comes from. Filter by campus, school year, point of life or configuration state. Capped at ${EVENTS_LIST_LIMIT} rows; "truncated" tells you whether the cap was reached.`,
     shape: {
       schoolYear,
       campus,
@@ -492,7 +573,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_sync_health: defineOperation({
     description:
-      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are waiting, their breakdown by kind, and the age of the oldest. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
+      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are waiting, their breakdown by kind, and the age of the oldest, and every Salesforce member status Jump holds with what the dev workspace does with it, naming the events that carry a status Jump does not know. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
     shape: {},
     run: () => getSyncHealth(),
   }),
@@ -522,7 +603,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_detail: defineOperation({
     description:
-      'Everything configured on one event: its Salesforce and public names, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form attached to it, and how many people are enrolled.',
+      'Everything configured on one event: its Salesforce and public names, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form attached to it, and how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks.',
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },
@@ -531,7 +612,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_campus_overview: defineOperation({
     description:
-      'Per campus: how many events, how many are visible in the dev workspace, how many still need work, total enrolments, the staff by role, and which dev-workspace sections are in use.',
+      'Where the events stand, in total and per campus (every campus, even one with no event in scope): how many are visible in the dev workspace, ready to publish or still to configure, how many still need work, how many enrolments the dev workspace shows, which dev-workspace sections are in use, and the staff by role.',
     shape: { schoolYear, campus },
     run: async (params) => getCampusOverview(await resolveScope(params)),
   }),
@@ -585,14 +666,41 @@ export const ADMIN_API_OPERATIONS = {
 
   config_feedback_forms: defineOperation({
     description:
-      'The feedback form catalogue: title, status (draft, published, archived), question count, response count, how many events use it, and whether it accepts public responses. Returns the form ids the other feedback operations take.',
+      'The feedback form catalogue: title, status (draft, published, archived), question count, response count, how many events use it, and whether it accepts public responses. Returns the form ids the other feedback operations take. Pass formId to also get that form whole, in the exact shape write_feedback_form takes, which is what you edit from rather than rewriting it, and the authoring rules a write enforces.',
+    shape: {
+      formId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          `${handleDescribe('formId')} Pass one to also return the whole form; omit for the catalogue alone.`,
+        ),
+    },
+    run: (params) => getFeedbackForms(params),
+  }),
+
+  config_workshops: defineOperation({
+    description:
+      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover). An instance is a host: its slug, its address and the activities declared on it, retired ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take.',
     shape: {},
-    run: () => getFeedbackForms(),
+    run: () => getWorkshops(),
+  }),
+
+  config_talent_home: defineOperation({
+    description:
+      "What each campus shows on its talents' home besides their own enrolments: the campus note (Markdown, in the news card) and the highlighted event to sign up for (title, text, day, sign-up link, the address its picture was copied from if it has one, and whether it is still shown, since it hides itself once its day has passed). Lists every campus, including those with neither, so it answers which campuses are still empty. Pass campus to read one. This is what to read before rewriting either with write_talent_home_note or write_talent_home_highlight.",
+    shape: {
+      campus: z
+        .string()
+        .optional()
+        .describe('Campus name, e.g. "Lille". Omit to list every campus.'),
+    },
+    run: async (params) => getTalentHomeContent(await resolveScope(params)),
   }),
 
   config_event_templates: defineOperation({
     description:
-      'Saved event-configuration presets and exactly what each one applies: sections, sub-options, public name, cohort noun, arrival time and default feedback form. Returns the names the bulk apply operation takes.',
+      'Saved event-configuration presets and exactly what each one holds: sections and their sub-options, shown Salesforce statuses, public name, cohort noun, arrival time, and the feedback form, certificate and closing grid it points at. A preset is applied by copying its values: to write_event_config for one event, or its modules and shownStatuses to bulk_event_config for many.',
     shape: {},
     run: () => getEventTemplates(),
   }),
@@ -600,7 +708,7 @@ export const ADMIN_API_OPERATIONS = {
   stats_school_year_review: defineOperation({
     leadership: true,
     description:
-      'One school year summarised for a steering review: events run, cohort size and make-up, high-school and territorial reach, real show-up rate, whether talents came back, and what they said in their closings. Pass compareTo to also get every headline figure as a movement against another year, already computed. Also returns "limites", stating in French what these figures cannot be read as. The school year is required.',
+      'One school year summarised for a steering review: events run, cohort size and make-up, high-school and territorial reach, whether talents came back, and what they said in their closings. Pass compareTo to also get every headline figure as a movement against another year, already computed. Also returns "limites", stating in French what these figures cannot be read as. The school year is required.',
     shape: {
       schoolYear: requiredSchoolYear.describe(
         'School year, e.g. "2026-2027". Required for this operation.',
@@ -621,7 +729,7 @@ export const ADMIN_API_OPERATIONS = {
   stats_campus_comparison: defineOperation({
     leadership: true,
     description:
-      'The same figure across every campus, already ranked: cohort size, share of women, completed sign-ups, real show-up rate, how many high schools each one reaches, whether talents came back, how much of the closing work is done, and the share of profiles the team judged favourably. One ranking per figure, sorted highest first, so nothing has to be ordered or divided afterwards. A campus the figure cannot be computed for is unranked rather than last - a campus that conducted no closing is not a campus without a compatible profile. The school year is required and no campus filter exists: this operation IS the cross-campus view, narrow it and you get one row.',
+      'The same figure across every campus, already ranked: cohort size, share of women, completed sign-ups, how many high schools each one reaches, whether talents came back, how much of the closing work is done, and the share of profiles the team judged favourably. One ranking per figure, sorted highest first, so nothing has to be ordered or divided afterwards. A campus the figure cannot be computed for is unranked rather than last - a campus that conducted no closing is not a campus without a compatible profile. The school year is required and no campus filter exists: this operation IS the cross-campus view, narrow it and you get one row.',
     shape: {
       schoolYear: requiredSchoolYear.describe(
         'School year, e.g. "2026-2027". Required: comparing campuses across every year folds the programme growth into the comparison.',
@@ -661,7 +769,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_event_config: defineWrite({
     description:
-      "Change one event's configuration. Patch semantics: only the fields you pass change, everything else is left exactly as it is, so you never have to restate the rest. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
+      "Change anything about one event's configuration in one call: names, dates, dev-workspace sections and their options, shown Salesforce statuses, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Patch semantics: only the fields you pass change, null clears a reference, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
       publicName: z
@@ -694,40 +802,180 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           `The complete set of dev-workspace sections this event exposes; sections left out are turned off. One of: ${EVENT_MODULE_KEYS.join(', ')}.`,
         ),
+      shownStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} The complete set of Salesforce member statuses whose enrolments the dev workspace shows for this event; statuses left out are masked (still synced and in Jump). Enrolments with no status at all are always shown.`,
+        ),
+      moduleSettings: z
+        .strictObject({
+          [EVENT_MODULES.INSCRITS]: z
+            .strictObject({
+              showStatutColumn: z
+                .boolean()
+                .optional()
+                .describe(
+                  "Show the dossier progress column (connexion, règlement, droit à l'image) on the Inscrits table.",
+                ),
+            })
+            .optional(),
+          // A section with no sub-option still has its key, holding nothing:
+          // the reads return every enabled section's settings that way, so
+          // what a preset or this write's own answer holds goes back as it is.
+          [EVENT_MODULES.EMARGEMENT]: noSubOptions,
+          [EVENT_MODULES.BILAN]: noSubOptions,
+          [EVENT_MODULES.CLOSINGS]: noSubOptions,
+        } satisfies Record<EventModuleKey, z.ZodType>)
+        .optional()
+        .describe(
+          'Sub-options per section, only those you pass change. A section must be in the saved modules, so enable it in the same call if it is not.',
+        ),
+      visible: z
+        .boolean()
+        .optional()
+        .describe(
+          'True to show it in the dev workspace, false to hide it. Showing needs a public name, an end date and at least one section, as saved by this call.',
+        ),
+      feedbackFormId: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('formId')} The form its bilan section uses. Null detaches it.`,
+        ),
+      diplomaTemplateId: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('diplomaTemplateId')} The certificate its Inscrits export issues. Null so it issues none.`,
+        ),
+      closingTemplateId: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('closingTemplateId')} The grid its closings use. Null so it holds none.`,
+        ),
+      workshops: z
+        .array(
+          z.strictObject({
+            slug: z.string().min(1).describe(handleDescribe('workshopSlug')),
+            durationMinutes: z
+              .number()
+              .int()
+              .positive()
+              .describe(
+                `How long the activity runs at this event, in minutes. It is the scale: finishing it whole is worth durationMinutes x ${WORKSHOP_XP_PER_MINUTE} XP. Changing it changes nobody retroactively, since a talent's scale is pinned when they first enter.`,
+              ),
+            labelOverride: z
+              .string()
+              .optional()
+              .describe(
+                'The words this event reads the activity aloud with, when the catalogue name does not fit the format. Wording only: every figure keeps the catalogue label.',
+              ),
+          }),
+        )
+        .optional()
+        .describe(
+          'The complete ordered list of online activities this event offers, in the order a talent sees them; anything left out is no longer offered, an empty list offers none.',
+        ),
     },
     run: (params) => writeEventConfig(params),
   }),
 
-  write_event_activation: defineWrite({
+  write_feedback_form: defineWrite({
+    twoStep: true,
     description:
-      'Show or hide one event in the dev workspace. Refused, with what is missing, if the event is not ready to be shown. Safe to repeat. Answers with the state before and after.',
+      'Create a feedback form, or replace one whole. Read it first with config_feedback_forms and its formId, change what must change, and send everything back: whatever is left out is removed. Without planDigest it answers with the form as it stands, the form that would replace it, and a planDigest; the apply is refused if the form was edited or answered in between. Once a form has responses its structure is frozen: wording and settings still change, but adding, removing or reordering a section, question or option, or changing what a question collects (key, type, required, identity field, input kind, selection bounds) is refused; copy it with write_feedback_form_copy, write the copy, then archive the original. A defect a frozen structure already carries is not refused, so wording, settings and archiving stay possible. The rules stated on the parameters are checked together and every refusal comes back at once. Retire a form by setting status to archived; nothing deletes one. Safe to repeat on an existing form, since a retried apply no longer matches its digest; creating (no formId) is NOT, so keep the formId it answers with. Answers with the form as written, ids included.',
     shape: {
-      eventId: z.string().min(1).describe(handleDescribe('eventId')),
-      visible: z
-        .boolean()
-        .describe('True to show it in the dev workspace, false to hide it.'),
-    },
-    run: (params) => writeEventActivation(params),
-  }),
-
-  write_event_feedback_form: defineWrite({
-    description:
-      'Attach a feedback form to one event, or detach the current one by omitting formId. Authors no content, only points at an existing form. Safe to repeat. Answers with the state before and after.',
-    shape: {
-      eventId: z.string().min(1).describe(handleDescribe('eventId')),
       formId: z
         .string()
+        .min(1)
+        .optional()
+        .describe(`${handleDescribe('formId')} Omit to create a new form.`),
+      title: formFields.title.describe(
+        'French, the name staff see in the catalogue.',
+      ),
+      intro: formFields.intro.describe(
+        "French opening line the persona speaks, may cite {prenom}. Omit for Jump's default greeting.",
+      ),
+      outro: formFields.outro.describe(
+        "French closing line the persona speaks. Omit for Jump's default goodbye.",
+      ),
+      personaName: formFields.personaName.describe(
+        'Name the persona introduces itself by. Omit for the default mascot.',
+      ),
+      personaIconUrl: httpsPictureUrl
+        .nullable()
         .optional()
         .describe(
-          `${handleDescribe('formId')} Omit to detach the current form.`,
+          'https address of the persona avatar. Jump downloads it and keeps a 256 px still: PNG, JPEG or WebP up to 20 MB, or a GIF up to 6 MB whose first frame is kept, from a public address. Restating the address the icon came from downloads nothing. Null puts the default mascot back. Omit to leave the icon as it is, which is the only way to keep one uploaded in the builder.',
         ),
+      status: formFields.status.describe(
+        'draft while it is being written, published to accept responses, archived to retire it.',
+      ),
+      allowsAuthenticatedAccess: formFields.allowsAuthenticatedAccess.describe(
+        'Connected talents can answer it from Jump.',
+      ),
+      allowsPublicAccess: formFields.allowsPublicAccess.describe(
+        'Anybody with the public link can answer it. Requires an e-mail identity question once published.',
+      ),
+      dashboardNudge: formFields.dashboardNudge.describe(
+        'The talent dashboard reminds connected talents to answer it. Requires allowsAuthenticatedAccess.',
+      ),
+      questions: z
+        .array(feedbackQuestion)
+        .describe('Questions outside any section, asked first, in order.'),
+      sections: z
+        .array(
+          z.strictObject({
+            sectionId: z
+              .string()
+              .min(1)
+              .nullish()
+              .describe(
+                'The id config_feedback_forms returned for this section. Keep it to edit the section, omit it to create one.',
+              ),
+            title: sectionFields.title.describe(
+              'French heading of this part of the form.',
+            ),
+            intro: sectionFields.intro.describe(
+              'French line the persona says when the section starts. Omit for none.',
+            ),
+            questions: z
+              .array(feedbackQuestion)
+              .describe('The questions of this section, in order.'),
+          }),
+        )
+        .describe('The sections, in order, each with its questions.'),
+      planDigest: z
+        .string()
+        .optional()
+        .describe('Digest returned by the dry run. Omit to get a dry run.'),
     },
-    run: (params) => writeEventFeedbackForm(params),
+    run: (params, ctx) => writeFeedbackForm(params, ctx.actorUserId),
+  }),
+
+  write_feedback_form_copy: defineWrite({
+    description:
+      'Copy a feedback form whole into a new draft: the same sections, questions, options, persona and icon, none of its responses. The copy starts as a draft, closed to the public, with no dashboard nudge, and its title ends in « (copie) ». NOT safe to repeat: every call makes another copy, so keep the formId it answers with. Answers with the copy, ids included.',
+    shape: {
+      formId: z
+        .string()
+        .min(1)
+        .describe(`${handleDescribe('formId')} The form to copy.`),
+    },
+    run: (params, ctx) => copyFeedbackForm(params, ctx.actorUserId),
   }),
 
   write_diploma_template: defineWrite({
     description:
-      'Create or replace a certificate design, identified by its code: a code that does not exist yet creates one, an existing code replaces it. Refused, saying what is wrong, if it uses an unknown placeholder, references anything remote, or does not render. Safe to repeat: the same code and the same design leave one certificate. Answers with the design before and after.',
+      'Create or replace a certificate design, identified by its code: a code that does not exist yet creates one, an existing code replaces it. Refused, saying what is wrong, if it uses an unknown placeholder, references anything remote, carries markup that cannot be printed, or does not render. Safe to repeat: the same code and the same design leave one certificate. Answers with what was stored (code, label, page size), whether anything changed, what a printed page weighs (reported, never refused), and an "apercu" sentence carrying a link to its preview, to quote as the preview operation says. The design itself is not repeated: config_diploma_templates returns it.',
     shape: {
       code: z
         .string()
@@ -755,7 +1003,7 @@ export const ADMIN_API_OPERATIONS = {
       bodyHtml: z
         .string()
         .describe(
-          'The markup of ONE page, repeated per recipient, with {placeholders}. No <style> tag: put CSS in styleCss.',
+          'The markup of ONE page, repeated per recipient, with {placeholders}. No <style> tag: put CSS in styleCss. Inline <svg> is welcome for drawings and ornaments, text included.',
         ),
       pageWidthPx: z
         .number()
@@ -770,23 +1018,149 @@ export const ADMIN_API_OPERATIONS = {
         .optional()
         .describe('Page height in CSS pixels. 794 for A4 landscape.'),
     },
-    run: (params) => writeDiplomaTemplate(params),
+    run: (params, ctx) =>
+      writeDiplomaTemplate({ ...params, origin: ctx.origin }),
   }),
 
-  write_event_diploma_template: defineWrite({
+  write_workshop_instance: defineWrite({
     description:
-      'Set which certificate one event issues, or stop it issuing any by omitting templateId. Only points at an existing certificate, it authors nothing. Safe to repeat. Answers with the state before and after.',
+      'Declare or update one CTFd instance, the host online activities run on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and nothing else; what the instance serves is write_workshop. Safe to repeat: the same slug and the same address leave one instance. Answers with the instance before and after.',
     shape: {
-      eventId: z.string().min(1).describe(handleDescribe('eventId')),
-      templateId: z
+      instance: z
+        .string()
+        .min(1)
+        .regex(
+          /^[a-z0-9-]+$/,
+          'Lowercase letters, digits and hyphens only, e.g. "camps-2026".',
+        )
+        .describe(
+          `${handleDescribe('workshopInstanceSlug')} It is the slug set on the instance's own CTFd admin page (/admin/workshop/jump), which the instance checks every entry against. Creates or updates by it. It names the host only, so it stays the same when the instance moves on to another content.`,
+        ),
+      baseUrl: z
+        .string()
+        .min(1)
+        .describe(
+          'Address of the CTFd instance, origin only with no path, e.g. "https://pacman.epiboost.fr". Jump appends the entry path itself.',
+        ),
+    },
+    run: (params) => writeWorkshopInstance(params),
+  }),
+
+  write_workshop: defineWrite({
+    description: `Declare or update one online activity, the content a CTFd instance serves, identified by its slug: what a talent reads (its French name), the instance serving it, whether it is offered, and how it presents itself on the talent dashboard (its cover). A slug that does not exist yet creates one; on an existing one only the fields you pass change. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content. The cover is a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host: media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same activity. Answers with the activity before and after.`,
+    shape: {
+      slug: z
+        .string()
+        .min(1)
+        // The longest content name the instance accepts in an entry ticket.
+        .max(128)
+        .regex(
+          /^[a-z0-9-]+$/,
+          'Lowercase letters, digits and hyphens only, e.g. "pacman-ia".',
+        )
+        .describe(
+          `${handleDescribe('workshopSlug')} It must be exactly the content the instance's own CTFd admin page (/admin/workshop/jump) shows as synced there: the instance refuses an entry for any other, so a typo fails at the first entry rather than losing anyone's XP. Creates or updates by it. Never rename one: it is what every past XP grant is filed under.`,
+        ),
+      instance: z
         .string()
         .min(1)
         .optional()
         .describe(
-          `${handleDescribe('diplomaTemplateId')} Omit so the event issues none.`,
+          `${handleDescribe('workshopInstanceSlug')} The instance serving this content. Required to create one. It can be changed only while no talent has entered the activity: another instance would start them over on fresh accounts and take back their XP. An instance that only changes address is updated with write_workshop_instance.`,
+        ),
+      label: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          'French name a talent reads on their dashboard, e.g. "Pacman IA". Required to create one. An event may read it differently without changing it, see the workshops of write_event_config.',
+        ),
+      enabled: z
+        .boolean()
+        .optional()
+        .describe(
+          'Whether it is offered today. Omit to leave it as it stands, which is what keeps a label fix from putting a retired activity back in front of a cohort.',
+        ),
+      cover: z
+        .strictObject({
+          tagline: z
+            .string()
+            .trim()
+            .min(1)
+            .max(90)
+            .optional()
+            .describe(
+              'French, one line a talent reads big, e.g. "Apprends à un fantôme à te traquer". Omit to lead with the activity name.',
+            ),
+          mediaUrl: pictureUrl(
+            'https address of the main visual, a still or an animated GIF, any proportion. Omit for none.',
+          ),
+          posterUrl: pictureUrl(
+            'https address of a still chosen for the visual, shown in its place to talents who reduce motion and when the visual fails to load. Optional even for an animated visual, whose first frame is used otherwise. Omit for none.',
+          ),
+          mascotUrl: pictureUrl(
+            "https address of the subject's character, drawn small above the tagline (pixel art stays crisp). Omit for none.",
+          ),
+        })
+        .nullable()
+        .optional()
+        .describe(
+          'The WHOLE cover: anything it omits is removed, so to change one part read config_workshops first and pass the rest back as it stands. Null removes the cover; omit it to leave the cover as it is.',
         ),
     },
-    run: (params) => writeEventDiplomaTemplate(params),
+    run: (params) => writeWorkshop(params),
+  }),
+
+  write_talent_home_note: defineWrite({
+    description: `Set or clear one campus's note on its talents' home (« le mot du campus »), the one message in the news card (« Actualités ») of every talent whose campus it is (a talent's campus is the one of their latest-dated event, upcoming ones included): welcome words, the next dates, a Discord link, pictures. The page adds no label or title of its own, so open with a heading when the message needs one. Markdown: headings, lists, emphasis, links to https:// or mailto:, and pictures written ![what it shows](https://…), at most ${TALENT_HOME_NOTE_MAX_IMAGES}. Jump copies each picture and talents see the copy, drawn whole and bounded in size in the card, larger when they open the message; the note keeps the address as written. ${PICTURE_RULES} Raw HTML is refused rather than stripped, so what is stored is exactly what talents read. At most ${TALENT_HOME_NOTE_MAX} characters, not counting the pictures' addresses. All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Pass markdown null to remove it. Safe to repeat: the same text leaves the same note. Answers with the note before and after.`,
+    shape: {
+      campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
+      markdown: z
+        .string()
+        .nullable()
+        .describe(
+          'The whole note in Markdown, replacing the previous one; null removes it. Write it in French, addressing the talent as « tu ».',
+        ),
+    },
+    run: (params) => writeTalentHomeNote(params),
+  }),
+
+  write_talent_home_highlight: defineWrite({
+    description: `Set or clear the one event a campus puts forward on its talents' home, with a button that opens the sign-up form in a new tab: a JPO, the next Coding Club, a camp. It leads the home's blue hero on any day the talent has no activity, and sits as a compact line under the activity on a day they have one. It is chosen by hand, never taken from Salesforce. Give all four of title, summary, date and url to set it, all four null to remove it; anything in between is refused. imageUrl is optional: an https picture Jump copies. ${PICTURE_RULES} Omitted, the highlight has none, and a picture that cannot be copied refuses the whole write. It hides itself once its day has passed on the campus clock, so nothing has to be cleaned up afterwards, and a day already past is refused. Safe to repeat: the same values leave the same highlight. Answers with the highlight before and after.`,
+    shape: {
+      campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
+      title: z
+        .string()
+        .max(HIGHLIGHT_TITLE_MAX)
+        .nullable()
+        .describe(
+          'What the event is, in French, at most 80 characters, e.g. "Recode le jeu Snake en JS".',
+        ),
+      summary: z
+        .string()
+        .max(HIGHLIGHT_SUMMARY_MAX)
+        .nullable()
+        .describe(
+          'What happens there and why come, in French addressing the talent as « tu », at most 300 characters.',
+        ),
+      date: z
+        .string()
+        .refine(isCalendarDay, 'A real calendar day, e.g. "2026-10-07".')
+        .nullable()
+        .describe(
+          'The day the event takes place, YYYY-MM-DD. It is shown until the end of that day.',
+        ),
+      url: z
+        .string()
+        .nullable()
+        .describe(
+          'The sign-up form, https only, e.g. "https://www.epitech.eu/inscription-atelier-programmation-informatique/?CampaignId=701Sm00000xAuQMIA0".',
+        ),
+      imageUrl: pictureUrl(
+        'https address of a picture of the event, shown in the hero beside its title. Omit for none, and always omit it when clearing.',
+      ),
+    },
+    run: (params) => writeTalentHomeHighlight(params),
   }),
 
   write_closing_question: defineWrite({
@@ -940,37 +1314,6 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => writeClosingTemplate(params),
   }),
 
-  write_event_closing_template: defineWrite({
-    description:
-      'Set which closing grid one event uses, or stop it holding closings by omitting closingTemplateId. Only points at an existing grid, it authors nothing. Safe to repeat. Answers with the state before and after.',
-    shape: {
-      eventId: z.string().min(1).describe(handleDescribe('eventId')),
-      closingTemplateId: z
-        .string()
-        .min(1)
-        .optional()
-        .describe(
-          `${handleDescribe('closingTemplateId')} Omit so the event holds no closings.`,
-        ),
-    },
-    run: (params) => writeEventClosingTemplate(params),
-  }),
-
-  write_event_inscrits_options: defineWrite({
-    description:
-      "Change the sub-options of one event's Inscrits section. Patch semantics: only what you pass changes. Refused if the section is not enabled on that event, since the options would have no effect. Safe to repeat. Answers with the state before and after.",
-    shape: {
-      eventId: z.string().min(1).describe(handleDescribe('eventId')),
-      showStatutColumn: z
-        .boolean()
-        .optional()
-        .describe(
-          "Show the dossier progress column (connexion, règlement, droit à l'image) on the Inscrits table.",
-        ),
-    },
-    run: (params) => writeEventInscritsOptions(params),
-  }),
-
   write_event_template: defineWrite({
     description:
       "Save one event's current configuration as a reusable named preset. An existing name is replaced, which is how a preset is edited. Safe to repeat: saving the same event under the same name twice leaves one preset.",
@@ -1052,6 +1395,26 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => writeSyncSource(params),
   }),
 
+  write_sync_member_status: defineWrite({
+    description:
+      'Add a Salesforce member status to the words Jump knows, or change whether newly created events show it. A word Jump does not know is masked everywhere and reported by stats_sync_health; adding it stops the report but shows it on no existing event: write_event_config or bulk_event_config does that. Safe to repeat: an upsert on the word. Nothing is ever deleted.',
+    shape: {
+      memberStatus: z
+        .string()
+        .min(1)
+        .describe(
+          `${handleDescribe('sfStatus')} Stored trimmed and upper-cased, the way the sync stores it.`,
+        ),
+      shownByDefault: z
+        .boolean()
+        .optional()
+        .describe(
+          'Whether an event the sync creates from now on starts by showing this status. Defaults to false for a new word; existing events are never changed by it.',
+        ),
+    },
+    run: (params) => writeSyncMemberStatus(params),
+  }),
+
   write_sync_cadence: defineWrite({
     description:
       'Set how often one synchronisation pass runs, in minutes. The incremental pass keeps data fresh; the full pass is the only one that detects a member removed in Salesforce, so spacing it out means deletions arrive later. Safe to repeat: writing the same value twice leaves the same row. Takes effect at the worker next wake-up, within fifteen minutes, with nothing to redeploy.',
@@ -1071,6 +1434,28 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeSyncCadence(params),
+  }),
+
+  ops_request_sync: defineWrite({
+    description:
+      'Ask the synchronisation worker for one pass of the given kind at its next wake-up (within fifteen minutes), without changing any cadence. Use it when someone needs a change made in Salesforce to reach Jump now rather than at the next scheduled pass. The request is satisfied by the first successful pass that starts after it, after which the configured cadences apply again with nothing to restore; a pass that fails leaves it pending. stats_sync_health shows whether a request is pending and what the worker will do next. Safe to repeat: asking again before it runs still yields one pass.',
+    shape: {
+      mode: z
+        .enum(['full', 'incremental'])
+        .describe(
+          'Which pass to ask for. "incremental" pulls only the campaigns Salesforce reports as changed, and is enough to see a modification; "full" pulls the whole perimeter and is the only pass that notices a member removed in Salesforce.',
+        ),
+    },
+    run: (params) => requestSync(params),
+  }),
+
+  ops_release_prune_hold: defineWrite({
+    description:
+      'Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted by fixing their sync errors, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to the next wake-up, within fifteen minutes. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.',
+    shape: {
+      eventId: z.string().min(1).describe(handleDescribe('eventId')),
+    },
+    run: (params) => releasePruneHold(params),
   }),
 
   ops_resolve_all_sync_errors: defineWrite({
@@ -1108,95 +1493,54 @@ export const ADMIN_API_OPERATIONS = {
       resetClosingById({ ...params, actorUserId: ctx.actorUserId }),
   }),
 
-  bulk_event_modules: defineWrite({
+  bulk_event_config: defineWrite({
     twoStep: true,
-    description: `Set the same dev-workspace sections on every event matching a filter. Call it WITHOUT planDigest first: it answers with the list of events that would change and a planDigest. Show that list to the human, then call again with the digest to apply. The apply is refused if anything moved in between. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
+    description: `Change the configuration of every event matching a filter, in one plan: their dev-workspace sections, the Salesforce statuses they show, and whether the dev workspace shows them. Patch semantics: only the fields you pass change. Call it without planDigest for the list of events that would change and how (events that cannot be shown are listed with what they lack, judged after the sections this call sets), then with the planDigest to apply it all in one transaction. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
     shape: {
+      campus,
+      schoolYear,
+      onlyUpcoming: z
+        .boolean()
+        .optional()
+        .describe(
+          'Leave past events alone. Recommended for sections and visibility; usually NOT wanted for a renamed status, whose old enrolments Salesforce rewrites too.',
+        ),
       modules: z
         .array(z.string())
+        .optional()
         .describe(
-          `The complete set of sections every matching event will expose. One of: ${EVENT_MODULE_KEYS.join(', ')}.`,
+          `The complete set of sections every matching event will expose. One of: ${EVENT_MODULE_KEYS.join(', ')}. New sections get their default options; kept ones keep theirs.`,
         ),
-      campus,
-      schoolYear,
-      onlyUpcoming: z
+      shownStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} The complete set of statuses every matching event will show, e.g. a preset's from config_event_templates. Not with showStatuses or hideStatuses.`,
+        ),
+      showStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} Statuses every matching event will show, on top of what each already shows. Made for a word Salesforce renamed: show the new one and hide the old one in one call.`,
+        ),
+      hideStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} Statuses every matching event will stop showing. Their enrolments stay synced and in Jump.`,
+        ),
+      visible: z
         .boolean()
         .optional()
-        .describe('Leave past events alone. Recommended.'),
+        .describe(
+          'True to show them in the dev workspace, false to hide them.',
+        ),
       planDigest: z
         .string()
         .optional()
         .describe('Digest returned by the dry run. Omit to get a dry run.'),
     },
-    run: (params) => bulkEventModules(params),
-  }),
-
-  bulk_event_activation: defineWrite({
-    twoStep: true,
-    description: `Show or hide every event matching a filter in the dev workspace. Dry run first (no planDigest), then apply with the digest it returns. Events that are not ready to be shown are listed as skipped in the plan rather than silently failing. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
-    shape: {
-      visible: z.boolean().describe('True to show, false to hide.'),
-      campus,
-      schoolYear,
-      onlyUpcoming: z
-        .boolean()
-        .optional()
-        .describe('Leave past events alone. Recommended.'),
-      planDigest: z
-        .string()
-        .optional()
-        .describe('Digest returned by the dry run. Omit to get a dry run.'),
-    },
-    run: (params) => bulkEventActivation(params),
-  }),
-
-  bulk_apply_event_template: defineWrite({
-    twoStep: true,
-    description: `Apply a saved preset's sections to every event matching a filter. Only the sections are applied in bulk, not the preset's names or times. Dry run first (no planDigest), then apply with the digest it returns. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
-    shape: {
-      templateName: z.string().min(1).describe(handleDescribe('templateName')),
-      campus,
-      schoolYear,
-      onlyUpcoming: z
-        .boolean()
-        .optional()
-        .describe('Leave past events alone. Recommended.'),
-      planDigest: z
-        .string()
-        .optional()
-        .describe('Digest returned by the dry run. Omit to get a dry run.'),
-    },
-    run: (params) => bulkApplyEventTemplate(params),
-  }),
-
-  meta_operations: defineOperation({
-    leadership: true,
-    description:
-      'The catalogue of operations you can call: each one description, the exact shape of its parameters as a JSON Schema, and which named values it needs ("requires") against which ones its answer hands out ("provides"), so a parameter you do not have can be traced to the operation that returns it. Use it to discover what is available; it only ever lists what your own credentials may call.',
-    shape: {},
-    // Annotated, and reading the catalogue it is itself part of: TypeScript
-    // cannot infer a return type through that self-reference.
-    run: async (_params, ctx): Promise<{ operations: unknown[] }> => ({
-      operations: operationsForTier(ctx.tier).map(([name, operation]) => {
-        // `requires` and `provides` are derived from the handle registry, never
-        // declared twice: they turn "look for the tool that returns it" from
-        // advice into something a reader can resolve, instead of guessing from
-        // names which answer carries the id its next question needs.
-        const requires = handlesRequiredBy(Object.keys(operation.schema.shape));
-        const provides = handlesProvidedBy(name);
-        return {
-          name,
-          kind: operation.kind,
-          description: operation.description,
-          parameters: z.toJSONSchema(operation.schema),
-          ...(requires.length ? { requires } : {}),
-          ...(provides.length ? { provides } : {}),
-          ...(operation.twoStep
-            ? { twoStep: 'Call without planDigest first to obtain a plan.' }
-            : {}),
-        };
-      }),
-    }),
+    run: (params) => bulkEventConfig(params),
   }),
 
   ops_api_usage: defineOperation({
@@ -1391,9 +1735,8 @@ export const ADMIN_API_OPERATIONS = {
     shape: {
       // `questionKey`, not `question`: the handle registry is keyed by parameter
       // name across the whole catalogue, and `question` is already the feedback
-      // form's question key. Spelling this one the same way made
-      // `meta_operations` publish that this read needs a value produced by
-      // `stats_feedback_results`. It is also the name the closing writes already
+      // form's question key. Spelling this one the same way published that this
+      // read needs a value produced by `stats_feedback_results`. It is also the name the closing writes already
       // use for a bank key.
       questionKey: z
         .string()
@@ -1475,13 +1818,6 @@ export const ADMIN_API_OPERATIONS = {
         question,
         groupBy,
       }),
-  }),
-
-  stats_attendance_rate: defineOperation({
-    leadership: true,
-    description: `Of the people who signed up for an event that has already happened, how many actually turned up, overall and event by event. Only past events count. Capped at ${ATTENDANCE_EVENTS_LIMIT} events in the per-event list.`,
-    shape: { schoolYear, campus, eventId },
-    run: async (params) => getAttendanceRate(await resolveScope(params)),
   }),
 } as const;
 

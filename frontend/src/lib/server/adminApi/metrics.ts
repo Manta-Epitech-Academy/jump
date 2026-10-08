@@ -5,7 +5,7 @@
  * This is the first design rule of the whole subsystem, made structural: the
  * consumer is a language model, and a bare `{ inscrits: 187 }` invites it to
  * explain, combine or re-aggregate that figure into something plausible and
- * wrong. A number that arrives carrying "participations en statut READY ou MEET"
+ * wrong. A number that arrives carrying "inscriptions affichées dans l'espace dev"
  * can be quoted, and quoting is all we want it to do.
  *
  * Definitions are written in French, staff register: they end up verbatim in

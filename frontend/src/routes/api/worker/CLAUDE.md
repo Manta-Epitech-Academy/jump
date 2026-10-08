@@ -21,7 +21,7 @@ memory, because `since: undefined` is present in an object and gone from its JSO
 
 | Step | Route                            | Note                                                                 |
 | ---- | -------------------------------- | -------------------------------------------------------------------- |
-| 1    | `GET /config`                    | Jump decides. Nothing due means the tick ends here, with no run row. |
+| 1    | `GET /config`                    | Jump decides, on cadence or request. Nothing due: tick ends, no row. |
 | 2    | `POST /runs`                     | Opens a `Sync_Run`. Only a real pass gets one.                       |
 | 3    | `POST /events`                   | The whole list, campus per event.                                    |
 | 4    | `POST /talents`                  | Identities, deduplicated across the run, paginated by 50.            |
@@ -39,6 +39,30 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   whichever run happens to be open would be shared mutable state on
   horizontally-scaled pods. This is also why deletions are caught by the spaced
   full reconcile and by nothing else, and why spacing that pass out has a cost.
+- **A full pass prunes only from a complete roster, and holds what it cannot
+  prove.** Complete means non-empty with every member resolved to a known talent.
+  An empty roster looks exactly like a truncated fetch, and a member the talents
+  push skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`) may be the very person whose
+  enrolment the prune would take, so in either case the enrolments that did
+  resolve are written, the removals are recorded on `Sync_PruneHold`, and the
+  call succeeds. A later complete roster lifts the hold by pruning normally; an
+  admin who knows the campaign really was emptied releases it
+  (`ops_release_prune_hold`) and the next full pass applies it if its roster is
+  still empty; an `ok` full run drops the holds it did not renew.
+  `stats_sync_health.prunesHeld` lists them. **Only an empty roster can be
+  released**, and a CHECK holds it: over unresolved members a release would
+  hand a person exactly the deletion the hold refused, so that hold lifts by
+  fixing the member's SyncError and nothing else.
+- **A refusal that replays identically must never fail a run.** A refusal fails
+  the call, the worker closes the run in error, and a failed run is replayed at
+  the next tick with the same input, so a refusal that depends only on that input
+  is a refusal forever, and for every campaign of the run rather than the one it
+  was about. On 2026-10-01 a guard that refused a full roster whose single member
+  Jump did not know stopped the whole sync, the incremental included, because a
+  due full pass outranks it. So skip, count and record what cannot be applied
+  (`syncEvents` for an unknown campus, `syncTalents` for a nameless contact,
+  `syncParticipations` for an unknown event or an unprovable prune), and keep
+  refusals for a malformed payload, which is a worker bug and not data.
 - **A failed run moves nothing.** `lastDeltaAt` / `lastFullAt` are no column
   anywhere: they are `MAX(finishedAt) WHERE mode = ? AND status = 'ok'`. So a run
   that dies mid-push simply replays its window at the next tick, and nothing in
@@ -46,6 +70,14 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   refused for the same reason: the worker fires a second `error` PATCH when its
   success PATCH is what failed, and applying it would walk the watermark back over
   data that did land.
+- **A requested pass is satisfied by a run that STARTED after it.** `ops_request_sync`
+  writes one `Sync_Request` row per mode and nothing ever consumes it: it is
+  pending while no successful run that covers it started after it. A run already
+  in flight when the request landed may have read Salesforce before the change
+  somebody is waiting for, so finishing later is not enough; a failed run leaves
+  it pending, as it leaves the watermark; and a full pass covers an incremental
+  request, never the reverse. That is why it is a date and not a flag: a flag
+  needs clearing, and the clearing is where it would get lost.
 - **Dueness reads `finishedAt`, the incremental window reads `startedAt`.** They
   are deliberately two dates. A record modified WHILE a run was executing carries
   a modstamp that run's `finishedAt` has already passed, so resuming from
@@ -102,8 +134,11 @@ is how that stops being true.
 
 No admin screen, by design: a campaign is named by an opaque Salesforce id somebody
 copies out of Salesforce, and the cadence is two numbers changed twice a year.
-`config_sync_sources`, `stats_sync_runs`, `stats_sync_health`, `write_sync_source`
-and `write_sync_cadence` are the surface, over HTTP and as MCP tools.
+`config_sync_sources`, `stats_sync_runs`, `stats_sync_health`, `write_sync_source`,
+`write_sync_cadence`, `ops_request_sync` and `ops_release_prune_hold` are the
+surface, over HTTP and as MCP tools. "Sync now" is a request, never a lowered
+cadence: a cadence lowered to get one pass has to be raised again by somebody who
+remembers to.
 
 ---
 

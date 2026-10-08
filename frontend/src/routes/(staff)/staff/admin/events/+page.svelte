@@ -1,4 +1,9 @@
 <script lang="ts">
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
   import Database from '@lucide/svelte/icons/database';
   import Pencil from '@lucide/svelte/icons/pencil';
   import FilterX from '@lucide/svelte/icons/filter-x';
@@ -136,16 +141,14 @@
   // tile shows its bucket within the current campus/year/search scope) and,
   // once status is applied, the table rows.
   const baseFiltered = $derived.by(() => {
-    const q = search.trim().toLowerCase();
+    const tokens = searchTokens(search);
     return data.events.filter((e) => {
       if (campusFilter !== 'all' && e.campusId !== campusFilter) return false;
       if (yearFilter !== 'all' && e.schoolYearLabel !== yearFilter)
         return false;
-      if (!q) return true;
-      return (
-        e.displayName.toLowerCase().includes(q) ||
-        e.titre.toLowerCase().includes(q) ||
-        e.campusName.toLowerCase().includes(q)
+      return matchesAllTokens(
+        buildHaystack([e.displayName, e.titre, e.campusName]),
+        tokens,
       );
     });
   });
@@ -237,6 +240,16 @@
   }
 
   // ─── Inspector dialog ───────────────────────────────────────────────────
+  // The Salesforce status catalogue, as a local mirror: « Membres Salesforce »
+  // can add a word from here or from inside the config wizard, and the wizard's
+  // checkboxes must offer it at once. Grown in place rather than re-read with
+  // `invalidateAll`, which would reset a wizard form somebody is still editing.
+  let sfStatuses = $state<string[]>(untrack(() => [...data.sfStatuses]));
+  function addSfStatus(status: string) {
+    if (!sfStatuses.includes(status))
+      sfStatuses = [...sfStatuses, status].sort();
+  }
+
   let inspectorOpen = $state(false);
   let inspectingEventId = $state<string | null>(null);
   let inspectingEventTitle = $state<string>('');
@@ -690,12 +703,15 @@
     closingGrids={data.closingGrids}
     formPreviews={data.formPreviews}
     templates={data.templates}
+    {sfStatuses}
+    onSfStatusAdded={addSfStatus}
   />
 
   <AdminSfStatusInspectorDialog
     bind:open={inspectorOpen}
     eventId={inspectingEventId}
     eventTitle={inspectingEventTitle}
+    onStatusAdded={addSfStatus}
   />
 
   <Dialog.Root bind:open={bulkOpen}>

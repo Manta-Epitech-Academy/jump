@@ -28,14 +28,15 @@
  *   - `/api/jobs/publish-minigame`, which rotates the daily publication on every
  *     tick whatever the database holds. It acts on an empty database too, so it
  *     is not the seed that makes it act, and there is no row here to withhold.
- *   - `/api/jobs/gc-cms-images`, which DOES find a seeded row by itself: the
- *     orphan `CmsImage` this generator writes on purpose is exactly what
- *     `sweepOrphanCmsImages` reclaims. It is listed rather than entered because
- *     reclaiming it is the correct behaviour and costs nothing outside the
- *     database, where a send cannot be taken back. What it costs is worth
- *     knowing: on a long-lived environment the « image orpheline » case the
- *     « où trouver quoi » page advertises is gone after the first GC tick, so
- *     re-generate rather than hunt for it.
+ *   - `Sync_Request`, which `/api/worker/config` also finds by itself. A request
+ *     changes WHEN the worker runs, never WHAT it pulls: the perimeter is
+ *     `Sync_Source` and `Campus.externalName`, held below and in
+ *     `assert/coverage.ts`. So a stray one costs at most a pass the cadence
+ *     would make anyway, over whatever perimeter is already served, which on a
+ *     generated database is none. Entering it would also break the `sd_` rule
+ *     below: it is keyed on the mode, so only a whole-table count could check
+ *     it, and that count fails `--check` on any environment where somebody has
+ *     since asked for a pass with `ops_request_sync`, which is a correct row.
  *
  * The test for an entry is therefore not "is this a job table", nor even "does a
  * scheduler find these rows BY ITSELF": that is the first question, and the
@@ -98,6 +99,18 @@ export async function inertnessFailures(
   if (sources > 0) {
     failures.push(
       `${sources} source(s) de synchronisation Salesforce semée(s) : c’est le périmètre que le worker va chercher, donc une instruction et non un fait. Le générateur n’en écrit aucune.`,
+    );
+  }
+
+  // A held prune is a sync artefact, and a RELEASED one is an instruction: the
+  // next full pass that carries the event deletes its enrolments. Keyed on the
+  // event, so the seed prefix is read off `eventId`.
+  const holds = await prisma.sync_PruneHold.count({
+    where: { eventId: seeded },
+  });
+  if (holds > 0) {
+    failures.push(
+      `${holds} suppression(s) retenue(s) semée(s) : une retenue libérée ordonne à la reprise complète suivante de supprimer des inscriptions, donc une instruction et non un fait. Le générateur n’en écrit aucune.`,
     );
   }
 

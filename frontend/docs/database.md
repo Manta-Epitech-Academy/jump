@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **68** modèles · **30** enums · **98** relations
+- **79** modèles · **31** enums · **111** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -14,14 +14,15 @@
 | Cycle de vie talent & RGPD | 6 |
 | Événements & Participations | 8 |
 | Closings | 9 |
-| Planning & Activités | 1 |
+| Planning & Activités | 5 |
 | Progression, Portfolio & XP | 2 |
 | Minijeux | 3 |
 | Feedback | 7 |
 | Communication & Support | 5 |
-| Contenus & Centres d'intérêt | 4 |
+| Contenus & Centres d'intérêt | 5 |
 | Analytique d'usage | 2 |
-| Configuration & Système | 9 |
+| Configuration & Système | 11 |
+| Autres | 4 |
 
 ## 1 · Authentification & Profils
 
@@ -170,6 +171,7 @@ erDiagram
     DateTime firstLoginAt
     DateTime usageAnalyticsOptOutAt
     DateTime welcomeSeenAt
+    DateTime anonymizedAt
     DateTime createdAt
     DateTime updatedAt
   }
@@ -381,6 +383,7 @@ erDiagram
     String eventId FK,UK
     String campusId FK
     String sfMemberStatus
+    Boolean shownInDevSpace
     DateTime createdAt
     DateTime updatedAt
   }
@@ -574,9 +577,60 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
+  Workshop_Instance {
+    String id PK
+    String slug UK
+    String baseUrl
+    String label
+    String tagline
+    Boolean enabled
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  EventConfig_Workshop {
+    String eventId PK,FK
+    String instanceId PK,FK
+    Int position
+    Int durationMinutes
+    String labelOverride
+    DateTime createdAt
+  }
+  Workshop_Participation {
+    String talentId PK,FK
+    String instanceId PK,FK
+    String eventId FK
+    String campusId FK
+    Int budgetMinutes
+    Int solvedSteps
+    Int totalSteps
+    Int xpCelebrated
+    DateTime firstEnteredAt
+    DateTime updatedAt
+  }
+  Workshop_CoverImage {
+    String instanceId PK,FK
+    WorkshopCoverKind kind PK
+    String sourceUrl
+    String key UK
+    String stillKey UK
+    String contentType
+    Int width
+    Int height
+  }
+  Talent {
+  }
+  Campus {
+  }
   Event {
   }
+  Talent ||--o{ Workshop_Participation : "workshopEntries"
+  Campus ||--o{ Workshop_Participation : "workshopEntries"
   Event ||--o{ Planning_Slot : "planningSlots"
+  Event ||--o{ EventConfig_Workshop : "workshops"
+  Event ||--o{ Workshop_Participation : "workshopEntries"
+  Workshop_Instance ||--o{ EventConfig_Workshop : "events"
+  Workshop_Instance ||--o{ Workshop_Participation : "participations"
+  Workshop_Instance ||--o{ Workshop_CoverImage : "coverImages"
 ```
 
 ## 6 · Progression, Portfolio & XP
@@ -856,23 +910,27 @@ erDiagram
 
 ```mermaid
 erDiagram
-  CmsPage {
-    String id PK
-    String slug UK
-    String eventId FK,UK
-    String content
+  TalentHome_Note {
+    String campusId PK,FK
+    String markdown
     DateTime updatedAt
-    String updatedBy FK
   }
-  CmsImage {
-    String id PK
-    String s3Key UK
+  TalentHome_Highlight {
+    String campusId PK,FK
+    String title
+    String summary
+    DateTime date
+    String url
+    DateTime updatedAt
+  }
+  TalentHome_HighlightImage {
+    String campusId PK,FK
+    String sourceUrl
+    String key UK
+    String stillKey UK
     String contentType
     Int width
     Int height
-    Int size
-    String uploadedById FK
-    DateTime createdAt
   }
   Interest {
     String id PK
@@ -885,18 +943,14 @@ erDiagram
     String talentId PK,FK
     String interestId PK,FK
   }
-  bauth_user {
-  }
-  StaffProfile {
-  }
   Talent {
   }
-  Event {
+  Campus {
   }
-  bauth_user |o--o{ CmsPage : "cmsPages"
-  StaffProfile |o--o{ CmsImage : "cmsImages"
   Talent ||--o{ TalentInterest : "interests"
-  Event ||--o{ CmsPage : "cmsPages"
+  Campus ||--|| TalentHome_Note : "homeNote"
+  Campus ||--|| TalentHome_Highlight : "homeHighlight"
+  TalentHome_Highlight ||--|| TalentHome_HighlightImage : "image"
   Interest ||--o{ TalentInterest : "talentInterests"
 ```
 
@@ -1002,6 +1056,19 @@ erDiagram
     Int intervalMinutes
     DateTime updatedAt
   }
+  Sync_PruneHold {
+    String eventId PK,FK
+    Int pendingRemovals
+    Int sentCount
+    Int resolvedCount
+    DateTime firstHeldAt
+    DateTime lastHeldAt
+    DateTime releasedAt
+  }
+  Sync_Request {
+    SyncMode mode PK
+    DateTime requestedAt
+  }
   AdminApi_Token {
     String id PK
     String staffUserId FK
@@ -1031,9 +1098,52 @@ erDiagram
   }
   Campus {
   }
+  Event {
+  }
   bauth_user ||--o{ AdminApi_Token : "adminApiTokens"
   StaffProfile |o--o{ AdminFile : "adminFiles"
   Campus |o--o{ Signatory : "signatories"
   Campus ||--o{ Sync_Source : "syncSources"
+  Event ||--|| Sync_PruneHold : "syncPruneHold"
   AdminApi_Token |o--o{ AdminApi_Call : "calls"
+```
+
+## 13 · Autres
+
+```mermaid
+erDiagram
+  TalentHome_NoteImage {
+    String key PK
+    String campusId FK,UK
+    String sourceUrl UK
+    String stillKey UK
+    String contentType
+    Int width
+    Int height
+  }
+  EventConfig_ShownStatus {
+    String eventId PK,FK
+    String status PK,FK
+  }
+  EventConfig_TemplateShownStatus {
+    String templateId PK,FK
+    String status PK,FK
+  }
+  Sync_MemberStatus {
+    String status PK
+    Boolean shownByDefault
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  TalentHome_Note {
+  }
+  Event {
+  }
+  EventConfig_Template {
+  }
+  TalentHome_Note ||--o{ TalentHome_NoteImage : "images"
+  Event ||--o{ EventConfig_ShownStatus : "shownStatuses"
+  Sync_MemberStatus ||--o{ EventConfig_ShownStatus : "events"
+  EventConfig_Template ||--o{ EventConfig_TemplateShownStatus : "shownStatuses"
+  Sync_MemberStatus ||--o{ EventConfig_TemplateShownStatus : "templates"
 ```

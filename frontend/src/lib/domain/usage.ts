@@ -89,7 +89,6 @@ export const USAGE_FEATURES = {
   ADMIN_ACCOUNT_DELETIONS_VIEW: 'admin_account_deletions_view',
   ADMIN_COMMUNICATION_VIEW: 'admin_communication_view',
   ADMIN_EMAIL_ACTIONS_VIEW: 'admin_email_actions_view',
-  ADMIN_WELCOME_PAGES_VIEW: 'admin_welcome_pages_view',
 
   // ── Admin space, actions, exports and documents ───────────────────
   ADMIN_EVENT_CONFIG_SAVE: 'admin_event_config_save',
@@ -97,6 +96,7 @@ export const USAGE_FEATURES = {
   ADMIN_EVENT_BULK_ACTIVATION: 'admin_event_bulk_activation',
   ADMIN_EVENT_TEMPLATE_SAVE: 'admin_event_template_save',
   ADMIN_EVENT_TEMPLATE_DELETE: 'admin_event_template_delete',
+  ADMIN_SF_STATUS_ADD: 'admin_sf_status_add',
   ADMIN_TALENTS_EXPORT: 'admin_talents_export',
   ADMIN_TALENT_RESET_TO_IMPORT: 'admin_talent_reset_to_import',
   ADMIN_SYNC_ERROR_RESOLVE: 'admin_sync_error_resolve',
@@ -128,7 +128,6 @@ export const USAGE_FEATURES = {
   ADMIN_SIGNATORY_WRITE: 'admin_signatory_write',
   ADMIN_INTEREST_WRITE: 'admin_interest_write',
   ADMIN_MINIGAME_WRITE: 'admin_minigame_write',
-  ADMIN_WELCOME_PAGE_SAVE: 'admin_welcome_page_save',
   ADMIN_EMAIL_ACTIONS_SAVE: 'admin_email_actions_save',
   ADMIN_ACCOUNT_DELETION_FULFIL: 'admin_account_deletion_fulfil',
   ADMIN_ACCOUNT_DELETION_REJECT: 'admin_account_deletion_reject',
@@ -151,6 +150,7 @@ export const USAGE_FEATURES = {
   TALENT_SETTINGS_VIEW: 'talent_settings_view',
   TALENT_DOCUMENT_VIEW: 'talent_document_view',
   TALENT_MINIGAME_OPEN: 'talent_minigame_open',
+  TALENT_WORKSHOP_OPEN: 'talent_workshop_open',
   TALENT_FEEDBACK_OPEN: 'talent_feedback_open',
 } as const;
 
@@ -792,16 +792,6 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     scope: 'global',
     dedupe: 'bucket',
   }),
-  [USAGE_FEATURES.ADMIN_WELCOME_PAGES_VIEW]: def({
-    key: USAGE_FEATURES.ADMIN_WELCOME_PAGES_VIEW,
-    label: 'Pages d’accueil',
-    definition: `Consultations de l’éditeur des pages d’accueil. ${BUCKET_NOTE}`,
-    audience: 'staff',
-    space: 'admin',
-    kind: 'view',
-    scope: 'global',
-    dedupe: 'bucket',
-  }),
 
   // ── Admin space, actions, exports and documents ───────────────────
   [USAGE_FEATURES.ADMIN_EVENT_CONFIG_SAVE]: def({
@@ -850,6 +840,17 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     key: USAGE_FEATURES.ADMIN_EVENT_TEMPLATE_DELETE,
     label: 'Preset de configuration supprimé',
     definition: 'Suppressions d’un preset de configuration d’événement.',
+    audience: 'staff',
+    space: 'admin',
+    kind: 'action',
+    scope: 'global',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.ADMIN_SF_STATUS_ADD]: def({
+    key: USAGE_FEATURES.ADMIN_SF_STATUS_ADD,
+    label: 'Statut Salesforce ajouté au catalogue',
+    definition:
+      'Ajouts au catalogue d’un statut Salesforce que Jump ne connaissait pas, depuis « Membres Salesforce ».',
     audience: 'staff',
     space: 'admin',
     kind: 'action',
@@ -1176,16 +1177,6 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     scope: 'global',
     dedupe: 'each',
   }),
-  [USAGE_FEATURES.ADMIN_WELCOME_PAGE_SAVE]: def({
-    key: USAGE_FEATURES.ADMIN_WELCOME_PAGE_SAVE,
-    label: 'Page d’accueil enregistrée',
-    definition: 'Enregistrements d’une page d’accueil.',
-    audience: 'staff',
-    space: 'admin',
-    kind: 'action',
-    scope: 'global',
-    dedupe: 'each',
-  }),
   [USAGE_FEATURES.ADMIN_EMAIL_ACTIONS_SAVE]: def({
     key: USAGE_FEATURES.ADMIN_EMAIL_ACTIONS_SAVE,
     label: 'Actions dans les emails enregistrées',
@@ -1326,8 +1317,8 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   }),
   [USAGE_FEATURES.TALENT_XP_HISTORY_VIEW]: def({
     key: USAGE_FEATURES.TALENT_XP_HISTORY_VIEW,
-    label: 'Ton historique d’XP',
-    definition: `Consultations de l’historique d’XP. ${BUCKET_NOTE}`,
+    label: 'Ton parcours',
+    definition: `Consultations de « Mon parcours » (les XP gagnés, les activités à faire et terminées, les événements passés). ${BUCKET_NOTE}`,
     audience: 'talent',
     space: 'talent',
     kind: 'view',
@@ -1396,6 +1387,17 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     scope: 'campus',
     dedupe: 'each',
   }),
+  [USAGE_FEATURES.TALENT_WORKSHOP_OPEN]: def({
+    key: USAGE_FEATURES.TALENT_WORKSHOP_OPEN,
+    label: 'L’ouverture d’une activité',
+    definition:
+      'Ouvertures d’une activité depuis l’accueil ou « Mon parcours », comptées au départ vers l’activité et non aux étapes validées. Une par ouverture : c’est le seul chiffre qui distingue une activité ouverte une fois et abandonnée d’une activité reprise cinq soirs de suite. Les étapes et les XP sont des faits déjà enregistrés ailleurs.',
+    audience: 'talent',
+    space: 'talent',
+    kind: 'action',
+    scope: 'event',
+    dedupe: 'each',
+  }),
   [USAGE_FEATURES.TALENT_FEEDBACK_OPEN]: def({
     key: USAGE_FEATURES.TALENT_FEEDBACK_OPEN,
     label: 'L’ouverture du questionnaire de fin',
@@ -1462,11 +1464,10 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
     USAGE_FEATURES.ADMIN_ACCOUNT_DELETIONS_VIEW,
   '/(staff)/staff/admin/communication': USAGE_FEATURES.ADMIN_COMMUNICATION_VIEW,
   '/(staff)/staff/admin/email-actions': USAGE_FEATURES.ADMIN_EMAIL_ACTIONS_VIEW,
-  '/(staff)/staff/admin/welcome-pages': USAGE_FEATURES.ADMIN_WELCOME_PAGES_VIEW,
 
   // Talent space
   '/(talent)': USAGE_FEATURES.TALENT_DASHBOARD_VIEW,
-  '/(talent)/xp': USAGE_FEATURES.TALENT_XP_HISTORY_VIEW,
+  '/(talent)/parcours': USAGE_FEATURES.TALENT_XP_HISTORY_VIEW,
   '/(talent)/events': USAGE_FEATURES.TALENT_EVENTS_VIEW,
   '/(talent)/calendar': USAGE_FEATURES.TALENT_CALENDAR_VIEW,
   '/(talent)/minigames/[publicationId]/leaderboard':

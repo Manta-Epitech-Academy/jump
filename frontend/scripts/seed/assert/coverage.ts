@@ -70,6 +70,10 @@ const NEVER_SEEDED: Readonly<Record<string, string>> = {
     'null veut dire « jamais tentée », ce qui n’existe que sur un destinataire en attente. Le générateur n’en écrit aucun, et cette absence est l’isolation du worker de campagnes : voir `BroadcastStatus.queued` dans `assert/enums.ts` et `assert/inertness.ts`. Toute ligne semée a été tentée, donc porte une date.',
   Sync_Source:
     'la whitelist du worker Salesforce, et une ligne semée serait une INSTRUCTION qu’un worker trouve tout seul, pas un fait. C’est la même protection que `Campus.externalName` juste dessous, prise une couche plus haut : `/api/worker/config` ne sert que des sources actives dont le campus porte un nom externe, donc une base générée n’en annonce aucune, deux fois plutôt qu’une. `assert/inertness.ts` refuse une ligne semée ici.',
+  Sync_PruneHold:
+    'une suppression qu’une reprise complète a retenue faute de pouvoir la prouver. Elle naît d’une synchronisation, et aucune ne tourne sur une base générée (voir `Sync_Source` juste au-dessus). Une retenue « libérée » serait de plus une INSTRUCTION : la reprise complète suivante supprimerait les inscriptions. `assert/inertness.ts` refuse une ligne semée ici.',
+  Sync_Request:
+    'une passe de synchronisation demandée maintenant, et une ligne semée serait une INSTRUCTION que `/api/worker/config` sert tout seul au réveil suivant, pas un fait. Elle avance une passe sans élargir le périmètre (voir `Sync_Source` plus haut), donc ne coûte rien sur une base générée : `assert/inertness.ts` dit pourquoi elle n’y a pas d’entrée.',
   'Campus.externalName':
     'DÉLIBÉRÉMENT vide, et c’est l’isolation du worker Salesforce elle-même. `/api/worker/config` ne sert au worker qu’une source dont le campus porte un nom externe, donc une base semée répond une liste vide et le worker n’a rien à résoudre, sur n’importe quelle machine. Écrire une valeur ici remet les données réelles de mineurs sur un environnement de validation : c’est la divulgation que toute cette branche existe pour supprimer.',
 
@@ -116,6 +120,8 @@ const NOT_YET_SEEDED: Readonly<Record<string, string>> = {
     'les trois fixtures portent toutes une intro ; aucune ne montre le rendu sans.',
   'Feedback_Form.personaIconKey':
     'aucune fixture ne nomme de persona, donc l’en-tête illustré du formulaire ne s’affiche jamais.',
+  'Feedback_Form.personaIconSourceUrl':
+    'voir `Feedback_Form.personaIconKey` : c’est l’adresse d’où cette icône aurait été copiée. Le même manque, et il ne se comble pas sans elle : le générateur n’écrit aucun fichier, et l’avatar du persona n’a pas de repli quand son image ne charge pas.',
   'Feedback_Question.minSelections':
     'aucune question multi ne fixe de minimum, donc la validation « choisis-en au moins N » ne se déclenche nulle part.',
   'Feedback_Submission.matchedAt':

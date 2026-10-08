@@ -27,15 +27,8 @@ import {
   reachableSurfaces,
 } from '../../../src/lib/domain/eventModules';
 import { schoolYearOf } from '../../../src/lib/domain/schoolYear';
-import {
-  SF_MEMBER_STATUSES,
-  isVisibleInDevSpace,
-  pastEventPresence,
-} from '../../../src/lib/domain/sfMemberStatus';
-import {
-  effectiveStatus,
-  presenceSlots,
-} from '../../../src/lib/domain/eventPresence';
+import { classifySfStatus } from '../../../src/lib/domain/sfMemberStatus';
+import { DEFAULT_SHOWN_STATUSES, SF_STATUSES } from '../world';
 import {
   ACTIVATION_BLOCKERS,
   activationBlockerKeys,
@@ -325,50 +318,121 @@ export async function reachabilityFailures(
     );
   }
 
-  // The Salesforce member statuses, and the presence they imply.
+  // The Salesforce member statuses, and what each event's dev space does with
+  // them.
   //
   // This block carries more weight than the ones above, and the reason is worth
   // knowing before anybody trims it: `Participation.sfMemberStatus` is a
-  // `String?`, not a Prisma enum, so `assert/enums.ts` cannot see it. The rule
-  // that a behaviour ships with its example is enforced by the DMMF everywhere
-  // else in this file's neighbourhood; here it is enforced by nothing but these
-  // lines.
-  const participations = await prisma.participation.findMany({
-    where: { eventId: { startsWith: 'sd_' } },
-    select: {
-      talentId: true,
-      sfMemberStatus: true,
-      event: {
-        select: {
-          id: true,
-          date: true,
-          endDate: true,
-          campus: { select: { timezone: true } },
-        },
+  // `String?`, not a Prisma enum, so `assert/enums.ts` cannot see it, and the
+  // vocabulary it is checked against is data (`Sync_MemberStatus`), not code.
+  const [participations, catalogue, policy] = await Promise.all([
+    prisma.participation.findMany({
+      where: { eventId: { startsWith: 'sd_' } },
+      select: {
+        sfMemberStatus: true,
+        shownInDevSpace: true,
+        event: { select: { id: true, date: true } },
       },
-    },
-  });
+    }),
+    prisma.sync_MemberStatus.findMany({
+      select: { status: true, shownByDefault: true },
+    }),
+    prisma.eventConfig_ShownStatus.findMany({
+      where: { eventId: { startsWith: 'sd_' } },
+      select: { eventId: true, status: true },
+    }),
+  ]);
+
+  // The generator plays Salesforce with its own list of words, and the two have
+  // to agree in both directions: a word it sends that Jump does not know would
+  // be an unrecognised status nobody meant to place, and a word of the
+  // catalogue it never sends is a behaviour with no example.
+  const known = new Set(catalogue.map((row) => row.status));
+  const sent = new Set<string>(Object.values(SF_STATUSES));
+  for (const status of sent) {
+    if (!known.has(status))
+      failures.push(
+        `Le générateur envoie le statut ${status}, absent du catalogue Sync_MemberStatus`,
+      );
+  }
+  for (const status of known) {
+    if (!sent.has(status))
+      failures.push(
+        `Le statut ${status} du catalogue n'est envoyé par aucun scénario`,
+      );
+  }
+  // What a new event shows here is what the worker gives one in production.
+  const byDefault = catalogue
+    .filter((row) => row.shownByDefault)
+    .map((row) => row.status)
+    .sort();
+  if (byDefault.join(',') !== [...DEFAULT_SHOWN_STATUSES].sort().join(','))
+    failures.push(
+      `Les statuts affichés par défaut du générateur (${DEFAULT_SHOWN_STATUSES.join(', ')}) ne sont pas ceux du catalogue (${byDefault.join(', ')})`,
+    );
+
+  const shownBy = new Map<string, Set<string>>();
+  for (const row of policy) {
+    const shown = shownBy.get(row.eventId) ?? new Set<string>();
+    shown.add(row.status);
+    shownBy.set(row.eventId, shown);
+  }
+  const classOf = (row: (typeof participations)[number]) =>
+    classifySfStatus(row.sfMemberStatus, {
+      known,
+      shown: shownBy.get(row.event.id) ?? new Set(),
+    });
 
   const seenStatuses = new Set(
     participations.map((row) => row.sfMemberStatus ?? '(null)'),
   );
-  for (const status of SF_MEMBER_STATUSES) {
+  for (const status of known) {
     if (!seenStatuses.has(status))
       failures.push(`Aucune inscription au statut Salesforce ${status}`);
+  }
+  // Every way the dev space treats a status, the unknown word included: that is
+  // the class only `stats_sync_health` and the inspector badge report.
+  const seenClasses = new Set(participations.map(classOf));
+  for (const statusClass of [
+    'shown',
+    'hidden',
+    'unrecognised',
+    'missing',
+  ] as const) {
+    if (!seenClasses.has(statusClass))
+      failures.push(
+        `Aucune inscription dont le statut Salesforce se classe « ${statusClass} »`,
+      );
   }
   if (!seenStatuses.has('(null)'))
     failures.push(
       'Aucune inscription sans statut, alors que celles importées avant juillet 2026 en sont dépourvues',
     );
 
-  // Nobody attended an event that has not happened. A drawn `MEET` on a future
+  // The point of a per-event policy: one word, shown on one event and masked
+  // on another. Without it, every screen reads as if the rule were global.
+  const shownSomewhere = new Set<string>();
+  const hiddenSomewhere = new Set<string>();
+  for (const row of participations) {
+    if (row.sfMemberStatus === null) continue;
+    const statusClass = classOf(row);
+    if (statusClass === 'shown') shownSomewhere.add(row.sfMemberStatus);
+    if (statusClass === 'hidden') hiddenSomewhere.add(row.sfMemberStatus);
+  }
+  if (![...shownSomewhere].some((status) => hiddenSomewhere.has(status)))
+    failures.push(
+      'Aucun statut Salesforce n’est affiché sur un événement et masqué sur un autre',
+    );
+
+  // Nobody attended an event that has not happened. A drawn `MET` on a future
   // event is the one illegal state this generator could produce silently.
   const impossible = participations.filter(
-    (row) => row.event.date > anchor && row.sfMemberStatus === 'MEET',
+    (row) =>
+      row.event.date > anchor && row.sfMemberStatus === SF_STATUSES.attended,
   );
   if (impossible.length > 0)
     failures.push(
-      `${impossible.length} inscriptions au statut MEET sur un événement qui n'a pas eu lieu`,
+      `${impossible.length} inscriptions au statut ${SF_STATUSES.attended} sur un événement qui n'a pas eu lieu`,
     );
 
   // One event carrying both sides of the filter, which is what the admin
@@ -376,7 +440,7 @@ export async function reachabilityFailures(
   const byEvent = new Map<string, boolean[]>();
   for (const row of participations) {
     const seen = byEvent.get(row.event.id) ?? [];
-    seen.push(isVisibleInDevSpace(row.sfMemberStatus));
+    seen.push(row.shownInDevSpace);
     byEvent.set(row.event.id, seen);
   }
   const mixedEvent = [...byEvent.values()].some(
@@ -386,95 +450,6 @@ export async function reachabilityFailures(
   if (!mixedEvent)
     failures.push(
       'Aucun événement ne porte à la fois une inscription visible et une inscription masquée',
-    );
-
-  const derivedPresences = new Set(
-    participations
-      .filter((row) => row.event.date <= anchor)
-      .map((row) => pastEventPresence(row.sfMemberStatus)),
-  );
-  for (const expected of ['present', 'absent', null] as const) {
-    if (!derivedPresences.has(expected))
-      failures.push(
-        `pastEventPresence ne produit jamais ${expected ?? 'null'} sur un événement passé`,
-      );
-  }
-
-  // The one presence shape that consults Salesforce at all: a cell nobody
-  // marked, in a closed slot, on a single-day event. Run the product's own
-  // `effectiveStatus` over what was written rather than restating its rule.
-  const closures = await prisma.eventPresenceClosure.findMany({
-    where: { eventId: { startsWith: 'sd_' } },
-    select: { eventId: true, day: true, slot: true },
-  });
-  const marks = await prisma.eventPresence.findMany({
-    where: { eventId: { startsWith: 'sd_' } },
-    select: {
-      eventId: true,
-      talentId: true,
-      day: true,
-      slot: true,
-      status: true,
-    },
-  });
-  const markKey = (
-    eventId: string,
-    talentId: string,
-    day: Date,
-    slot: string,
-  ) => `${eventId}|${talentId}|${day.toISOString().slice(0, 10)}|${slot}`;
-  const markByKey = new Map(
-    marks.map((mark) => [
-      markKey(mark.eventId, mark.talentId, mark.day, mark.slot),
-      mark.status,
-    ]),
-  );
-
-  const projected = new Set<string>();
-  let overridden = 0;
-  for (const closure of closures) {
-    const roster = participations.filter(
-      (row) => row.event.id === closure.eventId,
-    );
-    // `isSingleDayEvent` in the émargement loader is `slots.length <= 2`, so
-    // ask `presenceSlots` rather than restate it. A null `endDate` is NOT the
-    // same question: every event configured for the dev space now carries one,
-    // set to 23:59 on its own last day, and reading the column alone would have
-    // silently turned this whole block into a no-op.
-    const event = roster[0]?.event;
-    const singleDay =
-      event !== undefined &&
-      presenceSlots(event, event.campus.timezone).length <= 2;
-    for (const row of roster) {
-      const stored = markByKey.get(
-        markKey(closure.eventId, row.talentId, closure.day, closure.slot),
-      );
-      const resolved = effectiveStatus(stored ?? 'pending', true, {
-        isSingleDayEvent: singleDay,
-        sfMemberStatus: row.sfMemberStatus,
-      });
-      if (stored === undefined) projected.add(resolved);
-      else if (
-        stored !==
-        effectiveStatus('pending', true, {
-          isSingleDayEvent: singleDay,
-          sfMemberStatus: row.sfMemberStatus,
-        })
-      )
-        overridden += 1;
-    }
-  }
-  if (!projected.has('present'))
-    failures.push(
-      'Aucune cellule non marquée d’un créneau clos ne se lit « présent » depuis Salesforce',
-    );
-  if (!projected.has('absent'))
-    failures.push(
-      'Aucune cellule non marquée d’un créneau clos ne se lit « absent »',
-    );
-  if (overridden === 0)
-    failures.push(
-      'Aucune marque manuelle ne contredit le statut Salesforce, donc « la saisie humaine l’emporte » n’est démontré nulle part',
     );
 
   return failures;

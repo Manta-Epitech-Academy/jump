@@ -22,7 +22,7 @@ vi.mock('$lib/server/db', () => ({
 
 const { getApiUsage } = await import('./apiUsage');
 
-const KNOWN = ['stats_sync_health', 'stats_events_overview'];
+const KNOWN = ['stats_sync_health', 'config_campus_overview'];
 
 function call(operation: string, status: number) {
   return { operation, status, tokenId: null, createdAt: new Date(0) };
@@ -39,7 +39,7 @@ describe('mostRefused', () => {
     callFindMany.mockResolvedValue([
       call('stats_sync_health', 200),
       call('stats_sync_health', 400),
-      call('stats_events_overview', 400),
+      call('config_campus_overview', 400),
     ]);
 
     const usage = await getApiUsage({}, KNOWN);
@@ -47,7 +47,7 @@ describe('mostRefused', () => {
     expect(
       usage.mostRefused.value.map((r) => [r.operation, r.refusedShare]),
     ).toEqual([
-      ['stats_events_overview', 100],
+      ['config_campus_overview', 100],
       ['stats_sync_health', 50],
     ]);
   });
@@ -96,6 +96,26 @@ describe('inventedOperations', () => {
     ]);
   });
 
+  // A retired operation's calls stay in the log for the whole retention, its
+  // successes and its refused filters alike. It existed when it answered or
+  // refused a filter; only a caller still reaching for it since is reaching for
+  // something that is not there, and that is the one the envelope answers 404.
+  it('counts a retired name only by the calls refused since it went', async () => {
+    callFindMany.mockResolvedValue([
+      call('write_event_activation', 200),
+      call('write_event_activation', 400),
+      call('write_event_activation', 404),
+      call('bulk_event_modules', 200),
+      call('bulk_event_modules', 400),
+    ]);
+
+    const usage = await getApiUsage({}, KNOWN);
+
+    expect(usage.inventedOperations.value).toEqual([
+      { name: 'write_event_activation', attempts: 1 },
+    ]);
+  });
+
   it('does not report a catalogue operation as invented', async () => {
     callFindMany.mockResolvedValue([call('stats_sync_health', 404)]);
 
@@ -110,7 +130,7 @@ describe('per-operation refusal rate', () => {
     callFindMany.mockResolvedValue([
       ...Array.from({ length: 99 }, () => call('stats_sync_health', 200)),
       call('stats_sync_health', 400),
-      call('stats_events_overview', 400),
+      call('config_campus_overview', 400),
     ]);
 
     const usage = await getApiUsage({}, KNOWN);
@@ -119,7 +139,7 @@ describe('per-operation refusal rate', () => {
     );
 
     expect(byName.get('stats_sync_health')).toBe(1);
-    expect(byName.get('stats_events_overview')).toBe(100);
+    expect(byName.get('config_campus_overview')).toBe(100);
     // The global rate cannot express that difference.
     expect(usage.refusalRate.value).toBe(2);
   });

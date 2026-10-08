@@ -17,7 +17,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { decideSync, type SyncCadence } from '$lib/domain/syncSchedule';
+import {
+  decideSync,
+  type SyncCadence,
+  type SyncRequests,
+} from '$lib/domain/syncSchedule';
 import { workerConfigAnswerSchema } from './workerSync';
 
 const CADENCES: SyncCadence[] = [
@@ -44,10 +48,12 @@ function answerFor(
     kind: string;
     campusExtName: string;
   }[] = [],
+  requests: SyncRequests = { full: null, incremental: null },
 ) {
   const decision = decideSync({
     now: NOW,
     cadences: CADENCES,
+    requests,
     lastOkFull,
     lastOkIncremental,
   });
@@ -71,6 +77,13 @@ describe('the config answer the worker will parse', () => {
     ['an incremental is due', answerFor(ago(60), ago(400))],
     ['nothing is due', answerFor(ago(60), ago(30))],
     ['an incremental is due and none ever succeeded', answerFor(ago(60), null)],
+    [
+      'a person asked for a full pass',
+      answerFor(ago(60), ago(30), [], {
+        full: new Date(NOW.getTime() - 5 * 60_000),
+        incremental: null,
+      }),
+    ],
   ];
 
   for (const [label, answer] of cases) {

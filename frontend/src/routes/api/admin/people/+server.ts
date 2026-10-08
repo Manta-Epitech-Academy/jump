@@ -1,13 +1,17 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db';
+import {
+  containsToken,
+  everyTokenMatches,
+  talentSearchWhere,
+} from '$lib/server/db/textSearch';
 import { requireAdminSession } from '$lib/server/auth/guards';
 import { getStaffRoleLabel } from '$lib/domain/staff';
 import { niveauLabel } from '$lib/domain/niveau';
 
 // Global "find a person" typeahead for the admin command palette. Admin is
-// campus-agnostic, so this is intentionally un-scoped (unlike /api/students,
-// which scopes to the dev caller's campus). Three kinds in one call:
+// campus-agnostic, so this is intentionally un-scoped. Three kinds in one call:
 // talents, their parent-1 contacts, and staff members. Each result carries the
 // `navQ` to drop into the destination list's `?q=` so the palette stays dumb.
 const LIMIT = 6;
@@ -18,24 +22,14 @@ const fullName = (prenom: string | null, nom: string | null) =>
 export const GET: RequestHandler = async ({ url, locals }) => {
   requireAdminSession(locals);
 
-  // Same sanitization as the talents directory search (keeps `@` and `.` so an
-  // email query survives).
-  const q = (url.searchParams.get('q') ?? '')
-    .replace(/[^a-zA-ZÀ-ÿ0-9\s'@.\-]/g, '')
-    .trim();
+  // Word by word, like the talents directory the result links into, so
+  // "Dupont Léa" finds Léa Dupont whichever kind of person she is.
+  const q = (url.searchParams.get('q') ?? '').trim();
   if (q.length < 2) return json([]);
-
-  const contains = { contains: q, mode: 'insensitive' as const };
 
   const [talents, parents, staff] = await Promise.all([
     prisma.talent.findMany({
-      where: {
-        OR: [
-          { nom: contains },
-          { prenom: contains },
-          { user: { email: contains } },
-        ],
-      },
+      where: talentSearchWhere(q),
       orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
       take: LIMIT,
       select: {
@@ -49,11 +43,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     // Parent-1 only: the active guardian flow (parent-2 accounts are action-less).
     prisma.talent.findMany({
       where: {
-        OR: [
-          { parentEmail: contains },
-          { parentNom: contains },
-          { parentPrenom: contains },
-        ],
+        AND: everyTokenMatches(q, (token) => [
+          { parentEmail: containsToken(token) },
+          { parentNom: containsToken(token) },
+          { parentPrenom: containsToken(token) },
+        ]),
       },
       orderBy: [{ parentNom: 'asc' }],
       take: LIMIT,
@@ -70,7 +64,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     prisma.bauth_user.findMany({
       where: {
         staffProfile: { isNot: null },
-        OR: [{ name: contains }, { email: contains }],
+        AND: everyTokenMatches(q, (token) => [
+          { name: containsToken(token) },
+          { email: containsToken(token) },
+        ]),
       },
       orderBy: { name: 'asc' },
       take: LIMIT,

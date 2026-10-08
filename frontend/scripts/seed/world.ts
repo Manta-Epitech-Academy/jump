@@ -26,13 +26,16 @@ import { SEED_MAIL_DOMAIN, STAFF_MAIL_DOMAIN } from './catalog/people';
 import type { CampusSpec } from './catalog/campuses';
 import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
+import { workshopActivityId } from './catalog/workshops';
 import type { Rng } from './rng';
-import type { SfMemberStatus } from '../../src/lib/domain/sfMemberStatus';
+import { isShownInDevSpace } from '../../src/lib/domain/sfMemberStatus';
 import { activationBlockers } from '../../src/lib/domain/eventReadiness';
 import {
   minigameRankBonus,
   minigameRankBonusLimit,
+  workshopXp,
 } from '../../src/lib/domain/xp';
+import { workshopGrantSourceId } from '../../src/lib/domain/workshops';
 import { fromWallClock } from '../../src/lib/domain/planningTime';
 import {
   CIVILITE_OPTIONS,
@@ -195,7 +198,38 @@ export type EventRef = {
    * reason the returning pool exists.
    */
   closingTemplateId: string | null;
+  /** The Salesforce statuses this event's dev space shows, which is what
+   *  decides each enrolment's `shownInDevSpace` as it is written. */
+  shownStatuses: ReadonlySet<string>;
 };
+
+/**
+ * Salesforce's member statuses, as this generator plays Salesforce.
+ *
+ * Jump's own catalogue is data (`Sync_MemberStatus`, shipped by the migration
+ * that introduced it), so the words are named here only because the generator
+ * stands in for the CRM that sends them. `assert/reachability.ts` checks the two
+ * agree: every word here is in the catalogue, and every word of the catalogue
+ * is placed somewhere.
+ */
+export const SF_STATUSES = {
+  attended: 'MET',
+  confirmed: 'READY',
+  connected: 'CONNECTED',
+  desisted: 'DESISTED',
+} as const;
+
+export type SeedSfStatus = (typeof SF_STATUSES)[keyof typeof SF_STATUSES];
+
+/**
+ * What an event shows unless a scenario says otherwise: the catalogue's
+ * `shownByDefault` words, which is what the worker gives an event it creates.
+ * Checked against the catalogue by `assert/reachability.ts`.
+ */
+export const DEFAULT_SHOWN_STATUSES: readonly SeedSfStatus[] = [
+  SF_STATUSES.confirmed,
+  SF_STATUSES.attended,
+];
 
 /**
  * The Salesforce member status a participation gets when nobody says otherwise.
@@ -208,26 +242,35 @@ export type EventRef = {
  * "200 inscrits" stop being true. `CONNECTED`, `DESISTED` and the legacy `null`
  * are therefore PLACED, in fixed numbers, by the `statuts-salesforce` scenario.
  *
- * The two weights are PROFILE.md's presence figures rather than new numbers:
- * `pastEventPresence` maps MEET to present and READY to absent, so the share of
- * each is the share of présents and absents. Left as 81 and 16 instead of a
+ * The two weights borrow PROFILE.md's émargement figures rather than new
+ * numbers: on an event that has happened, Salesforce moves the members who came
+ * to MET and leaves the others at READY, so the shares follow the présents and
+ * the absents the émargement measured. Left as 81 and 16 instead of a
  * normalised 83.5 / 16.5 so the provenance stays readable; `weighted` does not
  * need them to sum to 100.
  */
 const STARTED_EVENT_SF_MIX = [
-  ['MEET', 81],
-  ['READY', 16],
-] as const satisfies readonly (readonly [SfMemberStatus, number])[];
+  [SF_STATUSES.attended, 81],
+  [SF_STATUSES.confirmed, 16],
+] as const satisfies readonly (readonly [SeedSfStatus, number])[];
 
 /**
- * An event that has not happened yet: nobody attended it, so `MEET` is not a
+ * A status Salesforce might plausibly start sending, and that Jump's catalogue
+ * (`Sync_MemberStatus`) does not hold. The `statuts-salesforce` scenario
+ * places it once so the unknown-status report has something to report, and the
+ * string-catalogue guard accepts this one stray value by name, and no other.
+ */
+export const UNRECOGNISED_SF_STATUS_SAMPLE = 'ATTENDED';
+
+/**
+ * An event that has not happened yet: nobody attended it, so `MET` is not a
  * state the world can be in. One weighted entry rather than an early return, so
  * a derived enrolment always consumes exactly one draw - otherwise moving an
  * event from the past to the future desynchronises every status after it.
  */
 const UPCOMING_EVENT_SF_MIX = [
-  ['READY', 100],
-] as const satisfies readonly (readonly [SfMemberStatus, number])[];
+  [SF_STATUSES.confirmed, 100],
+] as const satisfies readonly (readonly [SeedSfStatus, number])[];
 
 /** Shared empty set, so `playedBy` allocates nothing on the common answer. */
 const EMPTY_SET: ReadonlySet<string> = new Set<string>();
@@ -990,9 +1033,22 @@ export class World {
     modules?: readonly string[];
     /** Per-module options, keyed by module. Only some modules take any. */
     moduleSettings?: Readonly<Record<string, Prisma.InputJsonValue>>;
+    /** The Salesforce statuses the dev space shows. Defaults to what the
+     *  worker gives an event it creates ({@link DEFAULT_SHOWN_STATUSES}). */
+    shownStatuses?: readonly SeedSfStatus[];
     closingTemplateId?: string | null;
     feedbackFormId?: string | null;
     diplomaTemplateId?: string | null;
+    /**
+     * The online activities this event offers, in the order a talent sees them.
+     * Most events offer none, which is both the real distribution and the
+     * coverage of the empty case.
+     */
+    workshops?: readonly {
+      slug: string;
+      durationMinutes: number;
+      labelOverride?: string;
+    }[];
     /** Events with no Salesforce origin do not exist in production. */
     externalId?: string | null;
   }): EventRef {
@@ -1022,10 +1078,8 @@ export class World {
       );
     }
     // 23:59 in the CAMPUS's timezone, the way production stores it, not midnight
-    // UTC - and both readers depend on the difference. `presenceDays` keys the
-    // day off the campus clock, so a Réunion event ending at 23:59 UTC would
-    // grow a second émargement day; `getEventStatus` compares the instant, so an
-    // event ending at midnight reads « passé » from its own first minute.
+    // UTC. `presenceDays` keys the day off the campus clock, so a Réunion event
+    // ending at 23:59 UTC would grow a second émargement day.
     const endDate = withEndDate
       ? fromWallClock(
           clock.dateKey(days[days.length - 1]!),
@@ -1088,6 +1142,24 @@ export class World {
       });
     }
 
+    const shownStatuses = new Set<string>(
+      opts.shownStatuses ?? DEFAULT_SHOWN_STATUSES,
+    );
+    for (const status of shownStatuses) {
+      this.buffer.eventConfig_ShownStatus.push({ eventId, status });
+    }
+
+    for (const [index, workshop] of (opts.workshops ?? []).entries()) {
+      this.buffer.eventConfig_Workshop.push({
+        eventId,
+        activityId: workshopActivityId(workshop.slug),
+        position: index,
+        durationMinutes: workshop.durationMinutes,
+        labelOverride: workshop.labelOverride ?? null,
+        createdAt: clock.days(-30),
+      });
+    }
+
     const ref: EventRef = {
       id: eventId,
       titre: opts.titre,
@@ -1098,6 +1170,7 @@ export class World {
       endDate,
       days,
       closingTemplateId: opts.closingTemplateId ?? null,
+      shownStatuses,
     };
     this.events.push(ref);
     this.roster.set(eventId, []);
@@ -1107,8 +1180,8 @@ export class World {
   /**
    * Enrols a talent, deriving the Salesforce member status unless told one.
    *
-   * Omit `opts` and the row is VISIBLE in the dev space, and plausible for when
-   * the event happens: `MEET` or `READY` once it has started, `READY` only
+   * Omit `opts` and the row is VISIBLE in the dev space (on an event showing the
+   * default statuses), and plausible for when the event happens: `MET` or `READY` once it has started, `READY` only
    * before. Pass `{ sfMemberStatus: null }` for a legacy row synced before the
    * column existed, or a hidden status to put one where a screen needs it - both
    * of which the `statuts-salesforce` scenario does, and nothing else should.
@@ -1119,7 +1192,10 @@ export class World {
   enrol(
     event: EventRef,
     talent: TalentRef,
-    opts?: { sfMemberStatus: SfMemberStatus | null },
+    opts?: {
+      sfMemberStatus:
+        SeedSfStatus | typeof UNRECOGNISED_SF_STATUS_SAMPLE | null;
+    },
   ): void {
     const sfMemberStatus =
       opts === undefined
@@ -1140,6 +1216,8 @@ export class World {
       eventId: event.id,
       campusId: event.campusId,
       sfMemberStatus,
+      // The projection, derived as it is written, like the sync does.
+      shownInDevSpace: isShownInDevSpace(sfMemberStatus, event.shownStatuses),
     });
     this.roster.get(event.id)!.push(talent);
     let attended = this.enrolledEventsByTalent.get(talent.id);
@@ -1428,7 +1506,7 @@ export class World {
     /**
      * When the granting fact happened. A ledger row whose date is not its
      * fact's date is a row the application could not have written: the talent's
-     * own `/xp` page orders by `createdAt` and `xpStoryService` prints a date
+     * own `/parcours` page orders by `createdAt` and `xpStoryService` prints a date
      * label per grant, so a dataset stamping every row on one day renders the
      * whole history as an undated block in arbitrary order. It survived as long
      * as it did because there were seventeen minigame grants to look at; the
@@ -1453,6 +1531,61 @@ export class World {
       opts.talent.id,
       (this.xpByTalent.get(opts.talent.id) ?? 0) + opts.amount,
     );
+  }
+
+  // ─── Activités en ligne ───────────────────────────────────────────────────
+
+  /**
+   * A talent's state on one online activity, and the XP grant that state implies.
+   *
+   * The grant is written HERE rather than left to the caller because the two have
+   * to agree: the application recomputes one grant per (talent, instance) from
+   * exactly these numbers on every callback, so a seeded pair that disagrees is a
+   * pair no callback could have produced.
+   *
+   * `celebrated` is the float's state, and both halves are worth placing:
+   * `false` leaves the whole grant owed a celebration, which is what a talent
+   * coming back to the Jump tab sees, and `true` marks it all shown, the state
+   * every talent is in afterwards.
+   */
+  enterWorkshop(opts: {
+    talent: TalentRef;
+    event: EventRef;
+    slug: string;
+    budgetMinutes: number;
+    solvedSteps: number;
+    totalSteps: number;
+    /** When the talent first entered; the grant is dated from it too. */
+    at: Date;
+    celebrated: boolean;
+  }): void {
+    const amount = workshopXp(
+      opts.solvedSteps,
+      opts.totalSteps,
+      opts.budgetMinutes,
+    );
+    this.buffer.workshop_Participation.push({
+      talentId: opts.talent.id,
+      activityId: workshopActivityId(opts.slug),
+      eventId: opts.event.id,
+      campusId: opts.event.campusId,
+      budgetMinutes: opts.budgetMinutes,
+      solvedSteps: opts.solvedSteps,
+      totalSteps: opts.totalSteps,
+      xpCelebrated: opts.celebrated ? amount : 0,
+      firstEnteredAt: opts.at,
+      updatedAt: opts.at,
+    });
+    if (amount > 0) {
+      this.grantXp({
+        talent: opts.talent,
+        source: 'workshop',
+        sourceId: workshopGrantSourceId(opts.slug, opts.talent.id),
+        amount,
+        campusId: opts.event.campusId,
+        at: opts.at,
+      });
+    }
   }
 
   /**

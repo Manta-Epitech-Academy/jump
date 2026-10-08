@@ -21,7 +21,8 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { metric, type Metric } from '$lib/server/adminApi/metrics';
+import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
+import { memberStatusCatalogue } from '$lib/server/services/devSpaceVisibility';
 import {
   openRunSnapshot,
   recentRuns,
@@ -33,6 +34,7 @@ import {
   listCadences,
 } from '$lib/server/services/syncConfigService';
 import { hoursSince, syncFreshnessTerms } from './dataFreshness';
+import { eventDisplayName } from '$lib/domain/event';
 
 type PassHealth = {
   at: string;
@@ -43,17 +45,218 @@ type PassHealth = {
   participations: number | null;
 } | null;
 
+/**
+ * One event whose deletions a full pass held back, and why.
+ *
+ * `cause` is derived here rather than left to be read off the counts, because
+ * the consumer is told never to compute: an empty roster and one with
+ * unresolved members call for different acts (confirm the emptying, or fix the
+ * member's SyncError), so the answer names which one it is.
+ */
+/** Held events listed by name before the answer stops naming them. */
+export const PRUNES_HELD_LIMIT = 50;
+
+type HeldPrune = {
+  eventId: string;
+  event: string;
+  campus: string;
+  date: string;
+  cause: 'empty_roster' | 'unresolved_members';
+  pendingRemovals: number;
+  sentCount: number;
+  resolvedCount: number;
+  firstHeldAt: string;
+  releasedAt: string | null;
+};
+
+/** Events carrying an unrecognised status listed by name before the answer stops. */
+export const UNRECOGNISED_STATUS_EVENTS_LIMIT = 50;
+
+/**
+ * One Salesforce status: a word of the catalogue, a word received, or both. What
+ * the dev space does with it is decided per event, so the row carries how many
+ * of its enrolments are shown rather than one verdict for the whole platform.
+ */
+type MemberStatusRow = {
+  status: string | null;
+  known: boolean;
+  /** Null for a word the catalogue does not hold, and for the missing status. */
+  shownByDefault: boolean | null;
+  count: number;
+  share: number | null;
+  shownCount: number;
+};
+
+/** One event holding enrolments whose status Jump does not know. */
+type UnrecognisedStatusEvent = {
+  eventId: string;
+  event: string;
+  campus: string;
+  date: string;
+  count: number;
+  statuses: string[];
+};
+
+type MemberStatusReport = {
+  rows: MemberStatusRow[];
+  unrecognised: number;
+  events: UnrecognisedStatusEvent[];
+  eventsTotal: number;
+};
+
 export type SyncHealth = {
   lastIncremental: Metric<PassHealth>;
   lastFull: Metric<PassHealth>;
   cadence: Metric<{ incrementalMinutes: number; fullMinutes: number }>;
-  nextRun: Metric<{ due: boolean; mode: string }>;
+  nextRun: Metric<{ due: boolean; mode: string; reason: string }>;
+  pendingRequests: Metric<{ full: string | null; incremental: string | null }>;
   runningSince: Metric<string | null>;
   unresolvedErrors: Metric;
   errorsByType: Metric<{ errorType: string; count: number }[]>;
   oldestUnresolvedAgeDays: Metric<number | null>;
   unresolvedSchools: Metric;
+  prunesHeldEvents: Metric;
+  prunesHeld: Metric<HeldPrune[]>;
+  prunesHeldTruncated: boolean;
+  memberStatuses: Metric<MemberStatusRow[]>;
+  unrecognisedStatuses: Metric;
+  unrecognisedStatusEvents: Metric<UnrecognisedStatusEvent[]>;
+  unrecognisedStatusEventsTruncated: boolean;
 };
+
+/**
+ * Every Salesforce member status Jump holds, over every enrolment it stores, and
+ * where the ones it does not know are.
+ *
+ * Deliberately not narrowed to what the dev space shows: the point is to see
+ * what it hides. This is the report whose absence let `MET` go unread for a
+ * month (#368): a word missing from the catalogue (`Sync_MemberStatus`) is
+ * masked, which is the safe default, and nothing said so. Here it is counted, named and
+ * located, so a new word Salesforce starts sending reaches someone instead of
+ * quietly emptying a cohort.
+ */
+async function memberStatusReport(): Promise<MemberStatusReport> {
+  const [grouped, catalogue] = await Promise.all([
+    prisma.participation.groupBy({
+      by: ['eventId', 'sfMemberStatus', 'shownInDevSpace'],
+      _count: { _all: true },
+    }),
+    memberStatusCatalogue(),
+  ]);
+  const shownByDefaultOf = new Map(
+    catalogue.map((row) => [row.status, row.shownByDefault]),
+  );
+
+  // Every word of the catalogue starts at zero, so a word nothing carries yet is
+  // listed too: this is where the vocabulary is read before it is written to.
+  const byStatus = new Map<string | null, { count: number; shown: number }>(
+    catalogue.map((row) => [row.status, { count: 0, shown: 0 }]),
+  );
+  const unrecognisedByEvent = new Map<
+    string,
+    { count: number; statuses: Set<string> }
+  >();
+  let total = 0;
+  for (const row of grouped) {
+    const count = row._count._all;
+    total += count;
+    const tally = byStatus.get(row.sfMemberStatus) ?? { count: 0, shown: 0 };
+    tally.count += count;
+    if (row.shownInDevSpace) tally.shown += count;
+    byStatus.set(row.sfMemberStatus, tally);
+    if (row.sfMemberStatus === null || shownByDefaultOf.has(row.sfMemberStatus))
+      continue;
+    const entry = unrecognisedByEvent.get(row.eventId) ?? {
+      count: 0,
+      statuses: new Set<string>(),
+    };
+    entry.count += count;
+    entry.statuses.add(row.sfMemberStatus);
+    unrecognisedByEvent.set(row.eventId, entry);
+  }
+
+  const rows = [...byStatus.entries()]
+    .map(([status, tally]) => ({
+      status,
+      known: status !== null && shownByDefaultOf.has(status),
+      shownByDefault:
+        status === null ? null : (shownByDefaultOf.get(status) ?? null),
+      count: tally.count,
+      share: share(tally.count, total),
+      shownCount: tally.shown,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const events =
+    unrecognisedByEvent.size === 0
+      ? []
+      : await prisma.event.findMany({
+          where: { id: { in: [...unrecognisedByEvent.keys()] } },
+          orderBy: { date: 'desc' },
+          take: UNRECOGNISED_STATUS_EVENTS_LIMIT,
+          select: {
+            id: true,
+            titre: true,
+            publicName: true,
+            date: true,
+            campus: { select: { name: true } },
+          },
+        });
+
+  return {
+    rows,
+    unrecognised: rows
+      .filter((row) => row.status !== null && !row.known)
+      .reduce((sum, row) => sum + row.count, 0),
+    events: events.map((event) => {
+      const entry = unrecognisedByEvent.get(event.id)!;
+      return {
+        eventId: event.id,
+        event: eventDisplayName(event),
+        campus: event.campus.name,
+        date: event.date.toISOString().slice(0, 10),
+        count: entry.count,
+        statuses: [...entry.statuses].sort(),
+      };
+    }),
+    eventsTotal: unrecognisedByEvent.size,
+  };
+}
+
+async function heldPrunes(): Promise<HeldPrune[]> {
+  const rows = await prisma.sync_PruneHold.findMany({
+    orderBy: { firstHeldAt: 'asc' },
+    take: PRUNES_HELD_LIMIT,
+    select: {
+      eventId: true,
+      pendingRemovals: true,
+      sentCount: true,
+      resolvedCount: true,
+      firstHeldAt: true,
+      releasedAt: true,
+      event: {
+        select: {
+          titre: true,
+          publicName: true,
+          date: true,
+          campus: { select: { name: true } },
+        },
+      },
+    },
+  });
+  return rows.map((r) => ({
+    eventId: r.eventId,
+    event: eventDisplayName(r.event),
+    campus: r.event.campus.name,
+    date: r.event.date.toISOString().slice(0, 10),
+    cause: r.sentCount === 0 ? 'empty_roster' : 'unresolved_members',
+    pendingRemovals: r.pendingRemovals,
+    sentCount: r.sentCount,
+    resolvedCount: r.resolvedCount,
+    firstHeldAt: r.firstHeldAt.toISOString(),
+    releasedAt: r.releasedAt?.toISOString() ?? null,
+  }));
+}
 
 /**
  * The last successful pass of one mode, and what it pushed.
@@ -97,12 +300,15 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     incremental,
     full,
     cadences,
-    { decision },
+    { decision, pending },
     running,
     unresolved,
     grouped,
     oldest,
     unresolvedSchools,
+    prunesHeldEvents,
+    prunesHeld,
+    statuses,
   ] = await Promise.all([
     passHealth('incremental', terms.staleAfterHours.incremental),
     passHealth('full', terms.staleAfterHours.full),
@@ -122,6 +328,9 @@ export async function getSyncHealth(): Promise<SyncHealth> {
       select: { createdAt: true },
     }),
     prisma.school.count({ where: { resolvedAt: null } }),
+    prisma.sync_PruneHold.count(),
+    heldPrunes(),
+    memberStatusReport(),
   ]);
 
   const incrementalMinutes =
@@ -140,11 +349,22 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     ),
     cadence: metric(
       { incrementalMinutes, fullMinutes },
-      "Fréquences configurées, en minutes : « incrementalMinutes » entre deux passes incrémentales, « fullMinutes » entre deux reprises complètes. Modifiables par l'opération write_sync_cadence, sans intervention sur l'infrastructure : le worker les relit à chaque réveil.",
+      "Fréquences configurées, en minutes : « incrementalMinutes » entre deux passes incrémentales, « fullMinutes » entre deux reprises complètes. Modifiables par l'opération write_sync_cadence, sans intervention sur l'infrastructure : le worker les relit à chaque réveil. Pour une passe immédiate sans toucher aux fréquences, l'opération ops_request_sync.",
     ),
     nextRun: metric(
-      { due: decision.shouldSync, mode: decision.mode },
-      'Ce que le worker fera à son prochain réveil : « due » dit si une synchronisation est attendue maintenant, « mode » laquelle. « due » à faux est le cas normal entre deux passes, pas une panne.',
+      {
+        due: decision.shouldSync,
+        mode: decision.mode,
+        reason: decision.reason,
+      },
+      "Ce que le worker fera à son prochain réveil : « due » dit si une synchronisation est attendue maintenant, « mode » laquelle, et « reason » pourquoi : « cadence » quand c'est la fréquence configurée qui la rend due, « requested » quand quelqu'un l'a demandée avec ops_request_sync. « due » à faux est le cas normal entre deux passes, pas une panne.",
+    ),
+    pendingRequests: metric(
+      {
+        full: pending.full?.toISOString() ?? null,
+        incremental: pending.incremental?.toISOString() ?? null,
+      },
+      'Passes demandées avec ops_request_sync et pas encore faites, avec la date de la demande, ou null pour un mode sans demande en attente. Une demande est satisfaite par la première passe réussie qui DÉMARRE après elle (une reprise complète satisfait aussi une demande incrémentale) : une passe déjà en cours au moment de la demande ne compte pas, et une passe en échec laisse la demande en attente pour le réveil suivant.',
     ),
     runningSince: metric(
       running ? running.startedAt.toISOString() : null,
@@ -168,6 +388,29 @@ export async function getSyncHealth(): Promise<SyncHealth> {
       unresolvedSchools,
       "Lycées créés à partir d'un nom sans que leur UAI ait pu être retrouvé dans l'annuaire de l'éducation nationale : leur ville et leurs codes manquent encore, et l'opération ops_resolve_schools relance la recherche. Compte des lycées, pas des talents : la part des talents dont le lycée n'est pas identifié se lit dans stats_schools_reach.",
     ),
+    prunesHeldEvents: metric(
+      prunesHeldEvents,
+      "Nombre d'événements dont la dernière reprise complète a retenu des suppressions d'inscription, détaillés dans « prunesHeld ». C'est le total : la liste peut être plus courte, « prunesHeldTruncated » dit alors que le plafond a été atteint.",
+    ),
+    prunesHeld: metric(
+      prunesHeld,
+      `Événements dont la dernière reprise complète a retenu des suppressions d'inscription au lieu de les appliquer, faute de pouvoir les prouver : une reprise complète supprime les inscrits absents de Salesforce, et elle ne le fait que si la liste reçue est complète. Rien n'est perdu ni bloqué, les autres campagnes se synchronisent normalement. « pendingRemovals » est le nombre d'inscriptions conservées en attendant. « cause » vaut « unresolved_members » quand des membres envoyés n'ont pas pu être rattachés à un talent (« resolvedCount » sur « sentCount ») : il faut alors traiter leurs erreurs sur /staff/admin/sync-errors, et la reprise complète suivante appliquera les suppressions d'elle-même. Elle vaut « empty_roster » quand la campagne est arrivée vide : si elle a réellement été vidée dans Salesforce, l'opération ops_release_prune_hold le confirme, et la reprise complète suivante supprime les inscriptions si la campagne lui arrive encore vide ; « releasedAt » est la date de cette confirmation. Seule une campagne arrivée vide se confirme ainsi : un membre non rattaché peut être l'inscrit que la suppression emporterait. Du plus ancien au plus récent, limité à ${PRUNES_HELD_LIMIT} lignes. Liste vide si rien n'est retenu.`,
+    ),
+    prunesHeldTruncated: prunesHeldEvents > PRUNES_HELD_LIMIT,
+    memberStatuses: metric(
+      statuses.rows,
+      "Le vocabulaire Salesforce de Jump : chaque statut de son catalogue et chaque statut effectivement reçu, du plus au moins fréquent. « count » est le nombre d'inscriptions qui le portent et « share » leur part du total. « known » dit si le statut figure au catalogue ; « shownByDefault » s'il est affiché d'emblée sur un événement nouvellement créé (null pour un statut hors catalogue). « shownCount » est le nombre de ces inscriptions que l'espace dev affiche : chaque événement règle lui-même les statuts qu'il affiche (« shownStatuses » dans config_event_detail), un même statut peut donc être affiché sur un événement et masqué sur un autre. Aucune inscription n'est absente de Jump. La ligne dont « status » vaut null regroupe les inscriptions importées avant que Jump n'enregistre le statut, toujours affichées.",
+    ),
+    unrecognisedStatuses: metric(
+      statuses.unrecognised,
+      "Inscriptions dont le statut Salesforce est un mot absent du catalogue de Jump : elles sont bien dans Jump, mais masquées de l'espace dev sur tous les événements. Tout chiffre non nul mérite d'être regardé : soit Salesforce a introduit un nouveau statut, soit un statut a changé d'orthographe, et dans les deux cas des inscriptions peuvent manquer à l'espace dev. Pour les afficher, le statut s'ajoute au catalogue (write_sync_member_status), puis s'affiche sur les événements concernés (write_event_config, ou bulk_event_config pour un périmètre).",
+    ),
+    unrecognisedStatusEvents: metric(
+      statuses.events,
+      `Événements qui portent au moins une inscription au statut inconnu de Jump, du plus récent au plus ancien : « count » est le nombre de ces inscriptions, « statuses » les mots reçus. Le détail par talent se lit dans « Membres Salesforce », sur la page Événements de l'espace admin. Limité à ${UNRECOGNISED_STATUS_EVENTS_LIMIT} lignes ; liste vide si aucun statut n'est inconnu.`,
+    ),
+    unrecognisedStatusEventsTruncated:
+      statuses.eventsTotal > UNRECOGNISED_STATUS_EVENTS_LIMIT,
   };
 }
 

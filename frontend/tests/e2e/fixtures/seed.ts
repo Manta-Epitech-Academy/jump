@@ -3,7 +3,7 @@
  *
  * Deliberately NOT the seed generator (`scripts/seed/`): that builds a dataset
  * shaped like production, and a spec anchored to it breaks the next time
- * somebody adjusts a scenario. This seeds the six accounts and the one event
+ * somebody adjusts a scenario. This seeds the seven accounts and the two events
  * the specs actually assert on. Who those accounts are is declared in
  * `./identities.ts`, which the config and the specs share.
  *
@@ -14,31 +14,47 @@
 import { prisma } from './db';
 import { E2E, E2E_DOMAIN } from './identities';
 // The real domain helpers, imported across the tree rather than restated here.
-// Both are pure (no `$lib` import, no Prisma), so they resolve fine outside Vite,
+// All are pure (no `$lib` import, no Prisma), so they resolve fine outside Vite,
 // and a fixture that re-derived the school-year cutover would be a second copy of
 // the rule the guard reads.
 import { currentSchoolYearLabel } from '../../../src/lib/domain/schoolYear';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
+import {
+  dateKeyToDbDate,
+  toDateKey,
+} from '../../../src/lib/domain/eventPresence';
+import { fromWallClock } from '../../../src/lib/domain/planningTime';
+
+/** The campus this fixture writes, and the clock its event is read on. */
+const CAMPUS_TIMEZONE = 'Europe/Paris';
 
 /**
- * Midnight UTC today. The émargement page lands on today's half-day
- * (`defaultActiveSlotKey`), so an event spanning today is what makes the roster
- * deterministic without the spec having to navigate créneaux. The half-day it
- * picks depends on the hour, which the spec does not care about: the per-talent
- * switch is gated on permission, never on the créneau's closure.
+ * Today ON THE CAMPUS CLOCK, stored the way production stores it: the day at
+ * midnight UTC (what Salesforce sends) and the end at 23:59 campus time (what
+ * the configuration screen writes). Every reader of an event's day reads the
+ * campus clock, so a fixture built off the UTC date read « hier » for the last
+ * one or two hours of every Paris evening, which is when somebody runs `verify`
+ * after work.
+ *
+ * The émargement page lands on today's half-day (`defaultActiveSlotKey`), and
+ * the dashboard leads with today's activity, so an event spanning today is what
+ * makes both deterministic without the spec having to navigate anything.
  */
-function todayUtcMidnight(): Date {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
+function campusToday(): { date: Date; endDate: Date } {
+  const key = toDateKey(new Date(), CAMPUS_TIMEZONE);
+  return {
+    date: dateKeyToDbDate(key),
+    endDate: fromWallClock(key, '23:59', CAMPUS_TIMEZONE),
+  };
 }
 
 /** Drop everything this fixture owns. Safe to run against a dirty database. */
 export async function purgeE2eData(): Promise<void> {
   // The event first: EventConfig_Module, Participation, EventPresence and the
   // closures all cascade off it.
-  await prisma.event.deleteMany({ where: { id: E2E.eventId } });
+  await prisma.event.deleteMany({
+    where: { id: { in: [E2E.eventId, E2E.upcomingEventId] } },
+  });
   // Then the talents. Talent -> bauth_user is SetNull, not Cascade, so deleting
   // the accounts first would leave orphan Talent rows behind (the same order the
   // load-test cleanup documents).
@@ -47,6 +63,18 @@ export async function purgeE2eData(): Promise<void> {
   });
   await prisma.bauth_user.deleteMany({
     where: { email: { endsWith: E2E_DOMAIN } },
+  });
+  // The activities last, then their host: the link and the participation both
+  // Restrict onto an activity, so it cannot go before the event (which
+  // cascades the link) and the talents (which cascade the participation), and
+  // an activity Restricts onto its host in turn. Every activity on the host and
+  // not only this fixture's own: a database migrated from before the split
+  // holds one carrying the host's id, and it would hold the host in place.
+  await prisma.workshop_Activity.deleteMany({
+    where: { instanceId: E2E.workshopInstanceId },
+  });
+  await prisma.workshop_Instance.deleteMany({
+    where: { id: E2E.workshopInstanceId },
   });
   await prisma.campus.deleteMany({ where: { id: E2E.campusId } });
 }
@@ -62,7 +90,23 @@ export async function seedE2eData(): Promise<void> {
       id: E2E.campusId,
       name: 'E2E Campus',
       externalName: 'E2E_CAMPUS',
-      timezone: 'Europe/Paris',
+      timezone: CAMPUS_TIMEZONE,
+      homeNote: {
+        create: {
+          markdown: `## Bienvenue\n\nRejoins [le Discord du campus](${E2E.homeNoteLink}).`,
+        },
+      },
+      // A week out, so the highlight is still open whenever the suite runs.
+      homeHighlight: {
+        create: {
+          title: E2E.homeHighlightTitle,
+          summary: 'Deux heures pour coder ton propre Snake.',
+          date: dateKeyToDbDate(
+            toDateKey(new Date(Date.now() + 7 * 86_400_000), CAMPUS_TIMEZONE),
+          ),
+          url: E2E.homeHighlightUrl,
+        },
+      },
     },
   });
 
@@ -86,6 +130,25 @@ export async function seedE2eData(): Promise<void> {
     });
   }
 
+  // ── The curated activity the event offers ────────────────────────────────
+  // A non-routable host, exactly as the generator seeds one: this fixture never
+  // hands anybody over, it only needs the row the dashboard and the callback
+  // are built from.
+  await prisma.workshop_Instance.create({
+    data: {
+      id: E2E.workshopInstanceId,
+      slug: E2E.workshopInstanceSlug,
+      baseUrl: 'https://e2e.ctfd.invalid',
+      activities: {
+        create: {
+          id: E2E.workshopActivityId,
+          slug: E2E.workshopSlug,
+          label: E2E.workshopLabel,
+        },
+      },
+    },
+  });
+
   // ── Event, with the one module the mutating spec needs ───────────────────
   // `devActivatedAt` is the visibility gate and the module row is what
   // `requireEventModule` checks; either missing is a 404, not an empty screen.
@@ -95,11 +158,20 @@ export async function seedE2eData(): Promise<void> {
       titre: 'E2E-Emargement',
       publicName: 'Émargement E2E',
       cohortNoun: 'participant',
-      date: todayUtcMidnight(),
-      endDate: todayUtcMidnight(),
+      ...campusToday(),
       campusId: E2E.campusId,
       devActivatedAt: now,
       modules: { create: { moduleKey: EVENT_MODULES.EMARGEMENT } },
+      // What the dev space shows, as the worker gives a new event: the READY
+      // members below are on the roster because this row says so.
+      shownStatuses: { create: [{ status: 'READY' }, { status: 'MET' }] },
+      workshops: {
+        create: {
+          activityId: E2E.workshopActivityId,
+          position: 0,
+          durationMinutes: E2E.workshopDurationMinutes,
+        },
+      },
     },
   });
 
@@ -157,6 +229,66 @@ export async function seedE2eData(): Promise<void> {
               campusId: E2E.campusId,
               // A visible SF status: the émargement roster mirrors the inscrits
               // filter, so CONNECTED/DESISTED would seed an invisible talent.
+              sfMemberStatus: 'READY',
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Signed like the talent above, but enrolled only in a session three days
+  // out: the home has no activity to lead with, so it leads with the campus's
+  // highlight, and the session card has a date (and a confirmed hour) to give.
+  await prisma.event.create({
+    data: {
+      id: E2E.upcomingEventId,
+      titre: 'E2E-Prochain-Campagne-SF',
+      publicName: E2E.upcomingEventName,
+      cohortNoun: 'participant',
+      date: dateKeyToDbDate(
+        toDateKey(new Date(Date.now() + 3 * 86_400_000), CAMPUS_TIMEZONE),
+      ),
+      startMinutes: 14 * 60,
+      campusId: E2E.campusId,
+    },
+  });
+  await prisma.bauth_user.create({
+    data: {
+      id: E2E.talentIdle.userId,
+      email: E2E.talentIdle.email,
+      emailVerified: true,
+      role: 'student',
+      name: `${E2E.talentIdle.prenom} ${E2E.talentIdle.nom}`,
+      talent: {
+        create: {
+          id: E2E.talentIdle.talentId,
+          nom: E2E.talentIdle.nom,
+          prenom: E2E.talentIdle.prenom,
+          niveau: 'Terminale',
+          ...dossierComplete,
+          charterAcceptedAt: now,
+          welcomeSeenAt: now,
+          onboardingSchoolYear: schoolYear,
+          // A guardian with no account: settled here, so the talent is not
+          // held, and no parent session of this suite gains a second child.
+          parentEmail: `parent-idle${E2E_DOMAIN}`,
+          parentRulesSignedAt: now,
+          imageRightsDecision: 'accepted',
+          imageRightsDecidedAt: now,
+          onboardingRecords: {
+            create: {
+              schoolYear,
+              ...dossierComplete,
+              parentRulesSignedAt: now,
+              imageRightsDecision: 'accepted',
+              imageRightsDecidedAt: now,
+            },
+          },
+          participations: {
+            create: {
+              eventId: E2E.upcomingEventId,
+              campusId: E2E.campusId,
               sfMemberStatus: 'READY',
             },
           },

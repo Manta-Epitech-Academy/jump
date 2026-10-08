@@ -1,0 +1,284 @@
+import { describe, it, expect } from 'vitest';
+import { createHmac } from 'node:crypto';
+import {
+  WORKSHOP_TICKET_TTL_SECONDS,
+  mintWorkshopTicket,
+  verifyWorkshopTicket,
+  workshopAudience,
+  workshopDisplayName,
+  workshopKeys,
+  workshopSessionLabel,
+} from './ticket';
+
+/**
+ * The half of a frozen contract Jump owns, tested against the rules the plugin
+ * applies on the other side.
+ *
+ * `verifyWorkshopTicket` is the plugin's logic written in TypeScript: nothing in
+ * the application calls it, and it exists so the two implementations can be read
+ * against each other and so this half is testable while the plugin is being
+ * built. Every refusal below is one the plugin has to make too.
+ */
+
+const SECRET = 'a-shared-secret-for-this-environment';
+const SLUG = 'ctfd-saison';
+const CONTENT = 'pacman-ia';
+const KID = 'jump-test';
+const NOW = new Date('2026-09-15T12:00:00Z');
+const SESSION = {
+  id: 'sd_evt_paris_cc_0001',
+  label: 'Coding Club Paris (15/09/2026)',
+  campusId: 'sd_cmp_paris',
+  campusLabel: 'Paris',
+};
+
+const mint = (
+  overrides: Partial<Parameters<typeof mintWorkshopTicket>[0]> = {},
+) =>
+  mintWorkshopTicket({
+    talentId: 'sd_tal_paris_0001',
+    displayName: 'Camille D.',
+    slug: SLUG,
+    content: CONTENT,
+    kid: KID,
+    secret: SECRET,
+    session: SESSION,
+    now: NOW,
+    ...overrides,
+  });
+
+/**
+ * Sign arbitrary claims with the right key, for the refusals that are about
+ * what a correctly signed token says rather than about its signature.
+ */
+const signClaims = (claims: Record<string, unknown>) => {
+  const { ticketKey } = workshopKeys(SECRET);
+  const payload = Buffer.from(JSON.stringify(claims), 'utf8').toString(
+    'base64url',
+  );
+  const signature = createHmac('sha256', ticketKey)
+    .update(payload)
+    .digest('base64url');
+  return `${payload}.${signature}`;
+};
+
+const claimsOf = (token: string) =>
+  JSON.parse(
+    Buffer.from(token.split('.')[0]!, 'base64url').toString('utf8'),
+  ) as Record<string, unknown>;
+
+const verify = (
+  token: string,
+  overrides: {
+    secret?: string;
+    slug?: string;
+    kid?: string;
+    content?: string;
+    now?: Date;
+  } = {},
+) =>
+  verifyWorkshopTicket(token, {
+    secret: SECRET,
+    slug: SLUG,
+    content: CONTENT,
+    kid: KID,
+    now: NOW,
+    ...overrides,
+  });
+
+describe('the entry ticket', () => {
+  it('carries the claims the plugin reads, and verifies against them', () => {
+    const claims = verify(mint());
+    expect(claims).not.toBeNull();
+    expect(claims?.sub).toBe('sd_tal_paris_0001');
+    expect(claims?.name).toBe('Camille D.');
+    expect(claims?.aud).toBe(workshopAudience(SLUG));
+    expect(claims?.iss).toBe('jump');
+    expect(claims?.kid).toBe(KID);
+    expect(claims?.exp).toBe(claims!.iat + WORKSHOP_TICKET_TTL_SECONDS);
+  });
+
+  it('gives every ticket its own jti, so single use can be enforced', () => {
+    // The plugin burns it through the cache's SETNX. Two tickets sharing one
+    // would make the second entry look like a replay of the first.
+    expect(mint().split('.')[0]).not.toBe(mint().split('.')[0]);
+  });
+
+  it('expires', () => {
+    const token = mint();
+    const justInside = new Date(
+      NOW.getTime() + (WORKSHOP_TICKET_TTL_SECONDS - 1) * 1000,
+    );
+    const justOutside = new Date(
+      NOW.getTime() + (WORKSHOP_TICKET_TTL_SECONDS + 1) * 1000,
+    );
+    expect(verify(token, { now: justInside })).not.toBeNull();
+    expect(verify(token, { now: justOutside })).toBeNull();
+  });
+
+  it('refuses a lifetime longer than the ceiling, whatever the token claims', () => {
+    // A bug on the Jump side must not be able to hand out a bearer valid for a
+    // month, which CTFd has no way to revoke: the ceiling is applied to what the
+    // token says about itself, not only to the clock.
+    const iat = Math.floor(NOW.getTime() / 1000);
+    const claims = {
+      kid: KID,
+      sub: 'sd_tal_paris_0001',
+      name: 'Camille D.',
+      aud: workshopAudience(SLUG),
+      iss: 'jump',
+      iat,
+      exp: iat + 30 * 24 * 3600,
+      jti: 'forged-but-correctly-signed',
+    };
+    expect(verify(signClaims(claims))).toBeNull();
+  });
+
+  it('names the session the plugin files the account under', () => {
+    const claims = verify(mint());
+    expect(claims?.session).toBe(SESSION.id);
+    expect(claims?.session_label).toBe(SESSION.label);
+    expect(claims?.campus).toBe(SESSION.campusId);
+    expect(claims?.campus_label).toBe(SESSION.campusLabel);
+  });
+
+  it('accepts a ticket that names no session, as one minted before they existed', () => {
+    const {
+      session: _session,
+      session_label: _sessionLabel,
+      campus: _campus,
+      campus_label: _campusLabel,
+      ...rest
+    } = claimsOf(mint());
+    expect(verify(signClaims(rest))).not.toBeNull();
+  });
+
+  it('names the content, and only the instance serving it lets the talent in', () => {
+    expect(verify(mint())?.content).toBe(CONTENT);
+    // The host has moved on to another content since the activity was declared.
+    expect(verify(mint(), { content: 'santa-shooter' })).toBeNull();
+    // An instance no sync has recorded a content on cannot tell either.
+    expect(verify(mint(), { content: undefined })).toBeNull();
+    expect(verify(signClaims({ ...claimsOf(mint()), content: '' }))).toBeNull();
+  });
+
+  it('accepts a ticket that names no content, as one minted before it existed', () => {
+    const { content: _content, ...rest } = claimsOf(mint());
+    expect(verify(signClaims(rest), { content: undefined })).not.toBeNull();
+  });
+
+  it('refuses half a session: an account in a session with no campus leaves every staff filter', () => {
+    const {
+      campus: _campus,
+      campus_label: _campusLabel,
+      ...rest
+    } = claimsOf(mint());
+    expect(verify(signClaims(rest))).toBeNull();
+    expect(verify(signClaims({ ...claimsOf(mint()), session: '' }))).toBeNull();
+  });
+
+  it('keeps a long event name within what the plugin stores', () => {
+    const claims = verify(
+      mint({ session: { ...SESSION, label: 'Coding Club '.repeat(20) } }),
+    );
+    expect(claims?.session_label?.length).toBe(128);
+    expect(
+      verify(signClaims({ ...claimsOf(mint()), campus: 'x'.repeat(65) })),
+    ).toBeNull();
+  });
+
+  it('keeps the day when an event name is too long, and never splits a character', () => {
+    // Two sessions of one recurring event differ by their day alone, so the
+    // name gives way. The cap counts characters the way the plugin's `len()`
+    // does, so an emoji at the edge is kept whole or dropped whole, and a label
+    // longer in UTF-16 units than in characters still verifies.
+    const long = workshopSessionLabel('Coding Club '.repeat(20), '15/09/2026');
+    expect(Array.from(long)).toHaveLength(128);
+    expect(long.endsWith(' (15/09/2026)')).toBe(true);
+
+    const withEmoji = workshopSessionLabel(
+      `${'x'.repeat(114)}🚀🚀`,
+      '15/09/2026',
+    );
+    expect(withEmoji).toBe(`${'x'.repeat(114)}🚀 (15/09/2026)`);
+    expect(
+      verify(mint({ session: { ...SESSION, label: withEmoji } }))
+        ?.session_label,
+    ).toBe(withEmoji);
+  });
+
+  it('refuses a ticket minted for another instance', () => {
+    expect(verify(mint(), { slug: 'discover-linux' })).toBeNull();
+  });
+
+  it('refuses a tampered payload', () => {
+    const [payload, signature] = mint().split('.');
+    const claims = JSON.parse(
+      Buffer.from(payload!, 'base64url').toString('utf8'),
+    );
+    claims.sub = 'sd_tal_paris_0002';
+    const forged = Buffer.from(JSON.stringify(claims), 'utf8').toString(
+      'base64url',
+    );
+    expect(verify(`${forged}.${signature}`)).toBeNull();
+    expect(verify(`${payload}.${signature}xx`)).toBeNull();
+  });
+
+  it('refuses an unknown kid before looking at the signature', () => {
+    // The plugin selects its verifying key with the kid and takes the callback
+    // origin from that key's own configuration. Falling back to "the only secret
+    // configured" would turn a single-origin instance into an oracle the day a
+    // second origin is added.
+    expect(verify(mint({ kid: 'jump-somebody-elses' }))).toBeNull();
+  });
+
+  it('refuses a ticket signed with another environment secret', () => {
+    expect(verify(mint({ secret: 'some-other-secret' }))).toBeNull();
+  });
+});
+
+describe('the derived keys', () => {
+  it('are different from each other and from the secret', () => {
+    // A leak in one direction must not be a forging capability in the other.
+    const { ticketKey, callbackKey } = workshopKeys(SECRET);
+    expect(ticketKey).not.toBe(callbackKey);
+    expect(ticketKey).not.toBe(SECRET);
+  });
+
+  it('are the lowercase hex digest, which is the frozen contract', () => {
+    // The plugin's `derived_key` returns `hexdigest().encode()` and uses that
+    // ASCII string as the key of the next HMAC. Raw bytes and their hex spelling
+    // are different keys: this assertion is what stops the two halves drifting
+    // into refusing every ticket with nothing to say why.
+    const { ticketKey, callbackKey } = workshopKeys(SECRET);
+    expect(ticketKey).toMatch(/^[0-9a-f]{64}$/);
+    expect(callbackKey).toMatch(/^[0-9a-f]{64}$/);
+    expect(ticketKey).toBe(
+      createHmac('sha256', SECRET).update('jump/ticket').digest('hex'),
+    );
+    expect(callbackKey).toBe(
+      createHmac('sha256', SECRET).update('jump/callback').digest('hex'),
+    );
+  });
+
+  it('derive the same key from the same secret, run after run', () => {
+    expect(workshopKeys(SECRET).ticketKey).toBe(workshopKeys(SECRET).ticketKey);
+  });
+});
+
+describe('the display name', () => {
+  it('is a first name and an initial, never the full name', () => {
+    // The deployed scoreboards are public and these are minors on a third-party
+    // host, so what leaves Jump is the least that lets a student find their row.
+    expect(workshopDisplayName('Camille', 'Deschamps')).toBe('Camille D.');
+    expect(workshopDisplayName('Camille', null)).toBe('Camille');
+  });
+
+  it('never exceeds what CTFd can store', () => {
+    expect(workshopDisplayName('x'.repeat(200), 'Deschamps')).toHaveLength(128);
+  });
+
+  it('falls back rather than sending an empty name', () => {
+    expect(workshopDisplayName(null, null)).toBe('Talent');
+  });
+});

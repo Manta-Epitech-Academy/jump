@@ -1,6 +1,7 @@
 /**
- * The two-step contract behind the bulk write operations: a dry run first, then
- * an apply that has to echo that dry run's digest.
+ * The two-step contract behind the class B writes (the bulk event change, and
+ * the writes that replace a whole grid or form): a dry run first, then an apply
+ * that has to echo that dry run's digest.
  *
  * Why a digest and not a stored plan. The pods scale horizontally and hold no
  * source-of-truth state, so a plan parked in process memory would simply be
@@ -12,7 +13,7 @@
  * meantime), and it adds no table.
  *
  * The contract lives here rather than inside each tool: {@link runTwoStep} is
- * what the three bulk operations share, so none of them can implement "check the
+ * what every two-step write shares, so none of them can implement "check the
  * digest" slightly differently.
  */
 
@@ -25,9 +26,21 @@ import { createHash } from 'node:crypto';
  * `before` / `after` are what lands on the audit row, which is what turns the
  * call log into a change history. A dry run changed nothing, so it records
  * neither.
+ *
+ * `answer`, when present, is what the caller is told instead of the two states.
+ * Most states are a few fields, and answering with them is the clearest receipt
+ * there is. A certificate design is not: its before and after are the whole
+ * stylesheet and markup twice, kilobytes the model has just sent and pays to read
+ * back on every edit. The audit row keeps both either way, so a narrower answer
+ * costs no history.
  */
 export type WriteOutcome =
-  | { applied: true; before: unknown; after: unknown }
+  | {
+      applied: true;
+      before: unknown;
+      after: unknown;
+      answer?: Record<string, unknown>;
+    }
   | { applied: false; plan: unknown; planDigest: string };
 
 /**
@@ -47,6 +60,18 @@ export function auditChangeOf(
   return outcome.applied
     ? { before: outcome.before, after: outcome.after }
     : undefined;
+}
+
+/**
+ * What a call answers, derived from what the operation returned: the operation's
+ * own `answer` when an applied write names one, everything it returned otherwise.
+ * The twin of `auditChangeOf`, and shared by both consumers for the same reason.
+ */
+export function answerOf(kind: 'read' | 'write', data: unknown): unknown {
+  if (kind !== 'write') return data;
+  const outcome = data as WriteOutcome;
+  if (!outcome.applied || outcome.answer === undefined) return data;
+  return { applied: true, ...outcome.answer };
 }
 
 /** The caller's `planDigest` did not match a freshly computed plan. */
@@ -91,7 +116,7 @@ export function planDigest(plan: unknown): string {
 }
 
 /**
- * Run a bulk operation under the dry-run-then-apply contract.
+ * Run a two-step write under the dry-run-then-apply contract.
  *
  * `buildPlan` must be a pure read that returns the affected rows **in a stable
  * order** (sort by id): the digest is computed from it, so an unstable order

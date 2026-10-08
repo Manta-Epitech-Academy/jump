@@ -10,6 +10,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 const recordAdminApiCall = vi.fn();
 vi.mock('./audit', () => ({
@@ -17,8 +19,12 @@ vi.mock('./audit', () => ({
   ANONYMOUS_ACTOR: 'anonymous',
 }));
 
-const { auditUnreachedToolCall, envelopeRefusal, adminMcpInstructions } =
-  await import('./mcpServer');
+const {
+  auditUnreachedToolCall,
+  buildAdminMcpServer,
+  envelopeRefusal,
+  adminMcpInstructions,
+} = await import('./mcpServer');
 
 /** A core token that may write: everything in the catalogue is offered to it. */
 const coreWriter = {
@@ -47,7 +53,7 @@ beforeEach(() => recordAdminApiCall.mockReset());
 describe('auditUnreachedToolCall', () => {
   it('stays silent on a call that will reach its tool, which logs its own outcome', async () => {
     await auditUnreachedToolCall(
-      call('stats_events_overview', { campus: 'Lille' }),
+      call('config_campus_overview', { campus: 'Lille' }),
       coreWriter,
     );
     expect(recordAdminApiCall).not.toHaveBeenCalled();
@@ -55,13 +61,13 @@ describe('auditUnreachedToolCall', () => {
 
   it('records the misspelled filter the SDK rejects before the handler', async () => {
     await auditUnreachedToolCall(
-      call('stats_events_overview', { campusID: 'Lille' }),
+      call('config_campus_overview', { campusID: 'Lille' }),
       coreWriter,
     );
 
     expect(recordAdminApiCall).toHaveBeenCalledTimes(1);
     expect(recordAdminApiCall.mock.calls[0][0]).toMatchObject({
-      operation: 'stats_events_overview',
+      operation: 'config_campus_overview',
       status: 400,
     });
   });
@@ -71,7 +77,7 @@ describe('auditUnreachedToolCall', () => {
   // does not have, and the call log must not become the place that keeps it.
   it('never stores the unvalidated arguments of a refused call', async () => {
     await auditUnreachedToolCall(
-      call('stats_events_overview', { nom: 'Dupont' }),
+      call('config_campus_overview', { nom: 'Dupont' }),
       coreWriter,
     );
 
@@ -104,12 +110,12 @@ describe('auditUnreachedToolCall', () => {
 
   it('records a write attempted with a read-only token as forbidden', async () => {
     await auditUnreachedToolCall(
-      call('write_event_activation', { eventId: 'evt', visible: true }),
+      call('write_event_config', { eventId: 'evt', visible: true }),
       { ...coreWriter, writeEnabled: false },
     );
 
     expect(recordAdminApiCall.mock.calls[0][0]).toMatchObject({
-      operation: 'write_event_activation',
+      operation: 'write_event_config',
       status: 403,
     });
   });
@@ -124,7 +130,7 @@ describe('auditUnreachedToolCall', () => {
       { jsonrpc: '2.0', id: 1, method: 'tools/list' },
       { method: 'tools/call' },
       { method: 'tools/call', params: { name: '' } },
-      [call('stats_events_overview', { nope: 1 })],
+      [call('config_campus_overview', { nope: 1 })],
     ]) {
       await auditUnreachedToolCall(body, coreWriter);
     }
@@ -149,7 +155,7 @@ describe('auditUnreachedToolCall', () => {
 describe('envelopeRefusal', () => {
   it('refuses a batch, whatever it carries', () => {
     for (const batch of [
-      [call('stats_sync_health'), call('stats_events_overview')],
+      [call('stats_sync_health'), call('config_campus_overview')],
       [call('stats_sync_health')],
       [],
     ]) {
@@ -197,7 +203,18 @@ describe('the standing instructions', () => {
       const instructions = adminMcpInstructions(tier);
       expect(instructions).toMatch(/not the same as not looking/i);
       expect(instructions).toMatch(/call the closest tool once/i);
-      expect(instructions).toContain('meta_operations');
+      expect(instructions).toMatch(/which tools return it/);
+    }
+  });
+
+  // An event answered `participants: 2` while holding 5 synced enrolments, and a
+  // model relayed it as "2 inscrits". The masked 3 are in Jump all the same.
+  it('tells both tiers a dev-space count is not what Jump holds', () => {
+    for (const tier of ['core', 'leadership'] as const) {
+      const instructions = adminMcpInstructions(tier);
+      expect(instructions).toMatch(/Jump stores every enrolment/);
+      expect(instructions).toContain('hiddenFromDevSpace');
+      expect(instructions).toContain('syncedEnrolments');
     }
   });
 
@@ -232,4 +249,63 @@ describe('the standing instructions', () => {
       /conversion or admission rate/i,
     );
   });
+});
+
+/**
+ * What a client that loads everything receives before its first question, by
+ * credential: the server instructions plus the `tools/list` answer, in
+ * characters, as the SDK actually sends them.
+ *
+ * That is the worst case, and it is the one measured. Claude Code defers tool
+ * definitions: up front it keeps the names and the instructions, and loads a
+ * tool's definition when its search picks it, so there what matters is that each
+ * definition carries only what concerns its tool and that tools are told apart.
+ * A client that loads everything (the desktop app has shipped ignoring deferral)
+ * pays the whole list for the whole conversation, and with every definition
+ * loaded both the size of the list and the count of tools degrade the choice.
+ * The instructions are counted because every client loads them, deferral or not.
+ *
+ * A ratchet, not a target. This list used to grow one well-meant operation at a
+ * time with nothing measuring it, until a write-enabled token loaded about
+ * 106 000 characters of tools before anybody asked anything; folding the facet
+ * writes into one write per entity, dropping the reads another read answered and
+ * naming each handle's full sources rather than every slice brought it to the
+ * figures below, each pinned a few percent above what it measured.
+ *
+ * So raising a number here is the decision, and it is made in the pull request
+ * that needs it, with the reason in its description. Before raising one, check
+ * the failure's list of heaviest tools: a new facet of an entity that already
+ * has a write is a field of that write, not a tool.
+ */
+const TOOL_LIST_BUDGET = [
+  ['leadership', leadership, 23_200],
+  ['core, read-only', { ...coreWriter, writeEnabled: false }, 42_400],
+  ['core, write-enabled', coreWriter, 86_700],
+] as const;
+
+describe('what a client loads up front', () => {
+  for (const [label, credential, budget] of TOOL_LIST_BUDGET) {
+    it(`stays within its budget for a ${label} token`, async () => {
+      const server = buildAdminMcpServer(credential, 'https://jump.example');
+      const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
+      await server.connect(serverSide);
+      const client = new Client({ name: 'budget', version: '1' });
+      await client.connect(clientSide);
+
+      const { tools } = await client.listTools();
+      const size =
+        (client.getInstructions() ?? '').length + JSON.stringify(tools).length;
+      const heaviest = tools
+        .map((tool) => `${tool.name} ${JSON.stringify(tool).length}`)
+        .sort((a, b) => Number(b.split(' ')[1]) - Number(a.split(' ')[1]))
+        .slice(0, 5)
+        .join(', ');
+
+      expect(
+        size,
+        `${label}: ${tools.length} tools, ${size} characters. Heaviest: ${heaviest}`,
+      ).toBeLessThanOrEqual(budget);
+      await client.close();
+    });
+  }
 });

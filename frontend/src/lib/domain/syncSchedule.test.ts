@@ -17,6 +17,7 @@ import {
   syncCadenceNote,
   SYNC_WATERMARK_MARGIN_MINUTES,
   type SyncCadence,
+  type SyncRequests,
 } from './syncSchedule';
 
 const CADENCES: SyncCadence[] = [
@@ -25,6 +26,13 @@ const CADENCES: SyncCadence[] = [
 ];
 
 const NOW = new Date('2026-09-15T12:00:00.000Z');
+
+const NO_REQUESTS: SyncRequests = { full: null, incremental: null };
+
+/** A request a person made `minutesAgo` minutes before NOW. */
+function askedAgo(minutesAgo: number) {
+  return new Date(NOW.getTime() - minutesAgo * 60_000);
+}
 
 /** A run that started `startedAgo` minutes ago and took `tookMinutes`. */
 function ranAgo(startedAgo: number, tookMinutes = 2) {
@@ -39,17 +47,24 @@ describe('decideSync', () => {
   it('asks for a full pass when nothing has ever run', () => {
     const decision = decideSync({
       now: NOW,
+      requests: NO_REQUESTS,
       cadences: CADENCES,
       lastOkFull: null,
       lastOkIncremental: null,
     });
 
-    expect(decision).toEqual({ shouldSync: true, mode: 'full', since: null });
+    expect(decision).toEqual({
+      shouldSync: true,
+      mode: 'full',
+      since: null,
+      reason: 'cadence',
+    });
   });
 
   it('stays quiet when both modes are within their interval', () => {
     const decision = decideSync({
       now: NOW,
+      requests: NO_REQUESTS,
       cadences: CADENCES,
       lastOkFull: ranAgo(60),
       lastOkIncremental: ranAgo(30),
@@ -64,6 +79,7 @@ describe('decideSync', () => {
   it('still names a valid mode and carries a since key when nothing is due', () => {
     const decision = decideSync({
       now: NOW,
+      requests: NO_REQUESTS,
       cadences: CADENCES,
       lastOkFull: ranAgo(60),
       lastOkIncremental: ranAgo(30),
@@ -76,6 +92,7 @@ describe('decideSync', () => {
   it('asks for an incremental once its interval has elapsed', () => {
     const decision = decideSync({
       now: NOW,
+      requests: NO_REQUESTS,
       cadences: CADENCES,
       lastOkFull: ranAgo(200),
       lastOkIncremental: ranAgo(190),
@@ -91,6 +108,7 @@ describe('decideSync', () => {
   it('prefers the full pass when both are due', () => {
     const decision = decideSync({
       now: NOW,
+      requests: NO_REQUESTS,
       cadences: CADENCES,
       lastOkFull: ranAgo(1500),
       lastOkIncremental: ranAgo(400),
@@ -105,6 +123,7 @@ describe('decideSync', () => {
     // a 180 min cadence, even though its start is older than the interval.
     const decision = decideSync({
       now: NOW,
+      requests: NO_REQUESTS,
       cadences: CADENCES,
       lastOkFull: ranAgo(200),
       lastOkIncremental: ranAgo(185, 10),
@@ -120,6 +139,7 @@ describe('decideSync', () => {
     const last = ranAgo(200, 10);
     const decision = decideSync({
       now: NOW,
+      requests: NO_REQUESTS,
       cadences: CADENCES,
       lastOkFull: ranAgo(300),
       lastOkIncremental: last,
@@ -137,6 +157,7 @@ describe('decideSync', () => {
   it('takes the whole whitelist when an incremental is due but none ever succeeded', () => {
     const decision = decideSync({
       now: NOW,
+      requests: NO_REQUESTS,
       cadences: CADENCES,
       // A full ran an hour ago, so it is not due; no incremental has ever
       // landed, so that one is, and it has no floor to resume from.
@@ -148,6 +169,7 @@ describe('decideSync', () => {
       shouldSync: true,
       mode: 'incremental',
       since: null,
+      reason: 'cadence',
     });
   });
 
@@ -159,12 +181,14 @@ describe('decideSync', () => {
 
     const onDefaults = decideSync({
       now: NOW,
+      requests: NO_REQUESTS,
       cadences: CADENCES,
       lastOkFull: ranAgo(60),
       lastOkIncremental: ranAgo(20),
     });
     const onTightened = decideSync({
       now: NOW,
+      requests: NO_REQUESTS,
       cadences: tightened,
       lastOkFull: ranAgo(60),
       lastOkIncremental: ranAgo(20),
@@ -180,11 +204,97 @@ describe('decideSync', () => {
     expect(() =>
       decideSync({
         now: NOW,
+        requests: NO_REQUESTS,
         cadences: [{ mode: 'incremental', intervalMinutes: 180 }],
         lastOkFull: ranAgo(60),
         lastOkIncremental: ranAgo(20),
       }),
     ).toThrow(/full/);
+  });
+});
+
+// A person asking for a pass now. Every case starts from a platform where
+// nothing is due on cadence (full 60 min ago, incremental 30), so whatever runs
+// runs because of the request.
+describe('decideSync with a requested pass', () => {
+  const quiet = { lastOkFull: ranAgo(60), lastOkIncremental: ranAgo(30) };
+  const decide = (
+    requests: Partial<SyncRequests>,
+    runs: Partial<typeof quiet> = {},
+  ) =>
+    decideSync({
+      now: NOW,
+      cadences: CADENCES,
+      requests: { ...NO_REQUESTS, ...requests },
+      ...quiet,
+      ...runs,
+    });
+
+  it('runs an incremental that was asked for, though none is due', () => {
+    expect(decide({ incremental: askedAgo(5) })).toMatchObject({
+      shouldSync: true,
+      mode: 'incremental',
+      reason: 'requested',
+    });
+  });
+
+  it('runs a full pass that was asked for, though none is due', () => {
+    expect(decide({ full: askedAgo(5) })).toEqual({
+      shouldSync: true,
+      mode: 'full',
+      since: null,
+      reason: 'requested',
+    });
+  });
+
+  it('goes quiet once a successful run started after the request', () => {
+    // Asked 20 min ago; the incremental that ran started 10 min ago.
+    expect(
+      decide({ incremental: askedAgo(20) }, { lastOkIncremental: ranAgo(10) }),
+    ).toMatchObject({ shouldSync: false, reason: 'cadence' });
+  });
+
+  // The run may have read Salesforce before the change the person is waiting
+  // for, so finishing after the request is not enough: it had to start after.
+  it('is not satisfied by a run that was already in flight when it landed', () => {
+    // Started 10 min ago, took 8, so it finished 2 min ago: after the request
+    // made 5 min ago, but started before it.
+    expect(
+      decide(
+        { incremental: askedAgo(5) },
+        { lastOkIncremental: ranAgo(10, 8) },
+      ),
+    ).toMatchObject({ shouldSync: true, reason: 'requested' });
+  });
+
+  // A failed run moves no watermark and leaves no `ok` row, so from here it
+  // looks like no run at all: asked 25 min ago, and the last successful runs
+  // both started before that, so the request is still there at the next tick.
+  it('stays pending while no run covering it has succeeded', () => {
+    expect(decide({ incremental: askedAgo(25) })).toMatchObject({
+      shouldSync: true,
+      reason: 'requested',
+    });
+  });
+
+  it('counts a full pass as covering an incremental request', () => {
+    expect(
+      decide({ incremental: askedAgo(20) }, { lastOkFull: ranAgo(10) }),
+    ).toMatchObject({ shouldSync: false });
+  });
+
+  // Only a full pass sees a deletion, so a person asking for one is not
+  // answered by an incremental, however recent.
+  it('does not count an incremental as covering a full request', () => {
+    expect(
+      decide({ full: askedAgo(20) }, { lastOkIncremental: ranAgo(10) }),
+    ).toMatchObject({ shouldSync: true, mode: 'full', reason: 'requested' });
+  });
+
+  it('serves a requested full pass before an incremental due on cadence', () => {
+    expect(
+      decide({ full: askedAgo(5) }, { lastOkIncremental: ranAgo(400) }),
+    ).toMatchObject({ mode: 'full', reason: 'requested' });
   });
 });
 

@@ -10,7 +10,11 @@
   import type { Icon as IconType } from '@lucide/svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { ADMIN_NAV } from '$lib/components/admin/adminNav';
-  import { foldForSearch } from '$lib/components/staff/datatable/search';
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
 
   // Admin-only command palette (Cmd/Ctrl+K), two surfaces in one list:
   //  - Navigation: jump to any admin page, filtered client-side (instant, no
@@ -43,14 +47,15 @@
   // opens as a menu. People stay server-filtered. Sidebar badge counts are
   // deliberately omitted here.
   const matchedSections = $derived.by(() => {
-    const q = foldForSearch(inputValue.trim());
-    if (!q) return ADMIN_NAV;
+    const tokens = searchTokens(inputValue);
+    if (!tokens.length) return ADMIN_NAV;
     return ADMIN_NAV.map((section) => ({
       title: section.title,
-      items: section.items.filter(
-        (p) =>
-          foldForSearch(p.label).includes(q) ||
-          (p.keywords ?? []).some((k) => k.includes(q)),
+      items: section.items.filter((p) =>
+        matchesAllTokens(
+          buildHaystack([p.label, ...(p.keywords ?? [])]),
+          tokens,
+        ),
       ),
     })).filter((section) => section.items.length > 0);
   });

@@ -19,6 +19,7 @@
   import { Textarea } from '$lib/components/ui/textarea';
   import { Badge } from '$lib/components/ui/badge';
   import { Switch } from '$lib/components/ui/switch';
+  import { Checkbox } from '$lib/components/ui/checkbox';
   import { TimePicker } from '$lib/components/ui/time-picker';
   import { DatePicker } from '$lib/components/ui/date-picker';
   import * as Dialog from '$lib/components/ui/dialog';
@@ -59,6 +60,7 @@
     feedbackFormId: string;
     diplomaTemplateId: string;
     closingTemplateId: string;
+    shownStatuses: string[];
     participations: number;
   };
 
@@ -74,6 +76,7 @@
     closingTemplateId: string | null;
     modules: EventModuleKey[];
     moduleSettings: Record<string, unknown>;
+    shownStatuses: string[];
   };
 
   let {
@@ -85,6 +88,8 @@
     closingGrids,
     formPreviews,
     templates,
+    sfStatuses,
+    onSfStatusAdded,
   }: {
     open: boolean;
     editing: EditingEvent | null;
@@ -96,6 +101,10 @@
     /** Per-form ordered question prompts, for the inline read-only preview. */
     formPreviews: Record<string, string[]>;
     templates: TemplateVM[];
+    /** The Salesforce statuses Jump knows, which an event may show. */
+    sfStatuses: string[];
+    /** A word « Membres Salesforce » just added to the catalogue. */
+    onSfStatusAdded: (status: string) => void;
   } = $props();
 
   const { form, errors, enhance, delayed } = superForm(
@@ -165,6 +174,7 @@
       feedbackFormId: e.feedbackFormId,
       diplomaTemplateId: e.diplomaTemplateId,
       closingTemplateId: e.closingTemplateId,
+      shownStatuses: [...e.shownStatuses],
     };
     $form = next;
     selectedTemplateId = null;
@@ -206,6 +216,7 @@
     $form.feedbackFormId = t.feedbackFormId ?? '';
     $form.diplomaTemplateId = t.diplomaTemplateId ?? '';
     $form.closingTemplateId = t.closingTemplateId ?? '';
+    $form.shownStatuses = [...t.shownStatuses];
     // Prefilled like the rest of the preset: a wholesale copy the admin can still
     // edit on step 2. Empty falls back as usual (publicName → the SF titre,
     // startTime → no arrival time).
@@ -246,6 +257,13 @@
   }
 
   const moduleActive = (key: EventModuleKey) => $form.modules.includes(key);
+
+  // ─── Salesforce statuses shown in the dev space ──────────────────────────
+  function toggleShownStatus(status: string, checked: boolean) {
+    $form.shownStatuses = checked
+      ? [...new Set([...$form.shownStatuses, status])].sort()
+      : $form.shownStatuses.filter((s) => s !== status);
+  }
 
   // "Visible dans l'espace dev" only takes effect once the event is actually
   // showable: the dev space is nothing but per-module surfaces, so a
@@ -446,6 +464,7 @@
       publicName: $form.publicName,
       cohortNoun: $form.cohortNoun,
       startTime: $form.startTime,
+      shownStatuses: $form.shownStatuses,
     }),
   );
 
@@ -1083,6 +1102,32 @@
             </div>
           </fieldset>
 
+          <fieldset class="space-y-3">
+            <legend
+              class="flex items-center gap-1.5 text-sm font-bold uppercase"
+            >
+              Statuts Salesforce affichés
+              <InfoTooltip
+                text="Les inscrits dont le statut Salesforce est coché apparaissent dans l'espace dev pour cet événement. Les autres restent synchronisés et consultables dans « Membres Salesforce ». Les inscrits sans statut sont toujours affichés."
+              />
+            </legend>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {#each sfStatuses as status (status)}
+                <label
+                  class="flex cursor-pointer items-center gap-2 rounded-sm border p-3 font-mono text-xs transition-colors select-none hover:bg-muted/40"
+                >
+                  <Checkbox
+                    checked={$form.shownStatuses.includes(status)}
+                    onCheckedChange={(v) =>
+                      toggleShownStatus(status, v === true)}
+                    class="cursor-pointer"
+                  />
+                  {status}
+                </label>
+              {/each}
+            </div>
+          </fieldset>
+
           <section class="space-y-2">
             <h3 class="text-sm font-bold uppercase">Visibilité</h3>
             <label
@@ -1182,6 +1227,7 @@
     bind:open={inspectorOpen}
     eventId={editing.id}
     eventTitle={editing.publicName || editing.titre}
+    onStatusAdded={onSfStatusAdded}
   />
 {/if}
 
@@ -1231,6 +1277,7 @@
                 : null,
               modules: [...$form.modules] as EventModuleKey[],
               moduleSettings: { ...$form.moduleSettings },
+              shownStatuses: [...$form.shownStatuses],
             };
             const idx = workingTemplates.findIndex(
               (t) => t.id === id || t.name === vm.name,

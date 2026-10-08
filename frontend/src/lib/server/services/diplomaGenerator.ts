@@ -74,29 +74,49 @@ const SAMPLE_DATA = {
 } as const;
 
 /**
- * Render two sample pages, to prove a design produces a document at all.
+ * Render a design on sample data, to prove it produces a document at all and to
+ * measure what each further page costs.
  *
  * Run before a design is stored. What it catches is a design that makes the
  * renderer fail or run away - a crash, or a page that never settles inside the
  * budget - which is worth catching because the alternative is finding out in
  * front of a cohort's worth of certificates. What it does NOT catch is a design
- * that renders badly: browsers are forgiving, and ugly is not an exception. Two
- * pages rather than one, because page breaks are what one page would not
- * exercise, and a short budget because a runaway design must not hold an API
- * call open for two minutes.
+ * that renders badly: browsers are forgiving, and ugly is not an exception. A
+ * short budget, because a runaway design must not hold an API call open for two
+ * minutes.
+ *
+ * The weight is the difference between a one-page and a two-page render, so the
+ * fonts and everything the shell declares once cancel out, and what is left is
+ * what every recipient adds. That number is invisible in a small sample and is
+ * the one that grows with a cohort: an effect Chrome rasterises (a blur, a
+ * filter, a soft shadow) is redrawn as an image on every page, so a design that
+ * renders two pages in under a second can weigh tens of megabytes at 200. It is
+ * reported, never enforced: measured, ordinary effects reach that size without
+ * anything being wrong, and a fixed ceiling would refuse good designs.
  */
 export async function renderCertificateSample(
   design: CertificateDesign,
-): Promise<{ bytes: number }> {
-  const pdf = await renderPdf({
-    html: await buildCertificateHtml(design, SAMPLE_DATA),
-    page: {
-      width: `${design.pageWidthPx}px`,
-      height: `${design.pageHeightPx}px`,
-    },
-    timeoutMs: 20_000,
-  });
-  return { bytes: pdf.byteLength };
+): Promise<{ bytesPerPage: number }> {
+  // The same recipient on both pages, so the second page adds no glyph the first
+  // did not already embed: the difference is the page and nothing else. The
+  // name with diacritics, because it exercises the font subsets a real one needs.
+  const recipient = SAMPLE_DATA.students[1];
+  const render = async (students: readonly { prenom: string; nom: string }[]) =>
+    renderPdf({
+      html: await buildCertificateHtml(design, { ...SAMPLE_DATA, students }),
+      page: {
+        width: `${design.pageWidthPx}px`,
+        height: `${design.pageHeightPx}px`,
+      },
+      timeoutMs: 20_000,
+    });
+  // Two pages for the second render, because page breaks are what one page
+  // would not exercise.
+  const [one, two] = await Promise.all([
+    render([recipient]),
+    render([recipient, recipient]),
+  ]);
+  return { bytesPerPage: Math.max(0, two.byteLength - one.byteLength) };
 }
 
 /**

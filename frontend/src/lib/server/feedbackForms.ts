@@ -12,6 +12,7 @@ import {
   projectQuestionToSchema,
   buildPersonaIconUrl,
 } from '$lib/domain/feedbackForms/schema';
+import { STRUCTURE_LOCKED_MESSAGE } from '$lib/domain/feedbackForms/authoring';
 
 /** Who a projected form is rendered for; mirrors Feedback_SubmissionSource. */
 export type FormAudience = 'public' | 'authenticated';
@@ -215,9 +216,6 @@ export function countSubmissions(formId: string): Promise<number> {
 export async function assertEditable(formId: string): Promise<void> {
   const n = await countSubmissions(formId);
   if (n > 0) {
-    throw error(
-      423,
-      'Ce formulaire a déjà des réponses : dupliquez-le pour en modifier la structure.',
-    );
+    throw error(423, STRUCTURE_LOCKED_MESSAGE);
   }
 }

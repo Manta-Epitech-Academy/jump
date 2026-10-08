@@ -5,6 +5,7 @@
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import Award from '@lucide/svelte/icons/award';
   import Coins from '@lucide/svelte/icons/coins';
+  import Terminal from '@lucide/svelte/icons/terminal';
   import * as Dialog from '$lib/components/ui/dialog';
   import { formatGivenName } from '$lib/domain/profile';
   import type { XpStory } from '$lib/domain/xpStory';
@@ -33,6 +34,9 @@
       return CircleCheck;
     }
     if (source === 'reward') return Award;
+    // Same pictogram the talent's own timeline gives an activity, so a staff
+    // member and the student they are looking at read one row as one thing.
+    if (source === 'workshop') return Terminal;
     return Coins;
   }
 </script>
