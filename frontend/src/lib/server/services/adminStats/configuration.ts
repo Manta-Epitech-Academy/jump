@@ -452,7 +452,10 @@ export type TemplateRow = {
   cohortNoun: string | null;
   startTime: string;
   modules: EventModuleKey[];
+  moduleSettings: Record<string, unknown>;
   feedbackFormId: string | null;
+  diplomaTemplateId: string | null;
+  closingTemplateId: string | null;
   shownStatuses: string[];
 };
 
@@ -470,10 +473,13 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         cohortNoun: template.cohortNoun,
         startTime: template.startTime,
         modules: template.modules,
+        moduleSettings: template.moduleSettings,
         feedbackFormId: template.feedbackFormId,
+        diplomaTemplateId: template.diplomaTemplateId,
+        closingTemplateId: template.closingTemplateId,
         shownStatuses: template.shownStatuses,
       })),
-      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie.",
+      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun.",
     ),
   };
 }

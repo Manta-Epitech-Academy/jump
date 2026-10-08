@@ -16,9 +16,11 @@ import { createAdminAccount } from './adminApiAccount';
 import { mintToken } from '$lib/server/adminApi/tokens';
 import { adminApiWrite } from '$lib/server/adminApi/route';
 import { planDigest } from '$lib/server/adminApi/plan';
+import { getEventTemplates } from '$lib/server/services/adminStats/configuration';
 
 const postConfig = adminApiWrite('write_event_config');
 const postBulk = adminApiWrite('bulk_event_config');
+const postTemplate = adminApiWrite('write_event_template');
 const postRequestSync = adminApiWrite('ops_request_sync');
 const postReleasePruneHold = adminApiWrite('ops_release_prune_hold');
 
@@ -296,6 +298,74 @@ describe('admin API writes (integration)', () => {
       where: { eventId: blank.id },
     });
     await prisma.event.delete({ where: { id: blank.id } });
+  });
+
+  // Applying a preset is copying what config_event_templates returns, since no
+  // write applies one by name. So what that read returns has to be what the
+  // event write takes: the sub-options of a section that has none come back as
+  // an empty object, and the references the preset points at come back too.
+  it('applies a saved preset to an event by copying what the preset read returns', async () => {
+    const grid = await prisma.closing_Template.create({
+      data: { key: `preset_grid_${stamp}`, label: 'Grille du modèle' },
+    });
+    const source = await prisma.event.create({
+      data: {
+        titre: `WritePresetSource-${stamp}`,
+        date: new Date(Date.now() + 30 * 86_400_000),
+        campusId,
+      },
+    });
+    const target = await prisma.event.create({
+      data: {
+        titre: `WritePresetTarget-${stamp}`,
+        date: new Date(Date.now() + 30 * 86_400_000),
+        campusId,
+      },
+    });
+    const name = `Modèle copié ${stamp}`;
+
+    const configured = await call(postConfig, writeSecret, {
+      eventId: source.id,
+      modules: ['inscrits', 'closings'],
+      moduleSettings: { inscrits: { showStatutColumn: true } },
+      closingTemplateId: grid.id,
+    });
+    expect(configured.status).toBe(200);
+    expect(
+      (await call(postTemplate, writeSecret, { eventId: source.id, name }))
+        .status,
+    ).toBe(200);
+
+    const preset = (await getEventTemplates()).templates.value.find(
+      (template) => template.name === name,
+    )!;
+    expect(preset).toMatchObject({
+      moduleSettings: { inscrits: { showStatutColumn: true }, closings: {} },
+      closingTemplateId: grid.id,
+      diplomaTemplateId: null,
+    });
+
+    const applied = await call(postConfig, writeSecret, {
+      eventId: target.id,
+      modules: preset.modules,
+      moduleSettings: preset.moduleSettings,
+      shownStatuses: preset.shownStatuses,
+      feedbackFormId: preset.feedbackFormId,
+      diplomaTemplateId: preset.diplomaTemplateId,
+      closingTemplateId: preset.closingTemplateId,
+    });
+    expect(applied.status).toBe(200);
+    expect(applied.payload.after).toMatchObject({
+      modules: ['closings', 'inscrits'],
+      moduleSettings: { inscrits: { showStatutColumn: true } },
+      closingTemplateId: grid.id,
+    });
+
+    await prisma.eventConfig_Template.delete({ where: { name } });
+    await prisma.event.deleteMany({
+      where: { id: { in: [source.id, target.id] } },
+    });
+    await prisma.closing_Template.delete({ where: { id: grid.id } });
   });
 
   // All or nothing: a refusal on one facet leaves every other facet of the same

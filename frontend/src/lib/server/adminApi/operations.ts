@@ -61,7 +61,11 @@
 
 import { z } from 'zod';
 import type { AdminApi_TokenTier } from '@prisma/client';
-import { EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
+import {
+  EVENT_MODULES,
+  EVENT_MODULE_KEYS,
+  type EventModuleKey,
+} from '$lib/domain/eventModules';
 import { isCalendarDay, isWallClock } from '$lib/domain/planningTime';
 import {
   HIGHLIGHT_SUMMARY_MAX,
@@ -531,6 +535,9 @@ const feedbackQuestion = withQuestionRules(
   // question was two thirds of this tool's whole schema.
   .meta({ id: 'FeedbackQuestion' });
 
+/** A dev-workspace section's settings when it has no sub-option to set. */
+const noSubOptions = z.strictObject({}).optional();
+
 export const ADMIN_API_OPERATIONS = {
   stats_events: defineOperation({
     leadership: true,
@@ -693,7 +700,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_templates: defineOperation({
     description:
-      'Saved event-configuration presets and exactly what each one holds: sections, sub-options, shown Salesforce statuses, public name, cohort noun, arrival time and default feedback form. A preset is applied by copying its values: to write_event_config for one event, or its modules and shownStatuses to bulk_event_config for many.',
+      'Saved event-configuration presets and exactly what each one holds: sections and their sub-options, shown Salesforce statuses, public name, cohort noun, arrival time, and the feedback form, certificate and closing grid it points at. A preset is applied by copying its values: to write_event_config for one event, or its modules and shownStatuses to bulk_event_config for many.',
     shape: {},
     run: () => getEventTemplates(),
   }),
@@ -803,7 +810,7 @@ export const ADMIN_API_OPERATIONS = {
         ),
       moduleSettings: z
         .strictObject({
-          inscrits: z
+          [EVENT_MODULES.INSCRITS]: z
             .strictObject({
               showStatutColumn: z
                 .boolean()
@@ -813,7 +820,13 @@ export const ADMIN_API_OPERATIONS = {
                 ),
             })
             .optional(),
-        })
+          // A section with no sub-option still has its key, holding nothing:
+          // the reads return every enabled section's settings that way, so
+          // what a preset or this write's own answer holds goes back as it is.
+          [EVENT_MODULES.EMARGEMENT]: noSubOptions,
+          [EVENT_MODULES.BILAN]: noSubOptions,
+          [EVENT_MODULES.CLOSINGS]: noSubOptions,
+        } satisfies Record<EventModuleKey, z.ZodType>)
         .optional()
         .describe(
           'Sub-options per section, only those you pass change. A section must be in the saved modules, so enable it in the same call if it is not.',
