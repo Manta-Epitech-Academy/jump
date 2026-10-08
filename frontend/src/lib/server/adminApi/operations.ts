@@ -1033,7 +1033,7 @@ export const ADMIN_API_OPERATIONS = {
           'Lowercase letters, digits and hyphens only, e.g. "pacman-ia".',
         )
         .describe(
-          `${handleDescribe('workshopSlug')} Creates or updates by it, so a slug that does not exist yet is a new activity. Never rename one: it is what every past XP grant is filed under.`,
+          `${handleDescribe('workshopSlug')} Creates or updates by it, so a slug that does not exist yet is a new activity. Never rename one: it is what every past XP grant is filed under. Never point one at another subject either: a CTFd host redeployed with a new subject is a new slug, or that subject's progress replaces the old one's XP.`,
         ),
       label: z
         .string()

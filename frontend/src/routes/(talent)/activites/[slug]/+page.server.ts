@@ -49,7 +49,7 @@ export const actions: Actions = {
       );
     }
 
-    await enterWorkshop(locals.talent.id, entry);
+    const session = await enterWorkshop(locals.talent.id, entry);
 
     const token = mintWorkshopTicket({
       talentId: locals.talent.id,
@@ -57,6 +57,7 @@ export const actions: Actions = {
       slug: entry.slug,
       kid,
       secret,
+      session,
     });
 
     // After the mint, like the minigame's `play` action: what is catalogued is an
