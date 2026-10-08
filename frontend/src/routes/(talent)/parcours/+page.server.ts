@@ -38,7 +38,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
   });
 
   // A `reward` grant carries its activity name on the XpReward and a `workshop`
-  // grant its instance label on `Workshop_Instance`, never on the grant itself;
+  // grant its activity label on `Workshop_Activity`, never on the grant itself;
   // without this both fall to the generic fallback label on the timeline.
   const grantLabels = await resolveGrantLabels(locals.talent.id, grants);
 
