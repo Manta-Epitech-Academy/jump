@@ -325,21 +325,115 @@ describe('every handle is obtainable by whoever needs it', () => {
   });
 });
 
-describe('what the registry generates', () => {
-  it('names every producer and its coverage caveat in the describe', () => {
-    const text = handleDescribe('eventId');
-    for (const { operation, covers } of HANDLES.eventId.producedBy) {
-      expect(text).toContain(operation);
-      if (covers) expect(text).toContain(covers);
+/**
+ * Which partial producers a parameter has to name, derived from the catalogue:
+ * those a tier can call when that tier, holding a consumer, can call no producer
+ * returning all of them. The registry declares the answer (`soleSource`) because
+ * the sentences are built while the catalogue is, so this is what keeps the
+ * declaration true, both ways: a missing flag points a leadership token at a
+ * read it cannot call, a needless one puts a slice back on every parameter.
+ */
+function soleSourceMismatches(handles: typeof HANDLES): string[] {
+  const mismatches: string[] = [];
+  for (const kind of Object.keys(handles) as HandleKind[]) {
+    const handle = handles[kind];
+    if (handle.unobtainable) continue;
+
+    const consumers = ADMIN_API_OPERATION_NAMES.filter((name) =>
+      paramsOf(name).some((param) => PARAM_HANDLES[param] === kind),
+    );
+    const needed = new Map<AdminApiOperationName, AdminApiTier>();
+    for (const tier of TIERS) {
+      if (
+        !consumers.some((name) =>
+          isOperationAllowedForTier(ADMIN_API_OPERATIONS[name], tier),
+        )
+      )
+        continue;
+      const callable = handle.producedBy.filter(({ operation }) =>
+        isOperationAllowedForTier(ADMIN_API_OPERATIONS[operation], tier),
+      );
+      if (callable.some((p) => !p.covers)) continue;
+      for (const p of callable)
+        if (!needed.has(p.operation)) needed.set(p.operation, tier);
     }
+
+    for (const p of handle.producedBy) {
+      const tier = needed.get(p.operation);
+      if (tier && !p.soleSource)
+        mismatches.push(
+          `${kind}: ${p.operation} is the only source ${tier} can call, so it must be soleSource`,
+        );
+      if (!tier && p.soleSource)
+        mismatches.push(
+          `${kind}: ${p.operation} is soleSource but every tier holding a consumer has a full source`,
+        );
+    }
+  }
+  return mismatches;
+}
+
+describe('what the registry generates', () => {
+  it('flags exactly the partial producers some tier depends on', () => {
+    expect(soleSourceMismatches(HANDLES)).toEqual([]);
+  });
+
+  // Proof the check bites, both ways, on the case the flag exists for: the
+  // closing question key, whose catalogue read a leadership token cannot call.
+  it('reports a missing flag and a needless one', () => {
+    const unflagged = {
+      ...HANDLES,
+      closingQuestionKey: {
+        ...HANDLES.closingQuestionKey,
+        producedBy: HANDLES.closingQuestionKey.producedBy.map(
+          ({ soleSource: _, ...p }) => p,
+        ),
+      },
+    };
+    expect(soleSourceMismatches(unflagged)).toEqual([
+      'closingQuestionKey: stats_closing_insights is the only source leadership can call, so it must be soleSource',
+    ]);
+
+    const overflagged = {
+      ...HANDLES,
+      eventId: {
+        ...HANDLES.eventId,
+        producedBy: HANDLES.eventId.producedBy.map((p) => ({
+          ...p,
+          soleSource: true as const,
+        })),
+      },
+    };
+    expect(
+      soleSourceMismatches(overflagged).some((m) =>
+        m.startsWith('eventId: ops_emargement_coverage is soleSource'),
+      ),
+    ).toBe(true);
+  });
+
+  it('names the full sources, and a slice only where a tier has nothing else', () => {
+    expect(handleDescribe('eventId')).toBe(
+      'Event id. Returned by: config_events, stats_events.',
+    );
+    const closing = handleDescribe('closingQuestionKey');
+    expect(closing).toContain('config_closing_questions');
+    expect(closing).toContain(
+      'stats_closing_insights (only the questions the grids in scope actually ask',
+    );
   });
 
   // The failure this replaces: three refusals naming three different subsets, and
   // none of them naming the operation that actually covered the common case.
-  it('lists the same producers in the French refusal as in the describe', () => {
-    const fr = handleProvenanceFr('eventId');
-    for (const { operation } of HANDLES.eventId.producedBy) {
-      expect(fr).toContain(operation);
+  it('names the same producers in the French refusal as in the describe', () => {
+    for (const kind of Object.keys(HANDLES) as HandleKind[]) {
+      if (HANDLES[kind].unobtainable) continue;
+      const fr = handleProvenanceFr(kind);
+      const en = handleDescribe(kind);
+      for (const { operation } of HANDLES[kind].producedBy) {
+        expect(fr.includes(operation), `${kind}: ${operation}`).toBe(
+          en.includes(operation),
+        );
+      }
     }
   });
 

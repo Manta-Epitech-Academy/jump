@@ -267,8 +267,8 @@ const eventStatus = z
     'Keep only events at this point of their life: upcoming, ongoing or past. Omit for every event.',
   );
 
-// Every source is named, with the slice it covers, and generated from
-// `handles.ts`. This describe used to name one operation that by construction
+// Generated from `handles.ts`, which names the sources that return every event
+// for each tier. This describe used to name one operation that by construction
 // excludes anything already visible, which left the parameter unusable for the
 // commonest state an event can be in - and unusable outright for a leadership
 // token, whose only source returned past events.

@@ -57,7 +57,8 @@ export type HandleKind =
  * non-empty list in it, and half these lists are empty on any seeded fixture, so
  * the check would have passed on the rows it never reached - a guard that cannot
  * fail, guarding a comment that claimed it did. `covers` earns its place instead
- * by being read: it goes into the `describe()` a model sees.
+ * by being read: wherever a partial producer is named, its slice is named with
+ * it.
  */
 type Producer = {
   operation: AdminApiOperationName;
@@ -67,6 +68,15 @@ type Producer = {
    * it only covers past events is how a parameter looks reachable and is not.
    */
   covers?: string;
+  /**
+   * Set on a partial producer that is the only kind of source some tier can
+   * call, which is the one case where a reader has to be told about it: every
+   * other caller is better served by the producer that returns all of them.
+   * Declared rather than derived because the tiers live on the catalogue, which
+   * is still being built when these sentences are; `handles.test.ts` derives it
+   * from the catalogue and fails when this says otherwise, in either direction.
+   */
+  soleSource?: true;
 };
 
 type Handle = {
@@ -143,7 +153,13 @@ export const HANDLES: Record<HandleKind, Handle> = {
     frGender: 'm',
     producedBy: [
       { operation: 'config_feedback_forms' },
-      { operation: 'stats_feedback_results' },
+      // The leadership tier's source, for the same reason as the closing
+      // question key below: the catalogue read above is core-only.
+      {
+        operation: 'stats_feedback_results',
+        covers: 'only questionnaires attached to an event in scope, capped',
+        soleSource: true,
+      },
     ],
   },
   questionKey: {
@@ -190,6 +206,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
       {
         operation: 'ops_pdf_jobs_health',
         covers: 'only jobs that can be retried, and only the most recent ones',
+        soleSource: true,
       },
     ],
   },
@@ -208,6 +225,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
         operation: 'config_sync_sources',
         covers:
           'only the campaigns already in the perimeter; a new one is copied from its URL in Salesforce',
+        soleSource: true,
       },
     ],
   },
@@ -263,6 +281,7 @@ export const HANDLES: Record<HandleKind, Handle> = {
         operation: 'stats_closing_insights',
         covers:
           'only the questions the grids in scope actually ask, and never one answered in free text',
+        soleSource: true,
       },
     ],
   },
@@ -345,18 +364,31 @@ const list = (parts: string[]) =>
     : `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}`;
 
 /**
- * The English sentence a model reads on the parameter: what the value is, and
- * every operation that hands one out with the slice it covers.
+ * The producers a parameter and a refusal name: every one that returns all of
+ * them, and a partial one only where it is some tier's sole source.
  *
- * Every producer, not the one that comes to mind. Pointing an event id at the
- * list of events still to prepare alone is what left the parameter unusable for
- * anything already visible, and the reader had no way to know.
+ * Not every producer. Each partial one is a slice ("only events with the
+ * attendance section enabled") that concerns the read returning it, not the
+ * parameter taking it, and naming them all cost a sentence of several hundred
+ * characters on every parameter that took an event id - repeated in seventeen
+ * tools, each of which then matched a search for any one of those reads. What
+ * the reader needs is a source that covers everything, which is also what the
+ * incident behind this registry lacked: an event id pointed at the list of
+ * events still to prepare alone, and unusable for anything already visible.
+ */
+function namedProducers(handle: Handle): Producer[] {
+  return handle.producedBy.filter((p) => !p.covers || p.soleSource);
+}
+
+/**
+ * The English sentence a model reads on the parameter: what the value is, and
+ * where to get one.
  */
 export function handleDescribe(kind: HandleKind): string {
   const handle = HANDLES[kind];
   if (handle.unobtainable) return `${handle.what} ${handle.unobtainable.why}`;
 
-  const sources = handle.producedBy
+  const sources = namedProducers(handle)
     .map((p) => (p.covers ? `${p.operation} (${p.covers})` : p.operation))
     .join(', ');
   return `${handle.what} Returned by: ${sources}.`;
@@ -373,10 +405,9 @@ export function handleDescribe(kind: HandleKind): string {
 export function handleProvenanceFr(kind: HandleKind): string {
   const handle = HANDLES[kind];
   if (handle.unobtainable) return handle.unobtainable.frSentence;
-  const ops = list(handle.producedBy.map((p) => p.operation));
+  const named = namedProducers(handle);
+  const ops = list(named.map((p) => p.operation));
   return `Les ${handle.frNoun} sont ${
     handle.frGender === 'f' ? 'renvoyées' : 'renvoyés'
-  } par ${
-    handle.producedBy.length > 1 ? 'les opérations' : "l'opération"
-  } ${ops}.`;
+  } par ${named.length > 1 ? 'les opérations' : "l'opération"} ${ops}.`;
 }
