@@ -46,6 +46,21 @@ const SESSION_KEY_MAX = 64;
 const SESSION_LABEL_MAX = 128;
 
 /**
+ * A length counted the way the plugin counts it: Python's `len()`, so in code
+ * points, which is also how CTFd's varchar columns count. `String.length`
+ * counts UTF-16 units, and an emoji is two of them.
+ */
+function charCount(text: string): number {
+  return Array.from(text).length;
+}
+
+/** `text` cut to at most `max` characters, never inside one. */
+function fit(text: string, max: number): string {
+  const chars = Array.from(text);
+  return chars.length <= max ? text : chars.slice(0, max).join('');
+}
+
+/**
  * The Jump session a talent enters an activity under: the event their
  * participation was pinned to on first entry, and that event's campus.
  *
@@ -129,7 +144,17 @@ export function workshopDisplayName(
   const first = (prenom ?? '').trim();
   const initial = (nom ?? '').trim().charAt(0).toUpperCase();
   const composed = initial ? `${first} ${initial}.` : first;
-  return (composed.trim() || 'Talent').slice(0, DISPLAY_NAME_MAX);
+  return fit(composed.trim() || 'Talent', DISPLAY_NAME_MAX);
+}
+
+/**
+ * The label the plugin's staff pages show for a session: the event's name and
+ * its day. When the two do not fit, the name gives way and the day stays, since
+ * two sessions of one recurring event differ by their day alone.
+ */
+export function workshopSessionLabel(eventName: string, day: string): string {
+  const suffix = ` (${day})`;
+  return `${fit(eventName, SESSION_LABEL_MAX - charCount(suffix))}${suffix}`;
 }
 
 /** The audience a ticket names, which is the instance slug the plugin holds. */
@@ -159,16 +184,16 @@ export function mintWorkshopTicket(input: {
   const claims: WorkshopTicketClaims = {
     kid: input.kid,
     sub: input.talentId,
-    name: input.displayName.slice(0, DISPLAY_NAME_MAX),
+    name: fit(input.displayName, DISPLAY_NAME_MAX),
     aud: workshopAudience(input.slug),
     iss: WORKSHOP_TICKET_ISSUER,
     iat,
     exp: iat + WORKSHOP_TICKET_TTL_SECONDS,
     jti: randomUUID(),
     session: input.session.id,
-    session_label: input.session.label.slice(0, SESSION_LABEL_MAX),
+    session_label: fit(input.session.label, SESSION_LABEL_MAX),
     campus: input.session.campusId,
-    campus_label: input.session.campusLabel.slice(0, SESSION_LABEL_MAX),
+    campus_label: fit(input.session.campusLabel, SESSION_LABEL_MAX),
   };
   const payload = b64url(Buffer.from(JSON.stringify(claims), 'utf8'));
   const { ticketKey } = workshopKeys(input.secret);
@@ -233,7 +258,11 @@ export function verifyWorkshopTicket(
     return null;
   for (const [key, max] of present) {
     const value = claims[key];
-    if (typeof value !== 'string' || value.length === 0 || value.length > max)
+    if (
+      typeof value !== 'string' ||
+      value.length === 0 ||
+      charCount(value) > max
+    )
       return null;
   }
 

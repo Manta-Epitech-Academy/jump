@@ -33,7 +33,10 @@ import {
 } from '$lib/domain/eventLifecycle';
 import { eventDisplayName } from '$lib/domain/event';
 import { formatDateFr } from '$lib/utils';
-import type { WorkshopSession } from '$lib/server/workshops/ticket';
+import {
+  workshopSessionLabel,
+  type WorkshopSession,
+} from '$lib/server/workshops/ticket';
 import { grantXp } from './xpService';
 
 export type WorkshopEntry = {
@@ -269,7 +272,10 @@ export async function enterWorkshop(
   });
   return {
     id: event.id,
-    label: `${eventDisplayName(event)} (${formatDateFr(event.date, event.campus.timezone)})`,
+    label: workshopSessionLabel(
+      eventDisplayName(event),
+      formatDateFr(event.date, event.campus.timezone),
+    ),
     campusId: event.campus.id,
     campusLabel: event.campus.name,
   };

@@ -7,6 +7,7 @@ import {
   workshopAudience,
   workshopDisplayName,
   workshopKeys,
+  workshopSessionLabel,
 } from './ticket';
 
 /**
@@ -161,6 +162,26 @@ describe('the entry ticket', () => {
     expect(
       verify(signClaims({ ...claimsOf(mint()), campus: 'x'.repeat(65) })),
     ).toBeNull();
+  });
+
+  it('keeps the day when an event name is too long, and never splits a character', () => {
+    // Two sessions of one recurring event differ by their day alone, so the
+    // name gives way. The cap counts characters the way the plugin's `len()`
+    // does, so an emoji at the edge is kept whole or dropped whole, and a label
+    // longer in UTF-16 units than in characters still verifies.
+    const long = workshopSessionLabel('Coding Club '.repeat(20), '15/09/2026');
+    expect(Array.from(long)).toHaveLength(128);
+    expect(long.endsWith(' (15/09/2026)')).toBe(true);
+
+    const withEmoji = workshopSessionLabel(
+      `${'x'.repeat(114)}🚀🚀`,
+      '15/09/2026',
+    );
+    expect(withEmoji).toBe(`${'x'.repeat(114)}🚀 (15/09/2026)`);
+    expect(
+      verify(mint({ session: { ...SESSION, label: withEmoji } }))
+        ?.session_label,
+    ).toBe(withEmoji);
   });
 
   it('refuses a ticket minted for another instance', () => {
