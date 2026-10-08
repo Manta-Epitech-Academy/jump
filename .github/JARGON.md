@@ -43,11 +43,11 @@ The dev workspace never prints them; an admin sees the raw word in « Membres Sa
 
 **Which statuses the dev workspace shows is configuration, set per event, never code** (#371). Three pieces of data hold it:
 
-| Term                   | Meaning                                                                                                                            | Where                                                                                                         |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Status catalogue**   | The words Jump knows. A word missing from it is _unrecognised_.                                                                    | `Sync_MemberStatus`, written by `write_sync_member_status` and from « Membres Salesforce »                    |
-| **Shown statuses**     | The words one event's dev workspace shows. Copied from a template, seeded at creation from the catalogue's `shownByDefault` words. | `EventConfig_ShownStatus`, written by `write_event_config`, `bulk_event_shown_statuses` and the config wizard |
-| **Shown in dev space** | Whether one enrolment is shown: its status against its event's shown statuses.                                                     | `Participation.shownInDevSpace`, a projection                                                                 |
+| Term                   | Meaning                                                                                                                            | Where                                                                                                 |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Status catalogue**   | The words Jump knows. A word missing from it is _unrecognised_.                                                                    | `Sync_MemberStatus`, written by `write_sync_member_status` and from « Membres Salesforce »            |
+| **Shown statuses**     | The words one event's dev workspace shows. Copied from a template, seeded at creation from the catalogue's `shownByDefault` words. | `EventConfig_ShownStatus`, written by `write_event_config`, `bulk_event_config` and the config wizard |
+| **Shown in dev space** | Whether one enrolment is shown: its status against its event's shown statuses.                                                     | `Participation.shownInDevSpace`, a projection                                                         |
 
 The vocabulary at the time of the switch, and what a new event shows:
 

@@ -304,9 +304,9 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   feedbackFormId: 'formId',
   // The feedback form's question key. The closing bank's is `questionKey`, below.
   question: 'questionKey',
-  templateName: 'templateName',
-  // `write_event_template` spells it `name`: the same preset name, which the
-  // operation either creates or overwrites.
+  // The preset name, which `write_event_template` either creates or
+  // overwrites. Nothing applies a preset by name: applying one is copying its
+  // values, which `config_event_templates` returns.
   name: 'templateName',
   // Only the certificate operations take a bare `code` today, and this map is
   // keyed by parameter name across the whole catalogue: a second, unrelated
@@ -318,8 +318,8 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   salesforceCampaignId: 'salesforceCampaignId',
   modules: 'moduleKey',
   // Salesforce status words: the list an event shows (a complete set, like
-  // `modules`), the catalogue entry one write authors, and the two halves of the
-  // bulk change. `status` alone is taken by the event-status filter.
+  // `modules`), the catalogue entry one write authors, and the two halves of a
+  // bulk add/remove. `status` alone is taken by the event-status filter.
   shownStatuses: 'sfStatus',
   memberStatus: 'sfStatus',
   showStatuses: 'sfStatus',

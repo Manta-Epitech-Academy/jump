@@ -403,7 +403,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     ),
     unrecognisedStatuses: metric(
       statuses.unrecognised,
-      "Inscriptions dont le statut Salesforce est un mot absent du catalogue de Jump : elles sont bien dans Jump, mais masquées de l'espace dev sur tous les événements. Tout chiffre non nul mérite d'être regardé : soit Salesforce a introduit un nouveau statut, soit un statut a changé d'orthographe, et dans les deux cas des inscriptions peuvent manquer à l'espace dev. Pour les afficher, le statut s'ajoute au catalogue (write_sync_member_status), puis s'affiche sur les événements concernés (write_event_config, ou bulk_event_shown_statuses pour un périmètre).",
+      "Inscriptions dont le statut Salesforce est un mot absent du catalogue de Jump : elles sont bien dans Jump, mais masquées de l'espace dev sur tous les événements. Tout chiffre non nul mérite d'être regardé : soit Salesforce a introduit un nouveau statut, soit un statut a changé d'orthographe, et dans les deux cas des inscriptions peuvent manquer à l'espace dev. Pour les afficher, le statut s'ajoute au catalogue (write_sync_member_status), puis s'affiche sur les événements concernés (write_event_config, ou bulk_event_config pour un périmètre).",
     ),
     unrecognisedStatusEvents: metric(
       statuses.events,

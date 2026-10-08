@@ -135,7 +135,7 @@ describe('what a credential is offered as tools', () => {
   it('shows a write-enabled core token the writes as well', () => {
     const offered = names({ tier: 'core', writeEnabled: true });
     expect(offered).toContain('write_event_config');
-    expect(offered).toContain('bulk_event_modules');
+    expect(offered).toContain('bulk_event_config');
   });
 
   // Belt and braces with the catalogue rule: even a leadership token that

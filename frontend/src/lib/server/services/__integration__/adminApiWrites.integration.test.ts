@@ -18,7 +18,7 @@ import { adminApiWrite } from '$lib/server/adminApi/route';
 import { planDigest } from '$lib/server/adminApi/plan';
 
 const postConfig = adminApiWrite('write_event_config');
-const postBulkModules = adminApiWrite('bulk_event_modules');
+const postBulk = adminApiWrite('bulk_event_config');
 const postRequestSync = adminApiWrite('ops_request_sync');
 const postReleasePruneHold = adminApiWrite('ops_release_prune_hold');
 
@@ -459,14 +459,14 @@ describe('admin API writes (integration)', () => {
   it('plans a bulk change before applying it, and applies it on the digest', async () => {
     const filter = { modules: ['inscrits'], campus: `WriteCampus-${stamp}` };
 
-    const dry = await call(postBulkModules, writeSecret, filter);
+    const dry = await call(postBulk, writeSecret, filter);
     expect(dry.status).toBe(200);
     expect(dry.payload.applied).toBe(false);
     const plan = dry.payload.plan as { changes: { eventId: string }[] };
     expect(plan.changes.map((c) => c.eventId)).toContain(eventId);
     expect(dry.payload.planDigest).toBe(planDigest(plan));
 
-    const applied = await call(postBulkModules, writeSecret, {
+    const applied = await call(postBulk, writeSecret, {
       ...filter,
       planDigest: dry.payload.planDigest,
     });
@@ -484,13 +484,131 @@ describe('admin API writes (integration)', () => {
   // the change has landed must not silently redo anything.
   it('refuses a stale digest, naming the fresh one', async () => {
     const filter = { modules: ['inscrits'], campus: `WriteCampus-${stamp}` };
-    const { status, payload } = await call(postBulkModules, writeSecret, {
+    const { status, payload } = await call(postBulk, writeSecret, {
       ...filter,
       planDigest: 'obviously-not-it',
     });
 
     expect(status).toBe(409);
     expect(String(payload.error)).toContain('empreinte');
+  });
+
+  // The facets a bulk change used to split across four tools, in one plan:
+  // sections and visibility together, judged on each event as the call leaves
+  // it, so an event shown by this call only needs the sections it gives.
+  it('gives a series its sections and shows it in one plan, naming what cannot be shown', async () => {
+    const bulkCampus = await prisma.campus.create({
+      data: { name: `BulkCampus-${stamp}`, timezone: 'Europe/Paris' },
+    });
+    const soon = new Date(Date.now() + 20 * 86_400_000);
+    const ready = await prisma.event.create({
+      data: {
+        titre: `BulkReady-${stamp}`,
+        publicName: 'Coding Club prêt',
+        date: soon,
+        endDate: soon,
+        campusId: bulkCampus.id,
+      },
+    });
+    const noEnd = await prisma.event.create({
+      data: {
+        titre: `BulkNoEnd-${stamp}`,
+        publicName: 'Coding Club sans fin',
+        date: soon,
+        campusId: bulkCampus.id,
+      },
+    });
+    const past = await prisma.event.create({
+      data: {
+        titre: `BulkPast-${stamp}`,
+        publicName: 'Coding Club passé',
+        date: new Date(Date.now() - 60 * 86_400_000),
+        endDate: new Date(Date.now() - 60 * 86_400_000),
+        campusId: bulkCampus.id,
+      },
+    });
+    const patch = {
+      campus: bulkCampus.name,
+      onlyUpcoming: true,
+      modules: ['inscrits'],
+      visible: true,
+    };
+
+    const dry = await call(postBulk, writeSecret, patch);
+    expect(dry.status).toBe(200);
+    const plan = dry.payload.plan as {
+      changes: { eventId: string; visible?: unknown }[];
+      skipped: { eventId: string; reason: string }[];
+    };
+    expect(plan.changes.map((c) => c.eventId).sort()).toEqual(
+      [ready.id, noEnd.id].sort(),
+    );
+    expect(plan.changes.find((c) => c.eventId === ready.id)?.visible).toEqual({
+      from: false,
+      to: true,
+    });
+    expect(plan.skipped).toEqual([
+      expect.objectContaining({
+        eventId: noEnd.id,
+        reason: expect.stringContaining('date de fin'),
+      }),
+    ]);
+
+    const applied = await call(postBulk, writeSecret, {
+      ...patch,
+      planDigest: dry.payload.planDigest,
+    });
+    expect(applied.status).toBe(200);
+
+    const rows = await prisma.event.findMany({
+      where: { campusId: bulkCampus.id },
+      select: { id: true, devActivatedAt: true, modules: true },
+    });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    expect(byId.get(ready.id)?.devActivatedAt).not.toBeNull();
+    expect(byId.get(ready.id)?.modules).toHaveLength(1);
+    expect(byId.get(noEnd.id)?.devActivatedAt).toBeNull();
+    expect(byId.get(noEnd.id)?.modules).toHaveLength(1);
+    expect(byId.get(past.id)?.modules).toHaveLength(0);
+
+    await prisma.eventConfig_Module.deleteMany({
+      where: { eventId: { in: [ready.id, noEnd.id, past.id] } },
+    });
+    await prisma.event.deleteMany({ where: { campusId: bulkCampus.id } });
+    await prisma.campus.delete({ where: { id: bulkCampus.id } });
+  });
+
+  it('refuses a complete status list together with an add or remove', async () => {
+    const { status, payload } = await call(postBulk, writeSecret, {
+      campus: `WriteCampus-${stamp}`,
+      shownStatuses: ['READY'],
+      showStatuses: ['MET'],
+    });
+    expect(status).toBe(400);
+    expect(String(payload.error)).toContain('pas les deux');
+  });
+
+  it('refuses a filter selecting more events than one bulk call may touch', async () => {
+    const wide = await prisma.campus.create({
+      data: { name: `WideCampus-${stamp}`, timezone: 'Europe/Paris' },
+    });
+    await prisma.event.createMany({
+      data: Array.from({ length: 201 }, (_, index) => ({
+        titre: `Wide-${stamp}-${index}`,
+        date: new Date(Date.now() + 10 * 86_400_000),
+        campusId: wide.id,
+      })),
+    });
+
+    const { status, payload } = await call(postBulk, writeSecret, {
+      campus: wide.name,
+      visible: false,
+    });
+    expect(status).toBe(400);
+    expect(String(payload.error)).toContain('200');
+
+    await prisma.event.deleteMany({ where: { campusId: wide.id } });
+    await prisma.campus.delete({ where: { id: wide.id } });
   });
 
   it('records a requested sync on the audit row, and moves only its date on repeat', async () => {

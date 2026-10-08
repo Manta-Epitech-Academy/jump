@@ -190,13 +190,7 @@ import {
   sectionFields,
   withQuestionRules,
 } from '$lib/validation/feedbackForms';
-import {
-  bulkEventModules,
-  bulkEventShownStatuses,
-  bulkEventActivation,
-  bulkApplyEventTemplate,
-  BULK_EVENTS_LIMIT,
-} from './writes/bulk';
+import { bulkEventConfig, BULK_EVENTS_LIMIT } from './writes/bulk';
 import {
   getEmargementCoverage,
   EMARGEMENT_EVENTS_LIMIT,
@@ -714,7 +708,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_templates: defineOperation({
     description:
-      'Saved event-configuration presets and exactly what each one applies: sections, sub-options, public name, cohort noun, arrival time and default feedback form. Returns the names the bulk apply operation takes.',
+      'Saved event-configuration presets and exactly what each one holds: sections, sub-options, shown Salesforce statuses, public name, cohort noun, arrival time and default feedback form. A preset is applied by copying its values: to write_event_config for one event, or its modules and shownStatuses to bulk_event_config for many.',
     shape: {},
     run: () => getEventTemplates(),
   }),
@@ -1378,7 +1372,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_sync_member_status: defineWrite({
     description:
-      'Add a Salesforce member status to the words Jump knows, or change whether newly created events show it. A word Jump does not know is masked everywhere and reported by stats_sync_health; adding it stops the report but shows it on no existing event: write_event_config or bulk_event_shown_statuses does that. Safe to repeat: an upsert on the word. Nothing is ever deleted.',
+      'Add a Salesforce member status to the words Jump knows, or change whether newly created events show it. A word Jump does not know is masked everywhere and reported by stats_sync_health; adding it stops the report but shows it on no existing event: write_event_config or bulk_event_config does that. Safe to repeat: an upsert on the word. Nothing is ever deleted.',
     shape: {
       memberStatus: z
         .string()
@@ -1474,38 +1468,35 @@ export const ADMIN_API_OPERATIONS = {
       resetClosingById({ ...params, actorUserId: ctx.actorUserId }),
   }),
 
-  bulk_event_modules: defineWrite({
+  bulk_event_config: defineWrite({
     twoStep: true,
-    description: `Set the same dev-workspace sections on every event matching a filter. Call it WITHOUT planDigest first: it answers with the list of events that would change and a planDigest. Show that list to the human, then call again with the digest to apply. The apply is refused if anything moved in between. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
+    description: `Change the configuration of every event matching a filter, in one plan: their dev-workspace sections, the Salesforce statuses they show, and whether the dev workspace shows them. Patch semantics: only the fields you pass change. Call it without planDigest for the list of events that would change and how (events that cannot be shown are listed with what they lack, judged after the sections this call sets), then with the planDigest to apply it all in one transaction. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
     shape: {
-      modules: z
-        .array(z.string())
-        .describe(
-          `The complete set of sections every matching event will expose. One of: ${EVENT_MODULE_KEYS.join(', ')}.`,
-        ),
       campus,
       schoolYear,
       onlyUpcoming: z
         .boolean()
         .optional()
-        .describe('Leave past events alone. Recommended.'),
-      planDigest: z
-        .string()
+        .describe(
+          'Leave past events alone. Recommended for sections and visibility; usually NOT wanted for a renamed status, whose old enrolments Salesforce rewrites too.',
+        ),
+      modules: z
+        .array(z.string())
         .optional()
-        .describe('Digest returned by the dry run. Omit to get a dry run.'),
-    },
-    run: (params) => bulkEventModules(params),
-  }),
-
-  bulk_event_shown_statuses: defineWrite({
-    twoStep: true,
-    description: `Show some Salesforce member statuses on, and mask others from, every event matching a filter, leaving whatever else each event shows untouched. Made for a status Salesforce renamed everywhere: show the new word and hide the old one in one call. Call it WITHOUT planDigest first: it answers with the events that would change and a planDigest. Show that list to the human, then call again with the digest to apply. The apply is refused if anything moved in between. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
-    shape: {
+        .describe(
+          `The complete set of sections every matching event will expose. One of: ${EVENT_MODULE_KEYS.join(', ')}. New sections get their default options; kept ones keep theirs.`,
+        ),
+      shownStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} The complete set of statuses every matching event will show, e.g. a preset's from config_event_templates. Not with showStatuses or hideStatuses.`,
+        ),
       showStatuses: z
         .array(z.string())
         .optional()
         .describe(
-          `${handleDescribe('sfStatus')} Statuses every matching event will show, on top of what it already shows.`,
+          `${handleDescribe('sfStatus')} Statuses every matching event will show, on top of what each already shows. Made for a word Salesforce renamed: show the new one and hide the old one in one call.`,
         ),
       hideStatuses: z
         .array(z.string())
@@ -1513,58 +1504,18 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           `${handleDescribe('sfStatus')} Statuses every matching event will stop showing. Their enrolments stay synced and in Jump.`,
         ),
-      campus,
-      schoolYear,
-      onlyUpcoming: z
+      visible: z
         .boolean()
         .optional()
         .describe(
-          'Leave past events alone. Usually NOT wanted for a renamed status, whose old enrolments are rewritten by Salesforce too.',
+          'True to show them in the dev workspace, false to hide them.',
         ),
       planDigest: z
         .string()
         .optional()
         .describe('Digest returned by the dry run. Omit to get a dry run.'),
     },
-    run: (params) => bulkEventShownStatuses(params),
-  }),
-
-  bulk_event_activation: defineWrite({
-    twoStep: true,
-    description: `Show or hide every event matching a filter in the dev workspace. Dry run first (no planDigest), then apply with the digest it returns. Events that are not ready to be shown are listed as skipped in the plan rather than silently failing. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
-    shape: {
-      visible: z.boolean().describe('True to show, false to hide.'),
-      campus,
-      schoolYear,
-      onlyUpcoming: z
-        .boolean()
-        .optional()
-        .describe('Leave past events alone. Recommended.'),
-      planDigest: z
-        .string()
-        .optional()
-        .describe('Digest returned by the dry run. Omit to get a dry run.'),
-    },
-    run: (params) => bulkEventActivation(params),
-  }),
-
-  bulk_apply_event_template: defineWrite({
-    twoStep: true,
-    description: `Apply a saved preset's sections and shown Salesforce statuses to every event matching a filter. Only those two are applied in bulk, not the preset's names or times. Dry run first (no planDigest), then apply with the digest it returns. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
-    shape: {
-      templateName: z.string().min(1).describe(handleDescribe('templateName')),
-      campus,
-      schoolYear,
-      onlyUpcoming: z
-        .boolean()
-        .optional()
-        .describe('Leave past events alone. Recommended.'),
-      planDigest: z
-        .string()
-        .optional()
-        .describe('Digest returned by the dry run. Omit to get a dry run.'),
-    },
-    run: (params) => bulkApplyEventTemplate(params),
+    run: (params) => bulkEventConfig(params),
   }),
 
   meta_operations: defineOperation({

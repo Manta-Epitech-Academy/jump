@@ -373,6 +373,49 @@ export async function setModulesForEvents(
   });
 }
 
+/**
+ * Shows or hides many events in the dev workspace (the `devActivatedAt` gate),
+ * inside an open transaction. Admin-only, cross-campus: the ids are the
+ * authority. On activate only the not-yet-activated rows are stamped, so an
+ * already-activated event keeps its original instant; deactivate clears them all.
+ *
+ * Activation skips events that cannot be shown (`activatableEventWhere`):
+ * flipping their gate would surface nothing, so an activate that appeared to work
+ * would silently be a no-op for them. Read inside the caller's transaction, so a
+ * bulk write that gives events their sections and shows them in the same call is
+ * judged on the sections it has just written. Returns `activated` = events now
+ * effectively shown and `skipped` = events left untouched.
+ */
+export async function setActivationForEvents(
+  tx: Prisma.TransactionClient,
+  eventIds: readonly string[],
+  activate: boolean,
+): Promise<{ activated: number; skipped: number }> {
+  if (eventIds.length === 0) return { activated: 0, skipped: 0 };
+  if (!activate) {
+    await tx.event.updateMany({
+      where: { id: { in: [...eventIds] } },
+      data: { devActivatedAt: null },
+    });
+    return { activated: eventIds.length, skipped: 0 };
+  }
+  const eligible = await tx.event.findMany({
+    where: { id: { in: [...eventIds] }, ...activatableEventWhere },
+    select: { id: true },
+  });
+  const eligibleIds = eligible.map((e) => e.id);
+  if (eligibleIds.length > 0) {
+    await tx.event.updateMany({
+      where: { id: { in: eligibleIds }, devActivatedAt: null },
+      data: { devActivatedAt: new Date() },
+    });
+  }
+  return {
+    activated: eligibleIds.length,
+    skipped: eventIds.length - eligibleIds.length,
+  };
+}
+
 export const EventService = {
   /**
    * Every event as an `AdminEventVM`, newest start date first, cross-campus.
@@ -537,44 +580,15 @@ export const EventService = {
   },
 
   /**
-   * Shows or hides many events in the dev workspace at once (the `devActivatedAt`
-   * gate). Admin-only, cross-campus: the ids are the authority. On activate only
-   * the not-yet-activated rows are stamped, so an already-activated event keeps
-   * its original instant; deactivate clears them all.
-   *
-   * Activation skips events that expose no module: flipping their gate would
-   * surface nothing (no "Espace dev" badge, absent from the dev switcher - same
-   * rule as `resolveWorkspaceEvents`), so a bulk activate that appeared to work
-   * would silently be a no-op for them. We report how many were skipped instead.
-   * Returns `activated` = events now effectively shown (eligible, ≥1 module) and
-   * `skipped` = section-less events left untouched.
+   * Shows or hides many events in the dev workspace at once (the admin list's
+   * bulk action): {@link setActivationForEvents} in its own transaction.
    */
   async bulkSetActivation(
     eventIds: string[],
     activate: boolean,
   ): Promise<{ activated: number; skipped: number }> {
-    if (eventIds.length === 0) return { activated: 0, skipped: 0 };
-    if (!activate) {
-      await prisma.event.updateMany({
-        where: { id: { in: eventIds } },
-        data: { devActivatedAt: null },
-      });
-      return { activated: eventIds.length, skipped: 0 };
-    }
-    const eligible = await prisma.event.findMany({
-      where: { id: { in: eventIds }, ...activatableEventWhere },
-      select: { id: true },
-    });
-    const eligibleIds = eligible.map((e) => e.id);
-    if (eligibleIds.length > 0) {
-      await prisma.event.updateMany({
-        where: { id: { in: eligibleIds }, devActivatedAt: null },
-        data: { devActivatedAt: new Date() },
-      });
-    }
-    return {
-      activated: eligibleIds.length,
-      skipped: eventIds.length - eligibleIds.length,
-    };
+    return prisma.$transaction((tx) =>
+      setActivationForEvents(tx, eventIds, activate),
+    );
   },
 };
