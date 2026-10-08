@@ -132,9 +132,35 @@ export async function writeWorkshopInstance(params: {
 }
 
 /**
- * Declare a content a host serves, or move it to another host. The slug is the
- * plugin's own name for the content, so it is taken as given and never derived:
- * a mismatch is refused by the host at the first entry, which is the point.
+ * Moving an activity to another host is refused once a talent has entered it.
+ *
+ * The other host holds a fresh CTFd account for each of them, and a progress
+ * report is the whole state recounted, so the first step validated there
+ * replaces a finished activity's grant with one step's worth: the XP of a
+ * content walked once, for life, would fall back to nearly nothing. Before
+ * anybody enters, a move only corrects a declaration, which is what it is for.
+ * A host that merely changes address keeps its accounts, and is
+ * `write_workshop_instance`'s.
+ */
+async function refuseMoveOnceEntered(
+  slug: string,
+  currentInstance: string,
+): Promise<void> {
+  const entered = await prisma.workshop_Participation.count({
+    where: { activity: { slug } },
+  });
+  if (entered > 0) {
+    throw new OperationRefusedError(
+      `L'activité « ${slug} » ne change plus d'instance : ${entered} talent(s) y sont déjà entrés sur « ${currentInstance} », et l'autre instance les ferait repartir de zéro, XP compris. Si c'est la même instance à une nouvelle adresse, mettez cette adresse à jour avec write_workshop_instance.`,
+    );
+  }
+}
+
+/**
+ * Declare a content a host serves, or correct the host it was declared on. The
+ * slug is the plugin's own name for the content, so it is taken as given and
+ * never derived: a mismatch is refused by the host at the first entry, which is
+ * the point.
  */
 export async function writeWorkshopActivity(params: {
   slug: string;
@@ -161,6 +187,9 @@ export async function writeWorkshopActivity(params: {
   }
 
   const before = await activityState(slug);
+  if (before && before.instance !== params.instance.trim()) {
+    await refuseMoveOnceEntered(slug, before.instance);
+  }
   // Left as it stands when the caller says nothing, so editing a label cannot
   // silently put a retired activity back in front of a cohort.
   const enabled = params.enabled ?? before?.enabled ?? true;

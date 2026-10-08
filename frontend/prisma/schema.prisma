@@ -2457,9 +2457,11 @@ model Workshop_Instance {
 /// activity's look are not the ones who deploy its CTFd, so one source of truth
 /// had to be chosen, and it is the one they hold.
 ///
-/// It names the host that serves it now, many activities to one host: an
-/// activity is on one host at a time, so every event offering it reaches the
-/// same place without restating where, and moving it is one write.
+/// It names the host that serves it, many activities to one host: an activity
+/// is on one host at a time, so every event offering it reaches the same place
+/// without restating where. That host is fixed once a talent has entered it,
+/// because another host would hold fresh accounts and its first report would
+/// take their XP back (`write_workshop_activity`).
 ///
 /// `enabled = false` takes an activity out of every dashboard without deleting
 /// the rows pointing at it, which is how one is retired once its host has moved

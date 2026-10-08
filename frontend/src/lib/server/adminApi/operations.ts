@@ -713,7 +713,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_workshops: defineOperation({
     description:
-      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop_cover takes back). An instance is a host: its slug, its address and the activities it has served. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs the activity and instance write operations take.',
+      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop_cover takes back). An instance is a host: its slug, its address and the activities declared on it, retired ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs the activity and instance write operations take.',
     shape: {},
     run: () => getWorkshops(),
   }),
@@ -1065,7 +1065,7 @@ export const ADMIN_API_OPERATIONS = {
         .string()
         .min(1)
         .describe(
-          `${handleDescribe('workshopInstanceSlug')} The instance serving this content now; changing it moves the activity to another host.`,
+          `${handleDescribe('workshopInstanceSlug')} The instance serving this content. It can be changed only while no talent has entered the activity: another instance would start them over on fresh accounts and take back their XP. An instance that only changes address is updated with write_workshop_instance.`,
         ),
       label: z
         .string()

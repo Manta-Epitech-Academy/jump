@@ -6,6 +6,8 @@ import { workshopKeys } from '$lib/server/workshops/ticket';
 import { workshopGrantSourceId } from '$lib/domain/workshops';
 import { getUnseenWorkshopReward } from '$lib/server/services/workshopService';
 import { resolveGrantLabels } from '$lib/server/services/xpStoryService';
+import { writeWorkshopActivity } from '$lib/server/adminApi/writes/workshops';
+import { OperationRefusedError } from '$lib/server/adminApi/errors';
 import { POST } from '../../../../routes/api/workshops/callback/+server';
 import { assertTestDatabase } from './testDatabase';
 
@@ -25,6 +27,7 @@ describe('the workshop progress callback (integration)', () => {
   const hostSlug = `test-host-${stamp}`;
   const slug = `test-workshop-${stamp}`;
   const nextSlug = `test-workshop-next-${stamp}`;
+  const otherHostSlug = `test-other-host-${stamp}`;
   const secret = process.env.WORKSHOP_TICKET_SECRET ?? '';
   const BUDGET_MINUTES = 120;
   const TOTAL_STEPS = 15;
@@ -168,10 +171,10 @@ describe('the workshop progress callback (integration)', () => {
       await prisma.talent.deleteMany({ where: { id: talentId } });
       await prisma.eventConfig_Workshop.deleteMany({ where: { activityId } });
       await prisma.workshop_Activity.deleteMany({
-        where: { id: { in: [activityId, nextActivityId] } },
+        where: { instance: { slug: { in: [hostSlug, otherHostSlug] } } },
       });
       await prisma.workshop_Instance.deleteMany({
-        where: { slug: { in: [hostSlug, `test-other-host-${stamp}`] } },
+        where: { slug: { in: [hostSlug, otherHostSlug] } },
       });
       await prisma.event.deleteMany({ where: { id: eventId } });
       await prisma.campus.deleteMany({ where: { id: campusId } });
@@ -227,10 +230,7 @@ describe('the workshop progress callback (integration)', () => {
     // Both sides are configured, but not alike: crediting it would pay one
     // content's progress into another's grant.
     const other = await prisma.workshop_Instance.create({
-      data: {
-        slug: `test-other-host-${stamp}`,
-        baseUrl: 'https://other.ctfd.invalid',
-      },
+      data: { slug: otherHostSlug, baseUrl: 'https://other.ctfd.invalid' },
     });
     expect(await post({ ...progress(4), instanceSlug: other.slug })).toBe(200);
     expect((await readState()).grants).toBe(0);
@@ -342,5 +342,42 @@ describe('the workshop progress callback (integration)', () => {
     expect(labels.get(workshopGrantSourceId(nextSlug, talentId))).toBe(
       'Atelier suivant, renommé',
     );
+  });
+
+  it('keeps an entered activity on its host, so another host cannot take its XP back', async () => {
+    // The other host holds a fresh account for this talent, and its first
+    // report would recount one step against a grant already earned.
+    const before = await readState();
+    await expect(
+      writeWorkshopActivity({
+        slug,
+        instance: otherHostSlug,
+        label: 'Atelier de test',
+      }),
+    ).rejects.toBeInstanceOf(OperationRefusedError);
+    const activity = await prisma.workshop_Activity.findUniqueOrThrow({
+      where: { slug },
+      select: { instance: { select: { slug: true } } },
+    });
+    expect(activity.instance.slug).toBe(hostSlug);
+    expect(await post({ ...progress(1), instanceSlug: otherHostSlug })).toBe(
+      200,
+    );
+    expect((await readState()).grant?.amount).toBe(before.grant?.amount);
+
+    // Before anybody has entered, the same call only corrects a declaration.
+    const freshSlug = `test-workshop-fresh-${stamp}`;
+    await prisma.workshop_Activity.create({
+      data: { slug: freshSlug, instanceId, label: 'Atelier neuf' },
+    });
+    const moved = await writeWorkshopActivity({
+      slug: freshSlug,
+      instance: otherHostSlug,
+      label: 'Atelier neuf',
+    });
+    expect(moved).toMatchObject({
+      applied: true,
+      after: { instance: otherHostSlug },
+    });
   });
 });

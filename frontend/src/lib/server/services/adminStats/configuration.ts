@@ -520,7 +520,7 @@ export type WorkshopActivityRow = {
 export type WorkshopInstanceRow = {
   slug: string;
   baseUrl: string;
-  /** The slugs of every activity it has served, retired ones included. */
+  /** The slugs of every activity declared on it, retired ones included. */
   activities: string[];
 };
 
@@ -592,7 +592,7 @@ export async function getWorkshops(): Promise<Workshops> {
         baseUrl: instance.baseUrl,
         activities: instance.activities.map((a) => a.slug),
       })),
-      "Les instances qui servent ces activités. « slug » est la clé de l'instance, celle que son administration affiche et que prend write_workshop_instance, « baseUrl » l'adresse vers laquelle un talent est envoyé, « activities » les activités qu'elle a servies, celles qui ne sont plus proposées comprises. Une instance passe d'un contenu à l'autre au fil des demandes : chaque contenu reste une activité à part, et les XP d'un talent restent rangés sous celle qu'il a faite.",
+      "Les instances qui servent ces activités. « slug » est la clé de l'instance, celle que son administration affiche et que prend write_workshop_instance, « baseUrl » l'adresse vers laquelle un talent est envoyé, « activities » les activités qu'elle sert, y compris celles qui ne sont plus proposées. Une instance passe d'un contenu à l'autre au fil des demandes : chaque contenu reste une activité à part, et les XP d'un talent restent rangés sous celle qu'il a faite.",
     ),
     scale: metric(
       `Une activité déclarée à N minutes sur un événement vaut N x ${WORKSHOP_XP_PER_MINUTE} XP une fois entièrement terminée, au prorata des étapes validées. Le barème d'un talent est figé à sa première entrée : changer la durée ne reprend d'XP à personne et n'en ajoute pas rétroactivement.`,
