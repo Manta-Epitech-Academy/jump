@@ -165,19 +165,24 @@ export async function getApiUsage(
     refusedShare: share(row.refused, row.calls),
   }));
 
-  // An operation name that is not in the catalogue was invented by a caller. The
-  // envelope audit records those, so they are the questions somebody tried to ask
-  // and could not. `mcp_request` is not one of them: it is the name the endpoint
-  // logs an authentication failure under, before any tool is named.
+  // An operation name that is not in the catalogue, refused, was invented by a
+  // caller. The envelope audit records those, so they are the questions somebody
+  // tried to ask and could not. Only the refusals count: a name that answered was
+  // in the catalogue when it was called, and a retired operation keeps its
+  // successful history in the log for the whole retention, which is not
+  // anybody's invention. `mcp_request` is not one either: it is the name the
+  // endpoint logs an authentication failure under, before any tool is named.
   const catalogued = operations.filter(
     (row) => known.has(row.operation) || row.operation === ENVELOPE_OPERATION,
   );
   const invented = operations
     .filter(
       (row) =>
-        !known.has(row.operation) && row.operation !== ENVELOPE_OPERATION,
+        !known.has(row.operation) &&
+        row.operation !== ENVELOPE_OPERATION &&
+        row.refused > 0,
     )
-    .map((row) => ({ name: row.operation, attempts: row.calls }))
+    .map((row) => ({ name: row.operation, attempts: row.refused }))
     .sort((a, b) => b.attempts - a.attempts || a.name.localeCompare(b.name));
 
   return {

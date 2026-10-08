@@ -96,6 +96,24 @@ describe('inventedOperations', () => {
     ]);
   });
 
+  // A retired operation's successful calls stay in the log for the whole
+  // retention. It existed when it answered; only a caller still reaching for it
+  // since is reaching for something that is not there.
+  it('counts a retired name only by the calls refused since it went', async () => {
+    callFindMany.mockResolvedValue([
+      call('write_event_activation', 200),
+      call('write_event_activation', 200),
+      call('write_event_activation', 404),
+      call('bulk_event_modules', 200),
+    ]);
+
+    const usage = await getApiUsage({}, KNOWN);
+
+    expect(usage.inventedOperations.value).toEqual([
+      { name: 'write_event_activation', attempts: 1 },
+    ]);
+  });
+
   it('does not report a catalogue operation as invented', async () => {
     callFindMany.mockResolvedValue([call('stats_sync_health', 404)]);
 

@@ -197,7 +197,7 @@ describe('the standing instructions', () => {
       const instructions = adminMcpInstructions(tier);
       expect(instructions).toMatch(/not the same as not looking/i);
       expect(instructions).toMatch(/call the closest tool once/i);
-      expect(instructions).toContain('meta_operations');
+      expect(instructions).toMatch(/which tools return it/);
     }
   });
 

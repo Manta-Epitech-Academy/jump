@@ -26,8 +26,6 @@ import {
   PARAM_HANDLES,
   handleDescribe,
   handleProvenanceFr,
-  handlesProvidedBy,
-  handlesRequiredBy,
   type HandleKind,
 } from './handles';
 
@@ -170,10 +168,10 @@ describe('every parameter is classified', () => {
  * named its parameter `question`, described it with the closing bank's handle,
  * and inherited the feedback form's from the map, because the map is keyed by
  * parameter name across the whole catalogue. Neither half looked wrong on its
- * own. The visible consequence was in `meta_operations`, the one surface a
- * leadership token discovers this tier through: it published a read that needed a
- * value only `stats_feedback_results` hands out, so the model went and fetched
- * the wrong one. The refusal that followed named the right producers - after the
+ * own. The visible consequence was in the catalogue's discovery answer (since
+ * retired, the parameter descriptions carry the same provenance): it published
+ * a read that needed a value only `stats_feedback_results` hands out, so the
+ * model went and fetched the wrong one. The refusal that followed named the right producers - after the
  * call was spent, and counted as a refusal in `ops_api_usage`.
  *
  * Only parameters that embed a generated sentence are checked. A parameter may
@@ -257,7 +255,7 @@ describe('every handle is obtainable by whoever needs it', () => {
     expect(holesIn(HANDLES)).toEqual([]);
   });
 
-  // Proof the check bites. Keeping only `config_unconfigured_events`, which is
+  // Proof the check bites. Keeping only `ops_emargement_coverage`, which is
   // core-only and returns a subset of events, is the shape of the hole that
   // shipped, where the parameter looked reachable because something did return
   // it.
@@ -267,7 +265,7 @@ describe('every handle is obtainable by whoever needs it', () => {
       eventId: {
         ...HANDLES.eventId,
         producedBy: HANDLES.eventId.producedBy.filter(
-          (p) => p.operation === 'config_unconfigured_events',
+          (p) => p.operation === 'ops_emargement_coverage',
         ),
       },
     };
@@ -366,23 +364,5 @@ describe('what the registry generates', () => {
     expect(handleProvenanceFr('eventId')).toContain(
       "identifiants d'événement sont renvoyés",
     );
-  });
-
-  it('derives requires and provides for meta_operations', () => {
-    expect(handlesRequiredBy(paramsOf('config_event_detail'))).toEqual([
-      'eventId',
-    ]);
-    // The closing comparison needs a BANK key, not a feedback form's: this is the
-    // pairing `meta_operations` got wrong, and it is what a leadership token
-    // reads before choosing which operation to call first.
-    expect(handlesRequiredBy(paramsOf('stats_closing_question'))).toEqual([
-      'closingQuestionKey',
-      'eventId',
-    ]);
-    // And it hands one back on the event axis, like its feedback twin.
-    expect(handlesProvidedBy('stats_closing_question')).toContain('eventId');
-    expect(handlesProvidedBy('config_events')).toContain('eventId');
-    // A read that consumes a handle and produces none must not claim otherwise.
-    expect(handlesProvidedBy('stats_cohort_profile')).toEqual([]);
   });
 });

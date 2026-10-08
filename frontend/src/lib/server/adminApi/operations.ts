@@ -70,19 +70,10 @@ import {
   TALENT_HOME_NOTE_MAX_IMAGES,
 } from '$lib/domain/talentHome';
 import { resolveScope, UnknownScopeError } from './scope';
-import {
-  handleDescribe,
-  handleProvenanceFr,
-  handlesProvidedBy,
-  handlesRequiredBy,
-} from './handles';
+import { handleDescribe, handleProvenanceFr } from './handles';
 import type { WriteOutcome } from './plan';
 import { getEventsOverview } from '$lib/server/services/adminStats/eventsOverview';
 import { getOnboardingFunnel } from '$lib/server/services/adminStats/onboardingFunnel';
-import {
-  getUnconfiguredEvents,
-  UNCONFIGURED_EVENTS_LIMIT,
-} from '$lib/server/services/adminStats/unconfiguredEvents';
 import {
   getEventsConfigList,
   getEventsDirectory,
@@ -296,7 +287,7 @@ export type AdminApiTier = AdminApi_TokenTier;
 /**
  * What an operation is told about its caller.
  *
- * `tier` decides what a read may describe (see `meta_operations`).
+ * `tier` is the tier of the credential that called.
  * `actorUserId` is the `bauth_user.id` behind the call - the token's owner, or
  * the signed-in admin - which the writes that record accountability elsewhere
  * need: a closing reset stamps its own audit row with a staff profile, and
@@ -554,12 +545,6 @@ export const ADMIN_API_OPERATIONS = {
       'Where the online sign-up funnel leaks: for each step of the talent onboarding ladder, how many talents are stopped on it, plus how many completed the whole thing. Counts only, no name or contact detail exists in this answer. Can be narrowed to one event, one campus or one school year.',
     shape: { eventId, campus, schoolYear },
     run: async (params) => getOnboardingFunnel(await resolveScope(params)),
-  }),
-
-  config_unconfigured_events: defineOperation({
-    description: `Events, upcoming or ongoing, that are not visible in the dev workspace yet, soonest first, with what each one is still missing. Configuration state only, no personal data. Capped at ${UNCONFIGURED_EVENTS_LIMIT} events; the "truncated" field tells you whether the cap was reached.`,
-    shape: { schoolYear, campus },
-    run: async (params) => getUnconfiguredEvents(await resolveScope(params)),
   }),
 
   config_events: defineOperation({
@@ -1519,36 +1504,6 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => bulkEventConfig(params),
   }),
 
-  meta_operations: defineOperation({
-    leadership: true,
-    description:
-      'The catalogue of operations you can call: each one description, the exact shape of its parameters as a JSON Schema, and which named values it needs ("requires") against which ones its answer hands out ("provides"), so a parameter you do not have can be traced to the operation that returns it. Use it to discover what is available; it only ever lists what your own credentials may call.',
-    shape: {},
-    // Annotated, and reading the catalogue it is itself part of: TypeScript
-    // cannot infer a return type through that self-reference.
-    run: async (_params, ctx): Promise<{ operations: unknown[] }> => ({
-      operations: operationsForTier(ctx.tier).map(([name, operation]) => {
-        // `requires` and `provides` are derived from the handle registry, never
-        // declared twice: they turn "look for the tool that returns it" from
-        // advice into something a reader can resolve, instead of guessing from
-        // names which answer carries the id its next question needs.
-        const requires = handlesRequiredBy(Object.keys(operation.schema.shape));
-        const provides = handlesProvidedBy(name);
-        return {
-          name,
-          kind: operation.kind,
-          description: operation.description,
-          parameters: z.toJSONSchema(operation.schema),
-          ...(requires.length ? { requires } : {}),
-          ...(provides.length ? { provides } : {}),
-          ...(operation.twoStep
-            ? { twoStep: 'Call without planDigest first to obtain a plan.' }
-            : {}),
-        };
-      }),
-    }),
-  }),
-
   ops_api_usage: defineOperation({
     description: `This API's own call log, aggregated: how many calls over the window, how many were refused or failed, and the breakdown per operation, per token and per day. Also lists the catalogue operations nobody called, the ones with the highest refusal rate, and the operation names callers reached for that do not exist - the last two being where a question this API answers badly, or not at all, shows up. Window defaults to ${API_USAGE_DEFAULT_DAYS} days, ${API_USAGE_MAX_DAYS} maximum.`,
     shape: {
@@ -1741,9 +1696,8 @@ export const ADMIN_API_OPERATIONS = {
     shape: {
       // `questionKey`, not `question`: the handle registry is keyed by parameter
       // name across the whole catalogue, and `question` is already the feedback
-      // form's question key. Spelling this one the same way made
-      // `meta_operations` publish that this read needs a value produced by
-      // `stats_feedback_results`. It is also the name the closing writes already
+      // form's question key. Spelling this one the same way published that this
+      // read needs a value produced by `stats_feedback_results`. It is also the name the closing writes already
       // use for a bank key.
       questionKey: z
         .string()

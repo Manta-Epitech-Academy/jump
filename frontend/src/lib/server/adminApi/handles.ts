@@ -14,8 +14,8 @@
  *
  * So the map is declared once, here, and everything else is derived from it: the
  * `.describe()` a model reads before choosing a tool, the French sentence a
- * refusal ends with, what `meta_operations` publishes as `requires` / `provides`,
- * and the guard in `handles.test.ts` that fails when a parameter has no producer
+ * refusal ends with, and the guard in `handles.test.ts` that fails when a
+ * parameter has no producer
  * **its own tier can call**. That last clause is the one that matters: the hole
  * this closes had already happened once, when `stats_feedback_results` required a
  * form id obtainable only from a configuration answer national leadership cannot
@@ -116,10 +116,6 @@ export const HANDLES: Record<HandleKind, Handle> = {
     producedBy: [
       { operation: 'config_events' },
       { operation: 'stats_events' },
-      {
-        operation: 'config_unconfigured_events',
-        covers: 'only events that still need work before their cohort arrives',
-      },
       {
         operation: 'ops_emargement_coverage',
         covers: 'only events with the attendance section enabled',
@@ -290,8 +286,8 @@ export const HANDLES: Record<HandleKind, Handle> = {
  * not only on this map: two operations may not spell two different things the
  * same way. That is why the closing bank's key is `questionKey` wherever it is
  * taken and `question` is the feedback form's - spelling both `question` did not
- * fail here, it silently told `meta_operations` that `stats_closing_question`
- * needed a value only `stats_feedback_results` hands out. `describeMismatches`
+ * fail here, it silently published that `stats_closing_question` needed a value
+ * only `stats_feedback_results` hands out. `describeMismatches`
  * in `handles.test.ts` is what now refuses that, by comparing each parameter's
  * own `describe()` against the handle this map claims for it.
  */
@@ -352,8 +348,8 @@ const list = (parts: string[]) =>
  * The English sentence a model reads on the parameter: what the value is, and
  * every operation that hands one out with the slice it covers.
  *
- * Every producer, not the one that comes to mind. Pointing an event id at
- * `config_unconfigured_events` alone is what left the parameter unusable for
+ * Every producer, not the one that comes to mind. Pointing an event id at the
+ * list of events still to prepare alone is what left the parameter unusable for
  * anything already visible, and the reader had no way to know.
  */
 export function handleDescribe(kind: HandleKind): string {
@@ -383,22 +379,4 @@ export function handleProvenanceFr(kind: HandleKind): string {
   } par ${
     handle.producedBy.length > 1 ? 'les opérations' : "l'opération"
   } ${ops}.`;
-}
-
-/** The handles an operation hands out, for `meta_operations`. */
-export function handlesProvidedBy(name: AdminApiOperationName): HandleKind[] {
-  return (Object.keys(HANDLES) as HandleKind[]).filter((kind) =>
-    HANDLES[kind].producedBy.some((p) => p.operation === name),
-  );
-}
-
-/** The handles an operation's parameters consume, for `meta_operations`. */
-export function handlesRequiredBy(paramNames: string[]): HandleKind[] {
-  return [
-    ...new Set(
-      paramNames
-        .map((param) => PARAM_HANDLES[param])
-        .filter((kind): kind is HandleKind => kind !== undefined),
-    ),
-  ];
 }
