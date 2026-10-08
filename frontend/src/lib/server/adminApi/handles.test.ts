@@ -63,10 +63,7 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'baseUrl',
   // How an activity presents itself: a line and the addresses of pictures Jump
   // downloads. Authored, not picked from anything Jump holds.
-  'tagline',
-  'mediaUrl',
-  'posterUrl',
-  'mascotUrl',
+  'cover',
   // What a campus puts on its talents' home: its note, and the event it puts
   // forward with the address of that event's outside sign-up form.
   'markdown',

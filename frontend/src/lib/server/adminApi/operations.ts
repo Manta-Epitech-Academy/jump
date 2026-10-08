@@ -160,7 +160,7 @@ import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
 import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
 import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
 import { writeDiplomaTemplate } from './writes/diplomas';
-import { writeWorkshopInstance, writeWorkshopCover } from './writes/workshops';
+import { writeWorkshop } from './writes/workshops';
 import {
   writeTalentHomeHighlight,
   writeTalentHomeNote,
@@ -689,7 +689,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_workshop_instances: defineOperation({
     description:
-      'The online activities Jump can send a talent to: their slug, the French name a talent reads, the CTFd address behind each, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop_cover takes back). The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs the activity write operations take.',
+      'The online activities Jump can send a talent to: their slug, the French name a talent reads, the CTFd address behind each, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover). The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs write_workshop and the workshops of write_event_config take.',
     shape: {},
     run: () => getWorkshopInstances(),
   }),
@@ -1024,9 +1024,8 @@ export const ADMIN_API_OPERATIONS = {
       writeDiplomaTemplate({ ...params, origin: ctx.origin }),
   }),
 
-  write_workshop_instance: defineWrite({
-    description:
-      'Declare or update one online activity, identified by its slug: a slug that does not exist yet creates one, an existing slug updates it. It curates where Jump sends a talent and authors no subject content; how the activity looks on the talent dashboard is write_workshop_cover. Set enabled to false to stop offering it everywhere at once without unpicking any event. Safe to repeat: the same slug and the same values leave one activity. Answers with the activity before and after.',
+  write_workshop: defineWrite({
+    description: `Declare or update one online activity, identified by its slug: where Jump sends a talent (its French name, the CTFd instance address, whether it is offered) and how it presents itself on the talent dashboard (its cover). A slug that does not exist yet creates one; on an existing one only the fields you pass change. It authors no subject content. The cover is a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host: media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same activity. Answers with the activity before and after.`,
     shape: {
       slug: z
         .string()
@@ -1041,14 +1040,16 @@ export const ADMIN_API_OPERATIONS = {
       label: z
         .string()
         .min(1)
+        .optional()
         .describe(
-          'French name a talent reads on their dashboard, e.g. "Pacman IA". An event may read it differently without changing it, see the workshops of write_event_config.',
+          'French name a talent reads on their dashboard, e.g. "Pacman IA". Required to create one. An event may read it differently without changing it, see the workshops of write_event_config.',
         ),
       baseUrl: z
         .string()
         .min(1)
+        .optional()
         .describe(
-          'Address of the CTFd instance, origin only with no path, e.g. "https://pacman.epiboost.fr". Jump appends the entry path itself.',
+          'Address of the CTFd instance, origin only with no path, e.g. "https://pacman.epiboost.fr". Required to create one. Jump appends the entry path itself.',
         ),
       enabled: z
         .boolean()
@@ -1056,34 +1057,34 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           'Whether it is offered today. Omit to leave it as it stands, which is what keeps a label fix from putting a retired activity back in front of a cohort.',
         ),
-    },
-    run: (params) => writeWorkshopInstance(params),
-  }),
-
-  write_workshop_cover: defineWrite({
-    description: `Set how one online activity presents itself on the talent dashboard: a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host. The call states the WHOLE cover: anything omitted is removed, so to change one part, read config_workshop_instances first and pass the rest back as it stands. media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same cover. Answers with the cover before and after.`,
-    shape: {
-      slug: z.string().min(1).describe(handleDescribe('workshopSlug')),
-      tagline: z
-        .string()
-        .trim()
-        .min(1)
-        .max(90)
+      cover: z
+        .strictObject({
+          tagline: z
+            .string()
+            .trim()
+            .min(1)
+            .max(90)
+            .optional()
+            .describe(
+              'French, one line a talent reads big, e.g. "Apprends à un fantôme à te traquer". Omit to lead with the activity name.',
+            ),
+          mediaUrl: pictureUrl(
+            'https address of the main visual, a still or an animated GIF, any proportion. Omit for none.',
+          ),
+          posterUrl: pictureUrl(
+            'https address of a still chosen for the visual, shown in its place to talents who reduce motion and when the visual fails to load. Optional even for an animated visual, whose first frame is used otherwise. Omit for none.',
+          ),
+          mascotUrl: pictureUrl(
+            "https address of the subject's character, drawn small above the tagline (pixel art stays crisp). Omit for none.",
+          ),
+        })
+        .nullable()
         .optional()
         .describe(
-          'French, one line a talent reads big, e.g. "Apprends à un fantôme à te traquer". Omit to lead with the activity name.',
+          'The WHOLE cover: anything it omits is removed, so to change one part read config_workshop_instances first and pass the rest back as it stands. Null removes the cover; omit it to leave the cover as it is.',
         ),
-      mediaUrl: pictureUrl(
-        'https address of the main visual, a still or an animated GIF, any proportion. Omit for none.',
-      ),
-      posterUrl: pictureUrl(
-        'https address of a still chosen for the visual, shown in its place to talents who reduce motion and when the visual fails to load. Optional even for an animated visual, whose first frame is used otherwise. Omit for none.',
-      ),
-      mascotUrl: pictureUrl(
-        "https address of the subject's character, drawn small above the tagline (pixel art stays crisp). Omit for none.",
-      ),
     },
-    run: (params) => writeWorkshopCover(params),
+    run: (params) => writeWorkshop(params),
   }),
 
   write_talent_home_note: defineWrite({
