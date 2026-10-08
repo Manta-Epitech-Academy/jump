@@ -1052,6 +1052,8 @@ export const ADMIN_API_OPERATIONS = {
       slug: z
         .string()
         .min(1)
+        // The longest content name the instance accepts in an entry ticket.
+        .max(128)
         .regex(
           /^[a-z0-9-]+$/,
           'Lowercase letters, digits and hyphens only, e.g. "pacman-ia".',

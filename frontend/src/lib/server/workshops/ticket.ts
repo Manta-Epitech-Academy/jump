@@ -15,10 +15,10 @@
  * instead of being defended against.
  *
  * THE FORMAT IS A FROZEN CONTRACT shared with `kevin-cazal/workshop_platform`.
- * Changing anything in it means changing both halves. The one addition so far,
- * the four session claims, was made so that either half could ship first: the
- * plugin reads claims with `.get` and lets an unknown one through, and accepts a
- * ticket that carries none of the four.
+ * Changing anything in it means changing both halves. The two additions so far,
+ * the four session claims and the content, were made so that either half could
+ * ship first: the plugin reads claims with `.get` and lets an unknown one
+ * through, and accepts a ticket that carries none of them.
  *
  * SINGLE USE IS ENFORCED IN THE PLUGIN, by burning the `jti` through the cache's
  * SETNX. Jump storing it would buy nothing, because Jump cannot observe the
@@ -44,6 +44,9 @@ const SESSION_KEY_MAX = 64;
 
 /** The widest session or campus label the plugin stores. */
 const SESSION_LABEL_MAX = 128;
+
+/** The widest content name the plugin accepts. */
+const CONTENT_MAX = 128;
 
 /**
  * A length counted the way the plugin counts it: Python's `len()`, so in code
@@ -98,6 +101,16 @@ export type WorkshopTicketClaims = {
   session_label?: string;
   campus?: string;
   campus_label?: string;
+  /**
+   * The content the talent meant to enter: the activity's slug, which is the
+   * plugin's own name for what the instance serves. The `aud` names the host,
+   * which a rotation keeps, so it cannot tell an activity pointing at a host
+   * that has moved on; this can, and the plugin refuses the entry before any
+   * account exists rather than let a talent work through a content whose
+   * progress Jump would file nowhere. Jump always sends it; a ticket from
+   * before it existed carries none, which the plugin accepts.
+   */
+  content?: string;
 };
 
 const SESSION_CLAIMS = [
@@ -173,7 +186,10 @@ function sign(payload: string, ticketKey: string): string {
 export function mintWorkshopTicket(input: {
   talentId: string;
   displayName: string;
+  /** The host, which the audience names. */
   slug: string;
+  /** The activity, which the `content` claim names. */
+  content: string;
   kid: string;
   secret: string;
   session: WorkshopSession;
@@ -194,6 +210,8 @@ export function mintWorkshopTicket(input: {
     session_label: fit(input.session.label, SESSION_LABEL_MAX),
     campus: input.session.campusId,
     campus_label: fit(input.session.campusLabel, SESSION_LABEL_MAX),
+    // Never cut: a shortened name is another name, and would be refused.
+    content: input.content,
   };
   const payload = b64url(Buffer.from(JSON.stringify(claims), 'utf8'));
   const { ticketKey } = workshopKeys(input.secret);
@@ -214,7 +232,14 @@ export function mintWorkshopTicket(input: {
  */
 export function verifyWorkshopTicket(
   token: string,
-  options: { secret: string; slug: string; kid: string; now?: Date },
+  options: {
+    secret: string;
+    slug: string;
+    kid: string;
+    /** What the instance serves, as its last sync recorded it; none if never. */
+    content?: string;
+    now?: Date;
+  },
 ): WorkshopTicketClaims | null {
   const [payload, signature, ...rest] = token.split('.');
   if (!payload || !signature || rest.length > 0) return null;
@@ -263,6 +288,21 @@ export function verifyWorkshopTicket(
       value.length === 0 ||
       charCount(value) > max
     )
+      return null;
+  }
+
+  // A content is checked only when the ticket names one, and then it must be
+  // the one the instance serves. An instance with none recorded refuses it
+  // rather than letting it through: it cannot tell what the progress will be
+  // filed under, and neither can Jump.
+  if (claims.content !== undefined) {
+    if (
+      typeof claims.content !== 'string' ||
+      claims.content.length === 0 ||
+      charCount(claims.content) > CONTENT_MAX
+    )
+      return null;
+    if (options.content === undefined || claims.content !== options.content)
       return null;
   }
 

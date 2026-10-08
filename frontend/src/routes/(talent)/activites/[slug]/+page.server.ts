@@ -55,6 +55,7 @@ export const actions: Actions = {
       talentId: locals.talent.id,
       displayName: workshopDisplayName(locals.talent.prenom, locals.talent.nom),
       slug: entry.instanceSlug,
+      content: entry.activitySlug,
       kid,
       secret,
       session,

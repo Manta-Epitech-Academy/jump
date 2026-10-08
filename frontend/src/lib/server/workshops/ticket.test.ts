@@ -21,7 +21,8 @@ import {
  */
 
 const SECRET = 'a-shared-secret-for-this-environment';
-const SLUG = 'pacman-ia';
+const SLUG = 'ctfd-saison';
+const CONTENT = 'pacman-ia';
 const KID = 'jump-test';
 const NOW = new Date('2026-09-15T12:00:00Z');
 const SESSION = {
@@ -38,6 +39,7 @@ const mint = (
     talentId: 'sd_tal_paris_0001',
     displayName: 'Camille D.',
     slug: SLUG,
+    content: CONTENT,
     kid: KID,
     secret: SECRET,
     session: SESSION,
@@ -67,11 +69,18 @@ const claimsOf = (token: string) =>
 
 const verify = (
   token: string,
-  overrides: { secret?: string; slug?: string; kid?: string; now?: Date } = {},
+  overrides: {
+    secret?: string;
+    slug?: string;
+    kid?: string;
+    content?: string;
+    now?: Date;
+  } = {},
 ) =>
   verifyWorkshopTicket(token, {
     secret: SECRET,
     slug: SLUG,
+    content: CONTENT,
     kid: KID,
     now: NOW,
     ...overrides,
@@ -142,6 +151,20 @@ describe('the entry ticket', () => {
       ...rest
     } = claimsOf(mint());
     expect(verify(signClaims(rest))).not.toBeNull();
+  });
+
+  it('names the content, and only the instance serving it lets the talent in', () => {
+    expect(verify(mint())?.content).toBe(CONTENT);
+    // The host has moved on to another content since the activity was declared.
+    expect(verify(mint(), { content: 'santa-shooter' })).toBeNull();
+    // An instance no sync has recorded a content on cannot tell either.
+    expect(verify(mint(), { content: undefined })).toBeNull();
+    expect(verify(signClaims({ ...claimsOf(mint()), content: '' }))).toBeNull();
+  });
+
+  it('accepts a ticket that names no content, as one minted before it existed', () => {
+    const { content: _content, ...rest } = claimsOf(mint());
+    expect(verify(signClaims(rest), { content: undefined })).not.toBeNull();
   });
 
   it('refuses half a session: an account in a session with no campus leaves every staff filter', () => {
