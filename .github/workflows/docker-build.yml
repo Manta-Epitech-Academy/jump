@@ -68,6 +68,12 @@ jobs:
       contents: read
       packages: write
 
+    # The pushed image by digest, not by tag: the tag moves on the next push,
+    # and the `seed` job has to run the generator of this commit whatever
+    # landed on the tag since.
+    outputs:
+      image: ${{ steps.meta.outputs.prefix }}-seeder@${{ steps.build.outputs.digest }}
+
     steps:
       - uses: actions/checkout@v6
 
@@ -86,6 +92,7 @@ jobs:
       - uses: docker/setup-buildx-action@v4
 
       - uses: docker/build-push-action@v7
+        id: build
         with:
           context: frontend
           target: seeder
@@ -100,32 +107,14 @@ jobs:
     if: needs.build-sveltekit.outputs.push == 'true'
 
     steps:
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github
 
-      - name: Configure kubeconfig
-        run: |
-          mkdir -p ~/.kube
-          cat > ~/.kube/config <<EOF
-          apiVersion: v1
-          kind: Config
-          clusters:
-            - cluster:
-                server: ${{ secrets.K3S_URL }}
-                insecure-skip-tls-verify: true
-              name: k3s
-          contexts:
-            - context:
-                cluster: k3s
-                user: k3s-user
-              name: k3s
-          current-context: k3s
-          users:
-            - name: k3s-user
-              user:
-                token: ${{ secrets.K3S_TOKEN }}
-          EOF
-          chmod 600 ~/.kube/config
+      - uses: ./.github/actions/k3s-kubeconfig
+        with:
+          url: ${{ secrets.K3S_URL }}
+          token: ${{ secrets.K3S_TOKEN }}
 
       - name: Rollout restart deployment
         run: |
@@ -138,3 +127,111 @@ jobs:
             echo "Restarting deployment in namespace: jump-preprod"
             kubectl rollout restart deployment/jump-sk -n jump-preprod
           fi
+
+  # Re-seed the environment this push just deployed, so `dev` and `staging`
+  # always run the generator built from the commit they serve. Only those two:
+  # they are the environments the seeder image exists for, and the generator's
+  # own guard refuses every other connection string.
+  #
+  # Ordering is the whole job. After `restart-k3s`, and after the rollout is
+  # complete, because `migrate deploy` is the container CMD and a pod is not
+  # ready until it has applied the schema this generator writes against. That
+  # last clause is the readinessProbe on `jump-sk`, which lives in jump-k3s:
+  # without one a pod is ready the moment its container starts. After
+  # `build-seeder`, whose image it runs by digest, so a later push moving the
+  # branch tag cannot swap the generator under it. Serialised per branch,
+  # because two generators writing the same deterministic ids into one database
+  # collide on the first primary key.
+  #
+  # The anchor (`--today`) is what keeps a re-seed byte-identical to the last
+  # one, and CONTRIBUTING.md (the validation window) says why it must not move
+  # between two promotions of one release. It is read from `.github/seed-anchor`
+  # on both branches, never computed: a retouche push carries it unchanged
+  # without anybody remembering anything, and moving it is a commit somebody
+  # reviews. Both branches also generate the same profile, so `dev` holds the
+  # world `staging` is judged on, and only `--env` differs between the two.
+  seed:
+    runs-on: ubuntu-latest
+    needs: [build-seeder, restart-k3s]
+    if: github.ref_name == 'dev' || github.ref_name == 'staging'
+    concurrency:
+      group: seed-${{ github.ref_name }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github
+
+      - uses: ./.github/actions/k3s-kubeconfig
+        with:
+          url: ${{ secrets.K3S_URL }}
+          token: ${{ secrets.K3S_TOKEN }}
+
+      - name: Resolve the target
+        id: target
+        run: |
+          case "${{ github.ref_name }}" in
+            dev)     NS=jump-dev; ENV=dev ;;
+            staging) NS=jump-stg; ENV=staging ;;
+          esac
+          {
+            echo "namespace=$NS"
+            echo "env=$ENV"
+            echo "today=$(cat .github/seed-anchor)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the rollout
+        run: kubectl rollout status deployment/jump-sk -n "${{ steps.target.outputs.namespace }}" --timeout=300s
+
+      - name: Run the seed Job
+        env:
+          SEED_NAMESPACE: ${{ steps.target.outputs.namespace }}
+          SEED_ENV: ${{ steps.target.outputs.env }}
+          SEED_PROFILE: staging
+          SEED_TODAY: ${{ steps.target.outputs.today }}
+          SEED_IMAGE: ${{ needs.build-seeder.outputs.image }}
+        run: |
+          echo "Seeding $SEED_NAMESPACE: $SEED_IMAGE --env $SEED_ENV --profile $SEED_PROFILE --today $SEED_TODAY"
+          # Foreground, so the call returns once the previous Job's pod is gone and
+          # not merely its Job object: a pod still terminating is a generator
+          # still writing.
+          kubectl delete job jump-seed -n "$SEED_NAMESPACE" --ignore-not-found --cascade=foreground --wait=true
+          envsubst '$SEED_NAMESPACE $SEED_ENV $SEED_PROFILE $SEED_TODAY $SEED_IMAGE' \
+            < .github/k8s/seed-job.yml | kubectl create -f -
+
+          # `kubectl wait --for=condition=complete` sits out its whole timeout on
+          # a Job that has already failed, so poll both outcomes instead. A read
+          # that fails is a lost tick, not a verdict: under the step's `bash -e`
+          # it would otherwise end the run without the generator's tail.
+          for _ in $(seq 1 180); do
+            outcome=$(kubectl get job jump-seed -n "$SEED_NAMESPACE" -o jsonpath='{.status.succeeded}/{.status.failed}' || true)
+            case "$outcome" in
+              1/*)
+                kubectl logs job/jump-seed -n "$SEED_NAMESPACE" --tail=40 || true
+                exit 0
+                ;;
+              */1)
+                kubectl logs job/jump-seed -n "$SEED_NAMESPACE" --tail=80 || true
+                echo "::error::The seed Job failed in $SEED_NAMESPACE."
+                exit 1
+                ;;
+            esac
+
+            # A pod that cannot start is neither succeeded nor failed, so it
+            # would sit out the whole deadline and leave no log to read. Only
+            # the reasons the kubelet does not recover from on its own: a lone
+            # ErrImagePull is a registry blip it retries.
+            waiting=$(kubectl get pods -n "$SEED_NAMESPACE" -l job-name=jump-seed -o jsonpath='{.items[*].status.containerStatuses[*].state.waiting.reason}' || true)
+            case "$waiting" in
+              *ImagePullBackOff*|*InvalidImageName*|*CreateContainerConfigError*)
+                kubectl describe pods -n "$SEED_NAMESPACE" -l job-name=jump-seed | tail -n 20 || true
+                echo "::error::The seed Job cannot start in $SEED_NAMESPACE ($waiting)."
+                exit 1
+                ;;
+            esac
+            sleep 10
+          done
+          kubectl logs job/jump-seed -n "$SEED_NAMESPACE" --tail=80 || true
+          echo "::error::The seed Job did not finish within 30 minutes."
+          exit 1
