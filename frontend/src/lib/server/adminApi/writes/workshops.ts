@@ -19,7 +19,7 @@
 // class C. An instance is retired with `enabled: false`, and the link's FK is
 // `Restrict` so a hand-deletion of one still offered fails loudly.
 import { randomUUID } from 'node:crypto';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { OperationRefusedError } from '../errors';
 import type { WriteOutcome } from '../plan';
@@ -161,19 +161,39 @@ export async function writeWorkshop(params: {
   // On an existing activity, only what the call names changes: an omitted
   // `enabled` in particular stays as it stands, so editing a label cannot
   // silently put a retired instance back in front of a cohort.
-  const saveInstance = (
+  const saveInstance = async (
     tx: Prisma.TransactionClient,
     tagline?: string | null,
-  ) =>
-    creation
-      ? tx.workshop_Instance.create({ data: { ...creation, tagline } })
-      : tx.workshop_Instance.update({
-          where: { id },
-          data: { label, baseUrl, enabled: params.enabled, tagline },
-        });
+  ) => {
+    if (!creation) {
+      return tx.workshop_Instance.update({
+        where: { id },
+        data: { label, baseUrl, enabled: params.enabled, tagline },
+      });
+    }
+    try {
+      return await tx.workshop_Instance.create({
+        data: { ...creation, tagline },
+      });
+    } catch (err) {
+      // Another call created this slug since it was looked up: a retry after a
+      // timeout, overlapping the call it retries. Its id is not the one this
+      // call minted and named its pictures after, so the honest answer is to
+      // stop here, and a retry now finds the activity and updates it.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new OperationRefusedError(
+          `L'activité « ${slug} » vient d'être créée par un autre appel. Relancez celui-ci : il la mettra à jour.`,
+        );
+      }
+      throw err;
+    }
+  };
 
-  const before = await workshopState(prisma, slug);
   if (params.cover === undefined) {
+    const before = await workshopState(prisma, slug);
     await saveInstance(prisma);
     return {
       applied: true,
@@ -189,7 +209,7 @@ export async function writeWorkshop(params: {
     poster: cover.posterUrl,
     mascot: cover.mascotUrl,
   };
-  const after = await replacePictures({
+  const { before, after } = await replacePictures({
     requests: COVER_KINDS.filter((kind) => urls[kind]).map((kind) => ({
       slot: kind,
       sourceUrl: urls[kind]!,
@@ -219,6 +239,9 @@ export async function writeWorkshop(params: {
       await tx.$executeRaw`SELECT 1 FROM "Workshop_Instance" WHERE id = ${id} FOR UPDATE`;
     },
     commit: async (tx, pictures) => {
+      // Read under the lock, so what the audit row calls "before" is the state
+      // this write actually replaced, not one a concurrent write has moved on.
+      const before = await workshopState(tx, slug);
       await saveInstance(tx, tagline);
       await tx.workshop_CoverImage.deleteMany({ where: { instanceId: id } });
       await tx.workshop_CoverImage.createMany({
@@ -228,7 +251,7 @@ export async function writeWorkshop(params: {
           ...picture,
         })),
       });
-      return workshopState(tx, slug);
+      return { before, after: await workshopState(tx, slug) };
     },
   });
 
