@@ -31,6 +31,12 @@ import {
   getLifecycleBounds,
   type LifecycleBounds,
 } from '$lib/domain/eventLifecycle';
+import { eventDisplayName } from '$lib/domain/event';
+import { formatDateFr } from '$lib/utils';
+import {
+  workshopSessionLabel,
+  type WorkshopSession,
+} from '$lib/server/workshops/ticket';
 import { grantXp } from './xpService';
 
 export type WorkshopEntry = {
@@ -220,20 +226,27 @@ export async function resolveWorkshopEntry(
 }
 
 /**
- * Open or reopen the talent's participation, and answer with the label CTFd will
- * show them.
+ * Open or reopen the talent's participation, and answer with the session the
+ * ticket names.
  *
  * The event, the campus and the minute budget are pinned on CREATION ONLY, which
  * is what makes an admin replaying a duration harmless to whoever has already
  * started. They are taken off the enrolment that just authorised the entry, which
  * is exact: re-resolving the "closest" event here, the way the minigame path has
  * to, would replace a precise value with a heuristic.
+ *
+ * The session is read off the PINNED event, never off `entry.eventId`: a talent
+ * who comes back to an activity through a later event resolves to that later
+ * enrolment, while their CTFd account stays in the session of the first one, and
+ * their XP stays attributed to it. Naming the resolved event would tell the
+ * plugin about a session the account will never be filed in. The campus is the
+ * event's own, as it stands today, since it is what the staff filter by.
  */
 export async function enterWorkshop(
   talentId: string,
   entry: WorkshopEntry,
-): Promise<void> {
-  await prisma.workshop_Participation.upsert({
+): Promise<WorkshopSession> {
+  const { event } = await prisma.workshop_Participation.upsert({
     where: {
       talentId_instanceId: { talentId, instanceId: entry.instanceId },
     },
@@ -245,7 +258,27 @@ export async function enterWorkshop(
       budgetMinutes: entry.budgetMinutes,
     },
     update: {},
+    select: {
+      event: {
+        select: {
+          id: true,
+          titre: true,
+          publicName: true,
+          date: true,
+          campus: { select: { id: true, name: true, timezone: true } },
+        },
+      },
+    },
   });
+  return {
+    id: event.id,
+    label: workshopSessionLabel(
+      eventDisplayName(event),
+      formatDateFr(event.date, event.campus.timezone),
+    ),
+    campusId: event.campus.id,
+    campusLabel: event.campus.name,
+  };
 }
 
 export type WorkshopCallbackPayload = {
@@ -390,4 +423,28 @@ export async function markWorkshopRewardsSeen(
       }),
     ),
   );
+}
+
+/** The most talent ids one erasure question may carry. */
+export const WORKSHOP_ERASURE_BATCH_MAX = 500;
+
+/**
+ * Which of these talents Jump has erased, for a CTFd instance deciding which of
+ * its accounts to delete.
+ *
+ * Positive proof only: an id comes back when its talent carries
+ * `anonymizedAt`, and an id Jump does not know is simply absent. The plugin
+ * deletes what comes back, so "unknown" must never read as "erased": a
+ * development Jump re-seeded under an instance that still holds its old
+ * accounts would otherwise have every one of them deleted, and so would a
+ * production instance asked about by a misconfigured key. A deletion this
+ * answer cannot prove is held, the same rule the Salesforce prune follows.
+ */
+export async function erasedTalentIds(talentIds: string[]): Promise<string[]> {
+  if (talentIds.length === 0) return [];
+  const rows = await prisma.talent.findMany({
+    where: { id: { in: talentIds }, anonymizedAt: { not: null } },
+    select: { id: true },
+  });
+  return rows.map((row) => row.id);
 }

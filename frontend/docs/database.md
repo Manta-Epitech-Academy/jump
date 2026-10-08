@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **78** modèles · **31** enums · **110** relations
+- **79** modèles · **31** enums · **111** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -22,7 +22,7 @@
 | Contenus & Centres d'intérêt | 5 |
 | Analytique d'usage | 2 |
 | Configuration & Système | 11 |
-| Autres | 3 |
+| Autres | 4 |
 
 ## 1 · Authentification & Profils
 
@@ -171,6 +171,7 @@ erDiagram
     DateTime firstLoginAt
     DateTime usageAnalyticsOptOutAt
     DateTime welcomeSeenAt
+    DateTime anonymizedAt
     DateTime createdAt
     DateTime updatedAt
   }
@@ -611,6 +612,7 @@ erDiagram
     WorkshopCoverKind kind PK
     String sourceUrl
     String key UK
+    String stillKey UK
     String contentType
     Int width
     Int height
@@ -925,6 +927,7 @@ erDiagram
     String campusId PK,FK
     String sourceUrl
     String key UK
+    String stillKey UK
     String contentType
     Int width
     Int height
@@ -1109,6 +1112,15 @@ erDiagram
 
 ```mermaid
 erDiagram
+  TalentHome_NoteImage {
+    String key PK
+    String campusId FK,UK
+    String sourceUrl UK
+    String stillKey UK
+    String contentType
+    Int width
+    Int height
+  }
   EventConfig_ShownStatus {
     String eventId PK,FK
     String status PK,FK
@@ -1123,10 +1135,13 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
+  TalentHome_Note {
+  }
   Event {
   }
   EventConfig_Template {
   }
+  TalentHome_Note ||--o{ TalentHome_NoteImage : "images"
   Event ||--o{ EventConfig_ShownStatus : "shownStatuses"
   Sync_MemberStatus ||--o{ EventConfig_ShownStatus : "events"
   EventConfig_Template ||--o{ EventConfig_TemplateShownStatus : "shownStatuses"

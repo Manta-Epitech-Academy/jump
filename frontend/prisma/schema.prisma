@@ -362,6 +362,13 @@ model Talent {
   /// until it is refused. Objection is per person and permanent until cleared.
   usageAnalyticsOptOutAt      DateTime?
   welcomeSeenAt               DateTime?
+  /// When `anonymizeTalent` erased this talent, stamped once and never cleared.
+  /// The fact that says "erased", so no reader has to infer it from the
+  /// placeholder name the scrub writes. It is what a CTFd instance is answered
+  /// with when it asks which of its accounts to delete
+  /// (`/api/workshops/erasures`): positive proof, read off this row, and
+  /// nothing else.
+  anonymizedAt                DateTime?
   createdAt                   DateTime             @default(now())
   updatedAt                   DateTime             @updatedAt
 
@@ -2430,7 +2437,12 @@ model XpReward {
 model Workshop_Instance {
   id        String   @id @default(cuid())
   /// Stable natural key, and also the ticket audience (`workshop:<slug>`) the
-  /// plugin compares against its own configured instance name. Never renamed.
+  /// plugin compares against its own configured instance name. Never renamed,
+  /// and never reused for another subject: a CTFd host redeployed with a new
+  /// subject (a campus instance passed on to the next request, a season's camp
+  /// instance) takes a new slug, so a new row. The participation and the XP
+  /// grant are keyed on this row "once per talent, for life", so a reused slug
+  /// would let the new subject's progress replace the old subject's XP.
   slug      String   @unique
   /// Origin of the CTFd, no trailing slash: the entry action redirects to
   /// `<baseUrl>/jump/enter?t=...`. A generated database points this at a
