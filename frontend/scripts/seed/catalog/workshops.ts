@@ -165,7 +165,17 @@ export function workshopActivityId(slug: string): string {
   return id('wsa', slug);
 }
 
-/** Returns how many activities were inserted; 0 means everything was already there. */
+/**
+ * Returns how many activities were inserted; 0 means everything was already there.
+ *
+ * A row is only ever hung off a row carrying the id this file derives. A slug
+ * can already be held by a row the generator did not write under that id, an
+ * admin's own declaration or an activity a migration backfilled under its
+ * host's id, and `skipDuplicates` then skips the insert in silence. Attaching
+ * to it anyway would fail on the foreign key at best, and at worst dress a real
+ * activity with seed pictures or point a seeded one at a real host, so what
+ * hangs off a skipped row is skipped with it.
+ */
 export async function seedWorkshops(
   prisma: PrismaClient,
   anchor: Date,
@@ -180,9 +190,24 @@ export async function seedWorkshops(
     })),
     skipDuplicates: true,
   });
+  const ownHosts = await presentIds(
+    prisma.workshop_Instance.findMany({
+      where: {
+        id: {
+          in: Object.values(WORKSHOP_INSTANCES).map((instance) =>
+            workshopInstanceId(instance.slug),
+          ),
+        },
+      },
+      select: { id: true },
+    }),
+  );
+  const onOwnHost = WORKSHOPS.filter((workshop) =>
+    ownHosts.has(workshopInstanceId(workshop.instance.slug)),
+  );
 
   const { count } = await prisma.workshop_Activity.createMany({
-    data: WORKSHOPS.map((workshop) => ({
+    data: onOwnHost.map((workshop) => ({
       id: workshopActivityId(workshop.slug),
       slug: workshop.slug,
       instanceId: workshopInstanceId(workshop.instance.slug),
@@ -195,10 +220,23 @@ export async function seedWorkshops(
     skipDuplicates: true,
   });
 
+  const ownActivities = await presentIds(
+    prisma.workshop_Activity.findMany({
+      where: {
+        id: {
+          in: WORKSHOPS.map((workshop) => workshopActivityId(workshop.slug)),
+        },
+      },
+      select: { id: true },
+    }),
+  );
+
   // Create-only like the rows above: an activity an admin has since dressed
   // keeps the pictures it was given.
   await prisma.workshop_CoverImage.createMany({
-    data: WORKSHOPS.flatMap((workshop) => {
+    data: WORKSHOPS.filter((workshop) =>
+      ownActivities.has(workshopActivityId(workshop.slug)),
+    ).flatMap((workshop) => {
       const activityId = workshopActivityId(workshop.slug);
       return workshop.images.map((image) => {
         const animated = image.contentType === 'image/gif';
@@ -227,4 +265,10 @@ export async function seedWorkshops(
     skipDuplicates: true,
   });
   return count;
+}
+
+async function presentIds(
+  rows: Promise<{ id: string }[]>,
+): Promise<Set<string>> {
+  return new Set((await rows).map((row) => row.id));
 }
