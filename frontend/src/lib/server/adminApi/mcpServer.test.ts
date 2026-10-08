@@ -252,17 +252,25 @@ describe('the standing instructions', () => {
 });
 
 /**
- * The tool list a client loads before its first question, by credential, in
- * characters of the `tools/list` answer the SDK actually sends.
+ * What a client that loads everything receives before its first question, by
+ * credential: the server instructions plus the `tools/list` answer, in
+ * characters, as the SDK actually sends them.
  *
- * A ratchet, not a target. Every tool's name, description and schema sits in
- * the model's context for the whole conversation, and the published evidence on
- * tool selection is consistent: what degrades it is the size of that list, not
- * the count of tools as such. This list used to grow one well-meant operation
- * at a time with nothing measuring it, until a write-enabled token loaded about
- * 106 000 characters before anybody asked anything; folding the facet writes
- * into one write per entity and dropping the reads another read answered brought
- * it to the figures below.
+ * That is the worst case, and it is the one measured. Claude Code defers tool
+ * definitions: up front it keeps the names and the instructions, and loads a
+ * tool's definition when its search picks it, so there what matters is that each
+ * definition carries only what concerns its tool and that tools are told apart.
+ * A client that loads everything (the desktop app has shipped ignoring deferral)
+ * pays the whole list for the whole conversation, and with every definition
+ * loaded both the size of the list and the count of tools degrade the choice.
+ * The instructions are counted because every client loads them, deferral or not.
+ *
+ * A ratchet, not a target. This list used to grow one well-meant operation at a
+ * time with nothing measuring it, until a write-enabled token loaded about
+ * 106 000 characters of tools before anybody asked anything; folding the facet
+ * writes into one write per entity, dropping the reads another read answered and
+ * naming each handle's full sources rather than every slice brought it to the
+ * figures below, each pinned a few percent above what it measured.
  *
  * So raising a number here is the decision, and it is made in the pull request
  * that needs it, with the reason in its description. Before raising one, check
@@ -270,12 +278,12 @@ describe('the standing instructions', () => {
  * has a write is a field of that write, not a tool.
  */
 const TOOL_LIST_BUDGET = [
-  ['leadership', leadership, 26_500],
-  ['core, read-only', { ...coreWriter, writeEnabled: false }, 51_000],
-  ['core, write-enabled', coreWriter, 99_500],
+  ['leadership', leadership, 23_200],
+  ['core, read-only', { ...coreWriter, writeEnabled: false }, 42_400],
+  ['core, write-enabled', coreWriter, 86_700],
 ] as const;
 
-describe('the tool list a client loads up front', () => {
+describe('what a client loads up front', () => {
   for (const [label, credential, budget] of TOOL_LIST_BUDGET) {
     it(`stays within its budget for a ${label} token`, async () => {
       const server = buildAdminMcpServer(credential, 'https://jump.example');
@@ -285,7 +293,8 @@ describe('the tool list a client loads up front', () => {
       await client.connect(clientSide);
 
       const { tools } = await client.listTools();
-      const size = JSON.stringify(tools).length;
+      const size =
+        (client.getInstructions() ?? '').length + JSON.stringify(tools).length;
       const heaviest = tools
         .map((tool) => `${tool.name} ${JSON.stringify(tool).length}`)
         .sort((a, b) => Number(b.split(' ')[1]) - Number(a.split(' ')[1]))
