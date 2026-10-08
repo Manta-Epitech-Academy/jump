@@ -10,6 +10,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 const recordAdminApiCall = vi.fn();
 vi.mock('./audit', () => ({
@@ -17,8 +19,12 @@ vi.mock('./audit', () => ({
   ANONYMOUS_ACTOR: 'anonymous',
 }));
 
-const { auditUnreachedToolCall, envelopeRefusal, adminMcpInstructions } =
-  await import('./mcpServer');
+const {
+  auditUnreachedToolCall,
+  buildAdminMcpServer,
+  envelopeRefusal,
+  adminMcpInstructions,
+} = await import('./mcpServer');
 
 /** A core token that may write: everything in the catalogue is offered to it. */
 const coreWriter = {
@@ -243,4 +249,54 @@ describe('the standing instructions', () => {
       /conversion or admission rate/i,
     );
   });
+});
+
+/**
+ * The tool list a client loads before its first question, by credential, in
+ * characters of the `tools/list` answer the SDK actually sends.
+ *
+ * A ratchet, not a target. Every tool's name, description and schema sits in
+ * the model's context for the whole conversation, and the published evidence on
+ * tool selection is consistent: what degrades it is the size of that list, not
+ * the count of tools as such. This list used to grow one well-meant operation
+ * at a time with nothing measuring it, until a write-enabled token loaded about
+ * 106 000 characters before anybody asked anything; folding the facet writes
+ * into one write per entity and dropping the reads another read answered brought
+ * it to the figures below.
+ *
+ * So raising a number here is the decision, and it is made in the pull request
+ * that needs it, with the reason in its description. Before raising one, check
+ * the failure's list of heaviest tools: a new facet of an entity that already
+ * has a write is a field of that write, not a tool.
+ */
+const TOOL_LIST_BUDGET = [
+  ['leadership', leadership, 26_500],
+  ['core, read-only', { ...coreWriter, writeEnabled: false }, 51_000],
+  ['core, write-enabled', coreWriter, 99_500],
+] as const;
+
+describe('the tool list a client loads up front', () => {
+  for (const [label, credential, budget] of TOOL_LIST_BUDGET) {
+    it(`stays within its budget for a ${label} token`, async () => {
+      const server = buildAdminMcpServer(credential, 'https://jump.example');
+      const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
+      await server.connect(serverSide);
+      const client = new Client({ name: 'budget', version: '1' });
+      await client.connect(clientSide);
+
+      const { tools } = await client.listTools();
+      const size = JSON.stringify(tools).length;
+      const heaviest = tools
+        .map((tool) => `${tool.name} ${JSON.stringify(tool).length}`)
+        .sort((a, b) => Number(b.split(' ')[1]) - Number(a.split(' ')[1]))
+        .slice(0, 5)
+        .join(', ');
+
+      expect(
+        size,
+        `${label}: ${tools.length} tools, ${size} characters. Heaviest: ${heaviest}`,
+      ).toBeLessThanOrEqual(budget);
+      await client.close();
+    });
+  }
 });

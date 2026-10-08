@@ -41,7 +41,7 @@ import { executeOperation } from './execute';
 import { type AdminApiCredential } from './guard';
 
 export const MCP_SERVER_NAME = 'jump-admin';
-export const MCP_SERVER_VERSION = '2.0.0';
+export const MCP_SERVER_VERSION = '3.0.0';
 
 /**
  * The standing instructions, declared once for the whole server instead of
