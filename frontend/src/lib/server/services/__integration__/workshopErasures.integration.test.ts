@@ -3,7 +3,10 @@ import { createHmac } from 'node:crypto';
 import { isHttpError } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { workshopKeys } from '$lib/server/workshops/ticket';
-import { anonymizeTalent } from '$lib/server/services/anonymizationService';
+import {
+  AnonymizationService,
+  anonymizeTalent,
+} from '$lib/server/services/anonymizationService';
 import { WORKSHOP_ERASURE_BATCH_MAX } from '$lib/server/services/workshopService';
 import { POST } from '../../../../routes/api/workshops/erasures/+server';
 import { assertTestDatabase } from './testDatabase';
@@ -132,5 +135,70 @@ describe('the workshop erasure question (integration)', () => {
       talentIds: [keptId, erasedId, `sd_unknown_${stamp}`],
     });
     expect(answer).toEqual({ status: 200, erased: [erasedId] });
+  });
+});
+
+/**
+ * The other place Jump erases from. What a CTFd instance is told rests on
+ * `anonymizedAt`, so the sweep has to stamp what it erases, and it decides what
+ * is left to erase by that same stamp.
+ */
+describe('the inactivity sweep (integration)', () => {
+  const stamp = Date.now();
+  const longAgo = new Date(Date.now() - 3 * 365 * 24 * 3600 * 1000);
+  let inactiveId = '';
+  let erasedId = '';
+
+  beforeAll(async () => {
+    assertTestDatabase();
+    const [inactive, erased] = await Promise.all([
+      prisma.talent.create({
+        data: {
+          prenom: 'Sacha',
+          nom: `Inactive${stamp}`,
+          lastActiveAt: longAgo,
+        },
+      }),
+      prisma.talent.create({
+        data: { prenom: 'Noa', nom: `Erased${stamp}`, lastActiveAt: longAgo },
+      }),
+    ]);
+    inactiveId = inactive.id;
+    erasedId = erased.id;
+    await prisma.$transaction((tx) => anonymizeTalent(tx, erasedId));
+  });
+
+  afterAll(async () => {
+    try {
+      await prisma.talent.deleteMany({
+        where: { id: { in: [inactiveId, erasedId] } },
+      });
+    } catch {
+      // ignore: the test database is disposable
+    }
+  });
+
+  it('erases and stamps an inactive talent, and leaves an erased one alone', async () => {
+    const erasedBefore = await prisma.talent.findUniqueOrThrow({
+      where: { id: erasedId },
+      select: { updatedAt: true },
+    });
+
+    await AnonymizationService.anonymizeInactiveStudents();
+
+    const [inactive, erased] = await Promise.all([
+      prisma.talent.findUniqueOrThrow({
+        where: { id: inactiveId },
+        select: { prenom: true, anonymizedAt: true },
+      }),
+      prisma.talent.findUniqueOrThrow({
+        where: { id: erasedId },
+        select: { updatedAt: true },
+      }),
+    ]);
+    expect(inactive.prenom).toBe('Anonymisé');
+    expect(inactive.anonymizedAt).not.toBeNull();
+    // Not run a second time: a re-run would rewrite the row and move it.
+    expect(erased.updatedAt).toEqual(erasedBefore.updatedAt);
   });
 });
