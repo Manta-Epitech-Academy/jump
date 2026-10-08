@@ -96,15 +96,17 @@ describe('inventedOperations', () => {
     ]);
   });
 
-  // A retired operation's successful calls stay in the log for the whole
-  // retention. It existed when it answered; only a caller still reaching for it
-  // since is reaching for something that is not there.
+  // A retired operation's calls stay in the log for the whole retention, its
+  // successes and its refused filters alike. It existed when it answered or
+  // refused a filter; only a caller still reaching for it since is reaching for
+  // something that is not there, and that is the one the envelope answers 404.
   it('counts a retired name only by the calls refused since it went', async () => {
     callFindMany.mockResolvedValue([
       call('write_event_activation', 200),
-      call('write_event_activation', 200),
+      call('write_event_activation', 400),
       call('write_event_activation', 404),
       call('bulk_event_modules', 200),
+      call('bulk_event_modules', 400),
     ]);
 
     const usage = await getApiUsage({}, KNOWN);

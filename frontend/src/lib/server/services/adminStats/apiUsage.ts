@@ -167,22 +167,23 @@ export async function getApiUsage(
 
   // An operation name that is not in the catalogue, refused, was invented by a
   // caller. The envelope audit records those, so they are the questions somebody
-  // tried to ask and could not. Only the refusals count: a name that answered was
-  // in the catalogue when it was called, and a retired operation keeps its
-  // successful history in the log for the whole retention, which is not
-  // anybody's invention. `mcp_request` is not one either: it is the name the
-  // endpoint logs an authentication failure under, before any tool is named.
+  // tried to ask and could not. Only the 404s count, which the envelope alone
+  // writes and only for a name the catalogue does not hold: a retired operation
+  // keeps its history in the log for the whole retention, its successes and its
+  // refused filters alike, and neither was anybody's invention. `mcp_request` is
+  // not one either: it is the name the endpoint logs an authentication failure
+  // under, before any tool is named.
   const catalogued = operations.filter(
     (row) => known.has(row.operation) || row.operation === ENVELOPE_OPERATION,
   );
-  const invented = operations
-    .filter(
-      (row) =>
-        !known.has(row.operation) &&
-        row.operation !== ENVELOPE_OPERATION &&
-        row.refused > 0,
-    )
-    .map((row) => ({ name: row.operation, attempts: row.refused }))
+  const attempts = new Map<string, number>();
+  for (const row of rows) {
+    if (row.status !== 404 || known.has(row.operation)) continue;
+    if (row.operation === ENVELOPE_OPERATION) continue;
+    attempts.set(row.operation, (attempts.get(row.operation) ?? 0) + 1);
+  }
+  const invented = [...attempts.entries()]
+    .map(([name, count]) => ({ name, attempts: count }))
     .sort((a, b) => b.attempts - a.attempts || a.name.localeCompare(b.name));
 
   return {
