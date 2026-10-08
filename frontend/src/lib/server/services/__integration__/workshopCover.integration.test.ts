@@ -659,6 +659,43 @@ describe('the cover an admin gives an activity (integration)', () => {
     await prisma.workshop_Instance.delete({ where: { slug: fresh } });
   });
 
+  // Creating is a lookup then an insert, so a retry overlapping the call it
+  // retries can find nothing and then collide with the row that call commits.
+  // The lookup is made to miss once, which is that overlap made deterministic.
+  it('refuses a creation another call has just made, and keeps nothing it copied', async () => {
+    const stored = new Set(objects.keys());
+    const before = await prisma.workshop_Instance.findUniqueOrThrow({
+      where: { slug },
+      select: { label: true, tagline: true },
+    });
+    const lookup = vi
+      .spyOn(prisma.workshop_Instance, 'findUnique')
+      .mockResolvedValueOnce(null);
+
+    const { slug: _, ...cover } = fullCover();
+    const refusal = await writeWorkshop({
+      slug,
+      label: 'Collision',
+      baseUrl: 'https://collision.example.invalid',
+      cover,
+    })
+      .catch((err) => err)
+      .finally(() => lookup.mockRestore());
+
+    expect(refusal).toBeInstanceOf(OperationRefusedError);
+    expect((refusal as Error).message).toMatch(
+      /vient d'être créée par un autre appel/,
+    );
+
+    expect(
+      await prisma.workshop_Instance.findUniqueOrThrow({
+        where: { slug },
+        select: { label: true, tagline: true },
+      }),
+    ).toEqual(before);
+    expect(new Set(objects.keys())).toEqual(stored);
+  });
+
   describe('the proxy that serves the copies', () => {
     async function get(
       key: string,
