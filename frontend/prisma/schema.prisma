@@ -2437,7 +2437,12 @@ model XpReward {
 model Workshop_Instance {
   id        String   @id @default(cuid())
   /// Stable natural key, and also the ticket audience (`workshop:<slug>`) the
-  /// plugin compares against its own configured instance name. Never renamed.
+  /// plugin compares against its own configured instance name. Never renamed,
+  /// and never reused for another subject: a CTFd host redeployed with a new
+  /// subject (a campus instance passed on to the next request, a season's camp
+  /// instance) takes a new slug, so a new row. The participation and the XP
+  /// grant are keyed on this row "once per talent, for life", so a reused slug
+  /// would let the new subject's progress replace the old subject's XP.
   slug      String   @unique
   /// Origin of the CTFd, no trailing slash: the entry action redirects to
   /// `<baseUrl>/jump/enter?t=...`. A generated database points this at a
