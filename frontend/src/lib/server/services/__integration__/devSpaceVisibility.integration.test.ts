@@ -18,10 +18,8 @@ import {
   writeEventConfig,
   writeEventTemplate,
 } from '$lib/server/adminApi/writes/events';
-import {
-  bulkApplyEventTemplate,
-  bulkEventShownStatuses,
-} from '$lib/server/adminApi/writes/bulk';
+import { bulkEventConfig } from '$lib/server/adminApi/writes/bulk';
+import { EventConfigTemplateService } from '../eventConfigTemplates';
 import { writeSyncMemberStatus } from '$lib/server/adminApi/writes/sync';
 import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
 import { assertTestDatabase } from './testDatabase';
@@ -214,16 +212,22 @@ describe('per-event dev-space visibility (integration)', () => {
   it('carries the statuses from a saved template onto every event it is applied to', async () => {
     // The Coding Club shows CONNECTED; saving it as a preset captures that.
     await writeEventTemplate({ eventId: eventIds.club, name: templateName });
-
-    const dryRun = await bulkApplyEventTemplate({
-      templateName,
+    // A preset is applied by copying its values, which is what a caller reads
+    // off `config_event_templates` and hands to the bulk write.
+    const preset = (await EventConfigTemplateService.list()).find(
+      (t) => t.name === templateName,
+    )!;
+    const copy = {
+      modules: preset.modules,
+      shownStatuses: preset.shownStatuses,
       campus: campusName,
-    });
+    };
+
+    const dryRun = await bulkEventConfig(copy);
     expect(dryRun.applied).toBe(false);
     if (dryRun.applied) return;
-    const applied = await bulkApplyEventTemplate({
-      templateName,
-      campus: campusName,
+    const applied = await bulkEventConfig({
+      ...copy,
       planDigest: dryRun.planDigest,
     });
     expect(applied.applied).toBe(true);
@@ -259,14 +263,14 @@ describe('per-event dev-space visibility (integration)', () => {
     expect(await shownOn('stage')).not.toContain(ready);
 
     // Shown on every event of the campus, the old word masked, in one plan.
-    const dryRun = await bulkEventShownStatuses({
+    const dryRun = await bulkEventConfig({
       showStatuses: [renamed],
       hideStatuses: ['READY'],
       campus: campusName,
     });
     expect(dryRun.applied).toBe(false);
     if (dryRun.applied) return;
-    await bulkEventShownStatuses({
+    await bulkEventConfig({
       showStatuses: [renamed],
       hideStatuses: ['READY'],
       campus: campusName,

@@ -18,8 +18,7 @@ import { adminApiWrite } from '$lib/server/adminApi/route';
 import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
 
 const postTemplate = adminApiWrite('write_diploma_template');
-const postEventTemplate = adminApiWrite('write_event_diploma_template');
-const postInscritsOptions = adminApiWrite('write_event_inscrits_options');
+const postEventConfig = adminApiWrite('write_event_config');
 
 async function call(
   handler: RequestHandler,
@@ -289,26 +288,29 @@ describe('certificate authoring (integration)', () => {
       select: { id: true },
     });
 
-    const attached = await call(postEventTemplate, secret, {
+    const attached = await call(postEventConfig, secret, {
       eventId,
-      templateId: template.id,
+      diplomaTemplateId: template.id,
     });
     expect(attached.status).toBe(200);
-    expect(attached.payload.after).toMatchObject({ certificate: { code } });
+    expect(attached.payload.after).toMatchObject({
+      diplomaTemplateId: template.id,
+    });
 
-    // Omitting the id is how the event stops issuing one: patch semantics cannot
-    // express "clear it", which is why this is its own operation.
-    const detached = await call(postEventTemplate, secret, { eventId });
-    expect(detached.payload.after).toMatchObject({ certificate: null });
+    const detached = await call(postEventConfig, secret, {
+      eventId,
+      diplomaTemplateId: null,
+    });
+    expect(detached.payload.after).toMatchObject({ diplomaTemplateId: null });
   });
 
   it('refuses a blank certificate id rather than reading it as "detach"', async () => {
-    // A model told "omit templateId to detach" may send an empty string instead.
-    // That used to skip the existence check and land `''` in the FK column, which
+    // A model told "null detaches it" may send an empty string instead. That
+    // once skipped the existence check and landed `''` in the FK column, which
     // Postgres refused and the caller was told "erreur interne" for.
-    const { status, payload } = await call(postEventTemplate, secret, {
+    const { status, payload } = await call(postEventConfig, secret, {
       eventId,
-      templateId: '',
+      diplomaTemplateId: '',
     });
 
     expect(status).toBe(400);
@@ -320,9 +322,9 @@ describe('certificate authoring (integration)', () => {
       where: { code },
       select: { id: true },
     });
-    await call(postEventTemplate, secret, {
+    await call(postEventConfig, secret, {
       eventId,
-      templateId: template.id,
+      diplomaTemplateId: template.id,
     });
 
     // There is no delete operation by design; this is the schema-level backstop
@@ -331,7 +333,7 @@ describe('certificate authoring (integration)', () => {
       prisma.diploma_Template.delete({ where: { id: template.id } }),
     ).rejects.toThrow();
 
-    await call(postEventTemplate, secret, { eventId });
+    await call(postEventConfig, secret, { eventId, diplomaTemplateId: null });
   });
 
   it('previews a certificate as an image, and as a link to the same image', async () => {
@@ -386,29 +388,5 @@ describe('certificate authoring (integration)', () => {
         origin: 'https://jump.example',
       }),
     ).rejects.toThrow(/stage/);
-  });
-
-  it('refuses inscrits sub-options when the section is off', async () => {
-    const { status, payload } = await call(postInscritsOptions, secret, {
-      eventId,
-      showStatutColumn: true,
-    });
-    expect(status).toBe(400);
-    expect(String(payload.error)).toContain('Inscrits');
-  });
-
-  it('changes an inscrits sub-option once the section is on', async () => {
-    // The field that used to be reachable through no write at all.
-    await prisma.eventConfig_Module.create({
-      data: { eventId, moduleKey: 'inscrits' },
-    });
-
-    const { status, payload } = await call(postInscritsOptions, secret, {
-      eventId,
-      showStatutColumn: true,
-    });
-    expect(status).toBe(200);
-    expect(payload.before).toMatchObject({ showStatutColumn: false });
-    expect(payload.after).toMatchObject({ showStatutColumn: true });
   });
 });

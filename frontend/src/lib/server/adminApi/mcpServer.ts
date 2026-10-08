@@ -41,7 +41,7 @@ import { executeOperation } from './execute';
 import { type AdminApiCredential } from './guard';
 
 export const MCP_SERVER_NAME = 'jump-admin';
-export const MCP_SERVER_VERSION = '2.0.0';
+export const MCP_SERVER_VERSION = '3.0.0';
 
 /**
  * The standing instructions, declared once for the whole server instead of
@@ -75,9 +75,9 @@ const SHARED_INSTRUCTIONS = [
   'cannot be known, call the closest tool once and read what comes back: a tool',
   'often answers a narrower question than the one you were asked, and that',
   'narrower answer plus a sentence naming what is missing beats a refusal.',
-  'meta_operations lists every tool with what it answers, which named values it',
-  'needs and which ones its answer hands out, so a value you are missing can be',
-  'traced to the tool that returns it instead of guessed at from the names.',
+  'A parameter that names something (an event id, a form id, a question key)',
+  'says in its description which tools return it, so a value you are missing can',
+  'be traced to the tool that returns it instead of guessed at from the names.',
   '',
   'Some answers carry verbatim, unattributed quotes written by students about an',
   'event; quote them as they are, never edit them, and never guess who said one.',

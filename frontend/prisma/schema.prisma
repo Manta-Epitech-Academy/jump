@@ -2423,7 +2423,7 @@ model XpReward {
 /// the steps and the description stay in CTFd, exactly as `MinigameConfig`
 /// refuses to keep the jump-games catalogue by hand. What a talent's dashboard
 /// shows of it is a different matter, and is authored here over the API
-/// (`write_workshop_cover`): the `tagline` and the `Workshop_CoverImage` rows.
+/// (`write_workshop`, its `cover`): the `tagline` and the `Workshop_CoverImage` rows.
 /// It was first read back from the instance, and that was dropped on purpose:
 /// the people who configure an activity's look are not the ones who deploy its
 /// CTFd, so one source of truth had to be chosen, and it is the one they hold.
@@ -2454,8 +2454,8 @@ model Workshop_Instance {
   /// timeline row is quoted under.
   label     String
   /// The one line the dashboard's activity hero leads with, in place of the
-  /// label. Written by `write_workshop_cover`, never by `write_workshop_instance`,
-  /// so curating where an activity lives cannot wipe how it is presented.
+  /// label. Written only through `write_workshop`'s `cover`, so a call that
+  /// curates where an activity lives and names no cover cannot wipe it.
   tagline   String?
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -2736,7 +2736,7 @@ model AdminApi_Call {
   /// later deletion.
   actorUserId String
   /// Operation name, the same vocabulary as the MCP tool names
-  /// (`stats_events_overview`, ...). A plain String so a new operation needs no
+  /// (`config_campus_overview`, ...). A plain String so a new operation needs no
   /// migration; the catalogue lives in `$lib/server/adminApi/operations.ts`.
   operation   String
   /// The validated params. PII-free by construction: this tier serves

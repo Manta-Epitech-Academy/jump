@@ -128,6 +128,30 @@ describe('getEventsConfigList', () => {
     expect(answer.list.value.map((row) => row.eventId)).toEqual(['todo']);
   });
 
+  // The order of what to act on, which is also what makes this the list of
+  // events to prepare: soonest first while they are coming, and a past event
+  // never pushes an upcoming one out of a capped page.
+  it('lists what is coming soonest first, then what is over most recent first', async () => {
+    const day = 86_400_000;
+    listAdminEvents.mockResolvedValue([
+      event({ id: 'past-recent', status: 'past', dateTs: 9 * day }),
+      event({ id: 'later', status: 'upcoming', dateTs: 30 * day }),
+      event({ id: 'past-old', status: 'past', dateTs: 1 * day }),
+      event({ id: 'now', status: 'ongoing', dateTs: 10 * day }),
+      event({ id: 'soon', status: 'upcoming', dateTs: 20 * day }),
+    ]);
+
+    const answer = await getEventsConfigList();
+
+    expect(answer.list.value.map((row) => row.eventId)).toEqual([
+      'now',
+      'soon',
+      'later',
+      'past-recent',
+      'past-old',
+    ]);
+  });
+
   it('filters on the point of life', async () => {
     listAdminEvents.mockResolvedValue([
       event({ id: 'now', status: 'ongoing' }),

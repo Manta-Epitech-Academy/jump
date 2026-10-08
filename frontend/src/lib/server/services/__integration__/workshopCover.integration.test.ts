@@ -76,8 +76,7 @@ vi.mock('$lib/server/images/process', async (importOriginal) => {
   };
 });
 
-const { writeWorkshopCover, writeWorkshopInstance } =
-  await import('$lib/server/adminApi/writes/workshops');
+const { writeWorkshop } = await import('$lib/server/adminApi/writes/workshops');
 const { ADMIN_API_OPERATIONS } =
   await import('$lib/server/adminApi/operations');
 const { OperationRefusedError } = await import('$lib/server/adminApi/errors');
@@ -129,10 +128,21 @@ describe('the cover an admin gives an activity (integration)', () => {
     mascotUrl: at('/fantome.png'),
   });
 
-  async function write(params: Parameters<typeof writeWorkshopCover>[0]) {
-    const outcome = await writeWorkshopCover(params);
+  type CoverCall = { slug: string } & Partial<
+    Omit<ReturnType<typeof fullCover>, 'slug'>
+  >;
+  /** The cover, stated whole, as `write_workshop` takes it. */
+  const coverWrite = ({ slug, ...cover }: CoverCall) => ({ slug, cover });
+
+  type WorkshopState = { cover: unknown } | null;
+  /** Writes a cover and answers with the cover before and after. */
+  async function write(params: CoverCall) {
+    const outcome = await writeWorkshop(coverWrite(params));
     if (!outcome.applied) throw new Error('the write did not apply');
-    return outcome;
+    return {
+      before: (outcome.before as WorkshopState)?.cover,
+      after: (outcome.after as WorkshopState)?.cover,
+    };
   }
 
   const storedImages = () =>
@@ -196,7 +206,7 @@ describe('the cover an admin gives an activity (integration)', () => {
     );
     host = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
-    await writeWorkshopInstance({
+    await writeWorkshop({
       slug,
       label: 'Pacman IA',
       baseUrl: 'https://pacman.example.invalid',
@@ -448,17 +458,16 @@ describe('the cover an admin gives an activity (integration)', () => {
   });
 
   describe('a picture that cannot be copied refuses the whole write', () => {
-    async function expectRefused(
-      params: Parameters<typeof writeWorkshopCover>[0],
-      saying: RegExp,
-    ) {
+    async function expectRefused(params: CoverCall, saying: RegExp) {
       const before = await storedImages();
       const tagline = (
         await prisma.workshop_Instance.findUniqueOrThrow({ where: { slug } })
       ).tagline;
       const keys = [...objects.keys()];
 
-      const refusal = await writeWorkshopCover(params).catch((err) => err);
+      const refusal = await writeWorkshop(coverWrite(params)).catch(
+        (err) => err,
+      );
 
       expect(refusal).toBeInstanceOf(OperationRefusedError);
       expect((refusal as Error).message).toMatch(saying);
@@ -579,24 +588,112 @@ describe('the cover an admin gives an activity (integration)', () => {
       }
     });
 
-    it('an activity that does not exist', async () => {
+    // A slug nothing holds is a new activity, which a cover alone cannot
+    // declare: it needs the name a talent reads and where to send them.
+    it('an activity that does not exist, given only a cover', async () => {
       await expectRefused(
         { ...fullCover(), slug: `${slug}-absent` },
-        /introuvable/,
+        /nouvelle activité/,
       );
+      expect(
+        await prisma.workshop_Instance.count({
+          where: { slug: `${slug}-absent` },
+        }),
+      ).toBe(0);
     });
   });
 
   it('takes nothing but an https address, at the operation boundary', () => {
-    const { schema } = ADMIN_API_OPERATIONS.write_workshop_cover;
+    const { schema } = ADMIN_API_OPERATIONS.write_workshop;
+    const withMedia = (mediaUrl: string) =>
+      schema.safeParse({ slug, cover: { mediaUrl } }).success;
+    expect(withMedia('https://cdn.example.invalid/a.png')).toBe(true);
+    expect(withMedia('http://cdn.example.invalid/a.png')).toBe(false);
+  });
+
+  // Curation and presentation are one activity, so a new one arrives whole in
+  // one call, and loses its cover the same way.
+  it('declares a new activity with its cover, then removes the cover on null', async () => {
+    const fresh = `${slug}-fresh`;
+    const created = await writeWorkshop({
+      slug: fresh,
+      label: 'Snake',
+      baseUrl: 'https://snake.example.invalid/',
+      cover: { tagline: 'Recode le Snake', mascotUrl: at('/fantome.png') },
+    });
+    expect(created).toMatchObject({
+      applied: true,
+      before: null,
+      after: {
+        slug: fresh,
+        label: 'Snake',
+        baseUrl: 'https://snake.example.invalid',
+        enabled: true,
+        cover: {
+          tagline: 'Recode le Snake',
+          images: [{ kind: 'mascot', sourceUrl: at('/fantome.png') }],
+        },
+      },
+    });
+
+    const renamed = await writeWorkshop({ slug: fresh, label: 'Snake JS' });
+    expect(renamed).toMatchObject({
+      after: { label: 'Snake JS', cover: { tagline: 'Recode le Snake' } },
+    });
+
+    const { id: freshId } = await prisma.workshop_Instance.findUniqueOrThrow({
+      where: { slug: fresh },
+    });
+    const freshKeys = () =>
+      [...objects.keys()].filter((key) =>
+        key.startsWith(`workshops/${freshId}/`),
+      );
+    expect(freshKeys()).not.toEqual([]);
+
+    const cleared = await writeWorkshop({ slug: fresh, cover: null });
+    expect(cleared).toMatchObject({
+      after: { cover: { tagline: null, images: [] } },
+    });
+    expect(freshKeys()).toEqual([]);
+
+    await prisma.workshop_Instance.delete({ where: { slug: fresh } });
+  });
+
+  // Creating is a lookup then an insert, so a retry overlapping the call it
+  // retries can find nothing and then collide with the row that call commits.
+  // The lookup is made to miss once, which is that overlap made deterministic.
+  it('refuses a creation another call has just made, and keeps nothing it copied', async () => {
+    const stored = new Set(objects.keys());
+    const before = await prisma.workshop_Instance.findUniqueOrThrow({
+      where: { slug },
+      select: { label: true, tagline: true },
+    });
+    const lookup = vi
+      .spyOn(prisma.workshop_Instance, 'findUnique')
+      .mockResolvedValueOnce(null);
+
+    const { slug: _, ...cover } = fullCover();
+    const refusal = await writeWorkshop({
+      slug,
+      label: 'Collision',
+      baseUrl: 'https://collision.example.invalid',
+      cover,
+    })
+      .catch((err) => err)
+      .finally(() => lookup.mockRestore());
+
+    expect(refusal).toBeInstanceOf(OperationRefusedError);
+    expect((refusal as Error).message).toMatch(
+      /vient d'être créée par un autre appel/,
+    );
+
     expect(
-      schema.safeParse({ slug, mediaUrl: 'https://cdn.example.invalid/a.png' })
-        .success,
-    ).toBe(true);
-    expect(
-      schema.safeParse({ slug, mediaUrl: 'http://cdn.example.invalid/a.png' })
-        .success,
-    ).toBe(false);
+      await prisma.workshop_Instance.findUniqueOrThrow({
+        where: { slug },
+        select: { label: true, tagline: true },
+      }),
+    ).toEqual(before);
+    expect(new Set(objects.keys())).toEqual(stored);
   });
 
   describe('the proxy that serves the copies', () => {

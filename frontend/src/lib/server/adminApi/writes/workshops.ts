@@ -1,50 +1,33 @@
-// The class A writes for the CTFd activities: curating an instance, presenting
-// it on the talent dashboard, and saying which ones an event offers. Bounded to
-// named rows and reversible.
+// The class A write for the CTFd activities: one activity, curated and
+// presented in one call. Which ones an event offers is part of the event's
+// configuration (`write_event_config`). Bounded to named rows and reversible.
 //
-// Presenting one (`writeWorkshopCover`) downloads the pictures it is given and
-// does not already hold, from addresses an admin chose, before anything is
-// stored. That read sends nothing
-// anywhere a person would receive and writes only to the named activity, so the
-// class does not move. It is all or nothing: a picture that cannot be copied
-// refuses the whole write, and the cover stays as it was.
+// Curation (where Jump sends a talent: the name, the instance address, whether it
+// is offered) and presentation (the cover on the talent dashboard) are facets of
+// one activity, so they are fields of one write rather than two tools, and a new
+// activity can be declared with its cover in one call.
+//
+// Presenting one downloads the pictures it is given and does not already hold,
+// from addresses an admin chose, before anything is stored. That read sends
+// nothing anywhere a person would receive and writes only to the named activity,
+// so the class does not move. It is all or nothing: a picture that cannot be
+// copied refuses the whole write, curation included, and the activity stays as
+// it was.
 //
 // There is deliberately no delete. `config_workshop_instances` returns slugs, so
 // a delete tool would be something a model could aim on its own, which puts it in
 // class C. An instance is retired with `enabled: false`, and the link's FK is
 // `Restrict` so a hand-deletion of one still offered fails loudly.
-import type { Prisma } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { OperationRefusedError } from '../errors';
-import { handleProvenanceFr } from '../handles';
-import { UnknownScopeError } from '../scope';
 import type { WriteOutcome } from '../plan';
 import { replacePictures, type StoredPicture } from '$lib/server/images/remote';
 import {
   workshopCoverKey,
   type WorkshopCoverKind,
 } from '$lib/domain/workshops';
-
-type WorkshopInstanceState = {
-  slug: string;
-  label: string;
-  baseUrl: string;
-  enabled: boolean;
-};
-
-const INSTANCE_SELECT = {
-  slug: true,
-  label: true,
-  baseUrl: true,
-  enabled: true,
-} as const;
-
-function instanceState(slug: string): Promise<WorkshopInstanceState | null> {
-  return prisma.workshop_Instance.findUnique({
-    where: { slug },
-    select: INSTANCE_SELECT,
-  });
-}
 
 /**
  * An origin and nothing else: no path, no query, no trailing slash, because the
@@ -73,41 +56,12 @@ function normaliseBaseUrl(raw: string): string {
   return parsed.origin;
 }
 
-export async function writeWorkshopInstance(params: {
-  slug: string;
-  label: string;
-  baseUrl: string;
-  enabled?: boolean;
-}): Promise<WriteOutcome> {
-  const slug = params.slug.trim();
-  const label = params.label.trim();
-  if (!slug || !label) {
-    throw new OperationRefusedError(
-      "Une activité a besoin d'une clé technique et d'un libellé français (celui que lit un talent sur son accueil).",
-    );
-  }
-
-  const before = await instanceState(slug);
-  const baseUrl = normaliseBaseUrl(params.baseUrl);
-  // Left as it stands when the caller says nothing, so editing a label cannot
-  // silently put a retired instance back in front of a cohort.
-  const enabled = params.enabled ?? before?.enabled ?? true;
-
-  await prisma.workshop_Instance.upsert({
-    where: { slug },
-    create: { slug, label, baseUrl, enabled },
-    update: { label, baseUrl, enabled },
-  });
-
-  return { applied: true, before, after: await instanceState(slug) };
-}
-
-/** How an activity presents itself, as `write_workshop_cover` states it. */
-type WorkshopCoverState = {
-  slug: string;
-  tagline: string | null;
-  /** The address each picture was copied from, by kind. */
-  images: { kind: WorkshopCoverKind; sourceUrl: string }[];
+/** How an activity presents itself on the talent dashboard. */
+type WorkshopCoverInput = {
+  tagline?: string;
+  mediaUrl?: string;
+  posterUrl?: string;
+  mascotUrl?: string;
 };
 
 const COVER_KINDS: WorkshopCoverKind[] = ['media', 'poster', 'mascot'];
@@ -141,14 +95,15 @@ const COVER_IMAGE_SELECT = {
   height: true,
 } as const;
 
-async function coverState(
-  tx: Prisma.TransactionClient,
-  instanceId: string,
-): Promise<WorkshopCoverState> {
-  const instance = await tx.workshop_Instance.findUniqueOrThrow({
-    where: { id: instanceId },
+/** What the activity write reports, before and after: everything it can set. */
+async function workshopState(db: Prisma.TransactionClient, slug: string) {
+  const instance = await db.workshop_Instance.findUnique({
+    where: { slug },
     select: {
       slug: true,
+      label: true,
+      baseUrl: true,
+      enabled: true,
       tagline: true,
       coverImages: {
         select: { kind: true, sourceUrl: true },
@@ -156,43 +111,104 @@ async function coverState(
       },
     },
   });
-  return {
-    slug: instance.slug,
-    tagline: instance.tagline,
-    images: instance.coverImages,
-  };
+  if (!instance) return null;
+  const { tagline, coverImages, ...curation } = instance;
+  // The address each picture was copied from, by kind.
+  return { ...curation, cover: { tagline, images: coverImages } };
 }
 
 /**
- * Set how one activity presents itself. The call states the whole cover:
- * anything omitted is removed. A picture whose address has not changed keeps
- * the copy already stored (`replacePictures`), so restating the cover to
- * change its tagline downloads nothing.
+ * Declare or update one activity: a slug that does not exist yet creates one,
+ * which then needs its name and address; an existing slug changes only what the
+ * call names. `cover` states the whole cover when given (anything it omits is
+ * removed), `null` removes it, and an omitted `cover` leaves it alone. A picture
+ * whose address has not changed keeps the copy already stored
+ * (`replacePictures`), so restating the cover to change its tagline downloads
+ * nothing.
  */
-export async function writeWorkshopCover(params: {
+export async function writeWorkshop(params: {
   slug: string;
-  tagline?: string;
-  mediaUrl?: string;
-  posterUrl?: string;
-  mascotUrl?: string;
+  label?: string;
+  baseUrl?: string;
+  enabled?: boolean;
+  cover?: WorkshopCoverInput | null;
 }): Promise<WriteOutcome> {
-  const instance = await prisma.workshop_Instance.findUnique({
-    where: { slug: params.slug.trim() },
+  const slug = params.slug.trim();
+  const existing = await prisma.workshop_Instance.findUnique({
+    where: { slug },
     select: { id: true },
   });
-  if (!instance) {
+  const label = params.label?.trim();
+  if (label === '') {
     throw new OperationRefusedError(
-      `Activité « ${params.slug} » introuvable. ${handleProvenanceFr('workshopSlug')}`,
+      "Le libellé d'une activité ne peut pas être vide : c'est le nom que lit un talent sur son accueil.",
     );
   }
-
-  const tagline = params.tagline?.trim() || null;
-  const urls: Partial<Record<WorkshopCoverKind, string>> = {
-    media: params.mediaUrl,
-    poster: params.posterUrl,
-    mascot: params.mascotUrl,
+  const baseUrl =
+    params.baseUrl === undefined ? undefined : normaliseBaseUrl(params.baseUrl);
+  // A new activity's id is minted here rather than by the database, because its
+  // cover's storage keys are named after it before the row exists.
+  const id = existing?.id ?? randomUUID();
+  let creation: Prisma.Workshop_InstanceCreateInput | null = null;
+  if (!existing) {
+    if (!label || !baseUrl) {
+      throw new OperationRefusedError(
+        "Une nouvelle activité a besoin d'un libellé français (celui que lit un talent sur son accueil) et de l'adresse de son instance (label, baseUrl).",
+      );
+    }
+    creation = { id, slug, label, baseUrl, enabled: params.enabled ?? true };
+  }
+  // On an existing activity, only what the call names changes: an omitted
+  // `enabled` in particular stays as it stands, so editing a label cannot
+  // silently put a retired instance back in front of a cohort.
+  const saveInstance = async (
+    tx: Prisma.TransactionClient,
+    tagline?: string | null,
+  ) => {
+    if (!creation) {
+      return tx.workshop_Instance.update({
+        where: { id },
+        data: { label, baseUrl, enabled: params.enabled, tagline },
+      });
+    }
+    try {
+      return await tx.workshop_Instance.create({
+        data: { ...creation, tagline },
+      });
+    } catch (err) {
+      // Another call created this slug since it was looked up: a retry after a
+      // timeout, overlapping the call it retries. Its id is not the one this
+      // call minted and named its pictures after, so the honest answer is to
+      // stop here, and a retry now finds the activity and updates it.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new OperationRefusedError(
+          `L'activité « ${slug} » vient d'être créée par un autre appel. Relancez celui-ci : il la mettra à jour.`,
+        );
+      }
+      throw err;
+    }
   };
 
+  if (params.cover === undefined) {
+    const before = await workshopState(prisma, slug);
+    await saveInstance(prisma);
+    return {
+      applied: true,
+      before,
+      after: await workshopState(prisma, slug),
+    };
+  }
+
+  const cover = params.cover ?? {};
+  const tagline = cover.tagline?.trim() || null;
+  const urls: Partial<Record<WorkshopCoverKind, string>> = {
+    media: cover.mediaUrl,
+    poster: cover.posterUrl,
+    mascot: cover.mascotUrl,
+  };
   const { before, after } = await replacePictures({
     requests: COVER_KINDS.filter((kind) => urls[kind]).map((kind) => ({
       slot: kind,
@@ -201,148 +217,43 @@ export async function writeWorkshopCover(params: {
     })),
     keyFor: (request, writeId, extension) =>
       workshopCoverKey(
-        instance.id,
+        id,
         request.slot as WorkshopCoverKind,
         writeId,
         extension,
       ),
     refusal: (request, why) =>
       new OperationRefusedError(
-        `${COVER_LABEL_FR[request.slot as WorkshopCoverKind]} (${request.sourceUrl}) ${why}. L'aperçu de l'activité n'a pas changé.`,
+        `${COVER_LABEL_FR[request.slot as WorkshopCoverKind]} (${request.sourceUrl}) ${why}. L'activité n'a pas changé.`,
       ),
     readStored: async (db): Promise<StoredPicture[]> =>
       (
         await db.workshop_CoverImage.findMany({
-          where: { instanceId: instance.id },
+          where: { instanceId: id },
           select: COVER_IMAGE_SELECT,
         })
       ).map(({ kind, ...picture }) => ({ slot: kind, ...picture })),
     // Taken before the cover is read, so a second write on this activity
     // waits here and then reads what this one wrote.
     lock: async (tx) => {
-      await tx.$executeRaw`SELECT 1 FROM "Workshop_Instance" WHERE id = ${instance.id} FOR UPDATE`;
+      await tx.$executeRaw`SELECT 1 FROM "Workshop_Instance" WHERE id = ${id} FOR UPDATE`;
     },
     commit: async (tx, pictures) => {
-      const before = await coverState(tx, instance.id);
-      await tx.workshop_Instance.update({
-        where: { id: instance.id },
-        data: { tagline },
-      });
-      await tx.workshop_CoverImage.deleteMany({
-        where: { instanceId: instance.id },
-      });
+      // Read under the lock, so what the audit row calls "before" is the state
+      // this write actually replaced, not one a concurrent write has moved on.
+      const before = await workshopState(tx, slug);
+      await saveInstance(tx, tagline);
+      await tx.workshop_CoverImage.deleteMany({ where: { instanceId: id } });
       await tx.workshop_CoverImage.createMany({
         data: pictures.map(({ slot, ...picture }) => ({
-          instanceId: instance.id,
+          instanceId: id,
           kind: slot as WorkshopCoverKind,
           ...picture,
         })),
       });
-      return { before, after: await coverState(tx, instance.id) };
+      return { before, after: await workshopState(tx, slug) };
     },
   });
 
   return { applied: true, before, after };
-}
-
-type EventWorkshopsState = {
-  eventId: string;
-  workshops: {
-    slug: string;
-    label: string;
-    durationMinutes: number;
-    labelOverride: string | null;
-  }[];
-};
-
-async function eventWorkshopsState(
-  eventId: string,
-): Promise<EventWorkshopsState> {
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    select: {
-      id: true,
-      workshops: {
-        orderBy: { position: 'asc' },
-        select: {
-          durationMinutes: true,
-          labelOverride: true,
-          instance: { select: { slug: true, label: true } },
-        },
-      },
-    },
-  });
-  if (!event) {
-    throw new UnknownScopeError(
-      `Événement « ${eventId} » introuvable. ${handleProvenanceFr('eventId')}`,
-    );
-  }
-  return {
-    eventId: event.id,
-    workshops: event.workshops.map((link) => ({
-      slug: link.instance.slug,
-      label: link.instance.label,
-      durationMinutes: link.durationMinutes,
-      labelOverride: link.labelOverride,
-    })),
-  };
-}
-
-export async function writeEventWorkshops(params: {
-  eventId: string;
-  workshops: {
-    slug: string;
-    durationMinutes: number;
-    labelOverride?: string;
-  }[];
-}): Promise<WriteOutcome> {
-  const before = await eventWorkshopsState(params.eventId);
-
-  const slugs = params.workshops.map((w) => w.slug.trim());
-  const duplicates = slugs.filter(
-    (slug, index) => slugs.indexOf(slug) !== index,
-  );
-  if (duplicates.length > 0) {
-    throw new OperationRefusedError(
-      `Une activité ne peut être proposée qu'une fois par événement. En double : ${[...new Set(duplicates)].join(', ')}.`,
-    );
-  }
-
-  const known = await prisma.workshop_Instance.findMany({
-    where: { slug: { in: slugs } },
-    select: { id: true, slug: true },
-  });
-  const idBySlug = new Map(known.map((i) => [i.slug, i.id]));
-  const unknown = slugs.filter((slug) => !idBySlug.has(slug));
-  if (unknown.length > 0) {
-    throw new OperationRefusedError(
-      `Activités introuvables : ${unknown.join(', ')}. ${handleProvenanceFr('workshopSlug')}`,
-    );
-  }
-
-  // Replaced whole, for one named event: removing a link takes the activity off
-  // that event's dashboards and nothing else, because a talent's participation
-  // holds its own snapshot of the event, the campus and the minute budget and is
-  // not bound to this row. XP already granted stay granted.
-  await prisma.$transaction(async (tx) => {
-    await tx.eventConfig_Workshop.deleteMany({
-      where: { eventId: params.eventId },
-    });
-    if (slugs.length === 0) return;
-    await tx.eventConfig_Workshop.createMany({
-      data: params.workshops.map((workshop, index) => ({
-        eventId: params.eventId,
-        instanceId: idBySlug.get(workshop.slug.trim())!,
-        position: index,
-        durationMinutes: workshop.durationMinutes,
-        labelOverride: workshop.labelOverride?.trim() || null,
-      })),
-    });
-  });
-
-  return {
-    applied: true,
-    before,
-    after: await eventWorkshopsState(params.eventId),
-  };
 }
