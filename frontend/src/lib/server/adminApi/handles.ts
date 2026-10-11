@@ -117,7 +117,13 @@ export const HANDLES: Record<HandleKind, Handle> = {
     what: 'Activity slug, the stable key of one content a CTFd instance serves, exactly as that instance names it.',
     frNoun: "clés d'activité",
     frGender: 'f',
-    producedBy: [{ operation: 'config_workshops' }],
+    producedBy: [
+      { operation: 'config_workshops' },
+      {
+        operation: 'config_event_detail',
+        covers: 'only the activities that one event already offers',
+      },
+    ],
   },
 
   workshopInstanceSlug: {
@@ -265,7 +271,13 @@ export const HANDLES: Record<HandleKind, Handle> = {
     what: 'Closing grid id, as an event points at it.',
     frNoun: 'identifiants de grille de closing',
     frGender: 'm',
-    producedBy: [{ operation: 'config_closing_templates' }],
+    producedBy: [
+      { operation: 'config_closing_templates' },
+      {
+        operation: 'config_event_detail',
+        covers: 'only the grid that one event already uses',
+      },
+    ],
   },
   closingTemplateKey: {
     what: 'Closing grid key, the stable name a grid is authored under.',

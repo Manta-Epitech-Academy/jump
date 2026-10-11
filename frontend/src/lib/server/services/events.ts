@@ -318,6 +318,39 @@ async function replaceEventWorkshops(
   });
 }
 
+/** One online activity an event offers, as `write_event_config` takes it. */
+export type EventWorkshopState = {
+  slug: string;
+  durationMinutes: number;
+  labelOverride: string | null;
+};
+
+/**
+ * What {@link replaceEventWorkshops} stored for ONE event, in order, named by
+ * slug. The event write reports it before and after, and `config_event_detail`
+ * returns it, so a list of activities can be read, changed and sent back whole:
+ * the write replaces the list, and one nobody can read is one every write
+ * overwrites blind.
+ */
+export async function eventWorkshopsOf(
+  eventId: string,
+): Promise<EventWorkshopState[]> {
+  const links = await prisma.eventConfig_Workshop.findMany({
+    where: { eventId },
+    orderBy: { position: 'asc' },
+    select: {
+      durationMinutes: true,
+      labelOverride: true,
+      activity: { select: { slug: true } },
+    },
+  });
+  return links.map((link) => ({
+    slug: link.activity.slug,
+    durationMinutes: link.durationMinutes,
+    labelOverride: link.labelOverride,
+  }));
+}
+
 /**
  * Makes many events expose exactly the given module set, inside an open
  * transaction. Set-based, NOT a per-event diff: two statements regardless of the

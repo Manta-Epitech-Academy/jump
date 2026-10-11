@@ -15,7 +15,11 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { EventService } from '$lib/server/services/events';
+import {
+  EventService,
+  eventWorkshopsOf,
+  type EventWorkshopState,
+} from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import {
   EVENT_MODULE_DEFS,
@@ -196,6 +200,12 @@ export type EventDetail = {
     code: string;
     label: string;
   } | null>;
+  closingGrid: Metric<{
+    templateId: string;
+    key: string;
+    label: string;
+  } | null>;
+  workshops: Metric<EventWorkshopState[]>;
   shownStatuses: Metric<string[]>;
   participants: Metric;
   hiddenFromDevSpace: Metric;
@@ -224,6 +234,15 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
         select: { id: true, code: true, label: true },
       })
     : null;
+
+  const closingGrid = event.closingTemplateId
+    ? await prisma.closing_Template.findUnique({
+        where: { id: event.closingTemplateId },
+        select: { id: true, key: true, label: true },
+      })
+    : null;
+
+  const workshops = await eventWorkshopsOf(event.id);
 
   const hidden = (await hiddenEnrolmentsByEvent([event.id])).get(event.id) ?? 0;
 
@@ -278,6 +297,20 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
           }
         : null,
       "Le certificat que cet événement délivre depuis la page Inscrits, une page par inscrit, ou null s'il n'en délivre aucun : le bouton de génération est alors absent. « templateId » est l'identifiant à passer à write_event_config (diplomaTemplateId).",
+    ),
+    closingGrid: metric(
+      closingGrid
+        ? {
+            templateId: closingGrid.id,
+            key: closingGrid.key,
+            label: closingGrid.label,
+          }
+        : null,
+      "La grille de questions des closings de cet événement, ou null s'il n'en tient aucune. « templateId » est l'identifiant à passer à write_event_config (closingTemplateId).",
+    ),
+    workshops: metric(
+      workshops,
+      "Les activités en ligne que cet événement propose, dans l'ordre où un talent les voit, sous la forme exacte que prend write_event_config (« workshops ») : cette liste y remplace la liste entière, donc pour en ajouter ou en retirer une, renvoyez celle-ci modifiée. « durationMinutes » est le barème de l'activité sur cet événement, « labelOverride » le nom qu'il lui donne à la place de celui du catalogue (null s'il garde ce dernier). Le nom du catalogue et l'instance qui la sert sont dans config_workshops. Liste vide si l'événement n'en propose aucune.",
     ),
     shownStatuses: metric(
       event.shownStatuses,

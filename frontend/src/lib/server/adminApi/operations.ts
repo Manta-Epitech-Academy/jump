@@ -603,7 +603,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_detail: defineOperation({
     description:
-      'Everything configured on one event: its Salesforce and public names, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form attached to it, and how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks.',
+      'Everything configured on one event: its Salesforce and public names, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form, certificate and closing grid it uses, the online activities it offers, and how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks.',
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },
@@ -874,6 +874,7 @@ export const ADMIN_API_OPERATIONS = {
               ),
             labelOverride: z
               .string()
+              .nullable()
               .optional()
               .describe(
                 'The words this event reads the activity aloud with, when the catalogue name does not fit the format. Wording only: every figure keeps the catalogue label.',
@@ -882,7 +883,7 @@ export const ADMIN_API_OPERATIONS = {
         )
         .optional()
         .describe(
-          'The complete ordered list of online activities this event offers, in the order a talent sees them; anything left out is no longer offered, an empty list offers none.',
+          'The complete ordered list of online activities this event offers, in the order a talent sees them, as config_event_detail returns it; anything left out is no longer offered, an empty list offers none.',
         ),
     },
     run: (params) => writeEventConfig(params),
