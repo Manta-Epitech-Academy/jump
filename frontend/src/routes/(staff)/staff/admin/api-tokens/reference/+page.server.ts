@@ -11,14 +11,22 @@
  * comes here to look up before minting a token.
  *
  * Reading it is not an API call, so nothing lands in `AdminApi_Call`.
+ *
+ * The page skips the admin layout (`+page@(staff).svelte`), and with it the
+ * layout's own admin check, so the gate is restated here rather than left to
+ * the path rule in `applyRouteGuards` alone.
  */
 import type { PageServerLoad } from './$types';
+import { requireAdminSession } from '$lib/server/auth/guards';
 import { buildOpenApiDocument } from '$lib/server/adminApi/openapi';
 
-export const load: PageServerLoad = async ({ url }) => ({
-  document: await buildOpenApiDocument({
-    tier: 'core',
-    writeEnabled: true,
-    origin: url.origin,
-  }),
-});
+export const load: PageServerLoad = async ({ locals, url }) => {
+  requireAdminSession(locals);
+  return {
+    document: await buildOpenApiDocument({
+      tier: 'core',
+      writeEnabled: true,
+      origin: url.origin,
+    }),
+  };
+};

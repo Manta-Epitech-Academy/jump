@@ -2,6 +2,13 @@
   /**
    * The admin API's HTTP reference, rendered by Scalar.
    *
+   * It stands alone, outside the admin shell (`@(staff)` skips the admin
+   * layout): Scalar brings its own navigation, a sidebar listing every
+   * operation, and nested in the admin one it was a second sidebar beside the
+   * first, both squeezed into a scrolling `<main>`. What the shell did besides
+   * is restated here at its smallest: the gate in `+page.server.ts`, the
+   * `admin-space` skin, a way back and the theme switch.
+   *
    * Scalar is a Vue application, so it is imported on mount rather than at the
    * top: the chunk is only fetched on this page, and nothing of it runs during
    * server rendering. It is bundled, never loaded from a CDN, because
@@ -17,7 +24,8 @@
   import { resolve } from '$app/paths';
   import { mode } from 'mode-watcher';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import BrandMark from '$lib/components/layout/BrandMark.svelte';
+  import ModeToggle from '$lib/components/ModeToggle.svelte';
   import type { createApiReference } from '@scalar/api-reference';
 
   let { data } = $props();
@@ -31,10 +39,12 @@
    * skin and follows the theme without a value of its own. Declared on
    * `.scalar-app` rather than on the body, where Scalar puts its theme: a
    * custom property resolves where it is declared, and only inside
-   * `.admin-space` does `--accent-space-ink` mean magenta.
+   * `.admin-space` does `--accent-space-ink` mean magenta. The header height
+   * is the bar's `h-15`, which is what keeps Scalar's sticky sidebar below it.
    */
   const JUMP_SKIN = `
     .scalar-app {
+      --scalar-custom-header-height: calc(var(--spacing) * 15);
       --scalar-font: var(--font-sans);
       --scalar-font-code: var(--font-mono);
       --scalar-radius: var(--radius);
@@ -122,19 +132,27 @@
 
 <svelte:head><title>Référence de l'API · Admin</title></svelte:head>
 
-<div class="space-y-6 pb-16">
-  <a
-    href={resolve('/staff/admin/api-tokens')}
-    class="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+<div class="admin-space min-h-screen bg-background">
+  <header
+    class="on-dark sticky top-0 z-50 flex h-15 items-center justify-between gap-4 border-b border-chrome-border bg-chrome px-4 md:px-6"
   >
-    <ArrowLeft class="h-4 w-4" /> Accès API
-  </a>
+    <BrandMark
+      href={resolve('/staff/admin')}
+      sublabel="Admin"
+      accent="pink"
+      orientation="inline"
+    />
 
-  <PageHeader
-    title="Référence de"
-    accent="l'API"
-    subtitle="Chaque opération, en requête HTTP"
-  />
+    <div class="flex items-center gap-2 text-chrome-foreground-muted">
+      <a
+        href={resolve('/staff/admin/api-tokens')}
+        class="inline-flex cursor-pointer items-center gap-1.5 text-sm hover:text-chrome-foreground"
+      >
+        <ArrowLeft class="h-4 w-4" /> Accès API
+      </a>
+      <ModeToggle />
+    </div>
+  </header>
 
   <div bind:this={container}></div>
 </div>
