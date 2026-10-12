@@ -64,6 +64,28 @@ test.describe("l'accès API", () => {
     await expect(command).toContainText(value);
     await expect(command).toContainText('--transport http');
 
+    // The way in without an MCP client, and the one assertion that runs the
+    // HTTP reference on a built server: it reads its paths back off the route
+    // modules (`httpCatalogue.ts`), which no unit test bundles.
+    await page.getByText('Sans outil MCP, en requêtes HTTP').click();
+    const curl = page.getByText(/^curl -H /);
+    await expect(curl).toContainText(`Bearer ${value}`);
+    const referenceUrl = ((await curl.textContent()) ?? '')
+      .trim()
+      .split(' ')
+      .at(-1);
+    expect(referenceUrl).toBe(
+      `${new URL(page.url()).origin}/api/admin/openapi.json`,
+    );
+    const reference = await page.request.get(referenceUrl!, {
+      headers: { authorization: `Bearer ${value}` },
+    });
+    expect(reference.status()).toBe(200);
+    const { paths } = (await reference.json()) as {
+      paths: Record<string, unknown>;
+    };
+    expect(Object.keys(paths)).toContain('/api/admin/config/workshops');
+
     // Nothing else is on screen over a secret that has not been acknowledged,
     // and the inventory is the load-bearing half of that. Its revoke form posts
     // to this same route, so applying that action's result would replace the
