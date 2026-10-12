@@ -360,7 +360,9 @@ describe('admin API writes (integration)', () => {
   // Applying a preset is copying what config_event_templates returns, since no
   // write applies one by name. So what that read returns has to be what the
   // event write takes: the sub-options of a section that has none come back as
-  // an empty object, and the references the preset points at come back too.
+  // an empty object, the references the preset points at come back too, and a
+  // name or a time the preset does not carry comes back as the null the write
+  // clears with (#402), not as an empty string it refuses.
   it('applies a saved preset to an event by copying what the preset read returns', async () => {
     const grid = await prisma.closing_Template.create({
       data: { key: `preset_grid_${stamp}`, label: 'Grille du modèle' },
@@ -383,6 +385,7 @@ describe('admin API writes (integration)', () => {
 
     const configured = await call(postConfig, writeSecret, {
       eventId: source.id,
+      startTime: '14:00',
       modules: ['inscrits', 'closings'],
       moduleSettings: { inscrits: { showStatutColumn: true } },
       closingTemplateId: grid.id,
@@ -397,6 +400,9 @@ describe('admin API writes (integration)', () => {
       (template) => template.name === name,
     )!;
     expect(preset).toMatchObject({
+      publicName: null,
+      cohortNoun: null,
+      startTime: '14:00',
       moduleSettings: { inscrits: { showStatutColumn: true }, closings: {} },
       closingTemplateId: grid.id,
       diplomaTemplateId: null,
@@ -404,6 +410,9 @@ describe('admin API writes (integration)', () => {
 
     const applied = await call(postConfig, writeSecret, {
       eventId: target.id,
+      publicName: preset.publicName,
+      cohortNoun: preset.cohortNoun,
+      startTime: preset.startTime,
       modules: preset.modules,
       moduleSettings: preset.moduleSettings,
       shownStatuses: preset.shownStatuses,
@@ -413,6 +422,9 @@ describe('admin API writes (integration)', () => {
     });
     expect(applied.status).toBe(200);
     expect(applied.payload.after).toMatchObject({
+      publicName: null,
+      cohortNoun: null,
+      startTime: '14:00',
       modules: ['closings', 'inscrits'],
       moduleSettings: { inscrits: { showStatutColumn: true } },
       closingTemplateId: grid.id,

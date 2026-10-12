@@ -481,7 +481,7 @@ export type TemplateRow = {
   description: string | null;
   publicName: string | null;
   cohortNoun: string | null;
-  startTime: string;
+  startTime: string | null;
   modules: EventModuleKey[];
   moduleSettings: Record<string, unknown>;
   feedbackFormId: string | null;
@@ -502,7 +502,9 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         description: template.description,
         publicName: template.publicName,
         cohortNoun: template.cohortNoun,
-        startTime: template.startTime,
+        // The service keeps the form's '' for "no arrival time"; this read is
+        // copied into write_event_config, which takes null for it (#402).
+        startTime: template.startTime || null,
         modules: template.modules,
         moduleSettings: template.moduleSettings,
         feedbackFormId: template.feedbackFormId,
@@ -510,7 +512,7 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         closingTemplateId: template.closingTemplateId,
         shownStatuses: template.shownStatuses,
       })),
-      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun.",
+      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun. « publicName », « cohortNoun » et « startTime » valent null quand le modèle n'en porte pas.",
     ),
   };
 }
