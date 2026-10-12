@@ -23,7 +23,10 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { Hono } from 'hono';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { authenticateAdminApi } from '$lib/server/adminApi/guard';
-import { recordAdminApiCall } from '$lib/server/adminApi/audit';
+import {
+  recordAdminApiCall,
+  TRANSPORT_OPERATIONS,
+} from '$lib/server/adminApi/audit';
 import {
   buildAdminMcpServer,
   auditUnreachedToolCall,
@@ -69,7 +72,7 @@ const handle: RequestHandler = async (event) => {
   if (!auth.ok) {
     await recordAdminApiCall({
       caller: auth.caller,
-      operation: 'mcp_request',
+      operation: TRANSPORT_OPERATIONS.mcp,
       status: auth.status,
     });
     return json({ error: auth.message }, { status: auth.status });
@@ -88,7 +91,7 @@ const handle: RequestHandler = async (event) => {
   if (declaredBytes(event.request) > MAX_ENVELOPE_BYTES) {
     await recordAdminApiCall({
       caller: auth.caller,
-      operation: 'mcp_request',
+      operation: TRANSPORT_OPERATIONS.mcp,
       status: 413,
     });
     return json(
@@ -109,7 +112,7 @@ const handle: RequestHandler = async (event) => {
   if (refusal) {
     await recordAdminApiCall({
       caller: auth.caller,
-      operation: 'mcp_request',
+      operation: TRANSPORT_OPERATIONS.mcp,
       status: refusal.status,
     });
     return json({ error: refusal.message }, { status: refusal.status });

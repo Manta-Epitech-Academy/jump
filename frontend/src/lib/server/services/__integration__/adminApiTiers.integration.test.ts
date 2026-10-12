@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import type { RequestEvent } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
@@ -18,6 +19,8 @@ import {
   type AdminApiCredential,
 } from '$lib/server/adminApi/guard';
 import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
+import { serveOpenApiDocument } from '$lib/server/adminApi/openapi';
+import { TRANSPORT_OPERATIONS } from '$lib/server/adminApi/audit';
 
 const LEADERSHIP_OPERATION = ADMIN_API_OPERATIONS.stats_cohort_profile;
 const CORE_ONLY_OPERATION = ADMIN_API_OPERATIONS.ops_pdf_jobs_health;
@@ -163,5 +166,61 @@ describe('admin API tiers and write capability (integration)', () => {
     expect(refusal).toMatchObject({ ok: false, status: 403 });
     if (refusal.ok) throw new Error('unreachable');
     expect(refusal.message).toContain('navigateur');
+  });
+
+  // The HTTP reference is read with the same credential as the calls it
+  // describes, so it shows what that credential can do and is logged like them.
+  describe('the HTTP reference', () => {
+    async function fetchReference(secret?: string) {
+      const request = new Request('http://localhost/api/admin/openapi.json', {
+        headers: secret ? { authorization: `Bearer ${secret}` } : {},
+      });
+      const response = await serveOpenApiDocument({
+        request,
+        url: new URL(request.url),
+        locals: {} as App.Locals,
+      } as RequestEvent);
+      return {
+        status: response.status,
+        body: (await response.json()) as {
+          error?: string;
+          paths?: Record<string, Record<string, unknown>>;
+        },
+      };
+    }
+
+    it('lists only what a read-only token can call, and records the read', async () => {
+      const token = await mintToken(adminUserId, { label: 'Référence' });
+      const { status, body } = await fetchReference(token.secret);
+
+      expect(status).toBe(200);
+      const methods = Object.values(body.paths ?? {}).flatMap((item) =>
+        Object.keys(item),
+      );
+      expect(methods).toContain('get');
+      expect(methods).not.toContain('post');
+      expect(
+        await prisma.adminApi_Call.count({
+          where: {
+            tokenId: token.id,
+            operation: TRANSPORT_OPERATIONS.openapi,
+            status: 200,
+          },
+        }),
+      ).toBe(1);
+    });
+
+    it('refuses an unknown token like any other call, and records the refusal', async () => {
+      const { status, body } = await fetchReference(`jump_unknown${stamp}`);
+
+      expect(status).toBe(401);
+      expect(body.error).toBeTruthy();
+      expect(body.paths).toBeUndefined();
+      expect(
+        await prisma.adminApi_Call.count({
+          where: { operation: TRANSPORT_OPERATIONS.openapi, status: 401 },
+        }),
+      ).toBeGreaterThan(0);
+    });
   });
 });
