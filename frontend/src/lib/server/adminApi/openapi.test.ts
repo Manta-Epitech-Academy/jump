@@ -90,11 +90,18 @@ describe('the HTTP reference', () => {
     const write = byName.get('write_workshop_instance');
     expect(write?.method).toBe('post');
     expect(write?.op.requestBody).toMatchObject({
+      required: true,
       content: {
         'application/json': {
           schema: { required: ['instance', 'baseUrl'] },
         },
       },
+    });
+
+    // The route reads an empty body as `{}`, so a write with nothing required
+    // must not be documented as needing one.
+    expect(byName.get('ops_resolve_schools')?.op.requestBody).toMatchObject({
+      required: false,
     });
   });
 

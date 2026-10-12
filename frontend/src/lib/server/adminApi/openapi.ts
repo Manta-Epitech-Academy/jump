@@ -181,7 +181,9 @@ export async function buildOpenApiDocument(credential: {
           ? { parameters: queryParameters(schema) }
           : {
               requestBody: {
-                required: true,
+                // `route.ts` reads an empty body as `{}`, so a write whose
+                // params are all optional is legitimately called without one.
+                required: ((schema.required ?? []) as string[]).length > 0,
                 content: { 'application/json': { schema } },
               },
             }),
@@ -255,15 +257,30 @@ export const serveOpenApiDocument: RequestHandler = async (event) => {
     return json({ error: auth.message }, { status: auth.status });
   }
 
-  const document = await buildOpenApiDocument({
-    tier: auth.caller.tier,
-    writeEnabled: auth.writeEnabled,
-    origin: event.url.origin,
-  });
-  await recordAdminApiCall({
-    caller: auth.caller,
-    operation: TRANSPORT_OPERATIONS.openapi,
-    status: 200,
-  });
-  return json(document);
+  // A failure is ours, so it is recorded as one, as `executeOperation` records
+  // an operation's: an unrecorded 500 would read in `ops_api_usage` as no call.
+  try {
+    const document = await buildOpenApiDocument({
+      tier: auth.caller.tier,
+      writeEnabled: auth.writeEnabled,
+      origin: event.url.origin,
+    });
+    await recordAdminApiCall({
+      caller: auth.caller,
+      operation: TRANSPORT_OPERATIONS.openapi,
+      status: 200,
+    });
+    return json(document);
+  } catch (err) {
+    console.error('[adminApi] openapi document failed:', err);
+    await recordAdminApiCall({
+      caller: auth.caller,
+      operation: TRANSPORT_OPERATIONS.openapi,
+      status: 500,
+    });
+    return json(
+      { error: `Erreur interne (${TRANSPORT_OPERATIONS.openapi}).` },
+      { status: 500 },
+    );
+  }
 };
