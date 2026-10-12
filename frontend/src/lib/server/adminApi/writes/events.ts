@@ -31,8 +31,10 @@
 import { prisma } from '$lib/server/db';
 import {
   EventService,
+  eventWorkshopsOf,
   type AdminEventVM,
   type EventWorkshopLink,
+  type EventWorkshopState,
 } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import {
@@ -47,12 +49,6 @@ import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr, type HandleKind } from '../handles';
 import type { WriteOutcome } from '../plan';
 
-type WorkshopState = {
-  slug: string;
-  durationMinutes: number;
-  labelOverride: string | null;
-};
-
 /** What the event write reports, before and after: every field it can change. */
 type EventState = {
   eventId: string;
@@ -66,23 +62,14 @@ type EventState = {
   feedbackFormId: string | null;
   diplomaTemplateId: string | null;
   closingTemplateId: string | null;
-  workshops: WorkshopState[];
+  workshops: EventWorkshopState[];
   visibleInDevWorkspace: boolean;
   configState: string;
 };
 
 async function stateOf(event: AdminEventVM): Promise<EventState> {
   // Not on `AdminEventVM`: the list it builds serves every event of the
-  // cockpit, and only this write ever needs an event's activities.
-  const workshops = await prisma.eventConfig_Workshop.findMany({
-    where: { eventId: event.id },
-    orderBy: { position: 'asc' },
-    select: {
-      durationMinutes: true,
-      labelOverride: true,
-      activity: { select: { slug: true } },
-    },
-  });
+  // cockpit, and only one event's configuration ever needs its activities.
   return {
     eventId: event.id,
     publicName: event.publicName,
@@ -95,11 +82,7 @@ async function stateOf(event: AdminEventVM): Promise<EventState> {
     feedbackFormId: event.feedbackFormId || null,
     diplomaTemplateId: event.diplomaTemplateId || null,
     closingTemplateId: event.closingTemplateId || null,
-    workshops: workshops.map((link) => ({
-      slug: link.activity.slug,
-      durationMinutes: link.durationMinutes,
-      labelOverride: link.labelOverride,
-    })),
+    workshops: await eventWorkshopsOf(event.id),
     visibleInDevWorkspace: event.configState === 'shown',
     configState: EVENT_CONFIG_STATE_LABELS[event.configState],
   };
@@ -138,7 +121,7 @@ export type EventConfigPatch = {
   workshops?: {
     slug: string;
     durationMinutes: number;
-    labelOverride?: string;
+    labelOverride?: string | null;
   }[];
 };
 

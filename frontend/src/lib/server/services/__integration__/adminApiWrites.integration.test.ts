@@ -16,7 +16,12 @@ import { createAdminAccount } from './adminApiAccount';
 import { mintToken } from '$lib/server/adminApi/tokens';
 import { adminApiWrite } from '$lib/server/adminApi/route';
 import { planDigest } from '$lib/server/adminApi/plan';
-import { getEventTemplates } from '$lib/server/services/adminStats/configuration';
+import {
+  getEventDetail,
+  getEventTemplates,
+  type EventDetail,
+} from '$lib/server/services/adminStats/configuration';
+import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
 
 const postConfig = adminApiWrite('write_event_config');
 const postBulk = adminApiWrite('bulk_event_config');
@@ -529,6 +534,149 @@ describe('admin API writes (integration)', () => {
       where: { id: { in: [pacman.id, snake.id] } },
     });
     await prisma.workshop_Instance.delete({ where: { id: host.id } });
+  });
+
+  // A write that replaces a list or a reference is only safe to call after
+  // reading what it replaces, so every field write_event_config takes has to
+  // come back from config_event_detail, in a form the write takes again. The
+  // activities did not (#400): rattaching one meant overwriting the event's list
+  // blind. Written as a round trip, so a field the read drops fails here, and a
+  // new write field fails until it is read back. Each entry rebuilds the write's
+  // value from the read: the activities, the statuses and the scalar fields are
+  // taken as read, so a rename or a reshape of those fails too.
+  it('reads back every field it writes, in a form it takes again', async () => {
+    const readBack: Record<string, (detail: EventDetail) => unknown> = {
+      publicName: (d) => d.event.value.publicName,
+      cohortNoun: (d) => d.event.value.cohortNoun,
+      startTime: (d) => d.event.value.startTime,
+      endDate: (d) => d.event.value.endDate,
+      // A set on both sides: the write takes any order, the read lists the
+      // catalogue's. Sorted so the comparison is about membership only.
+      modules: (d) =>
+        d.modules.value
+          .filter((m) => m.enabled)
+          .map((m) => m.module)
+          .sort(),
+      moduleSettings: (d) =>
+        Object.fromEntries(
+          d.modules.value
+            .filter((m) => m.enabled && m.settings !== null)
+            .map((m) => [m.module, m.settings]),
+        ),
+      shownStatuses: (d) => d.shownStatuses.value,
+      visible: (d) => d.configState.value.state === 'shown',
+      feedbackFormId: (d) => d.feedbackForm.value?.id ?? null,
+      diplomaTemplateId: (d) => d.certificate.value?.templateId ?? null,
+      closingTemplateId: (d) => d.closingGrid.value?.templateId ?? null,
+      workshops: (d) => d.workshops.value,
+    };
+    const writable = Object.keys(
+      ADMIN_API_OPERATIONS.write_event_config.schema.shape,
+    ).filter((field) => field !== 'eventId');
+    expect(
+      writable.filter((field) => !(field in readBack)),
+      'write_event_config fields config_event_detail does not read back',
+    ).toEqual([]);
+    expect(
+      Object.keys(readBack).filter((field) => !writable.includes(field)),
+      'read-back entries naming no write_event_config field',
+    ).toEqual([]);
+
+    const form = await prisma.feedback_Form.create({
+      data: { slug: `readback-form-${stamp}`, title: 'Bilan relu' },
+    });
+    const certificate = await prisma.diploma_Template.create({
+      data: {
+        code: `readback_cert_${stamp}`,
+        label: 'Certificat relu',
+        styleCss: '',
+        bodyHtml: '<p>{prenom}</p>',
+        pageWidthPx: 1123,
+        pageHeightPx: 794,
+      },
+    });
+    const grid = await prisma.closing_Template.create({
+      data: { key: `readback_grid_${stamp}`, label: 'Grille relue' },
+    });
+    const host = await prisma.workshop_Instance.create({
+      data: {
+        slug: `readback-host-${stamp}`,
+        baseUrl: 'https://host.example.org',
+      },
+    });
+    const [pacman, snake] = await Promise.all(
+      ['pacman', 'snake'].map((name) =>
+        prisma.workshop_Activity.create({
+          data: {
+            slug: `readback-${name}-${stamp}`,
+            instanceId: host.id,
+            label: name,
+          },
+        }),
+      ),
+    );
+    const event = await prisma.event.create({
+      data: {
+        titre: `WriteReadBack-${stamp}`,
+        date: new Date(Date.now() + 30 * 86_400_000),
+        campusId,
+      },
+    });
+
+    const written = {
+      publicName: 'Camp relu',
+      cohortNoun: 'campeur',
+      startTime: '09:30',
+      endDate: '2027-04-02',
+      modules: ['bilan', 'closings', 'inscrits'],
+      moduleSettings: { inscrits: { showStatutColumn: true } },
+      shownStatuses: ['MET', 'READY'],
+      visible: true,
+      feedbackFormId: form.id,
+      diplomaTemplateId: certificate.id,
+      closingTemplateId: grid.id,
+      workshops: [
+        { slug: snake.slug, durationMinutes: 90, labelOverride: null },
+        { slug: pacman.slug, durationMinutes: 60, labelOverride: 'Pacman' },
+      ],
+    };
+    expect(Object.keys(written).sort()).toEqual([...writable].sort());
+    const configured = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      ...written,
+    });
+    expect(configured.status).toBe(200);
+
+    const detail = await getEventDetail(event.id);
+    const read = Object.fromEntries(
+      writable.map((field) => [field, readBack[field]!(detail)]),
+    );
+    expect(read).toMatchObject({
+      ...written,
+      modules: [...written.modules].sort(),
+    });
+
+    const echoed = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      ...read,
+    });
+    expect(echoed.status).toBe(200);
+    expect(echoed.payload.after).toEqual(echoed.payload.before);
+
+    await prisma.eventConfig_Workshop.deleteMany({
+      where: { eventId: event.id },
+    });
+    await prisma.eventConfig_Module.deleteMany({
+      where: { eventId: event.id },
+    });
+    await prisma.event.delete({ where: { id: event.id } });
+    await prisma.workshop_Activity.deleteMany({
+      where: { id: { in: [pacman.id, snake.id] } },
+    });
+    await prisma.workshop_Instance.delete({ where: { id: host.id } });
+    await prisma.closing_Template.delete({ where: { id: grid.id } });
+    await prisma.diploma_Template.delete({ where: { id: certificate.id } });
+    await prisma.feedback_Form.delete({ where: { id: form.id } });
   });
 
   it('plans a bulk change before applying it, and applies it on the digest', async () => {
