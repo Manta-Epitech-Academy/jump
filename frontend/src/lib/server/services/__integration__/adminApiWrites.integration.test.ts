@@ -1067,6 +1067,26 @@ describe('admin API writes (integration)', () => {
       expect(payload.before).toEqual(payload.after);
     });
 
+    it('refuses the same host typed under the other scheme', async () => {
+      const { status, payload } = await call(
+        postWorkshopInstance,
+        writeSecret,
+        { instance: second, baseUrl: address.replace('https:', 'http:') },
+      );
+
+      expect(status).toBe(400);
+      expect(String(payload.error)).toContain(`« ${first} »`);
+    });
+
+    it('takes a non-default port as another host', async () => {
+      const { status } = await call(postWorkshopInstance, writeSecret, {
+        instance: second,
+        baseUrl: `${address}:8443`,
+      });
+
+      expect(status).toBe(200);
+    });
+
     it('lets an address go to another instance once its holder has moved', async () => {
       await call(postWorkshopInstance, writeSecret, {
         instance: first,
