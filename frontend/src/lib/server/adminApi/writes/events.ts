@@ -19,7 +19,7 @@
  * date" would have to supply the public name, the cohort noun, the sections and
  * the start time as well, and would cheerfully invent them. So the write reads
  * the current state first, applies only the fields it was actually given (`null`
- * clears a reference, an omitted field is left alone), and sends the whole thing
+ * clears a field, an omitted field is left alone), and sends the whole thing
  * back. Rules that span facets, the activation rule first, are therefore judged
  * on the configuration being saved, so naming the missing pieces and the
  * activation in one call succeeds.
@@ -32,6 +32,7 @@ import { prisma } from '$lib/server/db';
 import {
   EventService,
   eventWorkshopsOf,
+  jumpOwnedFields,
   type AdminEventVM,
   type EventWorkshopLink,
   type EventWorkshopState,
@@ -52,10 +53,10 @@ import type { WriteOutcome } from '../plan';
 /** What the event write reports, before and after: every field it can change. */
 type EventState = {
   eventId: string;
-  publicName: string;
+  publicName: string | null;
   cohortNoun: string | null;
-  startTime: string;
-  endDate: string;
+  startTime: string | null;
+  endDate: string | null;
   modules: string[];
   moduleSettings: Record<string, unknown>;
   shownStatuses: string[];
@@ -72,10 +73,7 @@ async function stateOf(event: AdminEventVM): Promise<EventState> {
   // cockpit, and only one event's configuration ever needs its activities.
   return {
     eventId: event.id,
-    publicName: event.publicName,
-    cohortNoun: event.cohortNoun,
-    startTime: event.startTime,
-    endDate: event.endDate,
+    ...jumpOwnedFields(event),
     modules: [...event.modules].sort(),
     moduleSettings: event.moduleSettings,
     shownStatuses: event.shownStatuses,
@@ -107,10 +105,10 @@ type ModuleSettingsPatch = {
 
 export type EventConfigPatch = {
   eventId: string;
-  publicName?: string;
-  cohortNoun?: string;
-  startTime?: string;
-  endDate?: string;
+  publicName?: string | null;
+  cohortNoun?: string | null;
+  startTime?: string | null;
+  endDate?: string | null;
   modules?: string[];
   moduleSettings?: ModuleSettingsPatch;
   shownStatuses?: string[];
@@ -223,6 +221,21 @@ async function resolvedReference(
   return id;
 }
 
+/**
+ * The value to save for one of the fields Jump owns: the stored one when the
+ * call omits it, none when it sends `null`, and otherwise the value given. The
+ * service takes a complete configuration and reads `''` as "none", so that is
+ * what `null` becomes here; `??` alone would read `null` as "omitted" and keep
+ * the value the call asked to remove.
+ */
+function patched(
+  given: string | null | undefined,
+  stored: string | null,
+): string {
+  if (given === undefined) return stored ?? '';
+  return given ?? '';
+}
+
 /** The activities as the service stores them, slugs resolved to their rows. */
 async function resolvedWorkshops(
   workshops: NonNullable<EventConfigPatch['workshops']>,
@@ -264,10 +277,10 @@ export async function writeEventConfig(
   const modules = params.modules ?? event.modules;
 
   await EventService.updateEventConfig(event.id, {
-    publicName: params.publicName ?? event.publicName,
-    cohortNoun: params.cohortNoun ?? event.cohortNoun ?? '',
-    startTime: params.startTime ?? event.startTime,
-    endDate: params.endDate ?? event.endDate,
+    publicName: patched(params.publicName, event.publicName),
+    cohortNoun: patched(params.cohortNoun, event.cohortNoun),
+    startTime: patched(params.startTime, event.startTime),
+    endDate: patched(params.endDate, event.endDate),
     modules,
     moduleSettings: mergedModuleSettings(event, modules, params.moduleSettings),
     devActivated: params.visible ?? event.devActivated,

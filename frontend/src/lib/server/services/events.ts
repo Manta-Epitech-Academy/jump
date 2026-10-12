@@ -110,6 +110,33 @@ export function adminEventRunsClosings(
 }
 
 /**
+ * The four values Jump owns on an event, `null` where unset.
+ *
+ * The VM spells "unset" as `""` because forms bind to it; the admin API spells
+ * it `null`, the value `write_event_config` clears a field with, so a read sent
+ * back as it came is accepted (#402). Converted here, beside the VM, so the
+ * event read and the write's before and after cannot disagree on the spelling.
+ */
+export function jumpOwnedFields(
+  event: Pick<
+    AdminEventVM,
+    'publicName' | 'cohortNoun' | 'startTime' | 'endDate'
+  >,
+): {
+  publicName: string | null;
+  cohortNoun: string | null;
+  startTime: string | null;
+  endDate: string | null;
+} {
+  return {
+    publicName: event.publicName || null,
+    cohortNoun: event.cohortNoun || null,
+    startTime: event.startTime || null,
+    endDate: event.endDate || null,
+  };
+}
+
+/**
  * The rows `bulkSetActivation` is allowed to activate: the SQL twin of
  * `activationBlockers` in `domain/eventReadiness`.
  *

@@ -108,7 +108,7 @@ describe('admin API writes (integration)', () => {
 
     expect(status).toBe(200);
     expect(payload.applied).toBe(true);
-    expect(payload.before).toMatchObject({ endDate: '' });
+    expect(payload.before).toMatchObject({ endDate: null });
     expect(payload.after).toMatchObject({
       endDate: '2027-03-15',
       // Untouched by a call that never mentioned it: this is what patch
@@ -124,7 +124,7 @@ describe('admin API writes (integration)', () => {
     });
 
     expect(row?.status).toBe(200);
-    expect(row?.before).toMatchObject({ endDate: '' });
+    expect(row?.before).toMatchObject({ endDate: null });
     expect(row?.after).toMatchObject({ endDate: '2027-03-15' });
   });
 
@@ -196,41 +196,50 @@ describe('admin API writes (integration)', () => {
 
   // The activation rule reaching the path that writes the name and the gate in
   // one call. Patch semantics carry the STORED activation into a call that only
-  // meant to edit a name, so without the rule this could take a live event down
-  // to no public name and leave it live: in the dev switcher, under its raw
-  // Salesforce title.
-  it('refuses to strip the public name of an event that stays visible', async () => {
-    const live = await prisma.event.create({
-      data: {
-        titre: `WriteLive-${stamp}`,
-        publicName: 'Coding Club visible',
-        date: new Date(Date.now() + 30 * 86_400_000),
-        endDate: new Date(Date.now() + 31 * 86_400_000),
-        campusId,
-        devActivatedAt: new Date(),
-        modules: { create: { moduleKey: 'inscrits' } },
-      },
-    });
+  // meant to edit a name or a date, so without the rule this could take a live
+  // event down to no public name, or no end date, and leave it live: in the dev
+  // switcher under its raw Salesforce title, or with no window to run in.
+  it.each([
+    { field: 'publicName', label: 'nom public' },
+    { field: 'endDate', label: 'date de fin' },
+  ] as const)(
+    'refuses to clear the $field of an event that stays visible',
+    async ({ field, label }) => {
+      const live = await prisma.event.create({
+        data: {
+          titre: `WriteLive-${field}-${stamp}`,
+          publicName: 'Coding Club visible',
+          date: new Date(Date.now() + 30 * 86_400_000),
+          endDate: new Date(Date.now() + 31 * 86_400_000),
+          campusId,
+          devActivatedAt: new Date(),
+          modules: { create: { moduleKey: 'inscrits' } },
+        },
+      });
 
-    const { status, payload } = await call(postConfig, writeSecret, {
-      eventId: live.id,
-      publicName: '',
-    });
+      const { status, payload } = await call(postConfig, writeSecret, {
+        eventId: live.id,
+        [field]: null,
+      });
 
-    expect(status).toBe(400);
-    expect(String(payload.error)).toContain('nom public');
+      expect(status).toBe(400);
+      expect(String(payload.error)).toContain(label);
 
-    // Refused before the transaction, so the event is untouched rather than
-    // half-written.
-    const after = await prisma.event.findUniqueOrThrow({
-      where: { id: live.id },
-    });
-    expect(after.publicName).toBe('Coding Club visible');
-    expect(after.devActivatedAt).not.toBeNull();
+      // Refused before the transaction, so the event is untouched rather than
+      // half-written.
+      const after = await prisma.event.findUniqueOrThrow({
+        where: { id: live.id },
+      });
+      expect(after.publicName).toBe('Coding Club visible');
+      expect(after.endDate).not.toBeNull();
+      expect(after.devActivatedAt).not.toBeNull();
 
-    await prisma.eventConfig_Module.deleteMany({ where: { eventId: live.id } });
-    await prisma.event.delete({ where: { id: live.id } });
-  });
+      await prisma.eventConfig_Module.deleteMany({
+        where: { eventId: live.id },
+      });
+      await prisma.event.delete({ where: { id: live.id } });
+    },
+  );
 
   // And the way through, so the refusal above is a detour rather than a dead
   // end: hide it and rename it in the same call. The rule is about what may be
@@ -252,7 +261,7 @@ describe('admin API writes (integration)', () => {
     const { status } = await call(postConfig, writeSecret, {
       eventId: hidden.id,
       visible: false,
-      publicName: '',
+      publicName: null,
     });
 
     expect(status).toBe(200);
@@ -266,6 +275,49 @@ describe('admin API writes (integration)', () => {
       where: { eventId: hidden.id },
     });
     await prisma.event.delete({ where: { id: hidden.id } });
+  });
+
+  // What a value posted by mistake from a chat is undone with (#402). The admin
+  // dialog clears these by sending an empty string; the API takes null, the
+  // spelling its own read returns for an unset field.
+  it('clears the arrival time, the end date and the cohort noun on null', async () => {
+    const event = await prisma.event.create({
+      data: {
+        titre: `WriteClear-${stamp}`,
+        cohortNoun: 'stagiaire',
+        date: new Date(Date.now() + 30 * 86_400_000),
+        endDate: new Date(Date.now() + 31 * 86_400_000),
+        startMinutes: 9 * 60 + 30,
+        campusId,
+      },
+    });
+
+    const { status, payload } = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      cohortNoun: null,
+      startTime: null,
+      endDate: null,
+    });
+
+    expect(status).toBe(200);
+    expect(payload.before).toMatchObject({
+      cohortNoun: 'stagiaire',
+      startTime: '09:30',
+      endDate: expect.any(String),
+    });
+    expect(payload.after).toMatchObject({
+      cohortNoun: null,
+      startTime: null,
+      endDate: null,
+    });
+    const after = await prisma.event.findUniqueOrThrow({
+      where: { id: event.id },
+    });
+    expect(after.cohortNoun).toBeNull();
+    expect(after.startMinutes).toBeNull();
+    expect(after.endDate).toBeNull();
+
+    await prisma.event.delete({ where: { id: event.id } });
   });
 
   // The reason the facets are one write: configuring a blank event and showing
@@ -543,7 +595,9 @@ describe('admin API writes (integration)', () => {
   // blind. Written as a round trip, so a field the read drops fails here, and a
   // new write field fails until it is read back. Each entry rebuilds the write's
   // value from the read: the activities, the statuses and the scalar fields are
-  // taken as read, so a rename or a reshape of those fails too.
+  // taken as read, so a rename or a reshape of those fails too. It runs on a
+  // blank event as well, because a value set is not the only one read back:
+  // an unset field came back as '' where the write refused it (#402).
   it('reads back every field it writes, in a form it takes again', async () => {
     const readBack: Record<string, (detail: EventDetail) => unknown> = {
       publicName: (d) => d.event.value.publicName,
@@ -582,6 +636,21 @@ describe('admin API writes (integration)', () => {
       'read-back entries naming no write_event_config field',
     ).toEqual([]);
 
+    /** Reads the event, sends the read back, and expects nothing to move. */
+    async function echoRead(id: string) {
+      const detail = await getEventDetail(id);
+      const read = Object.fromEntries(
+        writable.map((field) => [field, readBack[field]!(detail)]),
+      );
+      const echoed = await call(postConfig, writeSecret, {
+        eventId: id,
+        ...read,
+      });
+      expect(echoed.status).toBe(200);
+      expect(echoed.payload.after).toEqual(echoed.payload.before);
+      return { detail, read };
+    }
+
     const form = await prisma.feedback_Form.create({
       data: { slug: `readback-form-${stamp}`, title: 'Bilan relu' },
     });
@@ -615,13 +684,17 @@ describe('admin API writes (integration)', () => {
         }),
       ),
     );
-    const event = await prisma.event.create({
-      data: {
-        titre: `WriteReadBack-${stamp}`,
-        date: new Date(Date.now() + 30 * 86_400_000),
-        campusId,
-      },
-    });
+    const [event, blank] = await Promise.all(
+      ['WriteReadBack', 'WriteReadBackBlank'].map((titre) =>
+        prisma.event.create({
+          data: {
+            titre: `${titre}-${stamp}`,
+            date: new Date(Date.now() + 30 * 86_400_000),
+            campusId,
+          },
+        }),
+      ),
+    );
 
     const written = {
       publicName: 'Camp relu',
@@ -647,21 +720,19 @@ describe('admin API writes (integration)', () => {
     });
     expect(configured.status).toBe(200);
 
-    const detail = await getEventDetail(event.id);
-    const read = Object.fromEntries(
-      writable.map((field) => [field, readBack[field]!(detail)]),
-    );
+    const { read } = await echoRead(event.id);
     expect(read).toMatchObject({
       ...written,
       modules: [...written.modules].sort(),
     });
 
-    const echoed = await call(postConfig, writeSecret, {
-      eventId: event.id,
-      ...read,
+    const { detail: blankDetail } = await echoRead(blank.id);
+    expect(blankDetail.event.value).toMatchObject({
+      publicName: null,
+      cohortNoun: null,
+      startTime: null,
+      endDate: null,
     });
-    expect(echoed.status).toBe(200);
-    expect(echoed.payload.after).toEqual(echoed.payload.before);
 
     await prisma.eventConfig_Workshop.deleteMany({
       where: { eventId: event.id },
@@ -669,7 +740,9 @@ describe('admin API writes (integration)', () => {
     await prisma.eventConfig_Module.deleteMany({
       where: { eventId: event.id },
     });
-    await prisma.event.delete({ where: { id: event.id } });
+    await prisma.event.deleteMany({
+      where: { id: { in: [event.id, blank.id] } },
+    });
     await prisma.workshop_Activity.deleteMany({
       where: { id: { in: [pacman.id, snake.id] } },
     });

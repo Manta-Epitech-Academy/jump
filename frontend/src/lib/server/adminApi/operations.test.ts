@@ -112,6 +112,22 @@ describe('the operation catalogue', () => {
     ).toBe(true);
   });
 
+  // Unset has one spelling on the admin API, the one the event read returns
+  // (#402): null clears a field, and an empty string is refused rather than
+  // accepted as a second way of saying it.
+  it('clears a field Jump owns on null, and on null only', () => {
+    const config = ADMIN_API_OPERATIONS.write_event_config.schema;
+
+    for (const field of ['publicName', 'cohortNoun', 'startTime', 'endDate']) {
+      expect(config.safeParse({ eventId: 'e', [field]: null }).success).toBe(
+        true,
+      );
+      expect(config.safeParse({ eventId: 'e', [field]: '' }).success).toBe(
+        false,
+      );
+    }
+  });
+
   it('lets a core token reach everything, by construction', () => {
     for (const [, operation] of entries) {
       expect(isOperationAllowedForTier(operation, 'core')).toBe(true);
