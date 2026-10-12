@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
   MCP_SERVER_NAME,
-  MCP_TOKEN_PLACEHOLDER,
+  TOKEN_PLACEHOLDER,
+  apiReferenceCommand,
+  apiReferenceUrl,
   mcpAddCommand,
   mcpDesktopConfig,
   mcpEndpoint,
   mcpRemoveCommand,
-} from './mcpConnect';
+} from './adminApiConnect';
 
 const ORIGIN = 'https://jump.test.invalid';
 // Shaped like a real secret (the `jump_` prefix, and base64url's `-` and `_`,
@@ -65,9 +67,9 @@ describe('MCP connection commands', () => {
 
   it('shows a placeholder, never an empty header, when no token was just minted', () => {
     expect(mcpAddCommand(ORIGIN, null)).toContain(
-      `Bearer ${MCP_TOKEN_PLACEHOLDER}`,
+      `Bearer ${TOKEN_PLACEHOLDER}`,
     );
-    expect(mcpDesktopConfig(ORIGIN, null)).toContain(MCP_TOKEN_PLACEHOLDER);
+    expect(mcpDesktopConfig(ORIGIN, null)).toContain(TOKEN_PLACEHOLDER);
   });
 
   // The origin arrives from `url.origin`, but a proxied deployment can hand one
@@ -88,5 +90,21 @@ describe('MCP connection commands', () => {
       url: 'https://jump.test.invalid/api/mcp',
       headers: { Authorization: `Bearer ${TOKEN}` },
     });
+  });
+});
+
+describe('the HTTP reference command', () => {
+  // The path is the one the reference route is mounted at; a token pasted with
+  // whitespace must not reach the header, as for the MCP command above.
+  it('fetches the OpenAPI document with the token already in the header', () => {
+    expect(
+      apiReferenceCommand('https://jump.test.invalid/', `\n${TOKEN} `),
+    ).toBe(
+      `curl -H "Authorization: Bearer ${TOKEN}" ` +
+        'https://jump.test.invalid/api/admin/openapi.json',
+    );
+    expect(apiReferenceUrl(ORIGIN)).toBe(
+      'https://jump.test.invalid/api/admin/openapi.json',
+    );
   });
 });
