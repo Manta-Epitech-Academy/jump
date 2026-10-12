@@ -13,6 +13,7 @@
    * somebody has to be able to read, re-read and copy, so they go in a
    * `Collapsible` rather than behind a tooltip: hover is not a reading surface.
    */
+  import { resolve } from '$app/paths';
   import * as Collapsible from '$lib/components/ui/collapsible';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import CommandBlock from './CommandBlock.svelte';
@@ -124,9 +125,21 @@
       Sans outil MCP, en requêtes HTTP
     </Collapsible.Trigger>
     <Collapsible.Content class="space-y-3 pt-2">
+      <!--
+        A new tab, because this snippet also renders beside a secret shown
+        once: following the link in place would navigate that secret away.
+      -->
       <p class="text-xs text-muted-foreground">
-        Chaque opération est aussi une requête HTTP. Cette commande renvoie leur
-        description complète (chemins, paramètres) au format OpenAPI.
+        Chaque opération est aussi une requête HTTP. La
+        <a
+          href={resolve('/staff/admin/api-tokens/reference')}
+          target="_blank"
+          rel="noopener"
+          class="cursor-pointer text-accent-space-ink underline underline-offset-2 hover:text-foreground"
+          >référence de l'API</a
+        >
+        les décrit et permet de les essayer. Cette commande renvoie la même description
+        au format OpenAPI, pour un client HTTP.
       </p>
       <CommandBlock
         label="Description de l'API"

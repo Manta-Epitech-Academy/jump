@@ -18,6 +18,7 @@
  */
 import { test, expect } from '@playwright/test';
 import { E2E, storageStatePath } from './fixtures/identities';
+import { watchViolations } from './fixtures/cspViolations';
 
 const PAGE = '/staff/admin/api-tokens';
 
@@ -145,6 +146,24 @@ test.describe("l'accès API", () => {
     // is exactly when somebody runs the add command a second time.
     await page.getByText('Jump est déjà configuré sur ce poste').click();
     await expect(page.getByText('claude mcp remove jump-admin')).toBeVisible();
+  });
+
+  test("rend la référence de l'API sans enfreindre la CSP", async ({
+    page,
+  }) => {
+    // Scalar is a whole Vue application bundled into one page, so a refusal
+    // would leave the header painted over an empty box.
+    const violations = await watchViolations(page);
+    await page.goto(
+      `${PAGE}/reference#tag/writes/POST/api/admin/write/workshop-instance`,
+    );
+
+    // A write, because the page describes what a token can be minted to do,
+    // not what the session reading it may call.
+    await expect(
+      page.getByRole('heading', { name: 'write_workshop_instance' }),
+    ).toBeVisible();
+    expect(await violations()).toEqual([]);
   });
 
   test("n'est pas atteignable par un membre de l'espace dev", async ({
