@@ -502,9 +502,7 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         description: template.description,
         publicName: template.publicName,
         cohortNoun: template.cohortNoun,
-        // The service keeps the form's '' for "no arrival time"; this read is
-        // copied into write_event_config, which takes null for it (#402).
-        startTime: template.startTime || null,
+        startTime: template.startTime,
         modules: template.modules,
         moduleSettings: template.moduleSettings,
         feedbackFormId: template.feedbackFormId,

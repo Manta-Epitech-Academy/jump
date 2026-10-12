@@ -70,7 +70,7 @@
     description: string | null;
     publicName: string | null;
     cohortNoun: string | null;
-    startTime: string;
+    startTime: string | null;
     feedbackFormId: string | null;
     diplomaTemplateId: string | null;
     closingTemplateId: string | null;
@@ -1263,7 +1263,7 @@
               description: templateDescription.trim() || null,
               publicName: $form.publicName.trim() || null,
               cohortNoun: $form.cohortNoun.trim() || null,
-              startTime: $form.startTime,
+              startTime: $form.startTime || null,
               // Mirror the snapshot's bilan gate, so the optimistic row matches
               // what the server actually stored.
               feedbackFormId: moduleActive('bilan')

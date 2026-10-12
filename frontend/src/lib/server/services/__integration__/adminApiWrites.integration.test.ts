@@ -382,6 +382,20 @@ describe('admin API writes (integration)', () => {
       },
     });
     const name = `Modèle copié ${stamp}`;
+    const blankName = `Modèle vide ${stamp}`;
+
+    // The save answers with the preset as the preset read returns it, so a
+    // preset carrying nothing reads null there too, never ''.
+    const blankSaved = await call(postTemplate, writeSecret, {
+      eventId: target.id,
+      name: blankName,
+    });
+    expect(blankSaved.status).toBe(200);
+    expect(blankSaved.payload.after).toMatchObject({
+      publicName: null,
+      cohortNoun: null,
+      startTime: null,
+    });
 
     const configured = await call(postConfig, writeSecret, {
       eventId: source.id,
@@ -430,7 +444,9 @@ describe('admin API writes (integration)', () => {
       closingTemplateId: grid.id,
     });
 
-    await prisma.eventConfig_Template.delete({ where: { name } });
+    await prisma.eventConfig_Template.deleteMany({
+      where: { name: { in: [name, blankName] } },
+    });
     await prisma.event.deleteMany({
       where: { id: { in: [source.id, target.id] } },
     });
