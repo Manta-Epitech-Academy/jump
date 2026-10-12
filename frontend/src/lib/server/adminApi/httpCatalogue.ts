@@ -33,9 +33,15 @@ function pathOf(file: string): string {
   return file.slice(ROUTES_ROOT.length).replace(/\/\+server\.ts$/, '');
 }
 
-let cached: Promise<HttpOperation[]> | null = null;
-
-async function load(): Promise<HttpOperation[]> {
+/**
+ * Every mounted operation, sorted by path.
+ *
+ * Read afresh on every call rather than memoised: the module loader already
+ * holds each route once imported, so a second read costs a walk over resolved
+ * promises, and a memoised rejection would keep the reference down until the
+ * pod restarts.
+ */
+export async function httpOperations(): Promise<HttpOperation[]> {
   const found: HttpOperation[] = [];
   for (const [file, importModule] of Object.entries(routeModules)) {
     const module = await importModule();
@@ -55,10 +61,4 @@ async function load(): Promise<HttpOperation[]> {
     }
   }
   return found.sort((a, b) => a.path.localeCompare(b.path));
-}
-
-/** Every mounted operation, sorted by path. */
-export function httpOperations(): Promise<HttpOperation[]> {
-  cached ??= load();
-  return cached;
 }
