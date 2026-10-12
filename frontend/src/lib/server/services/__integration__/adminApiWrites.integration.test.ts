@@ -540,8 +540,10 @@ describe('admin API writes (integration)', () => {
   // reading what it replaces, so every field write_event_config takes has to
   // come back from config_event_detail, in a form the write takes again. The
   // activities did not (#400): rattaching one meant overwriting the event's list
-  // blind. Written as a round trip, so a field the read drops, renames or
-  // reshapes fails here, and a new write field fails until it is read back.
+  // blind. Written as a round trip, so a field the read drops fails here, and a
+  // new write field fails until it is read back. Each entry rebuilds the write's
+  // value from the read: the activities, the statuses and the scalar fields are
+  // taken as read, so a rename or a reshape of those fails too.
   it('reads back every field it writes, in a form it takes again', async () => {
     const readBack: Record<string, (detail: EventDetail) => unknown> = {
       publicName: (d) => d.event.value.publicName,
