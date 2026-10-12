@@ -14,9 +14,9 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 const recordAdminApiCall = vi.fn();
-vi.mock('./audit', () => ({
+vi.mock('./audit', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./audit')>()),
   recordAdminApiCall: (input: unknown) => recordAdminApiCall(input),
-  ANONYMOUS_ACTOR: 'anonymous',
 }));
 
 const {

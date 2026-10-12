@@ -8,9 +8,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { adminEventSchema } from '$lib/validation/events';
+import { httpOperations } from './httpCatalogue';
 import {
   ADMIN_API_OPERATIONS,
   ADMIN_API_OPERATION_NAMES,
@@ -179,27 +178,6 @@ const EVENT_FIELD_WRITES: Record<string, string> = {
   shownStatuses: 'write_event_config.shownStatuses',
 };
 
-/** Every operation name a `+server.ts` under /api/admin actually mounts. */
-function mountedOperationNames(): string[] {
-  const root = join(process.cwd(), 'src/routes/api/admin');
-  const found: string[] = [];
-  const walk = (dir: string) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name);
-      if (entry.isDirectory()) walk(path);
-      else if (entry.name === '+server.ts') {
-        for (const [, name] of readFileSync(path, 'utf8').matchAll(
-          /adminApi(?:Read|Write|Image)\(\s*'([^']+)'/g,
-        )) {
-          found.push(name);
-        }
-      }
-    }
-  };
-  walk(root);
-  return found;
-}
-
 describe('the API is the floor under the UI', () => {
   // Event configuration is fully MCP-driven, so a field an admin can change in
   // the wizard and nowhere else is a hole. This is the executable half of that
@@ -230,8 +208,10 @@ describe('the API is the floor under the UI', () => {
   // MCP registers tools straight from the catalogue, but HTTP needs a route file,
   // and nothing else checks for one: an entry with no `+server.ts` is a tool over
   // MCP and a 404 over HTTP, with no failing test to say so.
-  it('mounts every catalogue operation on an HTTP route, exactly once', () => {
-    const mounted = mountedOperationNames();
+  // Read off the same mapping the HTTP reference is generated from, so a route
+  // this finds is a route that reference documents.
+  it('mounts every catalogue operation on an HTTP route, exactly once', async () => {
+    const mounted = (await httpOperations()).map((route) => route.name);
     expect(mounted.length).toBeGreaterThan(0);
     expect([...mounted].sort()).toEqual([...ADMIN_API_OPERATION_NAMES].sort());
   });

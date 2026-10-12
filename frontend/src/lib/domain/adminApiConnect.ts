@@ -1,5 +1,6 @@
 /**
- * The commands that connect an MCP client to this Jump, built as strings.
+ * The commands that connect a client to this Jump's admin API, built as strings:
+ * an MCP client, and a plain HTTP caller reading the API's own reference.
  *
  * They are shown on `/staff/admin/api-tokens` so a token can be pasted straight
  * into a terminal, with the secret already in place. That is not a convenience:
@@ -33,7 +34,12 @@ export function mcpEndpoint(origin: string): string {
  * What the reveal panel shows in place of a secret when no token was just
  * minted, so the connection section still reads as a command and not as a gap.
  */
-export const MCP_TOKEN_PLACEHOLDER = 'votre-token';
+export const TOKEN_PLACEHOLDER = 'votre-token';
+
+/** The header every call carries, MCP or HTTP alike. */
+export function authorizationHeader(token: string | null): string {
+  return `Authorization: Bearer ${(token ?? TOKEN_PLACEHOLDER).trim()}`;
+}
 
 /**
  * `claude mcp add`, at user scope.
@@ -52,12 +58,11 @@ export const MCP_TOKEN_PLACEHOLDER = 'votre-token';
  * `-` and `_`, so there is nothing to escape and no per-shell variant to offer.
  */
 export function mcpAddCommand(origin: string, token: string | null): string {
-  const secret = (token ?? MCP_TOKEN_PLACEHOLDER).trim();
   return [
     'claude mcp add --scope user --transport http',
     MCP_SERVER_NAME,
     mcpEndpoint(origin),
-    `--header "Authorization: Bearer ${secret}"`,
+    `--header "${authorizationHeader(token)}"`,
   ].join(' ');
 }
 
@@ -79,7 +84,7 @@ export function mcpRemoveCommand(): string {
  * a command.
  */
 export function mcpDesktopConfig(origin: string, token: string | null): string {
-  const secret = (token ?? MCP_TOKEN_PLACEHOLDER).trim();
+  const secret = (token ?? TOKEN_PLACEHOLDER).trim();
   return JSON.stringify(
     {
       mcpServers: {
@@ -104,3 +109,21 @@ export const MCP_DESKTOP_CONFIG_PATHS = [
   { os: 'Windows', path: '%APPDATA%\\Claude\\claude_desktop_config.json' },
   { os: 'Linux', path: '~/.config/Claude/claude_desktop_config.json' },
 ] as const;
+
+/**
+ * The HTTP API's own reference, an OpenAPI document of every operation the
+ * token can call (`adminApi/openapi.ts`). The way in for a caller with no MCP
+ * client: it names each path, its verb and its parameters, and imports as is
+ * into any HTTP client.
+ */
+export function apiReferenceUrl(origin: string): string {
+  return `${origin.replace(/\/+$/, '')}/api/admin/openapi.json`;
+}
+
+/** Fetching that reference, the token already in place. Quoted as `mcpAddCommand` is. */
+export function apiReferenceCommand(
+  origin: string,
+  token: string | null,
+): string {
+  return `curl -H "${authorizationHeader(token)}" ${apiReferenceUrl(origin)}`;
+}

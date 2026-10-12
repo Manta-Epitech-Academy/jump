@@ -28,6 +28,7 @@ const postBulk = adminApiWrite('bulk_event_config');
 const postTemplate = adminApiWrite('write_event_template');
 const postRequestSync = adminApiWrite('ops_request_sync');
 const postReleasePruneHold = adminApiWrite('ops_release_prune_hold');
+const postWorkshopInstance = adminApiWrite('write_workshop_instance');
 
 /** Calls a handler the way SvelteKit would, with a bearer and a JSON body. */
 async function call(
@@ -1014,6 +1015,94 @@ describe('admin API writes (integration)', () => {
           })
         )?.releasedAt,
       ).toEqual(first?.releasedAt);
+    });
+  });
+
+  // One host is one row: the plugin holds a single slug, so a second instance
+  // on an address already declared can only be a copy error.
+  describe('declaring a CTFd host', () => {
+    const first = `write-host-${stamp}`;
+    const second = `write-host-other-${stamp}`;
+    const address = `https://host-${stamp}.example.invalid`;
+    const elsewhere = `https://elsewhere-${stamp}.example.invalid`;
+
+    afterAll(async () => {
+      await prisma.workshop_Instance.deleteMany({
+        where: { slug: { in: [first, second] } },
+      });
+    });
+
+    it('refuses a second instance on an address already declared, naming the holder', async () => {
+      expect(
+        (
+          await call(postWorkshopInstance, writeSecret, {
+            instance: first,
+            baseUrl: address,
+          })
+        ).status,
+      ).toBe(200);
+
+      // The trailing slash is normalised away before the comparison.
+      const { status, payload } = await call(
+        postWorkshopInstance,
+        writeSecret,
+        { instance: second, baseUrl: `${address}/` },
+      );
+
+      expect(status).toBe(400);
+      expect(String(payload.error)).toContain(`« ${first} »`);
+      expect(
+        await prisma.workshop_Instance.count({ where: { slug: second } }),
+      ).toBe(0);
+    });
+
+    it('is safe to repeat: the same slug on its own address changes nothing', async () => {
+      const { status, payload } = await call(
+        postWorkshopInstance,
+        writeSecret,
+        { instance: first, baseUrl: address },
+      );
+
+      expect(status).toBe(200);
+      expect(payload.before).toEqual(payload.after);
+    });
+
+    it('refuses the same host typed under the other scheme', async () => {
+      const { status, payload } = await call(
+        postWorkshopInstance,
+        writeSecret,
+        { instance: second, baseUrl: address.replace('https:', 'http:') },
+      );
+
+      expect(status).toBe(400);
+      expect(String(payload.error)).toContain(`« ${first} »`);
+    });
+
+    it('takes a non-default port as another host', async () => {
+      const { status } = await call(postWorkshopInstance, writeSecret, {
+        instance: second,
+        baseUrl: `${address}:8443`,
+      });
+
+      expect(status).toBe(200);
+    });
+
+    it('lets an address go to another instance once its holder has moved', async () => {
+      await call(postWorkshopInstance, writeSecret, {
+        instance: first,
+        baseUrl: elsewhere,
+      });
+      const { status, payload } = await call(
+        postWorkshopInstance,
+        writeSecret,
+        { instance: second, baseUrl: address },
+      );
+
+      expect(status).toBe(200);
+      expect(payload.after).toMatchObject({
+        instance: second,
+        baseUrl: address,
+      });
     });
   });
 });

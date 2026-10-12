@@ -100,8 +100,20 @@ export const ADMIN_NAV: AdminNavSection[] = [
         href: resolve('/staff/admin/api-tokens'),
         icon: KeyRound,
         // 'mcp' and 'claude' are what somebody types when what they actually
-        // want is the command to connect their client, which this page carries.
-        keywords: ['token', 'api', 'mcp', 'claude', 'cle', 'clé'],
+        // want is the command to connect their client, which this page carries,
+        // and the documentation words lead to the reference it links to.
+        keywords: [
+          'token',
+          'api',
+          'mcp',
+          'claude',
+          'cle',
+          'clé',
+          'documentation',
+          'reference',
+          'référence',
+          'openapi',
+        ],
       },
       {
         label: '[DEV] S3 Test',
