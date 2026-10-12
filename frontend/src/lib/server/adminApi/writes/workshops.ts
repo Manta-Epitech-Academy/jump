@@ -95,6 +95,18 @@ export async function writeWorkshopInstance(params: {
   const before = await instanceState(slug);
   const baseUrl = normaliseBaseUrl(params.baseUrl);
 
+  // One host, one row: a second slug on an address already declared is a copy
+  // error, and it is how `pacman-2026` came to point at PyPong's host.
+  const holder = await prisma.workshop_Instance.findFirst({
+    where: { baseUrl, slug: { not: slug } },
+    select: { slug: true },
+  });
+  if (holder) {
+    throw new OperationRefusedError(
+      `L'adresse ${baseUrl} est déjà celle de l'instance « ${holder.slug} » : une adresse ne sert qu'une instance. Si cet hôte a changé de main, changez d'abord l'adresse de « ${holder.slug} ».`,
+    );
+  }
+
   await prisma.workshop_Instance.upsert({
     where: { slug },
     create: { slug, baseUrl },

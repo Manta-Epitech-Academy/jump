@@ -2439,6 +2439,12 @@ model Workshop_Instance {
   /// NON-ROUTABLE host on purpose, because a dev or preprod row carrying the
   /// real address behind an enabled activity is one click away from handing a
   /// talent over to a live instance from a validation environment.
+  ///
+  /// One host is one row, so no two instances share an address: the plugin holds
+  /// a single slug, and a second row naming the same host can only be a wrong
+  /// one, an entry the instance refuses with its own talents sent elsewhere.
+  /// `writeWorkshopInstance`, the one writer, refuses it by name rather than an
+  /// index refusing it with nothing to say.
   baseUrl    String
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt
