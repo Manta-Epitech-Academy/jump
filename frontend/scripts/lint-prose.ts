@@ -11,7 +11,9 @@
  * ne pouvait le voir : le bannissement du tiret cadratin était violé par 15
  * fichiers suivis alors que `AGENTS.md` affirmait qu'un passage dédié avait
  * nettoyé la prose du dépôt, et l'énumération de la chaîne `verify` comptait un
- * lien de moins que la chaîne.
+ * lien de moins que la chaîne. La seconde a été réglée par suppression plutôt
+ * que par surveillance : `AGENTS.md` renvoie à `package.json` au lieu de
+ * recopier la chaîne, et la règle qui tenait la copie alignée est partie avec.
  *
  * Frère de `lint-design.ts` et `lint-tests.ts`, et volontairement dans le même
  * moule : même walker, même format `chemin:ligne - message`, même sortie 1. La
@@ -361,10 +363,6 @@ function ruleLinksResolve(doctrine: string[]) {
 
 const PKG = 'frontend/package.json';
 
-/** Les deux bornes de l'énumération dans `AGENTS.md`, mots de la phrase même. */
-const CHAIN_OPENS = 'It chains `';
-const CHAIN_CLOSES = 'in that order';
-
 /** Les liens de la chaîne, dans l'ordre où `verify` les exécute. */
 function verifyChain(scripts: Record<string, string>): string[] {
   return (scripts.verify ?? '')
@@ -379,90 +377,7 @@ function verifyChain(scripts: Record<string, string>): string[] {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Règle C : l'énumération de la chaîne verify correspond à package.json       */
-/* -------------------------------------------------------------------------- */
-
-/**
- * La dérive que ce dépôt a réellement produite, et qu'aucune règle sur les
- * chemins n'attrape : c'est un nom de script qui manquait, pas un fichier.
- * `AGENTS.md` promet la chaîne « in that order », donc l'ordre est comparé
- * aussi. Une phrase dont le travail est de décrire le gate cesse d'être de la
- * prose le jour où elle est vérifiée.
- */
-function ruleVerifyChain() {
-  info('L\u2019énumération de la chaîne verify correspond à package.json');
-  const before = errors;
-  const pkgPath = join(ROOT, PKG);
-  const agentsPath = join(ROOT, 'AGENTS.md');
-  if (!existsSync(pkgPath) || !existsSync(agentsPath)) {
-    fail('règle C : package.json ou AGENTS.md est introuvable');
-    return;
-  }
-  const scripts: Record<string, string> = JSON.parse(
-    readFileSync(pkgPath, 'utf8'),
-  ).scripts;
-  const real = verifyChain(scripts);
-
-  const lines = readFileSync(agentsPath, 'utf8').split('\n');
-  const idx = lines.findIndex((l) => l.includes(CHAIN_OPENS));
-  if (idx === -1) {
-    fail(
-      `AGENTS.md n\u2019énumère plus la chaîne verify (phrase « ${CHAIN_OPENS.trim()} » absente) : la règle C ne peut plus la vérifier`,
-    );
-    return;
-  }
-  /*
-   * Seule la CLAUSE est lue, pas la ligne. Un paragraphe markdown est une ligne
-   * unique ici, et il continue après l'énumération : la première version lisait
-   * la ligne entière, donc la phrase suivante qui rappelait `lint:prose` le
-   * comptait comme un douzième lien, deux fois. Les deux bornes sont les mots
-   * de la phrase elle-même, et « in that order » est déjà ce sur quoi repose la
-   * comparaison d'ordre plus bas.
-   */
-  const from = lines[idx].indexOf(CHAIN_OPENS);
-  const to = lines[idx].indexOf(CHAIN_CLOSES, from);
-  if (to === -1) {
-    fail(
-      `AGENTS.md:${idx + 1} - la phrase ne promet plus « ${CHAIN_CLOSES} » : la règle C ne sait plus où l\u2019énumération s\u2019arrête`,
-    );
-    return;
-  }
-  // Seuls les noms qui sont réellement des scripts comptent : la clause parle
-  // aussi de `verify` lui-même et de fichiers, entre les mêmes accents graves.
-  const claimed = [
-    ...lines[idx].slice(from, to).matchAll(/`([a-z][a-z0-9:-]*)`/g),
-  ]
-    .map((m) => m[1])
-    .filter((n) => n !== 'verify' && n in scripts);
-
-  const missing = real.filter((s) => !claimed.includes(s));
-  const extra = claimed.filter((s) => !real.includes(s));
-  for (const s of missing) {
-    fail(
-      `AGENTS.md:${idx + 1} - la chaîne verify exécute \`${s}\` et la phrase ne le nomme pas`,
-    );
-  }
-  for (const s of extra) {
-    fail(
-      `AGENTS.md:${idx + 1} - la phrase nomme \`${s}\` et la chaîne verify ne l\u2019exécute pas`,
-    );
-  }
-  if (
-    !missing.length &&
-    !extra.length &&
-    claimed.join('>') !== real.join('>')
-  ) {
-    fail(
-      `AGENTS.md:${idx + 1} - la phrase promet la chaîne « in that order » et l\u2019ordre diffère : ${claimed.join(', ')}`,
-    );
-  }
-  if (errors === before) {
-    green('L\u2019énumération de la chaîne verify correspond à package.json');
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Règle D : chaque lien de la chaîne verify est exécuté par la CI             */
+/* Règle C : chaque lien de la chaîne verify est exécuté par la CI             */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -508,10 +423,9 @@ function scriptsRunByCi(yaml: string): Set<string> {
 }
 
 /**
- * La chaîne existe en trois exemplaires : `package.json` l'exécute, `AGENTS.md`
- * l'énonce, et le workflow la rejoue étape par étape. La règle C tient les deux
- * premiers ensemble ; sans celle-ci le troisième dérive seul, et il dérive du
- * mauvais côté. Un lien ajouté à `verify` et oublié dans le workflow ne bloque
+ * La chaîne existe en deux exemplaires : `package.json` l'exécute, et le
+ * workflow la rejoue étape par étape. Sans cette règle le second dérive seul, et
+ * il dérive du mauvais côté. Un lien ajouté à `verify` et oublié dans le workflow ne bloque
  * aucune fusion, donc la règle qu'il porte se remet à pourrir derrière un check
  * requis vert, ce qui est exactement l'état auquel ce linter existe pour mettre
  * fin. C'est ce qui est arrivé à `lint:prose` le jour de son arrivée.
@@ -522,7 +436,7 @@ function ruleVerifyRunsInCi() {
   const pkgPath = join(ROOT, PKG);
   const wfPath = join(ROOT, CI_WORKFLOW);
   if (!existsSync(pkgPath) || !existsSync(wfPath)) {
-    fail(`règle D : ${PKG} ou ${CI_WORKFLOW} est introuvable`);
+    fail(`règle C : ${PKG} ou ${CI_WORKFLOW} est introuvable`);
     return;
   }
   const scripts: Record<string, string> = JSON.parse(
@@ -560,7 +474,7 @@ function ruleVerifyRunsInCi() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Règle E : la doctrine de .claude/rules/ se charge, et la racine la nomme    */
+/* Règle D : la doctrine de .claude/rules/ se charge, et la racine la nomme    */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -678,13 +592,10 @@ function ruleRulesFilesLoad() {
 /* -------------------------------------------------------------------------- */
 
 ruleNoDashes();
-// Les règles B à E portent sur des fichiers précis, donc un appel ciblé sur un
+// Les règles B à D portent sur des fichiers précis, donc un appel ciblé sur un
 // seul fichier (le hook PostToolUse) ne les lance que s'il les concerne.
 if (!onlyFile) ruleLinksResolve([...tracked()].filter(isDoctrine));
 else if (isDoctrine(onlyFile)) ruleLinksResolve([onlyFile]);
-if (!onlyFile || onlyFile === 'AGENTS.md' || onlyFile === PKG) {
-  ruleVerifyChain();
-}
 if (!onlyFile || onlyFile === CI_WORKFLOW || onlyFile === PKG) {
   ruleVerifyRunsInCi();
 }
