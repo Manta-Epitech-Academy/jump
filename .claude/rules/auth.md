@@ -1,4 +1,55 @@
+---
+paths:
+  - "frontend/src/lib/server/auth/**"
+  - "frontend/src/lib/server/auth.ts"
+  - "frontend/src/lib/auth-client.ts"
+  - "frontend/src/lib/domain/permissions.ts"
+  - "frontend/src/hooks.server.ts"
+  - "frontend/src/routes/**/login/**"
+  - "frontend/src/routes/api/auth/**"
+  - "frontend/src/routes/api/test/login-as/**"
+  - "frontend/scripts/{accept-invitation,add-admin-user,bootstrap-admins}.ts"
+  - "frontend/src/lib/server/services/__integration__/{emailOtpAudience,microsoftOAuthCallback,staffDoor}.integration.test.ts"
+  - "frontend/tests/e2e/auth.setup.ts"
+---
+
 # Auth and role gating
+
+## Guards and role gating
+
+Route guards in `src/lib/server/auth/guards.ts` enforce role-based access. Session data is loaded in `hooks.server.ts` into `event.locals` (user, session, staffProfile, talent).
+
+Staff are routed by `StaffProfile.staffRole` (Prisma `StaffRole` enum: `admin`, `superdev`, `dev`). After login, staff redirect to their role-specific space. Guards block cross-space access and redirect to correct space. Role-to-path mapping lives in `src/lib/domain/staff.ts` (`getStaffRoleRedirectPath`).
+
+| StaffRole         | Space                                |
+| ----------------- | ------------------------------------ |
+| `admin`           | `/staff/admin/`                      |
+| `superdev`, `dev` | `/staff/dev/`                        |
+| `null`            | blocked, shown "contact admin" error |
+
+Client-side auth at `src/lib/auth-client.ts` (browser-side BetterAuth).
+
+### Role groups
+
+Inside a workspace, role-based gating goes through **one table** of named role groups in `src/lib/domain/permissions.ts`:
+
+| Group            | Roles             | Use for                                                  |
+| ---------------- | ----------------- | -------------------------------------------------------- |
+| `devMember`      | `superdev`, `dev` | Dev workspace daily ops (participants, closings, update) |
+| `realSendArmers` | `admin`           | Arming real outbound sends / login-redirect pin          |
+
+- **Client:** `const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole))`, then apply one of the UI patterns below. Import: `$lib/domain/permissions`.
+- **Server:** `requireStaffGroup(locals, 'devMember')`. Import: `$lib/server/auth/guards`. Call it in every mutating action, or at the top of a `load` to gate a whole route.
+
+**There is no superdev-only group today.** `superdev` and `dev` are permission-identical; the only thing the enum still separates is which roles a superdev may invite (`INVITABLE_STAFF_ROLES`, a catalogue, not a gate). Add a group back to `STAFF_GROUPS` the day a lead-only action exists. Never inline a `['superdev']` array at a call site.
+
+**UI pattern rule: pick one per site, do not mix:**
+
+| Pattern           | When                                                     |
+| ----------------- | -------------------------------------------------------- |
+| Hide              | Nav entries to restricted destinations (sidebar, menus)  |
+| Disable + tooltip | Mutating controls visible on shared screens              |
+| Redirect / 403    | Direct URL access, via `requireStaffGroup` in the `load` |
 
 ## Auth System
 
@@ -109,47 +160,9 @@ sign-in made and the session it minted go, the identity stays), and only a row
 carrying none of the three, which is one BetterAuth minted for this sign-in and
 nobody else will want, is deleted. Releasing the link is not housekeeping: left
 behind it would leave a guardian's or a talent's account permanently reachable
-through the staff Microsoft door, which is the disjoint-doors rule at the top of
-this file. Deleting instead of releasing is silent and unrecoverable, since
+through the staff Microsoft door, which is the disjoint-doors rule under Auth
+System. Deleting instead of releasing is silent and unrecoverable, since
 `Talent.userId` is `onDelete: SetNull`, so it is asserted on the `Talent` row in
 `services/__integration__/staffDoor.integration.test.ts`;
 `services/__integration__/microsoftOAuthCallback.integration.test.ts` carries the
 BetterAuth half, the register path beside the relink.
-
-Route guards in `src/lib/server/auth/guards.ts` enforce role-based access. Session data is loaded in `hooks.server.ts` into `event.locals` (user, session, staffProfile, talent).
-
-Staff are routed by `StaffProfile.staffRole` (Prisma `StaffRole` enum: `admin`, `superdev`, `dev`). After login, staff redirect to their role-specific space. Guards block cross-space access and redirect to correct space. Role-to-path mapping lives in `src/lib/domain/staff.ts` (`getStaffRoleRedirectPath`).
-
-| StaffRole         | Space                                |
-| ----------------- | ------------------------------------ |
-| `admin`           | `/staff/admin/`                      |
-| `superdev`, `dev` | `/staff/dev/`                        |
-| `null`            | blocked, shown "contact admin" error |
-
-Client-side auth at `src/lib/auth-client.ts` (browser-side BetterAuth).
-
-## Role gating
-
-Inside a workspace, role-based gating goes through **one table** of named role groups in `src/lib/domain/permissions.ts`:
-
-| Group            | Roles             | Use for                                                  |
-| ---------------- | ----------------- | -------------------------------------------------------- |
-| `devMember`      | `superdev`, `dev` | Dev workspace daily ops (participants, closings, update) |
-| `realSendArmers` | `admin`           | Arming real outbound sends / login-redirect pin          |
-
-- **Client:** `const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole))`, then apply one of the UI patterns below. Import: `$lib/domain/permissions`.
-- **Server:** `requireStaffGroup(locals, 'devMember')`. Import: `$lib/server/auth/guards`. Call it in every mutating action, or at the top of a `load` to gate a whole route.
-
-**There is no superdev-only group today.** `superdev` and `dev` are permission-identical; the only thing the enum still separates is which roles a superdev may invite (`INVITABLE_STAFF_ROLES`, a catalogue, not a gate). Add a group back to `STAFF_GROUPS` the day a lead-only action exists. Never inline a `['superdev']` array at a call site.
-
-**UI pattern rule: pick one per site, do not mix:**
-
-| Pattern           | When                                                     |
-| ----------------- | -------------------------------------------------------- |
-| Hide              | Nav entries to restricted destinations (sidebar, menus)  |
-| Disable + tooltip | Mutating controls visible on shared screens              |
-| Redirect / 403    | Direct URL access, via `requireStaffGroup` in the `load` |
-
----
-
-Ce fichier porte la doctrine d'une surface. Les règles qui valent partout (philosophie, commandes, espaces, conventions, contraintes) vivent dans [`AGENTS.md`](../../../../../AGENTS.md) à la racine du dépôt, qui nomme ce fichier.

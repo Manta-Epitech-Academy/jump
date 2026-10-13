@@ -18,7 +18,7 @@
  * A combined bucket would have to pick a wonky shared cap that punishes neither
  * threat well; the two are kept separate for that reason.
  *
- * Storage shape follows CLAUDE.md's "facts as rows, state as projection"
+ * Storage shape follows `.claude/rules/data-model.md`'s "facts as rows, state as projection"
  * pattern (cf. `XpGrant`, `MinigameAttempt`): the `OtpAttempt` table is the
  * append-only ledger, and the bucket's "current attempt count" is the projection
  * computed fresh on every check. No mutable counter, no in-process state.

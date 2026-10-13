@@ -32,7 +32,7 @@ const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000;
  * protected the pods from the unauthenticated traffic that rate limiting is for,
  * and a ceiling set high enough never to fire in real use is the thing this
  * tier's own doctrine warns against - it reads as protection without being any.
- * What bounds a token is written down in `adminApi/CLAUDE.md`.
+ * What bounds a token is written down in `.claude/rules/admin-api.md`.
  *
  * So what is left is a usage signal, and it counts every call: the 429s the
  * quota itself produced used to be excluded, because counting them fed the count

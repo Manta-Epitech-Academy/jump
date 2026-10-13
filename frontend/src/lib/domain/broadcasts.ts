@@ -36,7 +36,7 @@ export const BROADCAST_STATUS_LABELS: Record<BroadcastStatus, string> = {
 // it work. Written as a total map so a `BroadcastStatus` added tomorrow cannot
 // arrive unclassified, and that is the whole point: nothing anywhere said which
 // statuses are live work, so the seed generator wrote four of them and a plain
-// `bun run seed` became a send (`AGENTS.md`, « inert to every background
+// `bun run seed` became a send (`.claude/rules/seed.md`, « inert to every background
 // worker »).
 //
 // The worker owns WHEN it claims each of them (`queued` outright, `sending`

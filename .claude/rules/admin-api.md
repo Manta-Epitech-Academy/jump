@@ -1,3 +1,14 @@
+---
+paths:
+  - "frontend/src/lib/server/adminApi/**"
+  - "frontend/src/lib/server/services/adminStats/**"
+  - "frontend/src/lib/server/services/adminDigest.ts"
+  - "frontend/src/routes/api/admin/**"
+  - "frontend/src/routes/api/mcp/**"
+  - "frontend/src/routes/**/api-tokens/**"
+  - "frontend/src/lib/server/services/__integration__/adminApi*"
+---
+
 # Curated admin API and MCP
 
 The admin space **stops growing UI**. New admin capabilities ship as curated named API operations, consumable over HTTP and as MCP tools (July 2026 seminar). Campus staff and talents never get MCP.
@@ -84,3 +95,15 @@ Pieces:
 `services/adminStats/cohort.ts` is where "the cohort in scope" is defined once, for every aggregate: an operation states what it measured, never who it measured it over.
 
 The weekly PO digest (`services/adminDigest.ts`, `POST /api/jobs/admin-digest`) reads those same services, so an inbox figure and an asked figure can't disagree.
+
+## The API is the floor
+
+**And the rule under the five UI-or-API tests in [`AGENTS.md`](../../AGENTS.md#ui-api-or-both): the API is the floor.** Every capability lands as a named operation first; a UI is optional convenience on top. A config field reachable only in the wizard is a hole, because event configuration is already fully MCP-driven, and the people who use it prefer it that way: a form will never be exactly what its user wants, whereas a named operation is. Stated here because it is mechanically checked - `operations.test.ts` asserts that every field of `adminEventSchema` is reachable through some write, and that every catalogue entry is mounted on exactly one HTTP route. `write_event_config` carries `moduleSettings` because that test found it reachable through nothing at all.
+
+The corollary is narrower than it looks. "No form will ever fit" is decisive for **authoring** surfaces. It says nothing about a picker inside a flow somebody is already in.
+
+## Language and vocabulary of machine-facing strings
+
+For a string no human reads _directly_, the test is **relay, not audience**: does it reach a French-speaking human, even through a machine? A cron job's `'Unauthorized: Invalid or missing token'` dies in a pod log, so it stays English, and so does anything a model reads as _instruction_ rather than content (MCP tool descriptions, Zod `.describe()`, validation messages, the server-level MCP instructions). But an API error an MCP client paraphrases to an admin is French, and a `metric()` definition is French without exception: it is quoted verbatim into a chat answer and into the weekly digest, and English there would make the model translate before quoting, which is a re-derived definition, the one thing that tier exists to prevent.
+
+Being machine-facing is also not a licence to use our own vocabulary. "Operation" is what `frontend/src/lib/server/adminApi/operations.ts` calls a catalogue entry; an admin reading a dialog thinks "les chiffres et l'état de configuration". And the reverse trap is real: **`token` stays `token`** on an ops surface. The no-jargon rule says name what the person experiences, and what they experience is a credential they paste after `Authorization: Bearer`; "jeton" makes them translate back to the word they actually type. Talent-facing copy is where jargon gets replaced, not the admin token dialog.

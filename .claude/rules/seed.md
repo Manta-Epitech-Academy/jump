@@ -1,3 +1,9 @@
+---
+paths:
+  - "frontend/scripts/seed/**"
+  - "frontend/tests/e2e/fixtures/seed.ts"
+---
+
 # Development data
 
 `bun run seed` fills a database from named scenarios (`frontend/scripts/seed/`).
@@ -184,7 +190,7 @@ Nine rules, and each is enforced rather than hoped for:
   already means null, plus a `write_sync_source` naming the campaign.
 
   The contract itself lives with the surface, in
-  [`src/routes/api/worker/CLAUDE.md`](../../src/routes/api/worker/CLAUDE.md).
+  [`salesforce.md`](./salesforce.md).
 
   **The broadcast queue is the second worker, and it was not inert.**
   `scenarios/operations.ts` seeded four campaigns in a non-terminal status
@@ -219,7 +225,3 @@ Two things it does not touch. The E2E fixtures
 anchored to a large dataset breaks the first time somebody adjusts it. And the
 integration suites keep building their own fixtures per file, several of them
 reading platform-wide aggregates a full dataset would silently widen.
-
----
-
-Ce fichier porte la doctrine d'une surface. Les règles qui valent partout (philosophie, commandes, espaces, conventions, contraintes) vivent dans [`AGENTS.md`](../../../AGENTS.md) à la racine du dépôt, qui nomme ce fichier.

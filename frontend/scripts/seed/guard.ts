@@ -106,7 +106,7 @@ export function assertWritableTarget(
  * The five aggregate roots, and the reason this list is these five rather than a
  * selection somebody made.
  *
- * `AGENTS.md` already names them, as the models every context reads and none
+ * `.claude/rules/data-model.md` already names them, as the models every context reads and none
  * owns: `Talent`, `Event`, `Campus`, `School`, `StaffProfile`. What this gate
  * uses is the property that follows. No migration inserts one of them, so on a
  * freshly migrated database all five are empty, and a row in any of them was put

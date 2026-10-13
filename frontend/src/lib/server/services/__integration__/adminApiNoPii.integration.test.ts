@@ -343,7 +343,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
       // closing id, so a model can carry out a reset on an id a human gave it
       // and can never choose the target itself. That was doctrine with nothing
       // enforcing it, so an id slipped into a select would have quietly moved
-      // the write into "never a tool" (see the class C table in AGENTS.md).
+      // the write into "never a tool" (see the class C table in .claude/rules/admin-api.md).
       expect(
         serialized.includes(seeded.closingId),
         `${name} returns a closing id, which only an irreversible write can spend`,

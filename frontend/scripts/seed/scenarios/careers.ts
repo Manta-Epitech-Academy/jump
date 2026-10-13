@@ -1,7 +1,7 @@
 /**
  * The three shapes at the top of the platform, placed.
  *
- * They are placed and not drawn for the reason `seed/CLAUDE.md` gives: at the
+ * They are placed and not drawn for the reason `.claude/rules/seed.md` gives: at the
  * `ci` profile's couple of dozen talents, a tranche worth 0.04% of production
  * rounds to none, so a drawn tail makes coverage depend on the profile rather
  * than on the generator. What the volume scenarios produce is the BODY of the

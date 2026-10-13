@@ -5,7 +5,7 @@ import { data, pick } from '../lib/manifest.js';
 
 // Cohort-view: staff loading the heavy "inscrits" page (a stage de seconde
 // has ~200 students, so this page joins talent×interest×school×interview
-// rows). Hotspot N°1 per CLAUDE.md.
+// rows). The cohort-volume contract is `.claude/rules/staff-lists.md`.
 //
 //   k6 run -e BASE_URL=http://localhost:5173 -e LOAD_TEST_SECRET=*** \
 //     load/k6/scenarios/cohort-view.js

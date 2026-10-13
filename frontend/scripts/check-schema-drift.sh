@@ -41,7 +41,7 @@ The diff above reads as the migration that is MISSING: it is what would have to
 run on a freshly-migrated database to reach what schema.prisma describes.
 
   Generate it     bunx prisma migrate dev --name descriptive_name
-  Squash it       one migration per branch (see AGENTS.md, "Prisma Migrations")
+  Squash it       one migration per branch (see .claude/rules/data-model.md, "Prisma Migrations")
 
 If the schema is the thing that is wrong, fix the schema instead. Either way the
 two have to agree before this merges: `migrate deploy` is what runs in every

@@ -13,9 +13,9 @@
  *
  * Le gros du contrat vient de DESIGN.md, mais pas la totalité : ce fichier est
  * le seul linter lexical qui parcourt les composants, donc une règle
- * d'écriture de composant que `AGENTS.md` énonce lexicalement atterrit ici
- * plutôt que dans un troisième linter créé pour un seul motif. C'est le cas de
- * la règle sur les icônes ci-dessous.
+ * d'écriture de composant que `.claude/rules/ui.md` énonce lexicalement
+ * atterrit ici plutôt que dans un troisième linter créé pour un seul motif.
+ * C'est le cas de la règle sur les icônes ci-dessous.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';

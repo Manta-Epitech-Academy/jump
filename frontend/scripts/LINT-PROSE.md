@@ -11,10 +11,12 @@ qu'aucun mécanisme ne portait avaient dérivé, et rien ne pouvait le dire : le
 bannissement du tiret cadratin était violé par 19 lignes de fichiers suivis
 pendant que `AGENTS.md` affirmait qu'un passage dédié avait nettoyé la prose du
 dépôt, et l'énumération de la chaîne `verify` comptait un lien de moins que la
-chaîne elle-même.
+chaîne elle-même. La seconde a été réglée par suppression plutôt que par
+surveillance : `AGENTS.md` renvoie à `package.json` au lieu de recopier la
+chaîne, et la règle qui tenait cette copie alignée est partie avec elle.
 
-Le linter lui-même en a fourni la troisième preuve : il est entré dans la chaîne
-`verify` sans étape dans le job requis qui l'aurait fait bloquer. D'où la règle D.
+Le linter lui-même a fourni une troisième preuve : il est entré dans la chaîne
+`verify` sans étape dans le job requis qui l'aurait fait bloquer. D'où la règle C.
 
 ## Usage
 
@@ -89,32 +91,28 @@ chemins purement illustratifs dans des blocs de code, `AGENTS.md` nomme un
 fichier explicitement supprimé ainsi qu'un chemin généré donc gitignoré, et il
 aurait fallu six listes d'exclusion pour n'attraper rien du tout : sur les liens
 locaux existants, la règle étroite est verte. Elle garde sa place parce qu'elle
-est gratuite et qu'elle garde les pointeurs vers les `CLAUDE.md` de répertoire,
-qui sont exactement des liens de ce type.
+est gratuite et qu'elle garde les pointeurs vers les fichiers de doctrine, qui
+sont exactement des liens de ce type.
 
-### C. L'énumération de la chaîne `verify` correspond à `package.json`
+La doctrine est une liste fixe plus deux familles reconnues à leur chemin : tout
+`CLAUDE.md`, et tout fichier de `.claude/rules/`. Les `CLAUDE.md` de répertoire
+étaient hors de la liste, et c'est par là qu'une douzaine de renvois ont pourri
+quand leur doctrine a déménagé, sans que rien ne le dise.
 
-C'est la dérive que ce dépôt a réellement produite, et aucune règle sur les
-chemins ne l'attrape : il manquait un nom de script, pas un fichier. La phrase
-promet la chaîne « in that order », donc l'ordre est comparé aussi.
+L'ancre fait partie de l'affirmation. Un lien `CONTRIBUTING.md#commits` dont la
+section a été renommée mène encore au fichier, donc ne regarder que le fichier
+le déclare valide alors qu'il ne mène plus à ce qu'il promet. Une ancre vers un
+fichier markdown doit être produite par l'un de ses titres, calculée comme
+GitHub la calcule ; une ancre vers du code (`#L12`) est une ligne, et n'est pas
+vérifiée.
 
-Les noms lus sont ceux de la clause « It chains ... in that order », pas ceux de
-la ligne. La première version lisait la ligne entière : la phrase suivante du
-même paragraphe, qui rappelait `lint:prose`, le comptait comme un lien de plus.
-Les deux bornes sont les mots de la phrase elle-même, et la seconde est déjà ce
-sur quoi repose la comparaison d'ordre.
+### C. Chaque lien de la chaîne `verify` est exécuté par la CI
 
-La règle s'est vérifiée elle-même en arrivant : ajouter `lint:prose` à la chaîne
-l'a immédiatement rendue rouge sur `AGENTS.md`, qui ne le nommait pas encore.
-
-### D. Chaque lien de la chaîne `verify` est exécuté par la CI
-
-La chaîne existe en trois exemplaires : `frontend/package.json` l'exécute,
-`AGENTS.md` l'énonce, `.github/workflows/test.yml` la rejoue étape par étape. La
-règle C tient les deux premiers ensemble. Sans celle-ci le troisième dérive
-seul, et du mauvais côté : un lien ajouté à `verify` et oublié dans le workflow
-ne bloque aucune fusion, donc la règle qu'il porte se remet à pourrir derrière un
-check requis vert.
+La chaîne existe en deux exemplaires : `frontend/package.json` l'exécute,
+`.github/workflows/test.yml` la rejoue étape par étape. Sans cette règle le
+second dérive seul, et du mauvais côté : un lien ajouté à `verify` et oublié dans
+le workflow ne bloque aucune fusion, donc la règle qu'il porte se remet à
+pourrir derrière un check requis vert.
 
 Ce n'est pas une hypothèse. `lint:prose` est arrivé dans la chaîne sans étape
 dans `Lint & Type Check`, qui énumère ses étapes à la main : le linter écrit pour
@@ -137,6 +135,53 @@ lancer lance le lien. Cette équivalence est **déduite** de `package.json` et
 jamais déclarée dans le linter, sinon la chaîne aurait une quatrième copie à
 tenir à jour.
 
+### D. Chaque fichier de `.claude/rules/` se charge, et `AGENTS.md` le nomme
+
+Un fichier de `.claude/rules/` n'entre en contexte que quand l'agent lit, écrit
+ou modifie un fichier qui correspond à l'un de ses globs `paths:`. Ce mécanisme
+échoue en silence de trois façons, et la règle en ferme une par vérification :
+
+- **Pas de `paths:`** : le fichier se charge à chaque session. C'est de la
+  doctrine de racine déguisée, hors du budget d'`AGENTS.md` et invisible des
+  agents qui ne lisent pas `.claude/`.
+- **Un glob qui ne correspond à aucun fichier suivi** : sa doctrine ne se charge
+  jamais. C'est ce que produit un répertoire renommé.
+- **Un fichier qu'`AGENTS.md` ne nomme pas** : Codex, Copilot et Gemini ne
+  chargent pas `.claude/rules/`, la racine est leur seul chemin vers lui.
+
+L'en-tête est lu par un vrai parseur YAML (`Bun.YAML`) et les globs passent par
+un vrai moteur (`Bun.Glob`). La première version lisait les deux à la main, et
+chacun répondait vert à tort à sa façon : une ligne de commentaire dans la liste
+arrêtait la lecture, donc aucun glob suivant n'était vérifié, et une virgule hors
+accolades devenait une alternative, donc un glob mal écrit « correspondait » à
+des fichiers qu'il ne nomme pas. Le parseur refuse aussi un glob qui commence par
+`*` sans guillemets, qui n'est pas du YAML (`*` y ouvre un alias). `paths:` est
+une liste et rien d'autre : une chaîne obligerait à couper sur les virgules, y
+compris celles d'un `{a,b}`.
+
+Les globs se limitent à `*`, `**` et `{a,b}`. Parenthèses, crochets, `?` et un
+`!` de tête n'ont pas le même sens d'un moteur à l'autre (groupe, classe,
+négation), et ce dépôt a des répertoires nommés `(staff)` et `[id]` : un glob qui
+les écrit tels quels peut correspondre à autre chose que ce qu'il montre. `**`
+les traverse sans les nommer. Un `+` ou un `@` restent littéraux tant qu'aucune
+parenthèse ne les suit, donc `+page.svelte` s'écrit tel quel.
+
+### E. `AGENTS.md` tient dans son budget
+
+`AGENTS.md` entre en contexte à chaque session de chaque agent, avant la première
+question : chaque octet y est payé par toutes les tâches, y compris celles qu'il
+ne concerne pas. Il était passé de 620 à 826 lignes en neuf jours, parce que
+chaque post-mortem qui méritait d'être écrit atterrissait à la racine faute d'un
+autre endroit, et Codex, qui plafonne les instructions d'un projet à 32 Kio, n'en
+lisait plus que les deux tiers.
+
+Le budget (`AGENTS_BUDGET_BYTES`) est la taille d'après la cure plus une marge,
+pas un idéal. Le relever est une décision prise dans la pull request qui en a
+besoin, avec sa raison, comme `TOOL_LIST_BUDGET` dans `mcpServer.test.ts` ; ce
+qui ne concerne qu'une surface va dans son fichier de `.claude/rules/`. Le
+plafond de Codex ne se relève pas : un budget qui le dépasse est lui-même une
+violation.
+
 ## Quand le lancer ?
 
 Jamais à la main dans le cas courant. Il est dans la chaîne `bun run verify`,
@@ -151,10 +196,10 @@ sur chaque fichier écrit.
 - La règle B ne voit que les liens markdown. Un chemin cité en prose, ou dans un
   commentaire de code, n'est pas vérifié, et c'est un choix argumenté ci-dessus
   et non un oubli.
-- La règle C ne lit que la clause comprise entre « It chains » et « in that
-  order », et pas la ligne : un paragraphe markdown est une ligne unique, et la
-  phrase continue après l'énumération. Si l'une des deux bornes disparaît
-  d'`AGENTS.md`, la règle le dit plutôt que de passer en silence.
-- La règle D prouve qu'un lien est lancé par un job requis, jamais qu'il est
+- La règle C prouve qu'un lien est lancé par un job requis, jamais qu'il est
   lancé au bon endroit : déplacer une étape d'un job à l'autre la laisse verte.
   C'est l'ordre des jobs, pas la couverture, et `needs:` le tient déjà.
+- La règle D prouve qu'un glob correspond à un fichier, jamais qu'il correspond
+  aux BONS fichiers : un glob trop large charge sa doctrine pour rien, un glob
+  trop étroit la rate sur une partie de sa surface. Ce jugement reste celui de
+  l'auteur du fichier de règles.
