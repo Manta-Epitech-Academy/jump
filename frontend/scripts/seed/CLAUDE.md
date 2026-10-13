@@ -117,9 +117,17 @@ Nine rules, and each is enforced rather than hoped for:
   existed on every submission for months: the recorder routes that answer into a
   `respondent*` column and never writes it as a row, so the dataset carried a
   sentence of free text in a phone-number question, and the per-question figures
-  were counted over it. The same shape: public answers on a form that refuses the
-  public, and a talent with no login account whose mirror still held an address,
-  when the sync mints a login precisely from that address.
+  were counted over it. The same shape: a Salesforce mirror on a talent that never
+  came from Salesforce, when only the sync writes one; and a talent with no login
+  account whose mirror held an address with no sync error to say why, when the
+  sync mints a login from that address and only an address another account owns
+  can stop it.
+
+  Unlikely is not unreachable, and the line between them is the writer's, not
+  the generator's taste. Public answers on a form that refuses the public look
+  unreachable and are merely unlikely: the builder closes a form to the
+  public freely after it has collected answers, so no check refuses them, and a
+  scenario that wants public answers picks a form that still admits them.
 
   The cross-table cases are asserted by hand in `assert/reachability.ts`, because
   nothing derives them from the schema. And a reason written in `NEVER_SEEDED` or

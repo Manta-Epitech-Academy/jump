@@ -186,8 +186,9 @@ export const edgeTalents: Scenario = {
 
     // No login account at all: 70 talents are in this state, and every screen
     // that offers impersonation has to say so instead of offering it. The sync
-    // mints a login from the address Salesforce holds, so these are the contacts
-    // it holds none for, and `addTalent` leaves their mirror without one.
+    // mints a login from the address Salesforce holds, so this one is a contact
+    // it holds none for, the case that leaves no sync error behind, and
+    // `addTalent` leaves its mirror without one.
     const accountless = spawn('Sanscompte', '2nde', { withAccount: false });
     world.enrol(event, accountless);
     world.addSchoolingRecord(accountless, schoolYear, null);

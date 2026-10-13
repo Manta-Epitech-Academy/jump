@@ -844,10 +844,12 @@ export class World {
         talentId,
         nom: claims.nom ?? opts.nom,
         prenom: claims.prenom ?? opts.prenom,
-        // The sync mints a login only for a contact that has an address, so a
-        // talent with no account is one Salesforce holds no address for. The two
-        // were written independently, which made the 70 accountless talents of
-        // production a state whose mirror contradicted its own account.
+        // The sync mints a login from this address, so a contact Salesforce
+        // holds none for stays accountless with no error to explain it, which
+        // is the state this places. The other way to have no account, an
+        // address another account already owns, comes with a `DUPLICATE_EMAIL`
+        // sync error, and `assert/reachability.ts` says why that one is never
+        // seeded.
         sfEmail: withAccount ? email : null,
         // `??` would swallow an explicit null, which is the whole point of
         // passing one.
