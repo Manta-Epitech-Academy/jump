@@ -18,6 +18,7 @@ import { prisma } from '$lib/server/db';
 import {
   EventService,
   eventWorkshopsOf,
+  jumpOwnedFields,
   type EventWorkshopState,
 } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
@@ -181,12 +182,12 @@ export type EventDetail = {
   event: Metric<{
     id: string;
     salesforceName: string;
-    publicName: string;
+    publicName: string | null;
     cohortNoun: string | null;
     campus: string;
     dateLabel: string;
-    startTime: string;
-    endDate: string;
+    startTime: string | null;
+    endDate: string | null;
     schoolYear: string;
     status: string;
     syncedFromSalesforce: boolean;
@@ -251,17 +252,14 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
       {
         id: event.id,
         salesforceName: event.titre,
-        publicName: event.publicName,
-        cohortNoun: event.cohortNoun,
+        ...jumpOwnedFields(event),
         campus: event.campusName,
         dateLabel: event.dateLabel,
-        startTime: event.startTime,
-        endDate: event.endDate,
         schoolYear: event.schoolYearLabel,
         status: event.status,
         syncedFromSalesforce: event.synced,
       },
-      "Identité de l'événement. « salesforceName » est le nom de la campagne Salesforce, « publicName » celui que voient les équipes et les talents ; vide, ce dernier laisse place au premier. « startTime » et « endDate » appartiennent à Jump : Salesforce ne les fournit pas.",
+      "Identité de l'événement. « salesforceName » est le nom de la campagne Salesforce, « publicName » celui que voient les équipes et les talents ; null, ce dernier laisse place au premier. « startTime » et « endDate » appartiennent à Jump : Salesforce ne les fournit pas. « publicName », « cohortNoun », « startTime » et « endDate » valent null quand ils ne sont pas renseignés, et c'est null qui les retire dans write_event_config.",
     ),
     configState: metric(
       {
@@ -483,7 +481,7 @@ export type TemplateRow = {
   description: string | null;
   publicName: string | null;
   cohortNoun: string | null;
-  startTime: string;
+  startTime: string | null;
   modules: EventModuleKey[];
   moduleSettings: Record<string, unknown>;
   feedbackFormId: string | null;
@@ -512,7 +510,7 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         closingTemplateId: template.closingTemplateId,
         shownStatuses: template.shownStatuses,
       })),
-      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun.",
+      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun. « publicName », « cohortNoun » et « startTime » valent null quand le modèle n'en porte pas.",
     ),
   };
 }
