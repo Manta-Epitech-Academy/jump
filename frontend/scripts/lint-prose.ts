@@ -493,6 +493,18 @@ function ruleVerifyRunsInCi() {
  *   Gemini, qui ne chargent pas `.claude/rules/` : la racine est leur seul
  *   chemin vers lui.
  *
+ * L'en-tête est lu par un vrai parseur YAML (`Bun.YAML`) et les globs passent
+ * par un vrai moteur (`Bun.Glob`). La première version lisait les deux à la
+ * main, et chacun avait sa façon de répondre vert à tort : une ligne de
+ * commentaire dans la liste arrêtait la lecture, donc aucun glob suivant
+ * n'était vérifié, et une virgule hors accolades devenait une alternative, donc
+ * un glob mal écrit « correspondait » à des fichiers qu'il ne nomme pas. Le
+ * parseur refuse aussi ce que la lecture à la main laissait passer : un glob
+ * qui commence par `*` sans guillemets n'est pas du YAML (`*` y ouvre un
+ * alias).
+ * `paths:` est une liste et rien d'autre, parce qu'une chaîne obligerait à
+ * couper sur les virgules, y compris celles d'un `{a,b}`.
+ *
  * Les globs se limitent à `*`, `**` et `{a,b}`. Les parenthèses, les crochets,
  * `?` et un `!` de tête n'ont pas le même sens d'un moteur de glob à l'autre (un
  * groupe, une classe, une négation), et ce dépôt a des répertoires nommés
@@ -503,41 +515,30 @@ function ruleVerifyRunsInCi() {
  */
 const GLOB_FORBIDDEN = /[()[\]?]|^!/;
 
-function globToRegExp(glob: string): RegExp {
-  let re = '';
-  for (let i = 0; i < glob.length; i++) {
-    const c = glob[i];
-    if (c === '*' && glob[i + 1] === '*') {
-      const slash = glob[i + 2] === '/';
-      re += slash ? '(?:.*/)?' : '.*';
-      i += slash ? 2 : 1;
-    } else if (c === '*') re += '[^/]*';
-    else if (c === '{') re += '(?:';
-    else if (c === '}') re += ')';
-    else if (c === ',') re += '|';
-    else re += c.replace(/[.^$|\\+()[\]?]/g, '\\$&');
-  }
-  return new RegExp(`^${re}$`);
-}
+const NO_PATHS =
+  'pas de `paths:` en en-tête : ce fichier se chargerait à chaque session, comme la racine';
 
-/** Les globs `paths:` d'un fichier de règles, en liste YAML ou en chaîne. */
-function pathsOf(f: string): string[] | null {
+/** Les globs `paths:` d'un fichier de règles, ou la raison de leur absence. */
+function pathsOf(f: string): { globs: string[] } | { error: string } {
   const text = readFileSync(join(ROOT, f), 'utf8');
   const fm = /^---\n([\s\S]*?)\n---\n/.exec(text);
-  if (!fm) return null;
-  const lines = fm[1].split('\n');
-  const at = lines.findIndex((l) => /^paths:/.test(l));
-  if (at === -1) return null;
-  const unquote = (s: string) => s.trim().replace(/^["']|["']$/g, '');
-  const inline = lines[at].replace(/^paths:\s*/, '');
-  if (inline) return inline.split(',').map(unquote).filter(Boolean);
-  const out: string[] = [];
-  for (const l of lines.slice(at + 1)) {
-    const item = /^\s+-\s+(.*)$/.exec(l);
-    if (!item) break;
-    out.push(unquote(item[1]));
+  if (!fm) return { error: NO_PATHS };
+  let header: unknown;
+  try {
+    header = Bun.YAML.parse(fm[1]);
+  } catch (e) {
+    return { error: `en-tête YAML illisible : ${(e as Error).message}` };
   }
-  return out;
+  const paths = (header as { paths?: unknown } | null)?.paths;
+  if (paths === undefined) return { error: NO_PATHS };
+  if (
+    !Array.isArray(paths) ||
+    !paths.length ||
+    !paths.every((g) => typeof g === 'string' && g)
+  ) {
+    return { error: '`paths:` doit être une liste YAML de globs non vides' };
+  }
+  return { globs: paths };
 }
 
 function ruleRulesFilesLoad() {
@@ -562,22 +563,20 @@ function ruleRulesFilesLoad() {
         `${f} - AGENTS.md ne le nomme pas : un agent qui ne charge pas .claude/rules/ ne le trouvera jamais`,
       );
     }
-    const globs = pathsOf(f);
-    if (!globs?.length) {
-      fail(
-        `${f} - pas de \`paths:\` en en-tête : ce fichier se chargerait à chaque session, comme la racine`,
-      );
+    const header = pathsOf(f);
+    if ('error' in header) {
+      fail(`${f} - ${header.error}`);
       continue;
     }
-    for (const g of globs) {
+    for (const g of header.globs) {
       if (GLOB_FORBIDDEN.test(g)) {
         fail(
           `${f} - glob \`${g}\` : se limiter à *, ** et {a,b}, les autres signes changent de sens selon le moteur`,
         );
         continue;
       }
-      const re = globToRegExp(g);
-      if (!trackedList.some((t) => re.test(t))) {
+      const glob = new Bun.Glob(g);
+      if (!trackedList.some((t) => glob.match(t))) {
         fail(
           `${f} - glob \`${g}\` : aucun fichier suivi ne lui correspond, cette doctrine ne se chargerait jamais`,
         );

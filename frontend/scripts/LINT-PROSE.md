@@ -149,6 +149,16 @@ ou modifie un fichier qui correspond à l'un de ses globs `paths:`. Ce mécanism
 - **Un fichier qu'`AGENTS.md` ne nomme pas** : Codex, Copilot et Gemini ne
   chargent pas `.claude/rules/`, la racine est leur seul chemin vers lui.
 
+L'en-tête est lu par un vrai parseur YAML (`Bun.YAML`) et les globs passent par
+un vrai moteur (`Bun.Glob`). La première version lisait les deux à la main, et
+chacun répondait vert à tort à sa façon : une ligne de commentaire dans la liste
+arrêtait la lecture, donc aucun glob suivant n'était vérifié, et une virgule hors
+accolades devenait une alternative, donc un glob mal écrit « correspondait » à
+des fichiers qu'il ne nomme pas. Le parseur refuse aussi un glob qui commence par
+`*` sans guillemets, qui n'est pas du YAML (`*` y ouvre un alias). `paths:` est
+une liste et rien d'autre : une chaîne obligerait à couper sur les virgules, y
+compris celles d'un `{a,b}`.
+
 Les globs se limitent à `*`, `**` et `{a,b}`. Parenthèses, crochets, `?` et un
 `!` de tête n'ont pas le même sens d'un moteur à l'autre (groupe, classe,
 négation), et ce dépôt a des répertoires nommés `(staff)` et `[id]` : un glob qui
