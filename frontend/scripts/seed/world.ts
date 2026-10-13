@@ -513,6 +513,28 @@ export class World {
     return row;
   }
 
+  /**
+   * Both sides of a talent's civility, placed: what the talent confirmed, and
+   * what Salesforce claims for the same person.
+   *
+   * The wizard draws the first (`addDossier`), and the mirror is written
+   * before the dossier exists, so neither can be fixed at creation. Placing
+   * them afterwards is what makes the pair deterministic: an agreement and a
+   * disagreement are both states the reconciliation reports differently, and a
+   * draw that happened to land on one would leave the other with no example.
+   */
+  placeCivilite(
+    talent: TalentRef,
+    civilite: { jump: string; salesforce: string },
+  ): void {
+    this.talentRow(talent.id).civilite = civilite.jump;
+    const mirror = this.buffer.talentSfImport.find(
+      (candidate) => candidate.talentId === talent.id,
+    );
+    if (!mirror) throw new Error(`No buffered SF mirror for ${talent.id}.`);
+    mirror.civilite = civilite.salesforce;
+  }
+
   campus(name: string): CampusRef {
     const found = this.campuses.get(name);
     if (!found) throw new Error(`No campus "${name}" in this profile.`);
@@ -761,11 +783,15 @@ export class World {
      * property `enrol`'s explicit status has, and for the same reason.
      */
     career?: number;
-    /** What Salesforce claims, when it differs from what the talent confirmed. */
+    /**
+     * What Salesforce claims, when it differs from what the talent confirmed.
+     * A phone number may be an explicit `null`: a contact Salesforce holds no
+     * number for, which the reconciliation reports as « manquant ».
+     */
     sfClaims?: {
       nom?: string;
       prenom?: string;
-      phone?: string;
+      phone?: string | null;
       niveau?: string;
     };
   }): TalentRef {
@@ -805,13 +831,23 @@ export class World {
 
     // The anti-corruption mirror. Every talent has one in production (5377 of
     // 5394), because every talent arrives from the CRM.
+    const claims = opts.sfClaims ?? {};
     this.buffer.talentSfImport.push({
       talentId,
-      nom: opts.sfClaims?.nom ?? opts.nom,
-      prenom: opts.sfClaims?.prenom ?? opts.prenom,
-      sfEmail: email,
-      phone: opts.sfClaims?.phone ?? opts.phone ?? '+33600000000',
-      niveau: opts.sfClaims?.niveau ?? opts.niveau,
+      nom: claims.nom ?? opts.nom,
+      prenom: claims.prenom ?? opts.prenom,
+      // The sync mints a login only for a contact that has an address, so a
+      // talent with no account is one Salesforce holds no address for. The two
+      // were written independently, which made the 70 accountless talents of
+      // production a state whose mirror contradicted its own account.
+      sfEmail: withAccount ? email : null,
+      // `??` would swallow an explicit null, which is the whole point of
+      // passing one.
+      phone:
+        claims.phone === undefined
+          ? (opts.phone ?? '+33600000000')
+          : claims.phone,
+      niveau: claims.niveau ?? opts.niveau,
       sfSchoolId: opts.schoolId ?? null,
     });
 

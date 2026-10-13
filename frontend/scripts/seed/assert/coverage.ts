@@ -95,6 +95,11 @@ const NEVER_SEEDED: Readonly<Record<string, string>> = {
   'bauth_user.banReason': 'voir `bauth_user.banned`.',
   'bauth_user.banExpires': 'voir `bauth_user.banned`.',
 
+  // ── Ce que la synchronisation ne laisse pas passer. ──
+  'TalentSfImport.nom':
+    'la synchronisation refuse un contact sans prénom ou sans nom (`MISSING_NAME` dans `syncService`) et `reconciliationService` le suppose : Salesforce « porte toujours les deux ». Un miroir à nom nul ne peut donc pas exister, et le schéma est plus permissif que le code qui l’écrit.',
+  'TalentSfImport.prenom': 'voir `TalentSfImport.nom`.',
+
   // ── Une ligne que le générateur ne réécrit pas. ──
   'MinigameConfig.enabled':
     'la rotation est une curation de l’hôte, écrite en create-only et jamais réinitialisée par une re-génération. Sa valeur dépend donc de l’historique de la base et non de ce run : ni l’une ni l’autre branche n’est garantie, et une vérification qui dépend de l’ordre des exécutions vaut moins que pas de vérification.',
@@ -114,17 +119,6 @@ const NOT_YET_SEEDED: Readonly<Record<string, string>> = {
   'Feedback_Form.createdById':
     'aucun formulaire n’a été composé par un membre de l’équipe : le catalogue est semé avant les scénarios, donc avant qu’un membre existe.',
   'Feedback_Form.updatedById': 'voir `Feedback_Form.createdById`.',
-
-  // ── Le miroir Salesforce, qui n'est jamais partiel. ──
-  // Le miroir est écrit complet pour chaque talent. Salesforce, lui, envoie des
-  // fiches trouées, et c'est ce que la réconciliation doit encaisser.
-  'TalentSfImport.nom':
-    'le miroir est toujours écrit complet. Salesforce envoie des fiches partielles, et une colonne nulle côté miroir est ce que `reconciliationService` doit traiter comme « le CRM ne dit rien » plutôt que comme une divergence.',
-  'TalentSfImport.prenom': 'voir `TalentSfImport.nom`.',
-  'TalentSfImport.phone': 'voir `TalentSfImport.nom`.',
-  'TalentSfImport.sfEmail': 'voir `TalentSfImport.nom`.',
-  'TalentSfImport.civilite':
-    'la civilité n’est jamais réclamée au CRM, donc la colonne est nulle partout et le côté « ce que Salesforce prétend » de cette ligne ne s’affiche jamais.',
 
   // ── Divers, un par lot. ──
   'Closing_TemplateSection.synthesisPosition':
