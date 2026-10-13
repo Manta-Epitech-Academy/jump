@@ -1,3 +1,13 @@
+/**
+ * What the Salesforce worker pushes: events (campus per row, never deleted),
+ * talent identities (seeds `Talent`, upserts the `TalentSfImport` mirror,
+ * no-clobber), and enrolments, whose prune runs on a `full` pass only and only
+ * from a complete roster (anything else is held on `Sync_PruneHold`, never
+ * refused).
+ *
+ * The rules behind each of those, and the incidents that set them, are in
+ * `.claude/rules/salesforce.md`.
+ */
 import { prisma } from '$lib/server/db';
 import { Prisma } from '@prisma/client';
 import { defaultEventModules } from '$lib/domain/eventModules';

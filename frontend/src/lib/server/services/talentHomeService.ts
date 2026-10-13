@@ -1,3 +1,17 @@
+/**
+ * What a talent's home shows of their campus (« le mot du campus », the one
+ * message of its Actualités card, and the highlighted event to sign up for).
+ *
+ * Both are authored campus by campus over the admin API
+ * (`adminApi/writes/talentHome.ts`), never derived; this reads them for the
+ * campus the request hooks resolved, renders the note through
+ * `renderAuthoredMarkdown`, drawing each picture it names from Jump's copy and
+ * never from the address written, and drops a highlight whose day has passed on
+ * the campus clock. What the home's blue hero then suggests (the day's activity,
+ * else the open highlight, else an activity to carry on at home, else nothing)
+ * is one pure rule, `pickHomeHero` in `domain/talentHome.ts`, so the hero never
+ * holds two suggestions of the same weight.
+ */
 import { prisma } from '$lib/server/db';
 import type { ShownPicture } from '$lib/domain/pictures';
 import { renderAuthoredMarkdown } from '$lib/markdown';

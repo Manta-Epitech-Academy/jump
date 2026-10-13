@@ -72,7 +72,6 @@ Task-to-script mapping lives in `frontend/package.json`.
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | [`.claude/rules/auth.md`](./.claude/rules/auth.md)           | Who may sign in through which door, and what gates a role inside a workspace    |
 | [`.claude/rules/data-model.md`](./.claude/rules/data-model.md)                                     | How a fact, a relationship and a migration are shaped, and how little to couple |
-| [`frontend/src/lib/server/CLAUDE.md`](./frontend/src/lib/server/CLAUDE.md)                     | Which service owns what, file by file                                           |
 | [`.claude/rules/usage.md`](./.claude/rules/usage.md)         | Which of its own screens anybody opened, and why the answer holds no PII        |
 | [`.claude/rules/admin-api.md`](./.claude/rules/admin-api.md)   | What a named operation may do, and what a token may reach                       |
 | [`.claude/rules/staff-lists.md`](./.claude/rules/staff-lists.md) | How a staff list page survives cohort volume                                    |
@@ -176,10 +175,6 @@ consumable over HTTP and as MCP tools, never as new admin UI. Read
 adding, changing, or reasoning about an operation, a write's class (A/B/C), the leadership tier, or
 anything under `src/lib/server/adminApi/`: it carries the non-negotiable rules (PII, audit, scope
 refusal, handles) and the file-by-file map of the tier.
-
-### Key Server Services (`src/lib/server/`)
-
-The file-by-file map of the server tier: auth, the admin API, the aggregates, the digest, the renderers, the Salesforce sync, the usage recorder, the scoped DB helpers. Read [`frontend/src/lib/server/CLAUDE.md`](./frontend/src/lib/server/CLAUDE.md).
 
 ### Client Libraries (`src/lib/`)
 

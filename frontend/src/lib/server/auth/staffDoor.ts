@@ -35,7 +35,7 @@ import { prisma } from '$lib/server/db';
  * Releasing the link is the half that is easy to drop and should not be: left
  * behind, it makes a guardian's or a talent's account reachable through the
  * staff Microsoft door for good, which is exactly the disjoint-doors rule
- * `.claude/rules/auth.md` opens on.
+ * `.claude/rules/auth.md` states under Auth System.
  */
 export async function discardStaffSignIn(
   userId: string,
