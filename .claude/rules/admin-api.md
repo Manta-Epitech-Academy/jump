@@ -1,3 +1,14 @@
+---
+paths:
+  - "frontend/src/lib/server/adminApi/**"
+  - "frontend/src/lib/server/services/adminStats/**"
+  - "frontend/src/lib/server/services/adminDigest.ts"
+  - "frontend/src/routes/api/admin/**"
+  - "frontend/src/routes/api/mcp/**"
+  - "frontend/src/routes/**/api-tokens/**"
+  - "frontend/src/lib/server/services/__integration__/adminApi*"
+---
+
 # Curated admin API and MCP
 
 The admin space **stops growing UI**. New admin capabilities ship as curated named API operations, consumable over HTTP and as MCP tools (July 2026 seminar). Campus staff and talents never get MCP.

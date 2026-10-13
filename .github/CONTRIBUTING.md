@@ -238,8 +238,8 @@ The reset belongs to that switchover alone, and not to the re-seeds that follow 
 generator has already filled goes on accumulating rows it did not write, because the application keeps
 being used - a lycée resolved during an onboarding, a colleague invited, an admin account provisioned -
 and the `sd_`-scoped wipe is what a re-seed needs. What tells the two apart is whether the generator has
-ever run there, which it records itself (see the *Development data* section of
-[`AGENTS.md`](../AGENTS.md)).
+ever run there, which it records itself (see
+[`.claude/rules/seed.md`](../.claude/rules/seed.md)).
 
 **What generated data will never catch**, and what preprod is therefore still for: whatever Salesforce
 produced that is malformed, the accumulation of several years of history, and how long a migration takes
@@ -249,8 +249,8 @@ pod applies the DDL while the outgoing one is still serving.
 **No Salesforce worker writes into a seeded `staging`, and that is a property of the data, not of a
 setting.** The
 worker takes its scope from Jump, and the generator writes campuses with no external name, so a seeded
-environment is outside every sync's scope (see the *Development data* section of
-[`AGENTS.md`](../AGENTS.md)). Two things follow. A multi-day window stays frozen, which is the whole
+environment is outside every sync's scope (see
+[`.claude/rules/seed.md`](../.claude/rules/seed.md)). Two things follow. A multi-day window stays frozen, which is the whole
 reason it is held here rather than on `dev`. And the real personal data of minors stops arriving through
 a side door, which is the reason the generator exists at all. What that costs is the question « does the
 sync still hold against the real org », and that question belongs to `preprod` alongside the migration

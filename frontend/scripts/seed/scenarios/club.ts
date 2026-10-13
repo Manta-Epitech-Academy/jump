@@ -43,7 +43,7 @@ import type { EventRef } from '../world';
  * and production's most-attended talents sit at nine, ten and eleven events
  * because they went to a recurring one all year. A season whose length followed
  * the profile would put the whole tail out of reach in CI, which is exactly what
- * `seed/CLAUDE.md` means by a rare state depending on the profile rather than on
+ * `.claude/rules/seed.md` means by a rare state depending on the profile rather than on
  * the generator. What scales is how many people come to each session, not how
  * many sessions there were.
  *

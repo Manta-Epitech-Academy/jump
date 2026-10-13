@@ -1,3 +1,18 @@
+---
+paths:
+  - "frontend/src/lib/server/auth/**"
+  - "frontend/src/lib/server/auth.ts"
+  - "frontend/src/lib/auth-client.ts"
+  - "frontend/src/lib/domain/permissions.ts"
+  - "frontend/src/hooks.server.ts"
+  - "frontend/src/routes/**/login/**"
+  - "frontend/src/routes/api/auth/**"
+  - "frontend/src/routes/api/test/login-as/**"
+  - "frontend/scripts/{accept-invitation,add-admin-user,bootstrap-admins}.ts"
+  - "frontend/src/lib/server/services/__integration__/{emailOtpAudience,microsoftOAuthCallback,staffDoor}.integration.test.ts"
+  - "frontend/tests/e2e/auth.setup.ts"
+---
+
 # Auth and role gating
 
 ## Auth System
@@ -149,7 +164,3 @@ Inside a workspace, role-based gating goes through **one table** of named role g
 | Hide              | Nav entries to restricted destinations (sidebar, menus)  |
 | Disable + tooltip | Mutating controls visible on shared screens              |
 | Redirect / 403    | Direct URL access, via `requireStaffGroup` in the `load` |
-
----
-
-Ce fichier porte la doctrine d'une surface. Les règles qui valent partout (philosophie, commandes, espaces, conventions, contraintes) vivent dans [`AGENTS.md`](../../../../../AGENTS.md) à la racine du dépôt, qui nomme ce fichier.

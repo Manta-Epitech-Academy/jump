@@ -8,7 +8,7 @@
  * Nothing here is ever sent, and that is now a property of the rows rather than
  * of the environment: every campaign is written in a TERMINAL status, so
  * `processNextQueuedBroadcast` has nothing to claim. `assert/inertness.ts`
- * carries the rule, and `AGENTS.md` what it cost to learn.
+ * carries the rule, and `.claude/rules/seed.md` what it cost to learn.
  *
  * This header used to make the same claim on the grounds that no outbound path
  * was pointed at this database, which was untrue. Asserting it is what let four

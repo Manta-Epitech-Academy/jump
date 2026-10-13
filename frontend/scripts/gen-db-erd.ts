@@ -85,7 +85,7 @@ const DOMAINS: { title: string; models: string[] }[] = [
   },
   {
     // Its own section rather than a corner of the events one, for the reason
-    // `AGENTS.md` gives the feature: the questionnaire is data in two layers, a
+    // `.claude/rules/closings.md` gives the feature: the questionnaire is data in two layers, a
     // global bank and a per-event composition, and that split is the whole
     // design. Nine models tell it, two more than Feedback needs for the same
     // shape.

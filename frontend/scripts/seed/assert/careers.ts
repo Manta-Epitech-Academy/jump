@@ -9,7 +9,7 @@
  * The PROPORTIONS are deliberately not here. « 69% of talents came once » is a
  * claim about a dataset's volume, it depends on the profile, and asserting it
  * would make the smallest profile fail for being small - the exact mistake
- * `seed/CLAUDE.md` warns about. What is asserted is that the SHAPES exist:
+ * `.claude/rules/seed.md` warns about. What is asserted is that the SHAPES exist:
  * somebody came back many times, somebody carries several closings, and the two
  * disjoint tops production actually has are both present.
  */

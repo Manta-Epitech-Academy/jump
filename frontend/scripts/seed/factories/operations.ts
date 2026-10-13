@@ -434,7 +434,7 @@ export function addAdminApiTokens(world: World, staff: StaffRef): void {
  * nobody touched", and a dataset where everything is used answers it with an
  * empty list, which is indistinguishable from a broken query. A dataset where
  * almost nothing is used answers it with the whole catalogue, which is the one
- * error `AGENTS.md` singles out as the one that makes somebody delete a feature
+ * error `.claude/rules/usage.md` singles out as the one that makes somebody delete a feature
  * that is in use. Both were reachable: the generator named four keys of 106.
  *
  * So most of the catalogue is used and a real minority is not, and which
@@ -734,7 +734,7 @@ function pushUse(
  * It is the store that answers beyond `USAGE_RAW_RETENTION_MONTHS`, and it had
  * never held a row: every figure came from the raw table, so the store boundary
  * in `server/usage/read.ts` was never once crossed by anything a person could
- * look at. `AGENTS.md` says of that pair that "both halves shipped broken and
+ * look at. `.claude/rules/usage.md` says of that pair that "both halves shipped broken and
  * neither was visible to a test"; a dataset with an empty cube is how that
  * stays true.
  *

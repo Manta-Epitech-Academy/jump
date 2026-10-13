@@ -1,3 +1,8 @@
+---
+paths:
+  - "frontend/prisma/**"
+---
+
 # Data modeling and migrations
 
 ## Data modeling: facts as rows, state as projection
@@ -57,7 +62,3 @@ And know the mitigation that looks like it works and doesn't: leaving the column
 So: declare the data loss in the migration's `Warnings` block, say in a comment why no backfill is owed (**check the data against a real snapshot, don't assume**), and ship it. Eliminating the window is a deployment property, not a migration one - old pods must not outlive the schema they were built against - and it belongs to the rollout strategy in the `jump-k3s` repo.
 
 **Squash a branch's dev migrations before merge.** Iterating a schema with `migrate dev` leaves a trail where a later migration drops what an earlier one added. Ship **one** clean migration per branch, never an add-then-drop trail: collapse them (rewrite the first migration's SQL to the net result, delete the rest, and reconcile the `_prisma_migrations` table so the DB still matches) before opening the PR. Never let a migration create something the same PR removes.
-
----
-
-Ce fichier porte la doctrine d'une surface. Les règles qui valent partout (philosophie, commandes, espaces, conventions, contraintes) vivent dans [`AGENTS.md`](../../AGENTS.md) à la racine du dépôt, qui nomme ce fichier.

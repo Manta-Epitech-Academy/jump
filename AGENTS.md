@@ -66,31 +66,24 @@ Task-to-script mapping lives in `frontend/package.json`.
 
 ## Architecture
 
-**The doctrine of a surface lives with the surface.** Seven files below this one carry it, and each
-section that moved leaves a pointer here saying what it was. Claude Code loads a directory's
-`CLAUDE.md` when it reads a file in that directory, so touching a surface brings its rules and the
-incidents behind them; **every other agent has to open them itself**, which is why they are named
-here by path rather than merely existing. A nested `AGENTS.md` would never be loaded automatically,
-so the filename is not a detail.
+**The doctrine of a surface lives with the surface**, in `.claude/rules/`. Each file there declares the paths it governs in a `paths:` header, and Claude Code loads it when it reads or writes a matching file, so touching a surface brings its rules and the incidents behind them, even when the surface spans several directories. **Every other agent has to open them itself**, which is why each is named here by path rather than merely existing.
 
 | File                                                                                           | The question it answers                                                         |
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| [`frontend/src/lib/server/auth/CLAUDE.md`](./frontend/src/lib/server/auth/CLAUDE.md)           | Who may sign in through which door, and what gates a role inside a workspace    |
-| [`frontend/prisma/CLAUDE.md`](./frontend/prisma/CLAUDE.md)                                     | How a fact, a relationship and a migration are shaped, and how little to couple |
+| [`.claude/rules/auth.md`](./.claude/rules/auth.md)           | Who may sign in through which door, and what gates a role inside a workspace    |
+| [`.claude/rules/data-model.md`](./.claude/rules/data-model.md)                                     | How a fact, a relationship and a migration are shaped, and how little to couple |
 | [`frontend/src/lib/server/CLAUDE.md`](./frontend/src/lib/server/CLAUDE.md)                     | Which service owns what, file by file                                           |
-| [`frontend/src/lib/server/usage/CLAUDE.md`](./frontend/src/lib/server/usage/CLAUDE.md)         | Which of its own screens anybody opened, and why the answer holds no PII        |
-| [`frontend/src/lib/server/adminApi/CLAUDE.md`](./frontend/src/lib/server/adminApi/CLAUDE.md)   | What a named operation may do, and what a token may reach                       |
-| [`frontend/src/lib/components/staff/CLAUDE.md`](./frontend/src/lib/components/staff/CLAUDE.md) | How a staff list page survives cohort volume                                    |
-| [`frontend/scripts/seed/CLAUDE.md`](./frontend/scripts/seed/CLAUDE.md)                         | What a generated database must contain, and what it must never do               |
-| [`frontend/src/routes/api/worker/CLAUDE.md`](./frontend/src/routes/api/worker/CLAUDE.md)       | What the Salesforce worker is told to do, and what may delete an enrolment      |
+| [`.claude/rules/usage.md`](./.claude/rules/usage.md)         | Which of its own screens anybody opened, and why the answer holds no PII        |
+| [`.claude/rules/admin-api.md`](./.claude/rules/admin-api.md)   | What a named operation may do, and what a token may reach                       |
+| [`.claude/rules/staff-lists.md`](./.claude/rules/staff-lists.md) | How a staff list page survives cohort volume                                    |
+| [`.claude/rules/seed.md`](./.claude/rules/seed.md)                         | What a generated database must contain, and what it must never do               |
+| [`.claude/rules/salesforce.md`](./.claude/rules/salesforce.md)       | What the Salesforce worker is told to do, what may delete an enrolment, and how a Salesforce claim is reconciled with what a talent confirmed |
+| [`.claude/rules/closings.md`](./.claude/rules/closings.md) | How a closing grid is composed from a global question bank, and what each figure is taken over |
+| [`.claude/rules/onboarding.md`](./.claude/rules/onboarding.md) | Which school year's dossier a reader means, and why a signed document is never rewritten |
+| [`.claude/rules/event-modules.md`](./.claude/rules/event-modules.md) | Which surfaces an event turns on, and how a certificate design is stored and rendered |
 
 `bun run lint:prose` checks that every link in this table resolves, so a renamed file cannot leave a
 pointer here quietly wrong.
-
-**What deliberately did NOT move**, because its code crosses several surfaces and a directory file
-would load on only part of the subject: closings, event modules, onboarding, the Salesforce
-reconciliation, and the UI-versus-API test. Putting those in the right place would mean moving code,
-which is a different change.
 
 ### Workspaces
 
@@ -107,145 +100,19 @@ The app splits into four workspaces, each serving a distinct audience and busine
 
 ### Auth System
 
-BetterAuth with two disjoint doors, and how the staff door was closed to the OTP path after a code sign-in on a staff address minted a full staff session. Read [`frontend/src/lib/server/auth/CLAUDE.md`](./frontend/src/lib/server/auth/CLAUDE.md).
+BetterAuth with two disjoint doors, and how the staff door was closed to the OTP path after a code sign-in on a staff address minted a full staff session. Read [`.claude/rules/auth.md`](./.claude/rules/auth.md).
 
 ### Role gating
 
-One table of named role groups, the client and server call shapes, and the UI pattern to pick per site. Read [`frontend/src/lib/server/auth/CLAUDE.md`](./frontend/src/lib/server/auth/CLAUDE.md).
+One table of named role groups, the client and server call shapes, and the UI pattern to pick per site. Read [`.claude/rules/auth.md`](./.claude/rules/auth.md).
 
 ### Event modules
 
-Dev surfaces are enabled **per event**, not per campus. There is no feature-flag
-subsystem: the per-campus `CampusFeatureFlag` table, `domain/featureFlags.ts`,
-`requireFlag` and `locals.featureFlags` were all removed in favour of this.
-
-- **Catalogue:** `EVENT_MODULES` / `EVENT_MODULE_DEFS` in `src/lib/domain/eventModules.ts`.
-- **Storage:** one `EventConfig_Module` row per `(eventId, moduleKey)`, with an optional `settings` Json bag validated app-side by a per-module Zod schema. Typed FKs (e.g. `Event.feedbackFormId`) stay columns on `Event`, never in the bag.
-- **Presets:** `EventConfig_Template` is a named, point-in-time seed applied by the config wizard. Applying one copies modules + settings; there is no live link afterwards.
-- **Routing:** `reachableSurfaces` / `firstReachableSurface` decide which surface the dev dashboard lands on.
-- **A document an event issues is a nullable FK on `Event`, never a sub-option.** `Event.diplomaTemplateId` names which certificate the Inscrits export renders, and `null` means it issues none. That nullness IS the gate: there is no companion boolean, because "does this event issue one" and "which one" are the same question. It replaced exactly such a boolean (`inscrits.diplomas`), which could only ever turn the one hardcoded document on or off.
-
-  The certificate itself is a `Diploma_Template` row whose CSS and markup are **authored at runtime** over the API, because the set of documents grows with the business and their wording belongs to the team, not to a developer. Two consequences worth stating. **A stored design is outside the `DESIGN.md` contract**, which guards code: `lint:design` cannot see it, and that is an accepted trade, not an oversight. And **the shell is not**: `templates/certificate.html` keeps the pagination and the once-in-`<head>` hoisting of logo, signature and font bytes, because repeating those per page is what timed out a 200-page render. **An ornament is inline SVG in the markup, never shapes built in CSS**: SVG reaches the brand fonts, costs a few hundred bytes a page, and is what a model writes untaught, whereas the CSS tricks it replaced (clip-path polygons, tiled gradients in rotated boxes) cost tokens to write and one of them was rasterised on every printed page. Since a stored design is handed to a real Chrome inside the cluster, `server/diplomaSanitize.ts` screens it, refusing exactly what its sanitiser would remove so a design is stored as written or not at all, and `infra/documentRenderer.ts` renders it with script execution and the network both off. The script switch is the one that actually contains the damage, and the two are not interchangeable: Puppeteer's request interception never sees a `ws://` handshake, so a design that got as far as running could still reach every internal service the pod reaches.
-
-Don't hardcode module keys.
+Moved to [`.claude/rules/event-modules.md`](./.claude/rules/event-modules.md).
 
 ### Closings: a question bank, composed per event
 
-A **closing** is the 1:1 a dev-team member conducts with a talent at the end of an
-event. It is what the codebase used to call an _entretien_; the July 2026 seminar
-renamed it, and real PGE admission interviews stay out of Jump for good. Every
-event format has them: a stage closing runs ten minutes, a Coding Club one five,
-a camp asks about the format itself.
-
-The questionnaire is **data in two layers**, and the split is the whole design.
-
-- **A bank** (`Closing_Question` + `Closing_Option`) holds every question that
-  exists, once, globally.
-- **A composition** (`Closing_Template` + `Closing_TemplateSection` +
-  `Closing_TemplateQuestion`) says which of them a grid asks, in what order, and
-  with what wording. `Event.closingTemplateId` names the grid, and that null IS
-  the gate, exactly as a null `feedbackFormId` hides the bilan.
-
-**The bank is global, and that is the one deliberate inversion of `Feedback_*`,**
-where a question belongs to a single form and `adminStats/feedbackResults.ts`
-documents that a `key` "identifies nothing" outside it. A feedback form is
-authored per form in talent-facing wording; closing questions are one
-institutional vocabulary reused across formats. So "comment as-tu connu cet
-événement" asked at a stage and at a Coding Club is ONE row, which is what lets a
-distribution span both. Four copies of a question could never legitimately be
-added up, and `stats_closing_insights` groups by bank question for that reason,
-carrying `asked` beside `answered` so a question only some grids pose is never
-read against the wrong base.
-
-**And the comparison that makes legitimate is RETURNED, never left to be
-composed.** A shared bank buys nothing if reading a stage against a Coding Club
-means one call per event and a fold the consumer does by hand, which is what it
-meant until `stats_closing_question` existed: one bank question, grouped by
-campus, by event or by grid, ranked server-side on what the question actually
-declares (a rating on its average, a valence-carrying scale on its favourable
-share, a plain set not at all). `stats_campus_comparison` carries the two
-campus-level closing figures for the same reason. This is the general rule of the
-tier applied to closings, not a closings feature: a figure a director would
-otherwise compute is a figure this platform owes.
-
-Rules, each of which a reasonable-looking change breaks quietly rather than loudly:
-
-- **A grid is composed over the API, never in a migration.** `write_closing_question`
-  and `write_closing_template` are the authoring surface, and there is deliberately
-  no builder UI: composing is the team's job and a form would never fit it. The
-  seed migration exists to carry the one grid that predates this across, not to be
-  the catalogue.
-- **A closing figure is taken over the events that run closings, never over the
-  whole périmètre.** An event whose section is off or that names no grid holds no
-  closing, so its enrolments belong to no coverage rate: `eventRunsClosings` is
-  the one spelling of that pair, and the dev sidebar's own gate calls it too. This
-  is written down because the denominator was wrong for a release and nothing
-  could have caught it: the figure read 18 % where it should have read 78 %, and
-  the definition travelling with it already claimed the narrow reading, which is
-  what made it quotable and false at the same time. The configuration gap it was
-  hiding is now its own figure.
-- **A published key is never renamed and never reused.** Changing what a question
-  MEANS is a new key; changing how it READS is an edit, and it re-renders on
-  documents already produced, which is what you want for a typo. That line is
-  enforced, not hoped for: a kind change or a dropped option is refused once
-  answers exist (the same lock `feedbackFormsAdmin.ts` draws with
-  `STRUCTURAL_QUESTION_FIELDS`, where `prompt` is deliberately not structural).
-- **`labelOverride` changes the prompt, never the identity.** A grid reads a
-  question aloud in its own words ("Satisfaction globale du stage"); every figure
-  keeps the bank's label, so the wording can fit the format and the number stays
-  comparable.
-- **An answer references the BANK question, never the composition row.** Drop a
-  question from a grid and its answers still resolve, and every renderer prints
-  them under an explicit "Questions retirées" heading. Removing something from a
-  composition must never be able to hide what was recorded.
-- **The grid is pinned on the record, not re-read off the event.**
-  `Closing_Record.templateId` is a fact; `Event.closingTemplateId` is
-  configuration. Retargeting an event cannot rewrite a closing already conducted.
-- **The verdict is not a bank question.** `recommendation` + `verdictNote` are
-  typed columns: a grid describes what is asked OF the student, the verdict is the
-  team's conclusion ABOUT them, and it is Jump-wide, closed, and what the fiche,
-  the admin archive and the school-year review all group on.
-- **Student words and staff words live in different columns, and that split is
-  what the API tier's no-PII rule rests on.** `Closing_Answer.freeText` is the
-  student's, `.note` is the team's. Aggregates select the option join and
-  `ratingValue`; a testimonial selects `freeText` of the one question a grid flags
-  `testimonial`; nothing selects `note`. On the talent fiche the same split is
-  visible rather than documented: the talent's words get the pull-quote treatment
-  (`PullQuote`), staff prose stays plain behind a neutral rule, the rule
-  `TalentNoteCard` already drew.
-- **A closing is 1:1 with a participation, and a regular has many.** Eight to ten
-  a year is the expected shape, deliberately: the successive verdicts and how they
-  moved are what "Son parcours" on the fiche is for, which is also why that list
-  is bounded against the viewport rather than at a pixel cap.
-- **It is keyed on `(talentId, eventId)`, though, never on the participation's
-  id.** That pair IS `Participation`'s natural key, so the line above still holds
-  as a statement about the domain; what does not is a foreign key. `syncTalents`
-  ends by deleting every participation the Salesforce payload omits, so a cascade
-  from one let the CRM destroy a conducted closing - answers, verdict,
-  testimonial - with none of the trace `Closing_ResetEvent` exists to guarantee,
-  and a truncated payload took a whole cohort's worth at once. Every sibling
-  artifact had already drawn this line for the same reason and said so
-  (`EventPresence`, `Note_TalentNote`, `Feedback_Submission`,
-  `EventPresenceClosure`); closings were the last to be brought over. The roster
-  is still READ from `Participation`, exactly as émargement reads it: only the
-  storage is decoupled. Two consequences to keep. The conduct route is addressed
-  `/closings/[talentId]` under its event, because a closing whose enrolment has
-  been pruned has to stay reachable. And the visibility clause
-  `participationWhere` carries can no longer travel as a relation filter, so a
-  figure whose denominator is enrolments applies it against
-  `scopedEnrolments`' pairs instead - `closingInsights` and `campusComparison`
-  both do, and dropping it is what pushes a coverage rate past 100 %.
-- **`conductedAt` means FINALISED**, re-stamped at clôture, with `createdAt` beside
-  it. The admin archive's ordering and windowing, each admin's export high-water
-  mark, testimonial recency and the reset snapshot all read it.
-- **`db/scoped.ts` must carry `closing_Record`.** A delegate with no handler there
-  is not an error, it is simply unscoped, so answers are only ever reached through
-  their record's relation.
-
-Naming: the concept is a **closing** everywhere new. `entretien` survives on
-purpose in two places, and neither is an oversight: as a search keyword in the
-admin palette, because staff who learnt the old word still type it, and inside
-`AdminApi_Call` history, because an audit row records what was actually called.
+Moved to [`.claude/rules/closings.md`](./.claude/rules/closings.md).
 
 ### Data Layer
 
@@ -253,15 +120,15 @@ Prisma schema at `frontend/prisma/schema.prisma`. Data is campus-scoped.
 
 ### Data modeling: facts as rows, state as projection
 
-Append-only fact rows with cached projections recomputed in the same transaction, and the case this shape does NOT fit. Read [`frontend/prisma/CLAUDE.md`](./frontend/prisma/CLAUDE.md).
+Append-only fact rows with cached projections recomputed in the same transaction, and the case this shape does NOT fit. Read [`.claude/rules/data-model.md`](./.claude/rules/data-model.md).
 
 ### Relational modeling
 
-Model relationships by their real shape: join table only when both sides are many, an anti-corruption mirror for an external system, a composite foreign key binding a denormalised column to its source, and the `Context_ModelName` prefix. Read [`frontend/prisma/CLAUDE.md`](./frontend/prisma/CLAUDE.md).
+Model relationships by their real shape: join table only when both sides are many, an anti-corruption mirror for an external system, a composite foreign key binding a denormalised column to its source, and the `Context_ModelName` prefix. Read [`.claude/rules/data-model.md`](./.claude/rules/data-model.md).
 
 ### Default to less: coupling and surface
 
-Prefer the least coupling that works, delete a questioned mechanism instead of refining it, and why a table holding no data of its own is not a table. Read [`frontend/prisma/CLAUDE.md`](./frontend/prisma/CLAUDE.md).
+Prefer the least coupling that works, delete a questioned mechanism instead of refining it, and why a table holding no data of its own is not a table. Read [`.claude/rules/data-model.md`](./.claude/rules/data-model.md).
 
 ### XP System
 
@@ -273,44 +140,19 @@ XP follows the ledger pattern above. Each granting fact is one `XpGrant` row (un
 
 ### Onboarding: one dossier per school year
 
-Platform onboarding is walked once per school year. `Onboarding_Record` is the fact (one row per `(talentId, schoolYear)`); the flat onboarding columns on `Talent` are its cached projection, stamped with `Talent.onboardingSchoolYear` so a reader can tell which year they describe. Writes go through `onboardingYearService`, in the caller's transaction, never straight to the columns.
-
-Three rules, each of which a reasonable-looking change breaks silently rather than loudly:
-
-- **The projection describes the MOST RECENT dossier, not the current year.** `schoolingService` does the opposite deliberately, so aligning the two is the tempting mistake: a guardian co-signing after the 31 July cutover writes to last year's dossier, a clock-based refresh would skip it, and the parent portal would ask for that signature forever. The clock belongs on the read side, where it decides whether a dossier still counts.
-- **Three kinds of reader, and the rule is stated once, on `DatedOnboardingFields`.** "Has this talent ever signed, and when" reads the flat columns as they stand: the signature-date series, early-bird (which pairs them with the year stamp). "Is year Y's dossier done" goes through `onboardingFieldsForYear`, or through the dossier rows when the question is about a year that is not the current one: the wizard, the guards, broadcast filters, the staff dossier statuses, what a guardian still owes. **Anything that names one document reads the dossier row**, never the projection: the PDF worker, `/settings/documents`, the staff archive export, onboarding velocity. And **"what applies to this person right now" reads neither**: there is exactly one such question, the image-rights stance, and it is below.
-- **A year-scoped aggregate reads dossier rows; an unscoped one reads the projection.** Both branches are in `adminStats/cohort.ts` and both are load-bearing: filtering the projection by year answers a question about 2025-2026 with 2026-2027's state, and pinning an unfiltered cohort to the year in progress counts every past promotion as blocked on step one, permanently. The exception is a **dated** series, which has no projection branch at all (`completedDossierWhere`): a completion and the date it is filed under have to come off one row, or a scoped answer quotes another year's date and an unscoped window silently loses the earlier of two completions.
-- **A question about a guardian's outstanding acts is NOT a year question.** `isParentDossierComplete` and the `db/dossierCompliance` fragments it twins with read the flat columns unnarrowed, because that is what the parent guard asks and therefore what decides whether anybody is actually chased. Year-scoping one side of that made the admin directory's chip read "En attente" for every talent whose dossier predates the cutover while its own filter and KPI tile counted them complete.
-
-Collégiens have no dossier at all. `isOnboardingEligible` is a property of the niveau (`domain/niveau.ts`), layered **over** the ladder in `guards.ts` and in the aggregates, never inside `getOnboardingStep`, whose contract is that the step is a pure function of the timestamps set. The RGPD charte is still owed to them, which is what the standalone `/charte` is for, and it is a once-per-account consent: not re-asked of a returning talent, and its date never restamped.
-
-**Two documents are settled once per school year: the règlement intérieur and the droit à l'image.** Everything below applies to both, and the second one earned the rule the hard way rather than by analogy, so do not treat either as a special case.
-
-Each is a **versioned catalogue** (`lib/content/reglement/`, `lib/content/droit-image/`), pinned at signature time (`reglementVersion` on the dossier, `version` on each `ImageRightsDecisionRecord`). **A published version file is never edited and never deleted:** the PDF is regenerated from DB state on every later act, so editing one rewrites the wording of documents already signed. A new wording is a new key. The rules themselves live once in `content/versionedDocument.ts`; each file opens with a comment saying whether it is frozen or in force, and a unit test keeps those comments out of the rendered document. A droit-à-l'image version holds _two_ texts, the authorization and the refusal, keyed together so a version cannot exist on one branch and not the other.
-
-**The rendered PDF belongs to the dossier, not to the talent** (`Onboarding_Record.rulesFilePath` and `imageRightsFilePath`, keys `documents/{talentId}/{kind}-{schoolYear}.pdf`). Version-pinning protects the _wording_ of a signed document; this protects the _document_. One key per talent meant the second year's render overwrote a PDF a legal guardian had already signed for a minor, with no way to rebuild it, and it silently dropped the previous year out of `/settings/documents` and the staff archive. Three consequences to keep: an `OnboardingPdfJob` carries the `schoolYear` it renders, **not null and with no fallback**, because a job can be queued or retried long after the act that asked for it and "the current dossier" will have moved (a nullable column with the worker falling back to the most recent dossier is the same bug wearing a default, and it stays dormant until the talent comes back); the worker renders **from that dossier row**, which is now the only thing it can do, since the job's payload snapshot was dropped rather than left unread (a snapshot re-publishes a decision that has since been reversed, and a job that carries generator inputs invites somebody to render from them again); and both reset paths (`resetTalentToImport`, `anonymizeTalent`) collect the keys from **every** dossier row, since deleting the rows is what drops the references. A document kind declares `scope` and `dossierFilePathField` in `ONBOARDING_DOCUMENTS` rather than naming a `Talent` column, which is what let the règlement keep pointing at a per-talent artifact after it became annual.
-
-**A consent expires; an interdiction does not.** The image-rights decision is asked once per school year, so its projection goes blank when a talent reopens a dossier, which is right for every "what does this family still owe" reader. It is wrong for the only question that is not about a year: whether this student may be photographed today. That one is `imageRightsStance` (`domain/imageRights.ts`), fed by the latest `ImageRightsDecisionRecord` across all years, so a refusal nobody has revisited keeps forbidding while the dossier reads "En attente", and a _lapsed authorization_ resolves to `unknown` rather than to consent. Read the projection alone and the marker silently drops off a refused student's printed badge on the first day of the new school year. Only `forbidden` is marked on printed material; marking every `unknown` would flag most of the cohort each September and the marker would stop being read. The figures obey the same split, and the reason is that one of them is quoted to people: `stats_compliance_status` returns the three-state decision **for the year in scope**, which is the state of that year's campaign and what the relance reads, plus `imageUseForbidden`, the standing interdictions, which is the only figure to consult before publishing a photo and the only one in that answer no school-year filter narrows. Returning the per-year `refused` count alone answers "combien ne doivent pas être photographiés" with a number that goes to nearly zero every September.
-
-**Collégiens are out of the image-rights flow, and not because of the ladder.** The blocker is upstream: `parentEmail` is only ever written by the wizard's parents step and `TalentSfImport` carries no guardian fields, so Jump holds no address to ask. Nothing in the model forecloses them, since their decision would simply open a dossier row carrying only the image-rights block. If they are photographed at a Coding Club, the consent gap is real and is handled off-platform.
+Moved to [`.claude/rules/onboarding.md`](./.claude/rules/onboarding.md).
 
 ### Salesforce sync: Jump decides, the worker obeys
 
-The worker holds no configuration, no cadence and no watermark: it is woken on a fixed tick, asks Jump what to do over `/api/worker/*`, obeys, and reports each run into `Sync_Run`. Which campaigns are pulled (`Sync_Source`), how often (`Sync_Cadence`), whether somebody asked for a pass now (`Sync_Request`) and what each run did are Jump's, and the staff steer them through named operations rather than a screen. The rule that matters most: **only a `full` pass may delete an enrolment**, because removing a member from a campaign moves no modstamp in Salesforce and is therefore invisible to any incremental, and it does so only from a complete roster: a deletion it cannot prove is held, never refused, because a refusal fails the run and a failed run replays identically at every tick. Read [`frontend/src/routes/api/worker/CLAUDE.md`](./frontend/src/routes/api/worker/CLAUDE.md) before touching any of it.
+The worker holds no configuration, no cadence and no watermark: it is woken on a fixed tick, asks Jump what to do over `/api/worker/*`, obeys, and reports each run into `Sync_Run`. Which campaigns are pulled (`Sync_Source`), how often (`Sync_Cadence`), whether somebody asked for a pass now (`Sync_Request`) and what each run did are Jump's, and the staff steer them through named operations rather than a screen. The rule that matters most: **only a `full` pass may delete an enrolment**, because removing a member from a campaign moves no modstamp in Salesforce and is therefore invisible to any incremental, and it does so only from a complete roster: a deletion it cannot prove is held, never refused, because a refusal fails the run and a failed run replays identically at every tick. Read [`.claude/rules/salesforce.md`](./.claude/rules/salesforce.md) before touching any of it.
 
 ### Salesforce reconciliation
 
-Talent profile fields have two sources: the worker sync (Salesforce) and onboarding (the student). They are **reconciled, not blindly overwritten**.
-
-- **`Talent` = Jump's current truth.** Onboarding writes it directly (**optimistic**: the student's input shows on their dashboard immediately; staff arbitrate divergences afterward, there is no pending-validation gate).
-- **`TalentSfImport` = 1:1 typed mirror of Salesforce's last claim**: the anti-corruption boundary. Written _only_ by `syncService.syncTalents`, never by onboarding, and upserted only when the inbound payload differs.
-- **`School` = canonical UAI-keyed directory**, resolved lazily from the éducation-nationale annuaire (`server/annuaire.ts` + `schoolService.resolveSchoolByUai`). Only schools actually attended ever land here, never the ~69k national set. It replaced the old free-text `highSchoolName/City/Uai` columns: `Talent` now carries a `schoolId` FK (+ `highSchoolNameManual`, used _only_ when a lycée has no UAI). The student's school and SF's claimed school (`TalentSfImport.sfSchoolId`) both FK the same `School`.
-- **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.)
-- **Conflict** = field is talent-confirmed **AND** `Talent` ≠ `TalentSfImport` (school compared by FK). Computed in `reconciliationService`, never stored. Surfaced at `/staff/admin/sf-conflicts` (list + accept/reject + CSV export); `acceptJump` realigns the mirror optimistically. `niveau` is SF-owned (onboarding never sets it) → always synced, never a conflict.
+Moved to [`.claude/rules/salesforce.md`](./.claude/rules/salesforce.md).
 
 ### Usage analytics: a catalogue of features, recorded server-side
 
-Which of its own screens anybody opened, and the reasons the answer is shaped the way it is: what is absent from the fact table IS the PII boundary, two deliberately asymmetric actor regimes, nothing recorded by client code, and a small-cell floor on any narrowed talent count. Read [`frontend/src/lib/server/usage/CLAUDE.md`](./frontend/src/lib/server/usage/CLAUDE.md).
+Which of its own screens anybody opened, and the reasons the answer is shaped the way it is: what is absent from the fact table IS the PII boundary, two deliberately asymmetric actor regimes, nothing recorded by client code, and a small-cell floor on any narrowed talent count. Read [`.claude/rules/usage.md`](./.claude/rules/usage.md).
 
 ### UI, API, or both
 
@@ -330,7 +172,7 @@ The corollary is narrower than it looks. "No form will ever fit" is decisive for
 
 The admin space **stops growing UI**: new admin capabilities ship as curated named API operations,
 consumable over HTTP and as MCP tools, never as new admin UI. Read
-[`frontend/src/lib/server/adminApi/CLAUDE.md`](./frontend/src/lib/server/adminApi/CLAUDE.md) before
+[`.claude/rules/admin-api.md`](./.claude/rules/admin-api.md) before
 adding, changing, or reasoning about an operation, a write's class (A/B/C), the leadership tier, or
 anything under `src/lib/server/adminApi/`: it carries the non-negotiable rules (PII, audit, scope
 refusal, handles) and the file-by-file map of the tier.
@@ -351,7 +193,7 @@ The file-by-file map of the server tier: auth, the admin API, the aggregates, th
 Two performance contracts govern staff list pages over cohort volume (~200 rows): the streaming
 `load` shape, and `SortableTable` rendering one layout rather than a CSS-toggled dual render. Both
 are regressions that shipped once. Read
-[`frontend/src/lib/components/staff/CLAUDE.md`](./frontend/src/lib/components/staff/CLAUDE.md)
+[`.claude/rules/staff-lists.md`](./.claude/rules/staff-lists.md)
 before adding or reworking a staff list page.
 
 ## Coding Conventions
@@ -431,11 +273,11 @@ that sends.
 
 ## Development data
 
-`bun run seed` fills a database from named scenarios, and the seven rules it enforces rather than hopes for, including why a seeded row must be a fact and never an instruction a scheduler can find. Read [`frontend/scripts/seed/CLAUDE.md`](./frontend/scripts/seed/CLAUDE.md).
+`bun run seed` fills a database from named scenarios, and the seven rules it enforces rather than hopes for, including why a seeded row must be a fact and never an instruction a scheduler can find. Read [`.claude/rules/seed.md`](./.claude/rules/seed.md).
 
 ## Prisma Migrations
 
-Naming, the one-shot backfill that ships inside the migration, why a destructive drop travels with the change that retires it, and why a branch squashes its trail into one. Read [`frontend/prisma/CLAUDE.md`](./frontend/prisma/CLAUDE.md).
+Naming, the one-shot backfill that ships inside the migration, why a destructive drop travels with the change that retires it, and why a branch squashes its trail into one. Read [`.claude/rules/data-model.md`](./.claude/rules/data-model.md).
 
 ## Commits
 
