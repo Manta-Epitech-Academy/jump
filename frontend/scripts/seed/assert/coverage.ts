@@ -114,8 +114,6 @@ const NOT_YET_SEEDED: Readonly<Record<string, string>> = {
   'Feedback_Form.createdById':
     'aucun formulaire n’a été composé par un membre de l’équipe : le catalogue est semé avant les scénarios, donc avant qu’un membre existe.',
   'Feedback_Form.updatedById': 'voir `Feedback_Form.createdById`.',
-  'Feedback_Submission.matchedAt':
-    'aucune soumission publique n’a été rattachée après coup à un talent. C’est l’acte de rapprochement lui-même qui n’a pas d’exemple.',
 
   // ── Le miroir Salesforce, qui n'est jamais partiel. ──
   // Le miroir est écrit complet pour chaque talent. Salesforce, lui, envoie des
