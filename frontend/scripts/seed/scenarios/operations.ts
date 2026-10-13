@@ -10,7 +10,7 @@
  * of unresolved failures.
  */
 
-import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
+import { PUBLIC_ONLY_FORM_SLUG } from '../catalog/feedbackForms';
 import {
   addAdminFiles,
   addImpersonationAudit,
@@ -207,12 +207,14 @@ export const operations: Scenario = {
       });
     }
 
-    // A second form with a couple of answers, so nothing assumes one form.
-    const secondForm = FEEDBACK_FORM_SLUGS[1];
-    if (secondForm) {
-      for (let i = 0; i < 3; i += 1) {
-        addFeedbackSubmission(world, { formSlug: secondForm, index: 2000 + i });
-      }
+    // A second form with a couple of answers, so nothing assumes one form. It is
+    // the public-only one, which is the only kind that can hold public answers
+    // without having been closed to the public afterwards.
+    for (let i = 0; i < 3; i += 1) {
+      addFeedbackSubmission(world, {
+        formSlug: PUBLIC_ONLY_FORM_SLUG,
+        index: 2000 + i,
+      });
     }
 
     if (!profile.includeMessyStates) {

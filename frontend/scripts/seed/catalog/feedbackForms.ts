@@ -59,8 +59,25 @@ interface JsonForm {
 interface FormSpec {
   json: JsonForm;
   dashboardNudge: boolean;
+  /**
+   * Who may answer. The two are independent in the builder, and the pair is
+   * what decides the form's audience: both is the ordinary case, public only is
+   * a form whose respondents have no account (an attestation for a school), and
+   * a nudge on the dashboard is only valid where connected talents may answer.
+   */
+  allowsAuthenticatedAccess: boolean;
   allowsPublicAccess: boolean;
+  /** A form being authored has no introduction yet, and a draft says so. */
+  omitIntro?: boolean;
   personaName: string | null;
+  /**
+   * The persona's icon, as a key with no bytes behind it, like every stored
+   * file the generator writes: `PersonaAvatar` shows the default mascot when
+   * the object cannot be fetched, which is the state this puts on screen.
+   * `sourceUrl` is where the builder says it was copied from, on a `.invalid`
+   * host so a validation environment never points anybody at a live address.
+   */
+  personaIcon?: { sourceUrl: string };
   /**
    * A form is not always published. The builder produces drafts and archives
    * old forms, and both states change what the talent-facing side may show, so
@@ -74,14 +91,18 @@ const SPECS: FormSpec[] = [
   {
     json: stage as JsonForm,
     dashboardNudge: true,
+    allowsAuthenticatedAccess: true,
     allowsPublicAccess: true,
     personaName: 'Bernard le canard',
+    personaIcon: { sourceUrl: 'https://seed.invalid/mascottes/bernard.png' },
     status: 'published',
   },
   {
     json: w1 as JsonForm,
     dashboardNudge: false,
+    allowsAuthenticatedAccess: true,
     allowsPublicAccess: false,
+    omitIntro: true,
     personaName: null,
     status: 'draft',
     // A short-answer question with an explicit input kind. The three fixtures
@@ -99,9 +120,13 @@ const SPECS: FormSpec[] = [
     },
   },
   {
+    // The attestation form: the school asks for it, so its respondents are the
+    // public and it asks them who they are. It is archived, and an archived form
+    // keeps the answers it collected.
     json: w2 as JsonForm,
     dashboardNudge: false,
-    allowsPublicAccess: false,
+    allowsAuthenticatedAccess: false,
+    allowsPublicAccess: true,
     personaName: null,
     status: 'archived',
   },
@@ -179,11 +204,15 @@ async function seedForm(
         updatedAt: anchor,
         slug: json.id,
         title: json.title,
-        intro: json.intro,
+        intro: spec.omitIntro ? null : json.intro,
         outro: json.outro ?? null,
         personaName: spec.personaName,
+        personaIconKey: spec.personaIcon
+          ? `feedback-personas/${id('ffm', json.id)}/seed.webp`
+          : null,
+        personaIconSourceUrl: spec.personaIcon?.sourceUrl ?? null,
         status: spec.status,
-        allowsAuthenticatedAccess: true,
+        allowsAuthenticatedAccess: spec.allowsAuthenticatedAccess,
         allowsPublicAccess: spec.allowsPublicAccess,
         dashboardNudge: spec.dashboardNudge,
       },
@@ -272,5 +301,14 @@ export async function seedFeedbackForms(
   return created;
 }
 
-/** The slugs the catalogue owns, so a scenario can point an event at one. */
+/** The slugs the catalogue owns, so the wipe can find them. */
 export const FEEDBACK_FORM_SLUGS = SPECS.map((spec) => spec.json.id);
+
+/** The form events are bound to, and the one talents and the public answer. */
+export const STAGE_FORM_SLUG = stage.id;
+
+/**
+ * The form only the public may answer, and so the one that holds public
+ * submissions: a form that refuses the public cannot have collected any.
+ */
+export const PUBLIC_ONLY_FORM_SLUG = w2.id;

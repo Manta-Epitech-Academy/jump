@@ -4,8 +4,9 @@ import { prisma } from '$lib/server/db';
 import {
   validateAnswer,
   isEmptyAnswer,
+  IDENTITY_FIELD_TO_RESPONDENT_COLUMN,
   type Answers,
-  type IdentityField,
+  type RespondentColumn,
 } from '$lib/domain/feedbackForms/schema';
 import {
   toFormSchema,
@@ -21,24 +22,6 @@ import {
  * the submission's respondent columns; for authenticated ones identity is read
  * from the linked Talent, so they are dropped here.
  */
-
-/** Maps an identity field to its respondent column. */
-const IDENTITY_FIELD_TO_COLUMN: Record<
-  IdentityField,
-  | 'respondentCampusLabel'
-  | 'respondentCivility'
-  | 'respondentLastName'
-  | 'respondentFirstName'
-  | 'respondentPhone'
-  | 'respondentEmail'
-> = {
-  campus: 'respondentCampusLabel',
-  civility: 'respondentCivility',
-  lastName: 'respondentLastName',
-  firstName: 'respondentFirstName',
-  phone: 'respondentPhone',
-  email: 'respondentEmail',
-};
 
 export type SubmissionContext =
   | { source: 'authenticated'; talentId: string; eventId: string }
@@ -79,7 +62,7 @@ export async function recordSubmission(
     optionIdByQuestionLabel.set(q.id, m);
   }
 
-  const respondent: Record<string, string | null> = {};
+  const respondent: Partial<Record<RespondentColumn, string | null>> = {};
   type AnswerRow = {
     questionId: string;
     freeText: string | null;
@@ -94,7 +77,8 @@ export async function recordSubmission(
       // Identity routes into a typed respondent column for public submits;
       // authenticated identity is read from the linked Talent, never the payload.
       if (ctx.source === 'public') {
-        respondent[IDENTITY_FIELD_TO_COLUMN[q.identityField]] = asString(value);
+        respondent[IDENTITY_FIELD_TO_RESPONDENT_COLUMN[q.identityField]] =
+          asString(value);
       }
       continue; // identity never becomes an answer row
     }

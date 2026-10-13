@@ -1418,13 +1418,11 @@ model Feedback_Submission {
   formId String
   source Feedback_SubmissionSource
 
-  // Set for authenticated submissions; null for public until reconciled.
-  talentId  String?
+  // Set for authenticated submissions; null for public.
+  talentId String?
   // The cohort event (authenticated). Null for public: a non-onboarded campus has
   // no Jump event.
-  eventId   String?
-  // When a public submission was later linked to a Talent by email.
-  matchedAt DateTime?
+  eventId  String?
 
   // Self-reported respondent identity. Populated ONLY for public submissions; for
   // authenticated ones identity is read from the linked Talent (single source).

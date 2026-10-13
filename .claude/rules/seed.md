@@ -13,7 +13,7 @@ validation happened, which put real minors' personal data on non-prod
 environments for days at a time and put the validation gate after the release
 freeze. Both problems are downstream of the data.
 
-Eight rules, and each is enforced rather than hoped for:
+Nine rules, and each is enforced rather than hoped for:
 
 - **A pull request that adds a behaviour adds its example.** A new enum value
   fails `bun run test:seed` until some scenario produces a row, because the enum
@@ -93,6 +93,17 @@ Eight rules, and each is enforced rather than hoped for:
   manifest the run emits. A scenario written as "an event that has not happened
   yet" must still mean that in six months.
 
+  **And what one scenario draws cannot depend on what another one asks.** The
+  main stream is shared, so a draw site that changes how many numbers it takes
+  moves every talent, event and name generated after it, and the validation
+  environment is re-seeded with a pinned anchor precisely so the same world comes
+  back. A site whose count depends on something a catalogue can
+  change (the questions of a feedback form, say) therefore draws from
+  `rng.fork(<its own id>)`, which is derived from the seed and the label and
+  consumes nothing from the main stream. Giving feedback submissions that stream
+  reshuffled the world once, and is what lets a form gain a question without
+  doing it again.
+
   **And a row carries the date of the fact it records, not a date of its own.**
   Every `XpGrant` was stamped `days(-20)` - derived from the anchor, so the rule
   above was satisfied, and wrong anyway: the talent's `/parcours` page orders by
@@ -105,6 +116,33 @@ Eight rules, and each is enforced rather than hoped for:
   encore attribué ». The same reasoning put a time of DAY on a minigame run:
   the rank bonus is the rank held the moment you finished, so who finished
   before whom has to exist in the data rather than be invented at read time.
+
+- **A seeded row is one the application's own writer could have written.**
+  Every check above asks whether a state EXISTS, and none asks whether the
+  application could have put it there. A feedback answer on an identity question
+  existed on every submission for months: the recorder routes that answer into a
+  `respondent*` column and never writes it as a row, so the dataset carried a
+  sentence of free text in a phone-number question, and the per-question figures
+  were counted over it. The same shape: a Salesforce mirror on a talent that never
+  came from Salesforce, when only the sync writes one; and a talent with no login
+  account whose mirror held an address with no sync error to say why, when the
+  sync mints a login from that address and only an address another account owns
+  can stop it.
+
+  Unlikely is not unreachable, and the line between them is the writer's, not
+  the generator's taste. Public answers on a form that refuses the public look
+  unreachable and are merely unlikely: the builder closes a form to the
+  public freely after it has collected answers, so no check refuses them, and a
+  scenario that wants public answers picks a form that still admits them.
+
+  The cross-table cases are asserted by hand in `assert/reachability.ts`, because
+  nothing derives them from the schema. And a reason written in `NEVER_SEEDED` or
+  `NOT_YET_SEEDED` is read off the code that writes the column, never off the
+  column: a schema allows more than its writer produces, which is how
+  `Feedback_Submission.matchedAt` sat on the debt list as "the matching act has no
+  example" when there was no act (the column is gone), and how a nameless
+  Salesforce mirror was listed as a partial-mirror case the sync refuses to
+  create.
 
 - **The domain is imported, never restated.** `src/lib/domain` is alias-free, so
   a plain `bun` script reaches it by relative path. The services are not: they
