@@ -39,7 +39,7 @@ import {
   RETIRED_QUESTION,
   STAGE_TEMPLATE_QUESTION_KEYS,
 } from '../catalog/closings';
-import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
+import { STAGE_FORM_SLUG } from '../catalog/feedbackForms';
 import { STAGE_PUBLIC_NAME, stageTitre } from '../catalog/events';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
@@ -245,7 +245,7 @@ export const stage: Scenario = {
       i += 1
     ) {
       addFeedbackSubmission(world, {
-        formSlug: FEEDBACK_FORM_SLUGS[0]!,
+        formSlug: STAGE_FORM_SLUG,
         index: 1000 + i,
       });
     }
@@ -354,8 +354,7 @@ function addStageAt(
       ? { [EVENT_MODULES.INSCRITS]: { showStatutColumn: true } }
       : undefined,
     closingTemplateId: stageTemplateId,
-    feedbackFormId:
-      world.feedbackForms.get(FEEDBACK_FORM_SLUGS[0] ?? '')?.id ?? null,
+    feedbackFormId: world.feedbackForms.get(STAGE_FORM_SLUG)?.id ?? null,
     diplomaTemplateId: instrumented ? world.diplomaTemplateId : null,
   });
 
@@ -516,7 +515,7 @@ function addStageAt(
     );
     for (const talent of respondents) {
       addFeedbackSubmission(world, {
-        formSlug: FEEDBACK_FORM_SLUGS[0]!,
+        formSlug: STAGE_FORM_SLUG,
         talent,
         event,
       });

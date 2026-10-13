@@ -34,7 +34,7 @@ import {
   RETIRED_QUESTION,
   STAGE_TEMPLATE_KEY,
 } from '../catalog/closings';
-import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
+import { STAGE_FORM_SLUG } from '../catalog/feedbackForms';
 import { CLUB_CERTIFICATE } from '../catalog/diplomas';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { addMinigamePublications, addXpRewards } from '../factories/engagement';
@@ -300,8 +300,7 @@ export const platform: Scenario = {
     // « closings et diplôme » and hands the applied event a null certificate is
     // the exact failure `EventConfig_Template.diplomaTemplateId` was added to
     // prevent, and it left the wizard's own apply path with no example.
-    const stageFormId =
-      world.feedbackForms.get(FEEDBACK_FORM_SLUGS[0] ?? '')?.id ?? null;
+    const stageFormId = world.feedbackForms.get(STAGE_FORM_SLUG)?.id ?? null;
     for (const preset of EVENT_TEMPLATES) {
       const templateId = id('ect', preset.name);
       // The bare preset is the one worth holding: a preset is allowed to carry

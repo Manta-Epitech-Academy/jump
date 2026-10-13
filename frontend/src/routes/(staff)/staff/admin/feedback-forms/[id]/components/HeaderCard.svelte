@@ -2,6 +2,7 @@
   import Camera from '@lucide/svelte/icons/camera';
   import Loader2 from '@lucide/svelte/icons/loader-2';
   import X from '@lucide/svelte/icons/x';
+  import PersonaAvatar from '$lib/components/feedback/PersonaAvatar.svelte';
   import { Textarea } from '$lib/components/ui/textarea';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import {
@@ -52,9 +53,6 @@
   // The persona that speaks the opening and closing lines. Mirrors the talent chat
   // header (ChatScreen), falling back to the default mascot when left blank.
   const persona = $derived(editor.personaName?.trim() || DEFAULT_PERSONA.name);
-  const personaIcon = $derived(
-    editor.personaIconUrl ?? DEFAULT_PERSONA.iconUrl,
-  );
 
   let fileInput = $state<HTMLInputElement | null>(null);
 
@@ -101,10 +99,10 @@
           aria-label="Changer l’icône de la mascotte"
           class="group relative block h-9 w-9 cursor-pointer overflow-hidden rounded-full ring-1 ring-border transition hover:ring-foreground/40 disabled:cursor-wait"
         >
-          <img
-            src={personaIcon}
+          <PersonaAvatar
+            iconUrl={editor.personaIconUrl}
             alt={persona}
-            class="h-full w-full object-cover"
+            class="h-full w-full"
           />
           <span
             class="absolute inset-0 flex items-center justify-center text-white transition {editor.uploadingIcon
