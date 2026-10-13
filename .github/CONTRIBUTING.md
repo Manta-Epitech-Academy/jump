@@ -4,8 +4,8 @@ This document formalises how features are built on Jump, from the PO's initial
 need to the merged PR. Objective: enable any developer or AI agent to execute
 tasks with the exact same standard of quality.
 
-See also: [`AGENTS.md`](../AGENTS.md) for the philosophy, architecture, and coding
-standards, and [`JARGON.md`](./JARGON.md) for shared domain vocabulary.
+See also: [`AGENTS.md`](../AGENTS.md) for the philosophy, conventions and domain
+rules, and [`JARGON.md`](./JARGON.md) for shared domain vocabulary.
 
 ---
 
@@ -335,7 +335,7 @@ Next, evaluate the Definition of Done checklist against the diff. Key points to 
 > 💡 At the start of a scoping session with `/plan`, specifying *"We are in a
 > brainstorming phase, do not generate any code for now"* encourages deeper architectural analysis.
 
-**Two hooks may talk back to your agent**, and it is worth knowing why before you fight one. `.claude/settings.json` wires the prose lint onto every file an agent writes, and refuses an end of turn while the tree carries a tracked change that a database-free linter rejects. So an agent will sometimes answer that it cannot conclude yet, and the linter's output is the reason. Neither hook can be satisfied by asserting the work is done, which is the entire point: see the *Commands* section of [`AGENTS.md`](../AGENTS.md) for what each one runs and what it deliberately does not.
+**Two hooks may talk back to your agent**, and it is worth knowing why before you fight one. `.claude/settings.json` wires the prose lint onto every file an agent writes, and refuses an end of turn while the tree carries a tracked change that a database-free linter rejects. So an agent will sometimes answer that it cannot conclude yet, and the linter's output is the reason. Neither hook can be satisfied by asserting the work is done, which is the entire point: the headers of [`agent-edit-check.sh`](../frontend/scripts/agent-edit-check.sh) and [`agent-stop-gate.sh`](../frontend/scripts/agent-stop-gate.sh) say what each one runs and what it deliberately does not.
 
 **Repository scripts** are the vendor-neutral half of the toolchain. They are plain shell in
 `scripts/`, so any agent can run them, not only the ones that understand Claude skills:

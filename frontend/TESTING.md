@@ -560,7 +560,7 @@ Deux détails qui trompent, et que le script gère à votre place :
 pas près de le devenir.**
 
 Un seuil global récompense mécaniquement le volume, ce que la philosophie de ce
-repo interdit explicitement (§1, et `AGENTS.md` : « jamais du volume »). La façon
+repo interdit explicitement (§1). La façon
 la moins chère de faire monter un pourcentage est d'écrire les tests qui n'attrapent
 rien, et un chiffre qui bloque un merge finit toujours par être atteint de la façon
 la moins chère.
