@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **79** modèles · **31** enums · **111** relations
+- **80** modèles · **31** enums · **112** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -14,7 +14,7 @@
 | Cycle de vie talent & RGPD | 6 |
 | Événements & Participations | 8 |
 | Closings | 9 |
-| Planning & Activités | 5 |
+| Planning & Activités | 6 |
 | Progression, Portfolio & XP | 2 |
 | Minijeux | 3 |
 | Feedback | 7 |
@@ -581,6 +581,13 @@ erDiagram
     String id PK
     String slug UK
     String baseUrl
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Workshop_Activity {
+    String id PK
+    String slug UK
+    String instanceId FK
     String label
     String tagline
     Boolean enabled
@@ -589,7 +596,7 @@ erDiagram
   }
   EventConfig_Workshop {
     String eventId PK,FK
-    String instanceId PK,FK
+    String activityId PK,FK
     Int position
     Int durationMinutes
     String labelOverride
@@ -597,7 +604,7 @@ erDiagram
   }
   Workshop_Participation {
     String talentId PK,FK
-    String instanceId PK,FK
+    String activityId PK,FK
     String eventId FK
     String campusId FK
     Int budgetMinutes
@@ -608,7 +615,7 @@ erDiagram
     DateTime updatedAt
   }
   Workshop_CoverImage {
-    String instanceId PK,FK
+    String activityId PK,FK
     WorkshopCoverKind kind PK
     String sourceUrl
     String key UK
@@ -628,9 +635,10 @@ erDiagram
   Event ||--o{ Planning_Slot : "planningSlots"
   Event ||--o{ EventConfig_Workshop : "workshops"
   Event ||--o{ Workshop_Participation : "workshopEntries"
-  Workshop_Instance ||--o{ EventConfig_Workshop : "events"
-  Workshop_Instance ||--o{ Workshop_Participation : "participations"
-  Workshop_Instance ||--o{ Workshop_CoverImage : "coverImages"
+  Workshop_Instance ||--o{ Workshop_Activity : "activities"
+  Workshop_Activity ||--o{ EventConfig_Workshop : "events"
+  Workshop_Activity ||--o{ Workshop_Participation : "participations"
+  Workshop_Activity ||--o{ Workshop_CoverImage : "coverImages"
 ```
 
 ## 6 · Progression, Portfolio & XP
@@ -727,6 +735,7 @@ erDiagram
     String intro
     String personaName
     String personaIconKey
+    String personaIconSourceUrl
     Feedback_FormStatus status
     Boolean allowsAuthenticatedAccess
     Boolean allowsPublicAccess
@@ -777,7 +786,6 @@ erDiagram
     Feedback_SubmissionSource source
     String talentId FK,UK
     String eventId FK,UK
-    DateTime matchedAt
     String respondentEmail
     String respondentFirstName
     String respondentLastName
