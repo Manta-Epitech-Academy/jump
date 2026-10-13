@@ -6,7 +6,9 @@ This file holds only what every session needs and cannot read off the code. What
 
 ## Project
 
-Jump is Epitech Academy's internal platform for training events, student progress and certifications: SvelteKit, Prisma, PostgreSQL, code under `frontend/`, UI in French.
+Jump is Epitech Academy's internal platform for the events it runs for school students: SvelteKit, Prisma, PostgreSQL, code under `frontend/`, UI in French.
+
+**It exists to bring a talent back.** Most talents met on a campus never return, and that is the weakness Jump was built to address. So a feature earns its place by what it does for that return, and a talent-facing one by making the next event worth coming back to.
 
 | Workspace  | Path            | Audience          | Purpose                                                |
 | ---------- | --------------- | ----------------- | ------------------------------------------------------ |
