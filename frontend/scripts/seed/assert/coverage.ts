@@ -109,21 +109,11 @@ const NEVER_SEEDED: Readonly<Record<string, string>> = {
  */
 const NOT_YET_SEEDED: Readonly<Record<string, string>> = {
   // ── Les formulaires de bilan, qui viennent de fixtures JSON. ──
-  // Toutes ces colonnes se remplissent dans `catalog/feedbackForms/*.json` ou
-  // dans le seeder qui les lit, pas dans un scénario. Un même lot.
-  'Feedback_Form.allowsAuthenticatedAccess':
-    'aucun formulaire ouvert aux seuls talents connectés. C’est le partage identifié / anonyme, donc la moitié non testée du split d’audience.',
+  // Le catalogue est semé avant tout scénario, donc avant le moindre membre de
+  // l'équipe : aucun formulaire n'a d'auteur.
   'Feedback_Form.createdById':
-    'les formulaires du catalogue n’ont pas d’auteur ; aucun n’a été composé par un membre de l’équipe.',
+    'aucun formulaire n’a été composé par un membre de l’équipe : le catalogue est semé avant les scénarios, donc avant qu’un membre existe.',
   'Feedback_Form.updatedById': 'voir `Feedback_Form.createdById`.',
-  'Feedback_Form.intro':
-    'les trois fixtures portent toutes une intro ; aucune ne montre le rendu sans.',
-  'Feedback_Form.personaIconKey':
-    'aucune fixture ne nomme de persona, donc l’en-tête illustré du formulaire ne s’affiche jamais.',
-  'Feedback_Form.personaIconSourceUrl':
-    'voir `Feedback_Form.personaIconKey` : c’est l’adresse d’où cette icône aurait été copiée. Le même manque, et il ne se comble pas sans elle : le générateur n’écrit aucun fichier, et l’avatar du persona n’a pas de repli quand son image ne charge pas.',
-  'Feedback_Question.minSelections':
-    'aucune question multi ne fixe de minimum, donc la validation « choisis-en au moins N » ne se déclenche nulle part.',
   'Feedback_Submission.matchedAt':
     'aucune soumission publique n’a été rattachée après coup à un talent. C’est l’acte de rapprochement lui-même qui n’a pas d’exemple.',
 
