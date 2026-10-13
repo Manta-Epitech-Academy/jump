@@ -44,6 +44,7 @@
     "@lucide/svelte": "^1.35.0",
     "@playwright/test": "^1.62.1",
     "@prisma/internals": "^7.10.0",
+    "@scalar/api-reference": "1.72.1",
     "@sveltejs/adapter-node": "^5.5.7",
     "@sveltejs/kit": "^2.70.3",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
@@ -140,6 +141,7 @@
     "qs": "^6.16.0",
     "proxy-addr": "^2.0.8",
     "source-map-js": "^1.2.2",
-    "postcss-selector-parser": "^7.1.6"
+    "postcss-selector-parser": "^7.1.6",
+    "@ai-sdk/provider-utils": "^4.0.33"
   }
 }

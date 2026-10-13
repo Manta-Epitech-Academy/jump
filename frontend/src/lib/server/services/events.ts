@@ -110,6 +110,33 @@ export function adminEventRunsClosings(
 }
 
 /**
+ * The four values Jump owns on an event, `null` where unset.
+ *
+ * The VM spells "unset" as `""` because forms bind to it; the admin API spells
+ * it `null`, the value `write_event_config` clears a field with, so a read sent
+ * back as it came is accepted (#402). Converted here, beside the VM, so the
+ * event read and the write's before and after cannot disagree on the spelling.
+ */
+export function jumpOwnedFields(
+  event: Pick<
+    AdminEventVM,
+    'publicName' | 'cohortNoun' | 'startTime' | 'endDate'
+  >,
+): {
+  publicName: string | null;
+  cohortNoun: string | null;
+  startTime: string | null;
+  endDate: string | null;
+} {
+  return {
+    publicName: event.publicName || null,
+    cohortNoun: event.cohortNoun || null,
+    startTime: event.startTime || null,
+    endDate: event.endDate || null,
+  };
+}
+
+/**
  * The rows `bulkSetActivation` is allowed to activate: the SQL twin of
  * `activationBlockers` in `domain/eventReadiness`.
  *
@@ -316,6 +343,39 @@ async function replaceEventWorkshops(
   await tx.eventConfig_Workshop.createMany({
     data: links.map((link, position) => ({ eventId, position, ...link })),
   });
+}
+
+/** One online activity an event offers, as `write_event_config` takes it. */
+export type EventWorkshopState = {
+  slug: string;
+  durationMinutes: number;
+  labelOverride: string | null;
+};
+
+/**
+ * What {@link replaceEventWorkshops} stored for ONE event, in order, named by
+ * slug. The event write reports it before and after, and `config_event_detail`
+ * returns it, so a list of activities can be read, changed and sent back whole:
+ * the write replaces the list, and one nobody can read is one every write
+ * overwrites blind.
+ */
+export async function eventWorkshopsOf(
+  eventId: string,
+): Promise<EventWorkshopState[]> {
+  const links = await prisma.eventConfig_Workshop.findMany({
+    where: { eventId },
+    orderBy: { position: 'asc' },
+    select: {
+      durationMinutes: true,
+      labelOverride: true,
+      activity: { select: { slug: true } },
+    },
+  });
+  return links.map((link) => ({
+    slug: link.activity.slug,
+    durationMinutes: link.durationMinutes,
+    labelOverride: link.labelOverride,
+  }));
 }
 
 /**

@@ -603,7 +603,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_detail: defineOperation({
     description:
-      'Everything configured on one event: its Salesforce and public names, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form attached to it, and how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks.',
+      'Everything configured on one event: its Salesforce and public names, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form, certificate and closing grid it uses, the online activities it offers, and how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks.',
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },
@@ -769,15 +769,24 @@ export const ADMIN_API_OPERATIONS = {
 
   write_event_config: defineWrite({
     description:
-      "Change anything about one event's configuration in one call: names, dates, dev-workspace sections and their options, shown Salesforce statuses, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Patch semantics: only the fields you pass change, null clears a reference, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
+      "Change anything about one event's configuration in one call: names, dates, dev-workspace sections and their options, shown Salesforce statuses, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
+      // Unset is spelled one way, on both sides: null, as config_event_detail
+      // reads it and as the references clear (#402). An empty string is
+      // refused rather than read as a second way of saying the same thing.
       publicName: z
         .string()
+        .trim()
+        .min(1, 'Send null to remove it.')
+        .nullable()
         .optional()
         .describe('Friendly name shown to teams and talents.'),
       cohortNoun: z
         .string()
+        .trim()
+        .min(1, 'Send null to remove it.')
+        .nullable()
         .optional()
         .describe('What one participant is called, e.g. "stagiaire".'),
       // Both go through the domain predicates rather than a regex copied to
@@ -786,6 +795,7 @@ export const ADMIN_API_OPERATIONS = {
       startTime: z
         .string()
         .refine(isWallClock, 'Use HH:MM on a 24h clock, e.g. "09:30".')
+        .nullable()
         .optional()
         .describe('Arrival time of day, HH:MM. Salesforce never sends one.'),
       endDate: z
@@ -794,6 +804,7 @@ export const ADMIN_API_OPERATIONS = {
           isCalendarDay,
           'Use a real calendar day as YYYY-MM-DD (there is no 2026-06-31).',
         )
+        .nullable()
         .optional()
         .describe('Last day of the event, YYYY-MM-DD.'),
       modules: z
@@ -874,6 +885,7 @@ export const ADMIN_API_OPERATIONS = {
               ),
             labelOverride: z
               .string()
+              .nullable()
               .optional()
               .describe(
                 'The words this event reads the activity aloud with, when the catalogue name does not fit the format. Wording only: every figure keeps the catalogue label.',
@@ -882,7 +894,7 @@ export const ADMIN_API_OPERATIONS = {
         )
         .optional()
         .describe(
-          'The complete ordered list of online activities this event offers, in the order a talent sees them; anything left out is no longer offered, an empty list offers none.',
+          'The complete ordered list of online activities this event offers, in the order a talent sees them, as config_event_detail returns it; anything left out is no longer offered, an empty list offers none.',
         ),
     },
     run: (params) => writeEventConfig(params),

@@ -16,7 +16,8 @@
   import { InfoTooltip } from '$lib/components/ui/info-tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
-  import McpConnectSnippet from '$lib/components/admin/McpConnectSnippet.svelte';
+  import AdminApiConnectSnippet from '$lib/components/admin/AdminApiConnectSnippet.svelte';
+  import { TOKEN_PLACEHOLDER } from '$lib/domain/adminApiConnect';
   import CommandBlock from '$lib/components/admin/CommandBlock.svelte';
 
   let { data, form } = $props();
@@ -135,7 +136,7 @@
             text="La commande ci-dessous contient déjà votre token et l'adresse de cet environnement. Collez-la telle quelle, sans rien remplacer."
           />
         </div>
-        <McpConnectSnippet origin={data.origin} token={created.secret} />
+        <AdminApiConnectSnippet origin={data.origin} token={created.secret} />
       </div>
 
       <Button variant="outline" class="w-full" onclick={acknowledge}>
@@ -287,10 +288,10 @@
         <h2 class="font-heading text-display-s">Connecter un outil</h2>
       </div>
       <p class="text-sm text-muted-foreground">
-        Remplacez <code class="font-mono text-xs">votre-token</code> par le token
-        que Jump vous affiche à sa création.
+        Remplacez <code class="font-mono text-xs">{TOKEN_PLACEHOLDER}</code> par le
+        token que Jump vous affiche à sa création.
       </p>
-      <McpConnectSnippet origin={data.origin} />
+      <AdminApiConnectSnippet origin={data.origin} />
     </section>
 
     <section class="space-y-3">

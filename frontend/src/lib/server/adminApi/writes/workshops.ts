@@ -95,6 +95,22 @@ export async function writeWorkshopInstance(params: {
   const before = await instanceState(slug);
   const baseUrl = normaliseBaseUrl(params.baseUrl);
 
+  // One host, one row: a second slug on a host already declared is a copy
+  // error, and it is how `pacman-2026` came to point at PyPong's host. The host
+  // is compared, not the address, so the same CTFd typed under the other scheme
+  // is caught too, while a non-default port is another CTFd and another host.
+  const { host } = new URL(baseUrl);
+  const others = await prisma.workshop_Instance.findMany({
+    where: { slug: { not: slug } },
+    select: { slug: true, baseUrl: true },
+  });
+  const holder = others.find((row) => new URL(row.baseUrl).host === host);
+  if (holder) {
+    throw new OperationRefusedError(
+      `L'hôte ${host} est déjà celui de l'instance « ${holder.slug} » (${holder.baseUrl}) : un hôte ne sert qu'une instance. Si cet hôte a changé de main, changez d'abord l'adresse de « ${holder.slug} ».`,
+    );
+  }
+
   await prisma.workshop_Instance.upsert({
     where: { slug },
     create: { slug, baseUrl },

@@ -18,6 +18,7 @@
  */
 import { test, expect } from '@playwright/test';
 import { E2E, storageStatePath } from './fixtures/identities';
+import { watchViolations } from './fixtures/cspViolations';
 
 const PAGE = '/staff/admin/api-tokens';
 
@@ -63,6 +64,28 @@ test.describe("l'accès API", () => {
     await expect(command).toBeVisible();
     await expect(command).toContainText(value);
     await expect(command).toContainText('--transport http');
+
+    // The way in without an MCP client, and the one assertion that runs the
+    // HTTP reference on a built server: it reads its paths back off the route
+    // modules (`httpCatalogue.ts`), which no unit test bundles.
+    await page.getByText('Sans outil MCP, en requêtes HTTP').click();
+    const curl = page.getByText(/^curl -H /);
+    await expect(curl).toContainText(`Bearer ${value}`);
+    const referenceUrl = ((await curl.textContent()) ?? '')
+      .trim()
+      .split(' ')
+      .at(-1);
+    expect(referenceUrl).toBe(
+      `${new URL(page.url()).origin}/api/admin/openapi.json`,
+    );
+    const reference = await page.request.get(referenceUrl!, {
+      headers: { authorization: `Bearer ${value}` },
+    });
+    expect(reference.status()).toBe(200);
+    const { paths } = (await reference.json()) as {
+      paths: Record<string, unknown>;
+    };
+    expect(Object.keys(paths)).toContain('/api/admin/config/workshops');
 
     // Nothing else is on screen over a secret that has not been acknowledged,
     // and the inventory is the load-bearing half of that. Its revoke form posts
@@ -123,6 +146,24 @@ test.describe("l'accès API", () => {
     // is exactly when somebody runs the add command a second time.
     await page.getByText('Jump est déjà configuré sur ce poste').click();
     await expect(page.getByText('claude mcp remove jump-admin')).toBeVisible();
+  });
+
+  test("rend la référence de l'API sans enfreindre la CSP", async ({
+    page,
+  }) => {
+    // Scalar is a whole Vue application bundled into one page, so a refusal
+    // would leave the header painted over an empty box.
+    const violations = await watchViolations(page);
+    await page.goto(
+      `${PAGE}/reference#tag/writes/POST/api/admin/write/workshop-instance`,
+    );
+
+    // A write, because the page describes what a token can be minted to do,
+    // not what the session reading it may call.
+    await expect(
+      page.getByRole('heading', { name: 'write_workshop_instance' }),
+    ).toBeVisible();
+    expect(await violations()).toEqual([]);
   });
 
   test("n'est pas atteignable par un membre de l'espace dev", async ({

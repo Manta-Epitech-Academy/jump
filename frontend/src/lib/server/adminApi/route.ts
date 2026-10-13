@@ -124,10 +124,41 @@ function operationOfKind(
   return operation;
 }
 
+/** What a mounted handler serves, as `httpCatalogue.ts` reads it back. */
+export type MountedOperation = {
+  name: AdminApiOperationName;
+  /** `image` answers with the bytes of a picture rather than JSON. */
+  encoding: 'json' | 'image';
+};
+
+/**
+ * Every handler these wrappers have built, with the operation it serves. The
+ * route files are the one place an operation's URL is written, so this is how
+ * the HTTP reference finds it there instead of keeping a second copy.
+ */
+const mounted = new WeakMap<RequestHandler, MountedOperation>();
+
+function mount(handler: RequestHandler, operation: MountedOperation) {
+  mounted.set(handler, operation);
+  return handler;
+}
+
+/** The operation a route module's export serves, if one of these built it. */
+export function mountedOperationOf(
+  handler: unknown,
+): MountedOperation | undefined {
+  return typeof handler === 'function'
+    ? mounted.get(handler as RequestHandler)
+    : undefined;
+}
+
 /** Mount a read operation as `GET`. Params come from the query string. */
 export function adminApiRead(name: AdminApiOperationName): RequestHandler {
   const operation = operationOfKind(name, 'read');
-  return handlerFor(name, operation, async (event) => queryObject(event.url));
+  return mount(
+    handlerFor(name, operation, async (event) => queryObject(event.url)),
+    { name, encoding: 'json' },
+  );
 }
 
 /**
@@ -145,7 +176,7 @@ export function adminApiRead(name: AdminApiOperationName): RequestHandler {
  */
 export function adminApiImage(name: AdminApiOperationName): RequestHandler {
   const operation = operationOfKind(name, 'read');
-  return handlerFor(
+  const handler = handlerFor(
     name,
     operation,
     async (event) => queryObject(event.url),
@@ -170,10 +201,14 @@ export function adminApiImage(name: AdminApiOperationName): RequestHandler {
       });
     },
   );
+  return mount(handler, { name, encoding: 'image' });
 }
 
 /** Mount a write operation as `POST`. Params come from the JSON body. */
 export function adminApiWrite(name: AdminApiOperationName): RequestHandler {
   const operation = operationOfKind(name, 'write');
-  return handlerFor(name, operation, (event) => bodyObject(event.request));
+  return mount(
+    handlerFor(name, operation, (event) => bodyObject(event.request)),
+    { name, encoding: 'json' },
+  );
 }

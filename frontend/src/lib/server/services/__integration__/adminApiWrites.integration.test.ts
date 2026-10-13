@@ -16,13 +16,19 @@ import { createAdminAccount } from './adminApiAccount';
 import { mintToken } from '$lib/server/adminApi/tokens';
 import { adminApiWrite } from '$lib/server/adminApi/route';
 import { planDigest } from '$lib/server/adminApi/plan';
-import { getEventTemplates } from '$lib/server/services/adminStats/configuration';
+import {
+  getEventDetail,
+  getEventTemplates,
+  type EventDetail,
+} from '$lib/server/services/adminStats/configuration';
+import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
 
 const postConfig = adminApiWrite('write_event_config');
 const postBulk = adminApiWrite('bulk_event_config');
 const postTemplate = adminApiWrite('write_event_template');
 const postRequestSync = adminApiWrite('ops_request_sync');
 const postReleasePruneHold = adminApiWrite('ops_release_prune_hold');
+const postWorkshopInstance = adminApiWrite('write_workshop_instance');
 
 /** Calls a handler the way SvelteKit would, with a bearer and a JSON body. */
 async function call(
@@ -103,7 +109,7 @@ describe('admin API writes (integration)', () => {
 
     expect(status).toBe(200);
     expect(payload.applied).toBe(true);
-    expect(payload.before).toMatchObject({ endDate: '' });
+    expect(payload.before).toMatchObject({ endDate: null });
     expect(payload.after).toMatchObject({
       endDate: '2027-03-15',
       // Untouched by a call that never mentioned it: this is what patch
@@ -119,7 +125,7 @@ describe('admin API writes (integration)', () => {
     });
 
     expect(row?.status).toBe(200);
-    expect(row?.before).toMatchObject({ endDate: '' });
+    expect(row?.before).toMatchObject({ endDate: null });
     expect(row?.after).toMatchObject({ endDate: '2027-03-15' });
   });
 
@@ -191,41 +197,50 @@ describe('admin API writes (integration)', () => {
 
   // The activation rule reaching the path that writes the name and the gate in
   // one call. Patch semantics carry the STORED activation into a call that only
-  // meant to edit a name, so without the rule this could take a live event down
-  // to no public name and leave it live: in the dev switcher, under its raw
-  // Salesforce title.
-  it('refuses to strip the public name of an event that stays visible', async () => {
-    const live = await prisma.event.create({
-      data: {
-        titre: `WriteLive-${stamp}`,
-        publicName: 'Coding Club visible',
-        date: new Date(Date.now() + 30 * 86_400_000),
-        endDate: new Date(Date.now() + 31 * 86_400_000),
-        campusId,
-        devActivatedAt: new Date(),
-        modules: { create: { moduleKey: 'inscrits' } },
-      },
-    });
+  // meant to edit a name or a date, so without the rule this could take a live
+  // event down to no public name, or no end date, and leave it live: in the dev
+  // switcher under its raw Salesforce title, or with no window to run in.
+  it.each([
+    { field: 'publicName', label: 'nom public' },
+    { field: 'endDate', label: 'date de fin' },
+  ] as const)(
+    'refuses to clear the $field of an event that stays visible',
+    async ({ field, label }) => {
+      const live = await prisma.event.create({
+        data: {
+          titre: `WriteLive-${field}-${stamp}`,
+          publicName: 'Coding Club visible',
+          date: new Date(Date.now() + 30 * 86_400_000),
+          endDate: new Date(Date.now() + 31 * 86_400_000),
+          campusId,
+          devActivatedAt: new Date(),
+          modules: { create: { moduleKey: 'inscrits' } },
+        },
+      });
 
-    const { status, payload } = await call(postConfig, writeSecret, {
-      eventId: live.id,
-      publicName: '',
-    });
+      const { status, payload } = await call(postConfig, writeSecret, {
+        eventId: live.id,
+        [field]: null,
+      });
 
-    expect(status).toBe(400);
-    expect(String(payload.error)).toContain('nom public');
+      expect(status).toBe(400);
+      expect(String(payload.error)).toContain(label);
 
-    // Refused before the transaction, so the event is untouched rather than
-    // half-written.
-    const after = await prisma.event.findUniqueOrThrow({
-      where: { id: live.id },
-    });
-    expect(after.publicName).toBe('Coding Club visible');
-    expect(after.devActivatedAt).not.toBeNull();
+      // Refused before the transaction, so the event is untouched rather than
+      // half-written.
+      const after = await prisma.event.findUniqueOrThrow({
+        where: { id: live.id },
+      });
+      expect(after.publicName).toBe('Coding Club visible');
+      expect(after.endDate).not.toBeNull();
+      expect(after.devActivatedAt).not.toBeNull();
 
-    await prisma.eventConfig_Module.deleteMany({ where: { eventId: live.id } });
-    await prisma.event.delete({ where: { id: live.id } });
-  });
+      await prisma.eventConfig_Module.deleteMany({
+        where: { eventId: live.id },
+      });
+      await prisma.event.delete({ where: { id: live.id } });
+    },
+  );
 
   // And the way through, so the refusal above is a detour rather than a dead
   // end: hide it and rename it in the same call. The rule is about what may be
@@ -247,7 +262,7 @@ describe('admin API writes (integration)', () => {
     const { status } = await call(postConfig, writeSecret, {
       eventId: hidden.id,
       visible: false,
-      publicName: '',
+      publicName: null,
     });
 
     expect(status).toBe(200);
@@ -261,6 +276,49 @@ describe('admin API writes (integration)', () => {
       where: { eventId: hidden.id },
     });
     await prisma.event.delete({ where: { id: hidden.id } });
+  });
+
+  // What a value posted by mistake from a chat is undone with (#402). The admin
+  // dialog clears these by sending an empty string; the API takes null, the
+  // spelling its own read returns for an unset field.
+  it('clears the arrival time, the end date and the cohort noun on null', async () => {
+    const event = await prisma.event.create({
+      data: {
+        titre: `WriteClear-${stamp}`,
+        cohortNoun: 'stagiaire',
+        date: new Date(Date.now() + 30 * 86_400_000),
+        endDate: new Date(Date.now() + 31 * 86_400_000),
+        startMinutes: 9 * 60 + 30,
+        campusId,
+      },
+    });
+
+    const { status, payload } = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      cohortNoun: null,
+      startTime: null,
+      endDate: null,
+    });
+
+    expect(status).toBe(200);
+    expect(payload.before).toMatchObject({
+      cohortNoun: 'stagiaire',
+      startTime: '09:30',
+      endDate: expect.any(String),
+    });
+    expect(payload.after).toMatchObject({
+      cohortNoun: null,
+      startTime: null,
+      endDate: null,
+    });
+    const after = await prisma.event.findUniqueOrThrow({
+      where: { id: event.id },
+    });
+    expect(after.cohortNoun).toBeNull();
+    expect(after.startMinutes).toBeNull();
+    expect(after.endDate).toBeNull();
+
+    await prisma.event.delete({ where: { id: event.id } });
   });
 
   // The reason the facets are one write: configuring a blank event and showing
@@ -303,7 +361,9 @@ describe('admin API writes (integration)', () => {
   // Applying a preset is copying what config_event_templates returns, since no
   // write applies one by name. So what that read returns has to be what the
   // event write takes: the sub-options of a section that has none come back as
-  // an empty object, and the references the preset points at come back too.
+  // an empty object, the references the preset points at come back too, and a
+  // name or a time the preset does not carry comes back as the null the write
+  // clears with (#402), not as an empty string it refuses.
   it('applies a saved preset to an event by copying what the preset read returns', async () => {
     const grid = await prisma.closing_Template.create({
       data: { key: `preset_grid_${stamp}`, label: 'Grille du modèle' },
@@ -323,9 +383,24 @@ describe('admin API writes (integration)', () => {
       },
     });
     const name = `Modèle copié ${stamp}`;
+    const blankName = `Modèle vide ${stamp}`;
+
+    // The save answers with the preset as the preset read returns it, so a
+    // preset carrying nothing reads null there too, never ''.
+    const blankSaved = await call(postTemplate, writeSecret, {
+      eventId: target.id,
+      name: blankName,
+    });
+    expect(blankSaved.status).toBe(200);
+    expect(blankSaved.payload.after).toMatchObject({
+      publicName: null,
+      cohortNoun: null,
+      startTime: null,
+    });
 
     const configured = await call(postConfig, writeSecret, {
       eventId: source.id,
+      startTime: '14:00',
       modules: ['inscrits', 'closings'],
       moduleSettings: { inscrits: { showStatutColumn: true } },
       closingTemplateId: grid.id,
@@ -340,6 +415,9 @@ describe('admin API writes (integration)', () => {
       (template) => template.name === name,
     )!;
     expect(preset).toMatchObject({
+      publicName: null,
+      cohortNoun: null,
+      startTime: '14:00',
       moduleSettings: { inscrits: { showStatutColumn: true }, closings: {} },
       closingTemplateId: grid.id,
       diplomaTemplateId: null,
@@ -347,6 +425,9 @@ describe('admin API writes (integration)', () => {
 
     const applied = await call(postConfig, writeSecret, {
       eventId: target.id,
+      publicName: preset.publicName,
+      cohortNoun: preset.cohortNoun,
+      startTime: preset.startTime,
       modules: preset.modules,
       moduleSettings: preset.moduleSettings,
       shownStatuses: preset.shownStatuses,
@@ -356,12 +437,17 @@ describe('admin API writes (integration)', () => {
     });
     expect(applied.status).toBe(200);
     expect(applied.payload.after).toMatchObject({
+      publicName: null,
+      cohortNoun: null,
+      startTime: '14:00',
       modules: ['closings', 'inscrits'],
       moduleSettings: { inscrits: { showStatutColumn: true } },
       closingTemplateId: grid.id,
     });
 
-    await prisma.eventConfig_Template.delete({ where: { name } });
+    await prisma.eventConfig_Template.deleteMany({
+      where: { name: { in: [name, blankName] } },
+    });
     await prisma.event.deleteMany({
       where: { id: { in: [source.id, target.id] } },
     });
@@ -529,6 +615,170 @@ describe('admin API writes (integration)', () => {
       where: { id: { in: [pacman.id, snake.id] } },
     });
     await prisma.workshop_Instance.delete({ where: { id: host.id } });
+  });
+
+  // A write that replaces a list or a reference is only safe to call after
+  // reading what it replaces, so every field write_event_config takes has to
+  // come back from config_event_detail, in a form the write takes again. The
+  // activities did not (#400): rattaching one meant overwriting the event's list
+  // blind. Written as a round trip, so a field the read drops fails here, and a
+  // new write field fails until it is read back. Each entry rebuilds the write's
+  // value from the read: the activities, the statuses and the scalar fields are
+  // taken as read, so a rename or a reshape of those fails too. It runs on a
+  // blank event as well, because a value set is not the only one read back:
+  // an unset field came back as '' where the write refused it (#402).
+  it('reads back every field it writes, in a form it takes again', async () => {
+    const readBack: Record<string, (detail: EventDetail) => unknown> = {
+      publicName: (d) => d.event.value.publicName,
+      cohortNoun: (d) => d.event.value.cohortNoun,
+      startTime: (d) => d.event.value.startTime,
+      endDate: (d) => d.event.value.endDate,
+      // A set on both sides: the write takes any order, the read lists the
+      // catalogue's. Sorted so the comparison is about membership only.
+      modules: (d) =>
+        d.modules.value
+          .filter((m) => m.enabled)
+          .map((m) => m.module)
+          .sort(),
+      moduleSettings: (d) =>
+        Object.fromEntries(
+          d.modules.value
+            .filter((m) => m.enabled && m.settings !== null)
+            .map((m) => [m.module, m.settings]),
+        ),
+      shownStatuses: (d) => d.shownStatuses.value,
+      visible: (d) => d.configState.value.state === 'shown',
+      feedbackFormId: (d) => d.feedbackForm.value?.id ?? null,
+      diplomaTemplateId: (d) => d.certificate.value?.templateId ?? null,
+      closingTemplateId: (d) => d.closingGrid.value?.templateId ?? null,
+      workshops: (d) => d.workshops.value,
+    };
+    const writable = Object.keys(
+      ADMIN_API_OPERATIONS.write_event_config.schema.shape,
+    ).filter((field) => field !== 'eventId');
+    expect(
+      writable.filter((field) => !(field in readBack)),
+      'write_event_config fields config_event_detail does not read back',
+    ).toEqual([]);
+    expect(
+      Object.keys(readBack).filter((field) => !writable.includes(field)),
+      'read-back entries naming no write_event_config field',
+    ).toEqual([]);
+
+    /** Reads the event, sends the read back, and expects nothing to move. */
+    async function echoRead(id: string) {
+      const detail = await getEventDetail(id);
+      const read = Object.fromEntries(
+        writable.map((field) => [field, readBack[field]!(detail)]),
+      );
+      const echoed = await call(postConfig, writeSecret, {
+        eventId: id,
+        ...read,
+      });
+      expect(echoed.status).toBe(200);
+      expect(echoed.payload.after).toEqual(echoed.payload.before);
+      return { detail, read };
+    }
+
+    const form = await prisma.feedback_Form.create({
+      data: { slug: `readback-form-${stamp}`, title: 'Bilan relu' },
+    });
+    const certificate = await prisma.diploma_Template.create({
+      data: {
+        code: `readback_cert_${stamp}`,
+        label: 'Certificat relu',
+        styleCss: '',
+        bodyHtml: '<p>{prenom}</p>',
+        pageWidthPx: 1123,
+        pageHeightPx: 794,
+      },
+    });
+    const grid = await prisma.closing_Template.create({
+      data: { key: `readback_grid_${stamp}`, label: 'Grille relue' },
+    });
+    const host = await prisma.workshop_Instance.create({
+      data: {
+        slug: `readback-host-${stamp}`,
+        baseUrl: 'https://host.example.org',
+      },
+    });
+    const [pacman, snake] = await Promise.all(
+      ['pacman', 'snake'].map((name) =>
+        prisma.workshop_Activity.create({
+          data: {
+            slug: `readback-${name}-${stamp}`,
+            instanceId: host.id,
+            label: name,
+          },
+        }),
+      ),
+    );
+    const [event, blank] = await Promise.all(
+      ['WriteReadBack', 'WriteReadBackBlank'].map((titre) =>
+        prisma.event.create({
+          data: {
+            titre: `${titre}-${stamp}`,
+            date: new Date(Date.now() + 30 * 86_400_000),
+            campusId,
+          },
+        }),
+      ),
+    );
+
+    const written = {
+      publicName: 'Camp relu',
+      cohortNoun: 'campeur',
+      startTime: '09:30',
+      endDate: '2027-04-02',
+      modules: ['bilan', 'closings', 'inscrits'],
+      moduleSettings: { inscrits: { showStatutColumn: true } },
+      shownStatuses: ['MET', 'READY'],
+      visible: true,
+      feedbackFormId: form.id,
+      diplomaTemplateId: certificate.id,
+      closingTemplateId: grid.id,
+      workshops: [
+        { slug: snake.slug, durationMinutes: 90, labelOverride: null },
+        { slug: pacman.slug, durationMinutes: 60, labelOverride: 'Pacman' },
+      ],
+    };
+    expect(Object.keys(written).sort()).toEqual([...writable].sort());
+    const configured = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      ...written,
+    });
+    expect(configured.status).toBe(200);
+
+    const { read } = await echoRead(event.id);
+    expect(read).toMatchObject({
+      ...written,
+      modules: [...written.modules].sort(),
+    });
+
+    const { detail: blankDetail } = await echoRead(blank.id);
+    expect(blankDetail.event.value).toMatchObject({
+      publicName: null,
+      cohortNoun: null,
+      startTime: null,
+      endDate: null,
+    });
+
+    await prisma.eventConfig_Workshop.deleteMany({
+      where: { eventId: event.id },
+    });
+    await prisma.eventConfig_Module.deleteMany({
+      where: { eventId: event.id },
+    });
+    await prisma.event.deleteMany({
+      where: { id: { in: [event.id, blank.id] } },
+    });
+    await prisma.workshop_Activity.deleteMany({
+      where: { id: { in: [pacman.id, snake.id] } },
+    });
+    await prisma.workshop_Instance.delete({ where: { id: host.id } });
+    await prisma.closing_Template.delete({ where: { id: grid.id } });
+    await prisma.diploma_Template.delete({ where: { id: certificate.id } });
+    await prisma.feedback_Form.delete({ where: { id: form.id } });
   });
 
   it('plans a bulk change before applying it, and applies it on the digest', async () => {
@@ -866,6 +1116,94 @@ describe('admin API writes (integration)', () => {
           })
         )?.releasedAt,
       ).toEqual(first?.releasedAt);
+    });
+  });
+
+  // One host is one row: the plugin holds a single slug, so a second instance
+  // on an address already declared can only be a copy error.
+  describe('declaring a CTFd host', () => {
+    const first = `write-host-${stamp}`;
+    const second = `write-host-other-${stamp}`;
+    const address = `https://host-${stamp}.example.invalid`;
+    const elsewhere = `https://elsewhere-${stamp}.example.invalid`;
+
+    afterAll(async () => {
+      await prisma.workshop_Instance.deleteMany({
+        where: { slug: { in: [first, second] } },
+      });
+    });
+
+    it('refuses a second instance on an address already declared, naming the holder', async () => {
+      expect(
+        (
+          await call(postWorkshopInstance, writeSecret, {
+            instance: first,
+            baseUrl: address,
+          })
+        ).status,
+      ).toBe(200);
+
+      // The trailing slash is normalised away before the comparison.
+      const { status, payload } = await call(
+        postWorkshopInstance,
+        writeSecret,
+        { instance: second, baseUrl: `${address}/` },
+      );
+
+      expect(status).toBe(400);
+      expect(String(payload.error)).toContain(`« ${first} »`);
+      expect(
+        await prisma.workshop_Instance.count({ where: { slug: second } }),
+      ).toBe(0);
+    });
+
+    it('is safe to repeat: the same slug on its own address changes nothing', async () => {
+      const { status, payload } = await call(
+        postWorkshopInstance,
+        writeSecret,
+        { instance: first, baseUrl: address },
+      );
+
+      expect(status).toBe(200);
+      expect(payload.before).toEqual(payload.after);
+    });
+
+    it('refuses the same host typed under the other scheme', async () => {
+      const { status, payload } = await call(
+        postWorkshopInstance,
+        writeSecret,
+        { instance: second, baseUrl: address.replace('https:', 'http:') },
+      );
+
+      expect(status).toBe(400);
+      expect(String(payload.error)).toContain(`« ${first} »`);
+    });
+
+    it('takes a non-default port as another host', async () => {
+      const { status } = await call(postWorkshopInstance, writeSecret, {
+        instance: second,
+        baseUrl: `${address}:8443`,
+      });
+
+      expect(status).toBe(200);
+    });
+
+    it('lets an address go to another instance once its holder has moved', async () => {
+      await call(postWorkshopInstance, writeSecret, {
+        instance: first,
+        baseUrl: elsewhere,
+      });
+      const { status, payload } = await call(
+        postWorkshopInstance,
+        writeSecret,
+        { instance: second, baseUrl: address },
+      );
+
+      expect(status).toBe(200);
+      expect(payload.after).toMatchObject({
+        instance: second,
+        baseUrl: address,
+      });
     });
   });
 });

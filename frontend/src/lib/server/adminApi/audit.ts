@@ -52,6 +52,17 @@ export type AdminApiCallChange = { before: unknown; after: unknown };
 /** Sentinel actor for a call refused before identification (cf. `AuthIdentityRepair.resolvedBy = 'sync'`). */
 export const ANONYMOUS_ACTOR = 'anonymous';
 
+/**
+ * The names a transport logs a call under when no operation is its subject: the
+ * MCP endpoint refusing a request before any tool is named, and the HTTP
+ * reference being read. Not operations, so `adminStats/apiUsage.ts` keeps them
+ * out of the friction lists.
+ */
+export const TRANSPORT_OPERATIONS = {
+  mcp: 'mcp_request',
+  openapi: 'openapi_document',
+} as const;
+
 export async function recordAdminApiCall(input: {
   caller: AdminApiCaller;
   operation: string;

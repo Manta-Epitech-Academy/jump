@@ -15,7 +15,12 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { EventService } from '$lib/server/services/events';
+import {
+  EventService,
+  eventWorkshopsOf,
+  jumpOwnedFields,
+  type EventWorkshopState,
+} from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import {
   EVENT_MODULE_DEFS,
@@ -177,12 +182,12 @@ export type EventDetail = {
   event: Metric<{
     id: string;
     salesforceName: string;
-    publicName: string;
+    publicName: string | null;
     cohortNoun: string | null;
     campus: string;
     dateLabel: string;
-    startTime: string;
-    endDate: string;
+    startTime: string | null;
+    endDate: string | null;
     schoolYear: string;
     status: string;
     syncedFromSalesforce: boolean;
@@ -196,6 +201,12 @@ export type EventDetail = {
     code: string;
     label: string;
   } | null>;
+  closingGrid: Metric<{
+    templateId: string;
+    key: string;
+    label: string;
+  } | null>;
+  workshops: Metric<EventWorkshopState[]>;
   shownStatuses: Metric<string[]>;
   participants: Metric;
   hiddenFromDevSpace: Metric;
@@ -225,6 +236,15 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
       })
     : null;
 
+  const closingGrid = event.closingTemplateId
+    ? await prisma.closing_Template.findUnique({
+        where: { id: event.closingTemplateId },
+        select: { id: true, key: true, label: true },
+      })
+    : null;
+
+  const workshops = await eventWorkshopsOf(event.id);
+
   const hidden = (await hiddenEnrolmentsByEvent([event.id])).get(event.id) ?? 0;
 
   return {
@@ -232,17 +252,14 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
       {
         id: event.id,
         salesforceName: event.titre,
-        publicName: event.publicName,
-        cohortNoun: event.cohortNoun,
+        ...jumpOwnedFields(event),
         campus: event.campusName,
         dateLabel: event.dateLabel,
-        startTime: event.startTime,
-        endDate: event.endDate,
         schoolYear: event.schoolYearLabel,
         status: event.status,
         syncedFromSalesforce: event.synced,
       },
-      "Identité de l'événement. « salesforceName » est le nom de la campagne Salesforce, « publicName » celui que voient les équipes et les talents ; vide, ce dernier laisse place au premier. « startTime » et « endDate » appartiennent à Jump : Salesforce ne les fournit pas.",
+      "Identité de l'événement. « salesforceName » est le nom de la campagne Salesforce, « publicName » celui que voient les équipes et les talents ; null, ce dernier laisse place au premier. « startTime » et « endDate » appartiennent à Jump : Salesforce ne les fournit pas. « publicName », « cohortNoun », « startTime » et « endDate » valent null quand ils ne sont pas renseignés, et c'est null qui les retire dans write_event_config.",
     ),
     configState: metric(
       {
@@ -278,6 +295,20 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
           }
         : null,
       "Le certificat que cet événement délivre depuis la page Inscrits, une page par inscrit, ou null s'il n'en délivre aucun : le bouton de génération est alors absent. « templateId » est l'identifiant à passer à write_event_config (diplomaTemplateId).",
+    ),
+    closingGrid: metric(
+      closingGrid
+        ? {
+            templateId: closingGrid.id,
+            key: closingGrid.key,
+            label: closingGrid.label,
+          }
+        : null,
+      "La grille de questions des closings de cet événement, ou null s'il n'en tient aucune. « templateId » est l'identifiant à passer à write_event_config (closingTemplateId).",
+    ),
+    workshops: metric(
+      workshops,
+      "Les activités en ligne que cet événement propose, dans l'ordre où un talent les voit, sous la forme exacte que prend write_event_config (« workshops ») : cette liste y remplace la liste entière, donc pour en ajouter ou en retirer une, renvoyez celle-ci modifiée. « durationMinutes » est le barème de l'activité sur cet événement, « labelOverride » le nom qu'il lui donne à la place de celui du catalogue (null s'il garde ce dernier). Le nom du catalogue et l'instance qui la sert sont dans config_workshops. Liste vide si l'événement n'en propose aucune.",
     ),
     shownStatuses: metric(
       event.shownStatuses,
@@ -450,7 +481,7 @@ export type TemplateRow = {
   description: string | null;
   publicName: string | null;
   cohortNoun: string | null;
-  startTime: string;
+  startTime: string | null;
   modules: EventModuleKey[];
   moduleSettings: Record<string, unknown>;
   feedbackFormId: string | null;
@@ -479,7 +510,7 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         closingTemplateId: template.closingTemplateId,
         shownStatuses: template.shownStatuses,
       })),
-      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun.",
+      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun. « publicName », « cohortNoun » et « startTime » valent null quand le modèle n'en porte pas.",
     ),
   };
 }

@@ -27,8 +27,8 @@ type EventConfigTemplateSummary = {
   publicName: string | null;
   /** Cohort noun the preset prefills ("stagiaire", ...), or null when unnamed. */
   cohortNoun: string | null;
-  /** Arrival time-of-day the preset prefills as "HH:MM", or "" when unset. */
-  startTime: string;
+  /** Arrival time-of-day the preset prefills as "HH:MM", or null when unset. */
+  startTime: string | null;
   /** Optional feedback form (weak FK), prefilled when bilan is enabled. */
   feedbackFormId: string | null;
   /** The certificate the preset carries (weak FK), or null when it names none. */
@@ -74,7 +74,7 @@ function toSummary(t: TemplateRow): EventConfigTemplateSummary {
     description: t.description,
     publicName: t.publicName,
     cohortNoun: t.cohortNoun,
-    startTime: minutesToHHMM(t.startMinutes),
+    startTime: minutesToHHMM(t.startMinutes) || null,
     feedbackFormId: t.feedbackFormId,
     diplomaTemplateId: t.diplomaTemplateId,
     closingTemplateId: t.closingTemplateId,
