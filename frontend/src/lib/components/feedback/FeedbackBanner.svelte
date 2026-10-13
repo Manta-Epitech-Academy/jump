@@ -1,7 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import X from '@lucide/svelte/icons/x';
-  import { DEFAULT_PERSONA } from '$lib/domain/feedbackForms/schema';
+  import PersonaAvatar from './PersonaAvatar.svelte';
 
   let {
     eventId,
@@ -15,11 +15,7 @@
   <div
     class="flex items-center gap-3 rounded-xl border border-epi-blue/20 bg-epi-blue/5 p-4"
   >
-    <img
-      src={personaIconUrl ?? DEFAULT_PERSONA.iconUrl}
-      alt=""
-      class="h-8 w-8 shrink-0 rounded-full object-cover"
-    />
+    <PersonaAvatar iconUrl={personaIconUrl} class="h-8 w-8 shrink-0" />
     <p class="flex-1 text-sm font-medium text-foreground">
       Ton avis compte ! Dis-nous ce que tu en as pensé, ça prend deux minutes.
     </p>

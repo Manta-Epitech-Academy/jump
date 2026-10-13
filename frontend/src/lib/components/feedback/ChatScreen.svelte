@@ -8,6 +8,7 @@
   import { DEFAULT_PERSONA } from '$lib/domain/feedbackForms/schema';
   import { Conversation } from '$lib/domain/feedbackForms/conversation.svelte';
   import ChatThread from './ChatThread.svelte';
+  import PersonaAvatar from './PersonaAvatar.svelte';
   import QuickReplies from './QuickReplies.svelte';
   import ScaleRating from './ScaleRating.svelte';
   import TextInput from './TextInput.svelte';
@@ -29,7 +30,6 @@
 
   // Chat persona set on the form (Mascotte), falling back to the default mascot.
   const persona = $derived(form.personaName?.trim() || DEFAULT_PERSONA.name);
-  const personaIcon = $derived(form.personaIconUrl ?? DEFAULT_PERSONA.iconUrl);
 
   // Built once: the conversation is a stateful machine, not reactive to later
   // prop changes. `untrack` makes that one-time read explicit (and silences the
@@ -69,10 +69,10 @@
   <!-- Header -->
   <div class="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
     <div class="relative">
-      <img
-        src={personaIcon}
+      <PersonaAvatar
+        iconUrl={form.personaIconUrl}
         alt={persona}
-        class="h-8 w-8 rounded-full object-cover"
+        class="h-8 w-8"
       />
       <span
         class="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-success"
