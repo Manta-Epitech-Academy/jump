@@ -89,8 +89,20 @@ chemins purement illustratifs dans des blocs de code, `AGENTS.md` nomme un
 fichier explicitement supprimé ainsi qu'un chemin généré donc gitignoré, et il
 aurait fallu six listes d'exclusion pour n'attraper rien du tout : sur les liens
 locaux existants, la règle étroite est verte. Elle garde sa place parce qu'elle
-est gratuite et qu'elle garde les pointeurs vers les `CLAUDE.md` de répertoire,
-qui sont exactement des liens de ce type.
+est gratuite et qu'elle garde les pointeurs vers les fichiers de doctrine, qui
+sont exactement des liens de ce type.
+
+La doctrine est une liste fixe plus deux familles reconnues à leur chemin : tout
+`CLAUDE.md`, et tout fichier de `.claude/rules/`. Les `CLAUDE.md` de répertoire
+étaient hors de la liste, et c'est par là qu'une douzaine de renvois ont pourri
+quand leur doctrine a déménagé, sans que rien ne le dise.
+
+L'ancre fait partie de l'affirmation. Un lien `CONTRIBUTING.md#commits` dont la
+section a été renommée mène encore au fichier, donc ne regarder que le fichier
+le déclare valide alors qu'il ne mène plus à ce qu'il promet. Une ancre vers un
+fichier markdown doit être produite par l'un de ses titres, calculée comme
+GitHub la calcule ; une ancre vers du code (`#L12`) est une ligne, et n'est pas
+vérifiée.
 
 ### C. L'énumération de la chaîne `verify` correspond à `package.json`
 
@@ -137,6 +149,27 @@ lancer lance le lien. Cette équivalence est **déduite** de `package.json` et
 jamais déclarée dans le linter, sinon la chaîne aurait une quatrième copie à
 tenir à jour.
 
+### E. Chaque fichier de `.claude/rules/` se charge, et `AGENTS.md` le nomme
+
+Un fichier de `.claude/rules/` n'entre en contexte que quand l'agent lit, écrit
+ou modifie un fichier qui correspond à l'un de ses globs `paths:`. Ce mécanisme
+échoue en silence de trois façons, et la règle en ferme une par vérification :
+
+- **Pas de `paths:`** : le fichier se charge à chaque session. C'est de la
+  doctrine de racine déguisée, hors du budget d'`AGENTS.md` et invisible des
+  agents qui ne lisent pas `.claude/`.
+- **Un glob qui ne correspond à aucun fichier suivi** : sa doctrine ne se charge
+  jamais. C'est ce que produit un répertoire renommé.
+- **Un fichier qu'`AGENTS.md` ne nomme pas** : Codex, Copilot et Gemini ne
+  chargent pas `.claude/rules/`, la racine est leur seul chemin vers lui.
+
+Les globs se limitent à `*`, `**` et `{a,b}`. Parenthèses, crochets, `?` et un
+`!` de tête n'ont pas le même sens d'un moteur à l'autre (groupe, classe,
+négation), et ce dépôt a des répertoires nommés `(staff)` et `[id]` : un glob qui
+les écrit tels quels peut correspondre à autre chose que ce qu'il montre. `**`
+les traverse sans les nommer. Un `+` ou un `@` restent littéraux tant qu'aucune
+parenthèse ne les suit, donc `+page.svelte` s'écrit tel quel.
+
 ## Quand le lancer ?
 
 Jamais à la main dans le cas courant. Il est dans la chaîne `bun run verify`,
@@ -158,3 +191,7 @@ sur chaque fichier écrit.
 - La règle D prouve qu'un lien est lancé par un job requis, jamais qu'il est
   lancé au bon endroit : déplacer une étape d'un job à l'autre la laisse verte.
   C'est l'ordre des jobs, pas la couverture, et `needs:` le tient déjà.
+- La règle E prouve qu'un glob correspond à un fichier, jamais qu'il correspond
+  aux BONS fichiers : un glob trop large charge sa doctrine pour rien, un glob
+  trop étroit la rate sur une partie de sa surface. Ce jugement reste celui de
+  l'auteur du fichier de règles.

@@ -121,10 +121,19 @@ const PROSE_EXCLUDED = [
   /^frontend\/scripts\/lint-prose\.ts$/,
 ];
 
-/** Les fichiers dont les chemins et les liens sont des affirmations. */
-const DOCTRINE = [
+/**
+ * Les fichiers dont les chemins et les liens sont des affirmations.
+ *
+ * Une liste fixe, plus deux familles reconnues à leur chemin : tout `CLAUDE.md`
+ * et tout fichier de `.claude/rules/`. Les `CLAUDE.md` de répertoire étaient
+ * hors de la liste, et c'est par là qu'une douzaine de renvois ont pourri sans
+ * que rien ne le dise quand leur doctrine a déménagé. Reconnaître une famille à
+ * son chemin plutôt que l'énumérer est ce qui couvre le prochain fichier de
+ * doctrine le jour où il naît, y compris en mode `--file`, où le hook passe un
+ * fichier que l'index ne connaît pas encore.
+ */
+const DOCTRINE_FILES = [
   'AGENTS.md',
-  'CLAUDE.md',
   'GEMINI.md',
   'DESIGN.md',
   'README.md',
@@ -134,6 +143,10 @@ const DOCTRINE = [
   '.github/pull_request_template.md',
   'frontend/TESTING.md',
 ];
+const RULES_DIR = '.claude/rules/';
+const isRulesFile = (f: string) => f.startsWith(RULES_DIR) && f.endsWith('.md');
+const isDoctrine = (f: string) =>
+  DOCTRINE_FILES.includes(f) || /(^|\/)CLAUDE\.md$/.test(f) || isRulesFile(f);
 
 const onlyFile = (() => {
   const i = process.argv.indexOf('--file');
@@ -249,6 +262,34 @@ function ruleNoDashes() {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Les ancres d'un fichier markdown, calculées comme GitHub les calcule : le
+ * texte du titre en minuscules, privé de tout ce qui n'est ni lettre, ni
+ * chiffre, ni espace, ni trait d'union, ni tiret bas, puis les espaces changés
+ * en traits d'union, et un suffixe `-1`, `-2` pour un titre répété. Les titres
+ * dans un bloc de code n'en sont pas.
+ */
+function anchorsOf(f: string): Set<string> {
+  const out = new Set<string>();
+  const seen = new Map<string, number>();
+  let fenced = false;
+  for (const line of readFileSync(join(ROOT, f), 'utf8').split('\n')) {
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+    if (fenced) continue;
+    const m = /^#{1,6}\s+(.*?)\s*#*\s*$/.exec(line);
+    if (!m) continue;
+    const base = m[1]
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{M}\p{N} _-]/gu, '')
+      .replace(/ /g, '-');
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    out.add(n ? `${base}-${n}` : base);
+  }
+  return out;
+}
+
+/**
  * Une cible de lien est une affirmation : elle n'est jamais une illustration et
  * elle n'apparaît pas dans un bloc de code. C'est pour ça que cette règle ne
  * scanne pas toute la prose à la recherche de chemins. Une version large a été
@@ -256,24 +297,47 @@ function ruleNoDashes() {
  * illustratifs dans des blocs de code, `AGENTS.md` nomme un fichier
  * explicitement supprimé et un chemin généré donc gitignoré, et il aurait fallu
  * six listes d'exclusion pour ne rien attraper. Ici il n'y en a aucune.
+ *
+ * L'ancre fait partie de l'affirmation. Un lien `CONTRIBUTING.md#commits` dont
+ * la section a été renommée ou déplacée mène encore au fichier, donc une règle
+ * qui ne regarde que le fichier le déclare valide alors qu'il ne mène plus à ce
+ * qu'il promet. Seules les ancres vers un fichier markdown sont vérifiées : une
+ * ancre vers du code (`#L12`) est une ligne, pas un titre.
  */
-function ruleLinksResolve() {
+function ruleLinksResolve(doctrine: string[]) {
   info('Les liens markdown de la doctrine pointent vers un fichier suivi');
   const before = errors;
   const trackedSet = tracked();
   const link = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
-  for (const f of DOCTRINE) {
+  for (const f of doctrine) {
     const full = join(ROOT, f);
     if (!existsSync(full)) continue;
     const lines = readFileSync(full, 'utf8').split('\n');
+    let fenced = false;
     for (let i = 0; i < lines.length; i++) {
+      if (/^\s*(```|~~~)/.test(lines[i])) fenced = !fenced;
+      if (fenced) continue;
       for (const m of lines[i].matchAll(link)) {
-        const target = m[1].split('#')[0].trim();
-        if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
-        const resolved = normalize(join(dirname(f), target))
-          .split('\\')
-          .join('/');
-        if (trackedSet.has(resolved)) continue;
+        const [rawTarget, anchor] = m[1].split('#');
+        const target = rawTarget.trim();
+        if (/^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
+        const resolved = target
+          ? normalize(join(dirname(f), target))
+              .split('\\')
+              .join('/')
+          : f;
+        if (
+          anchor &&
+          resolved.endsWith('.md') &&
+          existsSync(join(ROOT, resolved))
+        ) {
+          if (!anchorsOf(resolved).has(anchor.toLowerCase())) {
+            fail(
+              `${f}:${i + 1} - ancre introuvable : ${m[1]} (aucun titre de ${resolved} ne la produit)`,
+            );
+          }
+        }
+        if (!target || trackedSet.has(resolved)) continue;
         // Un lien vers un RÉPERTOIRE est légitime : rien ne le suit en propre.
         // Un fichier non suivi ne l'est pas, même s'il existe ici : il
         // n'existe que sur cette machine, donc un `existsSync` nu rendait la
@@ -496,16 +560,136 @@ function ruleVerifyRunsInCi() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Règle E : la doctrine de .claude/rules/ se charge, et la racine la nomme    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Un fichier de `.claude/rules/` n'entre en contexte que quand l'agent lit,
+ * écrit ou modifie un fichier qui correspond à l'un de ses globs `paths:`. Ce
+ * mécanisme a trois façons d'échouer en silence, et cette règle en ferme une
+ * par vérification :
+ *
+ * - Un fichier SANS `paths:` est chargé à chaque session : c'est de la doctrine
+ *   de racine déguisée, hors du budget de `AGENTS.md` et invisible des agents
+ *   qui ne lisent pas `.claude/`.
+ * - Un glob qui ne correspond à aucun fichier suivi ne charge jamais sa
+ *   doctrine. C'est ce que produit un répertoire renommé, et rien d'autre ne le
+ *   dirait.
+ * - Un fichier que `AGENTS.md` ne nomme pas n'existe pas pour Codex, Copilot ou
+ *   Gemini, qui ne chargent pas `.claude/rules/` : la racine est leur seul
+ *   chemin vers lui.
+ *
+ * Les globs se limitent à `*`, `**` et `{a,b}`. Les parenthèses, les crochets,
+ * `?` et un `!` de tête n'ont pas le même sens d'un moteur de glob à l'autre (un
+ * groupe, une classe, une négation), et ce dépôt a des répertoires nommés
+ * `(staff)` et `[id]` : un glob qui les écrit tels quels peut correspondre à
+ * autre chose que ce qu'il montre. `**` les traverse sans les nommer. Un `+` ou
+ * un `@` restent littéraux tant qu'aucune parenthèse ne les suit, ce qui est
+ * déjà refusé, donc `+page.svelte` s'écrit tel quel.
+ */
+const GLOB_FORBIDDEN = /[()[\]?]|^!/;
+
+function globToRegExp(glob: string): RegExp {
+  let re = '';
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === '*' && glob[i + 1] === '*') {
+      const slash = glob[i + 2] === '/';
+      re += slash ? '(?:.*/)?' : '.*';
+      i += slash ? 2 : 1;
+    } else if (c === '*') re += '[^/]*';
+    else if (c === '{') re += '(?:';
+    else if (c === '}') re += ')';
+    else if (c === ',') re += '|';
+    else re += c.replace(/[.^$|\\+()[\]?]/g, '\\$&');
+  }
+  return new RegExp(`^${re}$`);
+}
+
+/** Les globs `paths:` d'un fichier de règles, en liste YAML ou en chaîne. */
+function pathsOf(f: string): string[] | null {
+  const text = readFileSync(join(ROOT, f), 'utf8');
+  const fm = /^---\n([\s\S]*?)\n---\n/.exec(text);
+  if (!fm) return null;
+  const lines = fm[1].split('\n');
+  const at = lines.findIndex((l) => /^paths:/.test(l));
+  if (at === -1) return null;
+  const unquote = (s: string) => s.trim().replace(/^["']|["']$/g, '');
+  const inline = lines[at].replace(/^paths:\s*/, '');
+  if (inline) return inline.split(',').map(unquote).filter(Boolean);
+  const out: string[] = [];
+  for (const l of lines.slice(at + 1)) {
+    const item = /^\s+-\s+(.*)$/.exec(l);
+    if (!item) break;
+    out.push(unquote(item[1]));
+  }
+  return out;
+}
+
+function ruleRulesFilesLoad() {
+  info('Chaque fichier de .claude/rules/ se charge, et AGENTS.md le nomme');
+  const before = errors;
+  const trackedList = [...tracked()];
+  const rulesFiles = trackedList.filter(isRulesFile);
+  if (onlyFile && isRulesFile(onlyFile) && !rulesFiles.includes(onlyFile)) {
+    rulesFiles.push(onlyFile);
+  }
+  const named = new Set<string>();
+  const agents = join(ROOT, 'AGENTS.md');
+  if (existsSync(agents)) {
+    for (const m of readFileSync(agents, 'utf8').matchAll(/\]\(([^)#\s]+)/g)) {
+      named.add(normalize(m[1]).split('\\').join('/'));
+    }
+  }
+  for (const f of rulesFiles) {
+    if (!existsSync(join(ROOT, f))) continue;
+    if (!named.has(f)) {
+      fail(
+        `${f} - AGENTS.md ne le nomme pas : un agent qui ne charge pas .claude/rules/ ne le trouvera jamais`,
+      );
+    }
+    const globs = pathsOf(f);
+    if (!globs?.length) {
+      fail(
+        `${f} - pas de \`paths:\` en en-tête : ce fichier se chargerait à chaque session, comme la racine`,
+      );
+      continue;
+    }
+    for (const g of globs) {
+      if (GLOB_FORBIDDEN.test(g)) {
+        fail(
+          `${f} - glob \`${g}\` : se limiter à *, ** et {a,b}, les autres signes changent de sens selon le moteur`,
+        );
+        continue;
+      }
+      const re = globToRegExp(g);
+      if (!trackedList.some((t) => re.test(t))) {
+        fail(
+          `${f} - glob \`${g}\` : aucun fichier suivi ne lui correspond, cette doctrine ne se chargerait jamais`,
+        );
+      }
+    }
+  }
+  if (errors === before) {
+    green('Chaque fichier de .claude/rules/ se charge, et AGENTS.md le nomme');
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 
 ruleNoDashes();
-// Les règles B, C et D portent sur des fichiers précis, donc un appel ciblé sur
-// un seul fichier (le hook PostToolUse) ne les lance que s'il les concerne.
-if (!onlyFile || DOCTRINE.includes(onlyFile)) ruleLinksResolve();
+// Les règles B à E portent sur des fichiers précis, donc un appel ciblé sur un
+// seul fichier (le hook PostToolUse) ne les lance que s'il les concerne.
+if (!onlyFile) ruleLinksResolve([...tracked()].filter(isDoctrine));
+else if (isDoctrine(onlyFile)) ruleLinksResolve([onlyFile]);
 if (!onlyFile || onlyFile === 'AGENTS.md' || onlyFile === PKG) {
   ruleVerifyChain();
 }
 if (!onlyFile || onlyFile === CI_WORKFLOW || onlyFile === PKG) {
   ruleVerifyRunsInCi();
+}
+if (!onlyFile || onlyFile === 'AGENTS.md' || isRulesFile(onlyFile)) {
+  ruleRulesFilesLoad();
 }
 
 console.log();
