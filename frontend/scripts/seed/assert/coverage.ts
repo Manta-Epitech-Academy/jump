@@ -126,12 +126,6 @@ const NOT_YET_SEEDED: Readonly<Record<string, string>> = {
     'aucune question multi ne fixe de minimum, donc la validation « choisis-en au moins N » ne se déclenche nulle part.',
   'Feedback_Submission.matchedAt':
     'aucune soumission publique n’a été rattachée après coup à un talent. C’est l’acte de rapprochement lui-même qui n’a pas d’exemple.',
-  'Feedback_Submission.respondentCivility':
-    'les soumissions publiques renseignent le nom et l’e-mail, jamais les trois champs facultatifs de l’en-tête.',
-  'Feedback_Submission.respondentPhone':
-    'voir `Feedback_Submission.respondentCivility`.',
-  'Feedback_Submission.respondentCampusLabel':
-    'voir `Feedback_Submission.respondentCivility`.',
 
   // ── Le miroir Salesforce, qui n'est jamais partiel. ──
   // Le miroir est écrit complet pour chaque talent. Salesforce, lui, envoie des

@@ -19,6 +19,7 @@ import type {
   StaffRole,
   XpGrantSource,
 } from '@prisma/client';
+import type { IdentityField } from '../../src/lib/domain/feedbackForms/schema';
 import type { SeedContext } from './context';
 import { createBuffer, type Buffered } from './writer';
 import { id, seq, slug } from './ids';
@@ -158,7 +159,14 @@ export type BankQuestion = {
 export type FeedbackFormRef = {
   id: string;
   slug: string;
-  questions: { id: string; type: string; optionIds: string[] }[];
+  /** In the form's own order. */
+  questions: {
+    id: string;
+    type: string;
+    /** Set on a question that asks WHO is answering, never what they think. */
+    identityField: IdentityField | null;
+    options: { id: string; label: string }[];
+  }[];
 };
 
 /**

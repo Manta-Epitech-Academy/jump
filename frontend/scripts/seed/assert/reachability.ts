@@ -452,5 +452,51 @@ export async function reachabilityFailures(
       'Aucun événement ne porte à la fois une inscription visible et une inscription masquée',
     );
 
+  // What a feedback form records about WHO answered. The recorder
+  // (`recordSubmission`) never turns an identity question into an answer row: a
+  // public respondent's answer feeds a `respondent*` column and a connected
+  // talent is read off the linked Talent, so neither of the first two below can
+  // exist in a database the application filled. The third is the converse: it
+  // refuses a public submission that holds no e-mail.
+  const identityAnswers = await prisma.feedback_Answer.count({
+    where: {
+      submissionId: { startsWith: 'sd_' },
+      question: { identityField: { not: null } },
+    },
+  });
+  if (identityAnswers > 0)
+    failures.push(
+      `${identityAnswers} réponses sur une question d'identité, que l'application range dans les colonnes respondent* et n'écrit jamais en réponse`,
+    );
+  const authenticatedWithRespondent = await prisma.feedback_Submission.count({
+    where: {
+      id: { startsWith: 'sd_' },
+      source: 'authenticated',
+      OR: [
+        { respondentEmail: { not: null } },
+        { respondentFirstName: { not: null } },
+        { respondentLastName: { not: null } },
+        { respondentPhone: { not: null } },
+        { respondentCivility: { not: null } },
+        { respondentCampusLabel: { not: null } },
+      ],
+    },
+  });
+  if (authenticatedWithRespondent > 0)
+    failures.push(
+      `${authenticatedWithRespondent} soumissions connectées portent une identité déclarée, alors qu'elle se lit sur le talent`,
+    );
+  const publicWithoutEmail = await prisma.feedback_Submission.count({
+    where: {
+      id: { startsWith: 'sd_' },
+      source: 'public',
+      respondentEmail: null,
+    },
+  });
+  if (publicWithoutEmail > 0)
+    failures.push(
+      `${publicWithoutEmail} soumissions publiques sans e-mail, que l'application refuse`,
+    );
+
   return failures;
 }
