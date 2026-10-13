@@ -156,6 +156,22 @@ les écrit tels quels peut correspondre à autre chose que ce qu'il montre. `**`
 les traverse sans les nommer. Un `+` ou un `@` restent littéraux tant qu'aucune
 parenthèse ne les suit, donc `+page.svelte` s'écrit tel quel.
 
+### E. `AGENTS.md` tient dans son budget
+
+`AGENTS.md` entre en contexte à chaque session de chaque agent, avant la première
+question : chaque octet y est payé par toutes les tâches, y compris celles qu'il
+ne concerne pas. Il était passé de 620 à 826 lignes en neuf jours, parce que
+chaque post-mortem qui méritait d'être écrit atterrissait à la racine faute d'un
+autre endroit, et Codex, qui plafonne les instructions d'un projet à 32 Kio, n'en
+lisait plus que les deux tiers.
+
+Le budget (`AGENTS_BUDGET_BYTES`) est la taille d'après la cure plus une marge,
+pas un idéal. Le relever est une décision prise dans la pull request qui en a
+besoin, avec sa raison, comme `TOOL_LIST_BUDGET` dans `mcpServer.test.ts` ; ce
+qui ne concerne qu'une surface va dans son fichier de `.claude/rules/`. Le
+plafond de Codex ne se relève pas : un budget qui le dépasse est lui-même une
+violation.
+
 ## Quand le lancer ?
 
 Jamais à la main dans le cas courant. Il est dans la chaîne `bun run verify`,

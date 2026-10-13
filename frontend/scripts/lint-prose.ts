@@ -590,9 +590,56 @@ function ruleRulesFilesLoad() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Règle E : AGENTS.md tient dans son budget                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `AGENTS.md` entre en contexte à chaque session de chaque agent, avant la
+ * première question, donc chaque octet y est payé par toutes les tâches, y
+ * compris celles qu'il ne concerne pas. Il était passé de 620 à 826 lignes en
+ * neuf jours parce que chaque post-mortem qui méritait d'être écrit atterrissait
+ * à la racine faute d'un autre endroit, et Codex, qui plafonne les instructions
+ * d'un projet à 32 Kio, n'en lisait plus que les deux tiers.
+ *
+ * Le budget est la taille d'après la cure plus une marge, pas un idéal. Le
+ * relever est une décision prise dans la pull request qui en a besoin, avec sa
+ * raison, comme `TOOL_LIST_BUDGET` dans `mcpServer.test.ts` ; ce qui ne
+ * concerne qu'une surface va dans son fichier de `.claude/rules/`. Le plafond de
+ * Codex, lui, ne se relève pas.
+ */
+const AGENTS_BUDGET_BYTES = 14 * 1024;
+const CODEX_CEILING_BYTES = 32 * 1024;
+
+function ruleRootBudget() {
+  info('AGENTS.md tient dans son budget');
+  const before = errors;
+  const full = join(ROOT, 'AGENTS.md');
+  if (!existsSync(full)) {
+    fail('règle E : AGENTS.md est introuvable');
+    return;
+  }
+  const size = statSync(full).size;
+  if (AGENTS_BUDGET_BYTES >= CODEX_CEILING_BYTES) {
+    fail(
+      `règle E : un budget de ${AGENTS_BUDGET_BYTES} octets dépasse le plafond de Codex (${CODEX_CEILING_BYTES}), qui tronquerait la racine`,
+    );
+  }
+  if (size > AGENTS_BUDGET_BYTES) {
+    fail(
+      `AGENTS.md - ${size} octets pour un budget de ${AGENTS_BUDGET_BYTES} : déplacer ce qui ne concerne qu'une surface vers son fichier de .claude/rules/, ou relever le budget en le justifiant`,
+    );
+  }
+  if (errors === before) {
+    green(
+      `AGENTS.md tient dans son budget (${size} / ${AGENTS_BUDGET_BYTES} octets)`,
+    );
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 
 ruleNoDashes();
-// Les règles B à D portent sur des fichiers précis, donc un appel ciblé sur un
+// Les règles B à E portent sur des fichiers précis, donc un appel ciblé sur un
 // seul fichier (le hook PostToolUse) ne les lance que s'il les concerne.
 if (!onlyFile) ruleLinksResolve([...tracked()].filter(isDoctrine));
 else if (isDoctrine(onlyFile)) ruleLinksResolve([onlyFile]);
@@ -602,6 +649,7 @@ if (!onlyFile || onlyFile === CI_WORKFLOW || onlyFile === PKG) {
 if (!onlyFile || onlyFile === 'AGENTS.md' || isRulesFile(onlyFile)) {
   ruleRulesFilesLoad();
 }
+if (!onlyFile || onlyFile === 'AGENTS.md') ruleRootBudget();
 
 console.log();
 if (errors > 0) {
