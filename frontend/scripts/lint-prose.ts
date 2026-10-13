@@ -251,7 +251,7 @@ function ruleNoDashes() {
         .some((l) => /prose-lint-ignore:\s*\S/.test(l));
       if (waived) continue;
       fail(
-        `${f}:${i + 1} - tiret cadratin ou demi-cadratin : utiliser un trait d'union, une virgule, deux points, des parenthèses ou deux phrases (AGENTS.md § Coding Conventions)`,
+        `${f}:${i + 1} - tiret cadratin ou demi-cadratin : utiliser un trait d'union, une virgule, deux points, des parenthèses ou deux phrases (AGENTS.md § Conventions)`,
       );
     }
   }
@@ -606,7 +606,7 @@ if (!onlyFile || onlyFile === 'AGENTS.md' || isRulesFile(onlyFile)) {
 console.log();
 if (errors > 0) {
   console.log(
-    `\x1b[31m✗ ${errors} violation(s). Voir AGENTS.md § Coding Conventions.\x1b[0m`,
+    `\x1b[31m✗ ${errors} violation(s). Voir AGENTS.md § Conventions.\x1b[0m`,
   );
   process.exit(1);
 } else if (onlyFile && files.length === 0) {

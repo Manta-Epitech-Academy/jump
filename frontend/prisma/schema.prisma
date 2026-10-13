@@ -242,7 +242,11 @@ model Talent {
   nom                         String
   prenom                      String
   niveau                      String?
+  /// Cached projection of the `XpGrant` ledger: `SUM(amount)`, recomputed by
+  /// `xpService` in the transaction that writes a grant, never written directly.
   xp                          Int                  @default(0)
+  /// Cached projection: distinct events attended per émargement (présent or en
+  /// retard), never a Salesforce status.
   eventsCount                 Int                  @default(0)
   charterAcceptedAt           DateTime?
   techInterestsValidatedAt    DateTime?

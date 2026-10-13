@@ -167,7 +167,7 @@ Anything needing a real database provisions itself, including one database per w
 `docker compose up` and no `migrate deploy` to remember.
 
 For branches with schema updates, ensure migrations are cleanly named and squashed into a single
-migration per branch (see [`AGENTS.md`](../AGENTS.md#prisma-migrations)). You no longer have to
+migration per branch (see [`.claude/rules/data-model.md`](../.claude/rules/data-model.md#prisma-migrations)). You no longer have to
 remember to check the schema against a real PostgreSQL: `verify` runs the integration suite and
 `test:schema-drift`, which fails when `schema.prisma` and the migration trail disagree. That is what
 turned the Definition of Done's "verified against a real PostgreSQL database" line from a promise into
@@ -268,7 +268,7 @@ back at it would resolve them and be fully in scope.
 Writing the commits and the pull request copy is the agent's job, not a tool's. What follows is the
 part that is easy to get wrong.
 
-1. Conventional Commits, per [`AGENTS.md`](../AGENTS.md#commits): `type(scope): subject` under 72 characters including the prefix, one logical change per commit.
+1. Conventional Commits, per [`AGENTS.md`](../AGENTS.md#shipping-a-change): `type(scope): subject` under 72 characters including the prefix, one logical change per commit.
 2. **Write the copy into files under `.ship/`, and hand the files to git and gh.** `git commit -F .ship/commit.txt`, and `scripts/finish-work.sh` reads `.ship/pr-body.md`. Pasting multi-line markdown through the terminal mangles newlines and bullets, and the shell here is fish, which has no heredoc to fall back on. `.ship/` is gitignored.
 
    **`.ship/` still holds the previous branch's files.** Rewrite every one you are about to use, or clear the directory first: `finish-work.sh` will cheerfully ship a stale body from two branches ago, and it looks plausible enough that nobody notices.
@@ -279,7 +279,7 @@ part that is easy to get wrong.
 7. Open the pull request with `scripts/finish-work.sh`. It pushes the branch, guarantees the `Closes #<issue_number>` line the `Work item` check requires, opens it as a **draft**, and then runs the guard so a failure surfaces now rather than in CI.
 8. **Self-review, in a session that did not write the diff.** "Read your own diff as if it were someone else's" is the one thing the author cannot actually do, and this step used to ask for exactly that. A session that wrote the branch carries the assumptions that produced it, so it re-reads its own reasoning and finds it sound; that is a confirmation bias, not a lack of care, and no amount of attention removes it. Review the diff from a fresh session instead, over `git diff origin/dev...HEAD` (`/review` does this in a new session). Then tick the Definition of Done in the body, and mark the PR ready for review.
 
-   **For AI agents, Step 7 is the hard stop.** Once `scripts/finish-work.sh` completes, the authoring agent's task on the branch is done: stop and return the PR URL. Never attempt to perform self-review in the same session, and never spawn nested review subprocesses (`claude -p` or subshells). The review must take place in an isolated, fresh session (via `/review`) or by a human.
+   **For an AI agent, opening the pull request is the hard stop**, as [`AGENTS.md`](../AGENTS.md#shipping-a-change) states: it returns the URL and leaves the review to a fresh session or a human.
 
    This one stays prose, and it is worth saying why rather than leaving it looking like an oversight. By rule 1 above a step with no artifact gets forgotten, so the honest thing would be a check. But the only mechanism that could enforce it is a second review pass gating the ready-for-review transition, and on a repository with one developer that costs more than the bias it removes. The session boundary and handoff are what protects the review.
 9. Merge into `dev` once approved (or auto-merge if working solo).
