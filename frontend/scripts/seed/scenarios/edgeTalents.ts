@@ -245,8 +245,8 @@ export const edgeTalents: Scenario = {
       if (civilite) world.placeCivilite(divergent, civilite);
     }
 
-    // A talent who never came from Salesforce, and a talent Jump holds no phone
-    // number for. Both columns are nullable and neither had a null row, so the
+    // A talent who never came from Salesforce, so with no mirror either, and a
+    // talent Jump holds no phone number for. Both columns are nullable and neither had a null row, so the
     // « fiche créée dans Jump » badge and every « pas de téléphone » fallback
     // were unreachable - and the second is what the SMS relance skips on.
     const native = spawn('Sanscrm', '1ere', { externalId: null, phone: null });

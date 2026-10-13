@@ -829,27 +829,36 @@ export class World {
       createdAt: this.ctx.clock.days(-300),
     });
 
-    // The anti-corruption mirror. Every talent has one in production (5377 of
-    // 5394), because every talent arrives from the CRM.
-    const claims = opts.sfClaims ?? {};
-    this.buffer.talentSfImport.push({
-      talentId,
-      nom: claims.nom ?? opts.nom,
-      prenom: claims.prenom ?? opts.prenom,
-      // The sync mints a login only for a contact that has an address, so a
-      // talent with no account is one Salesforce holds no address for. The two
-      // were written independently, which made the 70 accountless talents of
-      // production a state whose mirror contradicted its own account.
-      sfEmail: withAccount ? email : null,
-      // `??` would swallow an explicit null, which is the whole point of
-      // passing one.
-      phone:
-        claims.phone === undefined
-          ? (opts.phone ?? '+33600000000')
-          : claims.phone,
-      niveau: claims.niveau ?? opts.niveau,
-      sfSchoolId: opts.schoolId ?? null,
-    });
+    // The anti-corruption mirror. Nearly every talent has one in production
+    // (5377 of 5394), because nearly every talent arrives from the CRM. Only
+    // `syncTalents` writes it, so a talent Jump created itself, with no
+    // Salesforce id, has none, and there is nothing Salesforce could claim.
+    const fromSalesforce = opts.externalId !== null;
+    if (!fromSalesforce && opts.sfClaims)
+      throw new Error(
+        `${talentId} n’a pas d’identifiant Salesforce : Salesforce ne peut rien en prétendre.`,
+      );
+    if (fromSalesforce) {
+      const claims = opts.sfClaims ?? {};
+      this.buffer.talentSfImport.push({
+        talentId,
+        nom: claims.nom ?? opts.nom,
+        prenom: claims.prenom ?? opts.prenom,
+        // The sync mints a login only for a contact that has an address, so a
+        // talent with no account is one Salesforce holds no address for. The two
+        // were written independently, which made the 70 accountless talents of
+        // production a state whose mirror contradicted its own account.
+        sfEmail: withAccount ? email : null,
+        // `??` would swallow an explicit null, which is the whole point of
+        // passing one.
+        phone:
+          claims.phone === undefined
+            ? (opts.phone ?? '+33600000000')
+            : claims.phone,
+        niveau: claims.niveau ?? opts.niveau,
+        sfSchoolId: opts.schoolId ?? null,
+      });
+    }
 
     const ref: TalentRef = {
       id: talentId,
