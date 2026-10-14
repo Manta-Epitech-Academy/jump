@@ -112,9 +112,10 @@ export function talentHomeImageUrl(key: string): string {
  *
  * In this order, the first that applies:
  *
- *   1. an activity offered today: the day's activity, with the campus's
- *      highlighted event as a compact line under it (« À venir »), since an
- *      invitation still matters on an event day but less than the event;
+ *   1. an activity offered today: the day's activity, and only it. On an
+ *      event day the talent came to do that activity, so the campus's
+ *      highlighted event waits for a day without one rather than sharing the
+ *      hero with it;
  *   2. the campus's highlighted event, while its day has not passed;
  *   3. an activity the talent started and has not finished, which a Coding
  *      Club is designed for them to carry on at home: the most recently
@@ -122,11 +123,7 @@ export function talentHomeImageUrl(key: string): string {
  *   4. nothing. The hero is not filled for the sake of it.
  */
 export type HomeHero =
-  | {
-      kind: 'activity';
-      activities: WorkshopActivity[];
-      next: TalentHomeHighlight | null;
-    }
+  | { kind: 'activity'; activities: WorkshopActivity[] }
   | { kind: 'highlight'; highlight: TalentHomeHighlight }
   | { kind: 'continue'; activity: WorkshopActivity };
 
@@ -142,8 +139,7 @@ export function pickHomeHero({
   /** Every other activity offered (`TalentWorkshops.activities`). */
   activities: WorkshopActivity[];
 }): HomeHero | null {
-  if (today.length > 0)
-    return { kind: 'activity', activities: today, next: highlight };
+  if (today.length > 0) return { kind: 'activity', activities: today };
   if (highlight) return { kind: 'highlight', highlight };
   const inProgress = activities
     .filter((a) => a.startedAt !== null && !isActivityFinished(a))

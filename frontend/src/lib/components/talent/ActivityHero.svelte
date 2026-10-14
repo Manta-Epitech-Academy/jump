@@ -4,16 +4,11 @@
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import { Button } from '$lib/components/ui/button';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import ExternalLink from '@lucide/svelte/icons/external-link';
   import { cn } from '$lib/utils';
   import {
     isActivityFinished,
     type WorkshopActivity,
   } from '$lib/domain/workshops';
-  import {
-    formatHighlightDay,
-    type TalentHomeHighlight,
-  } from '$lib/domain/talentHome';
 
   // An activity in the home's hero, in one of two cases `pickHomeHero` decides:
   // the day's activity on its day (`today`), or, on a day with nothing else to
@@ -22,11 +17,8 @@
   // arriving on an event day should have no doubt about where to click, so this
   // is the one full-bleed blue surface of the page and the one neon button, and
   // it looks like nothing else on it: the daily training is a small tile
-  // among the talent's own cards.
-  //
-  // On the day, the campus's highlighted event follows as one compact line at
-  // the foot (`next`): an invitation still matters on an event day, but less
-  // than the event, so it gets a text link and never a second button.
+  // among the talent's own cards. Nor does anything share it on the day: the
+  // campus's highlighted event waits for a day without an activity.
   //
   // It leads with how the activity presents itself (its tagline, its cover, its
   // mascot), authored over the API and copied into Jump, and with nothing else: the event's name is a Salesforce campaign title more often
@@ -37,11 +29,9 @@
   let {
     activities,
     context,
-    next = null,
   }: {
     activities: WorkshopActivity[];
     context: 'today' | 'continue';
-    next?: TalentHomeHighlight | null;
   } = $props();
 
   const title = $derived(
@@ -184,29 +174,6 @@
           </div>
         </article>
       {/each}
-
-      {#if next}
-        <!-- What comes after the day, in a line: the hero already has its
-             one button. -->
-        <p
-          class="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-white/20 pt-4 text-sm text-white/80"
-        >
-          <span>
-            À venir : <span class="font-semibold text-white">{next.title}</span
-            >, le {formatHighlightDay(next.date)}
-          </span>
-          <a
-            href={next.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex cursor-pointer items-center gap-1 font-semibold text-white underline underline-offset-4 hover:text-epi-tech focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-          >
-            Je m’inscris
-            <ExternalLink class="size-3.5" aria-hidden="true" />
-            <span class="sr-only">(nouvel onglet)</span>
-          </a>
-        </p>
-      {/if}
     </div>
   </PageHero>
 </section>
