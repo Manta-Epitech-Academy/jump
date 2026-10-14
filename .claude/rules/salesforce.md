@@ -1,3 +1,13 @@
+---
+paths:
+  - "frontend/src/routes/api/worker/**"
+  - "frontend/src/lib/server/services/{syncService,syncConfigService,syncRunService,devSpaceVisibility,reconciliationService,schoolService}.ts"
+  - "frontend/src/lib/server/annuaire.ts"
+  - "frontend/src/lib/domain/{syncSchedule,reconciliation,sfMemberStatus}.ts"
+  - "frontend/src/lib/validation/{workerSync,workerConfigContract.test}.ts"
+  - "frontend/src/routes/**/sf-conflicts/**"
+---
+
 # The Salesforce worker contract
 
 Six routes, one caller, and a second repository on the other end
@@ -91,7 +101,7 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   only when its campus carries a non-null `Campus.externalName`, and the seed
   generator writes none, so a generated database answers an empty list on any
   machine. It is a property of the data, not a flag somebody re-enables by
-  forgetting. `scripts/seed/CLAUDE.md` states the same rule from the other side,
+  forgetting. `seed.md` states the same rule from the other side,
   and `assert/inertness.ts` refuses a seeded `Sync_Source` outright.
 - **Nothing here touches `Event.devActivatedAt`.** A new campaign under a
   whitelisted parent is discovered automatically, which is the point; publishing
@@ -124,7 +134,7 @@ One bearer check, `requireWorkerToken`, in front of all six. An unset
 `WORKER_API_TOKEN` refuses everything rather than letting anything through.
 
 Worth knowing rather than discovering: `/api/worker/*` sits **outside** the
-`/api/admin` and `/api/mcp` prefixes that `adminApi/CLAUDE.md` assumes are
+`/api/admin` and `/api/mcp` prefixes that `admin-api.md` assumes are
 rate-limited at the edge, and it writes no per-call audit row. What stands in for
 both is that the credential is machine-only, the surface is six fixed operations,
 and every real run leaves a `Sync_Run`. Mounting a seventh route by copying a block
@@ -140,8 +150,12 @@ surface, over HTTP and as MCP tools. "Sync now" is a request, never a lowered
 cadence: a cadence lowered to get one pass has to be raised again by somebody who
 remembers to.
 
----
+## Salesforce reconciliation
 
-Ce fichier porte la doctrine d'une surface. Les règles qui valent partout
-(philosophie, commandes, espaces, conventions, contraintes) vivent dans
-[`AGENTS.md`](../../../../../AGENTS.md) à la racine du dépôt, qui nomme ce fichier.
+Talent profile fields have two sources: the worker sync (Salesforce) and onboarding (the student). They are **reconciled, not blindly overwritten**.
+
+- **`Talent` = Jump's current truth.** Onboarding writes it directly (**optimistic**: the student's input shows on their dashboard immediately; staff arbitrate divergences afterward, there is no pending-validation gate).
+- **`TalentSfImport` = 1:1 typed mirror of Salesforce's last claim**: the anti-corruption boundary. Written _only_ by `syncService.syncTalents`, never by onboarding, and upserted only when the inbound payload differs.
+- **`School` = canonical UAI-keyed directory**, resolved lazily from the éducation-nationale annuaire (`server/annuaire.ts` + `schoolService.resolveSchoolByUai`). Only schools actually attended ever land here, never the ~69k national set. It replaced the old free-text `highSchoolName/City/Uai` columns: `Talent` now carries a `schoolId` FK (+ `highSchoolNameManual`, used _only_ when a lycée has no UAI). The student's school and SF's claimed school (`TalentSfImport.sfSchoolId`) both FK the same `School`.
+- **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.)
+- **Conflict** = field is talent-confirmed **AND** `Talent` ≠ `TalentSfImport` (school compared by FK). Computed in `reconciliationService`, never stored. Surfaced at `/staff/admin/sf-conflicts` (list + accept/reject + CSV export); `acceptJump` realigns the mirror optimistically. `niveau` is SF-owned (onboarding never sets it) → always synced, never a conflict.

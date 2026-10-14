@@ -10,7 +10,7 @@
 </script>
 
 {#if hero.kind === 'activity'}
-  <ActivityHero activities={hero.activities} context="today" next={hero.next} />
+  <ActivityHero activities={hero.activities} context="today" />
 {:else if hero.kind === 'highlight'}
   <HighlightHero highlight={hero.highlight} />
 {:else}

@@ -397,10 +397,10 @@ bun run verify
 C'est le contrat de ce document. `verify` enchaîne exactement ce que les checks
 requis exécutent, dans le même ordre, avec les mêmes scripts. La liste des
 maillons n'est pas recopiée ici : elle vit dans le script `verify` de
-`package.json`, `bun run lint:prose` vérifie que `AGENTS.md` l'énonce dans le bon
-ordre et qu'aucun maillon n'est absent des jobs requis, et le §10 dit quel job
-exécute quoi. Une quatrième copie serait la prochaine à dérober un maillon en
-silence, ce qui est précisément arrivé à celle-ci. Un agent (ou un humain) peut
+`package.json`, `bun run lint:prose` vérifie qu'aucun maillon n'est absent des
+jobs requis, et le §10 dit quel job exécute quoi. Une copie de plus serait la
+prochaine à dérober un maillon en silence, ce qui est précisément arrivé à
+celle-ci, et à celle d'`AGENTS.md`, qui a depuis cessé de recopier la chaîne. Un agent (ou un humain) peut
 donc produire du code, le vérifier, corriger et revérifier avant d'ouvrir la PR,
 et « j'ai vérifié » devient une affirmation que quelqu'un d'autre peut
 recontrôler.
@@ -560,7 +560,7 @@ Deux détails qui trompent, et que le script gère à votre place :
 pas près de le devenir.**
 
 Un seuil global récompense mécaniquement le volume, ce que la philosophie de ce
-repo interdit explicitement (§1, et `AGENTS.md` : « jamais du volume »). La façon
+repo interdit explicitement (§1). La façon
 la moins chère de faire monter un pourcentage est d'écrire les tests qui n'attrapent
 rien, et un chiffre qui bloque un merge finit toujours par être atteint de la façon
 la moins chère.

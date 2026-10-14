@@ -23,6 +23,26 @@ export const IDENTITY_FIELD_TO_INPUT_KIND: Record<
   campus: null,
 };
 
+/**
+ * The `Feedback_Submission` column a PUBLIC respondent's answer to an identity
+ * question lands in. An identity question never becomes an answer row: for a
+ * public submission its answer is typed into one of these columns, and for an
+ * authenticated one Jump reads the identity from the linked Talent instead.
+ * Single source for the recorder and for the seed generator, which must write
+ * the same shape.
+ */
+export const IDENTITY_FIELD_TO_RESPONDENT_COLUMN = {
+  email: 'respondentEmail',
+  phone: 'respondentPhone',
+  firstName: 'respondentFirstName',
+  lastName: 'respondentLastName',
+  civility: 'respondentCivility',
+  campus: 'respondentCampusLabel',
+} as const satisfies Record<IdentityField, string>;
+
+export type RespondentColumn =
+  (typeof IDENTITY_FIELD_TO_RESPONDENT_COLUMN)[IdentityField];
+
 /** Identity fields with their French label, in builder display order. Single
  *  source for the badge and the builder's identity selector (mirrors the
  *  `Feedback_IdentityField` enum). */

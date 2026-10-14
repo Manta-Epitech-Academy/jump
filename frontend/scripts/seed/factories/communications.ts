@@ -8,7 +8,7 @@
  * Nothing here is ever sent, and that is now a property of the rows rather than
  * of the environment: every campaign is written in a TERMINAL status, so
  * `processNextQueuedBroadcast` has nothing to claim. `assert/inertness.ts`
- * carries the rule, and `AGENTS.md` what it cost to learn.
+ * carries the rule, and `.claude/rules/seed.md` what it cost to learn.
  *
  * This header used to make the same claim on the grounds that no outbound path
  * was pointed at this database, which was untrue. Asserting it is what let four
@@ -24,7 +24,20 @@ import {
   BROADCAST_MAX_RETRIES,
   type BroadcastTerminalStatus,
 } from '../../../src/lib/domain/broadcasts';
-import type { World, TalentRef, EventRef, CampusRef, StaffRef } from '../world';
+import {
+  IDENTITY_FIELD_TO_RESPONDENT_COLUMN,
+  type IdentityField,
+  type RespondentColumn,
+} from '../../../src/lib/domain/feedbackForms/schema';
+import type {
+  World,
+  TalentRef,
+  EventRef,
+  CampusRef,
+  StaffRef,
+  FeedbackFormRef,
+} from '../world';
+import type { Rng } from '../rng';
 import { id, seq } from '../ids';
 
 export function addBroadcast(
@@ -185,12 +198,75 @@ export function addBroadcast(
 }
 
 /**
+ * What a public respondent typed into one identity question, for the column
+ * that question feeds. Synthetic and on a `.invalid` host, so nothing here can
+ * be mistaken for a person. A civility or a campus is one of the options the
+ * form itself offers, because that is all a respondent can pick.
+ */
+function identityValue(
+  field: IdentityField,
+  question: FeedbackFormRef['questions'][number],
+  index: number,
+  rng: Rng,
+): string {
+  switch (field) {
+    case 'email':
+      return `public.${seq(index, 4)}@seed.invalid`;
+    case 'firstName':
+      return 'Visiteur';
+    case 'lastName':
+      return `Anonyme${seq(index, 3)}`;
+    case 'phone':
+      return `+336${seq(index, 8)}`;
+    case 'civility':
+    case 'campus': {
+      if (question.options.length === 0)
+        throw new Error(
+          `La question d’identité « ${field} » du formulaire n’offre aucune option.`,
+        );
+      return rng.pick(question.options).label;
+    }
+  }
+}
+
+/**
+ * The respondent columns of a public submission, read off the identity
+ * questions the form really asks: the recorder projects the answers the same
+ * way, and a form that does not ask for a phone number holds none. An
+ * e-mail is the one it cannot do without, because the recorder refuses a public
+ * submission that has none.
+ */
+function publicRespondent(
+  form: FeedbackFormRef,
+  index: number,
+  rng: Rng,
+): Partial<Record<RespondentColumn, string>> {
+  const respondent: Partial<Record<RespondentColumn, string>> = {};
+  for (const question of form.questions) {
+    if (!question.identityField) continue;
+    respondent[IDENTITY_FIELD_TO_RESPONDENT_COLUMN[question.identityField]] =
+      identityValue(question.identityField, question, index, rng);
+  }
+  if (!respondent.respondentEmail)
+    throw new Error(
+      `Le formulaire « ${form.slug} » ne demande pas d’e-mail : l’application refuse toute réponse publique à un tel formulaire.`,
+    );
+  return respondent;
+}
+
+/**
  * A submission against a form.
  *
  * `authenticated` carries the talent and the event; `public` carries neither and
  * identifies the respondent by the fields the form itself asked for. A third of
  * production's submissions are public and none of them are matched to a talent,
  * which is the case every "who answered" screen has to render.
+ *
+ * **An identity question is never answered with a row.** The recorder routes a
+ * public respondent's answer into a `respondent*` column and drops the question
+ * for a connected talent, whom Jump already knows, so a `Feedback_Answer` on one
+ * is a state the application cannot produce. This used to write one anyway, and
+ * a free-text sentence landed in a phone-number question on every submission.
  *
  * The two halves are a union rather than four optional fields, because they are
  * keyed differently and that is not a detail. An authenticated submission is
@@ -201,6 +277,9 @@ export function addBroadcast(
  * step around it by starting at 2000 - and the first caller to run the same
  * block on a second event would have collided on the primary key, silently,
  * since `createMany` here has no `skipDuplicates`.
+ *
+ * Its draws come from a stream of its own, named after the submission, so what
+ * a form asks cannot move the numbers any other scenario gets.
  */
 export function addFeedbackSubmission(
   world: World,
@@ -211,7 +290,6 @@ export function addFeedbackSubmission(
   const form = world.feedbackForms.get(opts.formSlug);
   if (!form) return;
 
-  const rng = world.ctx.rng;
   const clock = world.ctx.clock;
   const authenticated = 'talent' in opts;
   const submissionId = authenticated
@@ -221,6 +299,7 @@ export function addFeedbackSubmission(
         opts.talent.id.replace(/^sd_/, ''),
       )
     : id('fbs', opts.formSlug, seq(opts.index, 4));
+  const rng = world.ctx.rng.fork(submissionId);
 
   world.buffer.feedback_Submission.push({
     id: submissionId,
@@ -228,15 +307,12 @@ export function addFeedbackSubmission(
     source: authenticated ? 'authenticated' : 'public',
     talentId: authenticated ? opts.talent.id : null,
     eventId: authenticated ? opts.event.id : null,
-    respondentEmail: authenticated
-      ? null
-      : `public.${seq(opts.index, 4)}@seed.invalid`,
-    respondentFirstName: authenticated ? null : 'Visiteur',
-    respondentLastName: authenticated ? null : `Anonyme${seq(opts.index, 3)}`,
+    ...(authenticated ? {} : publicRespondent(form, opts.index, rng)),
     submittedAt: clock.days(-7),
   });
 
   for (const question of form.questions) {
+    if (question.identityField) continue;
     // Both halves whole, never a suffix: the catalogue's question ids are
     // derived and readable now, so their last characters are no longer the
     // unique part they were when Prisma minted a cuid.
@@ -245,7 +321,7 @@ export function addFeedbackSubmission(
       submissionId.replace(/^sd_/, ''),
       question.id.replace(/^sd_ffq_/, ''),
     );
-    const free = question.optionIds.length === 0;
+    const free = question.options.length === 0;
     world.buffer.feedback_Answer.push({
       id: answerId,
       submissionId,
@@ -253,8 +329,11 @@ export function addFeedbackSubmission(
       freeText: free ? 'Très bonne expérience, merci.' : null,
     });
     if (!free) {
-      for (const optionId of rng.sample(question.optionIds, 1)) {
-        world.buffer.feedback_AnswerOption.push({ answerId, optionId });
+      for (const option of rng.sample(question.options, 1)) {
+        world.buffer.feedback_AnswerOption.push({
+          answerId,
+          optionId: option.id,
+        });
       }
     }
   }

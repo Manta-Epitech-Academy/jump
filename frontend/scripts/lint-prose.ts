@@ -11,7 +11,9 @@
  * ne pouvait le voir : le bannissement du tiret cadratin était violé par 15
  * fichiers suivis alors que `AGENTS.md` affirmait qu'un passage dédié avait
  * nettoyé la prose du dépôt, et l'énumération de la chaîne `verify` comptait un
- * lien de moins que la chaîne.
+ * lien de moins que la chaîne. La seconde a été réglée par suppression plutôt
+ * que par surveillance : `AGENTS.md` renvoie à `package.json` au lieu de
+ * recopier la chaîne, et la règle qui tenait la copie alignée est partie avec.
  *
  * Frère de `lint-design.ts` et `lint-tests.ts`, et volontairement dans le même
  * moule : même walker, même format `chemin:ligne - message`, même sortie 1. La
@@ -121,10 +123,19 @@ const PROSE_EXCLUDED = [
   /^frontend\/scripts\/lint-prose\.ts$/,
 ];
 
-/** Les fichiers dont les chemins et les liens sont des affirmations. */
-const DOCTRINE = [
+/**
+ * Les fichiers dont les chemins et les liens sont des affirmations.
+ *
+ * Une liste fixe, plus deux familles reconnues à leur chemin : tout `CLAUDE.md`
+ * et tout fichier de `.claude/rules/`. Les `CLAUDE.md` de répertoire étaient
+ * hors de la liste, et c'est par là qu'une douzaine de renvois ont pourri sans
+ * que rien ne le dise quand leur doctrine a déménagé. Reconnaître une famille à
+ * son chemin plutôt que l'énumérer est ce qui couvre le prochain fichier de
+ * doctrine le jour où il naît, y compris en mode `--file`, où le hook passe un
+ * fichier que l'index ne connaît pas encore.
+ */
+const DOCTRINE_FILES = [
   'AGENTS.md',
-  'CLAUDE.md',
   'GEMINI.md',
   'DESIGN.md',
   'README.md',
@@ -134,6 +145,10 @@ const DOCTRINE = [
   '.github/pull_request_template.md',
   'frontend/TESTING.md',
 ];
+const RULES_DIR = '.claude/rules/';
+const isRulesFile = (f: string) => f.startsWith(RULES_DIR) && f.endsWith('.md');
+const isDoctrine = (f: string) =>
+  DOCTRINE_FILES.includes(f) || /(^|\/)CLAUDE\.md$/.test(f) || isRulesFile(f);
 
 const onlyFile = (() => {
   const i = process.argv.indexOf('--file');
@@ -236,7 +251,7 @@ function ruleNoDashes() {
         .some((l) => /prose-lint-ignore:\s*\S/.test(l));
       if (waived) continue;
       fail(
-        `${f}:${i + 1} - tiret cadratin ou demi-cadratin : utiliser un trait d'union, une virgule, deux points, des parenthèses ou deux phrases (AGENTS.md § Coding Conventions)`,
+        `${f}:${i + 1} - tiret cadratin ou demi-cadratin : utiliser un trait d'union, une virgule, deux points, des parenthèses ou deux phrases (AGENTS.md § Conventions)`,
       );
     }
   }
@@ -249,6 +264,34 @@ function ruleNoDashes() {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Les ancres d'un fichier markdown, calculées comme GitHub les calcule : le
+ * texte du titre en minuscules, privé de tout ce qui n'est ni lettre, ni
+ * chiffre, ni espace, ni trait d'union, ni tiret bas, puis les espaces changés
+ * en traits d'union, et un suffixe `-1`, `-2` pour un titre répété. Les titres
+ * dans un bloc de code n'en sont pas.
+ */
+function anchorsOf(f: string): Set<string> {
+  const out = new Set<string>();
+  const seen = new Map<string, number>();
+  let fenced = false;
+  for (const line of readFileSync(join(ROOT, f), 'utf8').split('\n')) {
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+    if (fenced) continue;
+    const m = /^#{1,6}\s+(.*?)\s*#*\s*$/.exec(line);
+    if (!m) continue;
+    const base = m[1]
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{M}\p{N} _-]/gu, '')
+      .replace(/ /g, '-');
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    out.add(n ? `${base}-${n}` : base);
+  }
+  return out;
+}
+
+/**
  * Une cible de lien est une affirmation : elle n'est jamais une illustration et
  * elle n'apparaît pas dans un bloc de code. C'est pour ça que cette règle ne
  * scanne pas toute la prose à la recherche de chemins. Une version large a été
@@ -256,24 +299,47 @@ function ruleNoDashes() {
  * illustratifs dans des blocs de code, `AGENTS.md` nomme un fichier
  * explicitement supprimé et un chemin généré donc gitignoré, et il aurait fallu
  * six listes d'exclusion pour ne rien attraper. Ici il n'y en a aucune.
+ *
+ * L'ancre fait partie de l'affirmation. Un lien `CONTRIBUTING.md#commits` dont
+ * la section a été renommée ou déplacée mène encore au fichier, donc une règle
+ * qui ne regarde que le fichier le déclare valide alors qu'il ne mène plus à ce
+ * qu'il promet. Seules les ancres vers un fichier markdown sont vérifiées : une
+ * ancre vers du code (`#L12`) est une ligne, pas un titre.
  */
-function ruleLinksResolve() {
+function ruleLinksResolve(doctrine: string[]) {
   info('Les liens markdown de la doctrine pointent vers un fichier suivi');
   const before = errors;
   const trackedSet = tracked();
   const link = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
-  for (const f of DOCTRINE) {
+  for (const f of doctrine) {
     const full = join(ROOT, f);
     if (!existsSync(full)) continue;
     const lines = readFileSync(full, 'utf8').split('\n');
+    let fenced = false;
     for (let i = 0; i < lines.length; i++) {
+      if (/^\s*(```|~~~)/.test(lines[i])) fenced = !fenced;
+      if (fenced) continue;
       for (const m of lines[i].matchAll(link)) {
-        const target = m[1].split('#')[0].trim();
-        if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
-        const resolved = normalize(join(dirname(f), target))
-          .split('\\')
-          .join('/');
-        if (trackedSet.has(resolved)) continue;
+        const [rawTarget, anchor] = m[1].split('#');
+        const target = rawTarget.trim();
+        if (/^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
+        const resolved = target
+          ? normalize(join(dirname(f), target))
+              .split('\\')
+              .join('/')
+          : f;
+        if (
+          anchor &&
+          resolved.endsWith('.md') &&
+          existsSync(join(ROOT, resolved))
+        ) {
+          if (!anchorsOf(resolved).has(anchor.toLowerCase())) {
+            fail(
+              `${f}:${i + 1} - ancre introuvable : ${m[1]} (aucun titre de ${resolved} ne la produit)`,
+            );
+          }
+        }
+        if (!target || trackedSet.has(resolved)) continue;
         // Un lien vers un RÉPERTOIRE est légitime : rien ne le suit en propre.
         // Un fichier non suivi ne l'est pas, même s'il existe ici : il
         // n'existe que sur cette machine, donc un `existsSync` nu rendait la
@@ -297,10 +363,6 @@ function ruleLinksResolve() {
 
 const PKG = 'frontend/package.json';
 
-/** Les deux bornes de l'énumération dans `AGENTS.md`, mots de la phrase même. */
-const CHAIN_OPENS = 'It chains `';
-const CHAIN_CLOSES = 'in that order';
-
 /** Les liens de la chaîne, dans l'ordre où `verify` les exécute. */
 function verifyChain(scripts: Record<string, string>): string[] {
   return (scripts.verify ?? '')
@@ -315,90 +377,7 @@ function verifyChain(scripts: Record<string, string>): string[] {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Règle C : l'énumération de la chaîne verify correspond à package.json       */
-/* -------------------------------------------------------------------------- */
-
-/**
- * La dérive que ce dépôt a réellement produite, et qu'aucune règle sur les
- * chemins n'attrape : c'est un nom de script qui manquait, pas un fichier.
- * `AGENTS.md` promet la chaîne « in that order », donc l'ordre est comparé
- * aussi. Une phrase dont le travail est de décrire le gate cesse d'être de la
- * prose le jour où elle est vérifiée.
- */
-function ruleVerifyChain() {
-  info('L\u2019énumération de la chaîne verify correspond à package.json');
-  const before = errors;
-  const pkgPath = join(ROOT, PKG);
-  const agentsPath = join(ROOT, 'AGENTS.md');
-  if (!existsSync(pkgPath) || !existsSync(agentsPath)) {
-    fail('règle C : package.json ou AGENTS.md est introuvable');
-    return;
-  }
-  const scripts: Record<string, string> = JSON.parse(
-    readFileSync(pkgPath, 'utf8'),
-  ).scripts;
-  const real = verifyChain(scripts);
-
-  const lines = readFileSync(agentsPath, 'utf8').split('\n');
-  const idx = lines.findIndex((l) => l.includes(CHAIN_OPENS));
-  if (idx === -1) {
-    fail(
-      `AGENTS.md n\u2019énumère plus la chaîne verify (phrase « ${CHAIN_OPENS.trim()} » absente) : la règle C ne peut plus la vérifier`,
-    );
-    return;
-  }
-  /*
-   * Seule la CLAUSE est lue, pas la ligne. Un paragraphe markdown est une ligne
-   * unique ici, et il continue après l'énumération : la première version lisait
-   * la ligne entière, donc la phrase suivante qui rappelait `lint:prose` le
-   * comptait comme un douzième lien, deux fois. Les deux bornes sont les mots
-   * de la phrase elle-même, et « in that order » est déjà ce sur quoi repose la
-   * comparaison d'ordre plus bas.
-   */
-  const from = lines[idx].indexOf(CHAIN_OPENS);
-  const to = lines[idx].indexOf(CHAIN_CLOSES, from);
-  if (to === -1) {
-    fail(
-      `AGENTS.md:${idx + 1} - la phrase ne promet plus « ${CHAIN_CLOSES} » : la règle C ne sait plus où l\u2019énumération s\u2019arrête`,
-    );
-    return;
-  }
-  // Seuls les noms qui sont réellement des scripts comptent : la clause parle
-  // aussi de `verify` lui-même et de fichiers, entre les mêmes accents graves.
-  const claimed = [
-    ...lines[idx].slice(from, to).matchAll(/`([a-z][a-z0-9:-]*)`/g),
-  ]
-    .map((m) => m[1])
-    .filter((n) => n !== 'verify' && n in scripts);
-
-  const missing = real.filter((s) => !claimed.includes(s));
-  const extra = claimed.filter((s) => !real.includes(s));
-  for (const s of missing) {
-    fail(
-      `AGENTS.md:${idx + 1} - la chaîne verify exécute \`${s}\` et la phrase ne le nomme pas`,
-    );
-  }
-  for (const s of extra) {
-    fail(
-      `AGENTS.md:${idx + 1} - la phrase nomme \`${s}\` et la chaîne verify ne l\u2019exécute pas`,
-    );
-  }
-  if (
-    !missing.length &&
-    !extra.length &&
-    claimed.join('>') !== real.join('>')
-  ) {
-    fail(
-      `AGENTS.md:${idx + 1} - la phrase promet la chaîne « in that order » et l\u2019ordre diffère : ${claimed.join(', ')}`,
-    );
-  }
-  if (errors === before) {
-    green('L\u2019énumération de la chaîne verify correspond à package.json');
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Règle D : chaque lien de la chaîne verify est exécuté par la CI             */
+/* Règle C : chaque lien de la chaîne verify est exécuté par la CI             */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -444,10 +423,9 @@ function scriptsRunByCi(yaml: string): Set<string> {
 }
 
 /**
- * La chaîne existe en trois exemplaires : `package.json` l'exécute, `AGENTS.md`
- * l'énonce, et le workflow la rejoue étape par étape. La règle C tient les deux
- * premiers ensemble ; sans celle-ci le troisième dérive seul, et il dérive du
- * mauvais côté. Un lien ajouté à `verify` et oublié dans le workflow ne bloque
+ * La chaîne existe en deux exemplaires : `package.json` l'exécute, et le
+ * workflow la rejoue étape par étape. Sans cette règle le second dérive seul, et
+ * il dérive du mauvais côté. Un lien ajouté à `verify` et oublié dans le workflow ne bloque
  * aucune fusion, donc la règle qu'il porte se remet à pourrir derrière un check
  * requis vert, ce qui est exactement l'état auquel ce linter existe pour mettre
  * fin. C'est ce qui est arrivé à `lint:prose` le jour de son arrivée.
@@ -458,7 +436,7 @@ function ruleVerifyRunsInCi() {
   const pkgPath = join(ROOT, PKG);
   const wfPath = join(ROOT, CI_WORKFLOW);
   if (!existsSync(pkgPath) || !existsSync(wfPath)) {
-    fail(`règle D : ${PKG} ou ${CI_WORKFLOW} est introuvable`);
+    fail(`règle C : ${PKG} ou ${CI_WORKFLOW} est introuvable`);
     return;
   }
   const scripts: Record<string, string> = JSON.parse(
@@ -496,22 +474,186 @@ function ruleVerifyRunsInCi() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Règle D : la doctrine de .claude/rules/ se charge, et la racine la nomme    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Un fichier de `.claude/rules/` n'entre en contexte que quand l'agent lit,
+ * écrit ou modifie un fichier qui correspond à l'un de ses globs `paths:`. Ce
+ * mécanisme a trois façons d'échouer en silence, et cette règle en ferme une
+ * par vérification :
+ *
+ * - Un fichier SANS `paths:` est chargé à chaque session : c'est de la doctrine
+ *   de racine déguisée, hors du budget de `AGENTS.md` et invisible des agents
+ *   qui ne lisent pas `.claude/`.
+ * - Un glob qui ne correspond à aucun fichier suivi ne charge jamais sa
+ *   doctrine. C'est ce que produit un répertoire renommé, et rien d'autre ne le
+ *   dirait.
+ * - Un fichier que `AGENTS.md` ne nomme pas n'existe pas pour Codex, Copilot ou
+ *   Gemini, qui ne chargent pas `.claude/rules/` : la racine est leur seul
+ *   chemin vers lui.
+ *
+ * L'en-tête est lu par un vrai parseur YAML (`Bun.YAML`) et les globs passent
+ * par un vrai moteur (`Bun.Glob`). La première version lisait les deux à la
+ * main, et chacun avait sa façon de répondre vert à tort : une ligne de
+ * commentaire dans la liste arrêtait la lecture, donc aucun glob suivant
+ * n'était vérifié, et une virgule hors accolades devenait une alternative, donc
+ * un glob mal écrit « correspondait » à des fichiers qu'il ne nomme pas. Le
+ * parseur refuse aussi ce que la lecture à la main laissait passer : un glob
+ * qui commence par `*` sans guillemets n'est pas du YAML (`*` y ouvre un
+ * alias).
+ * `paths:` est une liste et rien d'autre, parce qu'une chaîne obligerait à
+ * couper sur les virgules, y compris celles d'un `{a,b}`.
+ *
+ * Les globs se limitent à `*`, `**` et `{a,b}`. Les parenthèses, les crochets,
+ * `?` et un `!` de tête n'ont pas le même sens d'un moteur de glob à l'autre (un
+ * groupe, une classe, une négation), et ce dépôt a des répertoires nommés
+ * `(staff)` et `[id]` : un glob qui les écrit tels quels peut correspondre à
+ * autre chose que ce qu'il montre. `**` les traverse sans les nommer. Un `+` ou
+ * un `@` restent littéraux tant qu'aucune parenthèse ne les suit, ce qui est
+ * déjà refusé, donc `+page.svelte` s'écrit tel quel.
+ */
+const GLOB_FORBIDDEN = /[()[\]?]|^!/;
+
+const NO_PATHS =
+  'pas de `paths:` en en-tête : ce fichier se chargerait à chaque session, comme la racine';
+
+/** Les globs `paths:` d'un fichier de règles, ou la raison de leur absence. */
+function pathsOf(f: string): { globs: string[] } | { error: string } {
+  const text = readFileSync(join(ROOT, f), 'utf8');
+  const fm = /^---\n([\s\S]*?)\n---\n/.exec(text);
+  if (!fm) return { error: NO_PATHS };
+  let header: unknown;
+  try {
+    header = Bun.YAML.parse(fm[1]);
+  } catch (e) {
+    return { error: `en-tête YAML illisible : ${(e as Error).message}` };
+  }
+  const paths = (header as { paths?: unknown } | null)?.paths;
+  if (paths === undefined) return { error: NO_PATHS };
+  if (
+    !Array.isArray(paths) ||
+    !paths.length ||
+    !paths.every((g) => typeof g === 'string' && g)
+  ) {
+    return { error: '`paths:` doit être une liste YAML de globs non vides' };
+  }
+  return { globs: paths };
+}
+
+function ruleRulesFilesLoad() {
+  info('Chaque fichier de .claude/rules/ se charge, et AGENTS.md le nomme');
+  const before = errors;
+  const trackedList = [...tracked()];
+  const rulesFiles = trackedList.filter(isRulesFile);
+  if (onlyFile && isRulesFile(onlyFile) && !rulesFiles.includes(onlyFile)) {
+    rulesFiles.push(onlyFile);
+  }
+  const named = new Set<string>();
+  const agents = join(ROOT, 'AGENTS.md');
+  if (existsSync(agents)) {
+    for (const m of readFileSync(agents, 'utf8').matchAll(/\]\(([^)#\s]+)/g)) {
+      named.add(normalize(m[1]).split('\\').join('/'));
+    }
+  }
+  for (const f of rulesFiles) {
+    if (!existsSync(join(ROOT, f))) continue;
+    if (!named.has(f)) {
+      fail(
+        `${f} - AGENTS.md ne le nomme pas : un agent qui ne charge pas .claude/rules/ ne le trouvera jamais`,
+      );
+    }
+    const header = pathsOf(f);
+    if ('error' in header) {
+      fail(`${f} - ${header.error}`);
+      continue;
+    }
+    for (const g of header.globs) {
+      if (GLOB_FORBIDDEN.test(g)) {
+        fail(
+          `${f} - glob \`${g}\` : se limiter à *, ** et {a,b}, les autres signes changent de sens selon le moteur`,
+        );
+        continue;
+      }
+      const glob = new Bun.Glob(g);
+      if (!trackedList.some((t) => glob.match(t))) {
+        fail(
+          `${f} - glob \`${g}\` : aucun fichier suivi ne lui correspond, cette doctrine ne se chargerait jamais`,
+        );
+      }
+    }
+  }
+  if (errors === before) {
+    green('Chaque fichier de .claude/rules/ se charge, et AGENTS.md le nomme');
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Règle E : AGENTS.md tient dans son budget                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `AGENTS.md` entre en contexte à chaque session de chaque agent, avant la
+ * première question, donc chaque octet y est payé par toutes les tâches, y
+ * compris celles qu'il ne concerne pas. Il était passé de 620 à 826 lignes en
+ * neuf jours parce que chaque post-mortem qui méritait d'être écrit atterrissait
+ * à la racine faute d'un autre endroit, et Codex, qui plafonne les instructions
+ * d'un projet à 32 Kio, n'en lisait plus que les deux tiers.
+ *
+ * Le budget est la taille d'après la cure plus une marge, pas un idéal. Le
+ * relever est une décision prise dans la pull request qui en a besoin, avec sa
+ * raison, comme `TOOL_LIST_BUDGET` dans `mcpServer.test.ts` ; ce qui ne
+ * concerne qu'une surface va dans son fichier de `.claude/rules/`. Le plafond de
+ * Codex, lui, ne se relève pas.
+ */
+const AGENTS_BUDGET_BYTES = 14 * 1024;
+const CODEX_CEILING_BYTES = 32 * 1024;
+
+function ruleRootBudget() {
+  info('AGENTS.md tient dans son budget');
+  const before = errors;
+  const full = join(ROOT, 'AGENTS.md');
+  if (!existsSync(full)) {
+    fail('règle E : AGENTS.md est introuvable');
+    return;
+  }
+  const size = statSync(full).size;
+  if (AGENTS_BUDGET_BYTES >= CODEX_CEILING_BYTES) {
+    fail(
+      `règle E : un budget de ${AGENTS_BUDGET_BYTES} octets dépasse le plafond de Codex (${CODEX_CEILING_BYTES}), qui tronquerait la racine`,
+    );
+  }
+  if (size > AGENTS_BUDGET_BYTES) {
+    fail(
+      `AGENTS.md - ${size} octets pour un budget de ${AGENTS_BUDGET_BYTES} : déplacer ce qui ne concerne qu'une surface vers son fichier de .claude/rules/, ou relever le budget en le justifiant`,
+    );
+  }
+  if (errors === before) {
+    green(
+      `AGENTS.md tient dans son budget (${size} / ${AGENTS_BUDGET_BYTES} octets)`,
+    );
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 
 ruleNoDashes();
-// Les règles B, C et D portent sur des fichiers précis, donc un appel ciblé sur
-// un seul fichier (le hook PostToolUse) ne les lance que s'il les concerne.
-if (!onlyFile || DOCTRINE.includes(onlyFile)) ruleLinksResolve();
-if (!onlyFile || onlyFile === 'AGENTS.md' || onlyFile === PKG) {
-  ruleVerifyChain();
-}
+// Les règles B à E portent sur des fichiers précis, donc un appel ciblé sur un
+// seul fichier (le hook PostToolUse) ne les lance que s'il les concerne.
+if (!onlyFile) ruleLinksResolve([...tracked()].filter(isDoctrine));
+else if (isDoctrine(onlyFile)) ruleLinksResolve([onlyFile]);
 if (!onlyFile || onlyFile === CI_WORKFLOW || onlyFile === PKG) {
   ruleVerifyRunsInCi();
 }
+if (!onlyFile || onlyFile === 'AGENTS.md' || isRulesFile(onlyFile)) {
+  ruleRulesFilesLoad();
+}
+if (!onlyFile || onlyFile === 'AGENTS.md') ruleRootBudget();
 
 console.log();
 if (errors > 0) {
   console.log(
-    `\x1b[31m✗ ${errors} violation(s). Voir AGENTS.md § Coding Conventions.\x1b[0m`,
+    `\x1b[31m✗ ${errors} violation(s). Voir AGENTS.md § Conventions.\x1b[0m`,
   );
   process.exit(1);
 } else if (onlyFile && files.length === 0) {

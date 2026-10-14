@@ -125,6 +125,9 @@ export PLAYWRIGHT_BASE_URL="$ORIGIN"
 
 echo "[test-db] ${db_name}, server on :${port}" >&2
 
+# "Disposable" is per database, not per container: the postgres image declares
+# its own volume, so a restart keeps every database on it, and only
+# `docker compose -f docker-compose.test.yml down -v` resets the container.
 if [ -n "$compose" ]; then
   echo "[test-db] starting the disposable Postgres (docker-compose.test.yml)" >&2
   $compose up -d --wait >&2

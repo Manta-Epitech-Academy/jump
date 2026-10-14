@@ -1,3 +1,11 @@
+---
+paths:
+  - "frontend/src/lib/server/usage/**"
+  - "frontend/src/lib/domain/usage.ts"
+  - "frontend/src/hooks.server.ts"
+  - "frontend/src/lib/server/services/adminStats/{featureUsage,staffActivity}.ts"
+---
+
 # Usage analytics: a catalogue of features, recorded server-side
 
 Jump could say who was enrolled, who had signed and who was present, and nothing
@@ -150,7 +158,3 @@ missing: the detailed path asserted it had measured, and the digest asks for
 ninety days, which always sits inside the retention window, so its own guard was
 unreachable and the first mails after a deploy would have named the whole
 catalogue.
-
----
-
-Ce fichier porte la doctrine d'une surface. Les règles qui valent partout (philosophie, commandes, espaces, conventions, contraintes) vivent dans [`AGENTS.md`](../../../../../AGENTS.md) à la racine du dépôt, qui nomme ce fichier.

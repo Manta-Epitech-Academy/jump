@@ -25,7 +25,7 @@
  * database carrying the real `epiboost.fr` address behind an enabled activity would be
  * one click away from handing a talent over to a live instance from a validation
  * environment, which is the class of thing this generator exists to make
- * impossible (see the worker-inertness rule in `scripts/seed/CLAUDE.md`).
+ * impossible (see the worker-inertness rule in `.claude/rules/seed.md`).
  *
  * Like every other catalogue seeder here, it is CREATE-ONLY: it never overwrites
  * a row somebody has since edited, which is what makes `--catalog-only` safe

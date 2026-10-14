@@ -10,11 +10,14 @@
  *     invitation leading the home's hero on a day without an activity (the
  *     picture is a key without bytes, like every stored file the generator
  *     writes, so the hero's fallback is what shows);
- *   - Marseille writes only a note, so a talent there with an activity left
- *     unfinished sees the hero suggest carrying it on at home;
- *   - Lyon put forward an event whose day has passed, which the home must no
- *     longer show and `config_talent_home` must report as no longer shown. Its
- *     picture is a still, the case of a picture with no still of its own.
+ *   - Marseille writes a note and put forward an event whose day has passed,
+ *     which the home must no longer show and `config_talent_home` must report
+ *     as no longer shown. Its picture is a still, the case of a picture with no
+ *     still of its own. With nothing open to lead its hero, it is a campus the
+ *     club's regulars can carry an activity on at home from;
+ *   - Lyon writes an invitation with no day, the shape most campuses actually
+ *     put forward (« toute l'année »): its hero shows no day and never retires
+ *     it.
  *
  * The sign-up links point at `.invalid` (RFC 2606), for the reason
  * `catalog/workshops.ts` gives: a validation environment must not send anybody
@@ -24,8 +27,11 @@
 export type HighlightSpec = {
   readonly title: string;
   readonly summary: string;
-  /** Days from the anchor. Negative is an event already past. */
-  readonly dayOffset: number;
+  /**
+   * Days from the anchor. Negative is an event already past; null is an
+   * invitation that has no day.
+   */
+  readonly dayOffset: number | null;
   readonly url: string;
   /** Its picture as copied, or null for a highlight without one. */
   readonly image: {
@@ -101,7 +107,7 @@ export const TALENT_HOME_HIGHLIGHTS: Readonly<Record<string, HighlightSpec>> = {
     url: 'https://www.epitech.invalid/inscription-atelier-programmation-informatique/?CampaignId=sd-snake',
     image: { width: 1280, height: 720, animated: true },
   },
-  Lyon: {
+  Marseille: {
     title: 'Journée portes ouvertes',
     summary:
       'Visite le campus, rencontre les étudiants et découvre les projets de première année.',
@@ -109,4 +115,23 @@ export const TALENT_HOME_HIGHLIGHTS: Readonly<Record<string, HighlightSpec>> = {
     url: 'https://www.epitech.invalid/journees-portes-ouvertes/?CampaignId=sd-jpo',
     image: { width: 1080, height: 1350, animated: false },
   },
+  Lyon: {
+    title: 'Les ateliers de la tech',
+    summary:
+      'Toute l’année, Epitech organise des ateliers gratuits : IA, code, robotique, cybersécurité. Pour y participer, inscris-toi !',
+    dayOffset: null,
+    url: 'https://www.epitech.invalid/agenda',
+    image: null,
+  },
 };
+
+/**
+ * The campuses whose highlight the home still shows on the anchor day: an
+ * undated invitation always, a dated one until its day has passed. Its hero
+ * leads with it for every talent of the campus with no activity that day.
+ */
+export const OPEN_HIGHLIGHT_CAMPUSES: ReadonlySet<string> = new Set(
+  Object.entries(TALENT_HOME_HIGHLIGHTS)
+    .filter(([, { dayOffset }]) => dayOffset === null || dayOffset >= 0)
+    .map(([campus]) => campus),
+);

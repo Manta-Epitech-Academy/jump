@@ -37,6 +37,12 @@ describe('isHighlightOpen', () => {
     );
     expect(isHighlightOpen(day('2026-10-07'), 'Europe/Paris', now)).toBe(true);
   });
+
+  it('never closes an invitation that has no day', () => {
+    expect(
+      isHighlightOpen(null, 'Europe/Paris', new Date('2030-01-01T12:00:00Z')),
+    ).toBe(true);
+  });
 });
 
 describe('formatHighlightDay', () => {
@@ -81,13 +87,10 @@ describe('pickHomeHero', () => {
   });
   const untouched = activity('snake', { solved: 0, total: 0, startedAt: null });
 
-  it('leads with the day’s activity, the highlight as what comes after', () => {
+  it('leaves the day’s activity alone in the hero, highlight or not', () => {
     expect(
       pickHomeHero({ today: [pacman], highlight, activities: [santa] }),
-    ).toEqual({ kind: 'activity', activities: [pacman], next: highlight });
-    expect(
-      pickHomeHero({ today: [pacman], highlight: null, activities: [] }),
-    ).toEqual({ kind: 'activity', activities: [pacman], next: null });
+    ).toEqual({ kind: 'activity', activities: [pacman] });
   });
 
   it('leads with the campus’s highlight on a day without an activity', () => {

@@ -19,6 +19,7 @@ import type {
   StaffRole,
   XpGrantSource,
 } from '@prisma/client';
+import type { IdentityField } from '../../src/lib/domain/feedbackForms/schema';
 import type { SeedContext } from './context';
 import { createBuffer, type Buffered } from './writer';
 import { id, seq, slug } from './ids';
@@ -158,7 +159,14 @@ export type BankQuestion = {
 export type FeedbackFormRef = {
   id: string;
   slug: string;
-  questions: { id: string; type: string; optionIds: string[] }[];
+  /** In the form's own order. */
+  questions: {
+    id: string;
+    type: string;
+    /** Set on a question that asks WHO is answering, never what they think. */
+    identityField: IdentityField | null;
+    options: { id: string; label: string }[];
+  }[];
 };
 
 /**
@@ -505,6 +513,28 @@ export class World {
     return row;
   }
 
+  /**
+   * Both sides of a talent's civility, placed: what the talent confirmed, and
+   * what Salesforce claims for the same person.
+   *
+   * The wizard draws the first (`addDossier`), and the mirror is written
+   * before the dossier exists, so neither can be fixed at creation. Placing
+   * them afterwards is what makes the pair deterministic: an agreement and a
+   * disagreement are both states the reconciliation reports differently, and a
+   * draw that happened to land on one would leave the other with no example.
+   */
+  placeCivilite(
+    talent: TalentRef,
+    civilite: { jump: string; salesforce: string },
+  ): void {
+    this.talentRow(talent.id).civilite = civilite.jump;
+    const mirror = this.buffer.talentSfImport.find(
+      (candidate) => candidate.talentId === talent.id,
+    );
+    if (!mirror) throw new Error(`No buffered SF mirror for ${talent.id}.`);
+    mirror.civilite = civilite.salesforce;
+  }
+
   campus(name: string): CampusRef {
     const found = this.campuses.get(name);
     if (!found) throw new Error(`No campus "${name}" in this profile.`);
@@ -517,14 +547,26 @@ export class World {
    * the platform's first if every one already is. Claims the campus it
    * resolves to (see `reservedCampusNames`), so stage and club can each ask
    * for their own without a caller having to reason about the other's pick.
+   *
+   * `unsuitable` names campuses the caller cannot use at all, whoever claimed
+   * them: a state the scenario places would not show there. The fallback never
+   * lands on one, and none left to use is an error rather than a campus where
+   * the state silently disappears.
    */
-  pickCampus(preferred: string): CampusRef {
-    const all = [...this.campuses.values()];
-    const free = all.filter((c) => !this.reservedCampusNames.has(c.name));
+  pickCampus(
+    preferred: string,
+    unsuitable: ReadonlySet<string> = new Set(),
+  ): CampusRef {
+    const usable = [...this.campuses.values()].filter(
+      (c) => !unsuitable.has(c.name),
+    );
+    const free = usable.filter((c) => !this.reservedCampusNames.has(c.name));
     const campus =
-      this.campuses.has(preferred) && !this.reservedCampusNames.has(preferred)
-        ? this.campus(preferred)
-        : (free[0] ?? all[0])!;
+      free.find((c) => c.name === preferred) ?? free[0] ?? usable[0];
+    if (!campus)
+      throw new Error(
+        `No usable campus in this profile for pickCampus("${preferred}"): every one is unsuitable (${[...unsuitable].join(', ')}).`,
+      );
     this.reservedCampusNames.add(campus.name);
     return campus;
   }
@@ -753,11 +795,15 @@ export class World {
      * property `enrol`'s explicit status has, and for the same reason.
      */
     career?: number;
-    /** What Salesforce claims, when it differs from what the talent confirmed. */
+    /**
+     * What Salesforce claims, when it differs from what the talent confirmed.
+     * A phone number may be an explicit `null`: a contact Salesforce holds no
+     * number for, which the reconciliation reports as « manquant ».
+     */
     sfClaims?: {
       nom?: string;
       prenom?: string;
-      phone?: string;
+      phone?: string | null;
       niveau?: string;
     };
   }): TalentRef {
@@ -795,17 +841,38 @@ export class World {
       createdAt: this.ctx.clock.days(-300),
     });
 
-    // The anti-corruption mirror. Every talent has one in production (5377 of
-    // 5394), because every talent arrives from the CRM.
-    this.buffer.talentSfImport.push({
-      talentId,
-      nom: opts.sfClaims?.nom ?? opts.nom,
-      prenom: opts.sfClaims?.prenom ?? opts.prenom,
-      sfEmail: email,
-      phone: opts.sfClaims?.phone ?? opts.phone ?? '+33600000000',
-      niveau: opts.sfClaims?.niveau ?? opts.niveau,
-      sfSchoolId: opts.schoolId ?? null,
-    });
+    // The anti-corruption mirror. Nearly every talent has one in production
+    // (5377 of 5394), because nearly every talent arrives from the CRM. Only
+    // `syncTalents` writes it, so a talent Jump created itself, with no
+    // Salesforce id, has none, and there is nothing Salesforce could claim.
+    const fromSalesforce = opts.externalId !== null;
+    if (!fromSalesforce && opts.sfClaims)
+      throw new Error(
+        `${talentId} n’a pas d’identifiant Salesforce : Salesforce ne peut rien en prétendre.`,
+      );
+    if (fromSalesforce) {
+      const claims = opts.sfClaims ?? {};
+      this.buffer.talentSfImport.push({
+        talentId,
+        nom: claims.nom ?? opts.nom,
+        prenom: claims.prenom ?? opts.prenom,
+        // The sync mints a login from this address, so a contact Salesforce
+        // holds none for stays accountless with no error to explain it, which
+        // is the state this places. The other way to have no account, an
+        // address another account already owns, comes with a `DUPLICATE_EMAIL`
+        // sync error, and `assert/reachability.ts` says why that one is never
+        // seeded.
+        sfEmail: withAccount ? email : null,
+        // `??` would swallow an explicit null, which is the whole point of
+        // passing one.
+        phone:
+          claims.phone === undefined
+            ? (opts.phone ?? '+33600000000')
+            : claims.phone,
+        niveau: claims.niveau ?? opts.niveau,
+        sfSchoolId: opts.schoolId ?? null,
+      });
+    }
 
     const ref: TalentRef = {
       id: talentId,

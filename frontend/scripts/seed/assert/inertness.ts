@@ -9,7 +9,7 @@
  * to: it takes the oldest outstanding row and calls a provider.
  *
  * It cost six SMS on a team member's personal phone, out of a plain `bun run
- * seed`, to learn that. `AGENTS.md` tells that story once, under « A seeded
+ * seed`, to learn that. `.claude/rules/seed.md` tells that story once, under « A seeded
  * database is inert to every background worker », along with the older half of
  * the same rule: no `Campus.externalName` is written, so the Salesforce worker
  * has nothing to resolve. Inertness by data, never by a gate somebody re-enables

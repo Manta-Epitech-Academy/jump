@@ -34,7 +34,7 @@ import {
   RETIRED_QUESTION,
   STAGE_TEMPLATE_KEY,
 } from '../catalog/closings';
-import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
+import { STAGE_FORM_SLUG } from '../catalog/feedbackForms';
 import { CLUB_CERTIFICATE } from '../catalog/diplomas';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { addMinigamePublications, addXpRewards } from '../factories/engagement';
@@ -163,20 +163,17 @@ export const platform: Scenario = {
         });
       }
       const highlight = TALENT_HOME_HIGHLIGHTS[campus.name];
-      // An open highlight leads the hero of every talent of its campus who has
-      // no activity that day, which would hide what a later scenario places
-      // on purpose: the club's regulars carrying an activity on at home. So
-      // its campus is reserved, and `pickCampus` sends them elsewhere.
-      if (highlight && highlight.dayOffset >= 0)
-        world.reservedCampusNames.add(campus.name);
       if (highlight)
         world.buffer.talentHome_Highlight.push({
           campusId: campus.id,
           title: highlight.title,
           summary: highlight.summary,
-          date: new Date(
-            `${clock.dateKey(clock.days(highlight.dayOffset))}T00:00:00.000Z`,
-          ),
+          date:
+            highlight.dayOffset === null
+              ? null
+              : new Date(
+                  `${clock.dateKey(clock.days(highlight.dayOffset))}T00:00:00.000Z`,
+                ),
           url: highlight.url,
           updatedAt: clock.today,
         });
@@ -300,8 +297,7 @@ export const platform: Scenario = {
     // « closings et diplôme » and hands the applied event a null certificate is
     // the exact failure `EventConfig_Template.diplomaTemplateId` was added to
     // prevent, and it left the wizard's own apply path with no example.
-    const stageFormId =
-      world.feedbackForms.get(FEEDBACK_FORM_SLUGS[0] ?? '')?.id ?? null;
+    const stageFormId = world.feedbackForms.get(STAGE_FORM_SLUG)?.id ?? null;
     for (const preset of EVENT_TEMPLATES) {
       const templateId = id('ect', preset.name);
       // The bare preset is the one worth holding: a preset is allowed to carry

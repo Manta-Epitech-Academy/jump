@@ -242,7 +242,11 @@ model Talent {
   nom                         String
   prenom                      String
   niveau                      String?
+  /// Cached projection of the `XpGrant` ledger: `SUM(amount)`, recomputed by
+  /// `xpService` in the transaction that writes a grant, never written directly.
   xp                          Int                  @default(0)
+  /// Cached projection: distinct events attended per émargement (présent or en
+  /// retard), never a Salesforce status.
   eventsCount                 Int                  @default(0)
   charterAcceptedAt           DateTime?
   techInterestsValidatedAt    DateTime?
@@ -603,8 +607,8 @@ enum ImageRightsDecisionSource {
 /// Append-only fact log of image-rights decisions: one row per choice or
 /// revision, never overwritten. The current value cached on
 /// `Talent.imageRights*` is a projection of the latest row here (same shape as
-/// the XP ledger: facts as rows, state as projection; see CLAUDE.md "Data
-/// modeling"). A guardian revoking "à tout moment" or staff correcting an
+/// the XP ledger: facts as rows, state as projection; see
+/// `.claude/rules/data-model.md`). A guardian revoking "à tout moment" or staff correcting an
 /// offline change of mind both append a new row, so the full history of who
 /// decided what and when survives, which matters legally for a minor's consent.
 ///
@@ -798,24 +802,28 @@ model TalentHome_NoteImage {
 
 /// The one event a campus invites its talents to sign up for, with a link to an
 /// outside sign-up form. The talent home's blue hero leads with it on a day the
-/// talent has no activity, and lists it as a compact « À venir » line under
-/// the activity on a day they have one (`pickHomeHero`). Chosen
-/// by hand per campus (`write_talent_home_highlight`), never derived from
+/// talent has no activity, and leaves the day of an activity to that activity
+/// (`pickHomeHero`). Chosen by hand per campus (`write_talent_home_highlight`), never derived from
 /// Salesforce: a JPO or a camp is not something the talent is enrolled in yet.
 ///
 /// Its own table rather than columns beside the note, so a half-written
-/// highlight cannot exist: a row is all four fields or nothing.
+/// highlight cannot exist: a row has its title, its text and its link, or is
+/// not there.
 model TalentHome_Highlight {
-  campusId  String   @id
+  campusId  String    @id
   title     String
   summary   String
-  /// The event's calendar day. The reader stops showing the highlight once
-  /// that day has passed on the campus clock, so a camp's invitation does not
-  /// outlive the camp.
-  date      DateTime @db.Date
+  /// The event's calendar day, shown on the hero. The reader stops showing the
+  /// highlight once that day has passed on the campus clock, so a camp's
+  /// invitation does not outlive the camp. Null for an invitation that has no
+  /// day (« les ateliers de la tech, toute l'année »): no day is shown, and it
+  /// stays until it is rewritten or removed. One column for both, because a
+  /// day hidden from the talent that still retired the hero would be a rule
+  /// nobody could see.
+  date      DateTime? @db.Date
   /// The sign-up form, https only.
   url       String
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime  @updatedAt
 
   campus Campus                     @relation(fields: [campusId], references: [id], onDelete: Cascade)
   image  TalentHome_HighlightImage?
@@ -1414,13 +1422,11 @@ model Feedback_Submission {
   formId String
   source Feedback_SubmissionSource
 
-  // Set for authenticated submissions; null for public until reconciled.
-  talentId  String?
+  // Set for authenticated submissions; null for public.
+  talentId String?
   // The cohort event (authenticated). Null for public: a non-onboarded campus has
   // no Jump event.
-  eventId   String?
-  // When a public submission was later linked to a Talent by email.
-  matchedAt DateTime?
+  eventId  String?
 
   // Self-reported respondent identity. Populated ONLY for public submissions; for
   // authenticated ones identity is read from the linked Talent (single source).
@@ -1849,7 +1855,7 @@ enum SyncRunStatus {
 /// carries a non-null `Campus.externalName`, and that join IS the worker
 /// isolation a generated dataset rests on: the generator writes no external name
 /// at all, so a seeded environment answers an empty list on any machine (see
-/// `scripts/seed/CLAUDE.md`). A row here is an instruction a worker finds by
+/// `.claude/rules/seed.md`). A row here is an instruction a worker finds by
 /// itself, which is why the generator writes none either.
 model Sync_Source {
   id                   String         @id @default(cuid())
@@ -1872,7 +1878,7 @@ model Sync_Source {
 /// anything, closed when it is done or has failed.
 ///
 /// This is a fact of Jump's own (we ran a sync), not a poll of Salesforce's
-/// state, which is the thing `prisma/CLAUDE.md` forbids appending a row for. The
+/// state, which is the thing `.claude/rules/data-model.md` forbids appending a row for. The
 /// mirror of what Salesforce claims stays `TalentSfImport`, upserted only when
 /// the inbound payload differs. And a tick with nothing due never reaches this
 /// table: the worker exits on `GET /api/worker/config` without opening a run, so
@@ -2580,7 +2586,7 @@ model EventConfig_Workshop {
 
 /// What CTFd says one talent has done on one activity.
 ///
-/// A POLLED EXTERNAL MIRROR, not a fact log. `prisma/CLAUDE.md` takes this case
+/// A POLLED EXTERNAL MIRROR, not a fact log. `.claude/rules/data-model.md` takes this case
 /// out of the "facts as rows" shape and sends it to a 1:1 typed row updated when
 /// the inbound payload differs, the `TalentSfImport` shape. `solvedSteps` and
 /// `totalSteps` are CTFd's CLAIM, never a count Jump made.
@@ -2590,7 +2596,7 @@ model EventConfig_Workshop {
 /// people who have already started.
 ///
 /// `eventId` and `campusId` record what was true once instead of tracking a
-/// source, which is the test `prisma/CLAUDE.md` states, so they are NOT bound to
+/// source, which is the test `.claude/rules/data-model.md` states, so they are NOT bound to
 /// `Event(id, campusId)` by a composite key: an event reassigned to another
 /// campus in Salesforce does not rewrite the campus an activity was walked under,
 /// the same call `XpGrant.campusId` and `MinigameAttempt.campusId` make.

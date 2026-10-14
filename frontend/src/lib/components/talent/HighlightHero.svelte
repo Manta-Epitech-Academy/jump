@@ -55,15 +55,18 @@
             {highlight.title}<TitleCursor />
           </h2>
           <!-- The fact a sign-up turns on, so it is read as a line of its
-               own rather than in the overline's small capitals. -->
-          <p
-            class="mt-2 flex items-center gap-1.5 text-sm font-semibold text-white"
-          >
-            <CalendarDays class="size-4 shrink-0" aria-hidden="true" />
-            <span class="first-letter:uppercase"
-              >{formatHighlightDay(highlight.date)}</span
+               own rather than in the overline's small capitals. An invitation
+               with no day shows none, rather than one made up to fill it. -->
+          {#if highlight.date}
+            <p
+              class="mt-2 flex items-center gap-1.5 text-sm font-semibold text-white"
             >
-          </p>
+              <CalendarDays class="size-4 shrink-0" aria-hidden="true" />
+              <span class="first-letter:uppercase"
+                >{formatHighlightDay(highlight.date)}</span
+              >
+            </p>
+          {/if}
         </div>
 
         <p class="max-w-prose text-sm text-white/80">{highlight.summary}</p>

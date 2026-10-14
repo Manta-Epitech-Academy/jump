@@ -240,15 +240,27 @@ describe('the campus content on a talent’s home (integration)', () => {
     expect(String(payload.error)).toContain(campusName);
   });
 
-  it('sets the highlight, and refuses an http link, a past day or a half-filled one', async () => {
+  it('sets the highlight, and refuses an http link, a past day, a missing day or a half-filled one', async () => {
     const set = await post(postHighlight, secret, highlight);
     expect(set.status).toBe(200);
     expect(set.payload.after).toEqual({ ...highlight, imageUrl: null });
 
+    const { date: _date, ...withoutDay } = highlight;
     for (const body of [
       { ...highlight, url: 'http://www.epitech.invalid/form' },
       { ...highlight, date: dayFromToday(-1) },
+      // Left out rather than nulled: a forgotten day must not turn a dated
+      // camp into a standing invitation.
+      withoutDay,
       { ...highlight, url: null },
+      // A day on its own dates nothing.
+      {
+        campus: campusName,
+        title: null,
+        summary: null,
+        url: null,
+        date: highlight.date,
+      },
       { ...highlight, summary: 'x'.repeat(301) },
       { ...highlight, imageUrl: 'http://www.epitech.invalid/affiche.png' },
     ]) {
@@ -291,6 +303,30 @@ describe('the campus content on a talent’s home (integration)', () => {
     await expect(
       writeTalentHomeHighlight(highlight, tomorrowMorning),
     ).rejects.toThrow(/déjà passé/);
+  });
+
+  it('shows an invitation with no day, without one and for as long as it stands', async () => {
+    const undated = { ...highlight, date: null };
+    const set = await post(postHighlight, secret, undated);
+    expect(set.status).toBe(200);
+    expect(set.payload.after).toEqual({ ...undated, imageUrl: null });
+
+    const yearsLater = new Date(Date.now() + 4 * 365 * 86_400_000);
+    expect((await getTalentHome(campusId, yearsLater)).highlight).toEqual({
+      title: highlight.title,
+      summary: highlight.summary,
+      date: null,
+      url: highlight.url,
+      image: null,
+    });
+
+    const payload = await read(
+      secret,
+      `campus=${encodeURIComponent(campusName)}`,
+    );
+    const [row] = (payload.campuses as { value: { highlight: unknown }[] })
+      .value;
+    expect(row?.highlight).toMatchObject({ date: null, shown: true });
   });
 
   it('clears both blocks with nulls', async () => {

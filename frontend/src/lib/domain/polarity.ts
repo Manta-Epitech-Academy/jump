@@ -12,7 +12,7 @@
  *
  * It lives in its own module rather than in either feature's, so that neither has
  * to import the other. Closings and feedback are deliberately separate concepts
- * (see the closings section of AGENTS.md), and a closing file importing from
+ * (see `.claude/rules/closings.md`), and a closing file importing from
  * `domain/feedback` would read as though that decision had been quietly reversed.
  */
 
