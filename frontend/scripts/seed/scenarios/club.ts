@@ -24,6 +24,7 @@ import {
 import { CLUB_CERTIFICATE } from '../catalog/diplomas';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
 import { WORKSHOPS } from '../catalog/workshops';
+import { OPEN_HIGHLIGHT_CAMPUSES } from '../catalog/talentHome';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { conductClosing } from '../factories/closing';
@@ -113,16 +114,18 @@ function activitiesFor(session: number, upcoming: boolean) {
 
 export const club: Scenario = {
   // Not `coding-club-nice`: `pickCampus` falls back when the preferred campus
-  // is outside the profile, and at every profile under nine campuses this runs
-  // on Paris - so the name contradicted the « Campus : » line the manifest
-  // prints from the row that was actually written. The campus is reported, never
-  // named here.
+  // is outside the profile, which every profile under nine campuses is - so the
+  // name contradicted the « Campus : » line the manifest prints from the row
+  // that was actually written. The campus is reported, never named here.
   name: 'coding-club',
   summary:
     'Format court et récurrent : une saison de séances, la grille Coding Club, des habitués.',
   run(world) {
     const { profile, rng, clock } = world.ctx;
-    const campus = world.pickCampus('Nice');
+    // Never a campus whose highlight is open: it would lead the hero of every
+    // regular without an activity that day, over the activity they carry on at
+    // home, which is the state this scenario places for them.
+    const campus = world.pickCampus('Nice', OPEN_HIGHLIGHT_CAMPUSES);
     const team = world.staffFor(campus.id);
     const clubTemplateId = id('clt', CLUB_TEMPLATE.key);
     const size = profile.name === 'ci' ? 8 : 24;

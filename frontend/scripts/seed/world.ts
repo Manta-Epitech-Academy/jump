@@ -547,14 +547,26 @@ export class World {
    * the platform's first if every one already is. Claims the campus it
    * resolves to (see `reservedCampusNames`), so stage and club can each ask
    * for their own without a caller having to reason about the other's pick.
+   *
+   * `unsuitable` names campuses the caller cannot use at all, whoever claimed
+   * them: a state the scenario places would not show there. The fallback never
+   * lands on one, and none left to use is an error rather than a campus where
+   * the state silently disappears.
    */
-  pickCampus(preferred: string): CampusRef {
-    const all = [...this.campuses.values()];
-    const free = all.filter((c) => !this.reservedCampusNames.has(c.name));
+  pickCampus(
+    preferred: string,
+    unsuitable: ReadonlySet<string> = new Set(),
+  ): CampusRef {
+    const usable = [...this.campuses.values()].filter(
+      (c) => !unsuitable.has(c.name),
+    );
+    const free = usable.filter((c) => !this.reservedCampusNames.has(c.name));
     const campus =
-      this.campuses.has(preferred) && !this.reservedCampusNames.has(preferred)
-        ? this.campus(preferred)
-        : (free[0] ?? all[0])!;
+      free.find((c) => c.name === preferred) ?? free[0] ?? usable[0];
+    if (!campus)
+      throw new Error(
+        `No usable campus in this profile for pickCampus("${preferred}"): every one is unsuitable (${[...unsuitable].join(', ')}).`,
+      );
     this.reservedCampusNames.add(campus.name);
     return campus;
   }

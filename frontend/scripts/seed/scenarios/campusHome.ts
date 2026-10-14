@@ -2,8 +2,8 @@
  * Somebody to sign in as, to see what a campus puts on its talents' home.
  *
  * The content itself is a platform fact, written by `platform` with the campuses
- * (`catalog/talentHome.ts`), because the campus whose highlight is open has to
- * be reserved before `club` picks its own. What this adds is the persona: a
+ * (`catalog/talentHome.ts`), and `club` keeps its regulars off any campus whose
+ * highlight is open. What this adds is the persona: a
  * talent of that campus, onboarded, whose only enrolment is a Coding Club a few
  * days out. Nothing runs for them today, so their home leads with the campus's
  * highlighted event, and the session card gives the club's day and hour.
@@ -13,7 +13,7 @@
  * the activity, and the page would advertise a state the account does not show.
  */
 
-import { TALENT_HOME_HIGHLIGHTS, opensAtAnchor } from '../catalog/talentHome';
+import { OPEN_HIGHLIGHT_CAMPUSES } from '../catalog/talentHome';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
 import { addDossier } from '../factories/onboarding';
 import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
@@ -27,15 +27,13 @@ export const campusHome: Scenario = {
   summary: 'Le mot du campus et l’événement mis en avant, par campus.',
   run(world) {
     const { clock } = world.ctx;
-    const openHighlight = Object.entries(TALENT_HOME_HIGHLIGHTS).find(
-      ([name, highlight]) =>
-        opensAtAnchor(highlight) && world.campuses.has(name),
+    const campus = [...world.campuses.values()].find((c) =>
+      OPEN_HIGHLIGHT_CAMPUSES.has(c.name),
     );
-    if (!openHighlight)
+    if (!campus)
       throw new Error(
         'Aucun campus du profil ne porte d’événement mis en avant ouvert.',
       );
-    const campus = world.campus(openHighlight[0]);
 
     const days = world.eventWindow(SESSION_OFFSET, 1);
     const session = world.addEvent({
@@ -80,8 +78,8 @@ export const campusHome: Scenario = {
       campus: campus.name,
       covers: [
         `${campus.name} : un mot du campus (titre, liste, liens) et un événement mis en avant avec une image, en tête du bandeau bleu de tout talent du campus sans activité ce jour-là`,
-        'Marseille : un mot du campus et une invitation sans date (« toute l’année »), que le bandeau montre sans jour et ne retire jamais',
-        'Lyon : un événement mis en avant dont le jour est passé, que l’accueil ne montre plus : le bandeau y propose de continuer une activité commencée',
+        'Marseille : un mot du campus et un événement mis en avant dont le jour est passé, que l’accueil ne montre plus',
+        'Lyon : une invitation sans date (« toute l’année »), que le bandeau montre sans jour et ne retire jamais',
       ],
       accounts: [
         {
