@@ -28,8 +28,8 @@ export const HIGHLIGHT_SUMMARY_MAX = 300;
 export type TalentHomeHighlight = {
   title: string;
   summary: string;
-  /** The event's calendar day. */
-  date: DateKey;
+  /** The event's calendar day, or null for an invitation that has none. */
+  date: DateKey | null;
   url: string;
   /** Its picture, served by Jump; null when it has none. */
   image: ShownPicture | null;
@@ -43,15 +43,16 @@ export type TalentHome = {
 
 /**
  * Whether a highlight still invites anyone: until the end of its day on the
- * campus clock. The day is a stored calendar day (`@db.Date`), compared as a
- * key so no timezone can shift it.
+ * campus clock, and for as long as it stands when it has no day. The day is a
+ * stored calendar day (`@db.Date`), compared as a key so no timezone can shift
+ * it.
  */
 export function isHighlightOpen(
-  day: Date,
+  day: Date | null,
   timezone: string,
   now: Date,
 ): boolean {
-  return dbDateToKey(day) >= toDateKey(now, timezone);
+  return day === null || dbDateToKey(day) >= toDateKey(now, timezone);
 }
 
 /** « mercredi 7 octobre », read off the key itself so no clock can shift it. */
@@ -116,7 +117,7 @@ export function talentHomeImageUrl(key: string): string {
  *      event day the talent came to do that activity, so the campus's
  *      highlighted event waits for a day without one rather than sharing the
  *      hero with it;
- *   2. the campus's highlighted event, while its day has not passed;
+ *   2. the campus's highlighted event, while it is open (`isHighlightOpen`);
  *   3. an activity the talent started and has not finished, which a Coding
  *      Club is designed for them to carry on at home: the most recently
  *      started first;
@@ -134,7 +135,7 @@ export function pickHomeHero({
 }: {
   /** The activities offered today (`TalentWorkshops.today`). */
   today: WorkshopActivity[];
-  /** The campus's highlighted event, already filtered on its day. */
+  /** The campus's highlighted event, already filtered on `isHighlightOpen`. */
   highlight: TalentHomeHighlight | null;
   /** Every other activity offered (`TalentWorkshops.activities`). */
   activities: WorkshopActivity[];

@@ -19,6 +19,7 @@ import {
   TALENT_HOME_HIGHLIGHTS,
   TALENT_HOME_NOTES,
   TALENT_HOME_NOTE_IMAGES,
+  opensAtAnchor,
 } from '../catalog/talentHome';
 import {
   highlightImageKey,
@@ -167,16 +168,19 @@ export const platform: Scenario = {
       // no activity that day, which would hide what a later scenario places
       // on purpose: the club's regulars carrying an activity on at home. So
       // its campus is reserved, and `pickCampus` sends them elsewhere.
-      if (highlight && highlight.dayOffset >= 0)
+      if (highlight && opensAtAnchor(highlight))
         world.reservedCampusNames.add(campus.name);
       if (highlight)
         world.buffer.talentHome_Highlight.push({
           campusId: campus.id,
           title: highlight.title,
           summary: highlight.summary,
-          date: new Date(
-            `${clock.dateKey(clock.days(highlight.dayOffset))}T00:00:00.000Z`,
-          ),
+          date:
+            highlight.dayOffset === null
+              ? null
+              : new Date(
+                  `${clock.dateKey(clock.days(highlight.dayOffset))}T00:00:00.000Z`,
+                ),
           url: highlight.url,
           updatedAt: clock.today,
         });

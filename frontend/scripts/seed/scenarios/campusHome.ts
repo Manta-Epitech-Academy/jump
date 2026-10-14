@@ -13,7 +13,7 @@
  * the activity, and the page would advertise a state the account does not show.
  */
 
-import { TALENT_HOME_HIGHLIGHTS } from '../catalog/talentHome';
+import { TALENT_HOME_HIGHLIGHTS, opensAtAnchor } from '../catalog/talentHome';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
 import { addDossier } from '../factories/onboarding';
 import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
@@ -29,7 +29,7 @@ export const campusHome: Scenario = {
     const { clock } = world.ctx;
     const openHighlight = Object.entries(TALENT_HOME_HIGHLIGHTS).find(
       ([name, highlight]) =>
-        highlight.dayOffset >= 0 && world.campuses.has(name),
+        opensAtAnchor(highlight) && world.campuses.has(name),
     );
     if (!openHighlight)
       throw new Error(
@@ -80,8 +80,8 @@ export const campusHome: Scenario = {
       campus: campus.name,
       covers: [
         `${campus.name} : un mot du campus (titre, liste, liens) et un événement mis en avant avec une image, en tête du bandeau bleu de tout talent du campus sans activité ce jour-là`,
-        'Marseille : un mot du campus seul, sans événement mis en avant',
-        'Lyon : un événement mis en avant dont le jour est passé, que l’accueil ne montre plus',
+        'Marseille : un mot du campus et une invitation sans date (« toute l’année »), que le bandeau montre sans jour et ne retire jamais',
+        'Lyon : un événement mis en avant dont le jour est passé, que l’accueil ne montre plus : le bandeau y propose de continuer une activité commencée',
       ],
       accounts: [
         {

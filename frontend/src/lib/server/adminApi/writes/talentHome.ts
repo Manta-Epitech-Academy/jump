@@ -207,7 +207,7 @@ function presentHighlight(campus: ResolvedCampus, row: HighlightRow | null) {
   return {
     campus: campus.name,
     ...fields,
-    date: dbDateToKey(row.date),
+    date: row.date && dbDateToKey(row.date),
     imageUrl: image?.sourceUrl ?? null,
   };
 }
@@ -259,14 +259,40 @@ function checkSignupUrl(url: string): void {
     );
 }
 
+/** A highlight's day: a real one, and not already past on the campus clock. */
+async function checkHighlightDay(
+  campus: ResolvedCampus,
+  date: string,
+  now: Date,
+): Promise<void> {
+  if (!isCalendarDay(date))
+    throw new OperationRefusedError(
+      `« ${date} » n'est pas un jour du calendrier. Format attendu : AAAA-MM-JJ.`,
+    );
+  const { timezone } = await prisma.campus.findUniqueOrThrow({
+    where: { id: campus.id },
+    select: { timezone: true },
+  });
+  const today = toDateKey(now, timezone);
+  if (date < today)
+    throw new OperationRefusedError(
+      `Le ${date} est déjà passé à ${campus.name} (nous sommes le ${today}) : l'accueil ne l'afficherait jamais.`,
+    );
+}
+
 /**
  * Set or clear the event one campus puts forward.
  *
- * All four fields together set it, all four null clear it, and anything in
- * between is refused: a highlight with no link or no day would invite talents
- * to nothing. A day already past is refused too, since the home would never
- * show it. The picture is optional and goes with the highlight: omitted, the
- * highlight has none, and clearing the highlight removes it.
+ * Its title, its text and its link together set it, the three null clear it,
+ * and anything in between is refused: a highlight with no link would invite
+ * talents to nothing. The day is the one field a highlight may go without: a
+ * null day is an invitation that has none (« toute l'année »), which shows no
+ * day and stands until it is rewritten. It is never left out, only given or
+ * nulled, so that forgetting it cannot turn a dated camp into a standing
+ * invitation; and clearing nulls it too, since a day on its own dates nothing.
+ * A day already past is refused, since the home would never show it. The
+ * picture is optional and goes with the highlight: omitted, the highlight has
+ * none, and clearing the highlight removes it.
  *
  * Safe to repeat: the same values leave the same row, and a picture whose
  * address has not changed keeps the copy already stored (`replacePictures`).
@@ -284,17 +310,21 @@ export async function writeTalentHomeHighlight(
 ): Promise<WriteOutcome> {
   const campus = await namedCampus(params.campus);
   const { title, summary, date, url } = params;
-  const given = [title, summary, date, url].filter((v) => v !== null).length;
+  const given = [title, summary, url].filter((v) => v !== null).length;
 
-  if (given !== 0 && given !== 4)
+  if (given !== 0 && given !== 3)
     throw new OperationRefusedError(
-      "L'événement mis en avant demande ses quatre champs (title, summary, date, url). Pour le retirer, passez les quatre à null.",
+      "L'événement mis en avant demande son titre, son texte et son lien (title, summary, url). Pour le retirer, passez les trois à null, ainsi que date.",
     );
 
-  if (title === null || summary === null || date === null || url === null) {
+  if (title === null || summary === null || url === null) {
+    if (date !== null)
+      throw new OperationRefusedError(
+        "Un jour ne peut pas être donné sans l'événement qu'il date. Pour retirer l'événement mis en avant, passez title, summary, url et date à null.",
+      );
     if (params.imageUrl)
       throw new OperationRefusedError(
-        "Une image ne peut pas être donnée sans l'événement qu'elle illustre. Pour retirer l'événement mis en avant, passez les quatre champs à null sans image.",
+        "Une image ne peut pas être donnée sans l'événement qu'elle illustre. Pour retirer l'événement mis en avant, passez title, summary, url et date à null, sans image.",
       );
     // The picture row goes with the highlight (cascade); its bytes go after.
     const { before } = await swapStoredImages({
@@ -327,23 +357,15 @@ export async function writeTalentHomeHighlight(
     throw new OperationRefusedError(
       `Le texte doit faire entre 1 et ${HIGHLIGHT_SUMMARY_MAX} caractères (reçu : ${summary.length}).`,
     );
-  if (!isCalendarDay(date))
-    throw new OperationRefusedError(
-      `« ${date} » n'est pas un jour du calendrier. Format attendu : AAAA-MM-JJ.`,
-    );
+  if (date !== null) await checkHighlightDay(campus, date, now);
   checkSignupUrl(url);
 
-  const { timezone } = await prisma.campus.findUniqueOrThrow({
-    where: { id: campus.id },
-    select: { timezone: true },
-  });
-  const today = toDateKey(now, timezone);
-  if (date < today)
-    throw new OperationRefusedError(
-      `Le ${date} est déjà passé à ${campus.name} (nous sommes le ${today}) : l'accueil ne l'afficherait jamais.`,
-    );
-
-  const values = { title, summary, date: dateKeyToDbDate(date), url };
+  const values = {
+    title,
+    summary,
+    date: date && dateKeyToDbDate(date),
+    url,
+  };
   const before = await replacePictures({
     requests: params.imageUrl
       ? [

@@ -37,6 +37,12 @@ describe('isHighlightOpen', () => {
     );
     expect(isHighlightOpen(day('2026-10-07'), 'Europe/Paris', now)).toBe(true);
   });
+
+  it('never closes an invitation that has no day', () => {
+    expect(
+      isHighlightOpen(null, 'Europe/Paris', new Date('2030-01-01T12:00:00Z')),
+    ).toBe(true);
+  });
 });
 
 describe('formatHighlightDay', () => {

@@ -10,11 +10,14 @@
  *     invitation leading the home's hero on a day without an activity (the
  *     picture is a key without bytes, like every stored file the generator
  *     writes, so the hero's fallback is what shows);
- *   - Marseille writes only a note, so a talent there with an activity left
- *     unfinished sees the hero suggest carrying it on at home;
+ *   - Marseille writes a note and an invitation with no day, the shape most
+ *     campuses actually put forward (« toute l'année »): its hero shows no day
+ *     and never retires it;
  *   - Lyon put forward an event whose day has passed, which the home must no
  *     longer show and `config_talent_home` must report as no longer shown. Its
- *     picture is a still, the case of a picture with no still of its own.
+ *     picture is a still, the case of a picture with no still of its own. With
+ *     nothing open to lead its hero, a talent there with an activity left
+ *     unfinished sees the hero suggest carrying it on at home.
  *
  * The sign-up links point at `.invalid` (RFC 2606), for the reason
  * `catalog/workshops.ts` gives: a validation environment must not send anybody
@@ -24,8 +27,11 @@
 export type HighlightSpec = {
   readonly title: string;
   readonly summary: string;
-  /** Days from the anchor. Negative is an event already past. */
-  readonly dayOffset: number;
+  /**
+   * Days from the anchor. Negative is an event already past; null is an
+   * invitation that has no day.
+   */
+  readonly dayOffset: number | null;
   readonly url: string;
   /** Its picture as copied, or null for a highlight without one. */
   readonly image: {
@@ -92,6 +98,14 @@ export const TALENT_HOME_NOTE_IMAGES: Readonly<
   ],
 };
 
+/**
+ * Whether the home still shows it on the anchor day: an undated invitation
+ * always, a dated one until its day has passed.
+ */
+export function opensAtAnchor(highlight: HighlightSpec): boolean {
+  return highlight.dayOffset === null || highlight.dayOffset >= 0;
+}
+
 export const TALENT_HOME_HIGHLIGHTS: Readonly<Record<string, HighlightSpec>> = {
   Paris: {
     title: 'Recode le jeu Snake en JS',
@@ -100,6 +114,14 @@ export const TALENT_HOME_HIGHLIGHTS: Readonly<Record<string, HighlightSpec>> = {
     dayOffset: 9,
     url: 'https://www.epitech.invalid/inscription-atelier-programmation-informatique/?CampaignId=sd-snake',
     image: { width: 1280, height: 720, animated: true },
+  },
+  Marseille: {
+    title: 'Les ateliers de la tech',
+    summary:
+      'Toute l’année, Epitech organise des ateliers gratuits : IA, code, robotique, cybersécurité. Pour y participer, inscris-toi !',
+    dayOffset: null,
+    url: 'https://www.epitech.invalid/agenda',
+    image: null,
   },
   Lyon: {
     title: 'Journée portes ouvertes',

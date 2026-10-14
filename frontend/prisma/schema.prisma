@@ -807,18 +807,23 @@ model TalentHome_NoteImage {
 /// Salesforce: a JPO or a camp is not something the talent is enrolled in yet.
 ///
 /// Its own table rather than columns beside the note, so a half-written
-/// highlight cannot exist: a row is all four fields or nothing.
+/// highlight cannot exist: a row has its title, its text and its link, or is
+/// not there.
 model TalentHome_Highlight {
-  campusId  String   @id
+  campusId  String    @id
   title     String
   summary   String
-  /// The event's calendar day. The reader stops showing the highlight once
-  /// that day has passed on the campus clock, so a camp's invitation does not
-  /// outlive the camp.
-  date      DateTime @db.Date
+  /// The event's calendar day, shown on the hero. The reader stops showing the
+  /// highlight once that day has passed on the campus clock, so a camp's
+  /// invitation does not outlive the camp. Null for an invitation that has no
+  /// day (« les ateliers de la tech, toute l'année »): no day is shown, and it
+  /// stays until it is rewritten or removed. One column for both, because a
+  /// day hidden from the talent that still retired the hero would be a rule
+  /// nobody could see.
+  date      DateTime? @db.Date
   /// The sign-up form, https only.
   url       String
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime  @updatedAt
 
   campus Campus                     @relation(fields: [campusId], references: [id], onDelete: Cascade)
   image  TalentHome_HighlightImage?
