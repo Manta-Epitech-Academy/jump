@@ -1,6 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
+  import Brain from '@lucide/svelte/icons/brain';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import Trophy from '@lucide/svelte/icons/trophy';
   import { cn } from '$lib/utils';
@@ -10,6 +10,11 @@
   // says « today », so the tile names the training once, the game and its
   // level, and what there is to do about it. The whole tile is the link: to
   // the game before playing, to its leaderboard after.
+  //
+  // It is training, never play: the PO's word, and the reason the title, the
+  // icon and the action all say so. And its action is a secondary link, in the
+  // tone of its state like « Classement », never a filled button: the home
+  // has one action that weighs more than the others, and it is in the hero.
   //
   // A day without a training renders nothing at all, which the home handles by
   // not mounting this: an empty tile would only fill space.
@@ -70,9 +75,9 @@
 >
   <div class="flex flex-col gap-3 @sm:flex-row @sm:items-center @sm:gap-4">
     <div class="flex min-w-0 flex-1 items-start gap-3">
-      <Gamepad2 class={cn('mt-0.5 size-4 shrink-0', tone)} aria-hidden="true" />
+      <Brain class={cn('mt-0.5 size-4 shrink-0', tone)} aria-hidden="true" />
       <div class="min-w-0">
-        <h2 class="text-sm font-bold text-foreground">Entraîne ton cerveau</h2>
+        <h2 class="text-sm font-bold text-foreground">Entraîner mon cerveau</h2>
         {#if outcome === 'playable'}
           <p class="mt-1 text-sm text-foreground-secondary">{game}</p>
         {:else}
@@ -95,11 +100,15 @@
 
     {#if outcome === 'playable'}
       <span
-        class="inline-flex shrink-0 items-center justify-center gap-1 rounded-xl bg-epi-blue px-4 py-2 text-sm font-bold text-white"
+        class={cn(
+          'inline-flex shrink-0 items-center gap-1 text-sm font-semibold',
+          tone,
+        )}
       >
-        Jouer
+        C’est parti
         <ArrowRight
           class="size-4 transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
         />
       </span>
     {:else}
