@@ -166,7 +166,7 @@
                 variant={isPrimary ? 'neon' : 'overlay'}
                 class="w-full sm:w-auto"
               >
-                {started(activity) ? 'Reprendre' : 'C’est parti'}
+                {started(activity) ? 'Continuer' : 'Commencer'}
                 <ArrowRight class="size-4" aria-hidden="true" />
                 <span class="sr-only">(nouvel onglet)</span>
               </Button>
