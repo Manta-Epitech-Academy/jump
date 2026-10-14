@@ -24,8 +24,7 @@ export const SCENARIOS: readonly Scenario[] = [
   stage,
   club,
   longTail,
-  // After the events, so its persona's session can sit beside the drawn ones;
-  // its campus was reserved by `platform`, before `club` chose its own.
+  // After the events, so its persona's session can sit beside the drawn ones.
   campusHome,
   edgeTalents,
   // After every cohort, because it draws its players from the whole talent

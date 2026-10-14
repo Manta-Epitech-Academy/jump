@@ -163,20 +163,17 @@ export const platform: Scenario = {
         });
       }
       const highlight = TALENT_HOME_HIGHLIGHTS[campus.name];
-      // An open highlight leads the hero of every talent of its campus who has
-      // no activity that day, which would hide what a later scenario places
-      // on purpose: the club's regulars carrying an activity on at home. So
-      // its campus is reserved, and `pickCampus` sends them elsewhere.
-      if (highlight && highlight.dayOffset >= 0)
-        world.reservedCampusNames.add(campus.name);
       if (highlight)
         world.buffer.talentHome_Highlight.push({
           campusId: campus.id,
           title: highlight.title,
           summary: highlight.summary,
-          date: new Date(
-            `${clock.dateKey(clock.days(highlight.dayOffset))}T00:00:00.000Z`,
-          ),
+          date:
+            highlight.dayOffset === null
+              ? null
+              : new Date(
+                  `${clock.dateKey(clock.days(highlight.dayOffset))}T00:00:00.000Z`,
+                ),
           url: highlight.url,
           updatedAt: clock.today,
         });

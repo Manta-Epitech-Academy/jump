@@ -120,7 +120,7 @@
               {isActivityFinished(activity)
                 ? 'Revoir'
                 : activity.startedAt
-                  ? 'Reprendre'
+                  ? 'Continuer'
                   : 'Commencer'}
               <ArrowRight
                 class="size-3.5 transition-transform group-hover:translate-x-0.5"

@@ -17,7 +17,7 @@ async function expectLeavesSafely(link: Locator, href: string) {
 test.describe('un talent dont l’événement a lieu aujourd’hui', () => {
   test.use({ storageState: storageStatePath(E2E.talentReady.email) });
 
-  test('lit le message de son campus, et voit l’événement mis en avant comme la suite de sa journée', async ({
+  test('lit le message de son campus, et ne voit que son activité dans le bandeau', async ({
     page,
   }) => {
     await page.goto('/');
@@ -29,16 +29,12 @@ test.describe('un talent dont l’événement a lieu aujourd’hui', () => {
       E2E.homeNoteLink,
     );
 
-    // The day's activity leads; the campus's invitation is one line under it,
-    // in the same hero, and nowhere else on the page.
-    const hero = page.getByRole('region', { name: 'Ton activité du jour' });
-    await expect(hero).toContainText('À venir');
-    await expect(hero).toContainText(E2E.homeHighlightTitle);
-    await expectLeavesSafely(
-      hero.getByRole('link', { name: /Je m’inscris/ }),
-      E2E.homeHighlightUrl,
-    );
-    await expect(page.getByText(E2E.homeHighlightTitle)).toHaveCount(1);
+    // The day's activity holds the hero alone: the campus's invitation, open
+    // as it is, waits for a day without an activity and is nowhere on the page.
+    await expect(
+      page.getByRole('region', { name: 'Ton activité du jour' }),
+    ).toBeVisible();
+    await expect(page.getByText(E2E.homeHighlightTitle)).toHaveCount(0);
   });
 
   test('retrouve son historique et ses activités à faire dans « Mon parcours », et plus sur l’accueil', async ({
