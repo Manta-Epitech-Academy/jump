@@ -85,7 +85,7 @@ const DOMAINS: { title: string; models: string[] }[] = [
   },
   {
     // Its own section rather than a corner of the events one, for the reason
-    // `AGENTS.md` gives the feature: the questionnaire is data in two layers, a
+    // `.claude/rules/closings.md` gives the feature: the questionnaire is data in two layers, a
     // global bank and a per-event composition, and that split is the whole
     // design. Nine models tell it, two more than Feedback needs for the same
     // shape.
@@ -116,6 +116,13 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'PlanningTemplate',
       'PlanningTemplateDay',
       'PlanningTemplateSlot',
+      // The CTFd activities: the hosts, the contents they serve, what an event
+      // offers, a talent's mirrored progress on one, and the pictures of its cover.
+      'Workshop_Instance',
+      'Workshop_Activity',
+      'EventConfig_Workshop',
+      'Workshop_Participation',
+      'Workshop_CoverImage',
     ],
   },
   {
@@ -173,7 +180,15 @@ const DOMAINS: { title: string; models: string[] }[] = [
   },
   {
     title: "Contenus & Centres d'intérêt",
-    models: ['CmsPage', 'CmsImage', 'Interest', 'TalentInterest'],
+    models: [
+      // What a campus puts on its talents' home: its note, its highlight and the
+      // highlight's picture.
+      'TalentHome_Note',
+      'TalentHome_Highlight',
+      'TalentHome_HighlightImage',
+      'Interest',
+      'TalentInterest',
+    ],
   },
   {
     // Apart from "Configuration & Système" on purpose: these two are a
@@ -191,6 +206,11 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'Signatory',
       'AdminFile',
       'SyncError',
+      'Sync_Source',
+      'Sync_Run',
+      'Sync_Cadence',
+      'Sync_PruneHold',
+      'Sync_Request',
       'AdminApi_Token',
       'AdminApi_Call',
     ],

@@ -71,3 +71,15 @@ export function minigameRankRewardToast(xp: number) {
     `Tu gagnes +${xp} XP bonus pour ton classement parmi les meilleurs de ton campus.`,
   );
 }
+
+// Activity progress: fires on the dashboard when the talent comes back to the
+// Jump tab after validating steps on a CTFd instance. It sums whatever arrived
+// since the last acknowledgement, which may be one step or an evening's worth, so
+// the copy never names a count. No "come back tomorrow" nudge either: an activity
+// is designed never to finish, and the talent can carry on right away.
+export function workshopRewardToast(xp: number) {
+  rewardToast(
+    'Ton activité avance ! 🚀',
+    `Tu gagnes +${xp} XP pour les étapes que tu viens de valider. Continue, chaque étape compte.`,
+  );
+}

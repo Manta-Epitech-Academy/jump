@@ -22,6 +22,21 @@ export const E2E_DOMAIN = '@e2e.invalid';
 export const E2E = {
   campusId: 'e2e-campus',
   eventId: 'e2e-event-emargement',
+  /** The one curated activity, offered by the event above, and its host. */
+  workshopInstanceId: 'e2e-workshop-instance',
+  workshopInstanceSlug: 'e2e-instance',
+  workshopActivityId: 'e2e-workshop-activity',
+  workshopSlug: 'e2e-atelier',
+  workshopLabel: 'Atelier E2E',
+  /** What it is worth on that event: a round number, so the XP is one too. */
+  workshopDurationMinutes: 60,
+  /** What the campus puts on its talents' home: its note and its highlight. */
+  homeNoteLink: 'https://discord.invalid/e2e',
+  homeHighlightTitle: 'Recode le jeu Snake en JS',
+  homeHighlightUrl: 'https://www.epitech.invalid/inscription/?CampaignId=e2e',
+  /** A session three days out, the only event of `talentIdle`. */
+  upcomingEventId: 'e2e-event-upcoming',
+  upcomingEventName: 'Coding Club E2E',
 
   /** Dev-workspace member: `can('devMember')`, campus-scoped. */
   dev: { userId: 'e2e-user-dev', email: `dev${E2E_DOMAIN}` },
@@ -36,6 +51,18 @@ export const E2E = {
     nom: 'READYTEST',
     prenom: 'Alix',
   },
+  /**
+   * Onboarded like `talentReady`, but whose only event is three days out: no
+   * activity today, so the home's hero leads with the campus's highlighted
+   * event, and the session card shows the date.
+   */
+  talentIdle: {
+    userId: 'e2e-user-talent-idle',
+    talentId: 'e2e-talent-idle',
+    email: `talent-idle${E2E_DOMAIN}`,
+    nom: 'IDLETEST',
+    prenom: 'Noa',
+  },
   /** Nothing signed: belongs in the welcome / onboarding funnel. */
   talentFresh: {
     userId: 'e2e-user-talent-fresh',
@@ -43,6 +70,18 @@ export const E2E = {
     email: `talent-fresh${E2E_DOMAIN}`,
     nom: 'FRESHTEST',
     prenom: 'Camille',
+  },
+  /**
+   * Every rung walked except the last: lands straight on the signature step.
+   * `talentFresh` cannot stand in, because reaching that step from nothing means
+   * walking six forms, and what the spec asserts is what the step ASKS.
+   */
+  talentRules: {
+    userId: 'e2e-user-talent-rules',
+    talentId: 'e2e-talent-rules',
+    email: `talent-rules${E2E_DOMAIN}`,
+    nom: 'RULESTEST',
+    prenom: 'Sasha',
   },
 
   /** Guardian who still owes an act on their child: held inside the flow. */
@@ -62,7 +101,9 @@ export const E2E_ACCOUNTS = [
   E2E.dev,
   E2E.admin,
   E2E.talentReady,
+  E2E.talentIdle,
   E2E.talentFresh,
+  E2E.talentRules,
   E2E.parentPending,
   E2E.parentSettled,
 ] as const;

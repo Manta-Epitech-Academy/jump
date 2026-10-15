@@ -1,4 +1,9 @@
 <script lang="ts">
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
   import { enhance } from '$app/forms';
   import * as Card from '$lib/components/ui/card';
   import * as Table from '$lib/components/ui/table';
@@ -58,10 +63,9 @@
 
   // ── Search ──────────────────────────────────────────────────────────────
   // One box (owned by the shell) filters every tab's list by name or email.
-  const needle = $derived(query.trim().toLowerCase());
+  const tokens = $derived(searchTokens(query));
   const matches = (prenom: string, nom: string, email: string | null) =>
-    needle === '' ||
-    `${prenom} ${nom} ${email ?? ''}`.toLowerCase().includes(needle);
+    matchesAllTokens(buildHaystack([prenom, nom, email]), tokens);
 
   // ════════════════════════════════════════════════════════════════════════
   //  DATA tab: Talent ⇆ TalentSfImport field diffs (unchanged behaviour)
@@ -215,7 +219,7 @@
   // A new search resets every list to its first page so a narrowed result can't
   // strand the admin on an out-of-range page.
   $effect(() => {
-    void needle;
+    void tokens;
     conflictsPage = 1;
     pushPage = 1;
     authPage = 1;

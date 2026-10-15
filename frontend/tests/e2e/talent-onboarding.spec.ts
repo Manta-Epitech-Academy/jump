@@ -36,6 +36,49 @@ test.describe('un talent qui n’a rien signé', () => {
   });
 });
 
+test.describe('un talent arrivé à la signature du règlement', () => {
+  test.use({ storageState: storageStatePath(E2E.talentRules.email) });
+
+  test('ne coche que des documents, jamais une clause isolée', async ({
+    page,
+  }) => {
+    await page.goto('/onboarding');
+
+    // The règlement is rendered from the version file, so the section that only
+    // the validated wording carries is what says the right text is on screen.
+    await expect(
+      page.getByRole('heading', {
+        name: 'Dispositions propres au stage de seconde',
+      }),
+    ).toBeVisible();
+
+    // One box per document, and nothing else. A laptop box lived here and was
+    // required of every signer; the validated wording files that clause under
+    // the stage section, a scope this step cannot know. Counting is what catches
+    // a per-clause box coming back, whatever it ends up being called.
+    await expect(page.getByRole('checkbox')).toHaveCount(2);
+    await expect(
+      page.getByRole('checkbox', { name: /règlement intérieur/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('checkbox', { name: /Charte Informatique/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('checkbox', { name: /ordinateur portable/i }),
+    ).toHaveCount(0);
+
+    // And the clause itself is still there, as prose inside the stage section:
+    // what went away is the box, not the undertaking.
+    await expect(
+      page
+        .getByText(
+          /certifie disposer d'un ordinateur portable en état de marche/i,
+        )
+        .first(),
+    ).toBeVisible();
+  });
+});
+
 test.describe('un talent dont le dossier de l’année est complet', () => {
   test.use({ storageState: storageStatePath(E2E.talentReady.email) });
 

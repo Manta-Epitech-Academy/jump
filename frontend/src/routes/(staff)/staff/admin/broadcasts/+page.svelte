@@ -1,4 +1,9 @@
 <script lang="ts">
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -68,15 +73,14 @@
     ).map((s) => ({ value: s, label: BROADCAST_STATUS_LABELS[s] })),
   ];
 
-  const filtered = $derived(
-    data.broadcasts.filter((b) => {
+  const filtered = $derived.by(() => {
+    const tokens = searchTokens(q);
+    return data.broadcasts.filter((b) => {
       if (channelFilter !== 'all' && b.channel !== channelFilter) return false;
       if (statusFilter !== 'all' && b.status !== statusFilter) return false;
-      const needle = q.trim().toLowerCase();
-      if (needle && !b.name.toLowerCase().includes(needle)) return false;
-      return true;
-    }),
-  );
+      return matchesAllTokens(buildHaystack([b.name]), tokens);
+    });
+  });
 
   const th = 'text-xs uppercase';
 </script>

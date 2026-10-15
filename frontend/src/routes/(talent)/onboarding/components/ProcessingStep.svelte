@@ -15,7 +15,7 @@
   const messages = [
     'Analyse de ton profil...',
     'Personnalisation de ton espace...',
-    'Préparation de tes missions...',
+    'Préparation de tes activités...',
   ];
 
   onMount(() => {

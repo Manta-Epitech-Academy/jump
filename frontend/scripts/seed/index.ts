@@ -46,6 +46,7 @@ import {
   seedFeedbackForms,
 } from './catalog/feedbackForms';
 import { MINIGAMES } from './catalog/platform';
+import { seedWorkshops } from './catalog/workshops';
 import { STAGE_TEMPLATE_KEY } from './catalog/closings';
 
 const DEFAULT_SEED = 20260830;
@@ -172,10 +173,15 @@ async function loadPreexistingRows(
     select: {
       id: true,
       slug: true,
-      sections: {
+      questions: {
+        orderBy: { position: 'asc' },
         select: {
-          questions: {
-            select: { id: true, type: true, options: { select: { id: true } } },
+          id: true,
+          type: true,
+          identityField: true,
+          options: {
+            orderBy: { position: 'asc' },
+            select: { id: true, label: true },
           },
         },
       },
@@ -196,13 +202,7 @@ async function loadPreexistingRows(
     world.feedbackForms.set(form.slug, {
       id: form.id,
       slug: form.slug,
-      questions: form.sections.flatMap((section) =>
-        section.questions.map((question) => ({
-          id: question.id,
-          type: question.type,
-          optionIds: question.options.map((option) => option.id),
-        })),
-      ),
+      questions: form.questions,
     });
   }
 }
@@ -242,6 +242,9 @@ async function main(): Promise<void> {
         `  formulaires de bilan   ${await seedFeedbackForms(prisma, clock.today)}`,
       );
       await seedMinigameRotation(prisma, clock.today);
+      log(
+        `  activités en ligne     ${await seedWorkshops(prisma, clock.today)}`,
+      );
       const author = await prisma.staffProfile.findFirst({
         select: { userId: true },
       });
@@ -287,6 +290,7 @@ async function main(): Promise<void> {
       `  formulaires de bilan   ${await seedFeedbackForms(prisma, clock.today)}`,
     );
     await seedMinigameRotation(prisma, clock.today);
+    log(`  activités en ligne     ${await seedWorkshops(prisma, clock.today)}`);
 
     const world = new World(ctx);
     await loadPreexistingRows(prisma, world);

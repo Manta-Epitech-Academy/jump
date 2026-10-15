@@ -24,10 +24,18 @@
  * through.
  *
  * No credential is minted. No password, no session, no OAuth account row: the
- * person still proves they hold the mailbox through Microsoft, and
- * `accountLinking.trustedProviders` carries `microsoft`, which is what makes a
- * pre-existing `bauth_user` link on that first login instead of failing with
- * `account_not_linked`.
+ * person still proves they hold the mailbox through Microsoft, and the
+ * `bauth_user` written below is linked onto at that first sign-in instead of
+ * failing with `account_not_linked`.
+ *
+ * TWO things make that linking happen, and this header used to name only the
+ * first, which is how #348 went unseen. `accountLinking.trustedProviders`
+ * carries `microsoft`, and that answers BetterAuth's provider-side test. Its
+ * LOCAL test (`accountLinking.requireLocalEmailVerified`, default true) is
+ * answered by the `emailVerified: true` written below, and that half is not
+ * decoration: every staff account this script did NOT create was missing it, so
+ * when `20260831120000_add_bauth_account_issuer` deleted the OAuth links, 134
+ * of 139 staff profiles were refused at the door. Do not drop it here.
  *
  * No campus, because an admin legitimately has none - the callback says so where
  * it declines to treat a null `campusId` as "not provisioned".

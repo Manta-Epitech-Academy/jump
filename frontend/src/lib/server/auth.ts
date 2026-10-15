@@ -40,6 +40,35 @@ export function createAuthOptions(
         clientSecret: env.MICROSOFT_CLIENT_SECRET!,
         tenantId: env.MICROSOFT_TENANT_ID,
         scope: ['openid', 'profile', 'email', 'User.Read'],
+        // Entra ID emits no `email_verified` claim unless it is declared as an
+        // optional claim on the app registration, so BetterAuth defaults the
+        // profile to unverified and stamps `bauth_user.emailVerified = false`
+        // on every staff account it creates. Exactly one thing reads that
+        // column: BetterAuth's own account-linking test
+        // (`accountLinking.requireLocalEmailVerified`, default true). A `false`
+        // there refuses the sign-in with `account_not_linked` the day that
+        // account's `bauth_account` row is gone, which is what happened to 134
+        // of 139 staff profiles. The incident, and why the fix is not to switch
+        // that option off, are in
+        // `prisma/migrations/20260915140000_verify_staff_emails_for_oauth_relink`.
+        //
+        // Declared here rather than repaired afterwards: reaching this callback
+        // means the tenant named in `MICROSOFT_TENANT_ID` authenticated the
+        // address, and `staff/oauth/callback` refuses anything outside
+        // `@epitech.eu` on top. Within that pair the address IS verified, and
+        // saying so at creation is what keeps the migration's invariant true for
+        // every account created from here on, instead of leaving it to the next
+        // repair.
+        //
+        // What it does NOT do is decide who may come through this door, and the
+        // tempting reading is the opposite one, so it is worth stating. A
+        // guardian's row is written `emailVerified: true` by
+        // `ensureParentAccount` and `changeParentEmail`, and a talent's is
+        // promoted to `true` by BetterAuth the first time they use the OTP door,
+        // so the account-link test admits both long before this line existed.
+        // What keeps their account out of the staff space, and intact, is
+        // `auth/staffDoor.ts`.
+        mapProfileToUser: () => ({ emailVerified: true }),
         ...microsoftOverrides,
       },
     },
@@ -136,6 +165,24 @@ export function createAuthOptions(
     // - Student: /oauth/callback → sets role to 'student', creates Talent
     // - OTP:     /login           → sets role to 'student', creates Talent
     // This avoids the databaseHook guessing the flow based on email domain.
+
+    // Where a refusal raised INSIDE BetterAuth lands. Without it the default is
+    // `/api/auth/error`, BetterAuth's own page, in English, printing its code
+    // (`account_not_linked`) verbatim at a member of staff. The code travels as
+    // `?error=`, which `/staff/login`'s load turns into French.
+    //
+    // Set here rather than as `errorCallbackURL` on the `signIn.social` call,
+    // and the difference is what is covered rather than what is typed: this is
+    // part of `createAuthOptions`, which the integration suite drives whole, so
+    // dropping it fails a test instead of quietly restoring the English page. It
+    // also catches the paths that never see a per-flow value, `/api/auth/error`
+    // itself included.
+    //
+    // `/staff/login` is the right destination for every one of them only because
+    // the staff door is the only OAuth door anybody can reach: `(talent)/oauth/`
+    // exists but nothing targets it. Reviving that one means giving this a
+    // second answer.
+    onAPIError: { errorURL: resolve('/staff/login') },
 
     trustedOrigins: dev
       ? [env.ORIGIN!, 'http://localhost:5173', 'http://localhost:3030']

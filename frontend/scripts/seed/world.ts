@@ -19,6 +19,7 @@ import type {
   StaffRole,
   XpGrantSource,
 } from '@prisma/client';
+import type { IdentityField } from '../../src/lib/domain/feedbackForms/schema';
 import type { SeedContext } from './context';
 import { createBuffer, type Buffered } from './writer';
 import { id, seq, slug } from './ids';
@@ -26,9 +27,16 @@ import { SEED_MAIL_DOMAIN, STAFF_MAIL_DOMAIN } from './catalog/people';
 import type { CampusSpec } from './catalog/campuses';
 import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
+import { workshopActivityId } from './catalog/workshops';
 import type { Rng } from './rng';
-import type { SfMemberStatus } from '../../src/lib/domain/sfMemberStatus';
+import { isShownInDevSpace } from '../../src/lib/domain/sfMemberStatus';
 import { activationBlockers } from '../../src/lib/domain/eventReadiness';
+import {
+  minigameRankBonus,
+  minigameRankBonusLimit,
+  workshopXp,
+} from '../../src/lib/domain/xp';
+import { workshopGrantSourceId } from '../../src/lib/domain/workshops';
 import { fromWallClock } from '../../src/lib/domain/planningTime';
 import {
   CIVILITE_OPTIONS,
@@ -151,7 +159,29 @@ export type BankQuestion = {
 export type FeedbackFormRef = {
   id: string;
   slug: string;
-  questions: { id: string; type: string; optionIds: string[] }[];
+  /** In the form's own order. */
+  questions: {
+    id: string;
+    type: string;
+    /** Set on a question that asks WHO is answering, never what they think. */
+    identityField: IdentityField | null;
+    options: { id: string; label: string }[];
+  }[];
+};
+
+/**
+ * One day's published game.
+ *
+ * `scoringType` and `publishedAt` travel with the id because both are needed to
+ * play it and neither can be re-derived: the scoring decides which direction a
+ * result ranks in, and the publication date IS the day the run happened, a
+ * « jeu du jour » being played on its own day.
+ */
+export type MinigamePublicationRef = {
+  id: string;
+  game: string;
+  scoringType: 'chrono' | 'score';
+  publishedAt: Date;
 };
 
 export type EventRef = {
@@ -168,7 +198,46 @@ export type EventRef = {
   endDate: Date | null;
   /** Weekdays the event actually runs, for émargement and planning. */
   days: Date[];
+  /**
+   * The closing grid this event conducts against, or null when it conducts
+   * none. Carried so a scenario can ask « does this event run closings »
+   * without re-deriving it from the module list: a returning talent is worth
+   * more on an event that does, because a multi-closing parcours is the whole
+   * reason the returning pool exists.
+   */
+  closingTemplateId: string | null;
+  /** The Salesforce statuses this event's dev space shows, which is what
+   *  decides each enrolment's `shownInDevSpace` as it is written. */
+  shownStatuses: ReadonlySet<string>;
 };
+
+/**
+ * Salesforce's member statuses, as this generator plays Salesforce.
+ *
+ * Jump's own catalogue is data (`Sync_MemberStatus`, shipped by the migration
+ * that introduced it), so the words are named here only because the generator
+ * stands in for the CRM that sends them. `assert/reachability.ts` checks the two
+ * agree: every word here is in the catalogue, and every word of the catalogue
+ * is placed somewhere.
+ */
+export const SF_STATUSES = {
+  attended: 'MET',
+  confirmed: 'READY',
+  connected: 'CONNECTED',
+  desisted: 'DESISTED',
+} as const;
+
+export type SeedSfStatus = (typeof SF_STATUSES)[keyof typeof SF_STATUSES];
+
+/**
+ * What an event shows unless a scenario says otherwise: the catalogue's
+ * `shownByDefault` words, which is what the worker gives an event it creates.
+ * Checked against the catalogue by `assert/reachability.ts`.
+ */
+export const DEFAULT_SHOWN_STATUSES: readonly SeedSfStatus[] = [
+  SF_STATUSES.confirmed,
+  SF_STATUSES.attended,
+];
 
 /**
  * The Salesforce member status a participation gets when nobody says otherwise.
@@ -181,26 +250,82 @@ export type EventRef = {
  * "200 inscrits" stop being true. `CONNECTED`, `DESISTED` and the legacy `null`
  * are therefore PLACED, in fixed numbers, by the `statuts-salesforce` scenario.
  *
- * The two weights are PROFILE.md's presence figures rather than new numbers:
- * `pastEventPresence` maps MEET to present and READY to absent, so the share of
- * each is the share of présents and absents. Left as 81 and 16 instead of a
+ * The two weights borrow PROFILE.md's émargement figures rather than new
+ * numbers: on an event that has happened, Salesforce moves the members who came
+ * to MET and leaves the others at READY, so the shares follow the présents and
+ * the absents the émargement measured. Left as 81 and 16 instead of a
  * normalised 83.5 / 16.5 so the provenance stays readable; `weighted` does not
  * need them to sum to 100.
  */
 const STARTED_EVENT_SF_MIX = [
-  ['MEET', 81],
-  ['READY', 16],
-] as const satisfies readonly (readonly [SfMemberStatus, number])[];
+  [SF_STATUSES.attended, 81],
+  [SF_STATUSES.confirmed, 16],
+] as const satisfies readonly (readonly [SeedSfStatus, number])[];
 
 /**
- * An event that has not happened yet: nobody attended it, so `MEET` is not a
+ * A status Salesforce might plausibly start sending, and that Jump's catalogue
+ * (`Sync_MemberStatus`) does not hold. The `statuts-salesforce` scenario
+ * places it once so the unknown-status report has something to report, and the
+ * string-catalogue guard accepts this one stray value by name, and no other.
+ */
+export const UNRECOGNISED_SF_STATUS_SAMPLE = 'ATTENDED';
+
+/**
+ * An event that has not happened yet: nobody attended it, so `MET` is not a
  * state the world can be in. One weighted entry rather than an early return, so
  * a derived enrolment always consumes exactly one draw - otherwise moving an
  * event from the past to the future desynchronises every status after it.
  */
 const UPCOMING_EVENT_SF_MIX = [
-  ['READY', 100],
-] as const satisfies readonly (readonly [SfMemberStatus, number])[];
+  [SF_STATUSES.confirmed, 100],
+] as const satisfies readonly (readonly [SeedSfStatus, number])[];
+
+/** Shared empty set, so `playedBy` allocates nothing on the common answer. */
+const EMPTY_SET: ReadonlySet<string> = new Set<string>();
+
+/**
+ * How many events a talent attends over their whole time on the platform.
+ *
+ * PROFILE.md's own histogram, as percentages of the 5 313 talents who carry at
+ * least one enrolment: 3 665 came once, 1 243 twice, 276 three times, and a
+ * queue out to eleven. Its mean is 1.438, which is production's own ratio of
+ * 7 638 enrolments to 5 313 enrolled talents - so a generator that honours this
+ * draw lands on both figures at once instead of matching one and missing the
+ * other.
+ *
+ * It lives here, beside the Salesforce mix and not in `scenarios/helpers.ts`
+ * with the rest of the distributions, for the reason that file's own header
+ * gives: a distribution lives beside the code that draws it, and this one is
+ * drawn by `addTalent`. `world.ts` imports nothing from `scenarios/`.
+ *
+ * Drawn ONCE, at the talent's creation, rather than applied as a per-cohort
+ * reuse rate. A reuse rate produces a geometric tail, and the measured shape is
+ * not geometric: it is fatter at two and thinner from three on. Drawing the
+ * whole career from the histogram reproduces the histogram.
+ *
+ * It is a CAP on what the returning pool will offer (see `returningPool`), not
+ * a quota the generator has to spend. A talent whose career is never drawn on
+ * simply came once, which is what two thirds of them do.
+ *
+ * **The tail of it is placed, not drawn**, and `placeCareer` is how. Ten and
+ * eleven are 0.06% of this histogram, which is two or three talents at staging
+ * and none at all at `ci`, so a recurring format asking the draw for regulars
+ * asks for somebody the draw almost never produces - see `placeCareer` for what
+ * a scenario does instead.
+ */
+const CAREER_MIX = [
+  [1, 69.0],
+  [2, 23.4],
+  [3, 5.19],
+  [4, 1.32],
+  [5, 0.53],
+  [6, 0.13],
+  [7, 0.15],
+  [8, 0.15],
+  [9, 0.09],
+  [10, 0.02],
+  [11, 0.04],
+] as const satisfies readonly (readonly [number, number])[];
 
 export class World {
   readonly buffer: Buffered = createBuffer();
@@ -263,6 +388,14 @@ export class World {
   /** Broadcast templates, written by the catalogue and read back by the runner. */
   readonly broadcastTemplates: { id: string; channel: 'mail' | 'sms' }[] = [];
 
+  /**
+   * The minigame rotation, written by `platform` and played by `minijeux`.
+   * Held here rather than passed between the two for the same reason the
+   * broadcast templates are: the scenario list is a run order, not a call
+   * graph, and a scenario reads what an earlier one left behind.
+   */
+  readonly minigamePublications: MinigamePublicationRef[] = [];
+
   /** The stage grid the migration carries, resolved by the runner. */
   stageTemplateId: string | null = null;
   /** The certificate the migration carries, resolved by the runner. */
@@ -270,6 +403,28 @@ export class World {
 
   private talentCounter = 0;
   private readonly talentsWithInterests = new Set<string>();
+  /**
+   * How many events each talent will attend in all, drawn from `CAREER_MIX`
+   * when they are created. Generator bookkeeping and not a column, so it stays
+   * off `TalentRef`: nothing the writer flushes reads it.
+   */
+  private readonly careerByTalent = new Map<string, number>();
+  /**
+   * Talents by id. `talents` is the ordered list scenarios sample from; this is
+   * the lookup the minigame ranking pass needs, which visits every finished
+   * attempt and has to reach its player to grant the bonus.
+   */
+  private readonly talentById = new Map<string, TalentRef>();
+  /**
+   * Which events each talent is enrolled on. The inverse of `roster`, kept
+   * because `returningPool` asks the question from the talent's side and
+   * scanning every roster to answer it is quadratic on a staging cohort.
+   */
+  private readonly enrolledEventsByTalent = new Map<string, Set<string>>();
+  /** Which publications each talent has played. See `notePlayed`. */
+  private readonly playedByTalent = new Map<string, Set<string>>();
+  /** Which school years each talent has filed a dossier for. See `noteDossier`. */
+  private readonly dossierYears = new Map<string, Set<string>>();
   /** Guardian addresses already minted a `bauth_user`, so a returning dossier
    * and the second-guardian scenario calling `setGuardian` on the same talent
    * never push a second row and collide on `bauth_user.email`'s unique index. */
@@ -301,10 +456,19 @@ export class World {
    */
   private readonly staffRng: Rng;
 
+  /**
+   * The stream a talent's career length is drawn from, and the one place the
+   * fork matters most: `addTalent` runs for every talent in the dataset, so
+   * drawing a career from the shared stream would shift every subsequent draw
+   * and move every deliberately placed state in the world.
+   */
+  private readonly careerRng: Rng;
+
   constructor(readonly ctx: SeedContext) {
     this.sfRng = ctx.rng.fork('sfMemberStatus');
     this.wizardRng = ctx.rng.fork('wizard');
     this.staffRng = ctx.rng.fork('staffActivity');
+    this.careerRng = ctx.rng.fork('career');
   }
 
   /** Monotonic, so ids stay unique however scenarios are ordered. */
@@ -325,8 +489,8 @@ export class World {
     this.buffer.campus.push({
       id: ref.id,
       name: spec.name,
-      // No external name, and that IS the worker isolation: `listCampuses` only
-      // hands the worker campuses Jump has mapped to Salesforce, so a seeded
+      // No external name, and that IS the worker isolation: `/api/worker/config`
+      // serves a `Sync_Source` only when its campus carries one, so a seeded
       // database is outside every sync's scope by construction. Give one of
       // these a real external name and real minors' data starts landing on it.
       externalName: null,
@@ -349,6 +513,28 @@ export class World {
     return row;
   }
 
+  /**
+   * Both sides of a talent's civility, placed: what the talent confirmed, and
+   * what Salesforce claims for the same person.
+   *
+   * The wizard draws the first (`addDossier`), and the mirror is written
+   * before the dossier exists, so neither can be fixed at creation. Placing
+   * them afterwards is what makes the pair deterministic: an agreement and a
+   * disagreement are both states the reconciliation reports differently, and a
+   * draw that happened to land on one would leave the other with no example.
+   */
+  placeCivilite(
+    talent: TalentRef,
+    civilite: { jump: string; salesforce: string },
+  ): void {
+    this.talentRow(talent.id).civilite = civilite.jump;
+    const mirror = this.buffer.talentSfImport.find(
+      (candidate) => candidate.talentId === talent.id,
+    );
+    if (!mirror) throw new Error(`No buffered SF mirror for ${talent.id}.`);
+    mirror.civilite = civilite.salesforce;
+  }
+
   campus(name: string): CampusRef {
     const found = this.campuses.get(name);
     if (!found) throw new Error(`No campus "${name}" in this profile.`);
@@ -361,14 +547,26 @@ export class World {
    * the platform's first if every one already is. Claims the campus it
    * resolves to (see `reservedCampusNames`), so stage and club can each ask
    * for their own without a caller having to reason about the other's pick.
+   *
+   * `unsuitable` names campuses the caller cannot use at all, whoever claimed
+   * them: a state the scenario places would not show there. The fallback never
+   * lands on one, and none left to use is an error rather than a campus where
+   * the state silently disappears.
    */
-  pickCampus(preferred: string): CampusRef {
-    const all = [...this.campuses.values()];
-    const free = all.filter((c) => !this.reservedCampusNames.has(c.name));
+  pickCampus(
+    preferred: string,
+    unsuitable: ReadonlySet<string> = new Set(),
+  ): CampusRef {
+    const usable = [...this.campuses.values()].filter(
+      (c) => !unsuitable.has(c.name),
+    );
+    const free = usable.filter((c) => !this.reservedCampusNames.has(c.name));
     const campus =
-      this.campuses.has(preferred) && !this.reservedCampusNames.has(preferred)
-        ? this.campus(preferred)
-        : (free[0] ?? all[0])!;
+      free.find((c) => c.name === preferred) ?? free[0] ?? usable[0];
+    if (!campus)
+      throw new Error(
+        `No usable campus in this profile for pickCampus("${preferred}"): every one is unsuitable (${[...unsuitable].join(', ')}).`,
+      );
     this.reservedCampusNames.add(campus.name);
     return campus;
   }
@@ -590,11 +788,22 @@ export class World {
     phone?: string | null;
     schoolId?: string | null;
     highSchoolNameManual?: string | null;
-    /** What Salesforce claims, when it differs from what the talent confirmed. */
+    /**
+     * How many events this talent will attend in all, when it is placed rather
+     * than drawn from `CAREER_MIX`. An explicit career consumes no draw, so
+     * placing one has no effect on any other talent in the dataset - the same
+     * property `enrol`'s explicit status has, and for the same reason.
+     */
+    career?: number;
+    /**
+     * What Salesforce claims, when it differs from what the talent confirmed.
+     * A phone number may be an explicit `null`: a contact Salesforce holds no
+     * number for, which the reconciliation reports as « manquant ».
+     */
     sfClaims?: {
       nom?: string;
       prenom?: string;
-      phone?: string;
+      phone?: string | null;
       niveau?: string;
     };
   }): TalentRef {
@@ -632,17 +841,38 @@ export class World {
       createdAt: this.ctx.clock.days(-300),
     });
 
-    // The anti-corruption mirror. Every talent has one in production (5377 of
-    // 5394), because every talent arrives from the CRM.
-    this.buffer.talentSfImport.push({
-      talentId,
-      nom: opts.sfClaims?.nom ?? opts.nom,
-      prenom: opts.sfClaims?.prenom ?? opts.prenom,
-      sfEmail: email,
-      phone: opts.sfClaims?.phone ?? opts.phone ?? '+33600000000',
-      niveau: opts.sfClaims?.niveau ?? opts.niveau,
-      sfSchoolId: opts.schoolId ?? null,
-    });
+    // The anti-corruption mirror. Nearly every talent has one in production
+    // (5377 of 5394), because nearly every talent arrives from the CRM. Only
+    // `syncTalents` writes it, so a talent Jump created itself, with no
+    // Salesforce id, has none, and there is nothing Salesforce could claim.
+    const fromSalesforce = opts.externalId !== null;
+    if (!fromSalesforce && opts.sfClaims)
+      throw new Error(
+        `${talentId} n’a pas d’identifiant Salesforce : Salesforce ne peut rien en prétendre.`,
+      );
+    if (fromSalesforce) {
+      const claims = opts.sfClaims ?? {};
+      this.buffer.talentSfImport.push({
+        talentId,
+        nom: claims.nom ?? opts.nom,
+        prenom: claims.prenom ?? opts.prenom,
+        // The sync mints a login from this address, so a contact Salesforce
+        // holds none for stays accountless with no error to explain it, which
+        // is the state this places. The other way to have no account, an
+        // address another account already owns, comes with a `DUPLICATE_EMAIL`
+        // sync error, and `assert/reachability.ts` says why that one is never
+        // seeded.
+        sfEmail: withAccount ? email : null,
+        // `??` would swallow an explicit null, which is the whole point of
+        // passing one.
+        phone:
+          claims.phone === undefined
+            ? (opts.phone ?? '+33600000000')
+            : claims.phone,
+        niveau: claims.niveau ?? opts.niveau,
+        sfSchoolId: opts.schoolId ?? null,
+      });
+    }
 
     const ref: TalentRef = {
       id: talentId,
@@ -655,6 +885,11 @@ export class World {
       parentEmail: null,
     };
     this.talents.push(ref);
+    this.talentById.set(talentId, ref);
+    this.careerByTalent.set(
+      talentId,
+      opts.career ?? this.careerRng.weighted(CAREER_MIX),
+    );
     return ref;
   }
 
@@ -865,9 +1100,22 @@ export class World {
     modules?: readonly string[];
     /** Per-module options, keyed by module. Only some modules take any. */
     moduleSettings?: Readonly<Record<string, Prisma.InputJsonValue>>;
+    /** The Salesforce statuses the dev space shows. Defaults to what the
+     *  worker gives an event it creates ({@link DEFAULT_SHOWN_STATUSES}). */
+    shownStatuses?: readonly SeedSfStatus[];
     closingTemplateId?: string | null;
     feedbackFormId?: string | null;
     diplomaTemplateId?: string | null;
+    /**
+     * The online activities this event offers, in the order a talent sees them.
+     * Most events offer none, which is both the real distribution and the
+     * coverage of the empty case.
+     */
+    workshops?: readonly {
+      slug: string;
+      durationMinutes: number;
+      labelOverride?: string;
+    }[];
     /** Events with no Salesforce origin do not exist in production. */
     externalId?: string | null;
   }): EventRef {
@@ -897,10 +1145,8 @@ export class World {
       );
     }
     // 23:59 in the CAMPUS's timezone, the way production stores it, not midnight
-    // UTC - and both readers depend on the difference. `presenceDays` keys the
-    // day off the campus clock, so a Réunion event ending at 23:59 UTC would
-    // grow a second émargement day; `getEventStatus` compares the instant, so an
-    // event ending at midnight reads « passé » from its own first minute.
+    // UTC. `presenceDays` keys the day off the campus clock, so a Réunion event
+    // ending at 23:59 UTC would grow a second émargement day.
     const endDate = withEndDate
       ? fromWallClock(
           clock.dateKey(days[days.length - 1]!),
@@ -963,6 +1209,24 @@ export class World {
       });
     }
 
+    const shownStatuses = new Set<string>(
+      opts.shownStatuses ?? DEFAULT_SHOWN_STATUSES,
+    );
+    for (const status of shownStatuses) {
+      this.buffer.eventConfig_ShownStatus.push({ eventId, status });
+    }
+
+    for (const [index, workshop] of (opts.workshops ?? []).entries()) {
+      this.buffer.eventConfig_Workshop.push({
+        eventId,
+        activityId: workshopActivityId(workshop.slug),
+        position: index,
+        durationMinutes: workshop.durationMinutes,
+        labelOverride: workshop.labelOverride ?? null,
+        createdAt: clock.days(-30),
+      });
+    }
+
     const ref: EventRef = {
       id: eventId,
       titre: opts.titre,
@@ -972,6 +1236,8 @@ export class World {
       date,
       endDate,
       days,
+      closingTemplateId: opts.closingTemplateId ?? null,
+      shownStatuses,
     };
     this.events.push(ref);
     this.roster.set(eventId, []);
@@ -981,8 +1247,8 @@ export class World {
   /**
    * Enrols a talent, deriving the Salesforce member status unless told one.
    *
-   * Omit `opts` and the row is VISIBLE in the dev space, and plausible for when
-   * the event happens: `MEET` or `READY` once it has started, `READY` only
+   * Omit `opts` and the row is VISIBLE in the dev space (on an event showing the
+   * default statuses), and plausible for when the event happens: `MET` or `READY` once it has started, `READY` only
    * before. Pass `{ sfMemberStatus: null }` for a legacy row synced before the
    * column existed, or a hidden status to put one where a screen needs it - both
    * of which the `statuts-salesforce` scenario does, and nothing else should.
@@ -993,7 +1259,10 @@ export class World {
   enrol(
     event: EventRef,
     talent: TalentRef,
-    opts?: { sfMemberStatus: SfMemberStatus | null },
+    opts?: {
+      sfMemberStatus:
+        SeedSfStatus | typeof UNRECOGNISED_SF_STATUS_SAMPLE | null;
+    },
   ): void {
     const sfMemberStatus =
       opts === undefined
@@ -1014,8 +1283,151 @@ export class World {
       eventId: event.id,
       campusId: event.campusId,
       sfMemberStatus,
+      // The projection, derived as it is written, like the sync does.
+      shownInDevSpace: isShownInDevSpace(sfMemberStatus, event.shownStatuses),
     });
     this.roster.get(event.id)!.push(talent);
+    let attended = this.enrolledEventsByTalent.get(talent.id);
+    if (!attended) {
+      attended = new Set<string>();
+      this.enrolledEventsByTalent.set(talent.id, attended);
+    }
+    attended.add(event.id);
+  }
+
+  /**
+   * Talents who have already been to something on this campus and whose career
+   * has room for more.
+   *
+   * This is what stops the dataset being 97% one-timers. Every cohort used to
+   * be minted from scratch (`makeCohort`), so nobody ever came twice except the
+   * two dozen club regulars on a single campus - which left « Son parcours »,
+   * the verdict-to-verdict comparison and every multi-closing screen with no
+   * example to render, on a platform where production has 31% of its talents
+   * coming back at least once.
+   *
+   * Scoped to ONE campus, deliberately. A talent's campus is derived from their
+   * most recent enrolment, and PROFILE.md records that no enrolment in
+   * production is misaligned with its event's campus. The one talent on two
+   * campuses stays the `roamer` placed in `edgeTalents`, whose whole job is to
+   * prove that derivation rather than let it be assumed.
+   *
+   * Room for ONE more, and never for a caller's whole season. The pool used to
+   * take a `minHeadroom`, which the club passed its ten sessions: since
+   * `CAREER_MIX` stops at eleven and every candidate has already been
+   * somewhere, that asked for a career of eleven exactly - 0.04% of the draw,
+   * so the pool came back empty on essentially every run and the club's third
+   * of returning regulars was silently always zero. A caller that means to
+   * enrol somebody on a whole season is not asking the histogram for room, it
+   * is declaring them a regular, which is `placeCareer`.
+   */
+  returningPool(opts: { campusId: string }): TalentRef[] {
+    return this.talents.filter((talent) => {
+      if (talent.campusId !== opts.campusId) return false;
+      const attended = this.enrolledEventsByTalent.get(talent.id);
+      // Never been to anything: they are not a returning talent yet, they are
+      // the cohort somebody is about to mint.
+      if (!attended || attended.size === 0) return false;
+      const career = this.careerByTalent.get(talent.id) ?? 1;
+      return career - attended.size >= 1;
+    });
+  }
+
+  /**
+   * Declares a talent a regular: `events` more than they have already attended,
+   * whatever `CAREER_MIX` drew for them.
+   *
+   * The twin of `addTalent`'s own `career`, for a talent who already exists.
+   * Both place rather than draw, and the split is the moment, not the rule: at
+   * birth the career is placed instead of drawn and consumes no draw, which is
+   * what lets a placed talent leave every other talent's career untouched;
+   * here the draw has already happened and is overridden.
+   *
+   * Placing is what the histogram's own tail asks for rather than a departure
+   * from it. Production's talents at nine, ten and eleven events got there
+   * through a recurring format, which is the Coding Club and nothing else in
+   * this dataset - so the scenario that runs the season is precisely the one
+   * entitled to say who its regulars are, exactly as it already does for the
+   * talents it mints. Asking the draw for them instead is asking for 0.06% of
+   * the population to land on one campus, which is none at every profile but
+   * `staging` and barely any there.
+   *
+   * Counted from what they have ALREADY attended, so « a season on top of a
+   * stage » is eleven and not ten, and the pool stops offering them at the
+   * right point instead of one event early.
+   */
+  placeCareer(talent: TalentRef, events: number): void {
+    const attended = this.enrolledEventsByTalent.get(talent.id)?.size ?? 0;
+    this.careerByTalent.set(talent.id, attended + events);
+  }
+
+  /** Whether this talent is already on this event, so nobody enrols them twice. */
+  isEnrolled(talentId: string, eventId: string): boolean {
+    return this.enrolledEventsByTalent.get(talentId)?.has(eventId) ?? false;
+  }
+
+  /**
+   * Publications this talent has already played.
+   *
+   * `MinigameAttempt` is unique on `(talentId, publicationId)`, and three
+   * places now write attempts: the flagship stage, the daily rotation, and the
+   * placed profiles that carry the top of the board. A caller that DRAWS its
+   * publications asks this first and excludes what comes back.
+   */
+  playedBy(talentId: string): ReadonlySet<string> {
+    return this.playedByTalent.get(talentId) ?? EMPTY_SET;
+  }
+
+  /**
+   * Whether this talent already filed a dossier for this school year.
+   *
+   * A dossier is per talent and per YEAR, not per event, and the returning pool
+   * is what made the difference matter: a talent recruited onto their third
+   * event by `longue-traine` may well have filed one at the stage already, and
+   * the 2% draw there would hand them a second for the same year. The first
+   * version of the pool did exactly that and `Onboarding_Record`'s primary key
+   * caught it - which is the good outcome, but a caller that DRAWS should not
+   * be relying on a constraint to tell it who has already been through the
+   * wizard.
+   */
+  hasDossier(talentId: string, schoolYear: string): boolean {
+    return this.dossierYears.get(talentId)?.has(schoolYear) ?? false;
+  }
+
+  /** Claims the `(talent, year)` dossier, and refuses a second claim. */
+  noteDossier(talentId: string, schoolYear: string): void {
+    let years = this.dossierYears.get(talentId);
+    if (!years) {
+      years = new Set<string>();
+      this.dossierYears.set(talentId, years);
+    }
+    if (years.has(schoolYear)) {
+      throw new Error(
+        `${talentId} a déjà un dossier ${schoolYear} : un dossier est annuel, pas par événement. Testez world.hasDossier() avant de tirer.`,
+      );
+    }
+    years.add(schoolYear);
+  }
+
+  /**
+   * Claims the `(talent, publication)` pair, and refuses a second claim.
+   *
+   * Loud rather than forgiving, deliberately. A silent skip here would turn
+   * « this talent won ten times » into nine wins and a shrug, which is exactly
+   * the class of quiet arithmetic the ranking rewrite exists to remove.
+   */
+  notePlayed(talentId: string, publicationId: string): void {
+    let played = this.playedByTalent.get(talentId);
+    if (!played) {
+      played = new Set<string>();
+      this.playedByTalent.set(talentId, played);
+    }
+    if (played.has(publicationId)) {
+      throw new Error(
+        `${talentId} a déjà une partie sur ${publicationId} : MinigameAttempt est unique sur le couple. Excluez world.playedBy() avant de tirer.`,
+      );
+    }
+    played.add(publicationId);
   }
 
   /**
@@ -1049,6 +1461,10 @@ export class World {
       const rosterIndex = roster.findIndex((talent) => talent.id === talentId);
       if (rosterIndex !== -1) roster.splice(rosterIndex, 1);
     }
+    // And the talent's own side of it, or their career reads as spent on an
+    // enrolment that no longer exists and `returningPool` keeps refusing them
+    // an event they are no longer on.
+    this.enrolledEventsByTalent.get(talentId)?.delete(eventId);
   }
 
   addPlanning(event: EventRef, blueprint: readonly SlotBlueprint[]): void {
@@ -1154,6 +1570,16 @@ export class World {
     sourceId: string | null;
     amount: number;
     campusId?: string | null;
+    /**
+     * When the granting fact happened. A ledger row whose date is not its
+     * fact's date is a row the application could not have written: the talent's
+     * own `/parcours` page orders by `createdAt` and `xpStoryService` prints a date
+     * label per grant, so a dataset stamping every row on one day renders the
+     * whole history as an undated block in arbitrary order. It survived as long
+     * as it did because there were seventeen minigame grants to look at; the
+     * daily rotation puts that in the thousands.
+     */
+    at?: Date;
   }): void {
     this.buffer.xpGrant.push({
       id: id(
@@ -1166,12 +1592,67 @@ export class World {
       source: opts.source,
       sourceId: opts.sourceId,
       amount: opts.amount,
-      createdAt: this.ctx.clock.days(-20),
+      createdAt: opts.at ?? this.ctx.clock.days(-20),
     });
     this.xpByTalent.set(
       opts.talent.id,
       (this.xpByTalent.get(opts.talent.id) ?? 0) + opts.amount,
     );
+  }
+
+  // ─── Activités en ligne ───────────────────────────────────────────────────
+
+  /**
+   * A talent's state on one online activity, and the XP grant that state implies.
+   *
+   * The grant is written HERE rather than left to the caller because the two have
+   * to agree: the application recomputes one grant per (talent, instance) from
+   * exactly these numbers on every callback, so a seeded pair that disagrees is a
+   * pair no callback could have produced.
+   *
+   * `celebrated` is the float's state, and both halves are worth placing:
+   * `false` leaves the whole grant owed a celebration, which is what a talent
+   * coming back to the Jump tab sees, and `true` marks it all shown, the state
+   * every talent is in afterwards.
+   */
+  enterWorkshop(opts: {
+    talent: TalentRef;
+    event: EventRef;
+    slug: string;
+    budgetMinutes: number;
+    solvedSteps: number;
+    totalSteps: number;
+    /** When the talent first entered; the grant is dated from it too. */
+    at: Date;
+    celebrated: boolean;
+  }): void {
+    const amount = workshopXp(
+      opts.solvedSteps,
+      opts.totalSteps,
+      opts.budgetMinutes,
+    );
+    this.buffer.workshop_Participation.push({
+      talentId: opts.talent.id,
+      activityId: workshopActivityId(opts.slug),
+      eventId: opts.event.id,
+      campusId: opts.event.campusId,
+      budgetMinutes: opts.budgetMinutes,
+      solvedSteps: opts.solvedSteps,
+      totalSteps: opts.totalSteps,
+      xpCelebrated: opts.celebrated ? amount : 0,
+      firstEnteredAt: opts.at,
+      updatedAt: opts.at,
+    });
+    if (amount > 0) {
+      this.grantXp({
+        talent: opts.talent,
+        source: 'workshop',
+        sourceId: workshopGrantSourceId(opts.slug, opts.talent.id),
+        amount,
+        campusId: opts.event.campusId,
+        at: opts.at,
+      });
+    }
   }
 
   /**
@@ -1230,10 +1711,123 @@ export class World {
    * disagreement.
    */
   finalize(): void {
+    // Before the XP projection, because it grants XP.
+    this.rankMinigameFields();
     for (const row of this.buffer.talent) {
       const talentId = row.id as string;
       row.xp = this.xpByTalent.get(talentId) ?? 0;
       row.eventsCount = this.presentEventsByTalent.get(talentId)?.size ?? 0;
+    }
+  }
+
+  /**
+   * Awards the ranking bonus on every finished attempt, the way the application
+   * awards it.
+   *
+   * **A rank is a property of the field, not of an attempt.** It used to be
+   * passed in per attempt - `rank: index + 1`, `fieldSize` a guess at the cohort
+   * size - which meant the stored bonus and the board the application computes
+   * from the same rows were two unrelated numbers that happened to sit in the
+   * same table. Twenty attempts made that invisible. It stops being invisible
+   * the moment a talent is meant to have won ten times, because « won » is then
+   * a claim the leaderboard can contradict. So a scenario places a RESULT and
+   * never a rank: you come first by being fast, which is also how it works for
+   * the talent.
+   *
+   * Two properties of the real thing decide the shape, and both are read off
+   * `minigameService.finishAttempt` rather than guessed:
+   *
+   * **The board is per CAMPUS**, not per publication - `rankOnCampusBoard`, and
+   * the `[campusId, publicationId]` index that exists for it. Ranking one field
+   * per publication produced 329 bonuses where production has 1 472, because
+   * production's 64 publications are really about 900 boards.
+   *
+   * **And there is no clawback**: the bonus is the rank you held THE MOMENT you
+   * finished, never revised when somebody beats it later. So the runs are
+   * walked in the order they finished and each is ranked against the board AS
+   * IT STOOD, itself included - which is why the first finisher of every board
+   * carries a first place, and why a board can hold several of them. That is
+   * not a rounding artefact of the real system, it is its stated semantics
+   * ("an early leader keeps it even once overtaken"), and it is most of the
+   * difference between 1 472 bonuses and a tidy podium per board.
+   *
+   * The amounts come from the domain (`minigameRankBonus`), so the generator
+   * cannot drift from the rule the finish callback applies.
+   */
+  private rankMinigameFields(): void {
+    const scoringByPublication = new Map<string, string>();
+    for (const publication of this.buffer.minigamePublication) {
+      scoringByPublication.set(
+        publication.id as string,
+        publication.scoringType as string,
+      );
+    }
+
+    // One board per (publication, campus). A run with no campus at all - the
+    // talent placed by `talents-limites` who belongs to none - ranks on the
+    // global board, which is the fallback `minigameService` uses for exactly
+    // that row.
+    const boards = new Map<string, typeof this.buffer.minigameAttempt>();
+    for (const attempt of this.buffer.minigameAttempt) {
+      if (attempt.status !== 'done') continue;
+      const key = `${attempt.publicationId as string}|${
+        (attempt.campusId as string | null) ?? 'global'
+      }`;
+      const board = boards.get(key);
+      if (board) board.push(attempt);
+      else boards.set(key, [attempt]);
+    }
+
+    for (const [key, board] of boards) {
+      const scored =
+        scoringByPublication.get(key.slice(0, key.lastIndexOf('|'))) ===
+        'score';
+      // Finish order. The id breaks a tie so two runs stamped at the same
+      // minute are ordered the same way on every run of the generator, rather
+      // than by whichever `sort` happened to visit first.
+      const byFinish = [...board].sort((a, b) => {
+        const left = (a.finishedAt as Date).getTime();
+        const right = (b.finishedAt as Date).getTime();
+        if (left !== right) return left - right;
+        return (a.id as string).localeCompare(b.id as string);
+      });
+
+      const better = (
+        candidate: (typeof board)[number],
+        against: (typeof board)[number],
+      ): boolean => {
+        const left = (scored ? candidate.score : candidate.chrono) ?? 0;
+        const right = (scored ? against.score : against.chrono) ?? 0;
+        // A score game ranks high-to-low, a chrono game low-to-high.
+        return scored ? left > right : left < right;
+      };
+
+      for (const [index, attempt] of byFinish.entries()) {
+        // The board as it stood: everybody who had already finished, plus this
+        // run. Rank is one more than however many of them were better.
+        const fieldSize = index + 1;
+        const ahead = byFinish
+          .slice(0, index)
+          .filter((earlier) => better(earlier, attempt)).length;
+        const rank = ahead + 1;
+        if (rank > minigameRankBonusLimit(fieldSize)) continue;
+        const bonus = minigameRankBonus(rank, fieldSize);
+        if (bonus <= 0) continue;
+        attempt.rankXpAwarded = bonus;
+        // The rank float is gated on its own column, so it follows whether the
+        // finish itself was celebrated: an attempt whose `+50` is still unseen
+        // has not shown its bonus either.
+        attempt.rankXpSeenAt = attempt.xpSeenAt ?? null;
+        const talent = this.talentById.get(attempt.talentId as string);
+        if (!talent) continue;
+        this.grantXp({
+          talent,
+          source: 'minigame_rank',
+          sourceId: attempt.id as string,
+          amount: bonus,
+          at: (attempt.finishedAt as Date | null) ?? undefined,
+        });
+      }
     }
   }
 }

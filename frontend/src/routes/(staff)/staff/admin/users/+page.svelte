@@ -1,4 +1,9 @@
 <script lang="ts">
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
   import { onMount, untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
   import { SvelteSet } from 'svelte/reactivity';
@@ -79,11 +84,12 @@
   // and demoted below the members roster (this page's primary content).
   let invitesOpen = $state(false);
 
-  const filteredInvites = $derived(
-    data.invitations.filter((i) =>
-      i.email.toLowerCase().includes(inviteSearch.trim().toLowerCase()),
-    ),
-  );
+  const filteredInvites = $derived.by(() => {
+    const tokens = searchTokens(inviteSearch);
+    return data.invitations.filter((i) =>
+      matchesAllTokens(buildHaystack([i.email]), tokens),
+    );
+  });
   const sortedInvites = $derived.by(() => {
     const dir = inviteSortDir === 'asc' ? 1 : -1;
     return [...filteredInvites].sort(
@@ -146,17 +152,15 @@
 
   const memberName = (u: MemberRow) => u.name || '';
 
-  const filteredMembers = $derived(
-    data.members.filter((u) => {
-      const q = memberSearch.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        (u.name ?? '').toLowerCase().includes(q) ||
-        (u.email ?? '').toLowerCase().includes(q) ||
-        (u.staffProfile?.campus?.name ?? '').toLowerCase().includes(q)
-      );
-    }),
-  );
+  const filteredMembers = $derived.by(() => {
+    const tokens = searchTokens(memberSearch);
+    return data.members.filter((u) =>
+      matchesAllTokens(
+        buildHaystack([u.name, u.email, u.staffProfile?.campus?.name]),
+        tokens,
+      ),
+    );
+  });
   const sortedMembers = $derived.by(() => {
     // Activité is deliberately NOT an `isMissing` column, and it is the only
     // place on the staff tables where that is true. Everywhere else an absent

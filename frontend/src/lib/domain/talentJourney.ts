@@ -36,8 +36,6 @@ export type TalentJourneyEntry = {
   eventHref: string | null;
   /** Pre-formatted French date in the campus timezone, e.g. "16 juin 2026". */
   dateLabel: string;
-  /** Salesforce's read on whether they turned up. Null when it says nothing. */
-  presence: 'present' | 'absent' | null;
   /** The closing conducted at that event, if the event holds closings at all. */
   closing: TalentJourneyClosing | null;
 };

@@ -1,0 +1,161 @@
+---
+paths:
+  - "frontend/src/routes/api/worker/**"
+  - "frontend/src/lib/server/services/{syncService,syncConfigService,syncRunService,devSpaceVisibility,reconciliationService,schoolService}.ts"
+  - "frontend/src/lib/server/annuaire.ts"
+  - "frontend/src/lib/domain/{syncSchedule,reconciliation,sfMemberStatus}.ts"
+  - "frontend/src/lib/validation/{workerSync,workerConfigContract.test}.ts"
+  - "frontend/src/routes/**/sf-conflicts/**"
+---
+
+# The Salesforce worker contract
+
+Six routes, one caller, and a second repository on the other end
+([`jump-sf-worker`](https://github.com/Manta-Epitech-Academy/jump-sf-worker)). The
+worker is **driven by Jump and stateless**: a k8s CronJob wakes it on a fixed fine
+tick, it asks what to do, obeys, and reports. It holds no configuration, no cadence
+and no watermark of its own, exposes no port, and only ever talks outbound.
+
+That inversion is the whole design. Tightening the incremental pass from three
+hours to fifteen minutes during a stage is a write in Jump that takes effect at the
+next tick, with nothing redeployed and nobody touching the cluster.
+
+**A contract across two repositories with no shared artifact is a contract nobody
+holds.** Six routes were renamed on the worker's side and stayed unimplemented here
+until the first tick returned 404 and production stopped syncing.
+`validation/workerSync.ts` transcribes the worker's own `parseWorkerConfig` and
+`workerConfigContract.test.ts` holds our answer to it, over the wire as well as in
+memory, because `since: undefined` is present in an object and gone from its JSON.
+
+## What a tick does
+
+| Step | Route                            | Note                                                                 |
+| ---- | -------------------------------- | -------------------------------------------------------------------- |
+| 1    | `GET /config`                    | Jump decides, on cadence or request. Nothing due: tick ends, no row. |
+| 2    | `POST /runs`                     | Opens a `Sync_Run`. Only a real pass gets one.                       |
+| 3    | `POST /events`                   | The whole list, campus per event.                                    |
+| 4    | `POST /talents`                  | Identities, deduplicated across the run, paginated by 50.            |
+| 5    | `POST /event/:id/participations` | One call per event, carrying its `mode`.                             |
+| 6    | `PATCH /runs/:id`                | `ok` with counters, or `error`. The watermark moves on `ok` only.    |
+
+## Rules, each of which a reasonable-looking change breaks quietly
+
+- **The prune runs in `full` only, and the worker says which pass it is.** A full
+  pass carries every member of a campaign, so an enrolment absent from it is gone.
+  An incremental carries only the campaigns Salesforce reports as touched, and
+  **removing a member from a campaign moves no modstamp anywhere**, so absence
+  there proves nothing. The roster alone cannot tell the two apart, which is why
+  `mode` is a required field rather than something Jump infers. Reading it off
+  whichever run happens to be open would be shared mutable state on
+  horizontally-scaled pods. This is also why deletions are caught by the spaced
+  full reconcile and by nothing else, and why spacing that pass out has a cost.
+- **A full pass prunes only from a complete roster, and holds what it cannot
+  prove.** Complete means non-empty with every member resolved to a known talent.
+  An empty roster looks exactly like a truncated fetch, and a member the talents
+  push skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`) may be the very person whose
+  enrolment the prune would take, so in either case the enrolments that did
+  resolve are written, the removals are recorded on `Sync_PruneHold`, and the
+  call succeeds. A later complete roster lifts the hold by pruning normally; an
+  admin who knows the campaign really was emptied releases it
+  (`ops_release_prune_hold`) and the next full pass applies it if its roster is
+  still empty; an `ok` full run drops the holds it did not renew.
+  `stats_sync_health.prunesHeld` lists them. **Only an empty roster can be
+  released**, and a CHECK holds it: over unresolved members a release would
+  hand a person exactly the deletion the hold refused, so that hold lifts by
+  fixing the member's SyncError and nothing else.
+- **A refusal that replays identically must never fail a run.** A refusal fails
+  the call, the worker closes the run in error, and a failed run is replayed at
+  the next tick with the same input, so a refusal that depends only on that input
+  is a refusal forever, and for every campaign of the run rather than the one it
+  was about. On 2026-10-01 a guard that refused a full roster whose single member
+  Jump did not know stopped the whole sync, the incremental included, because a
+  due full pass outranks it. So skip, count and record what cannot be applied
+  (`syncEvents` for an unknown campus, `syncTalents` for a nameless contact,
+  `syncParticipations` for an unknown event or an unprovable prune), and keep
+  refusals for a malformed payload, which is a worker bug and not data.
+- **A failed run moves nothing.** `lastDeltaAt` / `lastFullAt` are no column
+  anywhere: they are `MAX(finishedAt) WHERE mode = ? AND status = 'ok'`. So a run
+  that dies mid-push simply replays its window at the next tick, and nothing in
+  the system has to remember that it failed. Closing an already-closed run is
+  refused for the same reason: the worker fires a second `error` PATCH when its
+  success PATCH is what failed, and applying it would walk the watermark back over
+  data that did land.
+- **A requested pass is satisfied by a run that STARTED after it.** `ops_request_sync`
+  writes one `Sync_Request` row per mode and nothing ever consumes it: it is
+  pending while no successful run that covers it started after it. A run already
+  in flight when the request landed may have read Salesforce before the change
+  somebody is waiting for, so finishing later is not enough; a failed run leaves
+  it pending, as it leaves the watermark; and a full pass covers an incremental
+  request, never the reverse. That is why it is a date and not a flag: a flag
+  needs clearing, and the clearing is where it would get lost.
+- **Dueness reads `finishedAt`, the incremental window reads `startedAt`.** They
+  are deliberately two dates. A record modified WHILE a run was executing carries
+  a modstamp that run's `finishedAt` has already passed, so resuming from
+  `finishedAt` drops it silently. `domain/syncSchedule.ts` owns both, plus the
+  margin that absorbs the clock skew between Jump and Salesforce.
+- **`mode` is always a real mode, and `since` is always a key.** The worker
+  validates `mode` BEFORE it looks at `shouldSync`, so a heartbeat answer with an
+  empty one makes the run throw instead of exiting quietly; and it rejects a
+  missing `since` rather than reading it as null.
+- **`/api/worker/config` is where the worker isolation lives.** It serves a source
+  only when its campus carries a non-null `Campus.externalName`, and the seed
+  generator writes none, so a generated database answers an empty list on any
+  machine. It is a property of the data, not a flag somebody re-enables by
+  forgetting. `seed.md` states the same rule from the other side,
+  and `assert/inertness.ts` refuses a seeded `Sync_Source` outright.
+- **Nothing here touches `Event.devActivatedAt`.** A new campaign under a
+  whitelisted parent is discovered automatically, which is the point; publishing
+  it to the dev workspace stays an admin's decision. Automatic discovery is not
+  automatic publication.
+- **`syncEvents` skips what it cannot resolve, it does not refuse the batch.** It
+  used to return on the first bad row, leaving everything before it applied and
+  everything after it not, with one string to explain the state.
+
+## Shapes that look like errors and are not
+
+- `{"events": []}` arrives on every incremental tick where Salesforce touched
+  nothing.
+- A participation value can be `""`: the worker maps a null `CampaignMember.Status`
+  to the empty string rather than dropping the member.
+- `first_name` can be `""`, because `Contact.FirstName` is optional in Salesforce.
+  The row is skipped, counted in `invalid` and logged as a `SyncError` of kind
+  `MISSING_NAME`; the page of 50 that carried it is still reconciled. Refusing it
+  at the envelope closes the run in error, and since the watermark only moves on
+  success, the next tick replays the identical page onto the identical row.
+- `date` is **absent**, never `null`, when the campaign name carries none, and it
+  is written `YYYY/MM/DD`.
+- `campus_ext_name` can be `""`, which resolves to no campus and is skipped.
+- Jump's error body ends up quoted into `Sync_Run.error`, truncated by the worker
+  at 300 characters. Keep refusals short and specific.
+
+## Auth, and what this namespace does not have
+
+One bearer check, `requireWorkerToken`, in front of all six. An unset
+`WORKER_API_TOKEN` refuses everything rather than letting anything through.
+
+Worth knowing rather than discovering: `/api/worker/*` sits **outside** the
+`/api/admin` and `/api/mcp` prefixes that `admin-api.md` assumes are
+rate-limited at the edge, and it writes no per-call audit row. What stands in for
+both is that the credential is machine-only, the surface is six fixed operations,
+and every real run leaves a `Sync_Run`. Mounting a seventh route by copying a block
+is how that stops being true.
+
+## Steering it
+
+No admin screen, by design: a campaign is named by an opaque Salesforce id somebody
+copies out of Salesforce, and the cadence is two numbers changed twice a year.
+`config_sync_sources`, `stats_sync_runs`, `stats_sync_health`, `write_sync_source`,
+`write_sync_cadence`, `ops_request_sync` and `ops_release_prune_hold` are the
+surface, over HTTP and as MCP tools. "Sync now" is a request, never a lowered
+cadence: a cadence lowered to get one pass has to be raised again by somebody who
+remembers to.
+
+## Salesforce reconciliation
+
+Talent profile fields have two sources: the worker sync (Salesforce) and onboarding (the student). They are **reconciled, not blindly overwritten**.
+
+- **`Talent` = Jump's current truth.** Onboarding writes it directly (**optimistic**: the student's input shows on their dashboard immediately; staff arbitrate divergences afterward, there is no pending-validation gate).
+- **`TalentSfImport` = 1:1 typed mirror of Salesforce's last claim**: the anti-corruption boundary. Written _only_ by `syncService.syncTalents`, never by onboarding, and upserted only when the inbound payload differs.
+- **`School` = canonical UAI-keyed directory**, resolved lazily from the éducation-nationale annuaire (`server/annuaire.ts` + `schoolService.resolveSchoolByUai`). Only schools actually attended ever land here, never the ~69k national set. It replaced the old free-text `highSchoolName/City/Uai` columns: `Talent` now carries a `schoolId` FK (+ `highSchoolNameManual`, used _only_ when a lycée has no UAI). The student's school and SF's claimed school (`TalentSfImport.sfSchoolId`) both FK the same `School`.
+- **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.)
+- **Conflict** = field is talent-confirmed **AND** `Talent` ≠ `TalentSfImport` (school compared by FK). Computed in `reconciliationService`, never stored. Surfaced at `/staff/admin/sf-conflicts` (list + accept/reject + CSV export); `acceptJump` realigns the mirror optimistically. `niveau` is SF-owned (onboarding never sets it) → always synced, never a conflict.

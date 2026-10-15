@@ -17,12 +17,12 @@
 
   const eventsHref = resolve('/staff/admin/events');
 
-  const syncTypeLabels = {
-    campus_list: 'Liste des campus',
-    events: 'Événements',
-    talents: 'Talents',
-    ref_comp: 'Référentiel de compétences',
-    subject_import: 'Import de sujet',
+  // The two passes answer different questions, so the card names which one ran:
+  // the incremental keeps the data fresh, the full reconcile is the only pass
+  // that notices something deleted in Salesforce.
+  const syncModeLabels = {
+    incremental: 'Mise à jour',
+    full: 'Reprise complète',
   } as const;
 
   function formatSyncDateTime(date: Date | string): string {
@@ -159,29 +159,28 @@
       <RefreshCw class="h-4 w-4 text-muted-foreground" />
     </Card.Header>
     <Card.Content>
-      {#if data.lastSync}
+      {#if data.lastRun}
         <div class="text-2xl font-bold">
-          {formatSyncDateTime(data.lastSync.at)}
+          {formatSyncDateTime(
+            data.lastRun.finishedAt ?? data.lastRun.startedAt,
+          )}
         </div>
         <p class="text-xs text-muted-foreground">
-          {syncTypeLabels[data.lastSync.type]}
-          {#if data.lastSync.campusExtName}
-            · {data.lastSync.campusExtName}
-          {/if}
-          {#if data.lastSync.eventExtId}
-            · event {data.lastSync.eventExtId}
-          {/if}
-          {#if data.lastSync.created != null || data.lastSync.updated != null}
-            · {data.lastSync.created ?? 0} créé(s),
-            {data.lastSync.updated ?? 0} mis à jour
-            {#if data.lastSync.removed != null}, {data.lastSync.removed} retiré(s){/if}
-            {#if data.lastSync.skipped != null}, {data.lastSync.skipped} ignoré(s){/if}
+          {syncModeLabels[data.lastRun.mode]}
+          {#if data.lastRun.status === 'running'}
+            · en cours
+          {:else if data.lastRun.status === 'error'}
+            · échec, la même fenêtre sera reprise au prochain passage
+          {:else}
+            · {data.lastRun.events ?? 0} événement(s),
+            {data.lastRun.talents ?? 0} talent(s),
+            {data.lastRun.participations ?? 0} inscription(s)
           {/if}
         </p>
       {:else}
         <div class="text-2xl font-bold text-muted-foreground">-</div>
         <p class="text-xs text-muted-foreground">
-          Aucune synchro depuis le dernier redémarrage
+          Aucune synchronisation enregistrée à ce jour
         </p>
       {/if}
     </Card.Content>

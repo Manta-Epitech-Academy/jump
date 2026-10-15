@@ -62,7 +62,90 @@ export function addSyncErrors(
   }
 }
 
-/** An RGPD erasure request in each state the workflow can be in. */
+/**
+ * The worker's run reports, in each state a run can be in.
+ *
+ * A fact, not an instruction: nothing sweeps this table, and the worker opens
+ * its own rows. Its whitelist is the instruction, and the generator writes none
+ * of that - see `Sync_Source` in `assert/coverage.ts` and the entry in
+ * `assert/inertness.ts` that refuses one.
+ *
+ * Four rows for the three branches the admin read has, and only one of them is
+ * reassuring: a successful pass with its counters (twice, one per mode, since
+ * the two are reported apart), one that failed and whose window will simply be
+ * replayed, and one still open, which on a real environment means a worker
+ * interrupted mid-pass. Their ORDER is load-bearing, see the open one below.
+ *
+ * Also the shape the watermark is computed from, and it is deliberately NOT
+ * arranged to read « rien à faire »: these runs are a day or two old against a
+ * three-hour cadence, so a generated environment answers that a pass is due. It
+ * costs nothing, because what it would sync is an empty list of sources, and
+ * pinning them recent enough to look idle would date the newest report to the
+ * seed anchor and leave the card showing a run nobody can explain.
+ */
+export function addSyncRuns(world: World): void {
+  const clock = world.ctx.clock;
+
+  world.buffer.sync_Run.push(
+    {
+      id: id('syr', 'full-ok'),
+      mode: 'full',
+      status: 'ok',
+      startedAt: clock.at(-2, 3),
+      finishedAt: clock.at(-2, 3, 4),
+      eventsCount: 253,
+      talentsCount: 7100,
+      participationsCount: 7465,
+    },
+    {
+      id: id('syr', 'delta-ok'),
+      mode: 'incremental',
+      status: 'ok',
+      startedAt: clock.at(-1, 6),
+      finishedAt: clock.at(-1, 6, 1),
+      eventsCount: 3,
+      talentsCount: 41,
+      participationsCount: 44,
+    },
+    {
+      // No counters: it failed before it could count anything, which is what a
+      // failed run looks like and why those columns are nullable.
+      id: id('syr', 'delta-error'),
+      mode: 'incremental',
+      status: 'error',
+      startedAt: clock.at(-1, 3),
+      finishedAt: clock.at(-1, 3, 1),
+      error:
+        'Jump post /api/worker/talents failed: 500 {"message":"Internal Error"}',
+    },
+    {
+      // Still open, so `finishedAt` and every counter are null.
+      //
+      // Deliberately NOT the most recent row. The dashboard card reads
+      // `recentRuns(1)`, so an open run dated latest is the only branch of that
+      // card anybody ever sees on a generated base, and it is the alarming one:
+      // a validation environment that permanently reads « en cours » teaches the
+      // reader to ignore the card. Dated before the successful incremental, it
+      // is the worker interrupted mid-pass that `runningSince` exists to
+      // surface, and the card shows the ordinary state.
+      id: id('syr', 'running'),
+      mode: 'incremental',
+      status: 'running',
+      startedAt: clock.at(-2, 9),
+    },
+  );
+}
+
+/**
+ * An RGPD erasure request in each state the workflow can be in.
+ *
+ * `talents` are the people behind the pending, rejected and cancelled
+ * requests, in that order. The fulfilled one is not drawn from them: fulfilling
+ * a request is what runs `anonymizeTalent`, so its talent can only be an erased
+ * one (`addErasedTalent`), never somebody who still carries a name, a phone and
+ * a Salesforce id. Giving it a drawn talent was a state the application cannot
+ * reach.
+ */
 export function addDeletionRequests(
   world: World,
   talents: readonly TalentRef[],
@@ -74,18 +157,27 @@ export function addDeletionRequests(
     'rejected',
     'cancelled',
   ];
+  const drawn = [...talents];
   for (const [index, status] of states.entries()) {
-    const talent = talents[index];
-    if (!talent) break;
     const settled = status !== 'pending';
+    const resolvedAt = settled ? world.ctx.clock.days(-30 + index) : null;
+    const talent =
+      status === 'fulfilled' && resolvedAt
+        ? addErasedTalent(world, resolvedAt)
+        : drawn.shift();
+    if (!talent) break;
     world.buffer.talentDeletionRequest.push({
       id: id('tdr', status),
       talentId: talent.id,
       status,
       // A request filed with no stated reason is the ordinary case on a form
       // whose reason box is optional, and « aucun motif indiqué » is a
-      // rendering the queue has to have an example of.
-      reason: index === 0 ? null : 'Demande du responsable légal.',
+      // rendering the queue has to have an example of. The fulfilled one has
+      // none either, for another reason: the erasure scrubs it.
+      reason:
+        index === 0 || status === 'fulfilled'
+          ? null
+          : 'Demande du responsable légal.',
       requestedAt: world.ctx.clock.days(-40 + index),
       // Acknowledged, but not yet acted on: the state between « reçue » and
       // « traitée ». The pending one is deliberately NOT acknowledged, because
@@ -94,13 +186,59 @@ export function addDeletionRequests(
       // A bare string with no foreign key, on purpose: the audit of who
       // resolved an erasure has to outlive that person's own account.
       resolvedBy: settled ? staffUserId : null,
-      resolvedAt: settled ? world.ctx.clock.days(-30 + index) : null,
+      resolvedAt,
       resolutionNote:
         status === 'rejected'
           ? 'Talent encore inscrit à un événement à venir.'
           : null,
     });
   }
+}
+
+/**
+ * A talent as `anonymizeTalent` leaves one: placeholder names, every contact
+ * and Salesforce field gone, the mirror deleted, the account scrubbed, and
+ * `anonymizedAt` stamped at the erasure. It is the row a CTFd instance is told
+ * about when it asks which of its accounts belong to erased talents.
+ *
+ * Kept out of `world.talents` on purpose, so no later scenario can draw it and
+ * hang an enrolment, a closing or a note on somebody who no longer exists.
+ */
+export function addErasedTalent(world: World, erasedAt: Date): TalentRef {
+  const talentId = id('tal', 'efface');
+  const userId = id('usr', 'tal', 'efface');
+  const email = `anonymized-${talentId}@jump.internal`;
+  world.buffer.bauth_user.push({
+    id: userId,
+    email,
+    name: 'Utilisateur Anonymisé',
+    emailVerified: false,
+    role: 'student',
+    createdAt: world.ctx.clock.days(-300),
+  });
+  world.buffer.talent.push({
+    id: talentId,
+    userId,
+    nom: 'Anonymisé',
+    prenom: 'Anonymisé',
+    niveau: null,
+    phone: null,
+    externalId: null,
+    schoolId: null,
+    highSchoolNameManual: null,
+    anonymizedAt: erasedAt,
+    createdAt: world.ctx.clock.days(-300),
+  });
+  return {
+    id: talentId,
+    userId,
+    email,
+    prenom: 'Anonymisé',
+    nom: 'Anonymisé',
+    niveau: null,
+    campusId: null,
+    parentEmail: null,
+  };
 }
 
 /**
@@ -256,9 +394,9 @@ export function addAdminApiTokens(world: World, staff: StaffRef): void {
   //
   // The operation and the field have to belong together, because an audit row
   // is read as the record of a call that was actually made: `cohortNoun` is a
-  // field of `write_event_config`, and `write_event_inscrits_options` - which
-  // this named - takes `showStatutColumn` and nothing else, so the row
-  // described a call the catalogue would have refused. The noun is singular for
+  // field of `write_event_config`, and the operation this once named took
+  // `showStatutColumn` and nothing else, so the row described a call the
+  // catalogue would have refused. The noun is singular for
   // the same reason it is singular everywhere else: `cohortNounForms` builds
   // the plural and never the reverse.
   world.buffer.adminApi_Call.push({
@@ -296,7 +434,7 @@ export function addAdminApiTokens(world: World, staff: StaffRef): void {
  * nobody touched", and a dataset where everything is used answers it with an
  * empty list, which is indistinguishable from a broken query. A dataset where
  * almost nothing is used answers it with the whole catalogue, which is the one
- * error `AGENTS.md` singles out as the one that makes somebody delete a feature
+ * error `.claude/rules/usage.md` singles out as the one that makes somebody delete a feature
  * that is in use. Both were reachable: the generator named four keys of 106.
  *
  * So most of the catalogue is used and a real minority is not, and which
@@ -596,7 +734,7 @@ function pushUse(
  * It is the store that answers beyond `USAGE_RAW_RETENTION_MONTHS`, and it had
  * never held a row: every figure came from the raw table, so the store boundary
  * in `server/usage/read.ts` was never once crossed by anything a person could
- * look at. `AGENTS.md` says of that pair that "both halves shipped broken and
+ * look at. `.claude/rules/usage.md` says of that pair that "both halves shipped broken and
  * neither was visible to a test"; a dataset with an empty cube is how that
  * stays true.
  *

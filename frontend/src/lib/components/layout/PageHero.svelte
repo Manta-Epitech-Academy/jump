@@ -5,6 +5,11 @@
   type Props = {
     /** Vertical padding density. Compact for sub-pages, comfortable for top-level dashboards. */
     density?: 'compact' | 'comfortable';
+    /**
+     * The pixel squares in the top-right corner. Off when the content puts a
+     * picture of its own in that corner, so the two do not overlap.
+     */
+    pixels?: boolean;
     /** Extra classes appended to the outer wrapper. */
     class?: string;
     children: Snippet;
@@ -12,6 +17,7 @@
 
   let {
     density = 'comfortable',
+    pixels = true,
     class: extraClass,
     children,
   }: Props = $props();
@@ -36,24 +42,26 @@
     aria-hidden="true"
   ></div>
 
-  <!-- Pixel overlays (50%-opacity squares, charte signature texture) -->
-  <div
-    class="pointer-events-none absolute top-4 right-4 hidden md:block"
-    aria-hidden="true"
-  >
+  {#if pixels}
+    <!-- Pixel overlays (50%-opacity squares, charte signature texture) -->
     <div
-      class="absolute"
-      style="top: 0; right: 0; width: 56px; height: 56px; background: rgba(255,255,255,0.5);"
-    ></div>
-    <div
-      class="absolute"
-      style="top: 0; right: 64px; width: 28px; height: 56px; background: rgba(255,255,255,0.25);"
-    ></div>
-    <div
-      class="absolute"
-      style="top: 64px; right: 0; width: 28px; height: 28px; background: rgba(255,255,255,0.35);"
-    ></div>
-  </div>
+      class="pointer-events-none absolute top-4 right-4 hidden md:block"
+      aria-hidden="true"
+    >
+      <div
+        class="absolute"
+        style="top: 0; right: 0; width: 56px; height: 56px; background: rgba(255,255,255,0.5);"
+      ></div>
+      <div
+        class="absolute"
+        style="top: 0; right: 64px; width: 28px; height: 56px; background: rgba(255,255,255,0.25);"
+      ></div>
+      <div
+        class="absolute"
+        style="top: 64px; right: 0; width: 28px; height: 28px; background: rgba(255,255,255,0.35);"
+      ></div>
+    </div>
+  {/if}
 
   <div class="relative z-10">
     {@render children()}

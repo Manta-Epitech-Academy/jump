@@ -4,7 +4,6 @@ import { eventDisplayName } from '$lib/domain/event';
 import { EVENT_MODULES, eventHasModule } from '$lib/domain/eventModules';
 import { isDevVisibleEvent } from '$lib/server/services/stageContext';
 import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
-import { pastEventPresence } from '$lib/domain/sfMemberStatus';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import type {
   TalentJourney,
@@ -75,7 +74,6 @@ export async function getTalentJourney(
       where: { talentId, ...visibleParticipationWhere },
       select: {
         eventId: true,
-        sfMemberStatus: true,
         event: { select: JOURNEY_EVENT_SELECT },
       },
     }),
@@ -156,24 +154,18 @@ export async function getTalentJourney(
       return {
         eventId,
         event,
-        sfMemberStatus: participation?.sfMemberStatus ?? null,
         closing,
       };
     })
     .filter(({ event, closing }) => isPast(event) || closing !== null)
     .sort((a, b) => b.event.date.getTime() - a.event.date.getTime())
-    .map(({ eventId, event, sfMemberStatus, closing }) => {
+    .map(({ eventId, event, closing }) => {
       const quote = closing?.answers[0]?.freeText?.trim() || null;
       return {
         eventId,
         eventName: eventDisplayName(event),
         eventHref: eventHref(event),
         dateLabel: dateLabel(event.date),
-        // Presence is READ OFF the Salesforce status and only means anything once
-        // the event is over: on a running event `READY` says "confirmed", not
-        // "absent". So an event carried here by its closing alone - its own
-        // participation since pruned - has no status to read and shows none.
-        presence: isPast(event) ? pastEventPresence(sfMemberStatus) : null,
         closing: closing
           ? {
               status: closing.status,

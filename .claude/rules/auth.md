@@ -1,0 +1,168 @@
+---
+paths:
+  - "frontend/src/lib/server/auth/**"
+  - "frontend/src/lib/server/auth.ts"
+  - "frontend/src/lib/auth-client.ts"
+  - "frontend/src/lib/domain/permissions.ts"
+  - "frontend/src/hooks.server.ts"
+  - "frontend/src/routes/**/login/**"
+  - "frontend/src/routes/api/auth/**"
+  - "frontend/src/routes/api/test/login-as/**"
+  - "frontend/scripts/{accept-invitation,add-admin-user,bootstrap-admins}.ts"
+  - "frontend/src/lib/server/services/__integration__/{emailOtpAudience,microsoftOAuthCallback,staffDoor}.integration.test.ts"
+  - "frontend/tests/e2e/auth.setup.ts"
+---
+
+# Auth and role gating
+
+## Guards and role gating
+
+Route guards in `src/lib/server/auth/guards.ts` enforce role-based access. Session data is loaded in `hooks.server.ts` into `event.locals` (user, session, staffProfile, talent).
+
+Staff are routed by `StaffProfile.staffRole` (Prisma `StaffRole` enum: `admin`, `superdev`, `dev`). After login, staff redirect to their role-specific space. Guards block cross-space access and redirect to correct space. Role-to-path mapping lives in `src/lib/domain/staff.ts` (`getStaffRoleRedirectPath`).
+
+| StaffRole         | Space                                |
+| ----------------- | ------------------------------------ |
+| `admin`           | `/staff/admin/`                      |
+| `superdev`, `dev` | `/staff/dev/`                        |
+| `null`            | blocked, shown "contact admin" error |
+
+Client-side auth at `src/lib/auth-client.ts` (browser-side BetterAuth).
+
+### Role groups
+
+Inside a workspace, role-based gating goes through **one table** of named role groups in `src/lib/domain/permissions.ts`:
+
+| Group            | Roles             | Use for                                                  |
+| ---------------- | ----------------- | -------------------------------------------------------- |
+| `devMember`      | `superdev`, `dev` | Dev workspace daily ops (participants, closings, update) |
+| `realSendArmers` | `admin`           | Arming real outbound sends / login-redirect pin          |
+
+- **Client:** `const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole))`, then apply one of the UI patterns below. Import: `$lib/domain/permissions`.
+- **Server:** `requireStaffGroup(locals, 'devMember')`. Import: `$lib/server/auth/guards`. Call it in every mutating action, or at the top of a `load` to gate a whole route.
+
+**There is no superdev-only group today.** `superdev` and `dev` are permission-identical; the only thing the enum still separates is which roles a superdev may invite (`INVITABLE_STAFF_ROLES`, a catalogue, not a gate). Add a group back to `STAFF_GROUPS` the day a lead-only action exists. Never inline a `['superdev']` array at a call site.
+
+**UI pattern rule: pick one per site, do not mix:**
+
+| Pattern           | When                                                     |
+| ----------------- | -------------------------------------------------------- |
+| Hide              | Nav entries to restricted destinations (sidebar, menus)  |
+| Disable + tooltip | Mutating controls visible on shared screens              |
+| Redirect / 403    | Direct URL access, via `requireStaffGroup` in the `load` |
+
+## Auth System
+
+Uses **BetterAuth** (`src/lib/server/auth.ts`) with two methods:
+
+- **Microsoft OAuth** for staff and admins (must be `@epitech.eu`)
+- **Email OTP** (6-digit, sent via Resend) for students and parents
+
+**The two doors are disjoint, and that is now enforced rather than described.**
+It was not for a long time: the role filter lived in the `/login` page action,
+and BetterAuth's own routes are mounted **under** it (`/api/auth/*`, which
+`guards.ts` treats as public), so a code request followed by a code sign-in on a
+staff address minted a full staff session - the Azure tenant restriction and its
+MFA bypassed, against a code stored in plaintext, on an `admin` account that
+carries impersonation of every talent. `disableSignUp: true` only ever stopped
+account creation.
+
+- **`resolveOtpIdentity`** (`server/auth/otpAudience.ts`) is the one answer to
+  "may this address use the OTP door", read by the gate, by the server-side mint
+  path and by the `/login` action, so the page and the routes underneath it
+  cannot drift apart again. It is a **positive allowlist and staff-deny comes
+  first**: a `StaffProfile` **or** a staff `bauth_user.role` refuses. Both halves
+  earn their place - the profile is the truth about what someone can do, the
+  column is what BetterAuth's admin plugin gates impersonation on, and testing
+  `talent` first (as the action did) admits the row carrying both that bad
+  Salesforce data produces.
+- **`emailOtpAudienceGate`** (`server/auth/emailOtpAudienceGate.ts`) is a
+  BetterAuth `before` hook over every path carrying `email-otp`, so an endpoint a
+  future release adds is covered on arrival, inside the `/email-otp/` prefix or
+  beside it (two of today's nine already are). It is **not** a check inside
+  `sendVerificationOTP`, and that is the load-bearing part: the send endpoint
+  writes the `bauth_verification` row **before** it looks the user up, and awaits
+  the callback through `runInBackgroundOrAwait`, which swallows the rejection and
+  still answers `200`. Refusing in the callback leaves a live code behind under
+  the refused address. A `before` hook also covers `auth.api.*`, since both
+  surfaces reach the endpoint through the same dispatcher.
+- **A refusal discloses nothing, because it is not an answer of ours.** The hook
+  substitutes an address BetterAuth has never seen (`.invalid`, one per request)
+  and lets the plugin's own unknown-address path reply: `200 {success:true}` on
+  the emitting routes under `disableSignUp`, `INVALID_OTP` on the consuming
+  ones. Reproducing those two responses instead is the shape that shipped and
+  had to be replaced, and the reason is the one a `before` hook cannot avoid: it
+  runs ahead of body validation, so it would also have to answer for every
+  request the endpoint rejects before its user lookup (`{email}` with no `type`,
+  or `type: 'change-email'`), where a 400 for an eligible address against a 200
+  for every other one discloses on an unauthenticated route precisely the bit
+  the silent success exists to hide. Substituting keeps validation, error
+  shapes and timing upstream where they belong; the parity is asserted per
+  route, per malformed body, in `emailOtpAudience.integration.test.ts`.
+- **The plugin's two server-only endpoints carry no path**, so a matcher cannot
+  see them. `server/auth/otpSession.ts` owns both halves of the credential
+  (`mintSigninOtp`, `establishOtpSession`) and checks the audience itself.
+- **Opening a staff session locally, without Azure:** `POST /api/test/login-as`
+  with `Authorization: Bearer $LOAD_TEST_SECRET`, then paste the returned cookie
+  into the browser. No new mechanism and nothing to arm in production: the
+  endpoint exists for the load-test driver, 404s unless `LOAD_TEST_SECRET` is set
+  server-side, and `tests/e2e/auth.setup.ts` already mints every role's session
+  through it for the same reason ("staff authenticate through Microsoft OAuth and
+  talents through an emailed OTP, neither of which a headless run can walk").
+  The OTP door used to be what stood in for this; it is not a substitute for a
+  door being open in production.
+
+**A staff `bauth_user` carries `emailVerified = true`, and that is an invariant
+rather than a detail of its row.** It is the only thing standing between the
+staff door and a lockout, because BetterAuth's account-link path ANDs two tests
+(`oauth2/link-account.mjs`) and `accountLinking.trustedProviders` answers only
+the first. The second, `requireLocalEmailVerified`, defaults to true and reads
+the LOCAL column; Entra ID emits no `email_verified` claim unless it is declared
+as an optional claim on the app registration, so BetterAuth stamps `false` on
+every account it creates and the link is refused with `account_not_linked` the
+day that member's `bauth_account` row is gone. Which is not hypothetical: 134 of
+139 staff profiles were locked out of preprod when
+`20260831120000_add_bauth_account_issuer` deleted every OAuth link and claimed
+`trustedProviders` would rebuild them (#348).
+
+Three things hold the invariant, and they are not interchangeable.
+`mapProfileToUser` on the Microsoft provider in `server/auth.ts` holds it at
+creation, which is where it belongs: reaching that callback means the tenant in
+`MICROSOFT_TENANT_ID` authenticated the address and `staff/oauth/callback` then
+refused anything outside `@epitech.eu`. The migration
+`20260915140000_verify_staff_emails_for_oauth_relink` holds it for the rows that
+predate that, scoped on `StaffProfile` because that row is the proof the
+callback ran. And the provisioning scripts (`bootstrap-admins.ts`,
+`add-admin-user.ts`, `accept-invitation.ts`) write it themselves, which is the
+only reason five accounts could still sign in while the other 134 could not.
+
+**Do not answer a linking refusal by setting `requireLocalEmailVerified: false`.**
+It is one line and it works, and it would open implicit linking to every
+pre-existing local row rather than to the staff rows the refusal was about. Keep
+it at its default. But do not mistake it for a guard over who reaches the staff
+space, which is the reading it invites and which is false: it refuses only a row
+that has **never authenticated**. A guardian's row is written
+`emailVerified: true` at creation (`ensureParentAccount`, `changeParentEmail`),
+and a talent's is promoted to `true` by BetterAuth itself the first time they
+use the OTP door (`sign-in/email-otp` calls `revokeUnprovenAccountAccess` on an
+unverified row). Both link today, and the `bauth_user` rows carrying an
+`@epitech.eu` address with `role: 'student'` and a `Talent` attached, which is
+what a Salesforce contact holding a staff address produces, are exactly the ones
+that do.
+
+**So the thing that protects a non-staff identity is `auth/staffDoor.ts`, not
+the link test.** `staff/oauth/callback` refuses such a sign-in either way, on the
+domain or on the missing `StaffProfile` and `StaffInvitation`; what
+`discardStaffSignIn` decides is what it is allowed to destroy on the way out.
+The rule is ownership rather than the reason for the refusal: a row carrying a
+`Talent`, a `StaffProfile` or `role: 'parent'` is **released** (the link this
+sign-in made and the session it minted go, the identity stays), and only a row
+carrying none of the three, which is one BetterAuth minted for this sign-in and
+nobody else will want, is deleted. Releasing the link is not housekeeping: left
+behind it would leave a guardian's or a talent's account permanently reachable
+through the staff Microsoft door, which is the disjoint-doors rule under Auth
+System. Deleting instead of releasing is silent and unrecoverable, since
+`Talent.userId` is `onDelete: SetNull`, so it is asserted on the `Talent` row in
+`services/__integration__/staffDoor.integration.test.ts`;
+`services/__integration__/microsoftOAuthCallback.integration.test.ts` carries the
+BetterAuth half, the register path beside the relink.

@@ -1,5 +1,13 @@
 <script lang="ts">
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
+  import { deserialize } from '$app/forms';
+  import { toast } from 'svelte-sonner';
   import * as Dialog from '$lib/components/ui/dialog';
+  import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import * as Table from '$lib/components/ui/table';
   import { Input } from '$lib/components/ui/input';
@@ -9,6 +17,12 @@
   import EyeOff from '@lucide/svelte/icons/eye-off';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
+  import {
+    SF_STATUS_CLASS_LABELS,
+    type SfStatusClass,
+  } from '$lib/domain/sfMemberStatus';
 
   type ParticipationRow = {
     id: string;
@@ -19,6 +33,7 @@
     phone: string | null;
     schoolName: string | null;
     sfMemberStatus: string | null;
+    statusClass: SfStatusClass;
     isVisibleInDevSpace: boolean;
     updatedAt: string;
   };
@@ -32,7 +47,7 @@
     total: number;
     totalVisible: number;
     totalHidden: number;
-    statusCounts: Record<string, number>;
+    totalUnrecognised: number;
     participations: ParticipationRow[];
   };
 
@@ -40,10 +55,13 @@
     open = $bindable(false),
     eventId,
     eventTitle,
+    onStatusAdded,
   }: {
     open: boolean;
     eventId: string | null;
     eventTitle?: string;
+    /** Told when a word joins the catalogue, so the host can offer it. */
+    onStatusAdded?: (status: string) => void;
   } = $props();
 
   let loading = $state(false);
@@ -82,50 +100,90 @@
 
   const filteredRows = $derived.by(() => {
     if (!data) return [];
-    const q = search.trim().toLowerCase();
+    const tokens = searchTokens(search);
     return data.participations.filter((row) => {
       if (filterVisibility === 'visible' && !row.isVisibleInDevSpace)
         return false;
       if (filterVisibility === 'hidden' && row.isVisibleInDevSpace)
         return false;
-      if (!q) return true;
-      const fullName = `${row.prenom} ${row.nom}`.toLowerCase();
-      const email = (row.email ?? '').toLowerCase();
-      return fullName.includes(q) || email.includes(q);
+      return matchesAllTokens(
+        buildHaystack([row.prenom, row.nom, row.email]),
+        tokens,
+      );
     });
   });
 
-  const STATUS_BADGE: Record<string, { class: string; label: string }> = {
-    READY: {
-      class: 'bg-success/10 text-success border-success/25',
-      label: 'Ready',
-    },
-    MEET: {
-      class: 'bg-epi-tech/10 text-epi-tech-ink border-epi-tech/25',
-      label: 'Meet',
-    },
-    CONNECTED: {
-      class: 'bg-warning/10 text-warning border-warning/25',
-      label: 'Connected',
-    },
-    DESISTED: {
-      class: 'bg-destructive/10 text-destructive border-destructive/25',
-      label: 'Desisted',
-    },
+  // The words Jump does not know, once each, most carried first: each is one
+  // decision (add it to the catalogue or not), whatever the number of rows.
+  const unknownWords = $derived.by(() => {
+    const counts = new Map<string, number>();
+    for (const row of data?.participations ?? []) {
+      if (row.statusClass !== 'unrecognised' || !row.sfMemberStatus) continue;
+      counts.set(row.sfMemberStatus, (counts.get(row.sfMemberStatus) ?? 0) + 1);
+    }
+    return [...counts]
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count);
+  });
+
+  let addingStatus = $state<string | null>(null);
+
+  // Posted via fetch rather than an enhanced <form>: this dialog also opens from
+  // inside the config wizard's form, and a nested form is invalid HTML. The host
+  // is told rather than the page invalidated, which would reset that form.
+  async function addToCatalogue(status: string) {
+    if (addingStatus) return;
+    addingStatus = status;
+    try {
+      const body = new FormData();
+      body.set('status', status);
+      const res = await fetch('/staff/admin/events?/addMemberStatus', {
+        method: 'POST',
+        body,
+      });
+      const result = deserialize(await res.text());
+      if (result.type === 'success') {
+        // The box that said so is gone once the last unknown word is added,
+        // so the next step travels with the confirmation.
+        toast.success(
+          `${status} ajouté, et toujours masqué : cochez-le dans la configuration des événements qui doivent l'afficher.`,
+        );
+        onStatusAdded?.(status);
+        await loadData();
+      } else {
+        toast.error(
+          (result.type === 'failure'
+            ? (result.data?.memberStatusError as string | undefined)
+            : undefined) ?? "Erreur lors de l'ajout du statut.",
+        );
+      }
+    } catch {
+      toast.error("Erreur lors de l'ajout du statut.");
+    } finally {
+      addingStatus = null;
+    }
+  }
+
+  // Styled by what the dev space does with the word on THIS event, never by the
+  // word itself: which words are shown is set per event, so a colour per word
+  // would paint CONNECTED as masked on the Coding Club that shows it.
+  const STATUS_CLASS_BADGE: Record<SfStatusClass, string> = {
+    shown: 'bg-success/10 text-success border-success/25',
+    hidden: 'bg-secondary text-secondary-foreground',
+    // A word Jump does not know gets a tone of its own: a neutral badge here is
+    // how `MET` read as one more status for a month.
+    unrecognised: 'border-dashed bg-warning/10 text-warning border-warning/40',
+    missing: 'bg-muted text-muted-foreground',
   };
 
-  function statusBadge(status: string | null) {
-    if (!status)
-      return {
-        class: 'bg-muted text-muted-foreground',
-        label: 'Non renseigné',
-      };
-    return (
-      STATUS_BADGE[status.toUpperCase()] ?? {
-        class: 'bg-secondary text-secondary-foreground',
-        label: status,
-      }
-    );
+  function statusBadge(row: ParticipationRow) {
+    return {
+      class: STATUS_CLASS_BADGE[row.statusClass],
+      label:
+        row.statusClass === 'missing'
+          ? 'Non renseigné'
+          : (row.sfMemberStatus ?? ''),
+    };
   }
 </script>
 
@@ -145,6 +203,11 @@
           sur {data.total} synchronisé{data.total > 1 ? 's' : ''}
           {#if data.totalHidden > 0}
             · {data.totalHidden} masqué{data.totalHidden > 1 ? 's' : ''}
+            {#if data.totalUnrecognised > 0}
+              <span class="font-bold text-warning">
+                dont {data.totalUnrecognised} au statut inconnu de Jump
+              </span>
+            {/if}
           {/if}
         {/if}
       </Dialog.Description>
@@ -166,6 +229,47 @@
           {errorMsg}
         </div>
       {:else if data}
+        {#if unknownWords.length > 0}
+          <div
+            class="space-y-2 border-b border-warning/30 bg-warning/5 px-4 py-3 sm:px-6"
+          >
+            {#each unknownWords as word (word.status)}
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <Badge
+                  variant="outline"
+                  class="text-xs {STATUS_CLASS_BADGE.unrecognised}"
+                >
+                  {word.status}
+                </Badge>
+                <span class="text-muted-foreground">
+                  {word.count} inscription{word.count > 1 ? 's' : ''} au statut inconnu
+                  de Jump
+                </span>
+                <InfoTooltip
+                  label="Ce que change l'ajout au catalogue"
+                  text="Salesforce a peut-être ajouté ou renommé un statut. L'ajouter au catalogue le fait connaître de Jump : il n'est plus signalé comme inconnu."
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  class="ml-auto h-7 cursor-pointer text-xs"
+                  disabled={addingStatus !== null}
+                  onclick={() => addToCatalogue(word.status)}
+                >
+                  {#if addingStatus === word.status}
+                    <LoaderCircle class="h-3 w-3 animate-spin" />
+                  {/if}
+                  Ajouter au catalogue
+                </Button>
+              </div>
+            {/each}
+            <p class="text-xs text-muted-foreground">
+              Ajouté, il reste masqué : cochez-le dans la configuration des
+              événements qui doivent l'afficher.
+            </p>
+          </div>
+        {/if}
+
         <!-- Toolbar -->
         <div
           class="flex flex-wrap items-center gap-3 border-b px-4 py-3 sm:px-6"
@@ -240,7 +344,7 @@
                 </Table.Row>
               {:else}
                 {#each filteredRows as row (row.id)}
-                  {@const sb = statusBadge(row.sfMemberStatus)}
+                  {@const sb = statusBadge(row)}
                   <Table.Row>
                     <Table.Cell class="text-xs font-medium">
                       {row.prenom}
@@ -257,9 +361,17 @@
                       {row.email ?? '-'}
                     </Table.Cell>
                     <Table.Cell>
-                      <Badge variant="outline" class="text-xs {sb.class}">
-                        {sb.label}
-                      </Badge>
+                      <span class="inline-flex items-center gap-1.5">
+                        <Badge variant="outline" class="text-xs {sb.class}">
+                          {sb.label}
+                        </Badge>
+                        {#if row.statusClass === 'unrecognised'}
+                          <InfoTooltip
+                            label="Statut inconnu de Jump"
+                            text="Statut Salesforce que Jump ne connaît pas encore : l'inscription est masquée de l'espace dev par prudence. Il s'ajoute au catalogue depuis l'encadré en haut de cette fenêtre."
+                          />
+                        {/if}
+                      </span>
                     </Table.Cell>
                     <Table.Cell class="text-right">
                       {#if row.isVisibleInDevSpace}
@@ -270,13 +382,27 @@
                           Visible
                         </span>
                       {:else}
-                        <span
-                          class="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground"
-                          title="Masqué de l'espace dev (statut ni READY ni MEET)"
-                        >
-                          <EyeOff class="h-3 w-3" />
-                          Masqué
-                        </span>
+                        <Tooltip.Provider delayDuration={150}>
+                          <Tooltip.Root>
+                            <Tooltip.Trigger>
+                              {#snippet child({ props })}
+                                <span
+                                  {...props}
+                                  class="inline-flex cursor-help items-center gap-1 text-xs font-bold text-muted-foreground"
+                                >
+                                  <EyeOff class="h-3 w-3" />
+                                  Masqué
+                                </span>
+                              {/snippet}
+                            </Tooltip.Trigger>
+                            <Tooltip.Content
+                              class="max-w-xs text-xs first-letter:uppercase"
+                            >
+                              {SF_STATUS_CLASS_LABELS[row.statusClass]},
+                              toujours enregistrée dans Jump.
+                            </Tooltip.Content>
+                          </Tooltip.Root>
+                        </Tooltip.Provider>
                       {/if}
                     </Table.Cell>
                   </Table.Row>

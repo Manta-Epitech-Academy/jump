@@ -4,8 +4,8 @@ This document formalises how features are built on Jump, from the PO's initial
 need to the merged PR. Objective: enable any developer or AI agent to execute
 tasks with the exact same standard of quality.
 
-See also: [`AGENTS.md`](../AGENTS.md) for the philosophy, architecture, and coding
-standards, and [`JARGON.md`](./JARGON.md) for shared domain vocabulary.
+See also: [`AGENTS.md`](../AGENTS.md) for the philosophy, conventions and domain
+rules, and [`JARGON.md`](./JARGON.md) for shared domain vocabulary.
 
 ---
 
@@ -167,7 +167,7 @@ Anything needing a real database provisions itself, including one database per w
 `docker compose up` and no `migrate deploy` to remember.
 
 For branches with schema updates, ensure migrations are cleanly named and squashed into a single
-migration per branch (see [`AGENTS.md`](../AGENTS.md#prisma-migrations)). You no longer have to
+migration per branch (see [`.claude/rules/data-model.md`](../.claude/rules/data-model.md#prisma-migrations)). You no longer have to
 remember to check the schema against a real PostgreSQL: `verify` runs the integration suite and
 `test:schema-drift`, which fails when `schema.prisma` and the migration trail disagree. That is what
 turned the Definition of Done's "verified against a real PostgreSQL database" line from a promise into
@@ -244,8 +244,8 @@ The reset belongs to that switchover alone, and not to the re-seeds that follow 
 generator has already filled goes on accumulating rows it did not write, because the application keeps
 being used - a lycée resolved during an onboarding, a colleague invited, an admin account provisioned -
 and the `sd_`-scoped wipe is what a re-seed needs. What tells the two apart is whether the generator has
-ever run there, which it records itself (see the *Development data* section of
-[`AGENTS.md`](../AGENTS.md)).
+ever run there, which it records itself (see
+[`.claude/rules/seed.md`](../.claude/rules/seed.md)).
 
 **What generated data will never catch**, and what preprod is therefore still for: whatever Salesforce
 produced that is malformed, the accumulation of several years of history, and how long a migration takes
@@ -255,8 +255,8 @@ pod applies the DDL while the outgoing one is still serving.
 **No Salesforce worker writes into a seeded `staging`, and that is a property of the data, not of a
 setting.** The
 worker takes its scope from Jump, and the generator writes campuses with no external name, so a seeded
-environment is outside every sync's scope (see the *Development data* section of
-[`AGENTS.md`](../AGENTS.md)). Two things follow. A multi-day window stays frozen, which is the whole
+environment is outside every sync's scope (see
+[`.claude/rules/seed.md`](../.claude/rules/seed.md)). Two things follow. A multi-day window stays frozen, which is the whole
 reason it is held here rather than on `dev`. And the real personal data of minors stops arriving through
 a side door, which is the reason the generator exists at all. What that costs is the question « does the
 sync still hold against the real org », and that question belongs to `preprod` alongside the migration
@@ -274,7 +274,7 @@ one would resolve it and be fully in scope.
 Writing the commits and the pull request copy is the agent's job, not a tool's. What follows is the
 part that is easy to get wrong.
 
-1. Conventional Commits, per [`AGENTS.md`](../AGENTS.md#commits): `type(scope): subject` under 72 characters including the prefix, one logical change per commit.
+1. Conventional Commits, per [`AGENTS.md`](../AGENTS.md#shipping-a-change): `type(scope): subject` under 72 characters including the prefix, one logical change per commit.
 2. **Write the copy into files under `.ship/`, and hand the files to git and gh.** `git commit -F .ship/commit.txt`, and `scripts/finish-work.sh` reads `.ship/pr-body.md`. Pasting multi-line markdown through the terminal mangles newlines and bullets, and the shell here is fish, which has no heredoc to fall back on. `.ship/` is gitignored.
 
    **`.ship/` still holds the previous branch's files.** Rewrite every one you are about to use, or clear the directory first: `finish-work.sh` will cheerfully ship a stale body from two branches ago, and it looks plausible enough that nobody notices.
@@ -283,7 +283,11 @@ part that is easy to get wrong.
 5. **Name real things, and omit what isn't there.** Actual symbols, models, routes, files. "Various improvements" is not a summary. Add `## Migrations` and `## Env vars` sections when the branch carries either, so a reviewer cannot miss them, and run the same rule in reverse: a Definition-of-Done item, a section, or a table row that does not apply to this change is deleted from the body, never left as an unchecked box or a `None`/`N/A` placeholder. An empty checkbox reads as forgotten work; an absent line reads as exactly what it is, not applicable.
 6. Stage explicit paths rather than `git add -A` whenever `git status` shows untracked files that are not part of the change: scratch notes, screenshots, summary dumps. Surface them so the user decides.
 7. Open the pull request with `scripts/finish-work.sh`. It pushes the branch, guarantees the `Closes #<issue_number>` line the `Work item` check requires, opens it as a **draft**, and then runs the guard so a failure surfaces now rather than in CI.
-8. Self-review: read your own diff as if it were someone else's. Then tick the Definition of Done in the body, and mark the PR ready for review.
+8. **Self-review, in a session that did not write the diff.** "Read your own diff as if it were someone else's" is the one thing the author cannot actually do, and this step used to ask for exactly that. A session that wrote the branch carries the assumptions that produced it, so it re-reads its own reasoning and finds it sound; that is a confirmation bias, not a lack of care, and no amount of attention removes it. Review the diff from a fresh session instead, over `git diff origin/dev...HEAD` (`/review` does this in a new session). Then tick the Definition of Done in the body, and mark the PR ready for review.
+
+   **For an AI agent, opening the pull request is the hard stop**, as [`AGENTS.md`](../AGENTS.md#shipping-a-change) states: it returns the URL and leaves the review to a fresh session or a human.
+
+   This one stays prose, and it is worth saying why rather than leaving it looking like an oversight. By rule 1 above a step with no artifact gets forgotten, so the honest thing would be a check. But the only mechanism that could enforce it is a second review pass gating the ready-for-review transition, and on a repository with one developer that costs more than the bias it removes. The session boundary and handoff are what protects the review.
 9. Merge into `dev` once approved (or auto-merge if working solo).
 10. **Nothing to do about the board.** `board-sync.yml` sets the issue to `Done` on merge, and the board's own workflow closes it from there. This used to be a manual step, and being manual is why it was skipped on 10 of the last 17 issues. `Closes #N` still earns its place as the link a reviewer follows, but it closes nothing by itself: GitHub only applies closing keywords when a PR merges into the **default branch**, and every feature PR targets `dev`. The later `dev` to `main` promotion carries no keyword either.
 
@@ -337,6 +341,8 @@ Next, evaluate the Definition of Done checklist against the diff. Key points to 
 > 💡 At the start of a scoping session with `/plan`, specifying *"We are in a
 > brainstorming phase, do not generate any code for now"* encourages deeper architectural analysis.
 
+**Two hooks may talk back to your agent**, and it is worth knowing why before you fight one. `.claude/settings.json` wires the prose lint onto every file an agent writes, and refuses an end of turn while the tree carries a tracked change that a database-free linter rejects. So an agent will sometimes answer that it cannot conclude yet, and the linter's output is the reason. Neither hook can be satisfied by asserting the work is done, which is the entire point: the headers of [`agent-edit-check.sh`](../frontend/scripts/agent-edit-check.sh) and [`agent-stop-gate.sh`](../frontend/scripts/agent-stop-gate.sh) say what each one runs and what it deliberately does not.
+
 **Repository scripts** are the vendor-neutral half of the toolchain. They are plain shell in
 `scripts/`, so any agent can run them, not only the ones that understand Claude skills:
 
@@ -344,6 +350,7 @@ Next, evaluate the Definition of Done checklist against the diff. Key points to 
 | ------ | ----- |
 | `scripts/start-work.sh` | Open the issue (or reuse one), put it on the board in `In Progress`, cut `type/<issue>-slug` |
 | `scripts/finish-work.sh` | Open the draft PR against `dev` with the `Closes #<issue>` line |
+| `scripts/new-worktree.sh` | Add a worktree outside the checkout, on the branch its name implies, provisioned by `post-checkout` |
 | `scripts/check-work-item.sh` | Run the `Work item` guard locally, exactly the code CI runs |
 | `scripts/release-validation.sh` | Aggregate the acceptance criteria of a release's issues into the PO's checklist |
 | `scripts/apply-repo-config.sh` | Apply the versioned repo config in `.github/settings/repo-config.json` (required checks, labels) |

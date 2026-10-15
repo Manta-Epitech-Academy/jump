@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ChatRole } from '$lib/domain/feedbackForms/conversation.svelte';
-  import { typesetChat } from '$lib/domain/feedbackForms/schema';
+  import { typeset } from '$lib/domain/typography';
   import { cn } from '$lib/utils';
 
   interface Props {
@@ -14,7 +14,7 @@
   const isBot = $derived(role === 'bot');
   // No-break space before French punctuation and before a trailing emoji, so
   // neither a lone "?" nor a lone emoji ever wraps onto its own line.
-  const display = $derived(typesetChat(text));
+  const display = $derived(typeset(text));
 </script>
 
 <div

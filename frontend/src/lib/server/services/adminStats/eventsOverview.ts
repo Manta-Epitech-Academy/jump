@@ -1,5 +1,13 @@
 /**
- * "Where do we stand on events?" as a finished answer.
+ * "Where do we stand on events?" as finished figures over a périmètre: how many
+ * are in each configuration state, and where each section is in use.
+ *
+ * Two answers are built on them. `config_campus_overview` adds the per-campus
+ * breakdown and the team (`configuration.ts`), and the school-year review quotes
+ * the totals. This used to be its own operation as well, `stats_events_overview`,
+ * which answered the same per-campus question as `config_campus_overview` with a
+ * different row: two reads of one subject on one tier, which is one too many for
+ * a model choosing between them.
  *
  * Built entirely on `EventService.listAdminEvents`, the same view model the admin
  * events cockpit renders. That is deliberate: readiness ("visible", "prêt à
@@ -27,16 +35,39 @@ import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import { scopedEvents } from './cohort';
 
-export type CampusRow = {
-  campus: string;
+/** The configuration state of a list of events, counted once for any slice. */
+export type EventStateCounts = {
   events: number;
   visible: number;
-  /** Share of this campus's events that are live in the dev workspace. */
+  /** Share of these events that are live in the dev workspace. */
   visibleShare: number | null;
+  /**
+   * Configured but hidden. Returned because without it the figures do not add
+   * up: `visible` needs both the activation gate and a section, while a section
+   * tally counts the section alone, so 25 configured events and 2 activated ones
+   * read as a contradiction with nothing naming the 23.
+   */
   readyToPublish: number;
   unconfigured: number;
+  toPrepare: number;
   participants: number;
 };
+
+const countState = (events: AdminEventVM[], state: EventConfigState) =>
+  events.filter((e) => e.configState === state).length;
+
+export function eventStateCounts(events: AdminEventVM[]): EventStateCounts {
+  const visible = countState(events, 'shown');
+  return {
+    events: events.length,
+    visible,
+    visibleShare: share(visible, events.length),
+    readyToPublish: countState(events, 'ready'),
+    unconfigured: countState(events, 'unconfigured'),
+    toPrepare: events.filter(isEventToPrepare).length,
+    participants: events.reduce((sum, e) => sum + e.participations, 0),
+  };
+}
 
 export type ModuleRow = {
   module: EventModuleKey;
@@ -44,108 +75,72 @@ export type ModuleRow = {
   events: number;
 };
 
-export type EventsOverview = {
-  filters: { schoolYear: string; campus: string };
-  totals: {
-    events: Metric;
-    visible: Metric;
-    visibleShare: Metric<number | null>;
-    readyToPublish: Metric;
-    unconfigured: Metric;
-    toPrepare: Metric;
-    participants: Metric;
-  };
-  perCampus: Metric<CampusRow[]>;
-  perModule: Metric<ModuleRow[]>;
-  availableSchoolYears: Metric<string[]>;
-};
-
-const countState = (events: AdminEventVM[], state: EventConfigState) =>
-  events.filter((e) => e.configState === state).length;
-
-export async function getEventsOverview(
-  scope: Scope = {},
-): Promise<EventsOverview> {
-  const { events, availableSchoolYears } = await scopedEvents(scope);
-
-  const campuses = new Map<string, AdminEventVM[]>();
-  for (const event of events) {
-    const bucket = campuses.get(event.campusName);
-    if (bucket) bucket.push(event);
-    else campuses.set(event.campusName, [event]);
-  }
-
-  const moduleCounts = new Map<EventModuleKey, number>();
+/** How many events each section is enabled on, most used first. */
+export function moduleUsage(events: AdminEventVM[]): ModuleRow[] {
+  const counts = new Map<EventModuleKey, number>();
   for (const event of events) {
     for (const key of event.modules) {
-      moduleCounts.set(key, (moduleCounts.get(key) ?? 0) + 1);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
     }
   }
+  return [...counts.entries()]
+    .map(([module, count]) => ({
+      module,
+      label: EVENT_MODULE_DEFS[module].label,
+      events: count,
+    }))
+    .sort((a, b) => b.events - a.events);
+}
 
+export type EventsSummary = {
+  totals: { [K in keyof EventStateCounts]: Metric<EventStateCounts[K]> };
+  perModule: Metric<ModuleRow[]>;
+};
+
+/** The figures over events already selected, for a caller that has them. */
+export function summariseEvents(events: AdminEventVM[]): EventsSummary {
+  const counts = eventStateCounts(events);
   return {
-    // The campus is echoed by its resolved name: the scope was checked to exist,
-    // so there is no case left where this had to fall back to a raw id.
-    filters: {
-      schoolYear: scope.schoolYear ?? 'toutes',
-      campus: scope.campus?.name ?? 'tous',
-    },
     totals: {
       events: metric(
-        events.length,
+        counts.events,
         'Événements enregistrés dans Jump sur le périmètre demandé (synchronisés depuis Salesforce ou créés à la main).',
       ),
       visible: metric(
-        countState(events, 'shown'),
+        counts.visible,
         `Événements en état « ${EVENT_CONFIG_STATE_LABELS.shown} » : ${EVENT_CONFIG_STATE_HINTS.shown}`,
       ),
       visibleShare: metric(
-        share(countState(events, 'shown'), events.length),
+        counts.visibleShare,
         "Part des événements du périmètre effectivement visibles dans l'espace dev, en pourcentage. Le complément se répartit entre « readyToPublish » et « unconfigured » : les trois états couvrent tous les événements. Vaut null quand le périmètre n'a aucun événement.",
       ),
       readyToPublish: metric(
-        countState(events, 'ready'),
+        counts.readyToPublish,
         `Événements en état « ${EVENT_CONFIG_STATE_LABELS.ready} » : ${EVENT_CONFIG_STATE_HINTS.ready}`,
       ),
       unconfigured: metric(
-        countState(events, 'unconfigured'),
+        counts.unconfigured,
         `Événements en état « ${EVENT_CONFIG_STATE_LABELS.unconfigured} » : ${EVENT_CONFIG_STATE_HINTS.unconfigured}`,
       ),
       toPrepare: metric(
-        events.filter(isEventToPrepare).length,
-        "Événements non passés qui ne sont pas encore visibles dans l'espace dev : ceux qui demandent encore une action.",
+        counts.toPrepare,
+        "Événements non passés qui ne sont pas encore visibles dans l'espace dev : ceux qui demandent encore une action. Ce n'est donc pas l'écart entre le total et « visible ».",
       ),
       participants: metric(
-        events.reduce((sum, e) => sum + e.participations, 0),
+        counts.participants,
         `Participations aux événements du périmètre, ${VISIBLE_PARTICIPATION_DEFINITION}. Un talent inscrit à deux événements compte deux fois.`,
       ),
     },
-    perCampus: metric(
-      [...campuses.entries()]
-        .map(([campus, list]) => ({
-          campus,
-          events: list.length,
-          visible: countState(list, 'shown'),
-          visibleShare: share(countState(list, 'shown'), list.length),
-          readyToPublish: countState(list, 'ready'),
-          unconfigured: countState(list, 'unconfigured'),
-          participants: list.reduce((sum, e) => sum + e.participations, 0),
-        }))
-        .sort((a, b) => b.events - a.events),
-      `Mêmes compteurs ventilés par campus : events = total, visible / readyToPublish / unconfigured = état de configuration et leur somme fait le total, visibleShare = part des événements du campus visibles dans l'espace dev, participants = participations, ${VISIBLE_PARTICIPATION_DEFINITION}.`,
-    ),
     perModule: metric(
-      [...moduleCounts.entries()]
-        .map(([module, count]) => ({
-          module,
-          label: EVENT_MODULE_DEFS[module].label,
-          events: count,
-        }))
-        .sort((a, b) => b.events - a.events),
-      "Nombre d'événements du périmètre où chaque section de l'espace dev est activée.",
-    ),
-    availableSchoolYears: metric(
-      availableSchoolYears,
-      "Années scolaires ayant au moins un événement enregistré, de la plus récente à la plus ancienne, quel que soit le filtre demandé. C'est ce que le filtre « schoolYear » accepte, et toute autre valeur est refusée plutôt que répondue à zéro.",
+      moduleUsage(events),
+      "Nombre d'événements du périmètre où chaque section de l'espace dev est activée, sans tenir compte de l'activation : il inclut les événements configurés mais masqués, c'est pourquoi ce décompte peut largement dépasser « visible ». Un événement pourvu de quatre sections compte une fois dans chacune des quatre lignes.",
     ),
   };
+}
+
+export async function getEventsOverview(
+  scope: Scope = {},
+): Promise<EventsSummary> {
+  const { events } = await scopedEvents(scope);
+  return summariseEvents(events);
 }

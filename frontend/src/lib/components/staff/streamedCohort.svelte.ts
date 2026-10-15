@@ -8,7 +8,7 @@
  * the shell, dropping focus out of the search box mid-typing and wiping the
  * roster's in-flight optimistic writes. Holding the last resolved value keeps
  * the component mounted, so a navigation swaps data in place and the skeleton
- * shows only on the first load. `frontend/src/lib/components/staff/CLAUDE.md`
+ * shows only on the first load. `.claude/rules/staff-lists.md`
  * states the rule; this is the one implementation of it.
  *
  * The `=== promise()` check is the load-bearing part: it drops a resolution that

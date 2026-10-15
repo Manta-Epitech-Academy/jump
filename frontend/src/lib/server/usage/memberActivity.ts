@@ -194,7 +194,7 @@ export async function getMemberActivity(
  * this being a function.** A member whose last visit predates the retention has
  * no row in the window, and answering that with their whole catalogue names
  * twenty-six features for a `dev` and seventy for an admin under a heading that
- * reads « jamais ouvertes ». It is the error `AGENTS.md` singles out on the
+ * reads « jamais ouvertes ». It is the error `.claude/rules/usage.md` singles out on the
  * digest's own adoption section: an absence of rows is an absence of
  * measurement, and printing it as a list of unused features is the one that
  * makes somebody retire something in use. « Ce compte sert-il encore » is

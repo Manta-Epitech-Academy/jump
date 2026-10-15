@@ -27,15 +27,14 @@
  * not in the map writes a connection row and nothing else. Only the converse
  * holds.
  *
- * ── The one place the converse is loose too ──────────────────────────────────
- *
- * `admin_api_token_mint` and `admin_api_token_revoke` are recorded on
+ * The converse used to be loose in one place, and no longer is. Until #357,
+ * `admin_api_token_mint` and `admin_api_token_revoke` were recorded on
  * `/(staff)/staff/api-tokens`, a staff route under neither space prefix, so in
- * production a day holding only those two would carry no connection row. The
- * generator writes them on an admin-space visit day like any other admin
- * action, which is the ordinary case and what this rule reads; it is written
- * down so that a failure naming them is understood as the generator drifting
- * rather than as this rule being wrong.
+ * production a day holding only those two would have carried no connection row.
+ * That route is now the `/staff/admin/api-tokens` page, under the admin prefix
+ * like every other admin action, so the exception is gone rather than merely
+ * tolerated. Left written down because a check nobody can explain gets widened
+ * by the next person who trips on it.
  *
  * Narrowed to `sd_` rows, like every check here: `--check` can be pointed at a
  * database somebody has since logged into, where a real connection row is a

@@ -1,4 +1,9 @@
 <script lang="ts">
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
   import { untrack, onMount } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
   import { enhance as formEnhance } from '$app/forms';
@@ -134,13 +139,10 @@
 
   const rows = $derived.by(() => {
     if (!cohort.value) return [];
-    const q = search.trim().toLowerCase();
+    const tokens = searchTokens(search);
     const out = cohort.value.rows.filter((r) => {
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
-      if (!q) return true;
-      return (
-        r.title.toLowerCase().includes(q) || r.slug.toLowerCase().includes(q)
-      );
+      return matchesAllTokens(buildHaystack([r.title, r.slug]), tokens);
     });
     out.sort((a, b) => {
       const c = compareRows(a, b, sortKey);

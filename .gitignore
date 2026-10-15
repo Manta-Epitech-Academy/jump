@@ -122,3 +122,8 @@ frontend/tests/e2e/.auth/
 # step 7). Handed to `git commit -F` and to finish-work.sh so multi-line markdown
 # survives the shell; never part of a change.
 .ship/
+
+# Worktrees Claude Code manages for itself. A worktree belongs outside the main
+# checkout (see AGENTS.md), and this one is placed for us. It was only ever
+# excluded by .git/info/exclude, which is per-machine and does not travel.
+/.claude/worktrees/

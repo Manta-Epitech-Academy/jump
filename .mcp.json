@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "jump-admin": {
+      "type": "http",
+      "url": "${JUMP_ORIGIN:-http://localhost:5173}/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${JUMP_ADMIN_TOKEN}"
+      }
+    }
+  }
+}

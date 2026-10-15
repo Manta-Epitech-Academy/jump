@@ -184,7 +184,10 @@
 ></form>
 
 <div class="flex min-h-screen flex-col">
-  <TalentPageHeader title="Mission du jour" backLabel="Retour à l'accueil" />
+  <TalentPageHeader
+    title="Entraînement du jour"
+    backLabel="Retour à l'accueil"
+  />
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
     {#if iframeSrc}
       <!-- No card chrome here: the game paints its own Talent-style page (slate

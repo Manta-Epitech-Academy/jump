@@ -17,7 +17,10 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { EventService, type AdminEventVM } from '$lib/server/services/events';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import {
+  hiddenParticipationWhere,
+  visibleParticipationWhere,
+} from '$lib/domain/sfMemberStatus';
 import { onboardingEligibleWhere } from '$lib/server/db/onboardingEligibility';
 import { assertKnownSchoolYear, type Scope } from '$lib/server/adminApi/scope';
 
@@ -116,6 +119,27 @@ export async function scopedEnrolments(
     where: await participationWhere(scope),
     select: { talentId: true, eventId: true },
   });
+}
+
+/**
+ * How many enrolments each event holds that the dev space masks, keyed by event
+ * id; an event with none is absent from the map.
+ *
+ * The other side of every dev-space count, for an answer that describes one
+ * event. Returned beside `participants` rather than left to be subtracted from a
+ * total, because the consumer is told never to compute, and a masked enrolment
+ * not reported at all reads as one that does not exist.
+ */
+export async function hiddenEnrolmentsByEvent(
+  eventIds: string[],
+): Promise<Map<string, number>> {
+  if (eventIds.length === 0) return new Map();
+  const grouped = await prisma.participation.groupBy({
+    by: ['eventId'],
+    where: { eventId: { in: eventIds }, ...hiddenParticipationWhere },
+    _count: { _all: true },
+  });
+  return new Map(grouped.map((row) => [row.eventId, row._count._all]));
 }
 
 export async function participationWhere(

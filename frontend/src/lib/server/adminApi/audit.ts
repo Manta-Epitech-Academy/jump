@@ -6,8 +6,9 @@
  * makes misuse visible after the fact and turns the log into free product
  * research about what the team actually needs.
  *
- * `AdminApi_Call` rows are facts, never updated. Nothing projects off them except
- * the per-token quota, which is a live count rather than a stored counter.
+ * `AdminApi_Call` rows are facts, never updated. The only thing read off them is
+ * the "appels sur 24 h" figure the token inventory shows, a live count rather
+ * than a stored counter.
  */
 
 import { prisma } from '$lib/server/db';
@@ -50,6 +51,17 @@ export type AdminApiCallChange = { before: unknown; after: unknown };
 
 /** Sentinel actor for a call refused before identification (cf. `AuthIdentityRepair.resolvedBy = 'sync'`). */
 export const ANONYMOUS_ACTOR = 'anonymous';
+
+/**
+ * The names a transport logs a call under when no operation is its subject: the
+ * MCP endpoint refusing a request before any tool is named, and the HTTP
+ * reference being read. Not operations, so `adminStats/apiUsage.ts` keeps them
+ * out of the friction lists.
+ */
+export const TRANSPORT_OPERATIONS = {
+  mcp: 'mcp_request',
+  openapi: 'openapi_document',
+} as const;
 
 export async function recordAdminApiCall(input: {
   caller: AdminApiCaller;

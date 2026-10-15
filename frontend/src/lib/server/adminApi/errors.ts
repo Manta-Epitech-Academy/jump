@@ -64,15 +64,16 @@ export function callerFacingError(err: unknown): CallerFacingError | null {
   // A 4xx thrown by a service this tier shares with the admin pages, which say
   // "the request is at fault" the SvelteKit way (`error(400, ...)`) rather than
   // with one of the classes above. Writes delegate to those services on purpose,
-  // so their judgement has to arrive as a judgement: without this, asking
-  // `write_event_feedback_form` for a form that no longer exists answered
-  // "Erreur interne", which tells the caller nothing to correct and books an
-  // ordinary mistake as a Jump bug in the audit log.
+  // so their judgement has to arrive as a judgement: without this, attaching a
+  // feedback form that no longer exists to an event answered "Erreur interne",
+  // which tells the caller nothing to correct and books an ordinary mistake as a
+  // Jump bug in the audit log.
   //
   // Re-checked per site rather than assumed: this is the one message this tier
   // hands back without having written it, and a staff page may legitimately name
-  // a talent in a 4xx where this tier may not. Today's two sites (a missing
-  // feedback form, a blank preset name) name neither a person nor an internal.
+  // a talent in a 4xx where this tier may not. Today's sites (the activation
+  // rule, a status word the catalogue does not hold, a missing reference, a
+  // blank preset name) name neither a person nor an internal.
   if (isHttpError(err) && err.status < 500) {
     return { status: err.status, message: err.body.message };
   }

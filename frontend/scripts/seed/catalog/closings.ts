@@ -45,6 +45,34 @@ export const BANK_KEYS = {
 export const STAGE_TEMPLATE_KEY = 'stage_seconde';
 export const CLUB_TEMPLATE_KEY = 'coding_club';
 
+/**
+ * The bank keys the stage grid composes, in the order the migration composes
+ * them.
+ *
+ * Listed rather than read off a spec, because unlike the club grid below this
+ * one is not written here: the migration carries it, and this is a mirror of
+ * what it composed. Keeping the mirror beside the club's list is what lets a
+ * scenario answer a closing with ITS OWN grid's questions rather than with
+ * whichever list happened to be imported - a record answering a question its
+ * grid does not compose is the « Questions retirées » state, placed
+ * deliberately on exactly one record, so a second one arriving by accident
+ * would be indistinguishable from the intended case.
+ */
+export const STAGE_TEMPLATE_QUESTION_KEYS: readonly string[] = [
+  BANK_KEYS.discoveryChannel,
+  BANK_KEYS.motivation,
+  BANK_KEYS.specialties,
+  BANK_KEYS.orientationTalk,
+  BANK_KEYS.passionateTeacher,
+  BANK_KEYS.techProjection,
+  BANK_KEYS.otherJobs,
+  BANK_KEYS.infoSources,
+  BANK_KEYS.wantsMore,
+  BANK_KEYS.satisfaction,
+  BANK_KEYS.oneSentence,
+  BANK_KEYS.nextYearEvents,
+];
+
 export type TemplateQuestionSpec = {
   readonly questionKey: string;
   /**

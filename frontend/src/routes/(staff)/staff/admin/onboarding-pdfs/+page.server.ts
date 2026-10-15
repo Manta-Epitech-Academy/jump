@@ -2,6 +2,7 @@ import { fail } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server/db';
+import { talentSearchWhere } from '$lib/server/db/textSearch';
 import { getStorage } from '$lib/server/infra/storage';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
@@ -51,14 +52,7 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
   const where: Prisma.OnboardingPdfJobWhereInput = {};
   if (status !== 'all') where.status = STATUS_FILTER_WHERE[status];
   if (type !== 'all') where.documentType = type;
-  if (q) {
-    where.talent = {
-      OR: [
-        { prenom: { contains: q, mode: 'insensitive' } },
-        { nom: { contains: q, mode: 'insensitive' } },
-      ],
-    };
-  }
+  if (q) where.talent = talentSearchWhere(q);
 
   const [jobs, counts, matchCount] = await Promise.all([
     prisma.onboardingPdfJob.findMany({

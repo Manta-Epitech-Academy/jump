@@ -17,6 +17,7 @@
  */
 import { test, expect } from '@playwright/test';
 import { E2E, storageStatePath } from './fixtures/identities';
+import { watchViolations, type Violation } from './fixtures/cspViolations';
 
 /** The directives of one policy header, split on `;` and trimmed. */
 function directives(header: string | undefined): Map<string, string> {
@@ -55,6 +56,14 @@ async function expectHardenedPage(
   expect(csp.get('frame-src'), `${where}: frame-src not appended`).toContain(
     'https://*.epiboost.eu',
   );
+
+  // Same append, and it carries the curated activity origins on top of `'self'`.
+  // Asserted here rather than only in the unit test because `kit.csp` declaring
+  // one too would silently win: a repeated directive keeps the first occurrence.
+  expect(
+    csp.get('form-action'),
+    `${where}: form-action not appended`,
+  ).toContain("'self'");
 
   expect(csp.get('object-src'), where).toBe("'none'");
   expect(csp.get('frame-ancestors'), where).toBe("'none'");
@@ -154,56 +163,18 @@ test.describe('le script Umami', () => {
 });
 
 test.describe('le chargement réel d’une page', () => {
-  /**
-   * `eval`, and only `eval`, is expected.
-   *
-   * Zod 4 JIT-compiles its validators with `new Function` and probes for it as
-   * `try { Function("") } catch { return false }`, then takes its interpreted
-   * path when the probe throws. The refusal IS the feature detection, it is
-   * caught by the library, and it predates this branch: neither the old policy
-   * nor the new one carries `'unsafe-eval'`, and `'unsafe-inline'` never
-   * permitted `eval` either. Adding `'unsafe-eval'` to silence it would hand
-   * every XSS a code-execution primitive to buy nothing.
-   */
-  const EXPECTED = new Set(['eval']);
-
-  type Violation = {
-    directive: string;
-    blockedURI: string;
-    sourceFile: string;
-  };
-
-  /**
-   * Real `securitypolicyviolation` events rather than console text.
-   *
-   * Console scraping was the first attempt and it was wrong twice over: DevTools
-   * emits an advisory mentioning "Content Security Policy" for the `eval` probe
-   * above, which is not a bug, and a genuine refusal is easier to classify from
-   * the event's own `blockedURI` than from a translated sentence.
-   */
+  /** Records the refusals on `path` once it has settled. */
   async function violationsOn(
     page: import('@playwright/test').Page,
     path: string,
   ): Promise<Violation[]> {
-    await page.addInitScript(() => {
-      const w = window as unknown as { __violations: unknown[] };
-      w.__violations = [];
-      document.addEventListener('securitypolicyviolation', (e) => {
-        w.__violations.push({
-          directive: e.effectiveDirective || e.violatedDirective,
-          blockedURI: e.blockedURI,
-          sourceFile: e.sourceFile,
-        });
-      });
-    });
+    const read = await watchViolations(page);
     await page.goto(path);
     // The script this guard was written for is a synchronous one in `<head>`, so
     // it is already refused by the time the document parses; settling the network
     // also catches anything a late module injects.
     await page.waitForLoadState('networkidle');
-    return page.evaluate(
-      () => (window as unknown as { __violations: Violation[] }).__violations,
-    );
+    return read();
   }
 
   /**
@@ -230,14 +201,13 @@ test.describe('le chargement réel d’une page', () => {
   }
 
   /**
-   * And nothing else either. Pinning the known set is what makes a NEW kind of
-   * refusal fail here instead of being read as more of the same.
+   * And nothing else either, `eval` included. Zod used to probe for it on the
+   * first form a page validated, and the refusal was expected here as harmless
+   * feature detection; `hooks.client.ts` now tells it not to ask, so a refused
+   * `eval` is a library that genuinely needs one, which is worth failing on.
    */
-  test('ne produit aucune violation en dehors de la sonde eval', async ({
-    page,
-  }) => {
-    const violations = await violationsOn(page, '/login');
-    expect(violations.filter((v) => !EXPECTED.has(v.blockedURI))).toEqual([]);
+  test('ne produit aucune violation', async ({ page }) => {
+    expect(await violationsOn(page, '/login')).toEqual([]);
   });
 
   /**

@@ -10,11 +10,10 @@
  * of unresolved failures.
  */
 
-import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
+import { PUBLIC_ONLY_FORM_SLUG } from '../catalog/feedbackForms';
 import {
   addAdminFiles,
   addImpersonationAudit,
-  addWelcomePages,
 } from '../factories/adminContent';
 import {
   addBroadcast,
@@ -25,6 +24,7 @@ import {
   addDeletionRequests,
   addIdentityRepair,
   addSyncErrors,
+  addSyncRuns,
   addUsage,
   foldUsageMonthly,
 } from '../factories/operations';
@@ -64,18 +64,12 @@ export const operations: Scenario = {
     foldUsageMonthly(world);
 
     // The admin space's stored content, in every profile: none of it carries a
-    // failure, and all four tables render an untested screen as a tidy empty
+    // failure, and both tables render an untested screen as a tidy empty
     // state rather than as a gap.
     const admin =
       world.staff.find((member) => member.role === 'admin') ?? world.staff[0];
     if (admin) {
       addAdminFiles(world, admin);
-      addWelcomePages(world, {
-        events: world.events.filter(
-          (candidate) => candidate.date > world.ctx.clock.today,
-        ),
-        author: admin,
-      });
       addImpersonationAudit(world, {
         admin,
         staffTarget: world.staff[1] ?? admin,
@@ -213,12 +207,14 @@ export const operations: Scenario = {
       });
     }
 
-    // A second form with a couple of answers, so nothing assumes one form.
-    const secondForm = FEEDBACK_FORM_SLUGS[1];
-    if (secondForm) {
-      for (let i = 0; i < 3; i += 1) {
-        addFeedbackSubmission(world, { formSlug: secondForm, index: 2000 + i });
-      }
+    // A second form with a couple of answers, so nothing assumes one form. It is
+    // the public-only one, which is the only kind that can hold public answers
+    // without having been closed to the public afterwards.
+    for (let i = 0; i < 3; i += 1) {
+      addFeedbackSubmission(world, {
+        formSlug: PUBLIC_ONLY_FORM_SLUG,
+        index: 2000 + i,
+      });
     }
 
     if (!profile.includeMessyStates) {
@@ -230,7 +226,7 @@ export const operations: Scenario = {
         covers: [
           'campagnes mail et SMS',
           'chiffres d’adoption au-dessus du plancher de masquage',
-          'bibliothèque de fichiers, pages d’accueil et audit d’impersonation',
+          'bibliothèque de fichiers et audit d’impersonation',
         ],
       });
       return;
@@ -252,8 +248,11 @@ export const operations: Scenario = {
       world,
       rng.sample(world.talents, Math.min(12, world.talents.length)),
     );
+    addSyncRuns(world);
     if (team[0]) {
-      const deletionTalents = rng.sample(world.talents, 4);
+      // Three: the fulfilled request's talent is an erased one the factory
+      // places itself, since fulfilling is what erases.
+      const deletionTalents = rng.sample(world.talents, 3);
       addDeletionRequests(world, deletionTalents, team[0].userId);
       addClosingReset(world, rng.sample(world.talents, 3), team[0]);
       // The PENDING request's talent (index 0, see `addDeletionRequests`),
@@ -269,7 +268,8 @@ export const operations: Scenario = {
       campus: campus.name,
       covers: [
         'une douzaine d’erreurs de synchronisation, dont une répétée 11 357 fois',
-        'une demande de suppression RGPD dans chacun de ses quatre états',
+        'quatre comptes rendus de synchronisation : une reprise complète réussie, une passe incrémentale réussie, une en échec et une encore ouverte',
+        'une demande de suppression RGPD dans chacun de ses quatre états, la traitée portant sur un talent effacé',
         'une réinitialisation de closing et une réparation d’identité, avec leur trace',
         'cinq campagnes : mail et SMS, envoyée, partiellement en échec, en échec',
         'des relances ciblées sur les ouvreurs, les non-ouvreurs et toute la cohorte',
@@ -279,7 +279,6 @@ export const operations: Scenario = {
         'l’adoption sur ~80 % du catalogue de fonctionnalités, le reste laissé sans usage pour que les « écarts d’adoption » aient un sens',
         'le cube mensuel d’usage, dont un mois au-delà de la fenêtre de rétention',
         'trois fichiers dans la bibliothèque partagée, dont un déposé par un membre parti',
-        'deux pages d’accueil rédigées, une image utilisée et une orpheline',
         'deux impersonations tracées, dont une jamais quittée',
       ],
     });

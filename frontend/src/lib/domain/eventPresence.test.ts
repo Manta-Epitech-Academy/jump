@@ -21,44 +21,10 @@ describe('eventPresence Domain Logic & Projections', () => {
 
     it('returns pending for open slots', () => {
       expect(effectiveStatus('pending', false)).toBe('pending');
-      expect(
-        effectiveStatus('pending', false, {
-          sfMemberStatus: 'MEET',
-          isSingleDayEvent: true,
-        }),
-      ).toBe('pending');
     });
 
-    it('projects absent for closed slots when no SF status or multi-day event', () => {
+    it('projects absent for an unmarked cell in a closed slot', () => {
       expect(effectiveStatus('pending', true)).toBe('absent');
-      expect(
-        effectiveStatus('pending', true, {
-          sfMemberStatus: 'READY',
-          isSingleDayEvent: true,
-        }),
-      ).toBe('absent');
-      expect(
-        effectiveStatus('pending', true, {
-          sfMemberStatus: 'MEET',
-          isSingleDayEvent: false, // multi-day stage
-        }),
-      ).toBe('absent');
-    });
-
-    it('falls back to present for closed slots on single-day event when SF status is MEET', () => {
-      expect(
-        effectiveStatus('pending', true, {
-          sfMemberStatus: 'MEET',
-          isSingleDayEvent: true,
-        }),
-      ).toBe('present');
-
-      expect(
-        effectiveStatus('pending', true, {
-          sfMemberStatus: 'meet',
-          isSingleDayEvent: true,
-        }),
-      ).toBe('present');
     });
   });
 

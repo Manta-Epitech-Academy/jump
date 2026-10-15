@@ -395,11 +395,15 @@ bun run verify
 ```
 
 C'est le contrat de ce document. `verify` enchaîne exactement ce que les checks
-requis exécutent, dans le même ordre, avec les mêmes scripts : `lint:scripts`,
-`lint`, `lint:design`, `lint:tests`, `check`, `test`, `test:integration`,
-`test:schema-drift`, `test:seed`, `test:e2e`. Un agent (ou un humain) peut donc produire du
-code, le vérifier, corriger et revérifier avant d'ouvrir la PR, et « j'ai
-vérifié » devient une affirmation que quelqu'un d'autre peut recontrôler.
+requis exécutent, dans le même ordre, avec les mêmes scripts. La liste des
+maillons n'est pas recopiée ici : elle vit dans le script `verify` de
+`package.json`, `bun run lint:prose` vérifie qu'aucun maillon n'est absent des
+jobs requis, et le §10 dit quel job exécute quoi. Une copie de plus serait la
+prochaine à dérober un maillon en silence, ce qui est précisément arrivé à
+celle-ci, et à celle d'`AGENTS.md`, qui a depuis cessé de recopier la chaîne. Un agent (ou un humain) peut
+donc produire du code, le vérifier, corriger et revérifier avant d'ouvrir la PR,
+et « j'ai vérifié » devient une affirmation que quelqu'un d'autre peut
+recontrôler.
 
 Les maillons, quand on veut n'en jouer qu'un :
 
@@ -475,16 +479,21 @@ pour la même raison que l'E2E a la sienne : plusieurs suites d'intégration lis
 des agrégats à l'échelle de la plateforme, qu'un jeu de données complet
 fausserait sans rien dire.
 
-### Prérequis : il n'y en a qu'un
+### Prérequis : il n'y en a aucun
 
-```bash
-cp .env.test.example .env.test    # une fois par worktree
-```
+`scripts/with-test-db.sh` est le point d'entrée de tout ce qui a besoin d'une
+vraie base : il charge `.env.test.defaults`, démarre le conteneur, crée la base,
+applique les migrations, puis lance la commande. Il n'y a ni `docker compose up`,
+ni `prisma migrate deploy`, ni fichier à copier.
 
-Le reste est automatique. `scripts/with-test-db.sh` est le point d'entrée de tout
-ce qui a besoin d'une vraie base : il démarre le conteneur, crée la base, applique
-les migrations, puis lance la commande. Il n'y a plus de `docker compose up` ni de
-`prisma migrate deploy` à faire à la main.
+`.env.test.defaults` est **versionné et lu tel quel**, en local comme en CI. Il
+s'appelait `.env.test.example` et chacun en gardait une copie : une copie ne
+dérive que dans un sens, donc une nouvelle variable arrivait chez tous les
+développeurs et jamais sur le runner, qui en tenait une troisième transcription
+dans `test.yml`. C'est comme ça que `WORKSHOP_TICKET_SECRET` a rendu rouge une
+required check à partir d'une gate locale verte. `.env.test` existe toujours,
+toujours gitignoré, mais seulement comme surcharge locale : il gagne sur les clés
+qu'il nomme, et sur rien d'autre.
 
 ### Une base par worktree, et une par suite
 
@@ -495,7 +504,7 @@ Playwright. Un seul conteneur, plusieurs bases.
 Il dérive **aussi le port** du serveur E2E, du même discriminant, et exporte le
 `ORIGIN` qui va avec (BetterAuth le lit comme base URL). C'est la même isolation
 un cran plus haut, et il manquait : le port était écrit en dur dans
-`.env.test.example`, donc chaque worktree copiait le même `4173`, et
+les defaults, donc chaque worktree copiait le même `4173`, et
 `reuseExistingServer` rendait la collision silencieuse. Le deuxième worktree
 trouvait 4173 qui répondait, sautait son build, et faisait tourner ses specs
 contre le build et la base du premier. Comme tous les ids de fixture sont des
@@ -526,8 +535,8 @@ Deux détails qui trompent, et que le script gère à votre place :
 - **`prisma.config.ts` charge `../.env`**, celui du dépôt, qui pointe sur la base
   de dev. Un `DATABASE_URL` déjà posé dans l'environnement gagne (dotenv n'écrase
   pas), mais seulement s'il est posé APRÈS. C'est pour ça que le script exporte le
-  sien en dernier, et pour ça que `.env.test` ne contient pas de `DATABASE_URL` :
-  il serait silencieusement ignoré.
+  sien en dernier, et pour ça que ni `.env.test.defaults` ni `.env.test` ne
+  contiennent de `DATABASE_URL` : il serait silencieusement ignoré.
 - **Le conteneur n'est pas jetable à chaque lancement.** L'image postgres déclare
   son propre volume, donc un conteneur arrêté puis relancé revient avec ses
   bases. Seul `docker compose -f docker-compose.test.yml down -v` remet à zéro.
@@ -541,7 +550,7 @@ Deux détails qui trompent, et que le script gère à votre place :
 | `scripts/with-test-db.sh`       | Le provisionnement, et tout ce qui doit différer d'un worktree à l'autre : conteneur, base, port + `ORIGIN`, migrations. Trois consommateurs (`test:integration`, `test:e2e`, la CI)                                                         |
 | `scripts/check-schema-drift.sh` | Compare `schema.prisma` à la base que `migrate deploy` vient de construire                                                                                                                                                                   |
 | `docker-compose.test.yml`       | Le Postgres jetable du port `5434`. Ne rien y créer à la main : le script s'en charge                                                                                                                                                        |
-| `.env.test.example`             | À copier en `.env.test` (gitignored) : l'environnement du serveur de test (ORIGIN, PORT, secrets jetables). Pas de `DATABASE_URL`, voir plus haut                                                                                            |
+| `.env.test.defaults`            | Versionné, et chargé tel quel par le wrapper : l'environnement des suites (secrets jetables). Rien à copier. Pas de `DATABASE_URL`, `PORT` ni `ORIGIN`, voir plus haut. `.env.test` (gitignoré) ne sert qu'à surcharger une clé en local     |
 
 ---
 
@@ -551,7 +560,7 @@ Deux détails qui trompent, et que le script gère à votre place :
 pas près de le devenir.**
 
 Un seuil global récompense mécaniquement le volume, ce que la philosophie de ce
-repo interdit explicitement (§1, et `AGENTS.md` : « jamais du volume »). La façon
+repo interdit explicitement (§1). La façon
 la moins chère de faire monter un pourcentage est d'écrire les tests qui n'attrapent
 rien, et un chiffre qui bloque un merge finit toujours par être atteint de la façon
 la moins chère.
@@ -593,7 +602,7 @@ règle `push dev` (voir `.github/settings/repo-config.json`) :
 
 | Job                          | Ce qu'il exécute                                                                                             |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `check`                                |
+| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `lint:prose`, `check`                  |
 | **Unit & Integration Tests** | `test:coverage`, puis `test:integration` contre un vrai Postgres, puis `test:schema-drift`, puis `test:seed` |
 | **E2E Tests**                | build + serveur + les specs Playwright, avec le rapport HTML uploadé en cas d'échec                          |
 

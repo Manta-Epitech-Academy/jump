@@ -44,7 +44,7 @@ function podiumTierFromBonus(amount: number): 1 | 2 | 3 | 'top' {
 /**
  * Explicit, plain-French label for a single grant in the history feed - the one
  * place that knows how every XP fact is worded, read by both the dev staff fiche
- * and the talent's own `/xp` timeline. Either reader must understand exactly what
+ * and the talent's own `/parcours` timeline. Either reader must understand exactly what
  * earned the XP, with no internal jargon and no anglicisms ("early bird" /
  * "onboarding" stay out).
  *
@@ -54,15 +54,17 @@ function podiumTierFromBonus(amount: number): 1 | 2 | 3 | 'top' {
  * than forking a second label map into a component: the talent reads warmer,
  * gamified wording; the staff reads the most unambiguous phrasing for a fiche.
  *
- * `rewardName` is the `XpReward.name` behind a `reward` grant (resolved
- * server-side via the grant's `sourceId`); it carries the activity identity (e.g.
- * "OSINT CTFD Stage Seconde"), so a reward without it falls back to a generic but
- * still meaningful label rather than the old catch-all "XP gagnés".
+ * `sourceLabel` is the name of the thing a grant names, resolved server-side off
+ * the grant's `sourceId` by `resolveGrantLabels`: the `XpReward.name` behind a
+ * `reward` (e.g. "OSINT CTFD Stage Seconde"), the `Workshop_Activity.label`
+ * behind a `workshop`. It carries the identity, so a grant without it falls back
+ * to a generic but still meaningful label rather than the old catch-all
+ * "XP gagnés".
  */
 export function xpHistoryLabel(
   source: string,
   amount: number,
-  rewardName?: string | null,
+  sourceLabel?: string | null,
   audience: 'staff' | 'talent' = 'staff',
 ): string {
   switch (source) {
@@ -84,7 +86,14 @@ export function xpHistoryLabel(
     case 'onboarding_early_bird':
       return 'Inscription parmi les premiers';
     case 'reward':
-      return rewardName?.trim() || 'Activité notée';
+      return sourceLabel?.trim() || 'Activité notée';
+    case 'workshop': {
+      // Named, because the whole point of the line is to say which activity paid:
+      // a talent walking three subjects over a term reads three rows that are
+      // otherwise identical.
+      const activity = sourceLabel?.trim();
+      return activity ? `Activité « ${activity} »` : 'Activité en ligne';
+    }
     case 'admin_adjustment':
       return amount >= 0
         ? 'Bonus accordé par le staff'

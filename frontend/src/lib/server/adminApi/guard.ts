@@ -6,11 +6,11 @@
  * `authenticateAdminApi` answers "who is this" and is what the MCP endpoint runs
  * once, before the protocol layer sees anything. `authorizeOperation` answers
  * "may they run this, right now" and runs per call: over HTTP that is the same
- * request, over MCP it is every tool invocation, because a quota cannot be
- * settled when the connection opens.
+ * request, over MCP it is every tool invocation, because what a tier may reach
+ * is a property of the operation and not of the connection.
  *
  * Every refusal this tier can produce lives in this file, on purpose. The rules
- * are cross-cutting (tier, capability, two quotas) and there are two consumers;
+ * are cross-cutting (tier, then capability) and there are two consumers;
  * spread them out and the surfaces drift, which is precisely how something ends
  * up reachable over HTTP while looking forbidden over MCP.
  *
@@ -27,17 +27,10 @@
  */
 
 import type { RequestEvent } from '@sveltejs/kit';
-import {
-  verifyToken,
-  countRecentCalls,
-  countRecentWriteCalls,
-  DAILY_CALL_QUOTA,
-  WRITE_CALL_QUOTA,
-} from './tokens';
+import { verifyToken } from './tokens';
 import { ANONYMOUS_ACTOR, type AdminApiCaller } from './audit';
 import {
   isOperationAllowedForTier,
-  ADMIN_API_WRITE_NAMES,
   type AdminApiOperation,
 } from './operations';
 
@@ -53,7 +46,7 @@ export type AdminApiCredential = {
 
 export type AdminApiRefusal = {
   ok: false;
-  status: 401 | 403 | 429;
+  status: 401 | 403;
   message: string;
 };
 
@@ -128,14 +121,19 @@ export async function authenticateAdminApi(
 }
 
 /**
- * May this credential run this operation now? Tier, then capability, then the
- * quotas, in that order: an operation a tier cannot reach must read as "not for
- * you" rather than as a quota or capability problem.
+ * May this credential run this operation now? Tier, then capability, in that
+ * order: an operation a tier cannot reach must read as "not for you" rather
+ * than as a capability problem.
+ *
+ * It asks the database nothing, and that is worth stating because it used to.
+ * Two per-token ceilings hung here, counted live off `AdminApi_Call`; issue #355
+ * removed them. What bounds a token now is what it was minted with, and none of
+ * that needs a query: `verifyToken` already re-read the owner's admin role.
  */
-export async function authorizeOperation(
+export function authorizeOperation(
   credential: AdminApiCredential,
   operation: AdminApiOperation,
-): Promise<{ ok: true } | AdminApiRefusal> {
+): { ok: true } | AdminApiRefusal {
   const { caller, writeEnabled } = credential;
 
   if (!isOperationAllowedForTier(operation, caller.tier)) {
@@ -154,31 +152,6 @@ export async function authorizeOperation(
       message: caller.tokenId
         ? "Ce token est en lecture seule. Les modifications demandent un token créé avec l'autorisation de modifier ; cela ne peut pas être ajouté après coup."
         : "Les modifications passent par un token créé pour cela, jamais par une session ouverte dans le navigateur : c'est ce qui rend chaque modification attribuable.",
-    };
-  }
-
-  // Quotas apply to tokens only: a human clicking a page is not the runaway
-  // loop this protects against, and locking an admin out of their own screens
-  // would be a worse failure than the one being prevented.
-  if (!caller.tokenId) return { ok: true };
-
-  if ((await countRecentCalls(caller.tokenId)) >= DAILY_CALL_QUOTA) {
-    return {
-      ok: false,
-      status: 429,
-      message: `Quota atteint (${DAILY_CALL_QUOTA} appels sur 24 h). Réessayez plus tard.`,
-    };
-  }
-
-  if (
-    operation.kind === 'write' &&
-    (await countRecentWriteCalls(caller.tokenId, ADMIN_API_WRITE_NAMES)) >=
-      WRITE_CALL_QUOTA
-  ) {
-    return {
-      ok: false,
-      status: 429,
-      message: `Quota de modifications atteint (${WRITE_CALL_QUOTA} sur 24 h). Les lectures restent possibles.`,
     };
   }
 

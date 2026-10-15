@@ -74,7 +74,7 @@ describe('getEventsOverview', () => {
     expect(overview.totals.toPrepare.value).toBe(1);
   });
 
-  it('filters by school year and by campus, leaving available years computed on everything', async () => {
+  it('filters by school year and by campus', async () => {
     listAdminEvents.mockResolvedValue([
       event({
         id: 'a',
@@ -100,25 +100,16 @@ describe('getEventsOverview', () => {
     });
 
     expect(overview.totals.events.value).toBe(1);
-    expect(overview.filters.campus).toBe('Nantes');
-    // Newest first, and computed before filtering so a caller can re-ask.
-    expect(overview.availableSchoolYears.value).toEqual([
-      '2026-2027',
-      '2025-2026',
-    ]);
   });
 
-  // A campus that exists but has no event in scope is a truthful zero, reported
-  // under its own name. What must never happen again is the previous behaviour,
-  // where an unresolved `campusId` was echoed back verbatim as if it were one.
-  it('reports a resolved campus with no events as a named zero', async () => {
+  // A campus that exists but has no event in scope is a truthful zero.
+  it('reports a resolved campus with no events as zero', async () => {
     listAdminEvents.mockResolvedValue([event({ campusId: 'campus_lille' })]);
 
     const overview = await getEventsOverview({
       campus: { id: 'campus_paris', name: 'Paris' },
     });
 
-    expect(overview.filters.campus).toBe('Paris');
     expect(overview.totals.events.value).toBe(0);
   });
 
@@ -130,42 +121,6 @@ describe('getEventsOverview', () => {
     await expect(
       getEventsOverview({ schoolYear: '2099-2100' }),
     ).rejects.toThrow('2025-2026');
-  });
-
-  it('rolls up per campus, busiest first', async () => {
-    listAdminEvents.mockResolvedValue([
-      event({ id: 'a', campusName: 'Lille', participations: 10 }),
-      event({ id: 'b', campusName: 'Lille', participations: 5 }),
-      event({
-        id: 'c',
-        campusName: 'Nantes',
-        campusId: 'campus_nantes',
-        participations: 30,
-      }),
-    ]);
-
-    const overview = await getEventsOverview();
-
-    expect(overview.perCampus.value).toEqual([
-      {
-        campus: 'Lille',
-        events: 2,
-        visible: 2,
-        visibleShare: 100,
-        readyToPublish: 0,
-        unconfigured: 0,
-        participants: 15,
-      },
-      {
-        campus: 'Nantes',
-        events: 1,
-        visible: 1,
-        visibleShare: 100,
-        readyToPublish: 0,
-        unconfigured: 0,
-        participants: 30,
-      },
-    ]);
   });
 
   it('counts module adoption across events', async () => {
@@ -186,17 +141,14 @@ describe('getEventsOverview', () => {
   });
 
   // The clause is owned by the module that owns the filter it describes. Two
-  // aggregates used to spell it out by hand, and both said "READY ou MEET" while
-  // the filter also keeps legacy statusless rows.
+  // aggregates used to spell it out by hand, and both named only the two
+  // statuses while the filter also keeps legacy statusless rows.
   it('states the visible-cohort rule from its single owner, not a local copy', async () => {
     listAdminEvents.mockResolvedValue([event()]);
 
     const overview = await getEventsOverview();
 
     expect(overview.totals.participants.definition).toContain(
-      VISIBLE_PARTICIPATION_DEFINITION,
-    );
-    expect(overview.perCampus.definition).toContain(
       VISIBLE_PARTICIPATION_DEFINITION,
     );
   });
@@ -209,7 +161,6 @@ describe('getEventsOverview', () => {
     for (const value of Object.values(overview.totals)) {
       expect(value.definition.length).toBeGreaterThan(20);
     }
-    expect(overview.perCampus.definition).toBeTruthy();
     expect(overview.perModule.definition).toBeTruthy();
   });
 });

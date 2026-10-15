@@ -14,11 +14,11 @@
  * `compareTo` is the one thing selection cannot express, and the reason it exists:
  * "est-ce qu'on progresse" is a single question, so handing back two years and
  * letting the reader subtract them means the growth figure - the one actually
- * quoted - is computed by the consumer, in its own wording. So the same six
+ * quoted - is computed by the consumer, in its own wording. So the same five
  * aggregates run on the compared year and the gaps come back as figures
  * (`metrics.variation`), each carrying what its arithmetic means.
  *
- * `limites` is the other half of the answer. Jump knows who came and what they
+ * `limites` is the other half of the answer. Jump knows who enrolled and what they
  * said; it does not know who later enrolled at Epitech, because no admission
  * outcome is stored anywhere in this platform. A consumer given only the good
  * figures will fill that gap with a plausible conversion rate, so the boundary
@@ -35,7 +35,6 @@ import { scopeLabels } from './cohort';
 import { getEventsOverview } from './eventsOverview';
 import { getCohortProfile } from './cohortProfile';
 import { getSchoolsReach } from './schoolsReach';
-import { getAttendanceRate } from './attendanceRate';
 import { getTalentRetention } from './talentRetention';
 import { getClosingInsights } from './closingInsights';
 import { CLOSING_QUESTION_KEYS } from '$lib/domain/closing';
@@ -57,12 +56,6 @@ export type SchoolYearReview = {
     schools: Metric;
     departements: Metric;
     topSchools: Metric<unknown>;
-  };
-  attendance: {
-    pastEvents: Metric;
-    enrolled: Metric;
-    present: Metric;
-    showUpRate: Metric<number | null>;
   };
   loyalty: {
     returningShare: Metric<number | null>;
@@ -93,7 +86,6 @@ export type SchoolYearComparison = {
     onboardingCompletedShare: Metric<Variation>;
   };
   reach: { schools: Metric<Variation>; departements: Metric<Variation> };
-  attendance: { present: Metric<Variation>; showUpRate: Metric<Variation> };
   loyalty: { returningShare: Metric<Variation> };
   voice: {
     closingCoverage: Metric<Variation>;
@@ -103,9 +95,9 @@ export type SchoolYearComparison = {
 
 /** What this platform cannot answer, said before anybody infers it. */
 const LIMITES = [
-  "Jump enregistre qui s'est inscrit, qui est venu et ce que les élèves en ont dit. Il n'enregistre nulle part si un élève a ensuite intégré Epitech : aucun de ces chiffres n'est un taux de conversion ni un taux d'admission, et aucun ne permet d'en déduire un.",
+  "Jump enregistre qui s'est inscrit et ce que les élèves en ont dit. Il n'enregistre nulle part si un élève a ensuite intégré Epitech : aucun de ces chiffres n'est un taux de conversion ni un taux d'admission, et aucun ne permet d'en déduire un.",
   "Les réponses des élèves proviennent des closings, qui ne sont menés que sur les événements configurés pour en mener, et là seulement sur une partie des inscrits. Le taux de couverture donné avec elles porte sur ces événements-là : il ne dit pas quelle part de l'ensemble des participants s'est exprimée.",
-  "La présence est déduite du statut Salesforce des inscriptions après l'événement. Un événement dont les statuts n'ont pas été mis à jour apparaît sans présence exploitable plutôt que comme une absence générale.",
+  "Ce bilan ne donne aucun chiffre de présence. La présence n'est enregistrée que par l'émargement, et seulement sur les événements qui le tiennent : aucun taux de présence n'en est tiré à l'échelle d'une année.",
   'La civilité et le niveau scolaire viennent de Salesforce ou de ce que le talent a saisi ; la part de fiches renseignées est donnée à côté de chaque répartition.',
 ];
 
@@ -117,18 +109,16 @@ const LIMITES = [
 const LIMITE_COMPARAISON =
   "Les écarts du bloc « comparaison » rapportent deux années telles qu'elles sont enregistrées aujourd'hui. Si l'année demandée est encore en cours, ses événements ne se sont pas tous tenus : ses effectifs sont partiels et l'écart avec une année terminée sera négatif sans que cela traduise une baisse. Le nombre d'événements des deux années est à lire avant tout écart.";
 
-/** The six aggregates a review is made of, for one périmètre. */
+/** The five aggregates a review is made of, for one périmètre. */
 async function gather(scope: Scope) {
-  const [events, cohort, reach, attendance, retention, closings] =
-    await Promise.all([
-      getEventsOverview(scope),
-      getCohortProfile(scope),
-      getSchoolsReach(scope),
-      getAttendanceRate(scope),
-      getTalentRetention(scope),
-      getClosingInsights(scope),
-    ]);
-  return { events, cohort, reach, attendance, retention, closings };
+  const [events, cohort, reach, retention, closings] = await Promise.all([
+    getEventsOverview(scope),
+    getCohortProfile(scope),
+    getSchoolsReach(scope),
+    getTalentRetention(scope),
+    getClosingInsights(scope),
+  ]);
+  return { events, cohort, reach, retention, closings };
 }
 
 type Gathered = Awaited<ReturnType<typeof gather>>;
@@ -165,7 +155,7 @@ export async function getSchoolYearReview(
     ? await gather({ ...scope, schoolYear: params.compareTo })
     : null;
 
-  const { events, cohort, reach, attendance, retention, closings } = current;
+  const { events, cohort, reach, retention, closings } = current;
   const voice = voiceOf(closings);
 
   return {
@@ -188,12 +178,6 @@ export async function getSchoolYearReview(
       schools: reach.schools,
       departements: reach.departements,
       topSchools: reach.topSchools,
-    },
-    attendance: {
-      pastEvents: attendance.pastEvents,
-      enrolled: attendance.enrolled,
-      present: attendance.present,
-      showUpRate: attendance.showUpRate,
     },
     loyalty: {
       returningShare: retention.returningShare,
@@ -270,16 +254,6 @@ function compare(
       departements: count(
         current.reach.departements.value,
         previous.reach.departements.value,
-      ),
-    },
-    attendance: {
-      present: count(
-        current.attendance.present.value,
-        previous.attendance.present.value,
-      ),
-      showUpRate: points(
-        current.attendance.showUpRate.value,
-        previous.attendance.showUpRate.value,
       ),
     },
     loyalty: {

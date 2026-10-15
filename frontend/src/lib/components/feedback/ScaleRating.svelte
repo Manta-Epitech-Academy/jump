@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { typesetChat } from '$lib/domain/feedbackForms/schema';
+  import { typeset } from '$lib/domain/typography';
   import { scaleEmoji, scaleLevelColor } from './scale';
 
   interface Props {
@@ -34,7 +34,7 @@
     >
       <span class="text-2xl">{emoji}</span>
       <span class="text-sm leading-tight font-medium sm:text-xs"
-        >{typesetChat(label)}</span
+        >{typeset(label)}</span
       >
     </button>
   {/each}

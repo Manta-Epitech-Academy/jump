@@ -1,18 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { metric } from '$lib/server/adminApi/metrics';
 
-const getUnconfiguredEvents = vi.fn();
+const getEventsConfigList = vi.fn();
 const getSyncHealth = vi.fn();
+const getDataFreshness = vi.fn();
 const getPdfJobsHealth = vi.fn();
 const getAccountDeletionQueue = vi.fn();
 const getFeatureAdoptionGaps = vi.fn();
 
-vi.mock('$lib/server/services/adminStats/unconfiguredEvents', () => ({
-  getUnconfiguredEvents: () => getUnconfiguredEvents(),
-  UNCONFIGURED_EVENTS_LIMIT: 100,
+vi.mock('$lib/server/services/adminStats/eventsList', () => ({
+  getEventsConfigList: (...args: unknown[]) => getEventsConfigList(...args),
+  EVENTS_LIST_LIMIT: 100,
 }));
 vi.mock('$lib/server/services/adminStats/syncHealth', () => ({
   getSyncHealth: () => getSyncHealth(),
+}));
+vi.mock('$lib/server/services/adminStats/dataFreshness', () => ({
+  getDataFreshness: () => getDataFreshness(),
 }));
 vi.mock('$lib/server/services/adminStats/opsQueues', () => ({
   getPdfJobsHealth: () => getPdfJobsHealth(),
@@ -25,8 +29,8 @@ vi.mock('$lib/server/services/adminStats/featureUsage', () => ({
 const { buildAdminDigest } = await import('./adminDigest');
 
 type EventStub = {
-  id: string;
-  titre: string;
+  eventId: string;
+  salesforceName: string;
   campus: string;
   dateLabel: string;
   configState: 'unconfigured';
@@ -35,23 +39,28 @@ type EventStub = {
 };
 
 /**
- * `toPrepareTotal` is passed separately on purpose: the aggregate caps its list
- * at UNCONFIGURED_EVENTS_LIMIT while `toPrepare` stays the real total, so the two
+ * `toPrepareTotal` is passed separately on purpose: the list is capped at
+ * EVENTS_LIST_LIMIT while the `events` count stays the real total, so the two
  * legitimately disagree and the digest has to count off the total.
  */
 function eventsPayload(events: EventStub[], toPrepareTotal = events.length) {
   return {
-    filters: { schoolYear: 'toutes', campus: 'tous' },
-    toPrepare: metric(toPrepareTotal, 'def'),
-    events: metric(events, 'def'),
+    filters: {
+      schoolYear: 'toutes',
+      campus: 'tous',
+      status: 'tous',
+      state: 'to_prepare',
+    },
+    events: metric(toPrepareTotal, 'def'),
+    list: metric(events, 'def'),
     truncated: toPrepareTotal > events.length,
   };
 }
 
 function eventStub(i: number): EventStub {
   return {
-    id: `evt_${i}`,
-    titre: `Lille-CodingClub-${i}`,
+    eventId: `evt_${i}`,
+    salesforceName: `Lille-CodingClub-${i}`,
     campus: 'Lille',
     dateLabel: '12 fév. 2026',
     configState: 'unconfigured',
@@ -60,33 +69,65 @@ function eventStub(i: number): EventStub {
   };
 }
 
-function syncPayload(over: { unresolved?: number; ageHours?: number } = {}) {
+function syncPayload(
+  over: {
+    unresolved?: number;
+    prunesHeld?: number;
+    unrecognised?: number;
+  } = {},
+) {
+  const unrecognised = over.unrecognised ?? 0;
   return {
-    lastSync: metric(
-      {
-        type: 'talents',
-        at: '2026-07-26T06:00:00.000Z',
-        ageHours: over.ageHours ?? 0.5,
-        stale: (over.ageHours ?? 0.5) > 3,
-        created: 1,
-        updated: 2,
-        skipped: 0,
-      },
-      'def',
-    ),
     unresolvedErrors: metric(over.unresolved ?? 0, 'def'),
     errorsByType: metric([], 'def'),
     oldestUnresolvedAgeDays: metric(null, 'def'),
+    prunesHeldEvents: metric(over.prunesHeld ?? 0, 'def'),
+    unrecognisedStatuses: metric(unrecognised, 'def'),
+    unrecognisedStatusEvents: metric(
+      unrecognised > 0
+        ? [
+            {
+              eventId: 'evt',
+              event: 'Coding Club',
+              campus: 'Nancy',
+              date: '2026-09-30',
+              count: unrecognised,
+              statuses: ['ATTENDED'],
+            },
+          ]
+        : [],
+      'def',
+    ),
+    unrecognisedStatusEventsTruncated: false,
   };
+}
+
+/**
+ * When data last landed, whichever pass brought it. The mail reads this rather
+ * than either pass of `stats_sync_health`: one of the two is routinely not due,
+ * and calling the platform stale on that basis would be wrong every night.
+ */
+function freshnessPayload(ageHours = 0.5) {
+  return metric(
+    {
+      at: '2026-07-26T06:00:00.000Z',
+      ageHours,
+      stale: ageHours > 3,
+    },
+    'def',
+  );
 }
 
 /** The sync has never run once: worse than stale, and distinct from it below. */
 function neverSyncedPayload(unresolved = 0) {
   return {
-    lastSync: metric(null, 'def'),
     unresolvedErrors: metric(unresolved, 'def'),
     errorsByType: metric([], 'def'),
     oldestUnresolvedAgeDays: metric(null, 'def'),
+    prunesHeldEvents: metric(0, 'def'),
+    unrecognisedStatuses: metric(0, 'def'),
+    unrecognisedStatusEvents: metric([], 'def'),
+    unrecognisedStatusEventsTruncated: false,
   };
 }
 
@@ -170,8 +211,11 @@ function unmeasurableAdoptionPayload() {
 }
 
 beforeEach(() => {
-  getUnconfiguredEvents.mockReset();
+  getEventsConfigList.mockReset();
   getSyncHealth.mockReset();
+  // A healthy, recent landing by default, so a test that cares about freshness
+  // says so.
+  getDataFreshness.mockReset().mockResolvedValue(freshnessPayload());
   // Quiet queues by default, so a test that cares about them says so.
   getPdfJobsHealth.mockReset().mockResolvedValue(pdfJobsPayload());
   getAccountDeletionQueue.mockReset().mockResolvedValue(deletionsPayload());
@@ -180,7 +224,7 @@ beforeEach(() => {
 
 describe('buildAdminDigest', () => {
   it('says plainly that nothing needs preparing when the list is empty', async () => {
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getEventsConfigList.mockResolvedValue(eventsPayload([]));
     getSyncHealth.mockResolvedValue(syncPayload());
 
     const digest = await buildAdminDigest();
@@ -194,12 +238,17 @@ describe('buildAdminDigest', () => {
   });
 
   it('lists the events to prepare with what each one is missing', async () => {
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload([eventStub(1)]));
+    getEventsConfigList.mockResolvedValue(eventsPayload([eventStub(1)]));
     getSyncHealth.mockResolvedValue(syncPayload({ unresolved: 2 }));
 
     const digest = await buildAdminDigest();
 
     expect(digest.subject).toBe('Jump - 1 événement à préparer');
+    // The same list `config_events` answers for the events to prepare.
+    expect(getEventsConfigList).toHaveBeenCalledWith(
+      {},
+      { state: 'to_prepare' },
+    );
     expect(digest.html).toContain('Lille-CodingClub-1');
     expect(digest.html).toContain('nom public');
     expect(digest.html).toContain('erreurs');
@@ -209,6 +258,8 @@ describe('buildAdminDigest', () => {
     expect(digest.summary).toEqual({
       eventsToPrepare: 1,
       unresolvedSyncErrors: 2,
+      prunesHeldEvents: 0,
+      unrecognisedSfStatuses: 0,
       lastSyncAgeHours: 0.5,
       failedPdfJobs: 0,
       overdueDeletionRequests: 0,
@@ -218,8 +269,50 @@ describe('buildAdminDigest', () => {
     });
   });
 
+  it('says when a full pass is holding deletions, which fails no run', async () => {
+    getEventsConfigList.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload({ prunesHeld: 2 }));
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain('<strong>2</strong> événements gardent');
+    expect(digest.html).toContain('/staff/admin/sync-errors');
+    expect(digest.text).toContain('faute de preuve : 2');
+    expect(digest.summary.prunesHeldEvents).toBe(2);
+
+    getSyncHealth.mockResolvedValue(syncPayload());
+    const quiet = await buildAdminDigest();
+    expect(quiet.html).not.toContain('gardent des inscriptions');
+    expect(quiet.text).not.toContain('faute de preuve');
+  });
+
+  // An unknown status masks an enrolment and fails nothing, which is how every
+  // attendee went missing from the dev space for a month (#368).
+  it('says when Salesforce sends a status Jump does not know', async () => {
+    getEventsConfigList.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload({ unrecognised: 3 }));
+
+    const digest = await buildAdminDigest();
+
+    expect(digest.html).toContain(
+      '<strong>3</strong> inscriptions portent un statut Salesforce que Jump ne connaît pas, sur 1 événement',
+    );
+    expect(digest.html).toContain(
+      "Les statuts reçus et les événements concernés se lisent par l'API d'administration.",
+    );
+    expect(digest.text).toContain("masquées de l'espace dev : 3");
+    expect(digest.summary.unrecognisedSfStatuses).toBe(3);
+
+    getSyncHealth.mockResolvedValue(syncPayload());
+    const quiet = await buildAdminDigest();
+    expect(quiet.html).not.toContain(
+      'statut Salesforce que Jump ne connaît pas',
+    );
+    expect(quiet.text).not.toContain('statut Salesforce inconnu');
+  });
+
   it('names the stuck queues, and says so plainly when there are none', async () => {
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getEventsConfigList.mockResolvedValue(eventsPayload([]));
     getSyncHealth.mockResolvedValue(syncPayload());
 
     const quiet = await buildAdminDigest();
@@ -249,7 +342,7 @@ describe('buildAdminDigest', () => {
   });
 
   it('says a single failed generation without the wrong plural', async () => {
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getEventsConfigList.mockResolvedValue(eventsPayload([]));
     getSyncHealth.mockResolvedValue(syncPayload());
     getPdfJobsHealth.mockResolvedValue(pdfJobsPayload(1));
 
@@ -262,7 +355,7 @@ describe('buildAdminDigest', () => {
 
   it('caps the listed events and points at the cockpit for the rest', async () => {
     const events = Array.from({ length: 18 }, (_, i) => eventStub(i));
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload(events));
+    getEventsConfigList.mockResolvedValue(eventsPayload(events));
     getSyncHealth.mockResolvedValue(syncPayload());
 
     const digest = await buildAdminDigest();
@@ -277,7 +370,7 @@ describe('buildAdminDigest', () => {
   // autres" off the real total, or its own lead paragraph contradicts its table.
   it('counts the remainder off the total, not off the capped list', async () => {
     const capped = Array.from({ length: 100 }, (_, i) => eventStub(i));
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload(capped, 200));
+    getEventsConfigList.mockResolvedValue(eventsPayload(capped, 200));
     getSyncHealth.mockResolvedValue(syncPayload());
 
     const digest = await buildAdminDigest();
@@ -288,10 +381,11 @@ describe('buildAdminDigest', () => {
   });
 
   it('flags a stale sync and escapes event titles into the HTML', async () => {
-    getUnconfiguredEvents.mockResolvedValue(
-      eventsPayload([{ ...eventStub(1), titre: 'Lille <script>' }]),
+    getEventsConfigList.mockResolvedValue(
+      eventsPayload([{ ...eventStub(1), salesforceName: 'Lille <script>' }]),
     );
-    getSyncHealth.mockResolvedValue(syncPayload({ ageHours: 9 }));
+    getSyncHealth.mockResolvedValue(syncPayload());
+    getDataFreshness.mockResolvedValue(freshnessPayload(9));
 
     const digest = await buildAdminDigest();
 
@@ -306,8 +400,9 @@ describe('buildAdminDigest', () => {
   });
 
   it('leaves a healthy sync without an alarm or a link', async () => {
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
-    getSyncHealth.mockResolvedValue(syncPayload({ ageHours: 0.5 }));
+    getEventsConfigList.mockResolvedValue(eventsPayload([]));
+    getSyncHealth.mockResolvedValue(syncPayload());
+    getDataFreshness.mockResolvedValue(freshnessPayload(0.5));
 
     const digest = await buildAdminDigest();
 
@@ -317,8 +412,9 @@ describe('buildAdminDigest', () => {
   });
 
   it('flags a never-synced Salesforce feed as its own severity, not as "no errors"', async () => {
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getEventsConfigList.mockResolvedValue(eventsPayload([]));
     getSyncHealth.mockResolvedValue(neverSyncedPayload());
+    getDataFreshness.mockResolvedValue(metric(null, 'def'));
 
     const digest = await buildAdminDigest();
 
@@ -333,8 +429,9 @@ describe('buildAdminDigest', () => {
   });
 
   it('still surfaces sync errors reported despite no run ever being recorded', async () => {
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getEventsConfigList.mockResolvedValue(eventsPayload([]));
     getSyncHealth.mockResolvedValue(neverSyncedPayload(4));
+    getDataFreshness.mockResolvedValue(metric(null, 'def'));
 
     const digest = await buildAdminDigest();
 
@@ -344,7 +441,7 @@ describe('buildAdminDigest', () => {
   });
 
   it('names the features nobody used, and the ones a single campus uses', async () => {
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getEventsConfigList.mockResolvedValue(eventsPayload([]));
     getSyncHealth.mockResolvedValue(syncPayload());
     getFeatureAdoptionGaps.mockResolvedValue(
       adoptionPayload(
@@ -377,7 +474,7 @@ describe('buildAdminDigest', () => {
   });
 
   it('says so plainly when every measured feature has served', async () => {
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getEventsConfigList.mockResolvedValue(eventsPayload([]));
     getSyncHealth.mockResolvedValue(syncPayload());
 
     const digest = await buildAdminDigest();
@@ -390,7 +487,7 @@ describe('buildAdminDigest', () => {
     // A feature nobody ever used may simply never have been found. One that
     // served last year and serves nobody now was found and then abandoned, so
     // it is the retire decision and it goes first.
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getEventsConfigList.mockResolvedValue(eventsPayload([]));
     getSyncHealth.mockResolvedValue(syncPayload());
     getFeatureAdoptionGaps.mockResolvedValue(
       adoptionPayload(
@@ -426,7 +523,7 @@ describe('buildAdminDigest', () => {
     // With an empty cube the never-used list is the whole catalogue. Printing it
     // would read as a finding, and it is the opposite: an absence of
     // measurement, not an absence of use.
-    getUnconfiguredEvents.mockResolvedValue(eventsPayload([]));
+    getEventsConfigList.mockResolvedValue(eventsPayload([]));
     getSyncHealth.mockResolvedValue(syncPayload());
     getFeatureAdoptionGaps.mockResolvedValue(unmeasurableAdoptionPayload());
 

@@ -9,6 +9,7 @@ import {
 } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
+import { drainOnboardingPdfJobs } from './onboardingPdfJobs';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 
 /**
@@ -175,5 +176,64 @@ describe('onboarding PDF job claim (integration)', () => {
     await runOnboardingPdfJob(jobId);
 
     expect(saved.get(key)).toBe(1);
+  });
+
+  /**
+   * The other side of the claim, and where the suites that assert on a rendered
+   * artifact kept going red.
+   *
+   * `runOnboardingPdfJob` returning is not the queue being empty. When the row is
+   * already owned - which is the ordinary case, since the service fires its own
+   * `void runOnboardingPdfJob(id)` the instant the signing transaction commits -
+   * the claim refuses, the call returns having rendered nothing, and a drain that
+   * took that for "done" let the assertion run before the owner's render reached
+   * the storage stub. `imageRightsAnnual` and `onboardingDocumentArtifact` both
+   * failed that way, intermittently, and both passed on a re-run of the same
+   * commit, which cost a hunt through an innocent diff every time.
+   *
+   * Staged rather than raced for, like the three above: the local machine wins
+   * the race often enough that a timing-based version of this test passes against
+   * the broken drain twelve times out of twelve (measured), and a test that has to
+   * win a race in order to fail is the flaky kind this suite refuses.
+   */
+  it('drains a queue whose job somebody else is rendering', async () => {
+    const jobId = await newJob();
+    await stageProcessing(jobId, 0);
+
+    let ownerFinished = false;
+    let returnedAfterOwner: boolean | null = null;
+    const drained = drainOnboardingPdfJobs({
+      talentId,
+      run: runOnboardingPdfJob,
+      timeoutMs: 5_000,
+    }).then(() => {
+      returnedAfterOwner = ownerFinished;
+    });
+
+    // The owner settles a moment later, as a real render does.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    ownerFinished = true;
+    await prisma.onboardingPdfJob.update({
+      where: { id: jobId },
+      data: { status: 'success', filePath: key, processedAt: new Date() },
+    });
+
+    await drained;
+    expect(returnedAfterOwner).toBe(true);
+  });
+
+  it('reports a queue that never settles instead of returning quietly', async () => {
+    // A job nobody ever finishes is a hang, and the drain says so rather than
+    // handing the caller an empty storage stub to assert against.
+    const jobId = await newJob();
+    await stageProcessing(jobId, 0);
+
+    await expect(
+      drainOnboardingPdfJobs({
+        talentId,
+        run: runOnboardingPdfJob,
+        timeoutMs: 200,
+      }),
+    ).rejects.toThrow(/still outstanding after 200ms.*rules.*processing/s);
   });
 });

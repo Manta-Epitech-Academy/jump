@@ -8,6 +8,7 @@ import {
 } from '$lib/domain/staff';
 import { syncMicrosoftAvatar } from '$lib/server/services/microsoftProfile';
 import { consumeRedirectCookie } from '$lib/server/auth/loginRedirect';
+import { discardStaffSignIn } from '$lib/server/auth/staffDoor';
 
 /**
  * Expire BetterAuth's session-data cookie cache so the next request
@@ -31,18 +32,27 @@ function expireSessionCache(redirectUrl: string): Response {
 // 1. Verifies @epitech.eu domain.
 // 2. Consumes a StaffInvitation matching the email (if any) to provision
 //    campus + role on the StaffProfile.
-// 3. Rejects (and deletes the just-created bauth_user) if no invitation and
-//    no existing provisioned StaffProfile: staff must be invited first.
+// 3. Rejects if no invitation and no existing provisioned StaffProfile: staff
+//    must be invited first.
+//
+// Both refusals hand the sign-in to `discardStaffSignIn` rather than deleting
+// the `bauth_user` themselves. BetterAuth may have linked this door onto an
+// identity that already existed (a talent's, a guardian's), and deleting one of
+// those is silent data loss; the helper carries which of the two it is holding
+// and what it is allowed to do about it.
 
 export const GET: RequestHandler = async ({ locals, cookies }) => {
-  if (!locals.user) {
+  // Both or neither: `hooks.server.ts` fills the pair from one `getSession`. The
+  // session is read below to discard exactly the one this sign-in minted, so the
+  // guard names it rather than asserting it further down.
+  if (!locals.user || !locals.session) {
     throw redirect(303, `${resolve('/staff/login')}?error=OAuthFailed`);
   }
 
   const email = locals.user.email.toLowerCase();
 
   if (!email.endsWith('@epitech.eu')) {
-    await prisma.bauth_user.delete({ where: { id: locals.user.id } });
+    await discardStaffSignIn(locals.user.id, locals.session.id);
     throw redirect(303, `${resolve('/staff/login')}?error=UnauthorizedDomain`);
   }
 
@@ -62,7 +72,7 @@ export const GET: RequestHandler = async ({ locals, cookies }) => {
 
     if (!invitation) {
       // No invitation and not an already-provisioned staff: reject
-      await prisma.bauth_user.delete({ where: { id: locals.user.id } });
+      await discardStaffSignIn(locals.user.id, locals.session.id);
       throw redirect(303, `${resolve('/staff/login')}?error=NotInvited`);
     }
 

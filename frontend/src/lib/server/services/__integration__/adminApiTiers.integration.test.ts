@@ -1,23 +1,26 @@
 /**
  * The rules that decide whether a call happens at all, against a real database:
- * which tier may reach which operation, who may write, and the two quotas.
+ * which tier may reach which operation, and who may write.
  *
- * Integration rather than unit, because every one of those answers is settled by
- * reading rows (the token, then the call log). Mocking that away would test the
- * `if`s and none of the behaviour.
+ * Integration rather than unit, because both answers are settled by reading the
+ * token row and the admin role behind it. Mocking that away would test the `if`s
+ * and none of the behaviour.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import type { RequestEvent } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
-import { mintToken, WRITE_CALL_QUOTA } from '$lib/server/adminApi/tokens';
+import { mintToken } from '$lib/server/adminApi/tokens';
 import {
   authenticateAdminApi,
   authorizeOperation,
   type AdminApiCredential,
 } from '$lib/server/adminApi/guard';
 import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
+import { serveOpenApiDocument } from '$lib/server/adminApi/openapi';
+import { TRANSPORT_OPERATIONS } from '$lib/server/adminApi/audit';
 
 const LEADERSHIP_OPERATION = ADMIN_API_OPERATIONS.stats_cohort_profile;
 const CORE_ONLY_OPERATION = ADMIN_API_OPERATIONS.ops_pdf_jobs_health;
@@ -79,7 +82,7 @@ describe('admin API tiers and write capability (integration)', () => {
 
     expect(credential.caller.tier).toBe('leadership');
     expect(credential.writeEnabled).toBe(false);
-    expect(await authorizeOperation(credential, LEADERSHIP_OPERATION)).toEqual({
+    expect(authorizeOperation(credential, LEADERSHIP_OPERATION)).toEqual({
       ok: true,
     });
   });
@@ -91,7 +94,7 @@ describe('admin API tiers and write capability (integration)', () => {
       label: 'Direction - refus',
       tier: 'leadership',
     });
-    const refusal = await authorizeOperation(
+    const refusal = authorizeOperation(
       await credentialFor(token.secret),
       CORE_ONLY_OPERATION,
     );
@@ -107,10 +110,7 @@ describe('admin API tiers and write capability (integration)', () => {
       tier: 'leadership',
     });
     expect(
-      await authorizeOperation(
-        await credentialFor(token.secret),
-        WRITE_OPERATION,
-      ),
+      authorizeOperation(await credentialFor(token.secret), WRITE_OPERATION),
     ).toMatchObject({ ok: false, status: 403 });
   });
 
@@ -128,10 +128,10 @@ describe('admin API tiers and write capability (integration)', () => {
     const token = await mintToken(adminUserId, { label: 'Core lecture' });
     const credential = await credentialFor(token.secret);
 
-    expect(await authorizeOperation(credential, CORE_ONLY_OPERATION)).toEqual({
+    expect(authorizeOperation(credential, CORE_ONLY_OPERATION)).toEqual({
       ok: true,
     });
-    const refusal = await authorizeOperation(credential, WRITE_OPERATION);
+    const refusal = authorizeOperation(credential, WRITE_OPERATION);
     expect(refusal).toMatchObject({ ok: false, status: 403 });
     if (refusal.ok) throw new Error('unreachable');
     expect(refusal.message).toContain('lecture seule');
@@ -145,7 +145,7 @@ describe('admin API tiers and write capability (integration)', () => {
     const credential = await credentialFor(token.secret);
 
     expect(credential.writeEnabled).toBe(true);
-    expect(await authorizeOperation(credential, WRITE_OPERATION)).toEqual({
+    expect(authorizeOperation(credential, WRITE_OPERATION)).toEqual({
       ok: true,
     });
   });
@@ -159,42 +159,68 @@ describe('admin API tiers and write capability (integration)', () => {
     expect(auth.caller.tokenId).toBeNull();
     expect(auth.writeEnabled).toBe(false);
 
-    expect(await authorizeOperation(auth, CORE_ONLY_OPERATION)).toEqual({
+    expect(authorizeOperation(auth, CORE_ONLY_OPERATION)).toEqual({
       ok: true,
     });
-    const refusal = await authorizeOperation(auth, WRITE_OPERATION);
+    const refusal = authorizeOperation(auth, WRITE_OPERATION);
     expect(refusal).toMatchObject({ ok: false, status: 403 });
     if (refusal.ok) throw new Error('unreachable');
     expect(refusal.message).toContain('navigateur');
   });
 
-  it('cuts writes off at their own quota while reads keep working', async () => {
-    const token = await mintToken(adminUserId, {
-      label: 'Quota écriture',
-      writeEnabled: true,
+  // The HTTP reference is read with the same credential as the calls it
+  // describes, so it shows what that credential can do and is logged like them.
+  describe('the HTTP reference', () => {
+    async function fetchReference(secret?: string) {
+      const request = new Request('http://localhost/api/admin/openapi.json', {
+        headers: secret ? { authorization: `Bearer ${secret}` } : {},
+      });
+      const response = await serveOpenApiDocument({
+        request,
+        url: new URL(request.url),
+        locals: {} as App.Locals,
+      } as RequestEvent);
+      return {
+        status: response.status,
+        body: (await response.json()) as {
+          error?: string;
+          paths?: Record<string, Record<string, unknown>>;
+        },
+      };
+    }
+
+    it('lists only what a read-only token can call, and records the read', async () => {
+      const token = await mintToken(adminUserId, { label: 'Référence' });
+      const { status, body } = await fetchReference(token.secret);
+
+      expect(status).toBe(200);
+      const methods = Object.values(body.paths ?? {}).flatMap((item) =>
+        Object.keys(item),
+      );
+      expect(methods).toContain('get');
+      expect(methods).not.toContain('post');
+      expect(
+        await prisma.adminApi_Call.count({
+          where: {
+            tokenId: token.id,
+            operation: TRANSPORT_OPERATIONS.openapi,
+            status: 200,
+          },
+        }),
+      ).toBe(1);
     });
-    const credential = await credentialFor(token.secret);
 
-    await prisma.adminApi_Call.createMany({
-      data: Array.from({ length: WRITE_CALL_QUOTA }, () => ({
-        tokenId: token.id,
-        actorUserId: adminUserId,
-        operation: 'write_event_config',
-        status: 200,
-      })),
+    it('refuses an unknown token like any other call, and records the refusal', async () => {
+      const { status, body } = await fetchReference(`jump_unknown${stamp}`);
+
+      expect(status).toBe(401);
+      expect(body.error).toBeTruthy();
+      expect(body.paths).toBeUndefined();
+      expect(
+        await prisma.adminApi_Call.count({
+          where: { operation: TRANSPORT_OPERATIONS.openapi, status: 401 },
+        }),
+      ).toBeGreaterThan(0);
     });
-
-    const refusal = await authorizeOperation(credential, WRITE_OPERATION);
-    expect(refusal).toMatchObject({ ok: false, status: 429 });
-    if (refusal.ok) throw new Error('unreachable');
-    expect(refusal.message).toContain('modifications');
-
-    // The read quota is far higher, so the same token can still be asked
-    // questions: a spent write budget must not blind a client.
-    expect(await authorizeOperation(credential, CORE_ONLY_OPERATION)).toEqual({
-      ok: true,
-    });
-
-    await prisma.adminApi_Call.deleteMany({ where: { tokenId: token.id } });
   });
 });

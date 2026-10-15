@@ -219,6 +219,7 @@
       "prompt": "Dans tout ce que tu as touché, qu'est-ce qui t'a le plus branché ? (2 max)",
       "required": true,
       "type": "multiple",
+      "minSelections": 1,
       "maxSelections": 2,
       "options": [
         "Cybersécurité",

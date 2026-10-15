@@ -1,32 +1,44 @@
-import DOMPurify from 'isomorphic-dompurify';
+import createDOMPurify, {
+  type RemovedAttribute,
+  type RemovedElement,
+} from 'dompurify';
+import { JSDOM } from 'jsdom';
 
 /**
  * Guard rails for a certificate design authored at runtime.
  *
  * The design is stored in the database and rendered by a real Chrome inside the
  * cluster, from a pod that can reach the database and every internal service, so
- * `page.setContent` executes whatever is in it. There are three controls in front
- * of that, and this module is two of them:
+ * `page.setContent` executes whatever is in it. There are two controls in front
+ * of that, and this module is the first:
  *
- * 1. refuse, so the author is TOLD what will not work (`certificateProblems`);
- * 2. sanitise, so nothing dangerous is stored even if the refusal missed it;
- * 3. render with script execution and the network off (`infra/documentRenderer.ts`)
+ * 1. screen, so the author is TOLD what will not work and nothing dangerous is
+ *    stored (`sanitizeCertificateDesign`);
+ * 2. render with script execution and the network off (`infra/documentRenderer.ts`)
  *    - the one that actually contains the damage, and the reason a missed `url()`
  *    or a missed tag is inert.
  *
- * The first two are not one mechanism twice: a refusal is for the person writing
- * the design, the sanitiser is for the bytes we keep.
+ * **The refusal is what the sanitiser removed, never a second opinion about it.**
+ * They used to be two policies: regexes decided what to refuse and DOMPurify
+ * decided what to keep, and they disagreed. `<svg>` was refused by one and kept by
+ * the other, and the sanitiser's URI rule silently stripped `colspan`, `width` and
+ * `lang` that nothing had refused, so a design could be stored as something its
+ * author never wrote. Now the markup goes through DOMPurify once, and whatever it
+ * had to take out is the refusal. A design is therefore stored exactly as written
+ * (modulo serialisation), or not at all.
+ *
+ * The stylesheet has no parser here, so it keeps a pass of its own. There the
+ * checks ARE the policy: a stylesheet that passes them holds nothing a CSS
+ * sanitiser would have changed, so it is stored as written.
  */
 
-/** Anything that would fetch, in CSS or in an inline style attribute. */
-const REMOTE_URL = /url\(\s*['"]?(?!data:)[^)'"]/i;
+/**
+ * Anything that would fetch, in CSS or in an attribute. A `data:` URI is bytes we
+ * already hold, and `url(#id)` points inside the document: neither fetches.
+ */
+const REMOTE_URL = /url\(\s*['"]?(?!data:|#)[^)'"]/i;
 const AT_IMPORT = /@import/i;
 const CSS_EXPRESSION = /expression\s*\(/i;
-/** Tags that execute, navigate, or pull something in. */
-const ACTIVE_TAG =
-  /<\s*(script|style|iframe|object|embed|link|base|meta|form|svg|math)\b/i;
-/** `onclick=`, `onerror=`, ... on any element. */
-const EVENT_HANDLER = /<[^>]+\son[a-z]+\s*=/i;
 /**
  * Any `<` in the stylesheet. Not a tag-name list, because the stylesheet is
  * emitted inside a `<style>` element and `</style>` is the only thing needed to
@@ -36,118 +48,222 @@ const EVENT_HANDLER = /<[^>]+\son[a-z]+\s*=/i;
 const CSS_MARKUP = /</;
 
 /**
- * What is wrong with this design, in French, for the caller to act on. Empty
- * means it is safe to store.
+ * What an address-carrying attribute may hold: a `data:` URI, or anything that is
+ * not a scheme and not a protocol-relative path. This is DOMPurify's own default
+ * shape with every scheme but `data:` taken out.
  *
- * Each message names the construct and why it cannot work, because the author is
- * usually a language model relaying to a human: "refusé" with no reason produces
- * another attempt at the same thing.
+ * It must not be narrower than that, and the reason is a DOMPurify detail worth
+ * knowing: the rule is applied to the value of EVERY attribute outside a short
+ * URI-safe list, not only to `href` and `src`. The previous rule, `^data:` alone,
+ * therefore dropped `colspan="2"`, `width="50%"` and `lang="en"` as if they were
+ * links, without a word.
  */
-export function certificateProblems(design: {
-  styleCss: string;
-  bodyHtml: string;
-}): string[] {
-  const problems: string[] = [];
-  const { styleCss, bodyHtml } = design;
+const LOCAL_URI = /^(?:data:|(?![/\\])[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
 
-  if (ACTIVE_TAG.test(bodyHtml)) {
+/**
+ * The attributes a browser resolves as an address. `LOCAL_URI` cannot hold these
+ * to `data:` and `#...`, because DOMPurify applies it to ordinary values too and
+ * `logo.png` looks like `spacingAndGlyphs` to a regex. So the hook below does, by
+ * name: a relative path fetches nothing in a render with no network and no base
+ * URL, and an image that silently prints blank is the failure the refusal exists
+ * to prevent.
+ */
+const ADDRESS_ATTRIBUTES = new Set([
+  'href',
+  'xlink:href',
+  'src',
+  'srcset',
+  'poster',
+  'background',
+  'cite',
+  'longdesc',
+]);
+/** An address that stays inside the document, or none at all. */
+const IN_DOCUMENT_ADDRESS = /^(?:data:|#|$)/i;
+
+/**
+ * One DOMPurify bound to its own window, rather than the shared
+ * `isomorphic-dompurify` singleton that the CMS, the broadcast renderer and
+ * `renderMarkdown` use. A hook installed on the singleton changes sanitising for
+ * all of them, which is why this module used to add and remove its hook around
+ * each call. Owning the instance makes the hook permanent and local.
+ */
+const purifier = createDOMPurify(new JSDOM('').window);
+
+/**
+ * Drop an attribute whose value would fetch. DOMPurify keeps arbitrary style
+ * declarations - it only neutralises `javascript:` and the like - so
+ * `style="background: url(http://...)"` survives its config untouched.
+ *
+ * The whole attribute, not the offending declaration: splitting a style attribute
+ * into declarations needs a CSS parser, and splitting on `;` is not one. A data
+ * URI carries a `;` of its own (`data:image/png;base64,...`), so the obvious
+ * version corrupted exactly the thing the authoring contract tells people to use.
+ * Dropping it is also what makes it reach `removed`, and therefore the refusal.
+ *
+ * An address attribute is held to `data:` or `#...` here too, for the reason
+ * given on `ADDRESS_ATTRIBUTES`.
+ */
+purifier.addHook('uponSanitizeAttribute', (_node, data) => {
+  if (
+    REMOTE_URL.test(data.attrValue) ||
+    CSS_EXPRESSION.test(data.attrValue) ||
+    (ADDRESS_ATTRIBUTES.has(data.attrName) &&
+      !IN_DOCUMENT_ADDRESS.test(data.attrValue))
+  ) {
+    data.keepAttr = false;
+  }
+});
+
+/**
+ * HTML, and inline SVG next to it, because a certificate's ornaments are drawings
+ * and SVG is how an author draws. Without it they were built from CSS instead
+ * (clip-path polygons, tiled gradients), which costs more tokens to write and,
+ * for some of those tricks, far more to print: one of them was rasterised on
+ * every page of `halloween-camp`.
+ *
+ * Inline rather than as an image, on purpose. It reaches the document's fonts, so
+ * a seal can carry its words in Anton, and it is what a model writes without
+ * being taught anything. The cost is that a drawing is repeated with each page,
+ * which is a few hundred bytes for a real ornament, and the write reports what a
+ * page weighs if a heavy one ever lands.
+ *
+ * `use` and fragment references (`url(#id)`, `href="#id"`) stay inside the page.
+ * What SVG adds that a printed page cannot honour is taken out: `foreignObject`
+ * (HTML smuggled into the drawing, out of reach of this list) and the animation
+ * elements (a page is printed once, and `set` can rewrite an attribute).
+ */
+const BODY_CONFIG = {
+  USE_PROFILES: { html: true, svg: true, svgFilters: true },
+  ADD_TAGS: ['use'],
+  ALLOWED_URI_REGEXP: LOCAL_URI,
+  // A namespace declaration is a name, not an address, but its value starts
+  // with `http:`, so the rule above refused the `<svg>` root a model writes by
+  // habit whenever it reaches for `xlink:href`.
+  ADD_URI_SAFE_ATTR: ['xmlns:xlink'],
+  // Clobbering protection keeps a page's scripts from reading `document.title`
+  // as an element, so it refuses `id="title"`, `id="name"`, `id="images"`. This
+  // markup is printed with scripts off and never inserted into a live page, so
+  // the protection guards nothing here and refused natural ids for a reason no
+  // author could act on.
+  SANITIZE_DOM: false,
+  // Without it a leading `<script>` or `<style>` is parsed into the head, which
+  // DOMPurify discards without listing it in `removed`: the tag would vanish
+  // from the stored design and never reach the refusal.
+  FORCE_BODY: true,
+  // Several of these are outside the profiles already. They are named anyway,
+  // because this list is the statement of intent a reader looks for.
+  FORBID_TAGS: [
+    'script',
+    'style',
+    'iframe',
+    'object',
+    'embed',
+    'link',
+    'base',
+    'meta',
+    'form',
+    'foreignObject',
+    'animate',
+    'animateMotion',
+    'animateTransform',
+    'set',
+  ],
+};
+
+/**
+ * What DOMPurify reports removing that is not the author's: the marker element
+ * `FORCE_BODY` inserts and takes out again, and comments, which carry nothing a
+ * printed page shows.
+ */
+function isAuthored(entry: RemovedElement | RemovedAttribute): boolean {
+  if (!('element' in entry)) return true;
+  const name = entry.element.nodeName.toLowerCase();
+  return name !== 'remove' && name !== '#comment';
+}
+
+/** `<tag>` for a removed element, `name (sur <tag>)` for a removed attribute. */
+function describeRemoved(entries: (RemovedElement | RemovedAttribute)[]): {
+  tags: string[];
+  attributes: string[];
+} {
+  const tags = new Set<string>();
+  const attributes = new Set<string>();
+  for (const entry of entries.filter(isAuthored)) {
+    if ('element' in entry) {
+      tags.add(`<${entry.element.nodeName.toLowerCase()}>`);
+    } else if (entry.attribute) {
+      const on = entry.from.nodeName.toLowerCase();
+      attributes.add(`${entry.attribute.name} (sur <${on}>)`);
+    }
+  }
+  return { tags: [...tags], attributes: [...attributes] };
+}
+
+/**
+ * The markup as it will be stored, and what had to be taken out of it to get
+ * there. Synchronous on purpose: `removed` describes the last call only, so it is
+ * read before anything else can sanitise.
+ */
+function sanitizeBody(bodyHtml: string): { html: string; problems: string[] } {
+  const html = purifier.sanitize(bodyHtml, BODY_CONFIG);
+  const { tags, attributes } = describeRemoved(purifier.removed);
+
+  // Each message names the construct and why it cannot work, because the author
+  // is usually a language model relaying to a human: "refusé" with no reason
+  // produces another attempt at the same thing.
+  const problems: string[] = [];
+  if (tags.length > 0) {
     problems.push(
-      "Le corps du certificat ne peut pas contenir de balise script, style, iframe, object, embed, link, base, meta, form ou svg. Le CSS va dans le champ dédié (« styleCss »), qui est inséré une seule fois dans l'en-tête du document au lieu d'être répété à chaque page.",
+      `Le corps du certificat contient des balises qui ne peuvent pas y figurer : ${tags.join(', ')}. Le document est imprimé tel quel : rien n'y est exécuté, chargé, animé ni saisi, et un dessin SVG ne peut pas embarquer de HTML. Le CSS va dans le champ « styleCss », inséré une seule fois dans l'en-tête du document au lieu d'être répété à chaque page.`,
     );
   }
-  if (EVENT_HANDLER.test(bodyHtml)) {
+  if (attributes.length > 0) {
     problems.push(
-      "Le corps du certificat ne peut pas porter d'attribut d'événement (onclick, onerror, ...) : le document est imprimé, rien n'y est cliquable.",
+      `Le corps du certificat contient des attributs qui ne peuvent pas y figurer : ${attributes.join(', ')}. Un document imprimé ne réagit à aucun événement (on...), une adresse ou un url(...) ne peut désigner qu'une donnée intégrée (data:) ou un repère de la page (#...) puisque le document est rendu sans accès réseau, et seuls les attributs HTML et SVG sont reconnus.`,
     );
   }
+  return { html, problems };
+}
+
+/** The stylesheet's own checks. Empty means it is stored as written. */
+function stylesheetProblems(styleCss: string): string[] {
+  const problems: string[] = [];
   if (CSS_MARKUP.test(styleCss)) {
     problems.push(
       '« styleCss » contient le caractère « < », qui ne veut rien dire en CSS et qui fermerait la balise <style> du document : tout ce qui suit se retrouverait dans la page au lieu de la feuille de style. Pour un chevron littéral, échappez-le (\\3C). Les dimensions de la page se règlent avec pageWidthPx et pageHeightPx, jamais avec une requête de média.',
     );
   }
-  for (const [field, value] of [
-    ['styleCss', styleCss],
-    ['bodyHtml', bodyHtml],
-  ] as const) {
-    if (REMOTE_URL.test(value)) {
-      problems.push(
-        `« ${field} » référence une ressource distante avec url(...). Le document est rendu sans accès réseau : rien d'extérieur ne peut être chargé. Utilisez une image en data: URI, ou la variable --epitech-logo pour le logo.`,
-      );
-    }
-    if (AT_IMPORT.test(value)) {
-      problems.push(
-        `« ${field} » utilise @import, qui ne peut pas aboutir : le document est rendu sans accès réseau. Les polices de la charte sont déjà disponibles (Anton, IBM Plex Sans).`,
-      );
-    }
-    if (CSS_EXPRESSION.test(value)) {
-      problems.push(`« ${field} » utilise expression(), qui n'est pas permis.`);
-    }
+  if (REMOTE_URL.test(styleCss)) {
+    problems.push(
+      "« styleCss » référence une ressource distante avec url(...). Le document est rendu sans accès réseau : rien d'extérieur ne peut être chargé. Dessinez-le en SVG dans « bodyHtml », utilisez une image en data: URI, ou la variable --epitech-logo pour le logo.",
+    );
+  }
+  if (AT_IMPORT.test(styleCss)) {
+    problems.push(
+      '« styleCss » utilise @import, qui ne peut pas aboutir : le document est rendu sans accès réseau. Les polices de la charte sont déjà disponibles (Anton, IBM Plex Sans).',
+    );
+  }
+  if (CSS_EXPRESSION.test(styleCss)) {
+    problems.push("« styleCss » utilise expression(), qui n'est pas permis.");
   }
   return problems;
 }
 
 /**
- * Drop an inline `style` attribute that would fetch. DOMPurify keeps arbitrary
- * style declarations - it only neutralises `javascript:` and the like - so
- * `style="background: url(http://...)"` survives its default config untouched.
- * Same shape as the CMS hook in `server/cms/sanitize.ts`, and added and removed
- * around the one synchronous call for the same reason: DOMPurify is a shared
- * singleton, so a hook left in place would change sanitising for the CMS, the
- * broadcast renderer and `renderMarkdown`.
- *
- * The whole attribute, not the offending declaration: splitting a style attribute
- * into declarations needs a CSS parser, and splitting on `;` is not one. A data
- * URI carries a `;` of its own (`data:image/png;base64,...`), so the obvious
- * version corrupted exactly the thing the authoring contract tells people to use -
- * it rejoined the halves with a space and Chrome computed `background-image: none`.
- * Nothing is lost by dropping more: a value that reaches here at all was already
- * refused by `certificateProblems`, so this only runs when the refusal missed it.
+ * The design as it will be stored, and what is wrong with it, in French, for the
+ * caller to act on. A non-empty `problems` means nothing may be stored.
  */
-function dropFetchingInlineStyle(
-  _node: Element,
-  data: { attrName: string; attrValue: string; keepAttr: boolean },
-): void {
-  if (data.attrName !== 'style') return;
-  if (REMOTE_URL.test(data.attrValue) || CSS_EXPRESSION.test(data.attrValue)) {
-    data.keepAttr = false;
-  }
-}
-
-/**
- * The markup as it will be stored. `ALLOWED_URI_REGEXP` restricted to `data:` is
- * the single most valuable rule here: it removes every remote `href` and `src` in
- * one stroke rather than tag by tag.
- */
-export function sanitizeCertificateHtml(bodyHtml: string): string {
-  DOMPurify.addHook('uponSanitizeAttribute', dropFetchingInlineStyle);
-  try {
-    return DOMPurify.sanitize(bodyHtml, {
-      ALLOWED_URI_REGEXP: /^data:/i,
-      FORBID_TAGS: [
-        'script',
-        'style',
-        'iframe',
-        'object',
-        'embed',
-        'link',
-        'base',
-        'meta',
-        'form',
-      ],
-      ADD_ATTR: ['style'],
-    });
-  } finally {
-    DOMPurify.removeHook('uponSanitizeAttribute');
-  }
-}
-
-/** The stylesheet as it will be stored. DOMPurify does not parse CSS, so this is
- * its own pass rather than a config flag. `<` goes first: while one is left, the
- * rest of this function is guarding a string the browser may never read as CSS. */
-export function sanitizeCertificateCss(styleCss: string): string {
-  return styleCss
-    .replace(/</g, '')
-    .replace(/@import[^;]*;?/gi, '')
-    .replace(/expression\s*\([^)]*\)/gi, 'none')
-    .replace(/url\(\s*['"]?(?!data:)[^)]*\)/gi, 'none');
+export function sanitizeCertificateDesign(input: {
+  styleCss: string;
+  bodyHtml: string;
+}): {
+  design: { styleCss: string; bodyHtml: string };
+  problems: string[];
+} {
+  const body = sanitizeBody(input.bodyHtml);
+  return {
+    design: { styleCss: input.styleCss, bodyHtml: body.html },
+    problems: [...body.problems, ...stylesheetProblems(input.styleCss)],
+  };
 }

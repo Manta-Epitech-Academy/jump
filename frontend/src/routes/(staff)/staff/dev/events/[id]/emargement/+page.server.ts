@@ -90,12 +90,9 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   const cohort: Promise<EmargementCohort> = (async () => {
     const [participations, presenceRows] = await Promise.all([
       db.participation.findMany({
-        // Only visible SF statuses (READY, MEET) plus legacy null rows: the
-        // émargement roster mirrors the inscrits filter - CONNECTED/DESISTED
-        // members never appear. For a past event, a READY member with no
-        // EventPresence row reads as absent in every closed slot
-        // (effectiveStatus projects pending → absent): "said they would come,
-        // did not."
+        // The enrolments the dev space shows, the same cohort as the inscrits
+        // page. An unmarked member reads as absent in every closed slot
+        // (effectiveStatus projects pending → absent), whatever Salesforce says.
         where: { eventId: event.id, ...visibleParticipationWhere },
         select: PRESENCE_ROSTER_SELECT,
         orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
@@ -117,7 +114,6 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 
       return {
         talentId: p.talentId,
-        sfMemberStatus: p.sfMemberStatus,
         nom: t.nom,
         prenom: t.prenom,
         noteCount: t._count.notes,
@@ -145,11 +141,9 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 
     // Stage attendance rate over the whole grid: project every unmarked cell in a
     // CLOSED créneau to absent (open créneaux stay pending and are ignored).
-    // For single-slot events with no manual Jump mark, SF MEET status falls back to present.
     const storedStatus = new Map(
       presences.map((p) => [`${p.talentId}|${p.day}|${p.slot}`, p.status]),
     );
-    const isSingleDayEvent = slots.length <= 2;
     const effective: CellStatus[] = [];
     for (const s of slots) {
       const closed = closedSet.has(s.key);
@@ -158,7 +152,6 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
           effectiveStatus(
             storedStatus.get(`${r.talentId}|${s.day}|${s.slot}`) ?? 'pending',
             closed,
-            { sfMemberStatus: r.sfMemberStatus, isSingleDayEvent },
           ),
         );
       }

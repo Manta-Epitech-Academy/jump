@@ -185,7 +185,10 @@ export const edgeTalents: Scenario = {
     }
 
     // No login account at all: 70 talents are in this state, and every screen
-    // that offers impersonation has to say so instead of offering it.
+    // that offers impersonation has to say so instead of offering it. The sync
+    // mints a login from the address Salesforce holds, so this one is a contact
+    // it holds none for, the case that leaves no sync error behind, and
+    // `addTalent` leaves its mirror without one.
     const accountless = spawn('Sanscompte', '2nde', { withAccount: false });
     world.enrol(event, accountless);
     world.addSchoolingRecord(accountless, schoolYear, null);
@@ -205,6 +208,20 @@ export const edgeTalents: Scenario = {
 
     // What Jump believes against what Salesforce claims, after the talent
     // confirmed. This is the only way /staff/admin/sf-conflicts has a row.
+    //
+    // Salesforce does not always say as much as Jump does, and that is what the
+    // second and the fourth are for: a contact with no number is a « manquant »
+    // line rather than a divergence, and a civility is a claim Salesforce only
+    // sometimes holds. The third has Salesforce disagreeing about it, the
+    // fourth agreeing, so a civility on the mirror is not read as a conflict
+    // by default. Names are never missing: the sync refuses a contact without
+    // them.
+    const CIVILITE_CLAIMS = [
+      null,
+      null,
+      { jump: 'femme', salesforce: 'homme' },
+      { jump: 'homme', salesforce: 'homme' },
+    ] as const;
     for (let i = 0; i < 4; i += 1) {
       const divergent = world.addTalent({
         prenom: PRENOMS[i % PRENOMS.length]!,
@@ -214,7 +231,7 @@ export const edgeTalents: Scenario = {
         index: world.nextTalentIndex(),
         sfClaims: {
           nom: `Divergence${i}Ancien`,
-          phone: '+33611111111',
+          phone: i === 1 ? null : '+33611111111',
         },
       });
       world.enrol(event, divergent);
@@ -225,10 +242,12 @@ export const edgeTalents: Scenario = {
         stopAt: null,
         imageRights: 'accepted',
       });
+      const civilite = CIVILITE_CLAIMS[i];
+      if (civilite) world.placeCivilite(divergent, civilite);
     }
 
-    // A talent who never came from Salesforce, and a talent Jump holds no phone
-    // number for. Both columns are nullable and neither had a null row, so the
+    // A talent who never came from Salesforce, so with no mirror either, and a
+    // talent Jump holds no phone number for. Both columns are nullable and neither had a null row, so the
     // « fiche créée dans Jump » badge and every « pas de téléphone » fallback
     // were unreachable - and the second is what the SMS relance skips on.
     const native = spawn('Sanscrm', '1ere', { externalId: null, phone: null });
@@ -253,16 +272,16 @@ export const edgeTalents: Scenario = {
       sourceId: unplaced.id,
       amount: 20,
     });
-    const anyPublication = world.buffer.minigamePublication[0]?.id as
-      string | undefined;
+    // A run by a talent with no campus at all, so `MinigameAttempt.campusId`
+    // has a null row: the column snapshots where the run happened, and nowhere
+    // is somewhere it can have happened.
+    const anyPublication = world.minigamePublications[0];
     if (anyPublication) {
       addMinigameAttempt(world, {
         talent: unplaced,
-        publicationId: anyPublication,
+        publication: anyPublication,
         status: 'done',
-        scored: true,
         xpSeen: true,
-        index: 500,
       });
     }
 

@@ -39,9 +39,9 @@ declare global {
        */
       stagePhaseOverride: EventLifecycleStatus | null;
       /**
-       * Dev-tooling preview of the talent dashboard "Planning à venir" widget.
+       * Dev-tooling preview of the talent home's session card.
        * Only set when an admin is impersonating a talent. Lets staff cycle the
-       * widget through its states (event en cours / prochaine session / rien)
+       * card through its states (event en cours / prochaine session / rien)
        * without seeding events. See {@link readPlanningPreview}.
        */
       planningPreview: PlanningPreview | null;

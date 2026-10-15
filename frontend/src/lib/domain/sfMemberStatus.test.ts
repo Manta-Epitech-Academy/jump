@@ -1,83 +1,58 @@
 import { describe, it, expect } from 'vitest';
 import {
-  SF_VISIBLE_STATUSES,
-  SF_HIDDEN_STATUSES,
-  SF_MEMBER_STATUSES,
-  isVisibleInDevSpace,
-  pastEventPresence,
+  classifySfStatus,
+  isShownInDevSpace,
   normalizeSfStatus,
-  presenceLabel,
 } from './sfMemberStatus';
 
+/** The vocabulary the migration ships, and a stage that shows two of it. */
+const known = new Set(['READY', 'MET', 'CONNECTED', 'DESISTED']);
+const stage = new Set(['READY', 'MET']);
+const codingClub = new Set(['READY', 'MET', 'CONNECTED']);
+
 describe('sfMemberStatus domain logic', () => {
-  describe('the status catalogue', () => {
-    it('is the visible and the hidden halves, with nothing in common', () => {
-      expect(SF_MEMBER_STATUSES).toEqual([
-        ...SF_VISIBLE_STATUSES,
-        ...SF_HIDDEN_STATUSES,
-      ]);
-      const overlap = SF_VISIBLE_STATUSES.filter((status) =>
-        (SF_HIDDEN_STATUSES as readonly string[]).includes(status),
+  describe('isShownInDevSpace', () => {
+    it('shows a word the event shows, whatever its case', () => {
+      expect(isShownInDevSpace('MET', stage)).toBe(true);
+      expect(isShownInDevSpace('ready  ', stage)).toBe(true);
+    });
+
+    it('follows the event, not a platform-wide rule', () => {
+      expect(isShownInDevSpace('CONNECTED', stage)).toBe(false);
+      expect(isShownInDevSpace('CONNECTED', codingClub)).toBe(true);
+    });
+
+    // A row synced before the column existed: no event can name the absence of
+    // a word, so it is shown everywhere, even on an event that shows nothing.
+    it('always shows a row without a status', () => {
+      expect(isShownInDevSpace(null, new Set())).toBe(true);
+      expect(isShownInDevSpace('  ', new Set())).toBe(true);
+    });
+  });
+
+  describe('classifySfStatus', () => {
+    it('tells a word the event shows from one it masks', () => {
+      expect(classifySfStatus('Met', { known, shown: stage })).toBe('shown');
+      expect(classifySfStatus('CONNECTED', { known, shown: stage })).toBe(
+        'hidden',
       );
-      expect(overlap).toEqual([]);
+      expect(classifySfStatus('CONNECTED', { known, shown: codingClub })).toBe(
+        'shown',
+      );
     });
 
-    it('agrees with isVisibleInDevSpace on every value it declares', () => {
-      for (const status of SF_VISIBLE_STATUSES) {
-        expect(isVisibleInDevSpace(status)).toBe(true);
-      }
-      for (const status of SF_HIDDEN_STATUSES) {
-        expect(isVisibleInDevSpace(status)).toBe(false);
-      }
+    // Regression for #368: the seminar's `MEET` is not a status Salesforce
+    // sends, and a word missing from the catalogue must read as unknown rather
+    // than as one somebody chose to hide.
+    it('keeps a word the catalogue lacks apart from a hidden one', () => {
+      expect(classifySfStatus('MEET', { known, shown: stage })).toBe(
+        'unrecognised',
+      );
     });
 
-    it('stays open: a word it does not declare is still stored as it arrives', () => {
-      expect(normalizeSfStatus(' rescheduled ')).toBe('RESCHEDULED');
-      expect(isVisibleInDevSpace('RESCHEDULED')).toBe(false);
-    });
-  });
-
-  describe('isVisibleInDevSpace', () => {
-    it('returns true for null (legacy participations)', () => {
-      expect(isVisibleInDevSpace(null)).toBe(true);
-    });
-
-    it('returns true for READY and MEET (case-insensitive)', () => {
-      expect(isVisibleInDevSpace('READY')).toBe(true);
-      expect(isVisibleInDevSpace('ready')).toBe(true);
-      expect(isVisibleInDevSpace('Ready  ')).toBe(true);
-      expect(isVisibleInDevSpace('MEET')).toBe(true);
-      expect(isVisibleInDevSpace('meet')).toBe(true);
-    });
-
-    it('returns false for CONNECTED, DESISTED, and unknown statuses', () => {
-      expect(isVisibleInDevSpace('CONNECTED')).toBe(false);
-      expect(isVisibleInDevSpace('connected')).toBe(false);
-      expect(isVisibleInDevSpace('DESISTED')).toBe(false);
-      expect(isVisibleInDevSpace('desisted')).toBe(false);
-      expect(isVisibleInDevSpace('NO_SHOW')).toBe(false);
-    });
-  });
-
-  describe('pastEventPresence', () => {
-    it('returns null for null status', () => {
-      expect(pastEventPresence(null)).toBe(null);
-    });
-
-    it('maps MEET to present', () => {
-      expect(pastEventPresence('MEET')).toBe('present');
-      expect(pastEventPresence('meet')).toBe('present');
-      expect(pastEventPresence('Meet  ')).toBe('present');
-    });
-
-    it('maps READY to absent', () => {
-      expect(pastEventPresence('READY')).toBe('absent');
-      expect(pastEventPresence('ready')).toBe('absent');
-    });
-
-    it('returns null for other statuses', () => {
-      expect(pastEventPresence('CONNECTED')).toBe(null);
-      expect(pastEventPresence('DESISTED')).toBe(null);
+    it('treats an empty status as missing', () => {
+      expect(classifySfStatus(null, { known, shown: stage })).toBe('missing');
+      expect(classifySfStatus('  ', { known, shown: stage })).toBe('missing');
     });
   });
 
@@ -86,20 +61,12 @@ describe('sfMemberStatus domain logic', () => {
       expect(normalizeSfStatus(null)).toBe(null);
       expect(normalizeSfStatus(undefined)).toBe(null);
       expect(normalizeSfStatus('')).toBe(null);
-      expect(normalizeSfStatus('')).toBe(null);
     });
 
     it('trims and uppercases valid status strings', () => {
       expect(normalizeSfStatus('ready')).toBe('READY');
-      expect(normalizeSfStatus('meet  ')).toBe('MEET');
+      expect(normalizeSfStatus('met  ')).toBe('MET');
       expect(normalizeSfStatus('Connected')).toBe('CONNECTED');
-    });
-  });
-
-  describe('presenceLabel', () => {
-    it('returns French labels', () => {
-      expect(presenceLabel('present')).toBe('Présent');
-      expect(presenceLabel('absent')).toBe('Absent');
     });
   });
 });

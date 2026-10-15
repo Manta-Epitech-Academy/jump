@@ -9,6 +9,7 @@ import type {
   InputKind,
   IdentityField,
 } from '$lib/domain/feedbackForms/schema';
+import { publicMissingEmail } from '$lib/domain/feedbackForms/authoring';
 import type {
   EditorOption,
   EditorQuestion,
@@ -205,10 +206,7 @@ export class FormEditor {
    * (`feedbackSubmissions` throws 400 without `respondentEmail`).
    */
   get publicMissingEmail(): boolean {
-    return (
-      this.allowsPublicAccess &&
-      !this.questions.some((q) => q.identityField === 'email')
-    );
+    return publicMissingEmail(this);
   }
 
   /** Published form nobody can reach: live, but no access mode is enabled. */

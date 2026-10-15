@@ -8,12 +8,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { adminEventSchema } from '$lib/validation/events';
+import { httpOperations } from './httpCatalogue';
 import {
   ADMIN_API_OPERATIONS,
-  ADMIN_API_WRITE_NAMES,
   ADMIN_API_OPERATION_NAMES,
   operationsForTier,
   isOperationAllowedForTier,
@@ -96,14 +94,6 @@ describe('the operation catalogue', () => {
     }
   });
 
-  it('lists exactly the writes under the name the write quota counts', () => {
-    const writes = entries
-      .filter(([, operation]) => operation.kind === 'write')
-      .map(([name]) => name);
-    expect([...ADMIN_API_WRITE_NAMES].sort()).toEqual(writes.sort());
-    expect(writes.length).toBeGreaterThan(0);
-  });
-
   // A shape check accepts 30 February, and the built-in date parser rolls it
   // over to March, which would save a day nobody asked for. The regression the
   // caller has to see is a refusal naming the problem.
@@ -119,6 +109,22 @@ describe('the operation catalogue', () => {
     expect(
       config.safeParse({ eventId: 'e', endDate: '2026-06-30' }).success,
     ).toBe(true);
+  });
+
+  // Unset has one spelling on the admin API, the one the event read returns
+  // (#402): null clears a field, and an empty string is refused rather than
+  // accepted as a second way of saying it.
+  it('clears a field Jump owns on null, and on null only', () => {
+    const config = ADMIN_API_OPERATIONS.write_event_config.schema;
+
+    for (const field of ['publicName', 'cohortNoun', 'startTime', 'endDate']) {
+      expect(config.safeParse({ eventId: 'e', [field]: null }).success).toBe(
+        true,
+      );
+      expect(config.safeParse({ eventId: 'e', [field]: '' }).success).toBe(
+        false,
+      );
+    }
   });
 
   it('lets a core token reach everything, by construction', () => {
@@ -138,13 +144,13 @@ describe('what a credential is offered as tools', () => {
     const offered = names({ tier: 'core', writeEnabled: false });
     expect(offered.some((n) => n.startsWith('write_'))).toBe(false);
     expect(offered.some((n) => n.startsWith('bulk_'))).toBe(false);
-    expect(offered).toContain('stats_events_overview');
+    expect(offered).toContain('config_campus_overview');
   });
 
   it('shows a write-enabled core token the writes as well', () => {
     const offered = names({ tier: 'core', writeEnabled: true });
     expect(offered).toContain('write_event_config');
-    expect(offered).toContain('bulk_event_modules');
+    expect(offered).toContain('bulk_event_config');
   });
 
   // Belt and braces with the catalogue rule: even a leadership token that
@@ -170,8 +176,8 @@ describe('what a credential is offered as tools', () => {
  * `operation.param`. Explicit and exhaustive, with a throwing default, for the
  * same reason `requiredArgsFor` is: a new config field then fails this test until
  * somebody decides how the API exposes it, instead of quietly having no API at
- * all. Three params are deliberately named differently from the form field, which
- * is why this cannot be a key intersection.
+ * all. One param is deliberately named differently from the form field
+ * (`devActivated` is `visible`), which is why this cannot be a key intersection.
  */
 const EVENT_FIELD_WRITES: Record<string, string> = {
   id: 'write_event_config.eventId',
@@ -180,33 +186,13 @@ const EVENT_FIELD_WRITES: Record<string, string> = {
   startTime: 'write_event_config.startTime',
   endDate: 'write_event_config.endDate',
   modules: 'write_event_config.modules',
-  moduleSettings: 'write_event_inscrits_options.showStatutColumn',
-  devActivated: 'write_event_activation.visible',
-  feedbackFormId: 'write_event_feedback_form.formId',
-  diplomaTemplateId: 'write_event_diploma_template.templateId',
-  closingTemplateId: 'write_event_closing_template.closingTemplateId',
+  moduleSettings: 'write_event_config.moduleSettings',
+  devActivated: 'write_event_config.visible',
+  feedbackFormId: 'write_event_config.feedbackFormId',
+  diplomaTemplateId: 'write_event_config.diplomaTemplateId',
+  closingTemplateId: 'write_event_config.closingTemplateId',
+  shownStatuses: 'write_event_config.shownStatuses',
 };
-
-/** Every operation name a `+server.ts` under /api/admin actually mounts. */
-function mountedOperationNames(): string[] {
-  const root = join(process.cwd(), 'src/routes/api/admin');
-  const found: string[] = [];
-  const walk = (dir: string) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name);
-      if (entry.isDirectory()) walk(path);
-      else if (entry.name === '+server.ts') {
-        for (const [, name] of readFileSync(path, 'utf8').matchAll(
-          /adminApi(?:Read|Write|Image)\(\s*'([^']+)'/g,
-        )) {
-          found.push(name);
-        }
-      }
-    }
-  };
-  walk(root);
-  return found;
-}
 
 describe('the API is the floor under the UI', () => {
   // Event configuration is fully MCP-driven, so a field an admin can change in
@@ -238,8 +224,10 @@ describe('the API is the floor under the UI', () => {
   // MCP registers tools straight from the catalogue, but HTTP needs a route file,
   // and nothing else checks for one: an entry with no `+server.ts` is a tool over
   // MCP and a 404 over HTTP, with no failing test to say so.
-  it('mounts every catalogue operation on an HTTP route, exactly once', () => {
-    const mounted = mountedOperationNames();
+  // Read off the same mapping the HTTP reference is generated from, so a route
+  // this finds is a route that reference documents.
+  it('mounts every catalogue operation on an HTTP route, exactly once', async () => {
+    const mounted = (await httpOperations()).map((route) => route.name);
     expect(mounted.length).toBeGreaterThan(0);
     expect([...mounted].sort()).toEqual([...ADMIN_API_OPERATION_NAMES].sort());
   });

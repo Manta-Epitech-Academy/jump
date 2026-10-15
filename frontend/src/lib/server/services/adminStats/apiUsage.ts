@@ -13,6 +13,7 @@
 
 import { prisma } from '$lib/server/db';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
+import { TRANSPORT_OPERATIONS } from '$lib/server/adminApi/audit';
 
 /** How far back the log can be read in one call. */
 export const API_USAGE_MAX_DAYS = 180;
@@ -20,12 +21,15 @@ export const API_USAGE_DEFAULT_DAYS = 30;
 /** Operations listed in the refusal ranking. */
 export const REFUSAL_TOP_N = 10;
 /**
- * The name the MCP endpoint logs a rejected request under, before any tool is
- * named. Not an operation, so it is kept out of both friction lists: at the top
- * of a refusal ranking it reads as a broken tool when it is in fact
+ * The names a transport logs a call under when no operation is its subject (the
+ * MCP endpoint refusing a request before any tool is named, the HTTP reference
+ * being read). Not operations, so they are kept out of both friction lists: at
+ * the top of a refusal ranking one reads as a broken tool when it is in fact
  * unauthenticated traffic, which is what the edge rate limit is for.
  */
-const ENVELOPE_OPERATION = 'mcp_request';
+const TRANSPORT_NAMES: ReadonlySet<string> = new Set(
+  Object.values(TRANSPORT_OPERATIONS),
+);
 
 export type OperationUsage = {
   operation: string;
@@ -118,7 +122,7 @@ export async function getApiUsage(
   let failed = 0;
 
   for (const row of rows) {
-    // 2xx succeeded, 4xx was refused (bad scope, bad params, no right, quota),
+    // 2xx succeeded, 4xx was refused (bad scope, bad params, no right),
     // 5xx is ours to fix. Told apart because they mean three different things
     // to whoever reads this: usage, friction, and a bug.
     if (row.status < 400) ok++;
@@ -165,19 +169,24 @@ export async function getApiUsage(
     refusedShare: share(row.refused, row.calls),
   }));
 
-  // An operation name that is not in the catalogue was invented by a caller. The
-  // envelope audit records those, so they are the questions somebody tried to ask
-  // and could not. `mcp_request` is not one of them: it is the name the endpoint
-  // logs an authentication failure under, before any tool is named.
+  // An operation name that is not in the catalogue, refused, was invented by a
+  // caller. The envelope audit records those, so they are the questions somebody
+  // tried to ask and could not. Only the 404s count, which the envelope alone
+  // writes and only for a name the catalogue does not hold: a retired operation
+  // keeps its history in the log for the whole retention, its successes and its
+  // refused filters alike, and neither was anybody's invention. A transport name
+  // is not one either: it is what a call is logged under when no tool is named.
   const catalogued = operations.filter(
-    (row) => known.has(row.operation) || row.operation === ENVELOPE_OPERATION,
+    (row) => known.has(row.operation) || TRANSPORT_NAMES.has(row.operation),
   );
-  const invented = operations
-    .filter(
-      (row) =>
-        !known.has(row.operation) && row.operation !== ENVELOPE_OPERATION,
-    )
-    .map((row) => ({ name: row.operation, attempts: row.calls }))
+  const attempts = new Map<string, number>();
+  for (const row of rows) {
+    if (row.status !== 404 || known.has(row.operation)) continue;
+    if (TRANSPORT_NAMES.has(row.operation)) continue;
+    attempts.set(row.operation, (attempts.get(row.operation) ?? 0) + 1);
+  }
+  const invented = [...attempts.entries()]
+    .map(([name, count]) => ({ name, attempts: count }))
     .sort((a, b) => b.attempts - a.attempts || a.name.localeCompare(b.name));
 
   return {
@@ -189,7 +198,7 @@ export async function getApiUsage(
     okCalls: metric(ok, 'Appels ayant abouti à une réponse.'),
     refusedCalls: metric(
       refused,
-      "Appels refusés : périmètre inconnu, paramètre non reconnu, droit manquant ou quota atteint. Un chiffre élevé signale une difficulté d'usage, pas une panne.",
+      "Appels refusés : périmètre inconnu, paramètre non reconnu ou droit manquant. Un chiffre élevé signale une difficulté d'usage, pas une panne.",
     ),
     failedCalls: metric(
       failed,
@@ -219,9 +228,7 @@ export async function getApiUsage(
     ),
     mostRefused: metric(
       catalogued
-        .filter(
-          (row) => row.refused > 0 && row.operation !== ENVELOPE_OPERATION,
-        )
+        .filter((row) => row.refused > 0 && !TRANSPORT_NAMES.has(row.operation))
         .sort(
           (a, b) =>
             (b.refusedShare ?? 0) - (a.refusedShare ?? 0) ||

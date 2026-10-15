@@ -1,5 +1,10 @@
 <script lang="ts">
   import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
+  import {
     RECIPIENT_ROLE_LABELS,
     RECIPIENT_EXCLUSION_REASON_LABELS,
     type IncludedRecipient,
@@ -41,12 +46,13 @@
   let showExcluded = $state(false);
 
   const filtered = $derived.by(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return included;
+    const tokens = searchTokens(q);
+    if (!tokens.length) return included;
     return included.filter((r) =>
-      `${r.prenom} ${r.nom} ${r.email ?? ''} ${r.phone ?? ''}`
-        .toLowerCase()
-        .includes(needle),
+      matchesAllTokens(
+        buildHaystack([r.prenom, r.nom, r.email, r.phone]),
+        tokens,
+      ),
     );
   });
 

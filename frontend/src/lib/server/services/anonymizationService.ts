@@ -21,6 +21,13 @@ import {
  * (participation, EventPresence, minigame attempts, the xp ledger) so `xp`, `eventsCount` and
  * aggregate stats survive the erasure.
  *
+ * The talent's accounts on the CTFd activity instances are not reached from
+ * here: each instance asks Jump which of its accounts belong to an erased talent
+ * (`/api/workshops/erasures`, answered from `Talent.anonymizedAt`, which this
+ * function stamps) and deletes them itself. A pull rather than a call from this
+ * transaction, so an instance that is down when the erasure runs still deletes
+ * the account the next time it asks.
+ *
  * Parents are data subjects too: their identity lives both as columns on the
  * Talent (both guardian slots, plus the guardian's typed signer name on the
  * image-rights decision and on the règlement co-signature) and as a
@@ -54,6 +61,7 @@ export async function anonymizeTalent(
     where: { id: talentId },
     select: {
       userId: true,
+      anonymizedAt: true,
       user: { select: { email: true } },
       parentEmail: true,
       parent2Email: true,
@@ -110,6 +118,10 @@ export async function anonymizeTalent(
     where: { id: talentId },
     data: {
       ...clearOnboardingTimestamps(),
+      // The fact that the erasure happened, kept from the first run so a re-run
+      // does not move it. Everything that needs to know "is this talent erased"
+      // reads this, never the placeholder name below.
+      anonymizedAt: talent.anonymizedAt ?? new Date(),
       nom: 'Anonymisé',
       prenom: 'Anonymisé',
       externalId: null,
@@ -347,10 +359,7 @@ export const AnonymizationService = {
           },
         ],
         // Don't anonymize already anonymized profiles
-        NOT: {
-          nom: 'Anonymisé',
-          prenom: 'Anonymisé',
-        },
+        anonymizedAt: null,
       },
       select: { id: true },
     });

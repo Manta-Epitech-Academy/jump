@@ -10,7 +10,6 @@ import Megaphone from '@lucide/svelte/icons/megaphone';
 import Send from '@lucide/svelte/icons/send';
 import Mails from '@lucide/svelte/icons/mails';
 import MailCog from '@lucide/svelte/icons/mail-warning';
-import DoorOpen from '@lucide/svelte/icons/door-open';
 import Map from '@lucide/svelte/icons/map';
 import CalendarCog from '@lucide/svelte/icons/calendar-cog';
 import Signature from '@lucide/svelte/icons/signature';
@@ -21,6 +20,7 @@ import UserX from '@lucide/svelte/icons/user-x';
 import Heart from '@lucide/svelte/icons/heart';
 import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
 import ListChecks from '@lucide/svelte/icons/list-checks';
+import KeyRound from '@lucide/svelte/icons/key-round';
 
 // Single source of truth for admin-space navigation. Both surfaces read this:
 //  - the sidebar (`(staff)/staff/admin/+layout.svelte`) renders the sections
@@ -96,6 +96,26 @@ export const ADMIN_NAV: AdminNavSection[] = [
         keywords: ['pdf', 'closing', 'entretien', 'synthese', 'export'],
       },
       {
+        label: 'Accès API',
+        href: resolve('/staff/admin/api-tokens'),
+        icon: KeyRound,
+        // 'mcp' and 'claude' are what somebody types when what they actually
+        // want is the command to connect their client, which this page carries,
+        // and the documentation words lead to the reference it links to.
+        keywords: [
+          'token',
+          'api',
+          'mcp',
+          'claude',
+          'cle',
+          'clé',
+          'documentation',
+          'reference',
+          'référence',
+          'openapi',
+        ],
+      },
+      {
         label: '[DEV] S3 Test',
         href: resolve('/staff/admin/files'),
         icon: FolderOpen,
@@ -130,12 +150,6 @@ export const ADMIN_NAV: AdminNavSection[] = [
         href: resolve('/staff/admin/email-actions'),
         icon: MailCog,
         keywords: ['email', 'action', 'mapping'],
-      },
-      {
-        label: "Pages d'accueil",
-        href: resolve('/staff/admin/welcome-pages'),
-        icon: DoorOpen,
-        keywords: ['welcome', 'cms'],
       },
     ],
   },

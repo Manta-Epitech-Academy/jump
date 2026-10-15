@@ -552,9 +552,12 @@
   @apply font-sans text-xs font-semibold tracking-normal text-muted-foreground normal-case uppercase;
 }
 
-/* Links: Epitech blue, underline on hover like Notion */
+/* Links: Epitech blue, underline on hover like Notion. `primary` and not
+   `epi-blue`: the brand blue is 2.6:1 on a dark card, and `primary` lifts to
+   `darkPrimary` there (DESIGN.md), so a link in a campus message stays
+   readable in both themes. */
 .prose a {
-  @apply font-medium text-epi-blue underline decoration-epi-blue/30 underline-offset-2 transition-colors hover:decoration-epi-blue;
+  @apply font-medium text-primary underline decoration-primary/30 underline-offset-2 transition-colors hover:decoration-primary;
 }
 
 /* Blockquotes: Notion-style left border, tight to text */

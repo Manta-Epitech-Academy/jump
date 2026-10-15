@@ -16,6 +16,16 @@ import {
   XP_REWARDS,
 } from '../catalog/platform';
 import {
+  TALENT_HOME_HIGHLIGHTS,
+  TALENT_HOME_NOTES,
+  TALENT_HOME_NOTE_IMAGES,
+} from '../catalog/talentHome';
+import {
+  highlightImageKey,
+  noteImageKey,
+} from '../../../src/lib/domain/talentHome';
+import { stillKeyOf } from '../../../src/lib/domain/pictures';
+import {
   BROADCAST_TEMPLATE_DEFAULTS,
   EMAIL_TEMPLATE_DEFAULTS,
 } from '../catalog/interestsAndTemplates';
@@ -24,11 +34,13 @@ import {
   RETIRED_QUESTION,
   STAGE_TEMPLATE_KEY,
 } from '../catalog/closings';
-import { FEEDBACK_FORM_SLUGS } from '../catalog/feedbackForms';
+import { STAGE_FORM_SLUG } from '../catalog/feedbackForms';
+import { CLUB_CERTIFICATE } from '../catalog/diplomas';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { addMinigamePublications, addXpRewards } from '../factories/engagement';
 import { addAdminApiTokens, addInvitations } from '../factories/operations';
 import { id, seq } from '../ids';
+import { DEFAULT_SHOWN_STATUSES, SF_STATUSES } from '../world';
 import type { Scenario } from './types';
 
 export const platform: Scenario = {
@@ -121,6 +133,69 @@ export const platform: Scenario = {
       }
     }
 
+    // What the first campuses put on their talents' home (see the catalogue).
+    // Who to sign in as to see it is placed later, once the events exist
+    // (`campusHome`), and reported there.
+    for (const campus of campuses) {
+      const note = TALENT_HOME_NOTES[campus.name];
+      if (note) {
+        world.buffer.talentHome_Note.push({
+          campusId: campus.id,
+          markdown: note,
+          updatedAt: clock.today,
+        });
+        (TALENT_HOME_NOTE_IMAGES[campus.name] ?? []).forEach((image, index) => {
+          const key = noteImageKey(
+            campus.id,
+            '0000seed',
+            index,
+            image.animated ? 'gif' : 'webp',
+          );
+          world.buffer.talentHome_NoteImage.push({
+            campusId: campus.id,
+            sourceUrl: image.sourceUrl,
+            key,
+            stillKey: image.animated ? stillKeyOf(key) : null,
+            contentType: image.animated ? 'image/gif' : 'image/webp',
+            width: image.width,
+            height: image.height,
+          });
+        });
+      }
+      const highlight = TALENT_HOME_HIGHLIGHTS[campus.name];
+      if (highlight)
+        world.buffer.talentHome_Highlight.push({
+          campusId: campus.id,
+          title: highlight.title,
+          summary: highlight.summary,
+          date:
+            highlight.dayOffset === null
+              ? null
+              : new Date(
+                  `${clock.dateKey(clock.days(highlight.dayOffset))}T00:00:00.000Z`,
+                ),
+          url: highlight.url,
+          updatedAt: clock.today,
+        });
+      if (highlight?.image) {
+        const { animated, width, height } = highlight.image;
+        const key = highlightImageKey(
+          campus.id,
+          '0000seed',
+          animated ? 'gif' : 'webp',
+        );
+        world.buffer.talentHome_HighlightImage.push({
+          campusId: campus.id,
+          sourceUrl: `https://assets.seed.invalid/talent-home/${campus.name.toLowerCase()}.${animated ? 'gif' : 'png'}`,
+          key,
+          stillKey: animated ? stillKeyOf(key) : null,
+          contentType: animated ? 'image/gif' : 'image/webp',
+          width,
+          height,
+        });
+      }
+    }
+
     // One signature that belongs to no campus: the national one, used where a
     // document is issued by the school rather than by a site. `campusId` is
     // nullable for exactly that, and a dataset attaching every signature to a
@@ -200,6 +275,21 @@ export const platform: Scenario = {
       optionIds: retiredOptionIds,
     });
 
+    // The one certificate that draws. The Coding Club scenario issues it from
+    // every session, so its export is one click away. Stored as authored, not
+    // through the sanitiser: sanitising first would strip whatever the API
+    // refuses, and `assert/designs.ts`, re-screening the stored bytes, would then
+    // find nothing to report.
+    world.buffer.diploma_Template.push({
+      id: id('dpl', CLUB_CERTIFICATE.code),
+      code: CLUB_CERTIFICATE.code,
+      label: CLUB_CERTIFICATE.label,
+      styleCss: CLUB_CERTIFICATE.styleCss,
+      bodyHtml: CLUB_CERTIFICATE.bodyHtml,
+      pageWidthPx: 1123,
+      pageHeightPx: 794,
+    });
+
     // The presets the config wizard applies. A preset is a point-in-time copy:
     // applying one writes modules onto the event and leaves no live link.
     //
@@ -207,8 +297,7 @@ export const platform: Scenario = {
     // « closings et diplôme » and hands the applied event a null certificate is
     // the exact failure `EventConfig_Template.diplomaTemplateId` was added to
     // prevent, and it left the wizard's own apply path with no example.
-    const stageFormId =
-      world.feedbackForms.get(FEEDBACK_FORM_SLUGS[0] ?? '')?.id ?? null;
+    const stageFormId = world.feedbackForms.get(STAGE_FORM_SLUG)?.id ?? null;
     for (const preset of EVENT_TEMPLATES) {
       const templateId = id('ect', preset.name);
       // The bare preset is the one worth holding: a preset is allowed to carry
@@ -252,6 +341,20 @@ export const platform: Scenario = {
             preset.name === 'Stage de seconde'
               ? { showStatutColumn: true }
               : undefined,
+        });
+      }
+      // The Salesforce statuses the preset shows, copied onto an event with the
+      // rest. The Coding Club one also shows CONNECTED, because that is the
+      // format whose members Salesforce leaves at CONNECTED and the team still
+      // wants to see; the stage does not.
+      const shown =
+        preset.name === 'Coding Club'
+          ? [...DEFAULT_SHOWN_STATUSES, SF_STATUSES.connected]
+          : DEFAULT_SHOWN_STATUSES;
+      for (const status of shown) {
+        world.buffer.eventConfig_TemplateShownStatus.push({
+          templateId,
+          status,
         });
       }
     }
@@ -298,7 +401,7 @@ export const platform: Scenario = {
       });
     }
 
-    addMinigamePublications(world, admin);
+    world.minigamePublications.push(...addMinigamePublications(world, admin));
     addXpRewards(world, campuses[0]?.id ?? null);
     addAdminApiTokens(world, admin);
     if (campuses[0]) addInvitations(world, campuses[0], admin);

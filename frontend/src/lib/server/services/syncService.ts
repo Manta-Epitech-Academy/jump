@@ -1,3 +1,13 @@
+/**
+ * What the Salesforce worker pushes: events (campus per row, never deleted),
+ * talent identities (seeds `Talent`, upserts the `TalentSfImport` mirror,
+ * no-clobber), and enrolments, whose prune runs on a `full` pass only and only
+ * from a complete roster (anything else is held on `Sync_PruneHold`, never
+ * refused).
+ *
+ * The rules behind each of those, and the incidents that set them, are in
+ * `.claude/rules/salesforce.md`.
+ */
 import { prisma } from '$lib/server/db';
 import { Prisma } from '@prisma/client';
 import { defaultEventModules } from '$lib/domain/eventModules';
@@ -10,10 +20,22 @@ import {
   changeUserEmail,
   EmailChangeConflict,
 } from '$lib/server/services/userEmail';
-import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
+import {
+  isShownInDevSpace,
+  normalizeSfStatus,
+} from '$lib/domain/sfMemberStatus';
+import {
+  defaultShownStatuses,
+  recomputeShownInDevSpace,
+  shownStatusesByEvent,
+} from '$lib/server/services/devSpaceVisibility';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
-import type { WorkerTalent } from '$lib/validation/workerSync';
+import type {
+  WorkerEvent,
+  WorkerSyncMode,
+  WorkerTalent,
+} from '$lib/validation/workerSync';
 
 // Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
 // the rest of the app uses. SF has no equivalent for 'autre', so it stays null.
@@ -45,86 +67,100 @@ async function resolveSchools(
 }
 
 /**
- * The campuses the worker is asked to sync, which is to say: the ones Jump has
- * mapped to Salesforce.
+ * Upsert the events of a whole run, campus by campus.
  *
- * The `externalName` filter is what makes a generated database inert. The scope
- * of a sync is data in THIS database, not configuration on the worker's side, so
- * that is where the isolation belongs: `scripts/seed/` writes no `externalName`
- * at all, so a seeded environment answers an empty list and the worker has
- * nothing to do. A flag on the worker would be re-enabled by whoever forgets;
- * this cannot be, because there is no campus to resolve. Turning the sync back
- * on for one campus is then an explicit act on /staff/admin/campuses, where the
- * field already exists and an empty box already means null.
+ * One call for the entire whitelist, with the campus travelling per event
+ * rather than in the path: the worker resolves a parent campaign into children
+ * that may sit on different campuses, so a per-campus route made it group a
+ * list it had no reason to group.
  *
- * Nothing changes in production, where every campus carries its external name.
+ * An event whose campus does not resolve is SKIPPED and counted, never a
+ * refusal for the batch. This used to return on the first bad row, which left
+ * every event before it applied and every event after it not, with one error
+ * string to explain the state. A campus nobody has armed in Jump is an ordinary
+ * configuration gap and must not cost the other 250 events their sync, so the
+ * names that did not resolve come back instead, for the run report to carry.
  *
- * Known wart, deliberately left alone: this hands out `name` while `syncEvents`
- * below resolves the path parameter against `externalName`, and nothing in this
- * repository maps one to the other - they coincide by convention. The consumer
- * lives in the worker repository, so changing the shape of this payload blind
- * would break an integration nothing here can test.
+ * That same resolution is the worker isolation: a campus with no
+ * `externalName` matches nothing here, and `syncConfigService` never hands out
+ * a source pointing at one in the first place.
+ *
+ * Never deletes. An event that vanishes from Salesforce keeps its Jump-side
+ * configuration, its enrolments and its history. `Event.devActivatedAt` is not
+ * touched either, so an event discovered under a whitelisted parent campaign
+ * lands hidden until an admin activates it: automatic discovery is not
+ * automatic publication.
  */
-export async function listCampuses() {
-  return prisma.campus.findMany({
-    where: { externalName: { not: null } },
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
+export async function syncEvents(events: WorkerEvent[]) {
+  const wanted = [
+    ...new Set(
+      events.map((e) => e.campus_ext_name).filter((n) => n.length > 0),
+    ),
+  ];
+  const campuses = await prisma.campus.findMany({
+    where: { externalName: { in: wanted } },
+    select: { id: true, externalName: true },
   });
-}
-
-export async function syncEvents(
-  campusExternalName: string,
-  events: {
-    external_id: string;
-    title: string;
-    date?: string;
-  }[],
-) {
-  const campus = await prisma.campus.findUnique({
-    where: { externalName: campusExternalName },
-  });
-  if (!campus) return { error: 'Campus not found' as const };
+  const campusIdByExternalName = new Map(
+    campuses.map((c) => [c.externalName as string, c.id]),
+  );
 
   let created = 0;
   let updated = 0;
+  let skipped = 0;
+  const unresolvedCampuses = new Set<string>();
+  // Read lazily, once per push: most pushes create no event at all.
+  let shownByDefault: string[] | undefined;
 
   for (const e of events) {
-    if (!e.external_id || !e.title)
-      return { error: 'Each event must have external_id and title' as const };
+    const campusId = campusIdByExternalName.get(e.campus_ext_name);
+    if (!campusId) {
+      skipped++;
+      // `campus_ext_name` is legitimately `""` when the campaign names no
+      // campus, which is an ABSENT name rather than an unresolved one. Listing
+      // it would put a blank entry in the report that reads as a lost value.
+      if (e.campus_ext_name.length > 0)
+        unresolvedCampuses.add(e.campus_ext_name);
+      continue;
+    }
 
     const existing = await prisma.event.findUnique({
       where: { externalId: e.external_id },
     });
 
     if (!existing) {
-      // Seed the per-event modules once, at creation. After this the rows are
-      // Jump-owned: the update branch never touches them, so the dev team's
-      // per-event surface config is never clobbered. Everything else (window,
-      // welcome, feedback form) stays unset until an admin configures the event
-      // from the config wizard - a synced event lands hidden and single-day.
+      // Seed the per-event modules and the shown Salesforce statuses once, at
+      // creation. After this the rows are Jump-owned: the update branch never
+      // touches them, so the dev team's per-event config is never clobbered.
+      // Everything else (window, welcome, feedback form) stays unset until an
+      // admin configures the event from the config wizard - a synced event
+      // lands hidden and single-day.
+      shownByDefault ??= await defaultShownStatuses();
       await prisma.event.create({
         data: {
           externalId: e.external_id,
           date: e.date ? new Date(e.date) : new Date(),
           titre: e.title,
-          campusId: campus.id,
+          campusId,
           modules: {
             create: defaultEventModules().map((moduleKey) => ({ moduleKey })),
+          },
+          shownStatuses: {
+            create: shownByDefault.map((status) => ({ status })),
           },
         },
       });
       created++;
     } else if (
       existing.titre !== e.title ||
-      existing.campusId !== campus.id ||
+      existing.campusId !== campusId ||
       (e.date && existing.date.getTime() !== new Date(e.date).getTime())
     ) {
       await prisma.event.update({
         where: { externalId: e.external_id },
         data: {
           titre: e.title,
-          campusId: campus.id,
+          campusId,
           date: e.date ? new Date(e.date) : existing.date,
         },
       });
@@ -132,10 +168,26 @@ export async function syncEvents(
     }
   }
 
-  return { created, updated };
+  return {
+    created,
+    updated,
+    skipped,
+    unresolvedCampuses: [...unresolvedCampuses],
+  };
 }
 
+/**
+ * Record one talent the sync could not reconcile, for an admin to arbitrate on
+ * `/staff/admin/sync-errors`.
+ *
+ * `errorType` is a parameter rather than a constant: the table groups on it
+ * (`stats_sync_health.errorsByType`, and `ops_resolve_sync_errors` filters on
+ * it), so a second kind of failure logged under the first one is a queue nobody
+ * can triage. It is keyed on `(email, attemptedExtId)`, and the Salesforce id is
+ * the half that is always there, so a row with no email still gets its own line.
+ */
 async function logSyncError(params: {
+  errorType: string;
   email: string;
   attemptedExtId: string;
   existingExtId: string | null;
@@ -159,7 +211,7 @@ async function logSyncError(params: {
       resolvedAt: null,
     },
     create: {
-      errorType: 'DUPLICATE_EMAIL',
+      errorType: params.errorType,
       email: params.email,
       attemptedExtId: params.attemptedExtId,
       existingExtId: params.existingExtId,
@@ -170,45 +222,30 @@ async function logSyncError(params: {
   });
 }
 
-export async function syncTalents(
-  eventExternalId: string,
-  talents: WorkerTalent[],
-) {
-  const event = await prisma.event.findUnique({
-    where: { externalId: eventExternalId },
-  });
-  if (!event) return { error: 'Event not found' as const };
-
-  // An empty payload for an event that HAS enrolments is refused, never applied.
-  // The prune at the end of this function deletes every participation the
-  // payload does not mention, so an empty one wipes a whole cohort - and the
-  // endpoint had no schema, so a truncated or failed fetch upstream arrived
-  // looking exactly like a legitimately empty campaign.
-  //
-  // Refused rather than logged-and-applied, and with no SyncError row: that
-  // table is keyed on (email, attemptedExtId) and shaped around one person's
-  // identity collision, so an event-level fact does not belong in it. The
-  // refusal reaches a human the honest way instead - the endpoint answers 400,
-  // so `recordSync` never runs and `stats_sync_health` reports this event as
-  // stale, which is exactly what happened.
-  //
-  // Emptying a campaign on purpose is therefore a deliberate act: it needs the
-  // enrolments removed in Jump, not a silent sweep nobody asked for.
-  if (talents.length === 0) {
-    const enrolled = await prisma.participation.count({
-      where: { eventId: event.id },
-    });
-    if (enrolled > 0) {
-      return {
-        error: `Refused: empty payload for "${eventExternalId}", which has ${enrolled} enrolment(s). Applying it would delete every one of them.`,
-      };
-    }
-  }
-
+/**
+ * Upsert talent identities and everything reconciled about them, for the whole
+ * run at once.
+ *
+ * Deliberately knows nothing about events. It used to take one, because the
+ * worker pushed a campaign's members and its enrolments in a single call, so
+ * this function seeded talents AND wrote participations AND pruned. The worker
+ * now dedupes talents across the whole whitelist and pushes them once, so a
+ * talent attending two events is reconciled once instead of twice; enrolments
+ * are `syncParticipations` below.
+ *
+ * Nothing is lost by dropping the event: `Talent` carries no campus column at
+ * all, a talent reaches a campus through its participations, so identity never
+ * needed the context the enrolment gave it.
+ *
+ * Never refuses the batch. A row it cannot use comes back in `invalid` with a
+ * `SyncError` naming it; see the comment at the top of the loop for what
+ * returning instead used to cost.
+ */
+export async function syncTalents(talents: WorkerTalent[]) {
   let created = 0;
   let updated = 0;
   let skipped = 0;
-  const syncedTalentIds: string[] = [];
+  let invalid = 0;
   const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
 
   // Canonical School per distinct UAI, resolved once for the whole batch.
@@ -229,11 +266,12 @@ export async function syncTalents(
       await ensureTalentUser(talentId);
     } catch (err) {
       await logSyncError({
+        errorType: 'DUPLICATE_EMAIL',
         email: loginEmail,
         attemptedExtId: sf.external_id,
         existingExtId: null,
         talentName: `${sf.first_name} ${sf.last_name}`,
-        eventExtId: eventExternalId,
+        eventExtId: null,
         message: `Compte de connexion non créé pour "${loginEmail}" : ${
           err instanceof Error ? err.message : 'erreur inconnue'
         }. À arbitrer (Divergences Salesforce › Connexion) ou réessai au prochain sync.`,
@@ -242,11 +280,41 @@ export async function syncTalents(
   };
 
   for (const t of talents) {
-    if (!t.external_id || !t.first_name || !t.last_name)
-      return {
-        error:
-          'Each talent must have external_id, first_name and last_name' as const,
-      };
+    // A contact with no name is SKIPPED and logged, never a refusal for the
+    // batch, which is the rule `syncEvents` above states about an unresolved
+    // campus. It matters more here, and this used to return.
+    //
+    // `Contact.FirstName` is optional in Salesforce, so this is ordinary data
+    // and not a malformed payload. Returning abandoned the rest of the batch
+    // mid-loop with everything before it already committed, answered 400, and
+    // therefore closed the run in `error` - which leaves the watermark where it
+    // was, by design. The next tick then replayed the identical window onto the
+    // identical row. One nameless contact stopped every campaign from syncing,
+    // permanently, and the refonte made that worse rather than better: the
+    // worker now dedupes identities across the whole whitelist into one push,
+    // so the blast radius is the entire perimeter instead of one campaign.
+    //
+    // Tightening `workerTalentSchema` to `.min(1)` instead would refuse the
+    // whole page of 50 at the envelope, which is the same stall wearing a
+    // louder error. The name is what the envelope deliberately leaves loose.
+    if (!t.first_name || !t.last_name) {
+      invalid++;
+      // The talent simply never appears in Jump otherwise, and a silent
+      // absence is the failure mode this whole surface is written against.
+      // `SyncError` is where a person the sync could not reconcile goes, and
+      // the fix is upstream: somebody completes the contact in Salesforce.
+      await logSyncError({
+        errorType: 'MISSING_NAME',
+        email: t.email?.toLowerCase().trim() || '',
+        attemptedExtId: t.external_id,
+        existingExtId: null,
+        talentName: `${t.first_name} ${t.last_name}`.trim(),
+        eventExtId: null,
+        message:
+          'Contact Salesforce sans prénom ou sans nom : la fiche talent ne peut pas être créée. Complétez le contact dans Salesforce, il sera repris à la prochaine synchronisation.',
+      });
+      continue;
+    }
 
     const email = t.email?.toLowerCase().trim() || null;
     // Store SF's phone in canonical E.164 so a bare "765719823" and a full
@@ -306,9 +374,12 @@ export async function syncTalents(
       // its SF mirror in one shot. Before any onboarding confirmation, SF is the
       // only source, so seed and mirror are identical.
       try {
-        console.log(
-          `Creating new talent: Name: ${t.first_name} ${t.last_name}, Email: ${email}, Phone: ${phone} ExId: ${t.external_id}`,
-        );
+        // The Salesforce id only. This used to print the name, the email and
+        // the phone of every talent created, which put a minor's personal data
+        // in a pod log that outlives the request and that nothing anonymises.
+        // The id is what somebody debugging actually follows, into Salesforce
+        // and into `Talent.externalId` alike.
+        console.log(`Creating new talent from Salesforce: ${t.external_id}`);
         const talent = await prisma.talent.create({
           data: {
             externalId: t.external_id,
@@ -349,10 +420,10 @@ export async function syncTalents(
           err.code === 'P2002'
         ) {
           // Only `externalId` is unique on create now (Talent.email is gone): a
-          // concurrent pass created the same SF record. Adopt the winner's row
-          // and fall through: the participation upsert below must still run
-          // (and the id must land in `syncedTalentIds`), or the end-of-sync
-          // prune would sweep the participation the other pass just created.
+          // concurrent pass created the same SF record. Adopt the winner's
+          // row and fall through rather than aborting: the rest of the batch
+          // still has to be reconciled, and the enrolment is written by
+          // `syncParticipations` against this same external id either way.
           const winner = await prisma.talent.findUnique({
             where: { externalId: t.external_id },
             select: { id: true },
@@ -491,22 +562,24 @@ export async function syncTalents(
         } catch (err) {
           if (!(err instanceof EmailChangeConflict)) {
             await logSyncError({
+              errorType: 'DUPLICATE_EMAIL',
               email,
               attemptedExtId: t.external_id,
               existingExtId: null,
               talentName: `${t.first_name} ${t.last_name}`,
-              eventExtId: eventExternalId,
+              eventExtId: null,
               message: `Réconciliation de l'identité de connexion échouée pour "${email}" : ${err instanceof Error ? err.message : 'erreur inconnue'} (réessai au prochain sync).`,
             });
           } else {
             const outcome = await autoResolveAuthIdentity(existing.id, 'sync');
             if (outcome === 'skipped') {
               await logSyncError({
+                errorType: 'DUPLICATE_EMAIL',
                 email,
                 attemptedExtId: t.external_id,
                 existingExtId: null,
                 talentName: `${t.first_name} ${t.last_name}`,
-                eventExtId: eventExternalId,
+                eventExtId: null,
                 message: `Divergence d'identité de connexion non auto-résoluble pour "${email}", à arbitrer dans Divergences Salesforce › Connexion.`,
               });
             }
@@ -515,27 +588,191 @@ export async function syncTalents(
       }
       if (mirrorChanged || hasPatch || schoolingChanged) updated++;
     }
+  }
 
-    const normalizedStatus = normalizeSfStatus(t.status);
+  return { created, updated, skipped, invalid };
+}
+
+/**
+ * Write one event's enrolments, and prune the ones that are gone.
+ *
+ * Split out of `syncTalents` because the worker split the two pushes: identities
+ * are deduplicated across the whole run, enrolments are per event. The split is
+ * also the honest shape, since `Participation` is what ties a talent to a
+ * campus and `Talent` never did.
+ *
+ * **The prune runs in `full` only, and the mode is stated, never inferred.**
+ * A full pass carries every member of the campaign, so an enrolment missing
+ * from it is one that no longer exists. An incremental pass carries only the
+ * campaigns Salesforce reports as touched, and removing a member from a
+ * campaign moves no modstamp anywhere, so absence there means nothing at all.
+ * The roster alone cannot tell the two apart, and reading the mode off whatever
+ * run happens to be open would be shared mutable state on horizontally-scaled
+ * pods. So it travels in the payload. That is also why deletions are caught by
+ * the spaced full reconcile and by nothing else.
+ *
+ * An `external_id` Jump does not know is counted and skipped: the worker pushes
+ * talents before enrolments and fails the run if that push fails, so an unknown
+ * one is a member the talents push skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`),
+ * which is already its own SyncError.
+ *
+ * **Nothing here refuses, and that is the rule this function was rebuilt on.**
+ * Every answer but a malformed payload is a success, because a refusal fails
+ * the call, the worker closes the run in error, and a failed run is replayed
+ * identically at the next tick: a refusal that depends only on its input is
+ * therefore a refusal forever, for every campaign of the run and not only for
+ * the one it was about. That is how one campaign with one unresolvable member
+ * stopped the whole sync on 2026-10-01. What a refusal used to protect is
+ * protected by `pruneFromFullRoster` instead, which holds the removals it
+ * cannot prove rather than failing the call.
+ *
+ * An event Jump does not know answers the same way: `syncEvents` skips one
+ * whose campus does not resolve, and the worker still sends its roster.
+ */
+export async function syncParticipations(
+  eventExternalId: string,
+  statusByExternalId: Record<string, string>,
+  mode: WorkerSyncMode,
+) {
+  const externalIds = Object.keys(statusByExternalId);
+
+  const event = await prisma.event.findUnique({
+    where: { externalId: eventExternalId },
+    select: { id: true, campusId: true },
+  });
+  if (!event)
+    return {
+      upserted: 0,
+      skipped: externalIds.length,
+      removed: 0,
+      held: false,
+      eventUnknown: true,
+    };
+
+  const known = await prisma.talent.findMany({
+    where: { externalId: { in: externalIds } },
+    select: { id: true, externalId: true },
+  });
+  // Read once per roster: what this event shows decides each row's projection,
+  // written in the same statement as the status it derives from, and re-derived
+  // for the whole event once the roster is written.
+  const shown =
+    (await shownStatusesByEvent([event.id])).get(event.id) ?? new Set();
+  const talentIdByExternalId = new Map(
+    known.map((t) => [t.externalId as string, t.id]),
+  );
+
+  let upserted = 0;
+  let skipped = 0;
+  const presentTalentIds: string[] = [];
+
+  for (const [externalId, rawStatus] of Object.entries(statusByExternalId)) {
+    const talentId = talentIdByExternalId.get(externalId);
+    if (!talentId) {
+      skipped++;
+      continue;
+    }
+
+    const sfMemberStatus = normalizeSfStatus(rawStatus);
+    const shownInDevSpace = isShownInDevSpace(sfMemberStatus, shown);
     await prisma.participation.upsert({
       where: { talentId_eventId: { talentId, eventId: event.id } },
       create: {
         talentId,
         eventId: event.id,
-        campusId: event.campusId!,
-        sfMemberStatus: normalizedStatus,
+        campusId: event.campusId,
+        sfMemberStatus,
+        shownInDevSpace,
       },
-      update: { sfMemberStatus: normalizedStatus },
+      update: { sfMemberStatus, shownInDevSpace },
     });
-    syncedTalentIds.push(talentId);
+    presentTalentIds.push(talentId);
+    upserted++;
+  }
+  // The policy above was read before the loop, so a change an admin commits
+  // while the roster is being written would be overwritten on the rows still to
+  // come. Re-derived once from the policy as it stands, which also catches the
+  // members this pass did not send.
+  if (upserted > 0) await recomputeShownInDevSpace(prisma, [event.id]);
+
+  if (mode !== 'full') return { upserted, skipped, removed: 0, held: false };
+
+  const prune = await pruneFromFullRoster({
+    eventId: event.id,
+    presentTalentIds,
+    sentCount: externalIds.length,
+    resolvedCount: upserted,
+  });
+  return { upserted, skipped, ...prune };
+}
+
+/**
+ * Delete the enrolments a full roster no longer mentions, but only when that
+ * roster can prove it.
+ *
+ * Absence from a full roster means "gone" only when the roster is COMPLETE:
+ * non-empty, and every member resolved to a talent Jump knows. An empty one
+ * looks exactly like a truncated fetch upstream, and a member the talents push
+ * skipped may be the very person whose enrolment would go (a `DUPLICATE_EMAIL`
+ * is typically one talent come back under a new Salesforce id). So when the
+ * roster is not complete and the prune would actually remove something, the
+ * removals are recorded on `Sync_PruneHold` and nothing is deleted.
+ *
+ * A hold is lifted by the event itself, never by a clock. A later pass with a
+ * complete roster prunes normally and deletes the row, which is the ordinary
+ * outcome once the skipped member's SyncError is fixed. An admin who confirms
+ * that a campaign really was emptied sets `releasedAt` (`ops_release_prune_hold`),
+ * and the next full pass applies the removals if its fresh roster is still
+ * empty: the deletion is still made by a full pass and by nothing else, and
+ * only while Salesforce still reports the campaign empty.
+ */
+async function pruneFromFullRoster(roster: {
+  eventId: string;
+  presentTalentIds: string[];
+  sentCount: number;
+  resolvedCount: number;
+}): Promise<{ removed: number; held: boolean }> {
+  const { eventId, presentTalentIds, sentCount, resolvedCount } = roster;
+  // `notIn: []` matches every enrolment of the event, which is the prune an
+  // empty roster asks for and exactly why that case needs proving first.
+  const absent = { eventId, talentId: { notIn: presentTalentIds } };
+  const complete = sentCount > 0 && resolvedCount === sentCount;
+
+  if (!complete) {
+    const pendingRemovals = await prisma.participation.count({
+      where: absent,
+    });
+    // A release confirms that the campaign is EMPTY in Salesforce, so only an
+    // empty roster spends it. A roster with members is not covered by it,
+    // whatever it holds: an unresolved member may be the very person whose
+    // enrolment would go, and that hold lifts once their SyncError is fixed.
+    const released =
+      pendingRemovals > 0 &&
+      sentCount === 0 &&
+      (
+        await prisma.sync_PruneHold.findUnique({
+          where: { eventId },
+          select: { releasedAt: true },
+        })
+      )?.releasedAt != null;
+    if (pendingRemovals > 0 && !released) {
+      const counts = { pendingRemovals, sentCount, resolvedCount };
+      const lastHeldAt = new Date();
+      // Renewing a hold withdraws its release: the only renewal a release
+      // survives to see is a roster that is no longer empty, which is exactly
+      // what the release said it was.
+      await prisma.sync_PruneHold.upsert({
+        where: { eventId },
+        create: { eventId, ...counts, lastHeldAt },
+        update: { ...counts, lastHeldAt, releasedAt: null },
+      });
+      return { removed: 0, held: true };
+    }
   }
 
   const { count: removed } = await prisma.participation.deleteMany({
-    where: {
-      eventId: event.id,
-      talentId: { notIn: syncedTalentIds },
-    },
+    where: absent,
   });
-
-  return { created, updated, removed, skipped };
+  await prisma.sync_PruneHold.deleteMany({ where: { eventId } });
+  return { removed, held: false };
 }

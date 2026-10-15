@@ -140,8 +140,6 @@ export async function getDiplomaTemplatePreview(params: {
   const { png, widthPx, heightPx } =
     await renderCertificatePreviewPng(template);
 
-  const url = `${params.origin}${base}/api/admin/config/diploma-template-preview?code=${encodeURIComponent(template.code)}`;
-
   return {
     code: template.code,
     label: template.label,
@@ -149,16 +147,39 @@ export async function getDiplomaTemplatePreview(params: {
       mimeType: 'image/png',
       base64: Buffer.from(png).toString('base64'),
     },
-    url,
+    ...diplomaTemplatePreviewLink({
+      code: template.code,
+      label: template.label,
+      origin: params.origin,
+    }),
     widthPx,
     heightPx,
-    // A sentence to quote, not facts to compose one from. Same move as
-    // `metric(value, definition)`, and for a sharper reason here: a model cannot
-    // tell whether its client renders an inline image, so "show the image, or
-    // else give the link" is a condition it has no way to evaluate. It returned
-    // an image, so from its side it did show something, and the reader saw
-    // nothing. Handing over the link is therefore unconditional, and the wording
-    // is ours so it survives being relayed verbatim.
+  };
+}
+
+/**
+ * Where a certificate's preview can be seen, and the sentence that hands it over.
+ *
+ * Shared by the preview and by the write that stores a design, so the author
+ * gets the link with the receipt instead of asking for it, and both say it in
+ * the same words.
+ *
+ * A sentence to quote, not facts to compose one from. Same move as
+ * `metric(value, definition)`, and for a sharper reason here: a model cannot tell
+ * whether its client renders an inline image, so "show the image, or else give the
+ * link" is a condition it has no way to evaluate. It returned an image, so from
+ * its side it did show something, and the reader saw nothing. Handing over the
+ * link is therefore unconditional, and the wording is ours so it survives being
+ * relayed verbatim.
+ */
+export function diplomaTemplatePreviewLink(template: {
+  code: string;
+  label: string;
+  origin: string;
+}): { url: string; apercu: string } {
+  const url = `${template.origin}${base}/api/admin/config/diploma-template-preview?code=${encodeURIComponent(template.code)}`;
+  return {
+    url,
     apercu: `Aperçu de « ${template.label} » : ${url} (nom, dates, ville et signataire sont des exemples, aucune donnée de jeune n'y figure). Ouvrez ce lien pour voir le certificat.`,
   };
 }

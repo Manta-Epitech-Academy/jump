@@ -304,8 +304,8 @@ describe('staffAdminService (integration)', () => {
   });
 
   /**
-   * The other half, which failed in the opposite direction: `Broadcast`,
-   * `MessageTemplate` and `CmsPage` defaulted to RESTRICT, so a member who had
+   * The other half, which failed in the opposite direction: `Broadcast` and
+   * `MessageTemplate` defaulted to RESTRICT, so a member who had
    * ever sent a campaign simply could not be deleted, and the page said only
    * "Erreur lors de la suppression du membre".
    */

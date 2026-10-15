@@ -8,9 +8,10 @@
  * five-actor floor the usage figures mask below. Moulins exists in this list for
  * exactly that reason.
  *
- * There is deliberately no `externalName` here. That column is what the event
- * sync resolves a campus by, so leaving it unset is what keeps a seeded database
- * out of every sync's scope - see the comment on `listCampuses`. These campuses
+ * There is deliberately no `externalName` here. That column is what the worker
+ * resolves a campus by, so leaving it unset is what keeps a seeded database out
+ * of every sync's scope: `/api/worker/config` serves no source whose campus
+ * lacks one. See `World.addCampus` and `assert/coverage.ts`. These campuses
  * carry real names because a screen has to read like the real thing; they are
  * not the real campuses, and nothing here comes from Salesforce.
  */

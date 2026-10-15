@@ -20,7 +20,7 @@
  * One query for the whole comparison. Both dashboards' aggregation
  * (`computeFormStats`) answers per form, so grouping through it would mean one full
  * pass per campus; the answers to a single question are few enough to read once and
- * bucket in memory, which is what `attendanceRate` does with participations.
+ * bucket in memory, which is what `campusComparison` does with participations.
  */
 
 import { prisma } from '$lib/server/db';
@@ -40,6 +40,7 @@ import {
   type Metric,
   type Ranked,
 } from '$lib/server/adminApi/metrics';
+import { handleProvenanceFr } from '$lib/server/adminApi/handles';
 import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
 import { scopedEvents, scopeLabels } from './cohort';
 
@@ -133,7 +134,7 @@ export async function getFeedbackQuestion(
   const form = await getFormGraphById(params.formId);
   if (!form) {
     throw new UnknownScopeError(
-      `Formulaire « ${params.formId} » introuvable. Les identifiants de questionnaire sont renvoyés par les opérations config_feedback_forms et stats_feedback_results.`,
+      `Formulaire « ${params.formId} » introuvable. ${handleProvenanceFr('formId')}`,
     );
   }
 

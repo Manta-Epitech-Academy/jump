@@ -188,7 +188,7 @@ export async function getClosingTemplates(params: {
         attachedEvents: t._count.events,
         closingCount: t._count.records,
       })),
-      "Les grilles de closing existantes. « templateKey » est la clé stable à passer à write_closing_template pour composer la grille, « closingTemplateId » l'identifiant à passer à write_event_closing_template pour la rattacher à un événement, et « closingCount » le nombre de closings déjà menés avec elle.",
+      "Les grilles de closing existantes. « templateKey » est la clé stable à passer à write_closing_template pour composer la grille, « closingTemplateId » l'identifiant à passer à write_event_config pour la rattacher à un événement, et « closingCount » le nombre de closings déjà menés avec elle.",
     ),
     composition: metric(
       composition,

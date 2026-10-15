@@ -22,7 +22,7 @@ the PR ready for review.
      …): delete its line. Do not leave it unchecked and do not mark it None/N/A - an unchecked box
      reads as forgotten work, not as "not applicable". -->
 
-- [ ] **Technical:** `bun run verify` green (it is the CI gate: script bits, lint, design lint, test lint, check, unit, integration, schema drift, seed, E2E), migration named and squashed into one.
+- [ ] **Technical:** `bun run verify` green (it is the CI gate: script bits, lint, design lint, test lint, prose lint, check, unit, integration, schema drift, seed, E2E), migration named and squashed into one.
 - [ ] **Automated testing:** new behaviours are covered by unit, integration or Playwright tests, not by manual testing alone. Human verification is welcome for visual polish, but core functional contracts need automated coverage.
 - [ ] **Development data:** a new behaviour has an example in the seed generator (`frontend/scripts/seed/`). A new enum value fails `test:seed` until a scenario produces one; a new screen needs a case that exercises its empty, full and broken states, or nobody will ever see them.
 - [ ] **Schema changes:** the integration suite and `test:schema-drift` ran (both are inside `bun run verify`), so the schema is proven against a real PostgreSQL and against its own migration trail.

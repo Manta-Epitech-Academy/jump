@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import type { Prisma, ClosingRecommendation } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import { talentSearchWhere } from '$lib/server/db/textSearch';
 import { resetClosing } from '$lib/server/services/closingResetService';
 import { CLOSING_RECOMMENDATIONS } from '$lib/domain/closing';
 import { fail } from '@sveltejs/kit';
@@ -29,14 +30,7 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
     where.recommendation = statusFilter as ClosingRecommendation;
   }
 
-  if (q) {
-    where.talent = {
-      OR: [
-        { prenom: { contains: q, mode: 'insensitive' } },
-        { nom: { contains: q, mode: 'insensitive' } },
-      ],
-    };
-  }
+  if (q) where.talent = talentSearchWhere(q);
 
   const PAGE_SIZE = 100;
 

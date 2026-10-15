@@ -1,5 +1,5 @@
 /**
- * The Coding Club: a small, recurring, single-afternoon format.
+ * The Coding Club: a small, recurring, single-afternoon format, run as a season.
  *
  * It exists to make the shared question bank mean something. « Comment as-tu
  * connu cet événement » asked at a stage and at a club is ONE bank row, which is
@@ -7,6 +7,13 @@
  * dataset every cross-format figure reads as if it worked. The club grid also
  * reads two questions aloud in its own words, so a `labelOverride` that wrongly
  * changed identity instead of wording would show up as a split figure.
+ *
+ * It is also the only format in the dataset that can produce an ATTENDANCE
+ * TAIL, and that is the second reason it exists. Production's most-attended
+ * talents sit at nine, ten and eleven events, and they got there by going to a
+ * recurring format all year: a stage is one fortnight and cannot be attended
+ * twice. See `SESSION_OFFSETS` for why the length of the season is a calendar
+ * rather than something a profile scales.
  */
 
 import { CODING_CLUB_PLANNING } from '../catalog/planning';
@@ -14,7 +21,10 @@ import {
   CLUB_TEMPLATE,
   CLUB_TEMPLATE_QUESTION_KEYS,
 } from '../catalog/closings';
+import { CLUB_CERTIFICATE } from '../catalog/diplomas';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
+import { WORKSHOPS } from '../catalog/workshops';
+import { OPEN_HIGHLIGHT_CAMPUSES } from '../catalog/talentHome';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { conductClosing } from '../factories/closing';
@@ -25,29 +35,126 @@ import { makeCohort, PRESENCE_MIX, PRESENCE_SOURCE_MIX } from './helpers';
 import type { Scenario } from './types';
 import type { EventRef } from '../world';
 
+/**
+ * The season, as days before the anchor. Nine sessions already run, every three
+ * weeks, and one still to come.
+ *
+ * **A calendar, not a volume**, so no profile scales it. That is the point:
+ * this is the only format in the dataset that can produce an attendance tail,
+ * and production's most-attended talents sit at nine, ten and eleven events
+ * because they went to a recurring one all year. A season whose length followed
+ * the profile would put the whole tail out of reach in CI, which is exactly what
+ * `.claude/rules/seed.md` means by a rare state depending on the profile rather than on
+ * the generator. What scales is how many people come to each session, not how
+ * many sessions there were.
+ *
+ * Three sessions was the old shape, and three is not a short season: it is a
+ * different thing. It capped every parcours in the dataset at three events and
+ * two or three closings, on one campus, which is the hole this change exists to
+ * fill.
+ */
+/** The session at which the season's host served the subject retired since. */
+const ROTATED_SESSION = 6;
+
+const SESSION_OFFSETS = [
+  -189, -168, -147, -126, -105, -84, -63, -42, -21, 6,
+] as const;
+
+const [PACMAN, LINUX, SANTA] = WORKSHOPS;
+
+/**
+ * Which online activities a session offers.
+ *
+ * Two sessions of the ten, and that is the real distribution rather than a
+ * sample: most events offer none at all, so the empty case is what a dashboard
+ * and an export mostly render. The two that do offer one carry the SAME subject
+ * at DIFFERENT durations, which is the whole reason `durationMinutes` sits on the
+ * link and not on the catalogue, and the retired instance is attached beside it,
+ * so an event still pointing at something nobody may enter exists in the data.
+ *
+ * Earlier in the season, the season's host served the subject that is retired
+ * now, and the anchor regular walked it: that host has served two contents in
+ * turn, and the regular's history carries both, each under its own name. That
+ * earlier session (`ROTATED_SESSION`) is a session of its own and not the one
+ * the override sits on.
+ *
+ * THE `labelOverride` GOES ON THE OFFERED ACTIVITY, NOT THE RETIRED ONE, and
+ * that is the whole of why it is here. `listTalentWorkshops` only ever reads a
+ * link whose activity is `enabled`, so an override on the retired row is a column
+ * no screen can reach: the branch it exists to exercise
+ * (`o.labelOverride ?? o.activity.label`) would render nowhere in any generated
+ * dataset. It sits on the PAST session rather than the upcoming one because an
+ * event that has not started offers nothing (`selectWorkshopOfferings`), and the
+ * anchor regular is guaranteed onto every session: the override is therefore
+ * what their « Activités à faire » list on « Mon parcours » reads, deterministically, run after run.
+ *
+ * The upcoming session offers the same subject under its catalogue label, and a
+ * second one nobody has walked yet. Neither shows before its day: the first
+ * because the anchor regular's past session already resolves it, the second
+ * because nothing does, which is the « pas avant le jour J » state.
+ */
+function activitiesFor(session: number, upcoming: boolean) {
+  if (upcoming)
+    return [
+      { slug: PACMAN!.slug, durationMinutes: 150 },
+      { slug: SANTA!.slug, durationMinutes: SANTA!.durationMinutes },
+    ];
+  if (session === ROTATED_SESSION)
+    return [{ slug: LINUX!.slug, durationMinutes: LINUX!.durationMinutes }];
+  if (session !== SESSION_OFFSETS.length - 2) return [];
+  return [
+    {
+      slug: PACMAN!.slug,
+      durationMinutes: PACMAN!.durationMinutes,
+      labelOverride: 'Pacman : apprends à coder une IA',
+    },
+    { slug: LINUX!.slug, durationMinutes: LINUX!.durationMinutes },
+  ];
+}
+
 export const club: Scenario = {
   // Not `coding-club-nice`: `pickCampus` falls back when the preferred campus
-  // is outside the profile, and at every profile under nine campuses this runs
-  // on Paris - so the name contradicted the « Campus : » line the manifest
-  // prints from the row that was actually written. The campus is reported, never
-  // named here.
+  // is outside the profile, which every profile under nine campuses is - so the
+  // name contradicted the « Campus : » line the manifest prints from the row
+  // that was actually written. The campus is reported, never named here.
   name: 'coding-club',
   summary:
-    'Format court et récurrent : trois séances, la grille Coding Club, des habitués.',
+    'Format court et récurrent : une saison de séances, la grille Coding Club, des habitués.',
   run(world) {
     const { profile, rng, clock } = world.ctx;
-    const campus = world.pickCampus('Nice');
+    // Never a campus whose highlight is open: it would lead the hero of every
+    // regular without an activity that day, over the activity they carry on at
+    // home, which is the state this scenario places for them.
+    const campus = world.pickCampus('Nice', OPEN_HIGHLIGHT_CAMPUSES);
     const team = world.staffFor(campus.id);
     const clubTemplateId = id('clt', CLUB_TEMPLATE.key);
     const size = profile.name === 'ci' ? 8 : 24;
 
-    // The same students across three sessions. A regular attends eight to ten a
-    // year, and the successive verdicts are what the talent fiche's history is
-    // for - a dataset where nobody comes twice has no history to show.
+    // The same students across a whole season. A regular attends eight to ten
+    // sessions a year, and the successive verdicts are what the talent fiche's
+    // history is for - a dataset where nobody comes twice has no history to
+    // show.
+    //
+    // Their career is PLACED at the length of the season rather than drawn,
+    // because this format IS the tail of `CAREER_MIX` rather than a sample of
+    // it: coming back is the definition of a regular, and drawing a career of
+    // one for them and then enrolling them ten times would make that cap a
+    // decoration. A third are recruited from whoever the stage already brought
+    // in on this campus, which is what makes a club closing sit in the same
+    // parcours as a stage closing instead of beside it.
+    //
+    // The placement covers the recruits too, and has to. It used to cover only
+    // the talents this call minted, and the recruits were asked for ten events
+    // of headroom instead - a career of eleven, which `CAREER_MIX` draws for
+    // 0.04% of talents, so the pool was empty on all but a few per cent of runs
+    // and the third was always zero. The stage/club parcours this scenario
+    // claims to build did not exist in any generated dataset.
     const regulars = makeCohort(world, {
       size,
       campus,
       schoolYear: clock.schoolYear,
+      career: SESSION_OFFSETS.length,
+      returning: { share: 1 / 3 },
     });
 
     // The first regular is guaranteed onto every session below, and onto the
@@ -59,7 +166,7 @@ export const club: Scenario = {
     const anchorRegular = regulars[0]!;
     const sessionEvents: EventRef[] = [];
 
-    for (const [session, offset] of [-60, -30, 6].entries()) {
+    for (const [session, offset] of SESSION_OFFSETS.entries()) {
       const upcoming = offset > 0;
       const days = world.eventWindow(offset, 1);
       const day = days[0]!;
@@ -78,18 +185,78 @@ export const club: Scenario = {
           EVENT_MODULES.CLOSINGS,
         ],
         closingTemplateId: clubTemplateId,
+        // One design per series, issued by each of its events: how the live
+        // catalogue is used, and the certificate a PO can export to see a
+        // drawing printed.
+        diplomaTemplateId: id('dpl', CLUB_CERTIFICATE.code),
+        workshops: activitiesFor(session, upcoming),
       });
       sessionEvents.push(event);
-      world.addPlanning(event, CODING_CLUB_PLANNING);
+      // Two sessions of the season carry a planning, not all ten. Production
+      // has SIX events with a planning across the whole platform, all of them
+      // stages, so a club that published one every three weeks would be the
+      // dominant planning in the dataset. The upcoming session, which is the one
+      // a planning is actually for, and the most recent past one, so a filled
+      // grid exists next to an empty one.
+      if (upcoming || session === SESSION_OFFSETS.length - 2) {
+        world.addPlanning(event, CODING_CLUB_PLANNING);
+      }
       // Placed like the stage's: the regulars, the pruned enrolment and the
       // future session are all this scenario's own composition.
       world.reserveEvent(event);
 
+      // Three quarters of the roster, drawn per session. That draw is what puts
+      // the HOLES in a parcours: over ten sessions a regular lands on seven or
+      // eight of them, never a clean ten for ten, which is what a history
+      // screen and a coverage rate actually have to render.
       const attending = withGuaranteed(
-        rng.sample(regulars, rng.int(Math.ceil(size / 2), size)),
+        rng.sample(regulars, rng.int(Math.ceil(size * 0.55), size)),
         anchorRegular,
       );
       for (const talent of attending) world.enrol(event, talent);
+
+      // The states of an activity, placed rather than drawn, because each one
+      // renders a different thing and a draw either produces them or does not:
+      // the anchor regular walked the retired one back when the season's host
+      // served it, one regular is owed a celebration (the XP arrived while the
+      // Jump tab was in the background, which is the demo), and another has
+      // already seen theirs.
+      if (session === ROTATED_SESSION) {
+        world.enterWorkshop({
+          talent: anchorRegular,
+          event,
+          slug: LINUX!.slug,
+          budgetMinutes: LINUX!.durationMinutes,
+          solvedSteps: LINUX!.totalSteps,
+          totalSteps: LINUX!.totalSteps,
+          at: day,
+          celebrated: true,
+        });
+      } else if (!upcoming && activitiesFor(session, upcoming).length > 0) {
+        const other = attending.find((t) => t.id !== anchorRegular.id);
+        world.enterWorkshop({
+          talent: anchorRegular,
+          event,
+          slug: PACMAN!.slug,
+          budgetMinutes: PACMAN!.durationMinutes,
+          solvedSteps: 6,
+          totalSteps: PACMAN!.totalSteps,
+          at: clock.days(-2),
+          celebrated: false,
+        });
+        if (other) {
+          world.enterWorkshop({
+            talent: other,
+            event,
+            slug: PACMAN!.slug,
+            budgetMinutes: PACMAN!.durationMinutes,
+            solvedSteps: PACMAN!.totalSteps,
+            totalSteps: PACMAN!.totalSteps,
+            at: day,
+            celebrated: true,
+          });
+        }
+      }
 
       if (upcoming) continue;
 
@@ -109,8 +276,10 @@ export const club: Scenario = {
 
       // Seven in ten, which is what the non-stage events that run closings
       // actually do: production's eleven of them sit between 68% and 79% of
-      // their roster. It also gives the regulars two and three closings each
-      // rather than one, which is the history « Son parcours » is built to show.
+      // their roster. Over a season it is also what gives a regular five or six
+      // closings with gaps between them, which is the history « Son parcours »
+      // is built to show and the shape the PO asked for: mostly closed, not
+      // always.
       const closed = rng.sample(
         attending,
         Math.max(2, Math.round(attending.length * 0.7)),
@@ -143,6 +312,9 @@ export const club: Scenario = {
       regulars,
       Math.max(2, Math.round(size * 0.3)),
     )) {
+      // The third recruited from the stage arrive with theirs already filed: a
+      // dossier is annual, not per format.
+      if (world.hasDossier(talent.id, clock.schoolYear)) continue;
       addDossier(world, {
         talent,
         schoolYear: clock.schoolYear,
@@ -155,24 +327,27 @@ export const club: Scenario = {
       scenario: club.name,
       summary: club.summary,
       campus: campus.name,
-      // The three sessions, read back off the rows that were written. Each one
-      // now carries its own public name - the CRM dates every campaign and the
-      // campus names it after the month or the camp it falls in - so a single
-      // literal could not name all three, and quoting one would send the reader
-      // looking for a session the switcher shows under two other names.
-      event: sessionEvents.map(eventDisplayName).join(' · '),
+      // The season's ends, read back off the rows that were written. Each
+      // session carries its own public name - the CRM dates every campaign and
+      // the campus names it after the month or the camp it falls in - so a
+      // single literal could not name any of them, and listing all ten would
+      // fill the page a reader is trying to scan.
+      event: `${eventDisplayName(sessionEvents[0]!)} … ${eventDisplayName(
+        sessionEvents[sessionEvents.length - 1]!,
+      )}`,
       covers: [
-        'trois séances dont une à venir, avec des inscrits qui reviennent',
+        `une saison de ${SESSION_OFFSETS.length} séances toutes les trois semaines, dont une à venir`,
+        'des habitués qui viennent à sept ou huit d’entre elles, pas à toutes',
         'la grille Coding Club, plus courte, avec deux libellés réécrits pour le format',
         'des questions de banque partagées avec le stage, donc comparables entre formats',
-        'un talent avec plusieurs closings, ce que « Son parcours » affiche',
+        'des talents avec cinq ou six closings et des trous entre eux, ce que « Son parcours » affiche',
         'un closing qui survit à la suppression de sa participation par le worker Salesforce',
       ],
       accounts: [
         {
           role: 'talent (closing sans participation)',
           email: anchorRegular.email,
-          note: 'la participation de la première séance a été supprimée après coup ; le closing tient toujours',
+          note: 'la participation de la première séance a été supprimée après coup ; le closing tient toujours. Sur son accueil : Pacman IA commencé et pas fini, que le bandeau bleu propose de continuer chez soi, et sa prochaine séance dans la carte de session ; « Mon parcours » le liste dans « Activités à faire »',
         },
       ],
     });

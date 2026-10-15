@@ -55,6 +55,31 @@ export async function projectionFailures(
     );
   }
 
+  // Whether the dev space shows an enrolment is a projection of its status
+  // against what its event shows. Compared with the same SQL the application
+  // recomputes it with (`services/devSpaceVisibility.ts`), so the generator
+  // cannot agree with itself and disagree with the app.
+  const visibilityDrift = await prisma.$queryRaw<
+    { id: string; cached: boolean }[]
+  >`
+    SELECT p."id", p."shownInDevSpace" AS cached
+    FROM "Participation" p
+    WHERE p."id" LIKE 'sd_%'
+      AND p."shownInDevSpace" <> (
+        p."sfMemberStatus" IS NULL
+        OR EXISTS (
+          SELECT 1 FROM "EventConfig_ShownStatus" s
+          WHERE s."eventId" = p."eventId" AND s."status" = p."sfMemberStatus"
+        )
+      )
+    LIMIT 5
+  `;
+  for (const row of visibilityDrift) {
+    failures.push(
+      `Participation.shownInDevSpace ${String(row.cached)} ne correspond pas aux statuts affichés par son événement (${row.id})`,
+    );
+  }
+
   // The projection describes the MOST RECENT dossier, whatever year that is.
   // Comparing against the current year instead is the tempting mistake, and it
   // is what would make a guardian's late signature invisible.

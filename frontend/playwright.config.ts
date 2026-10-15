@@ -4,8 +4,8 @@ import { defineConfig, devices } from '@playwright/test';
  * The E2E suite runs against a REAL built server on the disposable test
  * database. `bun run test:e2e` goes through `scripts/with-test-db.sh`, which owns
  * every value that has to differ between two worktrees (`DATABASE_URL` and the
- * `PORT` / `ORIGIN` pair) and loads `.env.test`; everything below inherits that
- * environment.
+ * `PORT` / `ORIGIN` pair) and loads `.env.test.defaults`; everything below
+ * inherits that environment.
  *
  * The `webServer` command is the same locally and in CI on purpose. A dev server
  * would boot faster, but then the run a developer does before pushing is not the
@@ -14,9 +14,9 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * For the same reason it never reuses a server it did not start (see
  * `reuseExistingServer` below), and the port it binds is derived per worktree by
- * `scripts/with-test-db.sh` rather than written in `.env.test`. The fallbacks
- * here are for a bare `bunx playwright test`; the gate always comes through the
- * wrapper.
+ * `scripts/with-test-db.sh` rather than written in `.env.test.defaults`. The
+ * fallbacks here are for a bare `bunx playwright test`; the gate always comes
+ * through the wrapper.
  *
  * `KIT_OUTDIR` follows the rule in AGENTS.md: anything that loads the SvelteKit
  * vite plugin gets its own generated directory, or it blanks a dev server that

@@ -7,6 +7,10 @@ import { EventService } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import { listDiplomaTemplates } from '$lib/server/diplomaTemplates';
 import { listClosingTemplates } from '$lib/server/closingTemplates';
+import {
+  memberStatusCatalogue,
+  upsertMemberStatus,
+} from '$lib/server/services/devSpaceVisibility';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
@@ -31,22 +35,30 @@ export const load: PageServerLoad = async () => {
   // The feedback-form picker in the edit dialog: the published, talent-answerable
   // forms an event can be bound to. One query, cross-event (the dialog reuses them
   // for whichever row is opened).
-  const [publishedForms, templates, diplomaTemplates, closingTemplates] =
-    await Promise.all([
-      prisma.feedback_Form.findMany({
-        // Any published, talent-answerable form is pickable for an event (forms are
-        // not owned by events - an event-specific one is just a normally-named form).
-        where: { status: 'published', allowsAuthenticatedAccess: true },
-        select: { id: true, title: true },
-        orderBy: { title: 'asc' },
-      }),
-      EventConfigTemplateService.list(),
-      // The certificate picker in the same dialog. A small catalogue, so it is
-      // fetched whole rather than per row.
-      listDiplomaTemplates(),
-      // And the closing-grid picker beside it, for the same reason.
-      listClosingTemplates(),
-    ]);
+  const [
+    publishedForms,
+    templates,
+    diplomaTemplates,
+    closingTemplates,
+    statusCatalogue,
+  ] = await Promise.all([
+    prisma.feedback_Form.findMany({
+      // Any published, talent-answerable form is pickable for an event (forms are
+      // not owned by events - an event-specific one is just a normally-named form).
+      where: { status: 'published', allowsAuthenticatedAccess: true },
+      select: { id: true, title: true },
+      orderBy: { title: 'asc' },
+    }),
+    EventConfigTemplateService.list(),
+    // The certificate picker in the same dialog. A small catalogue, so it is
+    // fetched whole rather than per row.
+    listDiplomaTemplates(),
+    // And the closing-grid picker beside it, for the same reason.
+    listClosingTemplates(),
+    // The Salesforce statuses an event can show: the catalogue, a handful of
+    // words.
+    memberStatusCatalogue(),
+  ]);
   const feedbackForms = publishedForms.map((f) => ({
     value: f.id,
     label: f.title,
@@ -90,6 +102,7 @@ export const load: PageServerLoad = async () => {
     closingGrids,
     templates,
     formPreviews,
+    sfStatuses: statusCatalogue.map((row) => row.status),
   };
 };
 
@@ -121,9 +134,15 @@ export const actions: Actions = {
         feedbackFormId: form.data.feedbackFormId,
         diplomaTemplateId: form.data.diplomaTemplateId,
         closingTemplateId: form.data.closingTemplateId,
+        shownStatuses: form.data.shownStatuses,
       });
       return message(form, 'Événement mis à jour.');
     } catch (err) {
+      // A refusal the service explains (a status Jump does not know, an
+      // activation it would refuse) is handed back as written.
+      if (isHttpError(err) && err.status === 400) {
+        return message(form, String(err.body.message), { status: 400 });
+      }
       console.error(err);
       return message(form, 'Erreur lors de la mise à jour.', { status: 500 });
     }
@@ -240,6 +259,30 @@ export const actions: Actions = {
     } catch (err) {
       console.error(err);
       return fail(500, { templateError: 'Erreur lors de la suppression.' });
+    }
+  },
+
+  // « Ajouter au catalogue » on a status Jump does not know, in « Membres
+  // Salesforce ». The same write as `write_sync_member_status`: the word becomes
+  // known and stops being reported, and no event shows it until its own
+  // configuration says so. Posted via fetch, since the dialog also opens from
+  // inside the config wizard's form.
+  addMemberStatus: async ({ request, locals }) => {
+    recordUsage(USAGE_FEATURES.ADMIN_SF_STATUS_ADD, { locals });
+    const fd = await request.formData();
+    try {
+      const status = await upsertMemberStatus(String(fd.get('status') ?? ''));
+      return { memberStatusAdded: status };
+    } catch (err) {
+      if (isHttpError(err)) {
+        return fail(err.status, {
+          memberStatusError: String(err.body.message),
+        });
+      }
+      console.error(err);
+      return fail(500, {
+        memberStatusError: "Erreur lors de l'ajout du statut.",
+      });
     }
   },
 

@@ -225,12 +225,13 @@ export const interestsSchema = z.object({
 });
 
 export const equipmentSchema = z.object({
-  // Informational only, and deliberately not a gate. The laptop requirement is
-  // now certified where it is actually written down, as a consent box on the
-  // règlement (`rulesSchema.acceptedEquipment`); asking for it twice would let
-  // the two answers disagree. What stays here is the free-text description,
-  // which staff read on the fiche talent as a recruiting signal, so an empty
-  // answer must not block the wizard.
+  // Informational only, and deliberately not a gate. The wizard asks no laptop
+  // question at all, here or on the règlement step: the requirement belongs to
+  // the stage de seconde and neither step knows which event the talent is
+  // enrolled in (the reasoning lives once, on `rulesSchema.acceptedRules`).
+  // What stays here is the free-text description, which staff read on the fiche
+  // talent as a recruiting signal, so an empty answer must not block the
+  // wizard.
   setupDescription: z
     .string()
     .max(1000, 'Maximum 1000 caractères')
@@ -248,30 +249,44 @@ export const charteSchema = z.object({
 });
 
 // --- Étape 7 : Règlement intérieur & charte ---
-// All three consents are legally load-bearing (RGPD, minors), so they are
-// enforced server-side here, not merely by the disabled submit button on the
-// client. Messages tutoient: this is talent-facing copy.
+// Both consents are legally load-bearing (RGPD, minors), so they are enforced
+// server-side here, not merely by the disabled submit button on the client.
+// Messages tutoient: this is talent-facing copy.
 export const rulesSchema = z.object({
   city: z.string().trim().min(1, 'Indique la ville où tu signes.'),
   acceptedCharter: requiredConsent(
     'Tu dois accepter la Charte Informatique et Éthique pour continuer.',
   ),
+  // This one consent carries the WHOLE document, every clause of it, which is
+  // why no single clause gets a box of its own. The laptop clause had one for a
+  // release and the validated 2026-2027 wording is what retired it: the clause
+  // sits under "Dispositions propres au stage de seconde", and the PO confirmed
+  // in as many words that a lycéen at a Coding Club is not expected to bring a
+  // machine. A box asked of every signer therefore made most of them certify a
+  // clause their own document does not apply to them.
+  //
+  // Do not re-add it, and do not add a scoped version either: this step cannot
+  // express that scope. The wizard is walked once per school year rather than
+  // once per event, so its load holds no `Participation` and no `Event` to
+  // branch on, and `Event.eventType` was retired deliberately (an event is what
+  // its modules and its dates say it is). An ask that has to know the event
+  // belongs to the enrolment, not to the yearly dossier, and that is a
+  // different surface.
+  //
+  // Nothing was lost by removing it: the consent was never persisted (it never
+  // reached `signOnboardingRules`), and `Talent.hasLaptop` was dropped in August
+  // for the same reason, having been true on exactly the talents who passed the
+  // step and never once saying a talent lacked one.
   acceptedRules: requiredConsent(
     'Tu dois accepter le règlement intérieur pour continuer.',
-  ),
-  // The laptop clause lives in the règlement's "Matériel et responsabilité"
-  // section; this box is the affirmative certification of it. It replaced the
-  // blocking checkbox on the equipment step.
-  acceptedEquipment: requiredConsent(
-    "Tu dois certifier posséder un ordinateur portable, ou prévenir l'équipe de ton campus.",
   ),
 });
 
 /**
  * The same act for a talent who already gave the charte consent, on a previous
  * year's dossier. The charte is a once-per-account consent, so the box is not
- * rendered for them and the field is legitimately absent; the règlement and the
- * laptop clause stay mandatory, because those are what a yearly dossier signs.
+ * rendered for them and the field is legitimately absent; the règlement stays
+ * mandatory, because that is what a yearly dossier signs.
  */
 export const rulesSchemaWithoutCharter = rulesSchema.omit({
   acceptedCharter: true,

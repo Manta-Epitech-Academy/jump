@@ -47,6 +47,10 @@ const NEVER_SEEDED_VALUES: Readonly<Record<string, string>> = {
       'une campagne dans ce statut n’est pas un fait, c’est du travail que /api/jobs/broadcasts/process réclame et envoie : la semer, c’est envoyer. Son absence EST l’isolation du worker de campagnes, au même titre qu’un `Campus.externalName` vide l’est pour le worker Salesforce. Ce qu’on perd est réel et assumé : les filtres « En file » et « En cours » de /staff/admin/broadcasts n’ont pas d’exemple semé. L’état reste à un clic, en rejouant un destinataire en échec depuis la fiche d’une campagne, et le jeu de données en porte.',
     ]),
   ),
+  // ── L'isolation du worker Salesforce, prise une couche plus haut. ──
+  'SyncSourceKind.parent':
+    'la whitelist du worker Salesforce. Une ligne `Sync_Source` semée n’est pas un fait, c’est l’INSTRUCTION qui fait aller chercher de vraies données de mineurs dans la base qui la porte : voir `Sync_Source` dans `assert/coverage.ts` et la vérification qui la refuse dans `assert/inertness.ts`. Aucune des deux valeurs ne peut donc avoir de ligne, et l’espace admin lit ce catalogue par l’opération config_sync_sources, jamais par un écran semé.',
+  'SyncSourceKind.orphan': 'voir `SyncSourceKind.parent`.',
   'BroadcastRecipientStatus.pending':
     'la ligne que la boucle d’envoi pagine. Voir `BroadcastStatus.queued` : un destinataire en attente sous une campagne terminale est le même envoi une couche plus bas, atteignable par la reprise d’une campagne bloquée comme par une remise en file manuelle.',
 };

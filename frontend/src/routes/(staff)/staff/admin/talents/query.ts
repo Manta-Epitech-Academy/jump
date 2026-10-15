@@ -21,6 +21,10 @@ import { isOnboardingEligible } from '$lib/domain/niveau';
 import { isParentDossierComplete } from '$lib/domain/dossierCompliance';
 import type { TalentAccountStatus, ParentCompletionStatus } from './labels';
 import { guardiansOf } from '$lib/domain/contact';
+import {
+  everyTokenMatches,
+  talentIdentityMatches,
+} from '$lib/server/db/textSearch';
 
 /**
  * Single source of truth for the admin talents directory query. Both the page
@@ -146,11 +150,11 @@ export function onboardingDoneWhere(): Prisma.TalentWhereInput {
  * onboarded", not "how many of the already-onboarded are onboarded".
  *
  * `where` layers the status + parentStatus narrowing on top. Everything is
- * accumulated into a single `AND` array (search included, as an `AND[].OR`
- * entry) so the clauses compose instead of clobbering each other: the old code
- * assigned `where.AND` twice, which silently dropped the status filter whenever
- * a parent filter was also set, making "onboardé + en attente parent"
- * inexpressible.
+ * accumulated into a single `AND` array (search included, as one `AND[].OR`
+ * entry per word of the query) so the clauses compose instead of clobbering
+ * each other: the old code assigned `where.AND` twice, which silently dropped
+ * the status filter whenever a parent filter was also set, making "onboardé +
+ * en attente parent" inexpressible.
  */
 export function buildTalentWhere(f: TalentFilters): {
   where: Prisma.TalentWhereInput;
@@ -158,16 +162,7 @@ export function buildTalentWhere(f: TalentFilters): {
 } {
   const scope: Prisma.TalentWhereInput[] = [];
 
-  const sanitized = f.q.replace(/[^a-zA-ZÀ-ÿ0-9\s'@.\-]/g, '').trim();
-  if (sanitized) {
-    scope.push({
-      OR: [
-        { nom: { contains: sanitized, mode: 'insensitive' } },
-        { prenom: { contains: sanitized, mode: 'insensitive' } },
-        { user: { email: { contains: sanitized, mode: 'insensitive' } } },
-      ],
-    });
-  }
+  scope.push(...everyTokenMatches(f.q, talentIdentityMatches));
   if (f.niveau) scope.push({ niveau: f.niveau });
 
   // A talent's campus isn't a column: `some` matches any campus they've

@@ -10,6 +10,7 @@ import type {
 import { prisma } from '$lib/server/db';
 import { assertEditable, getFormGraphById } from '$lib/server/feedbackForms';
 import { IDENTITY_NOT_MULTIPLE_MESSAGE } from '$lib/validation/feedbackForms';
+import { STRUCTURAL_QUESTION_FIELDS } from '$lib/domain/feedbackForms/authoring';
 import { getStorage } from '$lib/server/infra/storage';
 import { copyPersonaIcon } from '$lib/server/feedbackForms/personaIcon';
 
@@ -97,8 +98,11 @@ async function assertSectionInForm(
 
 // ─── Form ───
 
+// `staffId` is the author shown in the builder, null when the caller has no staff
+// profile (an admin API token can belong to none): the columns are `SetNull`
+// already, since a departure must never delete a form.
 export async function createForm(
-  staffId: string,
+  staffId: string | null,
   input: { title: string; intro?: string | null; personaName?: string | null },
 ): Promise<{ id: string }> {
   const slug = await uniqueSlug(input.title);
@@ -142,7 +146,7 @@ export async function updateForm(
 
 /** Deep-clones a form (+ sections, questions, options) into a fresh draft. */
 export async function duplicateForm(
-  staffId: string,
+  staffId: string | null,
   sourceId: string,
 ): Promise<{ id: string }> {
   const src = await getFormGraphById(sourceId);
@@ -220,7 +224,10 @@ export async function duplicateForm(
     if (key) {
       await prisma.feedback_Form.update({
         where: { id: created.id },
-        data: { personaIconKey: key },
+        data: {
+          personaIconKey: key,
+          personaIconSourceUrl: src.personaIconSourceUrl,
+        },
       });
     }
   }
@@ -401,14 +408,10 @@ export async function createQuestion(
   });
 }
 
-const STRUCTURAL_QUESTION_FIELDS: (keyof QuestionStructureInput)[] = [
-  'key',
-  'type',
-  'required',
-  'identityField',
-  'inputKind',
-  'minSelections',
-  'maxSelections',
+// The fields that change what an answer means, plus where the question sits,
+// which a single-question patch carries as its section.
+const STRUCTURAL_PATCH_FIELDS: readonly (keyof QuestionStructureInput)[] = [
+  ...STRUCTURAL_QUESTION_FIELDS,
   'sectionId',
 ];
 
@@ -418,7 +421,7 @@ export async function updateQuestion(
   patch: Partial<QuestionStructureInput>,
 ): Promise<void> {
   await assertQuestionInForm(formId, id);
-  const touchesStructure = STRUCTURAL_QUESTION_FIELDS.some(
+  const touchesStructure = STRUCTURAL_PATCH_FIELDS.some(
     (f) => patch[f] !== undefined,
   );
   if (touchesStructure) await assertEditable(formId);

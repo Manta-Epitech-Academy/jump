@@ -6,8 +6,8 @@
  * for a mistake and a poor way to learn a vocabulary: it made a deliberate error
  * the only discovery path, and the answer to "compare nos campus" depends on
  * knowing the names first. The other list, the school years, was only reachable
- * through `stats_events_overview`, a configuration answer national leadership
- * cannot call at all.
+ * through a configuration answer national leadership cannot call at all, and is
+ * now published here alone.
  *
  * Reads the same two sources the refusals read (`listCampusNames`,
  * `scopedEvents().availableSchoolYears`), so what is offered and what is accepted

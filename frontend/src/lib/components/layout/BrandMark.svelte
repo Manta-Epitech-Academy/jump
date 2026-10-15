@@ -76,13 +76,34 @@
     </div>
   </a>
 {:else}
-  <a {href} class={cn('flex items-center gap-2.5', textTone, className)}>
+  <!--
+    Inline, the mark shares one bar with the controls on the other side, so it
+    has to give way rather than overflow. It did neither: at 390px the sublabel
+    ran past its own anchor and painted on top of the search button.
+
+    So the mark sheds parts as the bar narrows, in reverse order of what they
+    carry. The sublabel goes first, below `sm`: it is the one part the screen
+    already states twice over (the accent chrome, and the space's own sidebar),
+    and the dev header carries no role label at any width. The wordmark goes
+    next, under 360px, where the logo and the hamburger and three controls
+    genuinely do not fit together; the drawer still opens on the full mark. The
+    Epitech logo never goes, because the chrome is Epitech-led.
+
+    Measured rather than guessed: at 320 and 390 the mark now ends before the
+    control cluster starts, where it used to run 36px into the search button.
+  -->
+  <a
+    {href}
+    class={cn('flex min-w-0 items-center gap-2.5', textTone, className)}
+  >
     <EpitechLogo {tone} class="h-6 w-auto shrink-0" />
-    <span class="font-heading text-display-s">
+    <span
+      class="hidden shrink-0 font-heading text-display-s min-[360px]:inline"
+    >
       Jump<TitleCursor />
     </span>
     {#if sublabel}
-      <span class={cn('epi-overline', accentTone)}>
+      <span class={cn('hidden truncate sm:inline', 'epi-overline', accentTone)}>
         {sublabel}
       </span>
     {/if}

@@ -1,27 +1,31 @@
 import { startOfDay } from './calendarWeek';
 
 /**
- * The talent dashboard "Planning à venir" widget renders exactly one of three
- * states. Rather than have the component re-derive that state from a ladder of
- * raw-participation truthiness checks (`activeParticipation ? … : upcoming ?
- * …`), the server collapses it into this single discriminated view-model. The
- * widget then branches on one value with no DB-row shapes leaking into the UI,
- * and the dev preview tooling can substitute a view-model wholesale (see
- * {@link readPlanningPreview}) the same way the dev space substitutes a phase
- * status enum.
+ * The talent's own session, as the home's session card renders it. The server
+ * collapses the participations into this single discriminated view-model, so
+ * the card branches on one value with no DB-row shapes leaking into the UI, and
+ * the admin preview tooling can substitute one wholesale (see
+ * `talentPlanningPreview.ts`) the same way the dev space substitutes a phase.
+ *
+ * It carries the event's `publicName` and never its Salesforce `titre`: a
+ * campaign title is an internal label, and a talent-facing card that falls back
+ * to it is how one reached a talent's screen. With no public name the card
+ * says what it is without naming the event.
  */
 export type PlanningView =
   | {
       /** Talent is inside an event whose date range covers today. */
       state: 'ongoing';
-      titre: string;
-      /** Admin-set friendly name; talent-facing copy prefers it over `titre`. */
       publicName: string | null;
+      /**
+       * Whether THIS event has a schedule to open (a non-orga slot): what the
+       * card's « Voir le planning » leads to. A Coding Club has none.
+       */
+      hasPlanning: boolean;
     }
   | {
       /** No active event, but a future one is scheduled. */
       state: 'upcoming';
-      titre: string;
       publicName: string | null;
       date: Date;
       /** Confirmed wall-clock start, or null when staff haven't set one. */
@@ -33,21 +37,21 @@ export type PlanningView =
     };
 
 /**
- * Minimal participation shape the view-model needs. Both the live Prisma query
- * (narrowed `select`) and the dev preview synthesize this, so neither has to
- * carry a full `Event` row.
+ * Minimal participation shape the view-model needs. The live Prisma query
+ * selects exactly this, so no full `Event` row is carried.
  */
 export type PlanningParticipation = {
   event: {
-    titre: string;
     publicName: string | null;
     date: Date;
     startMinutes: number | null;
+    /** Non-orga slots, at most one: only their presence is read. */
+    planningSlots: unknown[];
   } | null;
 } | null;
 
 /**
- * Fold the active/upcoming participations into the widget's view-model.
+ * Fold the active/upcoming participations into the card's view-model.
  * Mirrors the load's precedence: an event covering today wins over a future
  * one, and both over the rest state.
  */
@@ -58,20 +62,33 @@ export function toPlanningView(
   if (active?.event) {
     return {
       state: 'ongoing',
-      titre: active.event.titre,
       publicName: active.event.publicName,
+      hasPlanning: active.event.planningSlots.length > 0,
     };
   }
   if (upcoming?.event) {
     return {
       state: 'upcoming',
-      titre: upcoming.event.titre,
       publicName: upcoming.event.publicName,
       date: upcoming.event.date,
       startMinutes: upcoming.event.startMinutes,
     };
   }
   return { state: 'none' };
+}
+
+/**
+ * Whether the home's session card has anything to say: the date of the next
+ * session, or the way into a running event's schedule. An event running with
+ * no schedule, or nothing planned, gets no card rather than an empty one.
+ */
+export function showsSessionCard(
+  planning: PlanningView,
+): planning is Extract<PlanningView, { state: 'ongoing' | 'upcoming' }> {
+  return (
+    planning.state === 'upcoming' ||
+    (planning.state === 'ongoing' && planning.hasPlanning)
+  );
 }
 
 /**

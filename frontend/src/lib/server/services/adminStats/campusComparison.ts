@@ -3,7 +3,7 @@
  *
  * The gap this closes: every other aggregate in this folder takes a campus as a
  * *filter* and answers for one périmètre. Comparing fifteen campuses on the share
- * of women or the show-up rate therefore meant fifteen calls and a ranking done by
+ * of women or the closing coverage therefore meant fifteen calls and a ranking done by
  * the consumer, which is the one thing this tier exists to prevent. Arbitrating
  * between campuses is the daily work of the people this tier was built for, so the
  * comparison is a figure the platform returns, sorted, not an exercise it sets.
@@ -30,10 +30,7 @@
 import { prisma } from '$lib/server/db';
 import { CLOSING_FAVOURABLE_RECOMMENDATIONS } from '$lib/domain/closing';
 import { adminEventRunsClosings } from '$lib/server/services/events';
-import {
-  pastEventPresence,
-  VISIBLE_PARTICIPATION_DEFINITION,
-} from '$lib/domain/sfMemberStatus';
+import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
 import {
   metric,
   rank,
@@ -56,7 +53,6 @@ import {
   ONBOARDING_COMPLETED_SHARE_RULE,
 } from './cohortProfile';
 import { isOnboardingEligible } from '$lib/domain/niveau';
-import { SHOW_UP_RATE_RULE } from './attendanceRate';
 import {
   CLOSING_COVERAGE_RULE,
   FAVOURABLE_VERDICT_RULE,
@@ -74,7 +70,6 @@ export type CampusComparison = {
     cohort: Metric<CampusFigure[]>;
     womenShare: Metric<CampusFigure[]>;
     onboardingCompletedShare: Metric<CampusFigure[]>;
-    showUpRate: Metric<CampusFigure[]>;
     schools: Metric<CampusFigure[]>;
     returningShare: Metric<CampusFigure[]>;
     closingCoverage: Metric<CampusFigure[]>;
@@ -90,9 +85,6 @@ type Tally = {
   talents: Set<string>;
   /** Enrolments per talent, for "came back more than once". */
   enrolments: Map<string, number>;
-  present: number;
-  /** Enrolments whose Salesforce status concludes on attendance. */
-  conclusive: number;
   /** Enrolments on the campus's events that actually conduct closings: the
    *  coverage denominator, never the campus's whole cohort. */
   closingEnrolments: number;
@@ -108,8 +100,6 @@ type Tally = {
 const emptyTally = (): Tally => ({
   talents: new Set(),
   enrolments: new Map(),
-  present: 0,
-  conclusive: 0,
   closingEnrolments: 0,
   closings: 0,
   verdicts: 0,
@@ -122,9 +112,6 @@ export async function getCampusComparison(
   const { events } = await scopedEvents(scope);
 
   const campusOf = new Map(events.map((e) => [e.id, e.campusName]));
-  const pastEventIds = new Set(
-    events.filter((e) => e.status === 'past').map((e) => e.id),
-  );
   // The events that actually conduct closings, off the same rule the dev sidebar
   // gates the surface on. Enrolments elsewhere belong to no closing rate: an
   // event with no grid is a configuration fact, not a campus that fell behind.
@@ -136,7 +123,7 @@ export async function getCampusComparison(
   const [enrolments, talents, completedRows, closings] = await Promise.all([
     prisma.participation.findMany({
       where: enrolmentWhere,
-      select: { talentId: true, eventId: true, sfMemberStatus: true },
+      select: { talentId: true, eventId: true },
     }),
     prisma.talent.findMany({
       where: await cohortWhere(scope),
@@ -179,18 +166,6 @@ export async function getCampusComparison(
     // The coverage denominator, which is a question on every enrolment: an event
     // that runs closings owes one per inscription whether it has happened or not.
     if (closingEventIds.has(row.eventId)) tally.closingEnrolments += 1;
-
-    // Presence, by contrast, is only a question on an event that has happened,
-    // and only for a status that concludes something - the same two exclusions
-    // `attendanceRate` makes, read off the same domain rule.
-    if (!pastEventIds.has(row.eventId)) continue;
-    const presence = pastEventPresence(row.sfMemberStatus);
-    if (presence === 'present') {
-      tally.present += 1;
-      tally.conclusive += 1;
-    } else if (presence === 'absent') {
-      tally.conclusive += 1;
-    }
   }
 
   // The same cohort the denominator above was taken over, as a set of pairs. A
@@ -259,10 +234,6 @@ export async function getCampusComparison(
           return share(done.length, concerned.length);
         }),
         `${ONBOARDING_COMPLETED_SHARE_RULE} Rapportée ici aux talents concernés du campus ; vaut null quand aucun d'eux n'y est concerné. ${AXIS_NOTE}`,
-      ),
-      showUpRate: metric(
-        figure((t) => share(t.present, t.conclusive)),
-        `${SHOW_UP_RATE_RULE} Porte ici sur les événements terminés du campus ; vaut null quand le campus n'a aucune inscription exploitable, notamment quand aucun de ses événements n'est encore passé. ${AXIS_NOTE}`,
       ),
       schools: metric(
         figure(

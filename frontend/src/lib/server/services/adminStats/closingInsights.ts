@@ -183,7 +183,7 @@ export async function getClosingInsights(
     ),
     eventsRunningClosings: metric(
       concernedIds.size,
-      "Événements du périmètre qui mènent réellement des closings : leur section Closings est activée ET ils nomment une grille. Plus strict que le décompte par section de stats_events_overview, où un événement dont la grille n'est pas choisie compte quand même.",
+      "Événements du périmètre qui mènent réellement des closings : leur section Closings est activée ET ils nomment une grille. Plus strict qu'un décompte par section, où un événement dont la grille n'est pas choisie compte quand même.",
     ),
     eventsRunningClosingsShare: metric(
       share(concernedIds.size, events.length),
