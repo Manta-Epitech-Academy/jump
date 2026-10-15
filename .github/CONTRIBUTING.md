@@ -226,13 +226,19 @@ same ids, only intact. Which is why the anchor is held constant for the whole wi
 passed explicitly on each run - taking it from the trigger date would shift every date in the dataset
 between two promotions of one release, and the PO would no longer be looking at the same thing.
 
-**Not true of the live `staging` yet.** Nothing has ever seeded it: the container `CMD` is
-`migrate deploy` and nothing else, so it carries whatever has accumulated in it, the Salesforce sync
-included for as long as the worker was pointed there. The generator refuses a database it has never
-filled rather than filling it half-way, so the switchover is a `prisma migrate reset`, then a
-generation, then `frontend/scripts/bootstrap-admins.ts` for the admin accounts the reset destroys. That,
-and the Job that re-seeds during the window, is #294. Until it lands, read this section as the target
-and not as the state.
+**How it is re-seeded.** The `seed` job of `.github/workflows/docker-build.yml` runs on every push to
+`dev` and to `staging`, after the rollout of that push is complete (so the new pod has applied its
+migrations) and after the seeder image of that commit is pushed. It creates the Job in
+`.github/k8s/seed-job.yml`, one at a time per branch, and fails visibly if the generator does. Both
+branches generate the `staging` profile from the anchor committed in `.github/seed-anchor`, so `dev`
+holds the world `staging` is judged on. A retouche carries that file unchanged, which is what keeps the
+anchor still for the window without anybody remembering to; moving it is a one-line commit, made between
+two windows and never during one. An out-of-band run, for a generation between two pushes, is
+`jump-k3s/scripts/jump/seed.sh`, which anchors on its own run date until it reads that file too.
+
+The live `staging` was switched over on 2026-09-07: a `prisma migrate reset`, a generation, then
+`frontend/scripts/bootstrap-admins.ts` for the admin accounts the reset destroys. Nothing had seeded it
+before, and the generator refuses a database it has never filled rather than filling it half-way.
 
 The reset belongs to that switchover alone, and not to the re-seeds that follow it. A database this
 generator has already filled goes on accumulating rows it did not write, because the application keeps
@@ -259,9 +265,9 @@ integration test that calls the real `syncTalents` over a crafted payload, on ev
 
 Being a property of the data also means it arrives with the data, so the setting was closed first rather
 than waited on: since 2026-09-05 the worker targets production and preproduction only (#295). That half
-is done. The half this section still describes as a target is the data, which arrives with #294: while
-`staging` carries campuses a sync created, those campuses have an external name, so a worker pointed
-back at it would resolve them and be fully in scope.
+is done, and the data half followed with the switchover of 2026-09-07. Both halves are needed: a
+campus a sync created carries an external name, so a worker pointed back at a database still holding
+one would resolve it and be fully in scope.
 
 ### Step 7: PR, Self-Review & Merge
 
