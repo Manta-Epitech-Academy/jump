@@ -2,7 +2,7 @@
  * When the Salesforce worker should run, in which mode, and over which window.
  *
  * The worker is stateless and ephemeral: a CronJob wakes it on a fixed fine tick
- * and it asks Jump what to do. So this decision lives here rather than there,
+ * (`SYNC_WORKER_TICK_MINUTES`) and it asks Jump what to do. So this decision lives here rather than there,
  * and the cadence the team edits takes effect at the next tick with nothing to
  * redeploy. Kept in `domain/` and pure: it is the one piece of this surface that
  * has to be exercised across a matrix of clocks, and a database makes that
@@ -30,18 +30,48 @@ export type SyncMode = 'full' | 'incremental';
 export const SYNC_WATERMARK_MARGIN_MINUTES = 10;
 
 /**
+ * How often the CronJob wakes the worker, in minutes.
+ *
+ * The schedule itself lives in `jump-k3s` (`services/sfworker/base/cronjob.yml`)
+ * and this mirrors it, because two things here are only right relative to it:
+ * the lowest cadence worth accepting, and the wake-up slack below. Change both
+ * sides together.
+ *
+ * It is also the whole latency of "sync now". A request (`ops_request_sync`) is
+ * served at the next wake-up, and nothing pushes the worker awake sooner: Jump
+ * never starts a Job on the cluster and the worker listens on no port. So the
+ * tick is a minute, and a pass asked for during a demo leaves within it (#423).
+ */
+export const SYNC_WORKER_TICK_MINUTES = 1;
+
+/**
  * How early in its interval a mode may be called due, to absorb the worker's
  * wake-up.
  *
  * The decision is made at a tick, but the run it opens is stamped a moment
  * later (`startedAt` is Jump's clock at `POST /runs`), and two ticks never wake
- * the pod with exactly the same delay. So at the tick the cadence names, the
- * time since the last start is the interval minus a few seconds, and a strict
- * comparison skips every other pass: a 15 min cadence ran every 30 in
- * production (#419). Has to stay well under half the 15 min tick, or a pass
- * that started a few minutes before a tick would run again on it.
+ * the pod with exactly the same delay: in production a run lands 3 to 10 s
+ * after its tick. So at the tick the cadence names, the time since the last
+ * start is the interval minus a few seconds, and a strict comparison skips
+ * every other pass: a 15 min cadence ran every 30 in production (#419).
+ *
+ * In seconds because it measures that noise, not the cadence. It has to stay
+ * under half the tick, or a pass that started just before one tick would run
+ * again on the next tick before its interval is up; `syncSchedule.test.ts` holds
+ * that against `SYNC_WORKER_TICK_MINUTES`.
  */
-export const SYNC_WAKE_UP_SLACK_MINUTES = 2;
+export const SYNC_WAKE_UP_SLACK_SECONDS = 20;
+
+/**
+ * The floor and the ceiling on a cadence.
+ *
+ * The floor is the worker's own tick: asking for a pass more often than the
+ * CronJob wakes it does not make it run more often, it just makes the configured
+ * number a lie. The ceiling is a fortnight, past which a full reconcile has
+ * stopped being a deletion net in any useful sense.
+ */
+export const SYNC_CADENCE_MIN_MINUTES = SYNC_WORKER_TICK_MINUTES;
+export const SYNC_CADENCE_MAX_MINUTES = 20_160;
 
 /** One side of the cadence table: how long a mode waits before it is due again. */
 export type SyncCadence = { mode: SyncMode; intervalMinutes: number };
@@ -92,8 +122,8 @@ export type SyncDecision = {
   reason: 'cadence' | 'requested';
 };
 
-function minutesSince(from: Date, now: Date): number {
-  return (now.getTime() - from.getTime()) / 60_000;
+function msSince(from: Date, now: Date): number {
+  return now.getTime() - from.getTime();
 }
 
 function intervalOf(cadences: readonly SyncCadence[], mode: SyncMode): number {
@@ -116,8 +146,8 @@ function isDue(
   // anything is the case where waiting is least defensible.
   if (!last) return true;
   return (
-    minutesSince(last.startedAt, now) >=
-    intervalOf(cadences, mode) - SYNC_WAKE_UP_SLACK_MINUTES
+    msSince(last.startedAt, now) >=
+    intervalOf(cadences, mode) * 60_000 - SYNC_WAKE_UP_SLACK_SECONDS * 1_000
   );
 }
 

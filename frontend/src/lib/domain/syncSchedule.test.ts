@@ -15,8 +15,9 @@ import {
   decideSync,
   staleAfterHours,
   syncCadenceNote,
-  SYNC_WAKE_UP_SLACK_MINUTES,
+  SYNC_WAKE_UP_SLACK_SECONDS,
   SYNC_WATERMARK_MARGIN_MINUTES,
+  SYNC_WORKER_TICK_MINUTES,
   type SyncCadence,
   type SyncRequests,
 } from './syncSchedule';
@@ -208,11 +209,12 @@ describe('decideSync', () => {
   });
 });
 
-// The worker only asks at a tick, on the quarter hour, and a run is stamped a
-// moment after the tick that decided it. So at the tick the cadence names, the
-// time since the last start is always a hair under the interval: compared
-// strictly, a 15 min cadence ran every 30 in production (#419). The clocks are
-// the ones from the issue.
+// The worker only asks at a tick, and a run is stamped a moment after the tick
+// that decided it. So at the tick the cadence names, the time since the last
+// start is always a hair under the interval: compared strictly, a 15 min
+// cadence ran every 30 in production (#419), on the quarter-hour tick of the
+// time. The first clocks are the ones from that issue; the minute-tick cases
+// are the ones #423 moved to.
 describe('decideSync on the worker tick', () => {
   const at = (iso: string) => new Date(iso);
   const decideAt = (
@@ -251,10 +253,29 @@ describe('decideSync on the worker tick', () => {
     ).toMatchObject({ shouldSync: false });
   });
 
-  // The slack is wake-up noise, not freshness: widened toward half the tick,
-  // a pass started a few minutes before a tick would run again on it.
+  it('runs a 5 min cadence on the fifth minute tick, not the fourth', () => {
+    const lastStart = '2026-10-19T14:00:08Z';
+    expect(decideAt('2026-10-19T14:04:03Z', 5, lastStart).shouldSync).toBe(
+      false,
+    );
+    expect(decideAt('2026-10-19T14:05:03Z', 5, lastStart)).toMatchObject({
+      shouldSync: true,
+      mode: 'incremental',
+    });
+  });
+
+  it('runs a 1 min cadence on every tick', () => {
+    // The pass before woke late (stamped 14h00m09), this tick early (14h01m02).
+    expect(
+      decideAt('2026-10-19T14:01:02Z', 1, '2026-10-19T14:00:09Z'),
+    ).toMatchObject({ shouldSync: true, mode: 'incremental' });
+  });
+
+  // The slack is wake-up noise, not freshness: widened to half the tick, a pass
+  // started just before one tick would run again on the next one, ahead of its
+  // cadence.
   it('allows the wake-up slack and nothing more', () => {
-    const slackMs = SYNC_WAKE_UP_SLACK_MINUTES * 60_000;
+    const slackMs = SYNC_WAKE_UP_SLACK_SECONDS * 1_000;
     const tick = at('2026-10-19T12:15:00Z');
     const startedAt = (msBeforeTick: number) =>
       new Date(tick.getTime() - msBeforeTick).toISOString();
@@ -267,6 +288,14 @@ describe('decideSync on the worker tick', () => {
       decideAt(tick.toISOString(), 15, startedAt(15 * 60_000 - slackMs - 1_000))
         .shouldSync,
     ).toBe(false);
+  });
+
+  // The tick lives in jump-k3s and is mirrored here; the slack is only safe
+  // relative to it. Shortening the tick without the slack fails here.
+  it('keeps the slack under half the worker tick', () => {
+    expect(SYNC_WAKE_UP_SLACK_SECONDS * 2).toBeLessThan(
+      SYNC_WORKER_TICK_MINUTES * 60,
+    );
   });
 });
 
