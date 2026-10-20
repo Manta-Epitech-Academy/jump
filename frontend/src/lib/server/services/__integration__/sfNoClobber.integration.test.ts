@@ -247,4 +247,19 @@ describe('the Salesforce sync keeps what a talent confirmed (integration)', () =
       }),
     ).toEqual({ errorType: 'DUPLICATE_EMAIL', resolved: false });
   });
+
+  // A talent the sync sees for the first time with a parent's address gets no
+  // login, and the error tells the admin where the fix is: in Salesforce, since
+  // the Connexion tab only lists talents that already have one.
+  it("sends a new talent's address a parent holds back to Salesforce", async () => {
+    const fresh = sf('newparent', { email: parentEmail });
+    await syncTalents([fresh]);
+
+    expect((await talentOf(fresh.external_id)).user).toBeNull();
+    const logged = await prisma.syncError.findFirst({
+      where: { attemptedExtId: fresh.external_id, email: parentEmail },
+      select: { message: true },
+    });
+    expect(logged?.message).toContain("Corrigez l'adresse dans Salesforce");
+  });
 });

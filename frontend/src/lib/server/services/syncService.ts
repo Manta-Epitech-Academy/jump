@@ -15,7 +15,10 @@ import { isNiveau, type Niveau } from '$lib/domain/niveau';
 import { normalizePhoneToE164 } from '$lib/domain/phone';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 import { autoResolveAuthIdentity } from '$lib/server/services/authIdentityRepairService';
-import { ensureTalentUser } from '$lib/server/services/talentAccount';
+import {
+  ensureTalentUser,
+  TalentAccountError,
+} from '$lib/server/services/talentAccount';
 import {
   changeUserEmail,
   EmailChangeConflict,
@@ -265,6 +268,13 @@ export async function syncTalents(talents: WorkerTalent[]) {
     try {
       await ensureTalentUser(talentId);
     } catch (err) {
+      // An address that is already somebody else's is fixed in Salesforce: the
+      // Connexion tab of Divergences Salesforce lists linked talents only, and
+      // this one has no login yet. Anything else is retried by the next pass.
+      const remedy =
+        err instanceof TalentAccountError && err.kind === 'identity_conflict'
+          ? "Corrigez l'adresse dans Salesforce : le compte sera créé au prochain sync."
+          : 'Réessai au prochain sync.';
       await logSyncError({
         errorType: 'DUPLICATE_EMAIL',
         email: loginEmail,
@@ -274,7 +284,7 @@ export async function syncTalents(talents: WorkerTalent[]) {
         eventExtId: null,
         message: `Compte de connexion non créé pour "${loginEmail}" : ${
           err instanceof Error ? err.message : 'erreur inconnue'
-        }. À arbitrer (Divergences Salesforce › Connexion) ou réessai au prochain sync.`,
+        }. ${remedy}`,
       });
     }
   };
