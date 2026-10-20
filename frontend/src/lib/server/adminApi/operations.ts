@@ -1692,7 +1692,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_emargement_coverage: defineOperation({
-    description: `Whether the attendance register is being kept: for events that expose the émargement section, how many half-days exist, how many were closed, and the tally of recorded marks. Capped at ${EMARGEMENT_EVENTS_LIMIT} events in the per-event list.`,
+    description: `Whether the attendance register is being kept: for events that expose the émargement section, how many half-days exist, have elapsed and hold a mark, and the tally of recorded marks. Capped at ${EMARGEMENT_EVENTS_LIMIT} events in the per-event list.`,
     shape: { schoolYear, campus, eventId },
     run: async (params) => getEmargementCoverage(await resolveScope(params)),
   }),
