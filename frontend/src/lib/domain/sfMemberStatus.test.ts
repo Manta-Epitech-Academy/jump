@@ -139,18 +139,6 @@ const devReaders = [
 ].filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
 
 /**
- * Reads that skip the fragment on purpose, with the reason. A closing is keyed
- * on (talent, event), so its conduct page opens one whose enrolment the sync has
- * since pruned or masked: accepting the record alone is the point of that load.
- */
-const DELIBERATE: Record<string, { reads: number; why: string }> = {
-  [`${DEV_ROUTES}/events/[id]/closings/[talentId]/+page.server.ts`]: {
-    reads: 1,
-    why: 'a conducted closing stays readable once its enrolment is masked or pruned',
-  },
-};
-
-/**
  * A roster the dev space prints or exports must be the one it shows. That was a
  * fragment each read had to remember, and five forgot it (certificates, badges,
  * both exports, the bilan denominator), so a withdrawn talent got a certificate
@@ -176,19 +164,10 @@ describe('every dev roster reads the visible cohort', () => {
   it('scopes every cohort read to the cohort the dev space shows', () => {
     const offenders = devReaders.flatMap((file) => {
       const missing = readsWithoutFragment(readFileSync(file, 'utf-8'));
-      const allowed = DELIBERATE[file]?.reads ?? 0;
-      return missing.length === allowed
+      return missing.length === 0
         ? []
-        : [
-            `${file}: ${missing.length} read(s) without the cohort, ${allowed} allowed`,
-          ];
+        : [`${file}: ${missing.length} read(s) without the cohort`];
     });
     expect(offenders).toEqual([]);
-  });
-
-  it('allows nothing for a file that no longer exists', () => {
-    expect(
-      Object.keys(DELIBERATE).filter((file) => !devReaders.includes(file)),
-    ).toEqual([]);
   });
 });

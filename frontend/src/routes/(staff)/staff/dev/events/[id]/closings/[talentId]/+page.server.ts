@@ -107,9 +107,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // whose enrolment the sync has since pruned stays reachable here instead of
   // 404ing on a row that no longer exists.
   const key = { talentId: params.talentId, eventId: event.id };
-  const [participation, record] = await Promise.all([
-    db.participation.findUnique({
-      where: { talentId_eventId: key },
+  const [onRoster, record] = await Promise.all([
+    db.participation.findFirst({
+      where: { ...key, ...visibleParticipationWhere },
       select: { talentId: true },
     }),
     db.closing_Record.findUnique({
@@ -118,10 +118,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     }),
   ]);
 
-  // Either tie will do, and accepting the record alone is the point: Salesforce
-  // prunes an enrolment it no longer carries, and a closing already conducted
-  // must stay readable afterwards rather than 404 on a row that has gone.
-  if (!participation && !record) {
+  // Either tie will do. A talent the closings page lists can have one started,
+  // and a closing already started stays readable once Salesforce masks or
+  // prunes its enrolment. A masked talent with no closing is neither, so the
+  // page is missing rather than a start the action would refuse.
+  if (!onRoster && !record) {
     throw error(404, 'Participant introuvable pour cet événement.');
   }
 
