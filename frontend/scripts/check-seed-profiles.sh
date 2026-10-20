@@ -36,11 +36,24 @@ set -eu
 # this check runs.
 ANCHOR=2026-03-15
 
-for profile in ci dev; do
-  echo "[seed] profile ${profile}" >&2
+# The usage rollup's clock, seven months past the anchor: a deployed
+# environment keeps its anchor for a whole validation window while the cron
+# runs on real time, so by the next re-seed the job has re-keyed the cube and
+# purged the oldest raw months the generator is about to write again. Before
+# this step the two generations ran back to back, and every re-seed of `dev`
+# failed on that state while this check stayed green (#432).
+ROLLUP_AT=2026-10-15
+
+generate() {
+  echo "[seed] profile $1" >&2
   bun run scripts/seed/index.ts \
-    --env test --profile "$profile" --today "$ANCHOR" --check
-done
+    --env test --profile "$1" --today "$ANCHOR" --check
+}
+
+generate ci
+echo "[seed] usage rollup between two generations" >&2
+bun run scripts/seed/simulate-rollup.ts --at "$ROLLUP_AT"
+generate dev
 
 # Last, and on the database the loop leaves behind: the gate that decides whether
 # the generator may run at all is the one thing `--check` cannot speak about,
