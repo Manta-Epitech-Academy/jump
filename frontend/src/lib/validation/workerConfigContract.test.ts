@@ -31,12 +31,9 @@ const CADENCES: SyncCadence[] = [
 
 const NOW = new Date('2026-09-15T12:00:00.000Z');
 
+/** A run that started `minutes` minutes before NOW. */
 function ago(minutes: number) {
-  const startedAt = new Date(NOW.getTime() - minutes * 60_000);
-  return {
-    startedAt,
-    finishedAt: new Date(startedAt.getTime() + 2 * 60_000),
-  };
+  return { startedAt: new Date(NOW.getTime() - minutes * 60_000) };
 }
 
 /** The composition the route performs, over one decision. */

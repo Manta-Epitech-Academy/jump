@@ -73,8 +73,9 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   (`syncEvents` for an unknown campus, `syncTalents` for a nameless contact,
   `syncParticipations` for an unknown event or an unprovable prune), and keep
   refusals for a malformed payload, which is a worker bug and not data.
-- **A failed run moves nothing.** `lastDeltaAt` / `lastFullAt` are no column
-  anywhere: they are `MAX(finishedAt) WHERE mode = ? AND status = 'ok'`. So a run
+- **A failed run moves nothing.** The watermarks are no column anywhere: each is
+  read off the latest run of its mode with `status = 'ok'` (`lastOkRun`), and
+  which of that run's dates counts is the `startedAt` rule below. So a run
   that dies mid-push simply replays its window at the next tick, and nothing in
   the system has to remember that it failed. Closing an already-closed run is
   refused for the same reason: the worker fires a second `error` PATCH when its
