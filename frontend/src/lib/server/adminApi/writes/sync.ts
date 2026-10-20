@@ -24,6 +24,7 @@
 import { prisma } from '$lib/server/db';
 import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
 import { upsertMemberStatus } from '$lib/server/services/devSpaceVisibility';
+import { isServedToWorker } from '$lib/server/services/syncConfigService';
 import type { SyncMode, SyncSourceKind } from '@prisma/client';
 import { OperationRefusedError } from '../errors';
 import type { WriteOutcome } from '../plan';
@@ -73,7 +74,7 @@ async function sourceState(
     campus: row.campus.name,
     enabled: row.enabled,
     label: row.label,
-    servedToWorker: row.enabled && row.campus.externalName !== null,
+    servedToWorker: isServedToWorker(row),
   };
 }
 

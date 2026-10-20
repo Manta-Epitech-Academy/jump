@@ -109,7 +109,9 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   generator writes none, so a generated database answers an empty list on any
   machine. It is a property of the data, not a flag somebody re-enables by
   forgetting. `seed.md` states the same rule from the other side,
-  and `assert/inertness.ts` refuses a seeded `Sync_Source` outright.
+  and `assert/inertness.ts` refuses a seeded `Sync_Source` outright. The rule is
+  written once, as `servedSourceWhere` in `syncConfigService.ts`, with
+  `isServedToWorker` its row form for the admin answers that report it.
 - **Nothing here touches `Event.devActivatedAt`.** A new campaign under a
   whitelisted parent is discovered automatically, which is the point; publishing
   it to the dev workspace stays an admin's decision. Automatic discovery is not
