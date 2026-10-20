@@ -3,6 +3,7 @@ import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { imageRightsStance, imageRightsStatus } from '$lib/domain/imageRights';
 import { latestImageRightsDecisions } from '$lib/server/services/imageRightsService';
 import { generateBadgesPDF } from '$lib/server/services/badgeGenerator';
@@ -30,7 +31,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
   const db = scopedPrisma(campusId);
 
   const participations = await db.participation.findMany({
-    where: { eventId: event.id },
+    where: { eventId: event.id, ...visibleParticipationWhere },
     select: {
       talent: {
         select: {

@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   classifySfStatus,
   isShownInDevSpace,
@@ -68,5 +70,105 @@ describe('sfMemberStatus domain logic', () => {
       expect(normalizeSfStatus('met  ')).toBe('MET');
       expect(normalizeSfStatus('Connected')).toBe('CONNECTED');
     });
+  });
+});
+
+/** Every file under a directory tree, recursively. */
+function walk(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) walk(full, out);
+    else out.push(full);
+  }
+  return out;
+}
+
+/** A read of enrolments: a delegate call, or a relation filter on them. */
+const ENROLMENT_READ =
+  /\bparticipation\.(findMany|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|count|groupBy|aggregate)\(|\bparticipations:\s*\{/g;
+
+/** The text from an opening bracket to the one that closes it. */
+function balanced(source: string, open: number): string {
+  let depth = 0;
+  for (let i = open; i < source.length; i++) {
+    if (source[i] === '(' || source[i] === '{') depth++;
+    else if (source[i] === ')' || source[i] === '}') {
+      depth--;
+      if (depth === 0) return source.slice(open, i + 1);
+    }
+  }
+  return source.slice(open);
+}
+
+/** The arguments of every enrolment read in a source that do not carry the fragment. */
+function readsWithoutFragment(source: string): string[] {
+  return [...source.matchAll(ENROLMENT_READ)]
+    .map((m) => balanced(source, (m.index ?? 0) + m[0].length - 1))
+    .filter((arg) => !arg.includes('visibleParticipationWhere'));
+}
+
+const DEV_ROUTES = 'src/routes/(staff)/staff/dev';
+
+/**
+ * Where a dev-workspace roster can be read: every route of the workspace, and
+ * every server module that reads through the campus-scoped client.
+ */
+const devReaders = [
+  ...walk(DEV_ROUTES),
+  ...walk('src/lib').filter(
+    (f) =>
+      !f.endsWith('db/scoped.ts') &&
+      readFileSync(f, 'utf-8').includes('$lib/server/db/scoped'),
+  ),
+].filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
+
+/**
+ * Reads that skip the fragment on purpose, with the reason. A closing is keyed
+ * on (talent, event), so its conduct page opens one whose enrolment the sync has
+ * since pruned or masked: accepting the record alone is the point of that load.
+ */
+const DELIBERATE: Record<string, { reads: number; why: string }> = {
+  [`${DEV_ROUTES}/events/[id]/closings/[talentId]/+page.server.ts`]: {
+    reads: 1,
+    why: 'a conducted closing stays readable once its enrolment is masked or pruned',
+  },
+};
+
+/**
+ * A roster the dev space prints or exports must be the one it shows. That was a
+ * fragment each read had to remember, and five forgot it (certificates, badges,
+ * both exports, the bilan denominator), so a withdrawn talent got a certificate
+ * and their phone number went out in a spreadsheet the screen never showed them in.
+ */
+describe('every dev roster reads the visible cohort', () => {
+  it('finds a read that drops the fragment', () => {
+    const doctored = `db.participation.findMany({ where: { eventId } });
+      db.participation.count({ where: { eventId, ...visibleParticipationWhere } });`;
+    expect(readsWithoutFragment(doctored)).toHaveLength(1);
+  });
+
+  it('walks the workspace', () => {
+    expect(devReaders).toContain(
+      `${DEV_ROUTES}/events/[id]/emargement/+page.server.ts`,
+    );
+  });
+
+  it('applies visibleParticipationWhere to every enrolment read', () => {
+    const offenders = devReaders.flatMap((file) => {
+      const missing = readsWithoutFragment(readFileSync(file, 'utf-8'));
+      const allowed = DELIBERATE[file]?.reads ?? 0;
+      return missing.length === allowed
+        ? []
+        : [
+            `${file}: ${missing.length} read(s) without the fragment, ${allowed} allowed`,
+          ];
+    });
+    expect(offenders).toEqual([]);
+  });
+
+  it('allows nothing for a file that no longer exists', () => {
+    expect(
+      Object.keys(DELIBERATE).filter((file) => !devReaders.includes(file)),
+    ).toEqual([]);
   });
 });

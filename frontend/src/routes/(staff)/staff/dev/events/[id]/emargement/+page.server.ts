@@ -192,18 +192,27 @@ function requirePresenceSlot(
   }
 }
 
-/** Confirm the talent is enrolled in this campus + event (roster lives on Participation). */
-async function assertEnrolled(
+/**
+ * Confirm the talent is on this event's sheet: enrolled for this campus and
+ * shown in the dev space, the roster the page lists. A masked enrolment is
+ * still an enrolment, which is why the refusal does not say "non inscrit".
+ */
+async function assertOnSheet(
   campusId: string,
   eventId: string,
   talentId: string,
 ): Promise<void> {
   const db = scopedPrisma(campusId);
-  const enrolled = await db.participation.findUnique({
-    where: { talentId_eventId: { talentId, eventId } },
+  const onSheet = await db.participation.findFirst({
+    where: { talentId, eventId, ...visibleParticipationWhere },
     select: { id: true },
   });
-  if (!enrolled) throw error(400, 'Talent non inscrit à cet événement.');
+  if (!onSheet) {
+    throw error(
+      400,
+      "Ce talent ne figure pas sur la feuille d'émargement de cet événement.",
+    );
+  }
 }
 
 export const actions: Actions = {
@@ -225,9 +234,9 @@ export const actions: Actions = {
       form.data.slot,
     );
     // Campus authorization for the write lands here: `loadEventOr404` scoped the
-    // event and `assertEnrolled` the talent's participation, so the raw-client
+    // event and `assertOnSheet` the talent's participation, so the raw-client
     // write below is safe (same shape as xpService's ledger callers).
-    await assertEnrolled(campusId, event.id, form.data.talentId);
+    await assertOnSheet(campusId, event.id, form.data.talentId);
 
     const day = dateKeyToDbDate(form.data.day);
     const { talentId, slot, status } = form.data;

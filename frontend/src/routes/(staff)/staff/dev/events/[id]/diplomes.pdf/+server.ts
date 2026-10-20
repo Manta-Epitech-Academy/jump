@@ -7,6 +7,7 @@ import {
   eventEndOrDefault,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { generateDiplomasPDF } from '$lib/server/services/diplomaGenerator';
 import { resolveEventDiplomaDesign } from '$lib/server/diplomaTemplates';
 import { getStorage, isObjectNotFound } from '$lib/server/infra/storage';
@@ -41,7 +42,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
   const [participations, campus, signatoryRows] = await Promise.all([
     db.participation.findMany({
-      where: { eventId: event.id },
+      where: { eventId: event.id, ...visibleParticipationWhere },
       select: { talent: { select: { prenom: true, nom: true } } },
       orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
     }),

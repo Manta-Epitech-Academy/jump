@@ -7,6 +7,7 @@ import {
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { niveauLabel } from '$lib/domain/niveau';
 import { buildXlsx } from '$lib/server/xlsx';
 import {
@@ -46,7 +47,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   const now = new Date();
   const [participations, presenceRows, closureRows] = await Promise.all([
     db.participation.findMany({
-      where: { eventId: event.id },
+      where: { eventId: event.id, ...visibleParticipationWhere },
       select: PRESENCE_EXPORT_SELECT,
       orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
     }),

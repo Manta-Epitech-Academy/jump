@@ -5,6 +5,7 @@ import { env } from '$env/dynamic/private';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { prisma } from '$lib/server/db';
 import { computeFormStats, type FormStats } from '$lib/server/feedbackStats';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
@@ -58,8 +59,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const cohort: Promise<BilanCohort> = (async () => {
     const [participations, submissions, stats] = await Promise.all([
+      // The roster the dev space shows, so `total` counts the same cohort as
+      // the admin response rate's `invitedCount`.
       db.participation.findMany({
-        where: { eventId: event.id },
+        where: { eventId: event.id, ...visibleParticipationWhere },
         select: {
           talentId: true,
           talent: { select: { nom: true, prenom: true } },

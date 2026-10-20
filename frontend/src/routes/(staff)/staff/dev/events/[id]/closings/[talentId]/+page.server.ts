@@ -11,6 +11,7 @@ import { prisma } from '$lib/server/db';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { resolveClosingGridById } from '$lib/server/closingTemplates';
 import {
   gridQuestions,
@@ -244,9 +245,21 @@ async function persist(
     EVENT_MODULES.CLOSINGS,
   );
 
-  const participation = await db.participation.findUnique({
+  const existing = await db.closing_Record.findUnique({
     where: {
       talentId_eventId: { talentId: params.talentId, eventId: event.id },
+    },
+    select: { status: true, templateId: true },
+  });
+
+  // A closing already started keeps the enrolment it was opened on, as the load
+  // does. A new one is opened only for a talent on the roster the closings page
+  // lists, so a hand-crafted POST cannot start one for a masked enrolment.
+  const participation = await db.participation.findFirst({
+    where: {
+      talentId: params.talentId,
+      eventId: event.id,
+      ...(existing ? {} : visibleParticipationWhere),
     },
     select: { campusId: true },
   });
@@ -259,13 +272,6 @@ async function persist(
       status: 400,
     });
   }
-
-  const existing = await db.closing_Record.findUnique({
-    where: {
-      talentId_eventId: { talentId: params.talentId, eventId: event.id },
-    },
-    select: { status: true, templateId: true },
-  });
 
   // Clôture is terminal: once `done`, the closing is locked for good. Refuse any
   // further mutation (autosave, re-close, or a stray start) server-side so the
