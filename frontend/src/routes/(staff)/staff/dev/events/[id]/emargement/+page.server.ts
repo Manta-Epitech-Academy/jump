@@ -18,6 +18,7 @@ import { cohortNounForms } from '$lib/domain/event';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import {
   presenceSlots,
+  isPresenceSlot,
   slotKey,
   dateKeyToDbDate,
   dbDateToKey,
@@ -25,6 +26,7 @@ import {
   effectiveStatus,
   computeAttendanceRate,
   type PresenceRecord,
+  type PresenceSlot,
   type CellStatus,
 } from '$lib/domain/eventPresence';
 import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
@@ -178,6 +180,18 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   };
 };
 
+/** Refuse a créneau the event does not have (the grid no longer lists it). */
+function requirePresenceSlot(
+  event: { date: Date; endDate: Date | null; startMinutes: number | null },
+  timezone: string,
+  day: string,
+  slot: PresenceSlot,
+): void {
+  if (!isPresenceSlot(event, timezone, day, slot)) {
+    throw error(400, "Ce créneau n'appartient pas à l'événement.");
+  }
+}
+
 /** Confirm the talent is enrolled in this campus + event (roster lives on Participation). */
 async function assertEnrolled(
   campusId: string,
@@ -201,6 +215,12 @@ export const actions: Actions = {
     const campusId = getCampusId(locals);
     const event = await loadEventOr404(params.id, campusId);
     requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    requirePresenceSlot(
+      event,
+      getCampusTimezone(locals),
+      form.data.day,
+      form.data.slot,
+    );
     // Campus authorization for the write lands here: `loadEventOr404` scoped the
     // event and `assertEnrolled` the talent's participation, so the raw-client
     // write below is safe (same shape as xpService's ledger callers).
@@ -262,6 +282,12 @@ export const actions: Actions = {
     const campusId = getCampusId(locals);
     const event = await loadEventOr404(params.id, campusId);
     requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    requirePresenceSlot(
+      event,
+      getCampusTimezone(locals),
+      form.data.day,
+      form.data.slot,
+    );
 
     const result = await markAllPresentInSlot(
       campusId,
@@ -298,6 +324,12 @@ export const actions: Actions = {
     const campusId = getCampusId(locals);
     const event = await loadEventOr404(params.id, campusId);
     requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    requirePresenceSlot(
+      event,
+      getCampusTimezone(locals),
+      form.data.day,
+      form.data.slot,
+    );
     await closePresenceSlot(
       campusId,
       event.id,
@@ -322,6 +354,12 @@ export const actions: Actions = {
     const campusId = getCampusId(locals);
     const event = await loadEventOr404(params.id, campusId);
     requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    requirePresenceSlot(
+      event,
+      getCampusTimezone(locals),
+      form.data.day,
+      form.data.slot,
+    );
     await reopenPresenceSlot(
       campusId,
       event.id,

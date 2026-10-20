@@ -7,6 +7,7 @@ import {
   computeSlotStats,
   computeAttendanceRate,
   defaultActiveSlotKey,
+  isPresenceSlot,
 } from './eventPresence';
 
 describe('eventPresence Domain Logic & Projections', () => {
@@ -129,6 +130,19 @@ describe('eventPresence Domain Logic & Projections', () => {
         '2026-06-15|morning',
         '2026-06-15|afternoon',
       ]);
+    });
+
+    it('refuses a write to a créneau the event does not have', () => {
+      const event = { ...club, startMinutes: 14 * 60 };
+      expect(
+        isPresenceSlot(event, 'Europe/Paris', '2026-10-24', 'morning'),
+      ).toBe(false);
+      expect(
+        isPresenceSlot(event, 'Europe/Paris', '2026-10-24', 'afternoon'),
+      ).toBe(true);
+      expect(
+        isPresenceSlot(event, 'Europe/Paris', '2026-10-25', 'afternoon'),
+      ).toBe(false);
     });
   });
 

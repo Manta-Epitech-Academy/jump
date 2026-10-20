@@ -205,6 +205,22 @@ export function presenceSlots(
   });
 }
 
+/**
+ * Whether (day, slot) is one of the event's créneaux. Every émargement write
+ * (staff actions, the QR mint, the QR scan) checks it, so a créneau the grid does
+ * not show cannot collect marks: a QR printed before the start time was set, or a
+ * page loaded before it changed.
+ */
+export function isPresenceSlot(
+  event: { date: Date; endDate: Date | null; startMinutes: number | null },
+  timezone: string,
+  day: DateKey,
+  slot: PresenceSlot,
+): boolean {
+  const key = slotKey(day, slot);
+  return presenceSlots(event, timezone).some((s) => s.key === key);
+}
+
 /** "lun. 9 juin · Matin" for the créneau selector. */
 export function slotLabelLong(s: EventSlot): string {
   return `${dayShortLabelFr(s.day)} · ${slotLabelFr(s.slot)}`;
