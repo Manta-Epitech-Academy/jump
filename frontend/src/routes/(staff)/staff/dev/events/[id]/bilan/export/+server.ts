@@ -2,10 +2,7 @@ import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { getCampusId } from '$lib/server/db/scoped';
-import {
-  loadEventOr404,
-  requireEventModule,
-} from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
 import { answerCells, buildSubmissionWhere } from '$lib/server/feedbackStats';
@@ -16,13 +13,13 @@ import { USAGE_FEATURES } from '$lib/domain/usage';
 // Event-scoped XLSX of the feedback responses, the dev-space counterpart of the
 // QR. Resolves the event's form exactly like the page (override else type
 // default, published + authenticated) so the export never reports a form the
-// page wouldn't show. The route is dev-space + `bilan`-module gated. XLSX inline
+// page wouldn't show, and lists the answers of the cohort the page lists
+// (`shownCohortOf`). The route is dev-space + `bilan`-module gated. XLSX inline
 // strings are inert, so no CSV-style formula guard is needed on the untrusted
 // respondent input.
 export const GET: RequestHandler = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.BILAN);
+  const event = await loadEventOr404(params.id, campusId, EVENT_MODULES.BILAN);
 
   const graph = await resolvePublishedEventForm(event);
   if (!graph) {
@@ -30,7 +27,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   }
 
   const submissions = await prisma.feedback_Submission.findMany({
-    where: buildSubmissionWhere(graph.id, { eventId: event.id }),
+    where: buildSubmissionWhere(graph.id, { shownCohortOf: event.id }),
     orderBy: { submittedAt: 'asc' },
     include: {
       talent: {

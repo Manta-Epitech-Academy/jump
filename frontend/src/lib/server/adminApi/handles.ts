@@ -47,7 +47,8 @@ export type HandleKind =
   | 'closingId'
   | 'workshopSlug'
   | 'workshopInstanceSlug'
-  | 'usageFeatureKey';
+  | 'usageFeatureKey'
+  | 'adminAddress';
 
 /**
  * Deliberately only the operation and the slice it covers, never where the value
@@ -305,6 +306,12 @@ export const HANDLES: Record<HandleKind, Handle> = {
       },
     ],
   },
+  adminAddress: {
+    what: 'Login address of a Jump admin account.',
+    frNoun: "adresses d'administrateur",
+    frGender: 'f',
+    producedBy: [{ operation: 'config_admin_digest' }],
+  },
   closingId: {
     what: 'Closing id.',
     frNoun: 'identifiants de closing',
@@ -378,6 +385,9 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // The ordered list an event offers, whose entries are addressed by the same
   // slug, exactly as `modules` is a list addressed by module key.
   workshops: 'workshopSlug',
+  // An admin, named by the address they log in with: the one person an answer
+  // names, and only to choose who receives the weekly digest.
+  address: 'adminAddress',
 };
 
 const list = (parts: string[]) =>

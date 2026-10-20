@@ -27,7 +27,7 @@ import { closeRun, lastOkRun, openRun } from '../syncRunService';
 import { getWorkerConfig, listWorkerSources } from '../syncConfigService';
 import { workerConfigAnswerSchema } from '$lib/validation/workerSync';
 import { requestSync } from '$lib/server/adminApi/writes/sync';
-import { getSyncHealth } from '../adminStats/syncHealth';
+import { getSyncHealth, getSyncSources } from '../adminStats/syncHealth';
 import { assertTestDatabase } from './testDatabase';
 
 describe('the worker sync loop (integration)', () => {
@@ -133,8 +133,27 @@ describe('the worker sync loop (integration)', () => {
       select: { salesforceCampaignId: true },
     });
 
+    const fixtures = [
+      armedSource.salesforceCampaignId,
+      darkSource.salesforceCampaignId,
+    ];
+    // What the admin answers report as served must be what the worker is
+    // actually served: both read `servedSourceWhere`, one as a filter and one
+    // off the row.
+    const reportedServed = async () =>
+      (await getSyncSources()).sources.value
+        .filter(
+          (s) => s.servedToWorker && fixtures.includes(s.salesforceCampaignId),
+        )
+        .map((s) => s.salesforceCampaignId);
+    const servedFixtures = async () =>
+      (await listWorkerSources())
+        .map((s) => s.salesforceCampaignId)
+        .filter((id) => fixtures.includes(id));
+
     const served = await listWorkerSources();
     const ids = served.map((s) => s.salesforceCampaignId);
+    expect(await reportedServed()).toEqual(await servedFixtures());
 
     expect(ids).toContain(armedSource.salesforceCampaignId);
     // The whole of the worker isolation: configured, and inert, because there
@@ -151,6 +170,7 @@ describe('the worker sync loop (integration)', () => {
       (s) => s.salesforceCampaignId,
     );
     expect(afterDisable).not.toContain(armedSource.salesforceCampaignId);
+    expect(await reportedServed()).toEqual(await servedFixtures());
   });
 
   it('answers the config in a shape the worker will parse', async () => {
@@ -524,8 +544,8 @@ describe('the worker sync loop (integration)', () => {
 
     const after = await lastOkRun('incremental');
     expect(after).not.toBeNull();
-    expect(after!.finishedAt.getTime()).toBeGreaterThan(
-      before?.finishedAt.getTime() ?? 0,
+    expect(after!.startedAt.getTime()).toBeGreaterThan(
+      before?.startedAt.getTime() ?? 0,
     );
   });
 

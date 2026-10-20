@@ -15,7 +15,10 @@ import { isNiveau, type Niveau } from '$lib/domain/niveau';
 import { normalizePhoneToE164 } from '$lib/domain/phone';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 import { autoResolveAuthIdentity } from '$lib/server/services/authIdentityRepairService';
-import { ensureTalentUser } from '$lib/server/services/talentAccount';
+import {
+  ensureTalentUser,
+  TalentAccountError,
+} from '$lib/server/services/talentAccount';
 import {
   changeUserEmail,
   EmailChangeConflict,
@@ -265,6 +268,13 @@ export async function syncTalents(talents: WorkerTalent[]) {
     try {
       await ensureTalentUser(talentId);
     } catch (err) {
+      // An address that is already somebody else's is fixed in Salesforce: the
+      // Connexion tab of Divergences Salesforce lists linked talents only, and
+      // this one has no login yet. Anything else is retried by the next pass.
+      const remedy =
+        err instanceof TalentAccountError && err.kind === 'identity_conflict'
+          ? "Corrigez l'adresse dans Salesforce : le compte sera créé au prochain sync."
+          : 'Réessai au prochain sync.';
       await logSyncError({
         errorType: 'DUPLICATE_EMAIL',
         email: loginEmail,
@@ -274,7 +284,7 @@ export async function syncTalents(talents: WorkerTalent[]) {
         eventExtId: null,
         message: `Compte de connexion non créé pour "${loginEmail}" : ${
           err instanceof Error ? err.message : 'erreur inconnue'
-        }. À arbitrer (Divergences Salesforce › Connexion) ou réessai au prochain sync.`,
+        }. ${remedy}`,
       });
     }
   };
@@ -329,6 +339,17 @@ export async function syncTalents(talents: WorkerTalent[]) {
     // Canonical School for the SF-claimed lycée, resolved once for the batch above.
     const uai = t.school_uai?.trim();
     const sfSchoolId = uai ? (schoolIdByUai.get(uai) ?? null) : null;
+    // Salesforce's claim as the mirror stores it: the one place its fields are
+    // spelled, so a field added here is created, refreshed and compared alike.
+    const claim = {
+      nom: t.last_name,
+      prenom: t.first_name,
+      sfEmail: email,
+      phone,
+      civilite,
+      niveau,
+      sfSchoolId,
+    } satisfies Prisma.TalentSfImportUncheckedCreateWithoutTalentInput;
 
     const existing = await prisma.talent.findUnique({
       where: { externalId: t.external_id },
@@ -399,17 +420,7 @@ export async function syncTalents(talents: WorkerTalent[]) {
                 source: 'sync',
               },
             },
-            sfImport: {
-              create: {
-                nom: t.last_name,
-                prenom: t.first_name,
-                sfEmail: email,
-                phone,
-                civilite,
-                niveau,
-                sfSchoolId,
-              },
-            },
+            sfImport: { create: claim },
           },
         });
         talentId = talent.id;
@@ -449,38 +460,19 @@ export async function syncTalents(talents: WorkerTalent[]) {
       // 1. Refresh the SF mirror to the latest claim. Skip the write when the
       //    payload is identical to the stored mirror: on the steady state
       //    (200 talents, ~0 changes / 30 min) this means near-zero writes.
+      //    Indexing the selected mirror with every key of the claim makes a
+      //    field missing from the select above a compile error.
       const m = existing.sfImport;
       const mirrorChanged =
         !m ||
-        m.nom !== t.last_name ||
-        m.prenom !== t.first_name ||
-        m.sfEmail !== email ||
-        m.phone !== phone ||
-        m.civilite !== civilite ||
-        m.niveau !== niveau ||
-        m.sfSchoolId !== sfSchoolId;
+        (Object.keys(claim) as (keyof typeof claim)[]).some(
+          (k) => m[k] !== claim[k],
+        );
       if (mirrorChanged) {
         await prisma.talentSfImport.upsert({
           where: { talentId },
-          create: {
-            talentId,
-            nom: t.last_name,
-            prenom: t.first_name,
-            sfEmail: email,
-            phone,
-            civilite,
-            niveau,
-            sfSchoolId,
-          },
-          update: {
-            nom: t.last_name,
-            prenom: t.first_name,
-            sfEmail: email,
-            phone,
-            civilite,
-            niveau,
-            sfSchoolId,
-          },
+          create: { talentId, ...claim },
+          update: claim,
         });
       }
 

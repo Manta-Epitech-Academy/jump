@@ -10,7 +10,7 @@ import { loadEventOr404 } from '$lib/server/services/stageContext';
 export const load: PageServerLoad = async ({ locals, params }) => {
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
-  const event = await loadEventOr404(params.id, campusId);
+  const event = await loadEventOr404(params.id, campusId, 'planning');
 
   // Planning is data-driven (not a module): the read-only dev view exists only
   // when the event actually has a schedule. An event with no slots has nothing

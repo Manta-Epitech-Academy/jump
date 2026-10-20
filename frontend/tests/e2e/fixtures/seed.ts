@@ -151,7 +151,8 @@ export async function seedE2eData(): Promise<void> {
 
   // ── Event, with the one module the mutating spec needs ───────────────────
   // `devActivatedAt` is the visibility gate and the module row is what
-  // `requireEventModule` checks; either missing is a 404, not an empty screen.
+  // `loadEventOr404` gates the surface on; either missing is a 404, not an
+  // empty screen.
   await prisma.event.create({
     data: {
       id: E2E.eventId,
@@ -166,11 +167,7 @@ export async function seedE2eData(): Promise<void> {
       // members below are on the roster because this row says so.
       shownStatuses: { create: [{ status: 'READY' }, { status: 'MET' }] },
       workshops: {
-        create: {
-          activityId: E2E.workshopActivityId,
-          position: 0,
-          durationMinutes: E2E.workshopDurationMinutes,
-        },
+        create: { activityId: E2E.workshopActivityId, position: 0 },
       },
     },
   });

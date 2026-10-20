@@ -1,12 +1,19 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { getStorage } from '$lib/server/infra/storage';
 import { findUnreferencedParentAccount } from '$lib/server/services/parentAccount';
+import {
+  clearLegacyDocumentKeys,
+  deleteDocumentObjects,
+  documentKeysOf,
+  TALENT_DOCUMENT_KEYS_SELECT,
+} from '$lib/server/services/onboardingDocuments';
 import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
 import {
+  clearGuardianActs,
   clearOnboardingTimestamps,
   clearTalentOnboardingArtifacts,
 } from '$lib/domain/talentOnboarding';
+import { clearGuardianContacts, guardianEmailsOf } from '$lib/domain/contact';
 
 /**
  * The single GDPR-erasure primitive. Clears a talent's PII in place rather than
@@ -18,8 +25,15 @@ import {
  * règlement parent / droit à l'image, each embeds the student's and guardian's
  * names and a signature) are deleted from object storage, not merely
  * dereferenced. We deliberately keep the de-identified behavioural telemetry
- * (participation, EventPresence, minigame attempts, the xp ledger) so `xp`, `eventsCount` and
- * aggregate stats survive the erasure.
+ * (participation, EventPresence, minigame attempts, the xp ledger, the CTFd
+ * activity mirrors) so `xp`, `eventsCount` and aggregate stats survive the
+ * erasure, and with them the talent's `firstLoginAt` / `lastActiveAt`: the
+ * retention figures read them (the "connected" count of the cohort profile, the
+ * population of feature usage), and with the name gone they identify nobody.
+ *
+ * What it does to each table and each `Talent` column is classified, with the
+ * reason, in `talentScopedData.integration.test.ts`, which fails on a table or a
+ * column nobody has classified: a new one is decided there first.
  *
  * The talent's accounts on the CTFd activity instances are not reached from
  * here: each instance asks Jump which of its accounts belong to an erased talent
@@ -51,7 +65,7 @@ import {
  * be deleted from storage to complete the erasure, but that's an external call:
  * it cannot run inside the transaction (it would risk the interactive-tx
  * timeout rolling back the legally-required scrub). Callers hand the keys to
- * {@link deleteAnonymizedDocuments} *after* the transaction commits.
+ * {@link deleteDocumentObjects} *after* the transaction commits.
  */
 export async function anonymizeTalent(
   tx: Prisma.TransactionClient,
@@ -62,53 +76,26 @@ export async function anonymizeTalent(
     select: {
       userId: true,
       anonymizedAt: true,
+      externalId: true,
       user: { select: { email: true } },
       parentEmail: true,
       parent2Email: true,
-      // RETIRED, both of them, read here for one release only and dropped from
-      // this select with the columns themselves. They still hold the pre-annual
-      // `rules.pdf` / `image-rights.pdf` keys, and a talent whose document was
-      // regenerated after the migration has a dossier pointing at the new
-      // year-keyed object instead, leaving that old one referenced by nothing
-      // but this column. Collecting both sides is what keeps the transition from
-      // leaving a named minor's PDF in the bucket.
-      imageRightsFilePath: true,
-      rulesFilePath: true,
-      // Every year's renders, both kinds, not just the latest: the dossier rows
-      // are deleted below, so a key not collected here is an orphaned PDF of a
-      // named minor left in the bucket with nothing pointing at it. That is the
-      // whole erasure failing quietly, so it is read from the rows rather than
-      // from the projection.
-      onboardingRecords: {
-        select: { rulesFilePath: true, imageRightsFilePath: true },
-      },
+      // Every key the onboarding PDFs may sit under, every year's dossier and
+      // the retired columns alike: a key missed here is a named minor's PDF
+      // left in the bucket with nothing pointing at it.
+      ...TALENT_DOCUMENT_KEYS_SELECT,
     },
   });
   if (!talent) return [];
 
   // Captured before the update below nulls them, so we can scrub the matching
   // parent accounts afterwards (step 4).
-  const parentEmails = [talent.parentEmail, talent.parent2Email].filter(
-    (e): e is string => !!e,
-  );
+  const parentEmails = guardianEmailsOf(talent);
 
   // S3 keys of the generated onboarding PDFs, captured before the update and the
   // dossier deletion drop the references. Returned to the caller, which deletes
   // the objects post-commit.
-  // Deduplicated: the retired column and a dossier row normally hold the same
-  // key, and deleting twice would log a spurious failure on the second attempt.
-  const documentKeys = [
-    ...new Set(
-      [
-        talent.imageRightsFilePath,
-        talent.rulesFilePath,
-        ...talent.onboardingRecords.flatMap((d) => [
-          d.rulesFilePath,
-          d.imageRightsFilePath,
-        ]),
-      ].filter((k): k is string => !!k),
-    ),
-  ];
+  const documentKeys = documentKeysOf(talent);
 
   // 1. Clear all PII fields on the Talent (keep xp / eventsCount), including
   //    both parent/guardian slots and every onboarding-state timestamp (those
@@ -131,46 +118,21 @@ export async function anonymizeTalent(
       schoolId: null,
       interestsFreeText: null,
       setupDescription: null,
-      // Image-rights decision: the guardian's typed signer name is their PII,
-      // and decision/decidedAt move with it (the trio is one signed fact, see
-      // domain/imageRights). Sever the PDF references too; the objects are
-      // deleted post-commit by the caller (keys returned below).
-      imageRightsDecision: null,
-      imageRightsDecidedAt: null,
-      imageRightsSignerPrenom: null,
-      imageRightsSignerNom: null,
-      // Règlement guardian co-signature: same shape as image-rights, the
-      // guardian's typed name + relationship + city are PII, the timestamp moves
-      // with them, and the shared règlement PDF (deleted post-commit via the
-      // keys returned below) embeds both names + signatures. See
-      // `parentRulesService.recordParentRulesSignature`.
-      parentRulesSignedAt: null,
-      parentRulesSignerPrenom: null,
-      parentRulesSignerNom: null,
-      parentRulesRelationship: null,
-      parentRulesSignedCity: null,
-      // Talent-owned onboarding signature artifacts (charte / règlement PDF
-      // keys + the talent's place-of-signature). Shared with the admin reset via
-      // the canonical list so a new artifact scrubs on both paths; the PDF keys
-      // were captured above for post-commit S3 deletion.
+      // The guardian's two signed acts, the image-rights decision and the
+      // règlement co-signature: their typed name, relationship and city are the
+      // guardian's PII, and the timestamps move with them (each is one signed
+      // fact). The PDFs embedding them are deleted post-commit (keys below).
+      ...clearGuardianActs(),
+      // Talent-owned onboarding signature artifacts (the talent's place of
+      // signature, the règlement version and the onboarding year). Shared with
+      // the admin reset via the canonical list so a new artifact scrubs on both
+      // paths.
       ...clearTalentOnboardingArtifacts(),
-      // Image-rights PDF key, parent-decided, so not part of the talent ladder;
-      // captured above for deletion alongside the others.
-      imageRightsFilePath: null,
-      // Guardian 1
-      parentType: null,
-      parentCivilite: null,
-      parentNom: null,
-      parentPrenom: null,
-      parentEmail: null,
-      parentPhone: null,
-      // Guardian 2
-      parent2Type: null,
-      parent2Civilite: null,
-      parent2Nom: null,
-      parent2Prenom: null,
-      parent2Email: null,
-      parent2Phone: null,
+      // The two legacy PDF keys, captured above for post-commit deletion: a key
+      // left here would name an object that no longer exists.
+      ...clearLegacyDocumentKeys(),
+      // Both guardians: data subjects too.
+      ...clearGuardianContacts(),
       niveau: null,
     },
   });
@@ -181,10 +143,10 @@ export async function anonymizeTalent(
   //    than nulled field-by-field (drift-proof as columns are added, and very
   //    nearly the same set resetTalentToImport wipes: schooling_YearRecord is
   //    the one row erased here but kept there, see below). The anonymous
-  //    behavioural telemetry
-  //    is deliberately KEPT (participation, minigameAttempt, xpGrant): once the
-  //    name is gone those are de-identified activity backing xp / eventsCount and
-  //    aggregate stats.
+  //    behavioural telemetry is deliberately KEPT (participation,
+  //    eventPresence, minigameAttempt, xpGrant, workshop_Participation): once
+  //    the name is gone those are de-identified activity backing xp /
+  //    eventsCount and aggregate stats.
   //      - talentSfImport / talentInterest / imageRightsDecisionRecord: the SF
   //        mirror, interest selections, and the image-rights ledger (the ledger
   //        embeds the guardian's typed signer name).
@@ -248,6 +210,26 @@ export async function anonymizeTalent(
   await tx.broadcastRecipient.deleteMany({
     where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
   });
+  // syncError: what the Salesforce sync could not reconcile, logged with the
+  // contact's name and address and keyed by no foreign key, so it is matched on
+  // the identity read above (the update nulled the id): the talent's Salesforce
+  // id on either side of a conflict, and the address they log in with, which is
+  // what a row names when another contact claimed it (that row's message quotes
+  // the holder's Salesforce id too).
+  const syncErrorOf = [
+    ...(talent.externalId
+      ? [
+          { attemptedExtId: talent.externalId },
+          { existingExtId: talent.externalId },
+        ]
+      : []),
+    ...(talent.user?.email
+      ? [{ email: { equals: talent.user.email, mode: 'insensitive' as const } }]
+      : []),
+  ];
+  if (syncErrorOf.length > 0) {
+    await tx.syncError.deleteMany({ where: { OR: syncErrorOf } });
+  }
 
   // Scrub residual PII fields in operational audit logs for this talent:
   //   - AuthIdentityRepair: retains fromEmail/toEmail; replace with anonymized placeholders.
@@ -287,7 +269,7 @@ export async function anonymizeTalent(
   //    anonymised siblings have null parent emails, so they never count here.
   //    The sibling + role guard is shared with resetTalentToImport; here we
   //    scrub to a placeholder rather than delete (RGPD erasure keeps the row).
-  for (const email of new Set(parentEmails)) {
+  for (const email of parentEmails) {
     const orphan = await findUnreferencedParentAccount(tx, email, talentId);
     if (!orphan) continue;
 
@@ -308,33 +290,6 @@ export async function anonymizeTalent(
   // Return their keys so the caller can delete them once this transaction has
   // committed (see the function doc: external calls can't live inside the tx).
   return documentKeys;
-}
-
-/**
- * Best-effort deletion of the onboarding PDFs an {@link anonymizeTalent} run
- * dereferenced. Call this *after* the erasure transaction commits.
- *
- * Best-effort by design: the DB scrub is the legally-required step and has
- * already committed, so a storage hiccup must not surface as a failure that
- * looks like the erasure didn't happen: each delete is logged on failure for
- * manual cleanup rather than thrown. A leaked object is unreferenced (its
- * Talent columns are null) and keyed by a cuid + epoch-ms timestamp, so it
- * isn't reachable through the app; this just removes the residual file.
- */
-export async function deleteAnonymizedDocuments(
-  keys: readonly string[],
-): Promise<void> {
-  if (keys.length === 0) return;
-  const storage = getStorage();
-  await Promise.all(
-    keys.map((key) =>
-      storage
-        .delete(key)
-        .catch((e) =>
-          console.error(`[anonymize] failed to delete document ${key}:`, e),
-        ),
-    ),
-  );
 }
 
 export const AnonymizationService = {
@@ -377,7 +332,7 @@ export const AnonymizationService = {
           anonymizeTalent(tx, student.id),
         );
         // Drop the dereferenced PDFs from storage once the scrub has committed.
-        await deleteAnonymizedDocuments(documentKeys);
+        await deleteDocumentObjects(documentKeys);
         count++;
       } catch (e) {
         // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring

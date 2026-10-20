@@ -1,11 +1,16 @@
 /**
  * Is the attendance register actually being kept?
  *
- * Émargement is one half-day at a time: a créneau is closed by staff (or by the
- * clock), and closing it turns everyone still pending into an absence. So the
- * question that matters operationally is not "how many were present" but "how
- * many half-days were actually handled", because an unclosed créneau leaves a
- * cohort in limbo and an export that lies by omission.
+ * Émargement is one half-day at a time: a créneau closes at its 11h/15h cutoff,
+ * or earlier when a staff member closes it, and from then on everyone still
+ * unmarked reads as absent. So the question that matters operationally is not
+ * "how many were present" but "how many elapsed half-days were actually kept":
+ * an elapsed créneau with no mark at all is a sheet nobody filled in, which
+ * reads as a whole cohort absent.
+ *
+ * It used to count closure rows, which only an early close by hand writes: the
+ * Clôturer button is disabled past the cutoff (`f602becd`), so the figure read
+ * close to 0 % whatever the campuses did.
  *
  * The grid comes from `presenceDays` / `presenceSlots`, the same domain helpers
  * the émargement page, the XLSX export and the QR check-in validation use, so
@@ -23,8 +28,10 @@ import {
   dbDateToKey,
   slotKey,
   statusLabelFr,
+  type PresenceSlot,
   type PresenceStatus,
 } from '$lib/domain/eventPresence';
+import { isSlotClosed } from '$lib/server/presence/slotClosure';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import { scopedEvents, scopeLabels } from './cohort';
@@ -39,9 +46,10 @@ export type EventCoverage = {
   dateLabel: string;
   status: string;
   slots: number;
-  closedSlots: number;
-  /** Percentage of this event's half-days that have been closed. */
-  closedShare: number | null;
+  elapsedSlots: number;
+  keptSlots: number;
+  /** Percentage of this event's elapsed half-days that hold a mark. */
+  keptShare: number | null;
   marks: number;
 };
 
@@ -49,8 +57,9 @@ export type EmargementCoverage = {
   filters: { schoolYear: string; campus: string; event: string };
   events: Metric;
   slots: Metric;
-  closedSlots: Metric;
-  closedShare: Metric<number | null>;
+  elapsedSlots: Metric;
+  keptSlots: Metric;
+  keptShare: Metric<number | null>;
   marks: Metric;
   byStatus: Metric<
     { status: string; label: string; count: number; share: number | null }[]
@@ -70,13 +79,14 @@ export async function getEmargementCoverage(
   if (withRegister.length === 0) return empty(scope);
 
   const ids = withRegister.map((e) => e.id);
-  const [rows, closures, statuses] = await Promise.all([
+  const [rows, closures, markedSlots, statuses] = await Promise.all([
     prisma.event.findMany({
       where: { id: { in: ids } },
       select: {
         id: true,
         date: true,
         endDate: true,
+        startMinutes: true,
         campus: { select: { timezone: true } },
         _count: { select: { eventPresences: true } },
       },
@@ -86,33 +96,56 @@ export async function getEmargementCoverage(
       select: { eventId: true, day: true, slot: true },
     }),
     prisma.eventPresence.groupBy({
+      by: ['eventId', 'day', 'slot'],
+      where: { eventId: { in: ids } },
+    }),
+    prisma.eventPresence.groupBy({
       by: ['status'],
       where: { eventId: { in: ids } },
       _count: { _all: true },
     }),
   ]);
 
+  const now = new Date();
   const rowById = new Map(rows.map((r) => [r.id, r]));
-  // Closures are keyed on (day, slot) exactly like the grid, so a closure for a
-  // day outside the event's window (an old date the event was moved off) does
-  // not inflate the count past the number of créneaux that exist.
-  const closedByEvent = new Map<string, Set<string>>();
+  const closuresByEvent = new Map<
+    string,
+    { day: Date; slot: PresenceSlot }[]
+  >();
   for (const closure of closures) {
-    const set = closedByEvent.get(closure.eventId) ?? new Set<string>();
-    set.add(slotKey(dbDateToKey(closure.day), closure.slot));
-    closedByEvent.set(closure.eventId, set);
+    const list = closuresByEvent.get(closure.eventId) ?? [];
+    list.push(closure);
+    closuresByEvent.set(closure.eventId, list);
+  }
+  // Marks and closures are read against the event's own grid, so one on a day
+  // outside its window (an old date the event was moved off) counts for nothing.
+  const markedByEvent = new Map<string, Set<string>>();
+  for (const marked of markedSlots) {
+    const set = markedByEvent.get(marked.eventId) ?? new Set<string>();
+    set.add(slotKey(dbDateToKey(marked.day), marked.slot));
+    markedByEvent.set(marked.eventId, set);
   }
 
   const perEvent: EventCoverage[] = withRegister.map((event) => {
     const row = rowById.get(event.id);
     const slots = row
       ? presenceSlots(
-          { date: row.date, endDate: row.endDate },
+          {
+            date: row.date,
+            endDate: row.endDate,
+            startMinutes: row.startMinutes,
+          },
           row.campus.timezone,
         )
       : [];
-    const closed = closedByEvent.get(event.id) ?? new Set<string>();
-    const closedSlots = slots.filter((s) => closed.has(s.key)).length;
+    const manualCloses = closuresByEvent.get(event.id) ?? [];
+    const marked = markedByEvent.get(event.id) ?? new Set<string>();
+    const elapsed = row
+      ? slots.filter((s) =>
+          isSlotClosed(s.day, s.slot, manualCloses, row.campus.timezone, now),
+        )
+      : [];
+    const kept = elapsed.filter((s) => marked.has(s.key));
     return {
       eventId: event.id,
       event: event.displayName,
@@ -120,14 +153,16 @@ export async function getEmargementCoverage(
       dateLabel: event.dateLabel,
       status: event.status,
       slots: slots.length,
-      closedSlots,
-      closedShare: share(closedSlots, slots.length),
+      elapsedSlots: elapsed.length,
+      keptSlots: kept.length,
+      keptShare: share(kept.length, elapsed.length),
       marks: row?._count.eventPresences ?? 0,
     };
   });
 
   const totalSlots = perEvent.reduce((sum, e) => sum + e.slots, 0);
-  const totalClosed = perEvent.reduce((sum, e) => sum + e.closedSlots, 0);
+  const totalElapsed = perEvent.reduce((sum, e) => sum + e.elapsedSlots, 0);
+  const totalKept = perEvent.reduce((sum, e) => sum + e.keptSlots, 0);
   const totalMarks = statuses.reduce((sum, s) => sum + s._count._all, 0);
 
   return {
@@ -138,15 +173,19 @@ export async function getEmargementCoverage(
     ),
     slots: metric(
       totalSlots,
-      'Nombre total de demi-journées à émarger sur ces événements. Une journée compte pour deux créneaux (matin et après-midi) ; un événement de plusieurs jours ne compte que ses jours ouvrés.',
+      "Nombre total de demi-journées à émarger sur ces événements. Une journée compte pour deux créneaux (matin et après-midi), sauf le premier jour d'un événement dont l'heure de début est l'après-midi (13h00 ou plus tard), qui ne compte que l'après-midi ; un événement de plusieurs jours ne compte que ses jours ouvrés.",
     ),
-    closedSlots: metric(
-      totalClosed,
-      "Demi-journées clôturées. Clôturer un créneau interdit l'arrivée tardive et bascule en absence tous ceux qui n'ont pas été pointés : tant que ce n'est pas fait, la feuille n'est pas définitive.",
+    elapsedSlots: metric(
+      totalElapsed,
+      "Demi-journées écoulées : celles dont l'heure de clôture est passée (11h00 pour le matin, 15h00 pour l'après-midi, à l'heure du campus) et celles qu'un membre de l'équipe a clôturées plus tôt. Dans une demi-journée écoulée, un talent sans pointage compte comme absent.",
     ),
-    closedShare: metric(
-      share(totalClosed, totalSlots),
-      "Part des demi-journées clôturées sur le périmètre, en pourcentage. Un événement à venir fait naturellement baisser ce chiffre : ses créneaux existent déjà mais n'ont pas encore eu lieu.",
+    keptSlots: metric(
+      totalKept,
+      "Demi-journées écoulées où au moins un pointage a été enregistré, par l'équipe ou par le talent lui-même avec le code de pointage. Une demi-journée écoulée sans aucun pointage est une feuille que personne n'a tenue : toute la cohorte y compte comme absente.",
+    ),
+    keptShare: metric(
+      share(totalKept, totalElapsed),
+      "Part des demi-journées écoulées où au moins un pointage a été enregistré, en pourcentage. Seules les demi-journées écoulées y entrent : un événement qui n'a pas encore eu lieu ne fait pas baisser ce chiffre, sauf un créneau qu'un membre de l'équipe a clôturé à l'avance.",
     ),
     marks: metric(
       totalMarks,
@@ -163,7 +202,7 @@ export async function getEmargementCoverage(
     ),
     perEvent: metric(
       perEvent.slice(0, EMARGEMENT_EVENTS_LIMIT),
-      `Le détail événement par événement, du plus récent au plus ancien, limité à ${EMARGEMENT_EVENTS_LIMIT} lignes. « marks » est le nombre de pointages enregistrés, tous statuts confondus.`,
+      `Le détail événement par événement, du plus récent au plus ancien, limité à ${EMARGEMENT_EVENTS_LIMIT} lignes. « elapsedSlots », « keptSlots » et « keptShare » s'y lisent comme les chiffres du même nom, pour cet événement seul ; « marks » est le nombre de pointages enregistrés, tous statuts confondus.`,
     ),
     truncated: perEvent.length > EMARGEMENT_EVENTS_LIMIT,
   };
@@ -176,8 +215,9 @@ function empty(scope: Scope): EmargementCoverage {
     filters: scopeLabels(scope),
     events: metric(0, none),
     slots: metric(0, none),
-    closedSlots: metric(0, none),
-    closedShare: metric(null, none),
+    elapsedSlots: metric(0, none),
+    keptSlots: metric(0, none),
+    keptShare: metric(null, none),
     marks: metric(0, none),
     byStatus: metric([], none),
     perEvent: metric([], none),

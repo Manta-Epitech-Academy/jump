@@ -4,6 +4,7 @@ import { eventWindowEnd } from '$lib/domain/event';
 import {
   type EventModuleKey,
   type EventModuleSettings,
+  type EventSurfaceKey,
   isEventModuleKey,
   parseModuleSettings,
 } from '$lib/domain/eventModules';
@@ -124,9 +125,22 @@ export function eventModuleSettings<K extends EventModuleKey>(
   return parseModuleSettings(key, event.moduleSettings.get(key));
 }
 
+/**
+ * Load an event of the caller's campus for one dev-workspace surface, 404ing
+ * when it belongs to another campus or when `surface` is a module the event has
+ * turned off, so a direct URL to such a surface behaves like a missing page.
+ * A surface that is no module (`planning`) is gated on the data its own load
+ * reads, as are the data gates of module surfaces (a feedback form, a closing
+ * grid, a certificate design).
+ *
+ * The surface is a required argument because the module gate used to be a
+ * second call each route had to remember, and four endpoints (both exports,
+ * both émargement QR codes) forgot it.
+ */
 export async function loadEventOr404(
   eventId: string,
   campusId: string,
+  surface: EventSurfaceKey,
 ): Promise<EventRecord> {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -151,27 +165,17 @@ export async function loadEventOr404(
   }
   const { modules, ...rest } = event;
   const present = modules.filter((m) => isEventModuleKey(m.moduleKey));
-  return {
+  const record: EventRecord = {
     ...rest,
     modules: new Set(present.map((m) => m.moduleKey as EventModuleKey)),
     moduleSettings: new Map(
       present.map((m) => [m.moduleKey as EventModuleKey, m.settings]),
     ),
   };
-}
-
-/**
- * Gate a dev-workspace surface on a per-event module: throws 404 when the event
- * does not expose the module, so a direct URL to a surface the event has turned
- * off behaves like a missing page.
- */
-export function requireEventModule(
-  event: { modules: Set<EventModuleKey> },
-  key: EventModuleKey,
-): void {
-  if (!event.modules.has(key)) {
+  if (isEventModuleKey(surface) && !record.modules.has(surface)) {
     throw error(404, 'Fonctionnalité non disponible pour cet événement.');
   }
+  return record;
 }
 
 /**

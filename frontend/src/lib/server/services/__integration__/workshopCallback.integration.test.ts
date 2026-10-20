@@ -17,9 +17,10 @@ import { assertTestDatabase } from './testDatabase';
  *
  * What is under test is the whole path: the signature over the bytes on the
  * wire, the freshness window, the shape check, and the single grant the service
- * recomputes. Calling `applyWorkshopProgress` directly would have skipped the
- * half that decides whether a request is allowed to write anything at all, which
- * is the half an unauthenticated public endpoint is judged on.
+ * sets to the points CTFd reports. Calling `applyWorkshopProgress` directly
+ * would have skipped the half that decides whether a request is allowed to write
+ * anything at all, which is the half an unauthenticated public endpoint is
+ * judged on.
  */
 describe('the workshop progress callback (integration)', () => {
   const stamp = Date.now();
@@ -29,8 +30,10 @@ describe('the workshop progress callback (integration)', () => {
   const nextSlug = `test-workshop-next-${stamp}`;
   const otherHostSlug = `test-other-host-${stamp}`;
   const secret = process.env.WORKSHOP_TICKET_SECRET ?? '';
-  const BUDGET_MINUTES = 120;
   const TOTAL_STEPS = 15;
+  // What each step is worth in this test's subject. A real subject prices each
+  // step on its own; the callback only ever carries the sum.
+  const STEP_POINTS = 25;
 
   let campusId = '';
   let eventId = '';
@@ -77,13 +80,18 @@ describe('the workshop progress callback (integration)', () => {
     }
   }
 
-  const progress = (solvedSteps: number, contentSlug = slug) => ({
+  const progress = (
+    solvedSteps: number,
+    contentSlug = slug,
+    points = solvedSteps * STEP_POINTS,
+  ) => ({
     instanceSlug: hostSlug,
     contentSlug,
     talentId,
     solvedSteps,
     totalSteps: TOTAL_STEPS,
     isComplete: solvedSteps >= TOTAL_STEPS,
+    points,
   });
 
   const readState = async () => {
@@ -138,12 +146,7 @@ describe('the workshop progress callback (integration)', () => {
     });
     nextActivityId = next.id;
     await prisma.eventConfig_Workshop.create({
-      data: {
-        eventId,
-        activityId,
-        position: 0,
-        durationMinutes: BUDGET_MINUTES,
-      },
+      data: { eventId, activityId, position: 0 },
     });
     const talent = await prisma.talent.create({
       data: { prenom: 'Camille', nom: 'Atelier' },
@@ -156,13 +159,7 @@ describe('the workshop progress callback (integration)', () => {
     // The entry action writes this row; the callback never creates one, which is
     // what makes an unknown talent a silent no-op rather than a new participation.
     await prisma.workshop_Participation.create({
-      data: {
-        talentId,
-        activityId,
-        eventId,
-        campusId,
-        budgetMinutes: BUDGET_MINUTES,
-      },
+      data: { talentId, activityId, eventId, campusId },
     });
   });
 
@@ -221,6 +218,18 @@ describe('the workshop progress callback (integration)', () => {
     expect((await readState()).grants).toBe(0);
   });
 
+  it('refuses a report that does not carry its points', async () => {
+    // The points are the grant itself, and Jump has no other way to know them:
+    // an instance older than the field is refused like one without a content,
+    // and its outbox resends the row once upgraded.
+    const withoutPoints: Record<string, unknown> = { ...progress(4) };
+    delete withoutPoints.points;
+    expect(await post(withoutPoints)).toBe(400);
+    expect(await post({ ...progress(4), points: -25 })).toBe(400);
+    expect(await post({ ...progress(4), points: 12.5 })).toBe(400);
+    expect((await readState()).grants).toBe(0);
+  });
+
   it('grants nothing for a content Jump does not know', async () => {
     expect(await post(progress(4, `unknown-content-${stamp}`))).toBe(200);
     expect((await readState()).grants).toBe(0);
@@ -249,11 +258,11 @@ describe('the workshop progress callback (integration)', () => {
     expect(await post(progress(5))).toBe(200);
     const { grant, participation, grants, owed } = await readState();
     expect(grants).toBe(1);
-    // A third of a two-hour activity, rounded once over the whole thing.
-    expect(grant?.amount).toBe(400);
+    // Exactly the points CTFd reported: one XP per point, nothing applied.
+    expect(grant?.amount).toBe(5 * STEP_POINTS);
     expect(participation?.solvedSteps).toBe(5);
     expect(participation?.totalSteps).toBe(TOTAL_STEPS);
-    expect(owed).toBe(400);
+    expect(owed).toBe(5 * STEP_POINTS);
   });
 
   it('changes nothing when the same progress is replayed', async () => {
@@ -272,23 +281,34 @@ describe('the workshop progress callback (integration)', () => {
     expect(await post(progress(15))).toBe(200);
     const { grant, participation, grants, owed } = await readState();
     expect(grants).toBe(1);
-    // Finished whole: exactly the declared minutes, ten XP each.
-    expect(grant?.amount).toBe(BUDGET_MINUTES * 10);
+    expect(grant?.amount).toBe(15 * STEP_POINTS);
     expect(participation?.solvedSteps).toBe(15);
     // Nothing was celebrated in between, so the whole grant is owed, once.
-    expect(owed).toBe(BUDGET_MINUTES * 10);
+    expect(owed).toBe(15 * STEP_POINTS);
   });
 
-  it('keeps the talent on the budget pinned at their first entry', async () => {
-    // The admin re-declares the activity at three hours. The next callback still
-    // pays the two hours this talent entered under, which is the whole of what
-    // "changing a duration takes XP back off nobody" rests on.
-    await prisma.eventConfig_Workshop.update({
-      where: { eventId_activityId: { eventId, activityId } },
-      data: { durationMinutes: 180 },
+  it('follows a value the author changes in CTFd, without celebrating a loss', async () => {
+    // The talent has seen the float for everything earned so far.
+    const shown = 15 * STEP_POINTS;
+    await prisma.workshop_Participation.update({
+      where: { talentId_activityId: { talentId, activityId } },
+      data: { xpCelebrated: shown },
     });
-    expect(await post(progress(15))).toBe(200);
-    expect((await readState()).grant?.amount).toBe(BUDGET_MINUTES * 10);
+
+    // The author lowers a step's value after the session: the next report is a
+    // recount at the new values, and the grant follows it down. Nothing is owed,
+    // so no float, and certainly not a negative one.
+    expect(await post(progress(15, slug, shown - 75))).toBe(200);
+    let state = await readState();
+    expect(state.grant?.amount).toBe(shown - 75);
+    expect(state.grants).toBe(1);
+    expect(state.owed).toBe(0);
+
+    // Raised again above what was shown: only the part past the mark is owed.
+    expect(await post(progress(15, slug, shown + 25))).toBe(200);
+    state = await readState();
+    expect(state.grant?.amount).toBe(shown + 25);
+    expect(state.owed).toBe(25);
   });
 
   it('files the next content on the same host apart, and leaves the first untouched', async () => {
@@ -297,13 +317,7 @@ describe('the workshop progress callback (integration)', () => {
     // first content's XP; keyed on the content, it is a grant of its own.
     const before = await readState();
     await prisma.workshop_Participation.create({
-      data: {
-        talentId,
-        activityId: nextActivityId,
-        eventId,
-        campusId,
-        budgetMinutes: 60,
-      },
+      data: { talentId, activityId: nextActivityId, eventId, campusId },
     });
     expect(await post(progress(3, nextSlug))).toBe(200);
 
@@ -322,8 +336,8 @@ describe('the workshop progress callback (integration)', () => {
       },
       select: { amount: true },
     });
-    // Three of fifteen steps of an hour, on the next content's own budget.
-    expect(nextGrant?.amount).toBe(120);
+    // Three steps of the next content, on a grant of its own.
+    expect(nextGrant?.amount).toBe(3 * STEP_POINTS);
 
     // And each row of the history keeps its own name: renaming what the host
     // serves now does not rename what the talent walked before.

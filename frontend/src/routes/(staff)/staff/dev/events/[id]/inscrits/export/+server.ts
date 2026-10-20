@@ -6,6 +6,8 @@ import {
 } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { niveauLabel } from '$lib/domain/niveau';
 import {
   rulesStatus,
@@ -39,7 +41,11 @@ import { USAGE_FEATURES } from '$lib/domain/usage';
 export const POST: RequestHandler = async ({ params, locals, request }) => {
   requireStaffGroup(locals, 'devMember');
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.INSCRITS,
+  );
   const db = scopedPrisma(campusId);
 
   const body = (await request.json().catch(() => null)) as {
@@ -59,7 +65,11 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
   const [participations, dossiers] = await Promise.all([
     talentIds.length
       ? db.participation.findMany({
-          where: { eventId: event.id, talentId: { in: talentIds } },
+          where: {
+            eventId: event.id,
+            talentId: { in: talentIds },
+            ...visibleParticipationWhere,
+          },
           select: INSCRIT_EXPORT_PARTICIPATION_SELECT,
         })
       : [],

@@ -118,7 +118,6 @@ export type EventConfigPatch = {
   closingTemplateId?: string | null;
   workshops?: {
     slug: string;
-    durationMinutes: number;
     labelOverride?: string | null;
   }[];
 };
@@ -262,7 +261,6 @@ async function resolvedWorkshops(
   }
   return workshops.map((workshop, index) => ({
     activityId: idBySlug.get(slugs[index])!,
-    durationMinutes: workshop.durationMinutes,
     labelOverride: workshop.labelOverride?.trim() || null,
   }));
 }
@@ -320,7 +318,7 @@ export async function writeEventTemplate(params: {
     (templates) => templates.find((t) => t.name === params.name) ?? null,
   );
 
-  const { id, updated } = await EventConfigTemplateService.saveTemplate({
+  const { template, updated } = await EventConfigTemplateService.saveTemplate({
     name: params.name,
     description: params.description ?? '',
     publicName: event.publicName,
@@ -337,8 +335,5 @@ export async function writeEventTemplate(params: {
     actorId: null,
   });
 
-  const after = (await EventConfigTemplateService.list()).find(
-    (t) => t.id === id,
-  );
-  return { applied: true, before, after: { ...after, replaced: updated } };
+  return { applied: true, before, after: { ...template, replaced: updated } };
 }

@@ -12,8 +12,9 @@ paths:
 
 Six routes, one caller, and a second repository on the other end
 ([`jump-sf-worker`](https://github.com/Manta-Epitech-Academy/jump-sf-worker)). The
-worker is **driven by Jump and stateless**: a k8s CronJob wakes it on a fixed fine
-tick, it asks what to do, obeys, and reports. It holds no configuration, no cadence
+worker is **driven by Jump and stateless**: a k8s CronJob wakes it every minute
+(the schedule lives in `jump-k3s`, mirrored here by `SYNC_WORKER_TICK_MINUTES`), it
+asks what to do, obeys, and reports. It holds no configuration, no cadence
 and no watermark of its own, exposes no port, and only ever talks outbound.
 
 That inversion is the whole design. Tightening the incremental pass from three
@@ -73,8 +74,9 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   (`syncEvents` for an unknown campus, `syncTalents` for a nameless contact,
   `syncParticipations` for an unknown event or an unprovable prune), and keep
   refusals for a malformed payload, which is a worker bug and not data.
-- **A failed run moves nothing.** `lastDeltaAt` / `lastFullAt` are no column
-  anywhere: they are `MAX(finishedAt) WHERE mode = ? AND status = 'ok'`. So a run
+- **A failed run moves nothing.** The watermarks are no column anywhere: each is
+  read off the latest run of its mode with `status = 'ok'` (`lastOkRun`), and
+  which of that run's dates counts is the `startedAt` rule below. So a run
   that dies mid-push simply replays its window at the next tick, and nothing in
   the system has to remember that it failed. Closing an already-closed run is
   refused for the same reason: the worker fires a second `error` PATCH when its
@@ -88,11 +90,19 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   it pending, as it leaves the watermark; and a full pass covers an incremental
   request, never the reverse. That is why it is a date and not a flag: a flag
   needs clearing, and the clearing is where it would get lost.
-- **Dueness reads `finishedAt`, the incremental window reads `startedAt`.** They
-  are deliberately two dates. A record modified WHILE a run was executing carries
-  a modstamp that run's `finishedAt` has already passed, so resuming from
-  `finishedAt` drops it silently. `domain/syncSchedule.ts` owns both, plus the
-  margin that absorbs the clock skew between Jump and Salesforce.
+- **Dueness and the incremental window both read `startedAt`, never `finishedAt`.**
+  A record modified WHILE a run was executing carries a modstamp that run's
+  `finishedAt` has already passed, so resuming from `finishedAt` drops it
+  silently. And a cadence of N minutes is a pass starting every N minutes: on
+  2026-10-19 dueness counted from `finishedAt` with a strict comparison, and on
+  the fixed 15 min tick the elapsed time was always a few seconds short, so a 15
+  min cadence ran every 30 and a 3 h one every 3h15 (#419). Starting from
+  `startedAt` alone still falls a hair short, since a run is stamped after the
+  tick that decided it, hence a small wake-up slack, counted in seconds and held
+  under half the tick: the 2 minutes #421 chose were safe on a 15 min tick and
+  would run a 5 min cadence every 3 on a 1 min one (#423). `domain/syncSchedule.ts`
+  owns both dates, that slack, and the margin that absorbs the clock skew
+  between Jump and Salesforce.
 - **`mode` is always a real mode, and `since` is always a key.** The worker
   validates `mode` BEFORE it looks at `shouldSync`, so a heartbeat answer with an
   empty one makes the run throw instead of exiting quietly; and it rejects a
@@ -102,7 +112,9 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   generator writes none, so a generated database answers an empty list on any
   machine. It is a property of the data, not a flag somebody re-enables by
   forgetting. `seed.md` states the same rule from the other side,
-  and `assert/inertness.ts` refuses a seeded `Sync_Source` outright.
+  and `assert/inertness.ts` refuses a seeded `Sync_Source` outright. The rule is
+  written once, as `servedSourceWhere` in `syncConfigService.ts`, with
+  `isServedToWorker` its row form for the admin answers that report it.
 - **Nothing here touches `Event.devActivatedAt`.** A new campaign under a
   whitelisted parent is discovered automatically, which is the point; publishing
   it to the dev workspace stays an admin's decision. Automatic discovery is not
@@ -150,6 +162,15 @@ surface, over HTTP and as MCP tools. "Sync now" is a request, never a lowered
 cadence: a cadence lowered to get one pass has to be raised again by somebody who
 remembers to.
 
+**A request waits for the next tick, and that wait is why the tick is a minute.**
+On the old 15 min tick a demo waited up to a quarter of an hour to see a
+Salesforce change land (#423). Nothing pushes the worker awake sooner, and that is
+deliberate: Jump starting a Job itself would need cluster rights in the app and tie
+it to the cluster, and the worker listens on no port, all to save under a minute.
+An idle tick costs one call to Jump, since the worker logs in to Salesforce only
+once a pass is due; keep it that way, or the tick pays a Salesforce session every
+minute.
+
 ## Salesforce reconciliation
 
 Talent profile fields have two sources: the worker sync (Salesforce) and onboarding (the student). They are **reconciled, not blindly overwritten**.
@@ -157,5 +178,5 @@ Talent profile fields have two sources: the worker sync (Salesforce) and onboard
 - **`Talent` = Jump's current truth.** Onboarding writes it directly (**optimistic**: the student's input shows on their dashboard immediately; staff arbitrate divergences afterward, there is no pending-validation gate).
 - **`TalentSfImport` = 1:1 typed mirror of Salesforce's last claim**: the anti-corruption boundary. Written _only_ by `syncService.syncTalents`, never by onboarding, and upserted only when the inbound payload differs.
 - **`School` = canonical UAI-keyed directory**, resolved lazily from the éducation-nationale annuaire (`server/annuaire.ts` + `schoolService.resolveSchoolByUai`). Only schools actually attended ever land here, never the ~69k national set. It replaced the old free-text `highSchoolName/City/Uai` columns: `Talent` now carries a `schoolId` FK (+ `highSchoolNameManual`, used _only_ when a lycée has no UAI). The student's school and SF's claimed school (`TalentSfImport.sfSchoolId`) both FK the same `School`.
-- **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.)
+- **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.) `sfNoClobber.integration.test.ts` runs the sync and the conflict list over the same talents, so the two cannot read the rule differently.
 - **Conflict** = field is talent-confirmed **AND** `Talent` ≠ `TalentSfImport` (school compared by FK). Computed in `reconciliationService`, never stored. Surfaced at `/staff/admin/sf-conflicts` (list + accept/reject + CSV export); `acceptJump` realigns the mirror optimistically. `niveau` is SF-owned (onboarding never sets it) → always synced, never a conflict.

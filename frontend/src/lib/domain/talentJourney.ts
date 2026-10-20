@@ -24,8 +24,8 @@ export type TalentJourneyEntry = {
   /**
    * Where the event's name leads, or null when it leads nowhere the reader may
    * go: the event belongs to another campus, or does not expose the Inscrits
-   * list. Those are exactly the two conditions `loadEventOr404` and
-   * `requireEventModule` enforce on the destination, so a link offered here
+   * list. Those are exactly the two conditions `loadEventOr404` enforces on the
+   * destination when it is asked for the Inscrits surface, so a link offered here
    * cannot 404 - the rule the dev sidebar already follows in not offering a page
    * that would.
    *

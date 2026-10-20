@@ -1,11 +1,9 @@
 import type { RequestHandler } from './$types';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
-import {
-  loadEventOr404,
-  requireEventModule,
-} from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { imageRightsStance, imageRightsStatus } from '$lib/domain/imageRights';
 import { latestImageRightsDecisions } from '$lib/server/services/imageRightsService';
 import { generateBadgesPDF } from '$lib/server/services/badgeGenerator';
@@ -22,15 +20,18 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
     url.searchParams.get('mode') === 'foldable' ? 'foldable' : 'simple';
 
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
   // The badge sheet is part of the Inscrits surface (it prints the cohort), so
   // it is gated on the same module as the page and `diplomes.pdf`: a direct GET
   // must not leak the cohort when Inscrits is disabled for the event.
-  requireEventModule(event, EVENT_MODULES.INSCRITS);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.INSCRITS,
+  );
   const db = scopedPrisma(campusId);
 
   const participations = await db.participation.findMany({
-    where: { eventId: event.id },
+    where: { eventId: event.id, ...visibleParticipationWhere },
     select: {
       talent: {
         select: {

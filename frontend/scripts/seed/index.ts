@@ -32,7 +32,7 @@ import { createRng } from './rng';
 import { isProfileName, PROFILES } from './profiles';
 import { World } from './world';
 import { SCENARIOS } from './scenarios';
-import { flush, wipe } from './writer';
+import { clearFoldedMonths, flush, wipe } from './writer';
 import { renderManifest } from './manifest';
 import { MANIFEST_SETTING_KEY } from './ids';
 import { runChecks } from './assert';
@@ -309,6 +309,7 @@ async function main(): Promise<void> {
     world.finalize();
 
     log('Écriture :');
+    await clearFoldedMonths(prisma, world.buffer, log);
     const rows = await flush(prisma, world.buffer, log, clock.today);
     log(`  ${rows} lignes écrites.`);
 

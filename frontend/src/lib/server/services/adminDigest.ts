@@ -7,9 +7,14 @@
  * asking cannot disagree. If a definition changes, it changes here too, because
  * the definitions travel with the numbers.
  *
- * Recipients are every admin-role account's login email, derived from the roster
- * rather than configured: an admin who joins gets the digest, one who leaves stops
- * getting it, with nothing to remember.
+ * Recipients are the admins who were chosen for it (`receivesAdminDigest`, set
+ * through `write_admin_digest_recipient`), never every admin. It used to follow
+ * the role, and the role was then given to national leadership so they could read
+ * the admin space: a working mail landed in their inbox without anyone deciding it
+ * (#426). Only an admin account can be chosen, because every link below needs a
+ * staff session; a departure (the account goes) or a demotion (the role is re-read
+ * here) still stops the mail with nothing to remember. Nobody chosen means no
+ * digest at all, not a fallback to every admin.
  *
  * Sending goes through the mail façade, so the outbound gate applies untouched: on
  * a trapped environment this lands in the dev-redirect inbox, which is correct.
@@ -27,8 +32,8 @@
  */
 
 import { env } from '$env/dynamic/private';
-import { prisma } from '$lib/server/db';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
+import { adminDigestRecipients } from '$lib/server/services/adminStats/adminDigestRecipients';
 import { getEventsConfigList } from '$lib/server/services/adminStats/eventsList';
 import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
 import { getDataFreshness } from '$lib/server/services/adminStats/dataFreshness';
@@ -300,7 +305,8 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
       <h2 style="font-size:15px;font-weight:700;margin:0 0 8px;color:${INK};">Synchronisation</h2>
       ${syncSection}
       <p style="margin:24px 0 0;color:${SUBTLE};font-size:12px;">
-        Message automatique, envoyé chaque lundi aux administrateurs de Jump.
+        Message automatique, envoyé chaque lundi aux administrateurs désignés
+        par l'équipe Jump.
       </p>`;
 
   const html = wrapEmailDocument(
@@ -377,27 +383,20 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   };
 }
 
-/** Login emails of every admin-role account. */
-export async function adminDigestRecipients(): Promise<string[]> {
-  const admins = await prisma.bauth_user.findMany({
-    where: { staffProfile: { staffRole: 'admin' } },
-    select: { email: true },
-  });
-  return admins.map((a) => a.email).filter((email): email is string => !!email);
-}
-
 export type AdminDigestSendResult = {
   sent: number;
   failed: number;
   recipients: number;
-  summary: AdminDigest['summary'];
+  /** Null when nobody was chosen: no digest is built for nobody. */
+  summary: AdminDigest['summary'] | null;
 };
 
 export async function sendAdminDigest(): Promise<AdminDigestSendResult> {
-  const [digest, recipients] = await Promise.all([
-    buildAdminDigest(env.ORIGIN ?? ''),
-    adminDigestRecipients(),
-  ]);
+  const recipients = await adminDigestRecipients();
+  if (recipients.length === 0)
+    return { sent: 0, failed: 0, recipients: 0, summary: null };
+
+  const digest = await buildAdminDigest(env.ORIGIN ?? '');
 
   let sent = 0;
   let failed = 0;

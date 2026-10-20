@@ -4,8 +4,8 @@
  * Émargement is the surface AGENTS.md says must be a screen rather than an API
  * call - it is run on the floor, at 9am, on 200 students - so it is the write
  * worth driving through a real browser. One click crosses the route guard, the
- * campus scoping (`getCampusId` / `loadEventOr404`), the module gate
- * (`requireEventModule`), superforms validation, the transaction that upserts the
+ * campus scoping and the module gate (`getCampusId` / `loadEventOr404`),
+ * superforms validation, the transaction that upserts the
  * `EventPresence` row, and the `eventsCount` projection recomputed alongside it.
  * A unit test can reach any one of those; only this reaches the seam between all
  * of them.

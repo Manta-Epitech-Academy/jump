@@ -19,6 +19,7 @@ import type { XpGrantSource } from '@prisma/client';
  *   - onboarding        → talentId
  *   - minigame          → minigameAttemptId
  *   - reward            → `${rewardId}_${talentId}` (see scripts/grant-reward-from-csv.ts)
+ *   - workshop          → `${activitySlug}:${talentId}` (see workshopGrantSourceId)
  *   - admin_adjustment  → null (never deduped; each adjustment is its own row)
  */
 

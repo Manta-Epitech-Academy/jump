@@ -17,8 +17,8 @@
 
   // Picks one émargement créneau in two orthogonal moves rather than stepping a
   // flat list of ~20: jump to a DAY (prev/next or dropdown), then flip the
-  // Matin|Après-midi half-day with a single click. The flat slots list (each
-  // working day × 2) stays the source of truth; this just projects the day axis
+  // Matin|Après-midi half-day with a single click. The flat slots list
+  // (`presenceSlots`) stays the source of truth; this just projects the day axis
   // and the half-day axis out of it.
   let {
     slots,
@@ -38,9 +38,9 @@
   const canPrevDay = $derived(dayIndex > 0);
   const canNextDay = $derived(dayIndex >= 0 && dayIndex < days.length - 1);
 
-  // Half-days that actually exist for the active day. Both, per the data model,
-  // but derived from the list so an irregular event can never offer a créneau
-  // that isn't there.
+  // Half-days that actually exist for the active day: usually both, the
+  // afternoon alone on the start day of an afternoon event. Derived from the
+  // list so the toggle never offers a créneau that isn't there.
   const halfOptions = $derived(
     PRESENCE_SLOTS.filter((sl) =>
       slots.some((s) => s.day === active?.day && s.slot === sl),

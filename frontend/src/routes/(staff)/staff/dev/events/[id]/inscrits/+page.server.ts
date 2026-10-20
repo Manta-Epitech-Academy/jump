@@ -6,7 +6,6 @@ import {
 } from '$lib/server/db/scoped';
 import {
   loadEventOr404,
-  requireEventModule,
   eventEndOrDefault,
   eventModuleSettings,
 } from '$lib/server/services/stageContext';
@@ -49,8 +48,11 @@ function originConditions(schoolId: string | null, interestId: string | null) {
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.INSCRITS);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.INSCRITS,
+  );
   const db = scopedPrisma(campusId);
   const timezone = getCampusTimezone(locals);
 
@@ -106,13 +108,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     activeInterest?.id ?? null,
   );
 
-  const scopedAnd = [
-    { eventId: event.id },
-    visibleParticipationWhere,
-    ...originAnd,
-  ];
-  const where = scopedAnd.length === 1 ? scopedAnd[0] : { AND: scopedAnd };
-
   // Stream the cohort: the page shell (header + countdown + rail skeleton) paints
   // immediately while this resolves, instead of the client navigation blocking on
   // it. One phase-agnostic query: every inscrit, sorted by nom for a stable order
@@ -133,7 +128,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       dossiers,
     ] = await Promise.all([
       db.participation.findMany({
-        where,
+        where: {
+          AND: [{ eventId: event.id }, visibleParticipationWhere, ...originAnd],
+        },
         select: INSCRIT_PARTICIPATION_SELECT,
         orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
       }),

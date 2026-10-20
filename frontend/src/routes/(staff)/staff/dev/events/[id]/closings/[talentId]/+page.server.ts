@@ -8,12 +8,10 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { prisma } from '$lib/server/db';
-import {
-  loadEventOr404,
-  requireEventModule,
-} from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { resolveClosingGridById } from '$lib/server/closingTemplates';
 import {
   gridQuestions,
@@ -87,8 +85,11 @@ const RECORD_INCLUDE = {
 export const load: PageServerLoad = async ({ params, locals }) => {
   requireStaffGroup(locals, 'devMember');
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.CLOSINGS);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.CLOSINGS,
+  );
   const db = scopedPrisma(campusId);
 
   // The surface is gated on the module AND on the event naming a grid, the same
@@ -106,9 +107,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // whose enrolment the sync has since pruned stays reachable here instead of
   // 404ing on a row that no longer exists.
   const key = { talentId: params.talentId, eventId: event.id };
-  const [participation, record] = await Promise.all([
-    db.participation.findUnique({
-      where: { talentId_eventId: key },
+  const [onRoster, record] = await Promise.all([
+    db.participation.findFirst({
+      where: { ...key, ...visibleParticipationWhere },
       select: { talentId: true },
     }),
     db.closing_Record.findUnique({
@@ -117,10 +118,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     }),
   ]);
 
-  // Either tie will do, and accepting the record alone is the point: Salesforce
-  // prunes an enrolment it no longer carries, and a closing already conducted
-  // must stay readable afterwards rather than 404 on a row that has gone.
-  if (!participation && !record) {
+  // Either tie will do. A talent the closings page lists can have one started,
+  // and a closing already started stays readable once Salesforce masks or
+  // prunes its enrolment. A masked talent with no closing is neither, so the
+  // page is missing rather than a start the action would refuse.
+  if (!onRoster && !record) {
     throw error(404, 'Participant introuvable pour cet événement.');
   }
 
@@ -238,12 +240,27 @@ async function persist(
   const form = await superValidate(request, zod4(closingConductSchema));
   if (!form.valid) return fail(400, { form });
 
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.CLOSINGS);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.CLOSINGS,
+  );
 
-  const participation = await db.participation.findUnique({
+  const existing = await db.closing_Record.findUnique({
     where: {
       talentId_eventId: { talentId: params.talentId, eventId: event.id },
+    },
+    select: { status: true, templateId: true },
+  });
+
+  // A closing already started keeps the enrolment it was opened on, as the load
+  // does. A new one is opened only for a talent on the roster the closings page
+  // lists, so a hand-crafted POST cannot start one for a masked enrolment.
+  const participation = await db.participation.findFirst({
+    where: {
+      talentId: params.talentId,
+      eventId: event.id,
+      ...(existing ? {} : visibleParticipationWhere),
     },
     select: { campusId: true },
   });
@@ -256,13 +273,6 @@ async function persist(
       status: 400,
     });
   }
-
-  const existing = await db.closing_Record.findUnique({
-    where: {
-      talentId_eventId: { talentId: params.talentId, eventId: event.id },
-    },
-    select: { status: true, templateId: true },
-  });
 
   // Clôture is terminal: once `done`, the closing is locked for good. Refuse any
   // further mutation (autosave, re-close, or a stray start) server-side so the

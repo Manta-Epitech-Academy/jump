@@ -2,9 +2,10 @@
  * The beat the whole feature is built around, and the only place it can be
  * asserted: the talent is on another tab while the XP arrive.
  *
- * Everything else about the activities is covered without a browser. The scale
- * is a pure function, the ticket has its own round trip, and the callback has an
- * integration suite that drives the route. What none of them can see is that the
+ * Everything else about the activities is covered without a browser: the ticket
+ * has its own round trip, and the callback, which grants the points CTFd
+ * reports, has an integration suite that drives the route. What none of them can
+ * see is that the
  * page ALREADY MOUNTED when the reward appears: the talent walks the activity in
  * a second tab, comes back, the dashboard revalidates, and only then does `data`
  * carry something to celebrate. A celebration wired to mount does nothing there,
@@ -55,8 +56,8 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     await expect(hero).toContainText(E2E.workshopLabel);
 
     // The talent enters. Done over the action rather than by writing the row, so
-    // what pins the event, the campus and the minute budget is the code that
-    // will pin them in production.
+    // what pins the event and the campus is the code that will pin them in
+    // production.
     const entry = await request.post(`/activites/${E2E.workshopSlug}`, {
       // Form-encoded and empty, which is what the submit above sends: a kit
       // action refuses anything else with a 415 before it runs. The Origin is
@@ -75,8 +76,8 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     expect(entry.status()).toBe(303);
     expect(entry.headers()['location']).toContain('/jump/enter?t=');
 
-    // CTFd reports half the steps. Nothing on this page witnesses it: the
-    // dashboard is already open and nothing reloads it.
+    // CTFd reports half the steps, worth 300 points. Nothing on this page
+    // witnesses it: the dashboard is already open and nothing reloads it.
     const body = JSON.stringify({
       instanceSlug: E2E.workshopInstanceSlug,
       contentSlug: E2E.workshopSlug,
@@ -84,6 +85,7 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
       solvedSteps: 5,
       totalSteps: 10,
       isComplete: false,
+      points: 300,
     });
     const callback = await request.post('/api/workshops/callback', {
       headers: signedCallback(body),
@@ -129,10 +131,10 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     releaseAck();
     expect((await ackLanded).status()).toBe(200);
 
-    // Half of a sixty-minute activity, at ten XP the minute. Asserted on the
-    // toast rather than on the float: the float counts its number up over 900 ms
-    // and hides at 2500, so its text exists for a moment, while the toast carries
-    // the amount as one string for six seconds.
+    // The 300 points CTFd reported, one XP each. Asserted on the toast rather
+    // than on the float: the float counts its number up over 900 ms and hides
+    // at 2500, so its text exists for a moment, while the toast carries the
+    // amount as one string for six seconds.
     const toast = page.getByText('Tu gagnes +300 XP', { exact: false });
     await expect(toast).toBeVisible();
     await expect(toast).toHaveCount(1);

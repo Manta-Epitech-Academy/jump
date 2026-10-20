@@ -4,10 +4,7 @@ import QRCode from 'qrcode';
 import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
 import { getCampusId } from '$lib/server/db/scoped';
-import {
-  loadEventOr404,
-  requireEventModule,
-} from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
@@ -24,8 +21,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
   const campusId = getCampusId(locals);
   // Validates the event belongs to the acting campus and exposes the bilan
   // surface: an event with the module off must not project the QR by direct URL.
-  const event = await loadEventOr404(params.id!, campusId);
-  requireEventModule(event, EVENT_MODULES.BILAN);
+  const event = await loadEventOr404(params.id!, campusId, EVENT_MODULES.BILAN);
 
   // Same resolution as the page/export so the QR can never point at a form they
   // wouldn't show (override else type default, published + authenticated).

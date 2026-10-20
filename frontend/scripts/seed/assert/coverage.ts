@@ -74,6 +74,8 @@ const NEVER_SEEDED: Readonly<Record<string, string>> = {
     'une suppression qu’une reprise complète a retenue faute de pouvoir la prouver. Elle naît d’une synchronisation, et aucune ne tourne sur une base générée (voir `Sync_Source` juste au-dessus). Une retenue « libérée » serait de plus une INSTRUCTION : la reprise complète suivante supprimerait les inscriptions. `assert/inertness.ts` refuse une ligne semée ici.',
   Sync_Request:
     'une passe de synchronisation demandée maintenant, et une ligne semée serait une INSTRUCTION que `/api/worker/config` sert tout seul au réveil suivant, pas un fait. Elle avance une passe sans élargir le périmètre (voir `Sync_Source` plus haut), donc ne coûte rien sur une base générée : `assert/inertness.ts` dit pourquoi elle n’y a pas d’entrée.',
+  'StaffProfile.receivesAdminDigest':
+    'le choix d’un administrateur de recevoir le récapitulatif du lundi, et une valeur vraie semée serait une INSTRUCTION que `/api/jobs/admin-digest` trouve tout seul à chaque lundi : un courriel parti d’une base générée. Il ne reste donc vrai que là où quelqu’un l’a choisi avec `write_admin_digest_recipient`. `assert/inertness.ts` refuse un profil semé qui le porte.',
   'Campus.externalName':
     'DÉLIBÉRÉMENT vide, et c’est l’isolation du worker Salesforce elle-même. `/api/worker/config` ne sert au worker qu’une source dont le campus porte un nom externe, donc une base semée répond une liste vide et le worker n’a rien à résoudre, sur n’importe quelle machine. Écrire une valeur ici remet les données réelles de mineurs sur un environnement de validation : c’est la divulgation que toute cette branche existe pour supprimer.',
 

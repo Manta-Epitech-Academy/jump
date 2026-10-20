@@ -542,3 +542,46 @@ export async function wipe(
 
   return removed;
 }
+
+/**
+ * Takes back every cube month this generation is about to write, whatever wrote
+ * the rows that hold it.
+ *
+ * `wipe()` matches on the `sd_` prefix, and for the monthly usage cube that is
+ * not enough. The cube is a projection, and `usage/rollup.ts` recomputes it by
+ * WHOLE MONTH: each month still present in `Usage_FeatureUse` is deleted and
+ * inserted again under `gen_random_uuid()` ids. Once the rollup job has run on a
+ * generated environment, the months `foldUsageMonthly` wrote carry ids the wipe
+ * cannot see, and the next flush hits
+ * `Usage_FeatureMonthly_feature_actorKind_campusId_month_key` on the first key
+ * it writes again. That stopped every re-seed of `dev` from 20/10 (#432).
+ *
+ * So the generator recomputes a month the way the rollup does, whole, and not
+ * row by row. Ownership by id cannot hold for a projection: one cube row can fold
+ * seeded and real raw rows together, so no row is either side's. Nothing is lost
+ * by it: the real raw rows of those months are still in `Usage_FeatureUse`, and
+ * the next rollup folds them back, which is the rollup's own invariant. Matching
+ * on the month alone also keeps clear of a null `campusId`, which a key match
+ * would have to spell as `IS NULL`.
+ *
+ * Called between building the world and flushing it, because the months exist
+ * only once the scenarios have run, and the wipe has to happen before they do.
+ */
+export async function clearFoldedMonths(
+  prisma: PrismaClient,
+  buffer: Buffered,
+  log: (message: string) => void,
+): Promise<number> {
+  const months = [
+    ...new Set(buffer.usage_FeatureMonthly.map((row) => row.month)),
+  ];
+  if (months.length === 0) return 0;
+  const { count } = await prisma.usage_FeatureMonthly.deleteMany({
+    where: { month: { in: months } },
+  });
+  if (count > 0)
+    log(
+      `  - ${'usage_FeatureMonthly'.padEnd(28)} ${String(count).padStart(7)}`,
+    );
+  return count;
+}

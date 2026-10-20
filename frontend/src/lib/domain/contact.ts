@@ -59,3 +59,49 @@ export function guardiansOf(talent: GuardianColumns): ContactPerson[] {
     },
   ].filter((g) => g.prenom || g.nom || g.email || g.phone);
 }
+
+/** Every column on `Talent` that holds a guardian's identity or contact. */
+const GUARDIAN_CONTACT_FIELDS = [
+  'parentType',
+  'parentCivilite',
+  'parentNom',
+  'parentPrenom',
+  'parentEmail',
+  'parentPhone',
+  'parent2Type',
+  'parent2Civilite',
+  'parent2Nom',
+  'parent2Prenom',
+  'parent2Email',
+  'parent2Phone',
+] as const;
+
+export type GuardianContactField = (typeof GUARDIAN_CONTACT_FIELDS)[number];
+
+/**
+ * `{ field: null }` patch covering both guardians, for the paths that return a
+ * talent to before onboarding (admin reset, RGPD anonymisation). Like
+ * {@link guardiansOf}, the one place a future guardian table has to be plugged
+ * into.
+ */
+export function clearGuardianContacts(): Record<GuardianContactField, null> {
+  return Object.fromEntries(
+    GUARDIAN_CONTACT_FIELDS.map((f) => [f, null]),
+  ) as Record<GuardianContactField, null>;
+}
+
+/**
+ * Both guardians' addresses, distinct and non-empty: what the erasure and the
+ * reset read before clearing the columns, to find the guardians' own accounts.
+ */
+export function guardianEmailsOf(
+  talent: Pick<GuardianColumns, 'parentEmail' | 'parent2Email'>,
+): string[] {
+  return [
+    ...new Set(
+      [talent.parentEmail, talent.parent2Email].filter(
+        (email): email is string => !!email,
+      ),
+    ),
+  ];
+}

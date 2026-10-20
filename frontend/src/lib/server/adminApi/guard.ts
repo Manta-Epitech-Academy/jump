@@ -3,8 +3,9 @@
  * bearer token, or an admin browser session.
  *
  * Two steps, because the two consumers need them at different moments.
- * `authenticateAdminApi` answers "who is this" and is what the MCP endpoint runs
- * once, before the protocol layer sees anything. `authorizeOperation` answers
+ * `authenticateOrRefuse` answers "who is this", refusing and recording the call
+ * otherwise, and every transport runs it once per request before anything else
+ * (over MCP, before the protocol layer sees anything). `authorizeOperation` answers
  * "may they run this, right now" and runs per call: over HTTP that is the same
  * request, over MCP it is every tool invocation, because what a tier may reach
  * is a property of the operation and not of the connection.
@@ -26,9 +27,13 @@
  * browser still has the admin UI.
  */
 
-import type { RequestEvent } from '@sveltejs/kit';
+import { json, type RequestEvent } from '@sveltejs/kit';
 import { verifyToken } from './tokens';
-import { ANONYMOUS_ACTOR, type AdminApiCaller } from './audit';
+import {
+  ANONYMOUS_ACTOR,
+  recordAdminApiCall,
+  type AdminApiCaller,
+} from './audit';
 import {
   isOperationAllowedForTier,
   type AdminApiOperation,
@@ -59,6 +64,28 @@ function bearer(request: Request): string | null {
   if (!header?.startsWith('Bearer ')) return null;
   const value = header.slice('Bearer '.length).trim();
   return value || null;
+}
+
+/**
+ * Authenticate the request, or answer its refusal: the preamble every transport
+ * of this tier opens with (the HTTP routes, the MCP endpoint, the OpenAPI
+ * document). Written once because each copy had to remember the refusal's audit
+ * row, and a refused call is exactly the kind that shows somebody probing. What
+ * only a transport can judge (malformed params, an oversized envelope, a batch)
+ * stays with that transport.
+ */
+export async function authenticateOrRefuse(
+  event: Pick<RequestEvent, 'request' | 'locals'>,
+  operation: string,
+): Promise<AdminApiCredential | Response> {
+  const auth = await authenticateAdminApi(event);
+  if (auth.ok) return { caller: auth.caller, writeEnabled: auth.writeEnabled };
+  await recordAdminApiCall({
+    caller: auth.caller,
+    operation,
+    status: auth.status,
+  });
+  return json({ error: auth.message }, { status: auth.status });
 }
 
 /**

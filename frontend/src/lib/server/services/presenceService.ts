@@ -69,7 +69,8 @@ export type MarkAllPresentResult =
  * deliberately closed the créneau, so reopening it (Rouvrir) is the way back in.
  * A clock-closed créneau (past its 11h/15h cutoff) still accepts the bulk mark,
  * mirroring per-row marking which is always allowed: staff are often émargeant
- * late and forcing 200 marks by hand would be the only alternative. Unmarked
+ * late and forcing 200 marks by hand would be the only alternative. That is why
+ * it reads the closure row itself rather than `isSlotClosed`. Unmarked
  * cells carry no stored row, so `createMany` + `skipDuplicates` only ever inserts
  * present where nothing was saved and never clobbers a deliberate absent/justifié.
  */

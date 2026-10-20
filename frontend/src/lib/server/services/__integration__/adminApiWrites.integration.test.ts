@@ -454,6 +454,48 @@ describe('admin API writes (integration)', () => {
     await prisma.closing_Template.delete({ where: { id: grid.id } });
   });
 
+  // An event may keep a grid while its closings section is off (switching the
+  // section back on finds it again), but a preset saved from it must not carry
+  // the grid: applying it would attach one nobody chose, and a grid a preset
+  // names cannot be deleted. The wizard always dropped it; the API did not.
+  it('carries no reference for a section the preset leaves off', async () => {
+    const grid = await prisma.closing_Template.create({
+      data: { key: `preset_off_grid_${stamp}`, label: 'Grille éteinte' },
+    });
+    const source = await prisma.event.create({
+      data: {
+        titre: `WritePresetOff-${stamp}`,
+        date: new Date(Date.now() + 30 * 86_400_000),
+        campusId,
+      },
+    });
+    const name = `Modèle sans closing ${stamp}`;
+
+    const configured = await call(postConfig, writeSecret, {
+      eventId: source.id,
+      modules: ['inscrits'],
+      closingTemplateId: grid.id,
+    });
+    expect(configured.status).toBe(200);
+    expect(configured.payload.after).toMatchObject({
+      closingTemplateId: grid.id,
+    });
+
+    const saved = await call(postTemplate, writeSecret, {
+      eventId: source.id,
+      name,
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.payload.after).toMatchObject({
+      modules: ['inscrits'],
+      closingTemplateId: null,
+    });
+
+    await prisma.eventConfig_Template.deleteMany({ where: { name } });
+    await prisma.event.deleteMany({ where: { id: source.id } });
+    await prisma.closing_Template.delete({ where: { id: grid.id } });
+  });
+
   // All or nothing: a refusal on one facet leaves every other facet of the same
   // call unwritten, which is what four separate tools could never promise.
   it('writes nothing when the activation it asks for is refused', async () => {
@@ -580,15 +622,15 @@ describe('admin API writes (integration)', () => {
     const { status, payload } = await call(postConfig, writeSecret, {
       eventId: event.id,
       workshops: [
-        { slug: snake.slug, durationMinutes: 90 },
-        { slug: pacman.slug, durationMinutes: 60, labelOverride: 'Pacman' },
+        { slug: snake.slug },
+        { slug: pacman.slug, labelOverride: 'Pacman' },
       ],
     });
     expect(status).toBe(200);
     expect(payload.after).toMatchObject({
       workshops: [
-        { slug: snake.slug, durationMinutes: 90, labelOverride: null },
-        { slug: pacman.slug, durationMinutes: 60, labelOverride: 'Pacman' },
+        { slug: snake.slug, labelOverride: null },
+        { slug: pacman.slug, labelOverride: 'Pacman' },
       ],
     });
 
@@ -602,7 +644,7 @@ describe('admin API writes (integration)', () => {
 
     const unknown = await call(postConfig, writeSecret, {
       eventId: event.id,
-      workshops: [{ slug: `nowhere-${stamp}`, durationMinutes: 30 }],
+      workshops: [{ slug: `nowhere-${stamp}` }],
     });
     expect(unknown.status).toBe(400);
     expect(String(unknown.payload.error)).toContain('config_workshops');
@@ -738,8 +780,8 @@ describe('admin API writes (integration)', () => {
       diplomaTemplateId: certificate.id,
       closingTemplateId: grid.id,
       workshops: [
-        { slug: snake.slug, durationMinutes: 90, labelOverride: null },
-        { slug: pacman.slug, durationMinutes: 60, labelOverride: 'Pacman' },
+        { slug: snake.slug, labelOverride: null },
+        { slug: pacman.slug, labelOverride: 'Pacman' },
       ],
     };
     expect(Object.keys(written).sort()).toEqual([...writable].sort());

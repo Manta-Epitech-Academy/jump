@@ -280,7 +280,7 @@ describe('the standing instructions', () => {
 const TOOL_LIST_BUDGET = [
   ['leadership', leadership, 23_200],
   ['core, read-only', { ...coreWriter, writeEnabled: false }, 42_400],
-  ['core, write-enabled', coreWriter, 87_000],
+  ['core, write-enabled', coreWriter, 89_500],
 ] as const;
 
 describe('what a client loads up front', () => {

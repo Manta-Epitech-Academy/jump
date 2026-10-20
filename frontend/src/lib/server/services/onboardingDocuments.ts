@@ -20,8 +20,12 @@
  */
 import type { Prisma, Talent } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import { getStorage } from '$lib/server/infra/storage';
 
 export type OnboardingDocumentType = 'charter' | 'rules' | 'image-rights';
+
+/** The dossier columns a generated document's S3 key lives in. */
+type DossierFilePathField = 'rulesFilePath' | 'imageRightsFilePath';
 
 interface OnboardingDocumentDescriptor {
   /** French title, shared by the PDF header and the talent-facing list. */
@@ -57,7 +61,7 @@ interface OnboardingDocumentDescriptor {
    * Every generated document is now per-year, so there is no per-talent key left
    * to name.
    */
-  dossierFilePathField?: 'rulesFilePath' | 'imageRightsFilePath';
+  dossierFilePathField?: DossierFilePathField;
   /** Lowercase ASCII slug used as the first segment of the download filename. */
   downloadSlug: 'charter' | 'rules' | 'imagerights';
 }
@@ -95,6 +99,106 @@ export const ONBOARDING_DOCUMENTS: Record<
     downloadSlug: 'imagerights',
   },
 };
+
+/**
+ * Where a talent's onboarding PDFs may sit, for the two operations that delete
+ * them: the RGPD erasure and the admin reset to import. Both collect the keys
+ * inside their transaction, clear the columns that hold them, and delete the
+ * objects once it has committed (`deleteDocumentObjects`).
+ *
+ * Two places hold a key. Every year's dossier, in the column its document kind
+ * names. And two RETIRED columns on `Talent`, read for one release only and
+ * dropped with the columns themselves: they still hold the pre-annual
+ * `rules.pdf` / `image-rights.pdf` keys, and a talent whose document was
+ * regenerated after the migration has a dossier pointing at the new year-keyed
+ * object instead, leaving the old one referenced by nothing but the column.
+ * Collecting both sides is what keeps the transition from leaving a named
+ * minor's PDF in the bucket.
+ *
+ * The select, the collection and the clear all come from the two lists below,
+ * so collecting a key and clearing its column cannot drift apart: that drift is
+ * how `Talent.rulesFilePath` kept the key of a PDF both operations delete.
+ */
+const LEGACY_TALENT_DOCUMENT_KEYS = {
+  rulesFilePath: true,
+  imageRightsFilePath: true,
+} as const satisfies Partial<Record<keyof Talent, true>>;
+
+/** Every dossier column a document kind names (completeness is type-checked). */
+const DOSSIER_DOCUMENT_KEYS = {
+  rulesFilePath: true,
+  imageRightsFilePath: true,
+} as const satisfies Record<DossierFilePathField, true>;
+
+/** What to select on a `Talent` to collect every key its documents may sit under. */
+export const TALENT_DOCUMENT_KEYS_SELECT = {
+  ...LEGACY_TALENT_DOCUMENT_KEYS,
+  // Every year's renders, both kinds, not just the latest: the dossier rows are
+  // deleted by both operations, so a key not collected here is a PDF left in
+  // the bucket with nothing pointing at it.
+  onboardingRecords: { select: DOSSIER_DOCUMENT_KEYS },
+} satisfies Prisma.TalentSelect;
+
+/**
+ * Every distinct document key of a talent. Deduplicated: a retired column and a
+ * dossier row normally hold the same key, and deleting it twice would log a
+ * spurious failure on the second attempt.
+ */
+export function documentKeysOf(
+  talent: Prisma.TalentGetPayload<{
+    select: typeof TALENT_DOCUMENT_KEYS_SELECT;
+  }>,
+): string[] {
+  const legacy = Object.keys(LEGACY_TALENT_DOCUMENT_KEYS) as Array<
+    keyof typeof LEGACY_TALENT_DOCUMENT_KEYS
+  >;
+  const dossier = Object.keys(DOSSIER_DOCUMENT_KEYS) as DossierFilePathField[];
+  return [
+    ...new Set(
+      [
+        ...legacy.map((column) => talent[column]),
+        ...talent.onboardingRecords.flatMap((record) =>
+          dossier.map((column) => record[column]),
+        ),
+      ].filter((key): key is string => !!key),
+    ),
+  ];
+}
+
+/** The `Talent` patch clearing the retired key columns `documentKeysOf` collects. */
+export function clearLegacyDocumentKeys(): {
+  [K in keyof typeof LEGACY_TALENT_DOCUMENT_KEYS]: null;
+} {
+  return { rulesFilePath: null, imageRightsFilePath: null };
+}
+
+/**
+ * Best-effort deletion of the onboarding PDFs whose keys an erasure or a reset
+ * collected. Call this *after* their transaction commits: an external call
+ * inside it would risk the interactive-transaction timeout rolling back the
+ * database step, which is the legally required one.
+ *
+ * Best-effort by design: that step has already committed, so a storage hiccup
+ * must not surface as a failure that looks like the erasure didn't happen. Each
+ * delete is logged on failure for manual cleanup rather than thrown. A leaked
+ * object is unreferenced (its columns are null and its dossier row is gone) and
+ * keyed by a cuid, so it isn't reachable through the app; this removes the file.
+ */
+export async function deleteDocumentObjects(
+  keys: readonly string[],
+): Promise<void> {
+  if (keys.length === 0) return;
+  const storage = getStorage();
+  await Promise.all(
+    keys.map((key) =>
+      storage
+        .delete(key)
+        .catch((e) =>
+          console.error(`[documents] failed to delete document ${key}:`, e),
+        ),
+    ),
+  );
+}
 
 /**
  * Build a human, unique download filename for a generated onboarding PDF:

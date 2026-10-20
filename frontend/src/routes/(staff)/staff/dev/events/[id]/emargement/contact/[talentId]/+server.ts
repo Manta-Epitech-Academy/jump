@@ -2,10 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import {
-  loadEventOr404,
-  requireEventModule,
-} from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { guardiansOf, type ContactPerson } from '$lib/domain/contact';
@@ -15,8 +12,11 @@ import { USAGE_FEATURES } from '$lib/domain/usage';
 export const GET: RequestHandler = async ({ locals, params }) => {
   requireStaffGroup(locals, 'devMember');
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.EMARGEMENT,
+  );
   const db = scopedPrisma(campusId);
 
   const participation = await db.participation.findFirst({

@@ -18,7 +18,7 @@
  */
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { z } from 'zod';
-import { authenticateAdminApi } from './guard';
+import { authenticateOrRefuse } from './guard';
 import { recordAdminApiCall, TRANSPORT_OPERATIONS } from './audit';
 import { httpOperations } from './httpCatalogue';
 import {
@@ -247,26 +247,22 @@ export async function buildOpenApiDocument(credential: {
 
 /** `GET /api/admin/openapi.json`, authenticated and recorded like any call. */
 export const serveOpenApiDocument: RequestHandler = async (event) => {
-  const auth = await authenticateAdminApi(event);
-  if (!auth.ok) {
-    await recordAdminApiCall({
-      caller: auth.caller,
-      operation: TRANSPORT_OPERATIONS.openapi,
-      status: auth.status,
-    });
-    return json({ error: auth.message }, { status: auth.status });
-  }
+  const credential = await authenticateOrRefuse(
+    event,
+    TRANSPORT_OPERATIONS.openapi,
+  );
+  if (credential instanceof Response) return credential;
 
   // A failure is ours, so it is recorded as one, as `executeOperation` records
   // an operation's: an unrecorded 500 would read in `ops_api_usage` as no call.
   try {
     const document = await buildOpenApiDocument({
-      tier: auth.caller.tier,
-      writeEnabled: auth.writeEnabled,
+      tier: credential.caller.tier,
+      writeEnabled: credential.writeEnabled,
       origin: event.url.origin,
     });
     await recordAdminApiCall({
-      caller: auth.caller,
+      caller: credential.caller,
       operation: TRANSPORT_OPERATIONS.openapi,
       status: 200,
     });
@@ -274,7 +270,7 @@ export const serveOpenApiDocument: RequestHandler = async (event) => {
   } catch (err) {
     console.error('[adminApi] openapi document failed:', err);
     await recordAdminApiCall({
-      caller: auth.caller,
+      caller: credential.caller,
       operation: TRANSPORT_OPERATIONS.openapi,
       status: 500,
     });

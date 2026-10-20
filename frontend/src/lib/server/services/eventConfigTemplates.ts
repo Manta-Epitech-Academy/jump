@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { hhmmToMinutes, minutesToHHMM } from '$lib/domain/event';
 import {
+  EVENT_MODULES,
   isEventModuleKey,
   parseModuleSettings,
   type EventModuleKey,
@@ -13,9 +14,10 @@ import { resolveKnownStatuses } from '$lib/server/services/devSpaceVisibility';
  * Service for `EventConfig_Template` - reusable, named, global event-config
  * presets, all created by staff from the config wizard. Applying one is a
  * point-in-time SEED into an event (the wizard prefills from `summary`, the save
- * writes the event's own rows); there is no live link back. Saving snapshots the
- * current wizard config; the name is globally unique, so saving with an existing
- * name UPDATES that template (that's how a template is edited). The shape mirrors
+ * writes the event's own rows); there is no live link back. Saving snapshots a
+ * config, the wizard's or an event's over `write_event_template`; the name is
+ * globally unique, so saving with an existing name UPDATES that template (that's
+ * how a template is edited). The shape mirrors
  * `EventConfig_Module` (presence + `settings`), so both directions are a plain
  * row copy. See src/lib/domain/eventModules.ts.
  */
@@ -149,9 +151,11 @@ export const EventConfigTemplateService = {
   },
 
   /**
-   * Snapshot the current wizard config as a template. UPSERT by name: a new name
-   * creates one, an existing name replaces that template's config in place (its
-   * id stays), so re-saving under the same name is how staff edit a template.
+   * Snapshot a config as a template. UPSERT by name: a new name creates one, an
+   * existing name replaces that template's config in place (its id stays), so
+   * re-saving under the same name is how staff edit a template. Answers with the
+   * template as stored, so a caller lists what the server kept rather than
+   * rebuilding it from what it sent.
    */
   async saveTemplate(input: {
     name: string;
@@ -166,21 +170,30 @@ export const EventConfigTemplateService = {
     closingTemplateId: string;
     shownStatuses: string[];
     actorId: string | null;
-  }): Promise<{ id: string; updated: boolean }> {
+  }): Promise<{ template: EventConfigTemplateSummary; updated: boolean }> {
     const name = input.name.trim();
     if (!name) throw error(400, 'Nom de modèle requis.');
-    const feedbackFormId = await resolveFeedbackFormId(input.feedbackFormId);
-    const diplomaTemplateId = await resolveDiplomaTemplateId(
-      input.diplomaTemplateId,
-    );
-    const closingTemplateId = await resolveClosingTemplateId(
-      input.closingTemplateId,
-    );
+    const moduleRows = moduleCreateRows(input.modules, input.moduleSettings);
+    // A reference rides along only with the section that uses it. The event a
+    // preset is saved from may keep a form, grid or certificate whose section is
+    // off, and copying it would attach one nobody chose to every event the preset
+    // is later applied to (and, for a grid or certificate, keep it from being
+    // deleted). Both doors save through here, the wizard and the API alike.
+    const enables = (key: EventModuleKey) =>
+      moduleRows.some((m) => m.moduleKey === key);
+    const feedbackFormId = enables(EVENT_MODULES.BILAN)
+      ? await resolveFeedbackFormId(input.feedbackFormId)
+      : null;
+    const diplomaTemplateId = enables(EVENT_MODULES.INSCRITS)
+      ? await resolveDiplomaTemplateId(input.diplomaTemplateId)
+      : null;
+    const closingTemplateId = enables(EVENT_MODULES.CLOSINGS)
+      ? await resolveClosingTemplateId(input.closingTemplateId)
+      : null;
     const description = input.description.trim() || null;
     const publicName = input.publicName.trim() || null;
     const cohortNoun = input.cohortNoun.trim() || null;
     const startMinutes = hhmmToMinutes(input.startTime);
-    const moduleRows = moduleCreateRows(input.modules, input.moduleSettings);
     const shownRows = (await resolveKnownStatuses(input.shownStatuses)).map(
       (status) => ({ status }),
     );
@@ -192,7 +205,7 @@ export const EventConfigTemplateService = {
 
     if (existing) {
       // Replace the config wholesale (drop old child rows, recreate) in one tx.
-      await prisma.$transaction([
+      const [, , row] = await prisma.$transaction([
         prisma.eventConfig_TemplateModule.deleteMany({
           where: { templateId: existing.id },
         }),
@@ -212,9 +225,10 @@ export const EventConfigTemplateService = {
             modules: { create: moduleRows },
             shownStatuses: { create: shownRows },
           },
+          include: TEMPLATE_INCLUDE,
         }),
       ]);
-      return { id: existing.id, updated: true };
+      return { template: toSummary(row), updated: true };
     }
 
     const created = await prisma.eventConfig_Template.create({
@@ -231,9 +245,9 @@ export const EventConfigTemplateService = {
         modules: { create: moduleRows },
         shownStatuses: { create: shownRows },
       },
-      select: { id: true },
+      include: TEMPLATE_INCLUDE,
     });
-    return { id: created.id, updated: false };
+    return { template: toSummary(created), updated: false };
   },
 
   /** Delete a template. Events keep their own config (a template is never a live link). */

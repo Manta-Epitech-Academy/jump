@@ -4,10 +4,10 @@ import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import {
   loadEventOr404,
-  requireEventModule,
   eventEndOrDefault,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { generateDiplomasPDF } from '$lib/server/services/diplomaGenerator';
 import { resolveEventDiplomaDesign } from '$lib/server/diplomaTemplates';
 import { getStorage, isObjectNotFound } from '$lib/server/infra/storage';
@@ -25,12 +25,15 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   requireStaffGroup(locals, 'devMember');
 
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
   // Two gates, answering two different questions. The module guards access to
   // the COHORT: this export prints every inscrit, so a direct GET must not leak
   // it when Inscrits is off (same reason as badges.pdf). The template answers
   // whether this event issues a document at all.
-  requireEventModule(event, EVENT_MODULES.INSCRITS);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.INSCRITS,
+  );
   const design = await resolveEventDiplomaDesign(event);
   if (!design) {
     throw error(404, 'Fonctionnalité non disponible pour cet événement.');
@@ -39,7 +42,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
   const [participations, campus, signatoryRows] = await Promise.all([
     db.participation.findMany({
-      where: { eventId: event.id },
+      where: { eventId: event.id, ...visibleParticipationWhere },
       select: { talent: { select: { prenom: true, nom: true } } },
       orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
     }),

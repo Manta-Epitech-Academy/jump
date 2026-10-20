@@ -3,11 +3,14 @@ import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { recomputeEventsCount } from '$lib/server/services/xpService';
 import { verifyCheckinToken } from '$lib/server/presence/checkinToken';
-import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
+import { isSlotClosed } from '$lib/server/presence/slotClosure';
 import { eventDisplayName } from '$lib/domain/event';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import {
   dateKeyToDbDate,
   dayLabelFr,
+  isPresenceSlot,
   slotLabelFr,
   type CellStatus,
   type PresenceSlot,
@@ -44,26 +47,47 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // Raw client by design: a talent request carries no staff campus to scope by.
   // The signed token (its `eventId`) plus the participation check below are the
   // access gate, in place of the campus scoping the staff routes get.
-  const [event, closure, participation] = await Promise.all([
+  //
+  // A scan writes on the sheet the émargement page shows, so it follows that
+  // sheet: the section has to be on (a code minted before it was switched off
+  // is dead), and the talent has to be on the roster the dev space lists, the
+  // one a staff member could mark (`assertOnSheet`). A masked enrolment would
+  // otherwise leave a mark nobody can see or correct.
+  const [event, manualCloses, participation] = await Promise.all([
     prisma.event.findUnique({
       where: { id: eventId },
       select: {
         titre: true,
         publicName: true,
+        date: true,
+        endDate: true,
+        startMinutes: true,
         campus: { select: { timezone: true } },
+        modules: {
+          where: { moduleKey: EVENT_MODULES.EMARGEMENT },
+          select: { moduleKey: true },
+        },
       },
     }),
-    prisma.eventPresenceClosure.findUnique({
-      where: { eventId_day_slot: { eventId, day: dayDate, slot } },
-      select: { id: true },
+    prisma.eventPresenceClosure.findMany({
+      where: { eventId, day: dayDate, slot },
+      select: { day: true, slot: true },
     }),
-    prisma.participation.findUnique({
-      where: { talentId_eventId: { talentId: talent.id, eventId } },
+    prisma.participation.findFirst({
+      where: { talentId: talent.id, eventId, ...visibleParticipationWhere },
       select: { id: true },
     }),
   ]);
 
-  if (!event) return { state: 'invalid' as CheckinState, ...empty };
+  if (!event || event.modules.length === 0) {
+    return { state: 'invalid' as CheckinState, ...empty };
+  }
+  const timezone = event.campus?.timezone ?? 'Europe/Paris';
+  // The token was signed for a créneau the event has since lost (a QR printed
+  // before an afternoon start time was set): nothing to check in to.
+  if (!isPresenceSlot(event, timezone, day, slot)) {
+    return { state: 'invalid' as CheckinState, ...empty };
+  }
   // Short, friendly label: the event's public name when set, else the SF
   // `titre` as a fallback.
   const withLabel = {
@@ -72,12 +96,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     ...labels,
   };
 
-  // Closed = a manual early-close OR the 11h/15h cutoff has passed (campus tz).
-  // The cutoff check is what makes the QR stop accepting scans on time without
-  // any job having to run.
-  const closed =
-    !!closure ||
-    isSlotPastCutoff(day, slot, event.campus?.timezone ?? 'Europe/Paris');
+  // Closed early by a staff member or past the 11h/15h cutoff (campus tz). The
+  // cutoff is what makes the QR stop accepting scans on time without any job
+  // having to run.
+  const closed = isSlotClosed(day, slot, manualCloses, timezone);
   if (closed) return { state: 'closed' as CheckinState, ...withLabel };
   if (!participation)
     return { state: 'not_registered' as CheckinState, ...withLabel };

@@ -68,6 +68,11 @@ import {
 } from '$lib/domain/eventModules';
 import { isCalendarDay, isWallClock } from '$lib/domain/planningTime';
 import {
+  SYNC_CADENCE_MAX_MINUTES,
+  SYNC_CADENCE_MIN_MINUTES,
+  SYNC_WORKER_TICK_MINUTES,
+} from '$lib/domain/syncSchedule';
+import {
   HIGHLIGHT_SUMMARY_MAX,
   HIGHLIGHT_TITLE_MAX,
   TALENT_HOME_NOTE_MAX,
@@ -151,8 +156,8 @@ import {
   getTalentHomeContent,
 } from '$lib/server/services/adminStats/configuration';
 import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
-import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
 import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
+import { getAdminDigestRecipients } from '$lib/server/services/adminStats/adminDigestRecipients';
 import { writeDiplomaTemplate } from './writes/diplomas';
 import { writeWorkshop, writeWorkshopInstance } from './writes/workshops';
 import {
@@ -176,6 +181,7 @@ import {
   writeSyncSource,
 } from './writes/sync';
 import { writeClosingQuestion, writeClosingTemplate } from './writes/closings';
+import { writeAdminDigestRecipient } from './writes/adminDigest';
 import { writeFeedbackForm, copyFeedbackForm } from './writes/feedbackForms';
 import {
   formFields,
@@ -209,6 +215,11 @@ import {
   USAGE_FEATURE_KEYS,
   USAGE_RAW_RETENTION_MONTHS,
 } from '$lib/domain/usage';
+
+// When a change to the sync's steering is picked up. Built from the tick Jump
+// mirrors, so the four sync tools cannot each quote their own figure, as they
+// all did with "within fifteen minutes".
+const NEXT_WORKER_WAKE_UP = `the worker's next wake-up, within ${SYNC_WORKER_TICK_MINUTES} min`;
 
 // One format check, two arities. The operations that compare or rank across
 // campuses require a year rather than defaulting to all of them, so the required
@@ -681,7 +692,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_workshops: defineOperation({
     description:
-      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover). An instance is a host: its slug, its address and the activities declared on it, retired ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take.',
+      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover). An instance is a host: its slug, its address and the activities declared on it, retired ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP: exactly the points CTFd pays for the steps a talent validated. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take.',
     shape: {},
     run: () => getWorkshops(),
   }),
@@ -703,6 +714,13 @@ export const ADMIN_API_OPERATIONS = {
       'Saved event-configuration presets and exactly what each one holds: sections and their sub-options, shown Salesforce statuses, public name, cohort noun, arrival time, and the feedback form, certificate and closing grid it points at. A preset is applied by copying its values: to write_event_config for one event, or its modules and shownStatuses to bulk_event_config for many.',
     shape: {},
     run: () => getEventTemplates(),
+  }),
+
+  config_admin_digest: defineOperation({
+    description:
+      'Who receives the weekly admin digest sent on Mondays: every admin account, by the address it logs in with, and whether the digest goes to it. Chosen per admin, never implied by the role; nobody chosen means no digest is sent. Takes no parameter.',
+    shape: {},
+    run: () => getAdminDigestRecipients(),
   }),
 
   stats_school_year_review: defineOperation({
@@ -876,13 +894,6 @@ export const ADMIN_API_OPERATIONS = {
         .array(
           z.strictObject({
             slug: z.string().min(1).describe(handleDescribe('workshopSlug')),
-            durationMinutes: z
-              .number()
-              .int()
-              .positive()
-              .describe(
-                `How long the activity runs at this event, in minutes. It is the scale: finishing it whole is worth durationMinutes x ${WORKSHOP_XP_PER_MINUTE} XP. Changing it changes nobody retroactively, since a talent's scale is pinned when they first enter.`,
-              ),
             labelOverride: z
               .string()
               .nullable()
@@ -1289,9 +1300,9 @@ export const ADMIN_API_OPERATIONS = {
               .number()
               .int()
               .min(0)
-              .optional()
+              .nullish()
               .describe(
-                'Where this section sits when the closing is read back, if that differs from the order it is conducted in. Omit to follow the conduct order.',
+                'Where this section sits when the closing is read back, if that differs from the order it is conducted in. Null follows the conduct order.',
               ),
             questions: z
               .array(
@@ -1302,7 +1313,7 @@ export const ADMIN_API_OPERATIONS = {
                     .describe(handleDescribe('closingQuestionKey')),
                   labelOverride: z
                     .string()
-                    .optional()
+                    .nullish()
                     .describe(
                       'What THIS grid reads aloud, when the canonical wording does not fit the format. Changes the prompt only: the figure keeps the bank name and stays comparable.',
                     ),
@@ -1345,6 +1356,18 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => writeEventTemplate(params),
   }),
 
+  write_admin_digest_recipient: defineWrite({
+    description:
+      'Choose whether one admin receives the weekly admin digest, from the next Monday on. Only an admin account can, since its links need a staff session; one who loses the role stops receiving it with nothing to undo. Safe to repeat.',
+    shape: {
+      address: z.string().min(1).describe(handleDescribe('adminAddress')),
+      receivesDigest: z
+        .boolean()
+        .describe('true to send it to this admin, false to stop.'),
+    },
+    run: (params) => writeAdminDigestRecipient(params),
+  }),
+
   ops_retry_pdf_job: defineWrite({
     description:
       'Regenerate one onboarding document that failed or got stuck. Sends no message to anyone, it only rebuilds a file. Safe to repeat: a document already generated is refused rather than rebuilt. Answers with the resulting state, including the error if it failed again.',
@@ -1369,8 +1392,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_sync_source: defineWrite({
-    description:
-      'Add a Salesforce campaign to the synchronised perimeter, move it to another campus, rename it, or switch it off. Switching off sets a flag, it deletes nothing, so it can be switched back on. Safe to repeat: this is an upsert on the campaign id, so the same call twice leaves the same row. Adding one requires both campus and kind; changing an existing one only sends what changes. Takes effect at the worker next wake-up, within fifteen minutes.',
+    description: `Add a Salesforce campaign to the synchronised perimeter, move it to another campus, rename it, or switch it off. Switching off sets a flag, it deletes nothing, so it can be switched back on. Safe to repeat: this is an upsert on the campaign id, so the same call twice leaves the same row. Adding one requires both campus and kind; changing an existing one only sends what changes. Takes effect at ${NEXT_WORKER_WAKE_UP}.`,
     shape: {
       salesforceCampaignId: z
         .string()
@@ -1428,8 +1450,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_sync_cadence: defineWrite({
-    description:
-      'Set how often one synchronisation pass runs, in minutes. The incremental pass keeps data fresh; the full pass is the only one that detects a member removed in Salesforce, so spacing it out means deletions arrive later. Safe to repeat: writing the same value twice leaves the same row. Takes effect at the worker next wake-up, within fifteen minutes, with nothing to redeploy.',
+    description: `How often one synchronisation pass runs, in minutes. The incremental pass keeps data fresh; the full pass is the only one that detects a member removed in Salesforce, so spacing it out delays deletions. For one pass now, use ops_request_sync: a lowered cadence stays until someone raises it. Safe to repeat: the same value twice is the same row. Takes effect at ${NEXT_WORKER_WAKE_UP}.`,
     shape: {
       mode: z
         .enum(['full', 'incremental'])
@@ -1439,18 +1460,17 @@ export const ADMIN_API_OPERATIONS = {
       intervalMinutes: z.coerce
         .number()
         .int()
-        .min(15)
-        .max(20160)
+        .min(SYNC_CADENCE_MIN_MINUTES)
+        .max(SYNC_CADENCE_MAX_MINUTES)
         .describe(
-          'Minutes between two passes of this kind. The floor is 15 because the worker is only woken every 15 minutes, so asking for less changes nothing.',
+          `Minutes between two passes of this kind. The floor is the worker's wake-up interval (${SYNC_WORKER_TICK_MINUTES} min): less would not run any more often.`,
         ),
     },
     run: (params) => writeSyncCadence(params),
   }),
 
   ops_request_sync: defineWrite({
-    description:
-      'Ask the synchronisation worker for one pass of the given kind at its next wake-up (within fifteen minutes), without changing any cadence. Use it when someone needs a change made in Salesforce to reach Jump now rather than at the next scheduled pass. The request is satisfied by the first successful pass that starts after it, after which the configured cadences apply again with nothing to restore; a pass that fails leaves it pending. stats_sync_health shows whether a request is pending and what the worker will do next. Safe to repeat: asking again before it runs still yields one pass.',
+    description: `Ask the synchronisation worker for one pass of the given kind at ${NEXT_WORKER_WAKE_UP}, without changing any cadence. Use it when someone needs a change made in Salesforce to reach Jump now rather than at the next scheduled pass. The request is satisfied by the first successful pass that starts after it, after which the configured cadences apply again with nothing to restore; a pass that fails leaves it pending. stats_sync_health shows whether a request is pending and what the worker will do next. Safe to repeat: asking again before it runs still yields one pass.`,
     shape: {
       mode: z
         .enum(['full', 'incremental'])
@@ -1462,8 +1482,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_release_prune_hold: defineWrite({
-    description:
-      'Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted by fixing their sync errors, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to the next wake-up, within fifteen minutes. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.',
+    description: `Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted by fixing their sync errors, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to ${NEXT_WORKER_WAKE_UP}. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.`,
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },
@@ -1692,7 +1711,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_emargement_coverage: defineOperation({
-    description: `Whether the attendance register is being kept: for events that expose the émargement section, how many half-days exist, how many were closed, and the tally of recorded marks. Capped at ${EMARGEMENT_EVENTS_LIMIT} events in the per-event list.`,
+    description: `Whether the attendance register is being kept: for events that expose the émargement section, how many half-days exist, have elapsed and hold a mark, and the tally of recorded marks. Capped at ${EMARGEMENT_EVENTS_LIMIT} events in the per-event list.`,
     shape: { schoolYear, campus, eventId },
     run: async (params) => getEmargementCoverage(await resolveScope(params)),
   }),
