@@ -29,19 +29,35 @@ export type SyncMode = 'full' | 'incremental';
  */
 export const SYNC_WATERMARK_MARGIN_MINUTES = 10;
 
+/**
+ * How early in its interval a mode may be called due, to absorb the worker's
+ * wake-up.
+ *
+ * The decision is made at a tick, but the run it opens is stamped a moment
+ * later (`startedAt` is Jump's clock at `POST /runs`), and two ticks never wake
+ * the pod with exactly the same delay. So at the tick the cadence names, the
+ * time since the last start is the interval minus a few seconds, and a strict
+ * comparison skips every other pass: a 15 min cadence ran every 30 in
+ * production (#419). Has to stay well under half the 15 min tick, or a pass
+ * that started a few minutes before a tick would run again on it.
+ */
+export const SYNC_WAKE_UP_SLACK_MINUTES = 2;
+
 /** One side of the cadence table: how long a mode waits before it is due again. */
 export type SyncCadence = { mode: SyncMode; intervalMinutes: number };
 
 /**
- * What a past run contributes to the decision, and why it is two dates.
+ * What a past run contributes to the decision: when it STARTED, not when it
+ * finished, for both halves of it.
  *
- * `finishedAt` answers "how long since data last landed", so it decides whether
- * a mode is DUE. `startedAt` decides what the next incremental has to COVER: a
- * record modified while a run was executing carries a modstamp the run's
- * `finishedAt` has already passed, so resuming from `finishedAt` would skip it
- * silently. The two are only ever the same when a run is instantaneous.
+ * Whether a mode is DUE: a cadence of N minutes means a pass starts every N
+ * minutes. Counting from the end added each run's duration to every gap, so the
+ * schedule slid back by a tick whenever a pass took longer than the slack.
+ * What the next incremental has to COVER: a record modified while a run was
+ * executing carries a modstamp the run's end has already passed, so resuming
+ * from the end would skip it silently.
  */
-export type SyncRunMark = { startedAt: Date; finishedAt: Date };
+export type SyncRunMark = { startedAt: Date };
 
 /**
  * When a person last asked for a pass of each mode, or `null` if never.
@@ -99,7 +115,10 @@ function isDue(
   // Never run in this mode: due immediately. A platform that has never pulled
   // anything is the case where waiting is least defensible.
   if (!last) return true;
-  return minutesSince(last.finishedAt, now) >= intervalOf(cadences, mode);
+  return (
+    minutesSince(last.startedAt, now) >=
+    intervalOf(cadences, mode) - SYNC_WAKE_UP_SLACK_MINUTES
+  );
 }
 
 /**

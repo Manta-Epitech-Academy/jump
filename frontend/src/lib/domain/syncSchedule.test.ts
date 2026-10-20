@@ -15,6 +15,7 @@ import {
   decideSync,
   staleAfterHours,
   syncCadenceNote,
+  SYNC_WAKE_UP_SLACK_MINUTES,
   SYNC_WATERMARK_MARGIN_MINUTES,
   type SyncCadence,
   type SyncRequests,
@@ -34,13 +35,9 @@ function askedAgo(minutesAgo: number) {
   return new Date(NOW.getTime() - minutesAgo * 60_000);
 }
 
-/** A run that started `startedAgo` minutes ago and took `tookMinutes`. */
-function ranAgo(startedAgo: number, tookMinutes = 2) {
-  const startedAt = new Date(NOW.getTime() - startedAgo * 60_000);
-  return {
-    startedAt,
-    finishedAt: new Date(startedAt.getTime() + tookMinutes * 60_000),
-  };
+/** A run that started `startedAgo` minutes before NOW. */
+function ranAgo(startedAgo: number) {
+  return { startedAt: new Date(NOW.getTime() - startedAgo * 60_000) };
 }
 
 describe('decideSync', () => {
@@ -118,25 +115,26 @@ describe('decideSync', () => {
     expect(decision.since).toBeNull();
   });
 
-  it('measures dueness from the end of the last run, not its start', () => {
-    // Started 185 min ago but took 10, so it landed 175 min ago: not due yet on
-    // a 180 min cadence, even though its start is older than the interval.
+  // A cadence of N minutes is a pass STARTING every N minutes. Counted from the
+  // end, a pass that took 10 min (landed 170 min ago) would push the next one
+  // back by a whole tick, and every long pass would do it again.
+  it('measures dueness from the start of the last run, not its end', () => {
     const decision = decideSync({
       now: NOW,
       requests: NO_REQUESTS,
       cadences: CADENCES,
       lastOkFull: ranAgo(200),
-      lastOkIncremental: ranAgo(185, 10),
+      lastOkIncremental: ranAgo(180),
     });
 
-    expect(decision.shouldSync).toBe(false);
+    expect(decision).toMatchObject({ shouldSync: true, mode: 'incremental' });
   });
 
   // The other half of the same pair, and the one that loses data when it is
   // wrong: a record modified while a run was executing carries a modstamp that
   // run's finishedAt has already passed.
   it('resumes an incremental from the start of the last one, minus the margin', () => {
-    const last = ranAgo(200, 10);
+    const last = ranAgo(200);
     const decision = decideSync({
       now: NOW,
       requests: NO_REQUESTS,
@@ -149,9 +147,6 @@ describe('decideSync', () => {
       last.startedAt.getTime() - SYNC_WATERMARK_MARGIN_MINUTES * 60_000,
     );
     expect(decision.since).toBe(expected.toISOString());
-    expect(new Date(decision.since!).getTime()).toBeLessThan(
-      last.finishedAt.getTime(),
-    );
   });
 
   it('takes the whole whitelist when an incremental is due but none ever succeeded', () => {
@@ -213,6 +208,68 @@ describe('decideSync', () => {
   });
 });
 
+// The worker only asks at a tick, on the quarter hour, and a run is stamped a
+// moment after the tick that decided it. So at the tick the cadence names, the
+// time since the last start is always a hair under the interval: compared
+// strictly, a 15 min cadence ran every 30 in production (#419). The clocks are
+// the ones from the issue.
+describe('decideSync on the worker tick', () => {
+  const at = (iso: string) => new Date(iso);
+  const decideAt = (
+    now: string,
+    incrementalMinutes: number,
+    lastIncrementalStart: string,
+  ) =>
+    decideSync({
+      now: at(now),
+      requests: NO_REQUESTS,
+      cadences: [
+        { mode: 'incremental', intervalMinutes: incrementalMinutes },
+        { mode: 'full', intervalMinutes: 1440 },
+      ],
+      lastOkFull: { startedAt: at('2026-10-19T03:00:04Z') },
+      lastOkIncremental: { startedAt: at(lastIncrementalStart) },
+    });
+
+  it('runs at the next tick on a 15 min cadence', () => {
+    // The 14h00 pass was stamped 14h00m02 and landed 14h00m16.
+    expect(
+      decideAt('2026-10-19T12:15:00Z', 15, '2026-10-19T12:00:02Z'),
+    ).toMatchObject({ shouldSync: true, mode: 'incremental' });
+  });
+
+  it('runs three hours later on a 180 min cadence, not a tick after', () => {
+    // The 09h15 pass was stamped 09h15m03 and landed 09h15m14.
+    expect(
+      decideAt('2026-10-19T10:15:00Z', 180, '2026-10-19T07:15:03Z'),
+    ).toMatchObject({ shouldSync: true, mode: 'incremental' });
+  });
+
+  it('waits when the last pass started well inside the interval', () => {
+    expect(
+      decideAt('2026-10-19T12:15:00Z', 15, '2026-10-19T12:05:00Z'),
+    ).toMatchObject({ shouldSync: false });
+  });
+
+  // The slack is wake-up noise, not freshness: widened toward half the tick,
+  // a pass started a few minutes before a tick would run again on it.
+  it('allows the wake-up slack and nothing more', () => {
+    const slackMs = SYNC_WAKE_UP_SLACK_MINUTES * 60_000;
+    const tick = at('2026-10-19T12:15:00Z');
+    const startedAt = (msBeforeTick: number) =>
+      new Date(tick.getTime() - msBeforeTick).toISOString();
+
+    expect(
+      decideAt(tick.toISOString(), 15, startedAt(15 * 60_000 - slackMs))
+        .shouldSync,
+    ).toBe(true);
+    expect(
+      decideAt(tick.toISOString(), 15, startedAt(15 * 60_000 - slackMs - 1_000))
+        .shouldSync,
+    ).toBe(false);
+  });
+});
+
 // A person asking for a pass now. Every case starts from a platform where
 // nothing is due on cadence (full 60 min ago, incremental 30), so whatever runs
 // runs because of the request.
@@ -257,13 +314,10 @@ describe('decideSync with a requested pass', () => {
   // The run may have read Salesforce before the change the person is waiting
   // for, so finishing after the request is not enough: it had to start after.
   it('is not satisfied by a run that was already in flight when it landed', () => {
-    // Started 10 min ago, took 8, so it finished 2 min ago: after the request
-    // made 5 min ago, but started before it.
+    // Started 10 min ago, before the request made 5 min ago: however soon
+    // after the request it finished, it does not cover it.
     expect(
-      decide(
-        { incremental: askedAgo(5) },
-        { lastOkIncremental: ranAgo(10, 8) },
-      ),
+      decide({ incremental: askedAgo(5) }, { lastOkIncremental: ranAgo(10) }),
     ).toMatchObject({ shouldSync: true, reason: 'requested' });
   });
 

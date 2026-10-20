@@ -524,8 +524,8 @@ describe('the worker sync loop (integration)', () => {
 
     const after = await lastOkRun('incremental');
     expect(after).not.toBeNull();
-    expect(after!.finishedAt.getTime()).toBeGreaterThan(
-      before?.finishedAt.getTime() ?? 0,
+    expect(after!.startedAt.getTime()).toBeGreaterThan(
+      before?.startedAt.getTime() ?? 0,
     );
   });
 
