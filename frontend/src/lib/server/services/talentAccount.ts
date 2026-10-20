@@ -6,6 +6,11 @@ import {
 } from '$lib/server/services/userEmail';
 import { deleteAnonymizedDocuments } from '$lib/server/services/anonymizationService';
 import {
+  clearLegacyDocumentKeys,
+  documentKeysOf,
+  TALENT_DOCUMENT_KEYS_SELECT,
+} from '$lib/server/services/onboardingDocuments';
+import {
   findUnreferencedParentAccount,
   deleteParentAccountCascade,
 } from '$lib/server/services/parentAccount';
@@ -190,18 +195,10 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         userId: true,
         parentEmail: true,
         parent2Email: true,
-        // RETIRED, both of them, read for one release only (see
-        // anonymizationService): each may still hold the pre-annual key of a
-        // document since regenerated under a year-keyed one, which no dossier
-        // row points at any more.
-        imageRightsFilePath: true,
-        rulesFilePath: true,
-        // Every year's renders, both kinds: step 1 deletes the dossier rows that
-        // hold these keys, so one missed here is a PDF left in the bucket that
-        // nothing references and no later reset can find.
-        onboardingRecords: {
-          select: { rulesFilePath: true, imageRightsFilePath: true },
-        },
+        // Every key the onboarding PDFs may sit under: step 1 deletes the
+        // dossier rows that hold them, so one missed here is a PDF left in the
+        // bucket that nothing references and no later reset can find.
+        ...TALENT_DOCUMENT_KEYS_SELECT,
         // The worker's source for the seed columns. When present, re-seeding the
         // Talent from it reproduces a fresh worker `talent.create`. It is present
         // for every SF talent (the worker creates it atomically with the row and
@@ -232,18 +229,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     const parentEmails = [talent.parentEmail, talent.parent2Email].filter(
       (e): e is string => !!e,
     );
-    const documentKeys = [
-      ...new Set(
-        [
-          talent.imageRightsFilePath,
-          talent.rulesFilePath,
-          ...talent.onboardingRecords.flatMap((d) => [
-            d.rulesFilePath,
-            d.imageRightsFilePath,
-          ]),
-        ].filter((k): k is string => !!k),
-      ),
-    ];
+    const documentKeys = documentKeysOf(talent);
 
     // 1. Delete every talent-scoped record created after import.
     //    Broadcast recipients are matched on both the talent and parent-of
@@ -315,8 +301,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         imageRightsSignerPrenom: null,
         imageRightsSignerNom: null,
         // The two legacy PDF keys, collected above and deleted post-commit.
-        imageRightsFilePath: null,
-        rulesFilePath: null,
+        ...clearLegacyDocumentKeys(),
         parentRulesSignedAt: null,
         parentRulesSignerPrenom: null,
         parentRulesSignerNom: null,

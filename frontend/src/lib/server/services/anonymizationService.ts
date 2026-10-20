@@ -2,6 +2,11 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { getStorage } from '$lib/server/infra/storage';
 import { findUnreferencedParentAccount } from '$lib/server/services/parentAccount';
+import {
+  clearLegacyDocumentKeys,
+  documentKeysOf,
+  TALENT_DOCUMENT_KEYS_SELECT,
+} from '$lib/server/services/onboardingDocuments';
 import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
 import {
   clearOnboardingTimestamps,
@@ -66,23 +71,10 @@ export async function anonymizeTalent(
       user: { select: { email: true } },
       parentEmail: true,
       parent2Email: true,
-      // RETIRED, both of them, read here for one release only and dropped from
-      // this select with the columns themselves. They still hold the pre-annual
-      // `rules.pdf` / `image-rights.pdf` keys, and a talent whose document was
-      // regenerated after the migration has a dossier pointing at the new
-      // year-keyed object instead, leaving that old one referenced by nothing
-      // but this column. Collecting both sides is what keeps the transition from
-      // leaving a named minor's PDF in the bucket.
-      imageRightsFilePath: true,
-      rulesFilePath: true,
-      // Every year's renders, both kinds, not just the latest: the dossier rows
-      // are deleted below, so a key not collected here is an orphaned PDF of a
-      // named minor left in the bucket with nothing pointing at it. That is the
-      // whole erasure failing quietly, so it is read from the rows rather than
-      // from the projection.
-      onboardingRecords: {
-        select: { rulesFilePath: true, imageRightsFilePath: true },
-      },
+      // Every key the onboarding PDFs may sit under, every year's dossier and
+      // the retired columns alike: a key missed here is a named minor's PDF
+      // left in the bucket with nothing pointing at it.
+      ...TALENT_DOCUMENT_KEYS_SELECT,
     },
   });
   if (!talent) return [];
@@ -96,20 +88,7 @@ export async function anonymizeTalent(
   // S3 keys of the generated onboarding PDFs, captured before the update and the
   // dossier deletion drop the references. Returned to the caller, which deletes
   // the objects post-commit.
-  // Deduplicated: the retired column and a dossier row normally hold the same
-  // key, and deleting twice would log a spurious failure on the second attempt.
-  const documentKeys = [
-    ...new Set(
-      [
-        talent.imageRightsFilePath,
-        talent.rulesFilePath,
-        ...talent.onboardingRecords.flatMap((d) => [
-          d.rulesFilePath,
-          d.imageRightsFilePath,
-        ]),
-      ].filter((k): k is string => !!k),
-    ),
-  ];
+  const documentKeys = documentKeysOf(talent);
 
   // 1. Clear all PII fields on the Talent (keep xp / eventsCount), including
   //    both parent/guardian slots and every onboarding-state timestamp (those
@@ -157,8 +136,7 @@ export async function anonymizeTalent(
       ...clearTalentOnboardingArtifacts(),
       // The two legacy PDF keys, captured above for post-commit deletion: a key
       // left here would name an object that no longer exists.
-      imageRightsFilePath: null,
-      rulesFilePath: null,
+      ...clearLegacyDocumentKeys(),
       // Guardian 1
       parentType: null,
       parentCivilite: null,

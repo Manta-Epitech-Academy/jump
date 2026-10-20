@@ -317,10 +317,10 @@ model Talent {
   /// this key onto the row it attests, so the two agree until a regeneration
   /// writes the year-keyed name over that row, which leaves the pre-annual
   /// `rules.pdf` object referenced by this column alone. That is why both
-  /// erasure paths still select it (`anonymizationService`,
-  /// `resetTalentToImport`): a key missed there is a named minor's PDF left in
-  /// the bucket with nothing pointing at it. It drops together with those two
-  /// selects, once the pre-annual keys have been swept from the bucket.
+  /// erasure paths still select it, through `TALENT_DOCUMENT_KEYS_SELECT` in
+  /// `onboardingDocuments`: a key missed there is a named minor's PDF left in
+  /// the bucket with nothing pointing at it. It drops together with that
+  /// select, once the pre-annual keys have been swept from the bucket.
   /// Nothing else reads it; `onboardingDocuments` resolves the dossier.
   rulesFilePath               String?
   /// LEGACY key, for exactly the same reason as `rulesFilePath` above and on the
@@ -329,9 +329,9 @@ model Talent {
   /// dossier it attests, and the two agree until a regeneration writes the
   /// year-keyed name over that row and leaves the pre-annual `image-rights.pdf`
   /// object referenced by this column alone. Both erasure paths still select it
-  /// so that object cannot be stranded, and it drops together with
-  /// `rulesFilePath` and those selects once the pre-annual keys have been swept
-  /// from the bucket. Nothing else reads it; `onboardingDocuments` resolves the
+  /// (`TALENT_DOCUMENT_KEYS_SELECT`) so that object cannot be stranded, and it
+  /// drops together with `rulesFilePath` and that select once the pre-annual
+  /// keys have been swept from the bucket. Nothing else reads it; `onboardingDocuments` resolves the
   /// dossier.
   imageRightsFilePath         String?
   parentEmail                 String?
