@@ -151,8 +151,8 @@ import {
   getTalentHomeContent,
 } from '$lib/server/services/adminStats/configuration';
 import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
-import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
 import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
+import { getAdminDigestRecipients } from '$lib/server/services/adminStats/adminDigestRecipients';
 import { writeDiplomaTemplate } from './writes/diplomas';
 import { writeWorkshop, writeWorkshopInstance } from './writes/workshops';
 import {
@@ -176,6 +176,7 @@ import {
   writeSyncSource,
 } from './writes/sync';
 import { writeClosingQuestion, writeClosingTemplate } from './writes/closings';
+import { writeAdminDigestRecipient } from './writes/adminDigest';
 import { writeFeedbackForm, copyFeedbackForm } from './writes/feedbackForms';
 import {
   formFields,
@@ -681,7 +682,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_workshops: defineOperation({
     description:
-      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover). An instance is a host: its slug, its address and the activities declared on it, retired ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take.',
+      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover). An instance is a host: its slug, its address and the activities declared on it, retired ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP: exactly the points CTFd pays for the steps a talent validated. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take.',
     shape: {},
     run: () => getWorkshops(),
   }),
@@ -703,6 +704,13 @@ export const ADMIN_API_OPERATIONS = {
       'Saved event-configuration presets and exactly what each one holds: sections and their sub-options, shown Salesforce statuses, public name, cohort noun, arrival time, and the feedback form, certificate and closing grid it points at. A preset is applied by copying its values: to write_event_config for one event, or its modules and shownStatuses to bulk_event_config for many.',
     shape: {},
     run: () => getEventTemplates(),
+  }),
+
+  config_admin_digest: defineOperation({
+    description:
+      'Who receives the weekly admin digest sent on Mondays: every admin account, by the address it logs in with, and whether the digest goes to it. Chosen per admin, never implied by the role; nobody chosen means no digest is sent. Takes no parameter.',
+    shape: {},
+    run: () => getAdminDigestRecipients(),
   }),
 
   stats_school_year_review: defineOperation({
@@ -876,13 +884,6 @@ export const ADMIN_API_OPERATIONS = {
         .array(
           z.strictObject({
             slug: z.string().min(1).describe(handleDescribe('workshopSlug')),
-            durationMinutes: z
-              .number()
-              .int()
-              .positive()
-              .describe(
-                `How long the activity runs at this event, in minutes. It is the scale: finishing it whole is worth durationMinutes x ${WORKSHOP_XP_PER_MINUTE} XP. Changing it changes nobody retroactively, since a talent's scale is pinned when they first enter.`,
-              ),
             labelOverride: z
               .string()
               .nullable()
@@ -1343,6 +1344,18 @@ export const ADMIN_API_OPERATIONS = {
       description: z.string().optional(),
     },
     run: (params) => writeEventTemplate(params),
+  }),
+
+  write_admin_digest_recipient: defineWrite({
+    description:
+      'Choose whether one admin receives the weekly admin digest, from the next Monday on. Only an admin account can, since its links need a staff session; one who loses the role stops receiving it with nothing to undo. Safe to repeat.',
+    shape: {
+      address: z.string().min(1).describe(handleDescribe('adminAddress')),
+      receivesDigest: z
+        .boolean()
+        .describe('true to send it to this admin, false to stop.'),
+    },
+    run: (params) => writeAdminDigestRecipient(params),
   }),
 
   ops_retry_pdf_job: defineWrite({

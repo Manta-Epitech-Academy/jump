@@ -118,7 +118,6 @@ export type EventConfigPatch = {
   closingTemplateId?: string | null;
   workshops?: {
     slug: string;
-    durationMinutes: number;
     labelOverride?: string | null;
   }[];
 };
@@ -262,7 +261,6 @@ async function resolvedWorkshops(
   }
   return workshops.map((workshop, index) => ({
     activityId: idBySlug.get(slugs[index])!,
-    durationMinutes: workshop.durationMinutes,
     labelOverride: workshop.labelOverride?.trim() || null,
   }));
 }

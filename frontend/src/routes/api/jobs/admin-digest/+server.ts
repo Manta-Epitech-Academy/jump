@@ -12,6 +12,9 @@ import { sendAdminDigest } from '$lib/server/services/adminDigest';
  * Same bearer contract as the other cron endpoints (`CRON_SECRET`). No request
  * actor, so on a trapped environment the mail follows the `EMAIL_DEV_RECIPIENTS`
  * fallback: set it on non-prod, or the sends are dropped by design.
+ *
+ * With no admin chosen to receive it, nothing is built or sent and the log says
+ * so: an empty Monday is a configuration state, not a failure.
  */
 export const POST: RequestHandler = async ({ request }) => {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
@@ -23,10 +26,13 @@ export const POST: RequestHandler = async ({ request }) => {
 
   try {
     const result = await sendAdminDigest();
+    const { summary } = result;
     console.log(
-      `[Job] Admin digest: ${result.sent} sent, ${result.failed} failed ` +
-        `(${result.summary.eventsToPrepare} events to prepare, ` +
-        `${result.summary.unresolvedSyncErrors} sync errors).`,
+      summary
+        ? `[Job] Admin digest: ${result.sent} sent, ${result.failed} failed ` +
+            `(${summary.eventsToPrepare} events to prepare, ` +
+            `${summary.unresolvedSyncErrors} sync errors).`
+        : '[Job] Admin digest: no recipient chosen (write_admin_digest_recipient), nothing sent.',
     );
     return json({ success: true, ...result });
   } catch (err) {

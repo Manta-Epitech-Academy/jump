@@ -299,8 +299,8 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     // what the talent earns next: `xpCelebrated` survives the `xpGrant` delete
     // below, so XP re-earned from zero stay below the mark of a celebration
     // shown before the reset, and no float fires until they pass it. The progress
-    // and the `budgetMinutes` snapshot outlive the reset too, so the mission
-    // line still reads "6 / 15 étapes validées" for a talent returned to import.
+    // outlives the reset too, so the mission line still reads "6 / 15 étapes
+    // validées" for a talent returned to import.
     // What is NOT reset is CTFd's own account: a later solve reports progress
     // again, re-opens a participation through the entry action and re-grants,
     // which is the mirror behaving as one.

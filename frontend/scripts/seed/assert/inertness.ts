@@ -114,5 +114,18 @@ export async function inertnessFailures(
     );
   }
 
+  // The Monday digest's recipients. The cron that sends it finds them by itself,
+  // and what it does next is an outbound mail, so a seeded admin who receives it
+  // is the broadcast case again with a weekly schedule. Nobody receives it in a
+  // generated database; somebody chooses it there with `write_admin_digest_recipient`.
+  const recipients = await prisma.staffProfile.count({
+    where: { id: seeded, receivesAdminDigest: true },
+  });
+  if (recipients > 0) {
+    failures.push(
+      `${recipients} administrateur(s) semé(s) destinataire(s) du récapitulatif du lundi : /api/jobs/admin-digest leur envoie un courriel chaque semaine, donc une instruction et non un fait. Le générateur n’en désigne aucun.`,
+    );
+  }
+
   return failures;
 }

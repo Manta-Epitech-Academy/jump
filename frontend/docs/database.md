@@ -598,7 +598,6 @@ erDiagram
     String eventId PK,FK
     String activityId PK,FK
     Int position
-    Int durationMinutes
     String labelOverride
     DateTime createdAt
   }
@@ -607,7 +606,6 @@ erDiagram
     String activityId PK,FK
     String eventId FK
     String campusId FK
-    Int budgetMinutes
     Int solvedSteps
     Int totalSteps
     Int xpCelebrated

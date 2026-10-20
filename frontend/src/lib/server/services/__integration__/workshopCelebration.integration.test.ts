@@ -26,7 +26,8 @@ import { assertTestDatabase } from './testDatabase';
  */
 describe('the activity XP celebration (integration)', () => {
   const stamp = Date.now();
-  const BUDGET_MINUTES = 60;
+  // What each step is worth in CTFd unless a report says otherwise.
+  const STEP_POINTS = 50;
   const created = {
     campusIds: [] as string[],
     eventIds: [] as string[],
@@ -81,7 +82,7 @@ describe('the activity XP celebration (integration)', () => {
     }
   });
 
-  /** One talent who has entered one activity, sixty minutes long. */
+  /** One talent who has entered one activity. */
   async function enteredTalent() {
     const n = created.talentIds.length;
     const slug = `test-celebration-${stamp}-${n}`;
@@ -95,12 +96,7 @@ describe('the activity XP celebration (integration)', () => {
     });
     created.activityIds.push(activity.id);
     await prisma.eventConfig_Workshop.create({
-      data: {
-        eventId,
-        activityId: activity.id,
-        position: n,
-        durationMinutes: BUDGET_MINUTES,
-      },
+      data: { eventId, activityId: activity.id, position: n },
     });
     const talent = await prisma.talent.create({
       data: { prenom: 'Camille', nom: `Fête ${n}` },
@@ -115,7 +111,6 @@ describe('the activity XP celebration (integration)', () => {
         activityId: activity.id,
         eventId,
         campusId,
-        budgetMinutes: BUDGET_MINUTES,
       },
     });
 
@@ -123,7 +118,11 @@ describe('the activity XP celebration (integration)', () => {
     return {
       talentId,
       /** What CTFd reports: the whole state, recounted at send time. */
-      report: (solvedSteps: number, totalSteps: number) =>
+      report: (
+        solvedSteps: number,
+        totalSteps: number,
+        points = solvedSteps * STEP_POINTS,
+      ) =>
         applyWorkshopProgress({
           instanceSlug,
           contentSlug: slug,
@@ -131,6 +130,7 @@ describe('the activity XP celebration (integration)', () => {
           solvedSteps,
           totalSteps,
           isComplete: solvedSteps === totalSteps,
+          points,
         }),
       profileXp: async () =>
         (
@@ -195,15 +195,16 @@ describe('the activity XP celebration (integration)', () => {
     expect(await getUnseenWorkshopReward(t.talentId)).toBeNull();
   });
 
-  it('celebrates only the net gain when the subject grows', async () => {
-    // A re-sync adds steps: the same solves are worth less, then more again.
+  it('celebrates only the net gain when the author lowers a value', async () => {
+    // A step repriced in CTFd after the talent solved it: the same solves are
+    // worth less, then the next steps lift the grant past the mark again.
     const t = await enteredTalent();
     await t.report(6, 12);
     await t.celebrate();
     const before = await t.profileXp();
 
-    await t.report(6, 15);
-    await t.report(8, 15);
+    await t.report(6, 12, 6 * STEP_POINTS - 60);
+    await t.report(8, 12, 8 * STEP_POINTS - 80);
     const gain = (await t.profileXp()) - before;
     expect(gain).toBe(20);
     expect(await t.celebrate()).toBe(gain);

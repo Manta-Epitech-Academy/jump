@@ -674,7 +674,6 @@ describe('what erasure and reset do to every talent table (integration)', () => 
         activityId: created.activityId,
         eventId: created.eventId,
         campusId: created.campusId,
-        budgetMinutes: 120,
         xpCelebrated: 480,
       },
     });
