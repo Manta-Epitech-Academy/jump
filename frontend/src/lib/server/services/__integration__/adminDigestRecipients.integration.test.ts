@@ -132,9 +132,11 @@ describe('weekly admin digest recipients (integration)', () => {
     });
     expect(repeat.payload.before).toEqual(repeat.payload.after);
 
-    const recipients = await adminDigestRecipients();
-    expect(recipients).toContain(chosenAddress);
-    expect(recipients).not.toContain(otherAddress);
+    sendEmail.mockResolvedValue({ ok: true });
+    expect(await sendAdminDigest()).toMatchObject({ sent: 1, recipients: 1 });
+    expect(sendEmail.mock.calls.map(([mail]) => mail.to)).toEqual([
+      chosenAddress,
+    ]);
     expect((await adminRow(chosenAddress))?.receivesDigest).toBe(true);
 
     const row = await prisma.adminApi_Call.findFirst({
