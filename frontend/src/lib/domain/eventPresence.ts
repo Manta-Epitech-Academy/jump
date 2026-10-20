@@ -1,12 +1,13 @@
 /**
  * Pure helpers for the administrative émargement (attendance) of an event.
  *
- * A talent's attendance is tracked per half-day: one cell per (event day,
- * morning|afternoon). The single source of truth is the `EventPresence` table;
- * a missing row means the cell is still "en attente" (not handled yet), which
- * is why the cell status here is a four-value DB enum widened with a synthetic
- * `pending`. No Svelte, no Prisma, no DOM: dates and projections only, so this
- * runs identically on the server load and in the browser during polling.
+ * A talent's attendance is tracked per half-day: one cell per créneau, a
+ * (event day, morning|afternoon) pair that `presenceSlots` lists. The single
+ * source of truth is the `EventPresence` table; a missing row means the cell is
+ * still "en attente" (not handled yet), which is why the cell status here is a
+ * four-value DB enum widened with a synthetic `pending`. No Svelte, no Prisma,
+ * no DOM: dates and projections only, so this runs identically on the server
+ * load and in the browser during polling.
  *
  * Days are carried as `YYYY-MM-DD` keys. The campus timezone is applied once,
  * server-side, to turn an event's instant range into calendar days; everything
@@ -24,6 +25,14 @@ export type CellStatus = PresenceStatus | 'pending';
 export type DateKey = string;
 
 export const PRESENCE_SLOTS: readonly PresenceSlot[] = ['morning', 'afternoon'];
+
+/** Minute of the day (local wall clock) at which the afternoon half-day begins. */
+export const AFTERNOON_START_MINUTES = 13 * 60;
+
+/** The half-day a wall-clock time falls in, minutes from local midnight. */
+export function halfDayAt(minutes: number): PresenceSlot {
+  return minutes < AFTERNOON_START_MINUTES ? 'morning' : 'afternoon';
+}
 
 export function slotLabelFr(slot: PresenceSlot): string {
   return slot === 'morning' ? 'Matin' : 'Après-midi';
@@ -169,14 +178,31 @@ export function stageCountdown(
   return { dayN, totalDays };
 }
 
-/** The ordered list of émargement créneaux (each `presenceDays` day × morning/afternoon). */
+/**
+ * The ordered list of émargement créneaux: each `presenceDays` day gets a morning
+ * and an afternoon, except the start day of an event that starts in the
+ * afternoon, which gets the afternoon alone. A talent cannot be absent from a
+ * half-day the event never held.
+ *
+ * Only a start time a human set counts (`startMinutes`, never the displayed
+ * default of `effectiveStartMinutes`): without one, both créneaux stay. A morning
+ * start keeps both as well, since Jump stores no end time and a 10h start may run
+ * all day. Keyed on the start day rather than the first presence day, so a stage
+ * that starts on a weekend keeps its Monday morning.
+ */
 export function presenceSlots(
-  event: { date: Date; endDate: Date | null },
+  event: { date: Date; endDate: Date | null; startMinutes: number | null },
   timezone: string,
 ): EventSlot[] {
-  return presenceDays(event, timezone).flatMap((day) =>
-    PRESENCE_SLOTS.map((slot) => ({ day, slot, key: slotKey(day, slot) })),
-  );
+  const startDay = toDateKey(event.date, timezone);
+  const startsInAfternoon =
+    event.startMinutes !== null &&
+    halfDayAt(event.startMinutes) === 'afternoon';
+  return presenceDays(event, timezone).flatMap((day) => {
+    const halves: readonly PresenceSlot[] =
+      startsInAfternoon && day === startDay ? ['afternoon'] : PRESENCE_SLOTS;
+    return halves.map((slot) => ({ day, slot, key: slotKey(day, slot) }));
+  });
 }
 
 /** "lun. 9 juin · Matin" for the créneau selector. */
@@ -195,7 +221,7 @@ export function defaultActiveSlotKey(
   nowHour: number,
 ): string {
   if (slots.length === 0) return '';
-  const wanted: PresenceSlot = nowHour < 13 ? 'morning' : 'afternoon';
+  const wanted = halfDayAt(nowHour * 60);
   const todayExact = slots.find((s) => s.day === todayKey && s.slot === wanted);
   if (todayExact) return todayExact.key;
   const todayAny = slots.find((s) => s.day === todayKey);

@@ -77,6 +77,7 @@ export async function getEmargementCoverage(
         id: true,
         date: true,
         endDate: true,
+        startMinutes: true,
         campus: { select: { timezone: true } },
         _count: { select: { eventPresences: true } },
       },
@@ -107,7 +108,11 @@ export async function getEmargementCoverage(
     const row = rowById.get(event.id);
     const slots = row
       ? presenceSlots(
-          { date: row.date, endDate: row.endDate },
+          {
+            date: row.date,
+            endDate: row.endDate,
+            startMinutes: row.startMinutes,
+          },
           row.campus.timezone,
         )
       : [];
@@ -138,7 +143,7 @@ export async function getEmargementCoverage(
     ),
     slots: metric(
       totalSlots,
-      'Nombre total de demi-journées à émarger sur ces événements. Une journée compte pour deux créneaux (matin et après-midi) ; un événement de plusieurs jours ne compte que ses jours ouvrés.',
+      "Nombre total de demi-journées à émarger sur ces événements. Une journée compte pour deux créneaux (matin et après-midi), sauf le premier jour d'un événement dont l'heure de début est l'après-midi (13h00 ou plus tard), qui ne compte que l'après-midi ; un événement de plusieurs jours ne compte que ses jours ouvrés.",
     ),
     closedSlots: metric(
       totalClosed,

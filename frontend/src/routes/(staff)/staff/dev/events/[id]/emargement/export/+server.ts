@@ -24,7 +24,7 @@ import { USAGE_FEATURES } from '$lib/domain/usage';
 
 /**
  * Full-period émargement export: one row per enrolled talent, one column per
- * créneau (≈20 over a 2-week stage), each cell the recorded state (an unmarked
+ * créneau (≈20 over a 2-week stage, a single one for an afternoon club), each cell the recorded state (an unmarked
  * talent reads "Absent" once the créneau is closed, "En attente" while it is
  * still open). Always the whole grid (not the on-screen filter), so the file is
  * the complete attendance record for the period.
