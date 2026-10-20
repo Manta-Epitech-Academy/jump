@@ -685,19 +685,21 @@
     <AlertDialog.Header>
       <AlertDialog.Title>Réinitialiser complètement</AlertDialog.Title>
       <AlertDialog.Description>
-        <strong>{wipeTarget?.name}</strong> revient à l'état exact d'un import
-        Salesforce. Tout ce qui a été accumulé après l'import est
-        <strong>supprimé définitivement</strong> : XP, minigames, fichiers et PDF
-        signés, onboarding, contacts d'urgence, droits à l'image, règlement, historique
-        d'événements, et le compte de connexion (ainsi que celui d'un parent créé
-        pendant les tests). Sont conservés : l'identité Salesforce (nom, email, niveau,
-        lycée, ré-alignés sur le miroir SF) et les participations aux événements.
-        Action immédiate et irréversible sur des données réelles.
+        <strong>{wipeTarget?.name}</strong> revient à l'état d'un import
+        Salesforce. Tout ce qui a été accumulé depuis est
+        <strong>supprimé définitivement</strong> : XP, entraînements, activités en
+        ligne, présences, onboarding et PDF signés, responsables légaux et leurs décisions
+        (règlement, droit à l'image), centres d'intérêt, bilans et closings. Sont
+        conservés : l'identité Salesforce (nom, téléphone, niveau et lycée, réalignés
+        sur Salesforce), les participations, les notes de l'équipe, les demandes de
+        suppression et le compte de connexion, dont les sessions sont fermées. Le
+        compte d'un parent créé pendant les tests est supprimé s'il ne sert à aucun
+        autre talent. Action immédiate et irréversible sur des données réelles.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <div class="space-y-2">
       <label for="wipe-confirm" class="text-sm text-muted-foreground">
-        Tape <strong class="text-foreground">{wipeTarget?.name}</strong> pour confirmer.
+        Tapez <strong class="text-foreground">{wipeTarget?.name}</strong> pour confirmer.
       </label>
       <Input
         id="wipe-confirm"
