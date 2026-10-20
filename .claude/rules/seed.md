@@ -172,6 +172,17 @@ Nine rules, and each is enforced rather than hoped for:
   of them. Ask whether the generator has run here, never whether the database is
   pristine.
 
+  **A projection the application recomputes is taken back by its recompute
+  unit, never by id.** The usage rollup rebuilds `Usage_FeatureMonthly` by whole
+  month under its own ids, so after one run on a generated environment the
+  `sd_` wipe could no longer see the months `foldUsageMonthly` wrote, and every
+  re-seed of `dev` failed on their unique key from 20/10 while `test:seed`
+  stayed green, because its two generations ran back to back (#432).
+  `clearFoldedMonths` now takes back every month the generation writes, and
+  `test:seed` runs the rollup between its two generations
+  (`simulate-rollup.ts`). A new projection a background job rebuilds needs the
+  same pair.
+
 - **A seeded database is inert to every background worker, by construction.**
   The Salesforce worker is the case this was written for. It takes its scope from
   Jump: `GET /api/worker/config` is the only thing that tells it what to pull, and

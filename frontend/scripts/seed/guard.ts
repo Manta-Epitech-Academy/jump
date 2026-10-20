@@ -210,7 +210,10 @@ async function lastGenerationAnchor(prisma: RawQuery): Promise<string | null> {
  * uses (`School.uai`). Catching that is a pre-flight over the schema's unique
  * constraints, which needs the buffered rows and therefore a later call site
  * than a gate that has to run before anything is written. It is not this
- * function's job, and it is not done anywhere yet.
+ * function's job, and it is not done anywhere yet. The monthly usage cube is
+ * the one natural key the generator takes back on purpose, because it is a
+ * projection the rollup rebuilds, not data anybody entered: see
+ * `clearFoldedMonths` in `writer.ts`.
  */
 export async function assertGeneratorOwnsDataset(
   prisma: RawQuery,
