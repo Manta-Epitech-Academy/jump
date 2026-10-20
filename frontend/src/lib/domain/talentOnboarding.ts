@@ -306,8 +306,9 @@ export function clearOnboardingTimestamps(): Record<
  * Scope is the *talent's* signature only. The guardian's two acts, the règlement
  * co-signature (`parentRules*`) and the image-rights decision
  * (`imageRights*`), are projections of the dossier rather than artifacts the
- * talent produced: the reset paths null them explicitly next to this patch, in
- * the same statement that deletes the dossier rows they mirror.
+ * talent produced: the reset paths null them with {@link clearGuardianActs},
+ * kept apart from this patch, in the same transaction that deletes the dossier
+ * rows they mirror.
  *
  * The rendered PDFs are deliberately NOT here, and they are the thing a reader
  * expects to find: both live on the dossier (`Onboarding_Record.rulesFilePath`
@@ -343,6 +344,37 @@ export function clearTalentOnboardingArtifacts(): Record<
   return Object.fromEntries(
     TALENT_ONBOARDING_ARTIFACT_FIELDS.map((f) => [f, null]),
   ) as Record<TalentOnboardingArtifactField, null>;
+}
+
+/**
+ * The guardian's two signed acts as the dossier projects them onto the talent:
+ * the règlement co-signature and the image-rights decision, each a timestamp
+ * with the typed name it was signed under. One signed fact apiece, so a path
+ * that voids one voids all of its columns (see `domain/imageRights`).
+ */
+const GUARDIAN_ACT_FIELDS = [
+  'parentRulesSignedAt',
+  'parentRulesSignerPrenom',
+  'parentRulesSignerNom',
+  'parentRulesRelationship',
+  'parentRulesSignedCity',
+  'imageRightsDecision',
+  'imageRightsDecidedAt',
+  'imageRightsSignerPrenom',
+  'imageRightsSignerNom',
+] as const satisfies readonly OnboardingProjectedField[];
+
+export type GuardianActField = (typeof GUARDIAN_ACT_FIELDS)[number];
+
+/**
+ * `{ field: null }` patch covering every {@link GUARDIAN_ACT_FIELDS}, for the
+ * paths that return a talent to before onboarding (admin reset, RGPD
+ * anonymisation), spread next to {@link clearTalentOnboardingArtifacts}.
+ */
+export function clearGuardianActs(): Record<GuardianActField, null> {
+  return Object.fromEntries(
+    GUARDIAN_ACT_FIELDS.map((f) => [f, null]),
+  ) as Record<GuardianActField, null>;
 }
 
 export type OnboardingPhase = 'not-started' | 'in-progress' | 'complete';

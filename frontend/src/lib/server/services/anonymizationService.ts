@@ -9,9 +9,11 @@ import {
 } from '$lib/server/services/onboardingDocuments';
 import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
 import {
+  clearGuardianActs,
   clearOnboardingTimestamps,
   clearTalentOnboardingArtifacts,
 } from '$lib/domain/talentOnboarding';
+import { clearGuardianContacts, guardianEmailsOf } from '$lib/domain/contact';
 
 /**
  * The single GDPR-erasure primitive. Clears a talent's PII in place rather than
@@ -81,9 +83,7 @@ export async function anonymizeTalent(
 
   // Captured before the update below nulls them, so we can scrub the matching
   // parent accounts afterwards (step 4).
-  const parentEmails = [talent.parentEmail, talent.parent2Email].filter(
-    (e): e is string => !!e,
-  );
+  const parentEmails = guardianEmailsOf(talent);
 
   // S3 keys of the generated onboarding PDFs, captured before the update and the
   // dossier deletion drop the references. Returned to the caller, which deletes
@@ -111,24 +111,11 @@ export async function anonymizeTalent(
       schoolId: null,
       interestsFreeText: null,
       setupDescription: null,
-      // Image-rights decision: the guardian's typed signer name is their PII,
-      // and decision/decidedAt move with it (the trio is one signed fact, see
-      // domain/imageRights). Sever the PDF references too; the objects are
-      // deleted post-commit by the caller (keys returned below).
-      imageRightsDecision: null,
-      imageRightsDecidedAt: null,
-      imageRightsSignerPrenom: null,
-      imageRightsSignerNom: null,
-      // Règlement guardian co-signature: same shape as image-rights, the
-      // guardian's typed name + relationship + city are PII, the timestamp moves
-      // with them, and the shared règlement PDF (deleted post-commit via the
-      // keys returned below) embeds both names + signatures. See
-      // `parentRulesService.recordParentRulesSignature`.
-      parentRulesSignedAt: null,
-      parentRulesSignerPrenom: null,
-      parentRulesSignerNom: null,
-      parentRulesRelationship: null,
-      parentRulesSignedCity: null,
+      // The guardian's two signed acts, the image-rights decision and the
+      // règlement co-signature: their typed name, relationship and city are the
+      // guardian's PII, and the timestamps move with them (each is one signed
+      // fact). The PDFs embedding them are deleted post-commit (keys below).
+      ...clearGuardianActs(),
       // Talent-owned onboarding signature artifacts (the talent's place of
       // signature, the règlement version and the onboarding year). Shared with
       // the admin reset via the canonical list so a new artifact scrubs on both
@@ -137,20 +124,8 @@ export async function anonymizeTalent(
       // The two legacy PDF keys, captured above for post-commit deletion: a key
       // left here would name an object that no longer exists.
       ...clearLegacyDocumentKeys(),
-      // Guardian 1
-      parentType: null,
-      parentCivilite: null,
-      parentNom: null,
-      parentPrenom: null,
-      parentEmail: null,
-      parentPhone: null,
-      // Guardian 2
-      parent2Type: null,
-      parent2Civilite: null,
-      parent2Nom: null,
-      parent2Prenom: null,
-      parent2Email: null,
-      parent2Phone: null,
+      // Both guardians: data subjects too.
+      ...clearGuardianContacts(),
       niveau: null,
     },
   });
@@ -280,7 +255,7 @@ export async function anonymizeTalent(
   //    anonymised siblings have null parent emails, so they never count here.
   //    The sibling + role guard is shared with resetTalentToImport; here we
   //    scrub to a placeholder rather than delete (RGPD erasure keeps the row).
-  for (const email of new Set(parentEmails)) {
+  for (const email of parentEmails) {
     const orphan = await findUnreferencedParentAccount(tx, email, talentId);
     if (!orphan) continue;
 

@@ -15,9 +15,11 @@ import {
   deleteParentAccountCascade,
 } from '$lib/server/services/parentAccount';
 import {
+  clearGuardianActs,
   clearOnboardingTimestamps,
   clearTalentOnboardingArtifacts,
 } from '$lib/domain/talentOnboarding';
+import { clearGuardianContacts, guardianEmailsOf } from '$lib/domain/contact';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 
@@ -226,9 +228,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
 
     // Captured before the update nulls them, so the matching parent accounts can
     // be cleaned up afterwards (step 4) and the PDF objects deleted post-commit.
-    const parentEmails = [talent.parentEmail, talent.parent2Email].filter(
-      (e): e is string => !!e,
-    );
+    const parentEmails = guardianEmailsOf(talent);
     const documentKeys = documentKeysOf(talent);
 
     // 1. Delete every talent-scoped record created after import.
@@ -296,30 +296,11 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         civilite: sf?.civilite ?? null,
         xp: 0,
         eventsCount: 0,
-        imageRightsDecision: null,
-        imageRightsDecidedAt: null,
-        imageRightsSignerPrenom: null,
-        imageRightsSignerNom: null,
+        ...clearGuardianActs(),
         // The two legacy PDF keys, collected above and deleted post-commit.
         ...clearLegacyDocumentKeys(),
-        parentRulesSignedAt: null,
-        parentRulesSignerPrenom: null,
-        parentRulesSignerNom: null,
-        parentRulesRelationship: null,
-        parentRulesSignedCity: null,
+        ...clearGuardianContacts(),
         highSchoolNameManual: null,
-        parentType: null,
-        parentCivilite: null,
-        parentNom: null,
-        parentPrenom: null,
-        parentEmail: null,
-        parentPhone: null,
-        parent2Type: null,
-        parent2Civilite: null,
-        parent2Nom: null,
-        parent2Prenom: null,
-        parent2Email: null,
-        parent2Phone: null,
         setupDescription: null,
         interestsFreeText: null,
         // Activity projections: a fresh-import talent has never logged in, so
@@ -371,7 +352,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     //    the goal is "as if never created". The role === 'parent' check inside
     //    the guard keeps this delete FK-safe: it never hard-deletes a staff user
     //    who happens to share the email (and who could hold blocking CMS rows).
-    for (const email of new Set(parentEmails)) {
+    for (const email of parentEmails) {
       const orphan = await findUnreferencedParentAccount(tx, email, talentId);
       if (orphan) await deleteParentAccountCascade(tx, orphan.id);
     }
