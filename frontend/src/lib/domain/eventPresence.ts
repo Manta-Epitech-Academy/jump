@@ -140,8 +140,9 @@ export function slotKey(day: DateKey, slot: PresenceSlot): string {
 
 /**
  * The calendar days émargement covers for an event. The single source of truth
- * for the créneau grid, the XLSX export and the QR check-in day validation, so
- * the three can never disagree on which day belongs to the event.
+ * for which day belongs to the event: `presenceSlots` builds the créneau grid,
+ * the XLSX export and every write check (`isPresenceSlot`) on top of it, so they
+ * can never disagree.
  *
  * A multi-day event (explicit `endDate`) yields its working days only (a 2-week
  * stage runs Monday-Friday twice = 10 days, never 14); a single-day event (no
