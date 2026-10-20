@@ -52,7 +52,6 @@ describe('which activities a talent is offered (integration)', () => {
           eventId: row.id,
           activityId: activityIds.get(name)!,
           position,
-          durationMinutes: 120,
         },
       });
     }
@@ -117,7 +116,6 @@ describe('which activities a talent is offered (integration)', () => {
         activityId: activityIds.get('started')!,
         eventId: future,
         campusId: paris,
-        budgetMinutes: 120,
       },
     });
     await event(reunion, 'Saint-Denis', sfDay('2026-10-28'), ['reunion']);

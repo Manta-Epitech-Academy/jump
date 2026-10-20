@@ -23,6 +23,10 @@ import {
  * once the instance is upgraded, which is recoverable; filing it under a guess
  * would not be.
  *
+ * `points` is required for the same reason: it is the grant itself, the value
+ * CTFd pays for the steps this talent solved, and Jump has no other way to
+ * know it.
+ *
  * `X-Idempotency-Key` is not read: the write is idempotent by construction (one
  * grant per talent and activity, upserted), so a resend whose response was lost
  * costs nothing.
@@ -61,6 +65,8 @@ export const POST: RequestHandler = async ({ request }) => {
     !Number.isInteger(payload.totalSteps) ||
     payload.solvedSteps < 0 ||
     payload.totalSteps < 0 ||
+    !Number.isInteger(payload.points) ||
+    payload.points < 0 ||
     typeof payload.isComplete !== 'boolean'
   ) {
     throw error(400, 'invalid payload shape');

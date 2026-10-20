@@ -34,7 +34,6 @@ import { activationBlockers } from '../../src/lib/domain/eventReadiness';
 import {
   minigameRankBonus,
   minigameRankBonusLimit,
-  workshopXp,
 } from '../../src/lib/domain/xp';
 import { workshopGrantSourceId } from '../../src/lib/domain/workshops';
 import { fromWallClock } from '../../src/lib/domain/planningTime';
@@ -1113,7 +1112,6 @@ export class World {
      */
     workshops?: readonly {
       slug: string;
-      durationMinutes: number;
       labelOverride?: string;
     }[];
     /** Events with no Salesforce origin do not exist in production. */
@@ -1221,7 +1219,6 @@ export class World {
         eventId,
         activityId: workshopActivityId(workshop.slug),
         position: index,
-        durationMinutes: workshop.durationMinutes,
         labelOverride: workshop.labelOverride ?? null,
         createdAt: clock.days(-30),
       });
@@ -1606,9 +1603,9 @@ export class World {
    * A talent's state on one online activity, and the XP grant that state implies.
    *
    * The grant is written HERE rather than left to the caller because the two have
-   * to agree: the application recomputes one grant per (talent, instance) from
-   * exactly these numbers on every callback, so a seeded pair that disagrees is a
-   * pair no callback could have produced.
+   * to agree: the application sets one grant per (talent, activity) to the
+   * `points` of every callback, so a participation without its grant, or with
+   * another amount, is a pair no callback could have produced.
    *
    * `celebrated` is the float's state, and both halves are worth placing:
    * `false` leaves the whole grant owed a celebration, which is what a talent
@@ -1619,24 +1616,20 @@ export class World {
     talent: TalentRef;
     event: EventRef;
     slug: string;
-    budgetMinutes: number;
+    /** What CTFd reports this talent scored, which the grant is. */
+    points: number;
     solvedSteps: number;
     totalSteps: number;
     /** When the talent first entered; the grant is dated from it too. */
     at: Date;
     celebrated: boolean;
   }): void {
-    const amount = workshopXp(
-      opts.solvedSteps,
-      opts.totalSteps,
-      opts.budgetMinutes,
-    );
+    const amount = opts.points;
     this.buffer.workshop_Participation.push({
       talentId: opts.talent.id,
       activityId: workshopActivityId(opts.slug),
       eventId: opts.event.id,
       campusId: opts.event.campusId,
-      budgetMinutes: opts.budgetMinutes,
       solvedSteps: opts.solvedSteps,
       totalSteps: opts.totalSteps,
       xpCelebrated: opts.celebrated ? amount : 0,

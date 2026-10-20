@@ -2396,10 +2396,9 @@ enum XpGrantSource {
   // admin_adjustment correction and is queryable per category. Amount is
   // per-talent (the CTF score), not the activity's difficulty.
   reward
-  // One activity walked on a CTFd instance, recomputed on every progress
-  // callback rather than appended per validated step: a single grant per
-  // (talent, activity), so the talent's timeline carries one line and the
-  // rounded total is exactly `budgetMinutes * WORKSHOP_XP_PER_MINUTE`.
+  // One activity walked on a CTFd instance, set on every progress callback to
+  // the points CTFd reports rather than appended per validated step: a single
+  // grant per (talent, activity), so the talent's timeline carries one line.
   workshop
   admin_adjustment
 }
@@ -2569,17 +2568,12 @@ model EventConfig_Workshop {
   eventId         String
   activityId      String
   /// Where it sits in this event's list, so several activities have an order.
-  position        Int
-  /// The scale parameter. It lives here and not on the catalogue row because the
-  /// same subject runs 2 h at a Coding Club and 3 h at a camp;
-  /// `Workshop_Participation.budgetMinutes` snapshots it at first entry, which is
-  /// what lets a duration be replayed without taking XP back off anybody.
-  durationMinutes Int
+  position      Int
   /// The words THIS event reads the activity aloud with, when the catalogue label
   /// does not fit the format. Copies `Closing_TemplateQuestion.labelOverride`: the
   /// wording may follow the event, the identity never moves.
-  labelOverride   String?
-  createdAt       DateTime @default(now())
+  labelOverride String?
+  createdAt     DateTime @default(now())
 
   event    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   /// Restrict, like `Event.diplomaTemplateId`: deleting a catalogue row events
@@ -2595,11 +2589,8 @@ model EventConfig_Workshop {
 /// A POLLED EXTERNAL MIRROR, not a fact log. `.claude/rules/data-model.md` takes this case
 /// out of the "facts as rows" shape and sends it to a 1:1 typed row updated when
 /// the inbound payload differs, the `TalentSfImport` shape. `solvedSteps` and
-/// `totalSteps` are CTFd's CLAIM, never a count Jump made.
-///
-/// `budgetMinutes` is snapshotted from the link row at first entry, and that is
-/// the whole of how a duration can be replayed without taking XP back off the
-/// people who have already started.
+/// `totalSteps` are CTFd's CLAIM, never a count Jump made. The XP are not here:
+/// they are the `workshop` grant, set to the points CTFd reports.
 ///
 /// `eventId` and `campusId` record what was true once instead of tracking a
 /// source, which is the test `.claude/rules/data-model.md` states, so they are NOT bound to
@@ -2609,10 +2600,10 @@ model EventConfig_Workshop {
 ///
 /// They record because `syncTalents` hard-deletes every enrolment a Salesforce
 /// payload omits, the incident that took `Closing_Record` off `Participation`: a
-/// talent can lose the enrolment mid-activity, and these columns plus
-/// `budgetMinutes` are what survives it. It is the ENROLMENT that disappears, not
-/// the event, which no sync ever deletes, so both stay required rather than
-/// nullable: a null here would be a state nothing can produce.
+/// talent can lose the enrolment mid-activity, and these columns are what
+/// survives it. It is the ENROLMENT that disappears, not the event, which no
+/// sync ever deletes, so both stay required rather than nullable: a null here
+/// would be a state nothing can produce.
 ///
 /// The key `(talent, activity)` encodes a product rule: a content is worth its XP
 /// once per talent, for life. CTFd holds one account per talent per instance and
@@ -2622,14 +2613,12 @@ model EventConfig_Workshop {
 /// rather than an accident of the `sourceId`. It is the CONTENT and not the host
 /// because a host changes content: keyed on the host, a regular's second camp on
 /// the season's instance replaced the first camp's XP and stayed pinned to the
-/// first camp's event, budget and room.
+/// first camp's event and room.
 model Workshop_Participation {
   talentId       String
   activityId     String
   eventId        String
   campusId       String
-  /// Snapshot of `EventConfig_Workshop.durationMinutes`, taken at first entry.
-  budgetMinutes  Int
   solvedSteps    Int       @default(0)
   totalSteps     Int       @default(0)
   /// The grant amount the dashboard has already celebrated. What is still owed a

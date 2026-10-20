@@ -67,10 +67,9 @@ const [PACMAN, LINUX, SANTA] = WORKSHOPS;
  *
  * Two sessions of the ten, and that is the real distribution rather than a
  * sample: most events offer none at all, so the empty case is what a dashboard
- * and an export mostly render. The two that do offer one carry the SAME subject
- * at DIFFERENT durations, which is the whole reason `durationMinutes` sits on the
- * link and not on the catalogue, and the retired instance is attached beside it,
- * so an event still pointing at something nobody may enter exists in the data.
+ * and an export mostly render. The two that do offer one carry the same subject,
+ * and the retired instance is attached beside it, so an event still pointing at
+ * something nobody may enter exists in the data.
  *
  * Earlier in the season, the season's host served the subject that is retired
  * now, and the anchor regular walked it: that host has served two contents in
@@ -94,21 +93,15 @@ const [PACMAN, LINUX, SANTA] = WORKSHOPS;
  * because nothing does, which is the « pas avant le jour J » state.
  */
 function activitiesFor(session: number, upcoming: boolean) {
-  if (upcoming)
-    return [
-      { slug: PACMAN!.slug, durationMinutes: 150 },
-      { slug: SANTA!.slug, durationMinutes: SANTA!.durationMinutes },
-    ];
-  if (session === ROTATED_SESSION)
-    return [{ slug: LINUX!.slug, durationMinutes: LINUX!.durationMinutes }];
+  if (upcoming) return [{ slug: PACMAN!.slug }, { slug: SANTA!.slug }];
+  if (session === ROTATED_SESSION) return [{ slug: LINUX!.slug }];
   if (session !== SESSION_OFFSETS.length - 2) return [];
   return [
     {
       slug: PACMAN!.slug,
-      durationMinutes: PACMAN!.durationMinutes,
       labelOverride: 'Pacman : apprends à coder une IA',
     },
-    { slug: LINUX!.slug, durationMinutes: LINUX!.durationMinutes },
+    { slug: LINUX!.slug },
   ];
 }
 
@@ -226,7 +219,7 @@ export const club: Scenario = {
           talent: anchorRegular,
           event,
           slug: LINUX!.slug,
-          budgetMinutes: LINUX!.durationMinutes,
+          points: LINUX!.totalSteps * LINUX!.stepPoints,
           solvedSteps: LINUX!.totalSteps,
           totalSteps: LINUX!.totalSteps,
           at: day,
@@ -238,7 +231,7 @@ export const club: Scenario = {
           talent: anchorRegular,
           event,
           slug: PACMAN!.slug,
-          budgetMinutes: PACMAN!.durationMinutes,
+          points: 6 * PACMAN!.stepPoints,
           solvedSteps: 6,
           totalSteps: PACMAN!.totalSteps,
           at: clock.days(-2),
@@ -249,7 +242,7 @@ export const club: Scenario = {
             talent: other,
             event,
             slug: PACMAN!.slug,
-            budgetMinutes: PACMAN!.durationMinutes,
+            points: PACMAN!.totalSteps * PACMAN!.stepPoints,
             solvedSteps: PACMAN!.totalSteps,
             totalSteps: PACMAN!.totalSteps,
             at: day,

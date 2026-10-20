@@ -17,7 +17,7 @@ import { assertTestDatabase } from './testDatabase';
  *
  * The pin belongs to the CONTENT, not to the host: when the same host serves the
  * next content, a regular entering it through a later event is in that later
- * event's session, on that event's budget.
+ * event's session.
  */
 describe('the session an activity entry names (integration)', () => {
   const stamp = Date.now();
@@ -35,7 +35,6 @@ describe('the session an activity entry names (integration)', () => {
   const entryFor = (
     eventId: string,
     activity = { id: activityId, slug },
-    budgetMinutes = 120,
   ): WorkshopEntry => ({
     activityId: activity.id,
     activitySlug: activity.slug,
@@ -43,7 +42,6 @@ describe('the session an activity entry names (integration)', () => {
     baseUrl: 'https://test.ctfd.invalid',
     eventId,
     campusId,
-    budgetMinutes,
   });
 
   beforeAll(async () => {
@@ -128,24 +126,20 @@ describe('the session an activity entry names (integration)', () => {
     expect(session.id).toBe(firstEventId);
   });
 
-  it('names the later event for the next content on the same host, on its budget', async () => {
+  it('names the later event for the next content on the same host', async () => {
     const session = await enterWorkshop(
       talentId,
-      entryFor(laterEventId, { id: nextActivityId, slug: nextSlug }, 180),
+      entryFor(laterEventId, { id: nextActivityId, slug: nextSlug }),
     );
     expect(session.id).toBe(laterEventId);
     const pinned = await prisma.workshop_Participation.findMany({
       where: { talentId },
-      select: { activityId: true, eventId: true, budgetMinutes: true },
+      select: { activityId: true, eventId: true },
     });
     expect(pinned).toEqual(
       expect.arrayContaining([
-        { activityId, eventId: firstEventId, budgetMinutes: 120 },
-        {
-          activityId: nextActivityId,
-          eventId: laterEventId,
-          budgetMinutes: 180,
-        },
+        { activityId, eventId: firstEventId },
+        { activityId: nextActivityId, eventId: laterEventId },
       ]),
     );
   });
