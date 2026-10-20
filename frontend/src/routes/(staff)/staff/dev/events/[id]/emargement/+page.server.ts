@@ -26,7 +26,10 @@ import {
   type PresenceSlot,
   type CellStatus,
 } from '$lib/domain/eventPresence';
-import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
+import {
+  isSlotClosed,
+  isSlotPastCutoff,
+} from '$lib/server/presence/slotClosure';
 import {
   closePresenceSlot,
   reopenPresenceSlot,
@@ -72,20 +75,16 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
     select: { day: true, slot: true },
   });
 
-  // A créneau is closed either because a staff member closed it early (a closure
-  // row) or because its 11h/15h cutoff has passed (campus tz). Both are derived
-  // here, not written by a cron. `pastCutoffKeys` is sent on its own so the UI
-  // can tell an auto-closed créneau (the clock decided, no reopen) from a manual
-  // early-close (reopenable until the cutoff).
-  const manualClosed = new Set(
-    closureRows.map((c) => slotKey(dbDateToKey(c.day), c.slot)),
-  );
+  // Closed = closed early by a staff member or past its 11h/15h cutoff
+  // (`isSlotClosed`), derived here rather than written by a cron.
+  // `pastCutoffKeys` is sent on its own so the UI can tell an auto-closed
+  // créneau (the clock decided, no reopen) from a manual early-close
+  // (reopenable until the cutoff).
   const pastCutoffKeys = slots
     .filter((s) => isSlotPastCutoff(s.day, s.slot, timezone, now))
     .map((s) => s.key);
-  const pastCutoffSet = new Set(pastCutoffKeys);
   const closedKeys = slots
-    .filter((s) => manualClosed.has(s.key) || pastCutoffSet.has(s.key))
+    .filter((s) => isSlotClosed(s.day, s.slot, closureRows, timezone, now))
     .map((s) => s.key);
   const closedSet = new Set(closedKeys);
 

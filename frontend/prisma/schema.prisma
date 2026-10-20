@@ -1199,8 +1199,9 @@ model Participation {
 // owned by Salesforce (campaign member status) and the SF sync rewrites
 // Participation. This table is the staff's own operational appel, decoupled from
 // that lifecycle, with the XLSX export as its only deliverable (no SF write-back).
-// A missing row = "en attente" (not handled yet), so the table stays sparse and
-// closing a slot just inserts the absent rows. Scoped via event.campusId, like
+// A missing row = "en attente" (not handled yet) until the créneau closes, then
+// it reads absent (`effectiveStatus`): no absent row is ever written, so the
+// table stays sparse. Scoped via event.campusId, like
 // Planning. The enrollment roster is still READ from Participation (the SF
 // mirror) to know who to list; only the storage is decoupled.
 model EventPresence {
@@ -1225,10 +1226,10 @@ model EventPresence {
   @@index([markedById])
 }
 
-// Marks a half-day's émargement as closed: late self-check-in is refused and
-// every still-pending talent has been turned absent. A missing row = the slot
-// is open. Event-wide (not per-talent), so it hangs off Event and is scoped via
-// event.campusId, like Planning.
+// A half-day a staff member closed early by hand: late self-check-in is refused
+// and every still-pending talent reads absent. Past its 11h/15h cutoff a créneau
+// is closed with no row at all (`isSlotClosed`). Event-wide (not per-talent), so
+// it hangs off Event and is scoped via event.campusId, like Planning.
 model EventPresenceClosure {
   id         String       @id @default(cuid())
   eventId    String

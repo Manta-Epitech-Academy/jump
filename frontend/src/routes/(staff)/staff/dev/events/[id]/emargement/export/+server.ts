@@ -12,14 +12,13 @@ import { niveauLabel } from '$lib/domain/niveau';
 import { buildXlsx } from '$lib/server/xlsx';
 import {
   presenceSlots,
-  slotKey,
   slotLabelLong,
   statusLabelFr,
   effectiveStatus,
   dbDateToKey,
   type CellStatus,
 } from '$lib/domain/eventPresence';
-import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
+import { isSlotClosed } from '$lib/server/presence/slotClosure';
 import { PRESENCE_EXPORT_SELECT } from '../components/types';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
@@ -72,19 +71,11 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     stored.set(`${r.talentId}|${dbDateToKey(r.day)}|${r.slot}`, r.status);
   }
 
-  // A créneau is closed by a manual early-close OR once its 11h/15h cutoff has
-  // passed; an unmarked talent in a closed créneau exports as absent (the same
+  // An unmarked talent in a closed créneau exports as absent (the same
   // projection the screen shows), never a stored row.
-  const manualClosed = new Set(
-    closureRows.map((c) => slotKey(dbDateToKey(c.day), c.slot)),
-  );
   const closed = new Set(
     slots
-      .filter(
-        (s) =>
-          manualClosed.has(s.key) ||
-          isSlotPastCutoff(s.day, s.slot, timezone, now),
-      )
+      .filter((s) => isSlotClosed(s.day, s.slot, closureRows, timezone, now))
       .map((s) => s.key),
   );
 

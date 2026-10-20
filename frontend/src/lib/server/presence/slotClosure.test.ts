@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { PresenceSlot } from '$lib/domain/eventPresence';
-import { isSlotPastCutoff } from './slotClosure';
+import { isSlotClosed, isSlotPastCutoff } from './slotClosure';
 
 /**
  * A créneau closes on the campus wall clock (11h00 for the morning, 15h00 for
@@ -56,5 +56,43 @@ describe('isSlotPastCutoff', () => {
       'America/Martinique',
       '2026-06-10T15:00:00Z',
     );
+  });
+});
+
+describe('isSlotClosed', () => {
+  const day = '2026-03-30';
+  const beforeCutoff = new Date('2026-03-30T08:00:00Z');
+  const earlyClose = [
+    { day: new Date('2026-03-30T00:00:00Z'), slot: 'morning' as const },
+  ];
+
+  it('opens a créneau before its cutoff when nobody closed it', () => {
+    expect(isSlotClosed(day, 'morning', [], 'Europe/Paris', beforeCutoff)).toBe(
+      false,
+    );
+  });
+
+  it('closes a créneau a staff member closed early', () => {
+    expect(
+      isSlotClosed(day, 'morning', earlyClose, 'Europe/Paris', beforeCutoff),
+    ).toBe(true);
+  });
+
+  it('reads a close on the other half of the day as its own', () => {
+    expect(
+      isSlotClosed(day, 'afternoon', earlyClose, 'Europe/Paris', beforeCutoff),
+    ).toBe(false);
+  });
+
+  it('closes a créneau past its cutoff with no row', () => {
+    expect(
+      isSlotClosed(
+        day,
+        'morning',
+        [],
+        'Europe/Paris',
+        new Date('2026-03-30T09:00:00Z'),
+      ),
+    ).toBe(true);
   });
 });
