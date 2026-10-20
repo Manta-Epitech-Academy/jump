@@ -9,10 +9,7 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { recomputeEventsCount } from '$lib/server/services/xpService';
-import {
-  loadEventOr404,
-  requireEventModule,
-} from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { cohortNounForms } from '$lib/domain/event';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
@@ -55,8 +52,11 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 
   const campusId = getCampusId(locals);
   const timezone = getCampusTimezone(locals);
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.EMARGEMENT,
+  );
   const db = scopedPrisma(campusId);
 
   const now = new Date();
@@ -213,8 +213,11 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
-    const event = await loadEventOr404(params.id, campusId);
-    requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    const event = await loadEventOr404(
+      params.id,
+      campusId,
+      EVENT_MODULES.EMARGEMENT,
+    );
     requirePresenceSlot(
       event,
       getCampusTimezone(locals),
@@ -280,8 +283,11 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
-    const event = await loadEventOr404(params.id, campusId);
-    requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    const event = await loadEventOr404(
+      params.id,
+      campusId,
+      EVENT_MODULES.EMARGEMENT,
+    );
     requirePresenceSlot(
       event,
       getCampusTimezone(locals),
@@ -322,8 +328,11 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
-    const event = await loadEventOr404(params.id, campusId);
-    requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    const event = await loadEventOr404(
+      params.id,
+      campusId,
+      EVENT_MODULES.EMARGEMENT,
+    );
     requirePresenceSlot(
       event,
       getCampusTimezone(locals),
@@ -352,8 +361,11 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
-    const event = await loadEventOr404(params.id, campusId);
-    requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    const event = await loadEventOr404(
+      params.id,
+      campusId,
+      EVENT_MODULES.EMARGEMENT,
+    );
     requirePresenceSlot(
       event,
       getCampusTimezone(locals),

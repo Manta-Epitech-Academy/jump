@@ -3,10 +3,7 @@ import type { PageServerLoad } from './$types';
 import { base } from '$app/paths';
 import { env } from '$env/dynamic/private';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import {
-  loadEventOr404,
-  requireEventModule,
-} from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { prisma } from '$lib/server/db';
 import { computeFormStats, type FormStats } from '$lib/server/feedbackStats';
@@ -34,8 +31,7 @@ interface BilanCohort {
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.BILAN);
+  const event = await loadEventOr404(params.id, campusId, EVENT_MODULES.BILAN);
   const db = scopedPrisma(campusId);
 
   // The form this event uses (its override, else the type default). Resolved the

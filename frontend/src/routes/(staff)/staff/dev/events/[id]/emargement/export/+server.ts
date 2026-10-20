@@ -6,6 +6,7 @@ import {
 } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { niveauLabel } from '$lib/domain/niveau';
 import { buildXlsx } from '$lib/server/xlsx';
 import {
@@ -33,7 +34,11 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   requireStaffGroup(locals, 'devMember');
   const campusId = getCampusId(locals);
   const timezone = getCampusTimezone(locals);
-  const event = await loadEventOr404(params.id, campusId);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.EMARGEMENT,
+  );
   const db = scopedPrisma(campusId);
 
   const slots = presenceSlots(event, timezone);

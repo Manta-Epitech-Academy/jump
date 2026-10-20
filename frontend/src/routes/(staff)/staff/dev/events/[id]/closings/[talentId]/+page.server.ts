@@ -8,10 +8,7 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { prisma } from '$lib/server/db';
-import {
-  loadEventOr404,
-  requireEventModule,
-} from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { resolveClosingGridById } from '$lib/server/closingTemplates';
@@ -87,8 +84,11 @@ const RECORD_INCLUDE = {
 export const load: PageServerLoad = async ({ params, locals }) => {
   requireStaffGroup(locals, 'devMember');
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.CLOSINGS);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.CLOSINGS,
+  );
   const db = scopedPrisma(campusId);
 
   // The surface is gated on the module AND on the event naming a grid, the same
@@ -238,8 +238,11 @@ async function persist(
   const form = await superValidate(request, zod4(closingConductSchema));
   if (!form.valid) return fail(400, { form });
 
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.CLOSINGS);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.CLOSINGS,
+  );
 
   const participation = await db.participation.findUnique({
     where: {

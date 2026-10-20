@@ -6,7 +6,6 @@ import {
 } from '$lib/server/db/scoped';
 import {
   loadEventOr404,
-  requireEventModule,
   eventEndOrDefault,
   eventModuleSettings,
 } from '$lib/server/services/stageContext';
@@ -49,8 +48,11 @@ function originConditions(schoolId: string | null, interestId: string | null) {
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.INSCRITS);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.INSCRITS,
+  );
   const db = scopedPrisma(campusId);
   const timezone = getCampusTimezone(locals);
 

@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
 import {
   PRESENCE_SLOTS,
   isPresenceSlot,
@@ -41,7 +42,11 @@ export async function resolveSlotCheckinLink(opts: {
   if (!opts.day || !DAY_KEY_RE.test(opts.day)) {
     throw error(400, 'Jour invalide.');
   }
-  const event = await loadEventOr404(opts.eventId, opts.campusId);
+  const event = await loadEventOr404(
+    opts.eventId,
+    opts.campusId,
+    EVENT_MODULES.EMARGEMENT,
+  );
   if (!isPresenceSlot(event, opts.timezone, opts.day, slot)) {
     throw error(400, "Ce créneau n'appartient pas à l'événement.");
   }

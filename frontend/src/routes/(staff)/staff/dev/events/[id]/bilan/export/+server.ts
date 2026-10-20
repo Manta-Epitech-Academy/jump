@@ -2,10 +2,7 @@ import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { getCampusId } from '$lib/server/db/scoped';
-import {
-  loadEventOr404,
-  requireEventModule,
-} from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
 import { answerCells, buildSubmissionWhere } from '$lib/server/feedbackStats';
@@ -21,8 +18,7 @@ import { USAGE_FEATURES } from '$lib/domain/usage';
 // respondent input.
 export const GET: RequestHandler = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.BILAN);
+  const event = await loadEventOr404(params.id, campusId, EVENT_MODULES.BILAN);
 
   const graph = await resolvePublishedEventForm(event);
   if (!graph) {

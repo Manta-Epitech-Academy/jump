@@ -4,7 +4,6 @@ import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import {
   loadEventOr404,
-  requireEventModule,
   eventEndOrDefault,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
@@ -25,12 +24,15 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   requireStaffGroup(locals, 'devMember');
 
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
   // Two gates, answering two different questions. The module guards access to
   // the COHORT: this export prints every inscrit, so a direct GET must not leak
   // it when Inscrits is off (same reason as badges.pdf). The template answers
   // whether this event issues a document at all.
-  requireEventModule(event, EVENT_MODULES.INSCRITS);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.INSCRITS,
+  );
   const design = await resolveEventDiplomaDesign(event);
   if (!design) {
     throw error(404, 'Fonctionnalité non disponible pour cet événement.');
