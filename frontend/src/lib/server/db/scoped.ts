@@ -113,6 +113,10 @@ export function scopedPrisma(campusId: string) {
           args.where = { ...args.where, campusId };
           return query(args);
         },
+        async count({ args, query }) {
+          args.where = { ...args.where, campusId };
+          return query(args);
+        },
         async findFirst({ args, query }) {
           args.where = { ...args.where, campusId };
           return query(args);
@@ -322,7 +326,8 @@ export function scopedPrisma(campusId: string) {
       },
 
       // ── EventPresenceClosure (scoped through event.campusId) ──
-      // findMany (page load + export) plus the upsert/deleteMany that close and
+      // findMany (page load + export), the findUnique with which a bulk mark
+      // looks up a manual close, plus the upsert/deleteMany that close and
       // reopen a créneau (see presenceService). `upsert` keys on the unique
       // (eventId, day, slot), so its campus check runs pre-query on the create
       // payload's eventId, the same shape as EventPresence above.
@@ -332,6 +337,15 @@ export function scopedPrisma(campusId: string) {
             ...args.where,
             event: { ...((args.where as any)?.event ?? {}), campusId },
           };
+          return query(args);
+        },
+        async findUnique({ args, query }) {
+          const existing = await prisma.eventPresenceClosure.findUnique({
+            where: args.where as any,
+            select: { event: { select: { campusId: true } } },
+          });
+          if (existing && existing.event.campusId !== campusId)
+            accessDenied('EventPresenceClosure');
           return query(args);
         },
         async upsert({ args, query }) {
