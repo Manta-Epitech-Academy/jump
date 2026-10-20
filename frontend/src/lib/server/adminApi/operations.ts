@@ -1437,7 +1437,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_sync_cadence: defineWrite({
-    description: `Set how often one synchronisation pass runs, in minutes. The incremental pass keeps data fresh; the full pass is the only one that detects a member removed in Salesforce, so spacing it out means deletions arrive later. Safe to repeat: writing the same value twice leaves the same row. Takes effect at ${NEXT_WORKER_WAKE_UP}, with nothing to redeploy.`,
+    description: `How often one synchronisation pass runs, in minutes. The incremental pass keeps data fresh; the full pass is the only one that detects a member removed in Salesforce, so spacing it out delays deletions. For one pass now, use ops_request_sync: a lowered cadence stays until someone raises it. Safe to repeat: the same value twice is the same row. Takes effect at ${NEXT_WORKER_WAKE_UP}.`,
     shape: {
       mode: z
         .enum(['full', 'incremental'])
