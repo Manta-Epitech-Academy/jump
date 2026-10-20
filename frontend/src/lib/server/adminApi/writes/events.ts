@@ -320,7 +320,7 @@ export async function writeEventTemplate(params: {
     (templates) => templates.find((t) => t.name === params.name) ?? null,
   );
 
-  const { id, updated } = await EventConfigTemplateService.saveTemplate({
+  const { template, updated } = await EventConfigTemplateService.saveTemplate({
     name: params.name,
     description: params.description ?? '',
     publicName: event.publicName,
@@ -337,8 +337,5 @@ export async function writeEventTemplate(params: {
     actorId: null,
   });
 
-  const after = (await EventConfigTemplateService.list()).find(
-    (t) => t.id === id,
-  );
-  return { applied: true, before, after: { ...after, replaced: updated } };
+  return { applied: true, before, after: { ...template, replaced: updated } };
 }

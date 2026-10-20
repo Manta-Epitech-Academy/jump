@@ -226,15 +226,12 @@ export const actions: Actions = {
       });
     }
     try {
-      const { id, updated } = await EventConfigTemplateService.saveTemplate({
-        ...parsed.data,
-        actorId: locals.staffProfile?.id ?? null,
-      });
-      return {
-        templateId: id,
-        templateName: parsed.data.name,
-        templateUpdated: updated,
-      };
+      const { template, updated } =
+        await EventConfigTemplateService.saveTemplate({
+          ...parsed.data,
+          actorId: locals.staffProfile?.id ?? null,
+        });
+      return { template, templateUpdated: updated };
     } catch (err) {
       if (isHttpError(err)) {
         return fail(err.status, { templateError: String(err.body.message) });

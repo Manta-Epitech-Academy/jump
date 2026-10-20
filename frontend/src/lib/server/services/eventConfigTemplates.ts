@@ -151,9 +151,11 @@ export const EventConfigTemplateService = {
   },
 
   /**
-   * Snapshot the current wizard config as a template. UPSERT by name: a new name
-   * creates one, an existing name replaces that template's config in place (its
-   * id stays), so re-saving under the same name is how staff edit a template.
+   * Snapshot a config as a template. UPSERT by name: a new name creates one, an
+   * existing name replaces that template's config in place (its id stays), so
+   * re-saving under the same name is how staff edit a template. Answers with the
+   * template as stored, so a caller lists what the server kept rather than
+   * rebuilding it from what it sent.
    */
   async saveTemplate(input: {
     name: string;
@@ -168,7 +170,7 @@ export const EventConfigTemplateService = {
     closingTemplateId: string;
     shownStatuses: string[];
     actorId: string | null;
-  }): Promise<{ id: string; updated: boolean }> {
+  }): Promise<{ template: EventConfigTemplateSummary; updated: boolean }> {
     const name = input.name.trim();
     if (!name) throw error(400, 'Nom de modèle requis.');
     const moduleRows = moduleCreateRows(input.modules, input.moduleSettings);
@@ -203,7 +205,7 @@ export const EventConfigTemplateService = {
 
     if (existing) {
       // Replace the config wholesale (drop old child rows, recreate) in one tx.
-      await prisma.$transaction([
+      const [, , row] = await prisma.$transaction([
         prisma.eventConfig_TemplateModule.deleteMany({
           where: { templateId: existing.id },
         }),
@@ -223,9 +225,10 @@ export const EventConfigTemplateService = {
             modules: { create: moduleRows },
             shownStatuses: { create: shownRows },
           },
+          include: TEMPLATE_INCLUDE,
         }),
       ]);
-      return { id: existing.id, updated: true };
+      return { template: toSummary(row), updated: true };
     }
 
     const created = await prisma.eventConfig_Template.create({
@@ -242,9 +245,9 @@ export const EventConfigTemplateService = {
         modules: { create: moduleRows },
         shownStatuses: { create: shownRows },
       },
-      select: { id: true },
+      include: TEMPLATE_INCLUDE,
     });
-    return { id: created.id, updated: false };
+    return { template: toSummary(created), updated: false };
   },
 
   /** Delete a template. Events keep their own config (a template is never a live link). */

@@ -450,17 +450,11 @@
     JSON.stringify({
       modules: $form.modules,
       moduleSettings: $form.moduleSettings,
-      // Only carry the feedback form when bilan is actually on: a form id with no
-      // bilan module resolves to nothing, so snapshotting it would store dead data.
-      feedbackFormId: moduleActive('bilan') ? $form.feedbackFormId : '',
-      // Same gate, for the same reason: the export lives on the Inscrits page, so
-      // a certificate without that section would be dead data in the preset.
-      closingTemplateId: moduleActive('closings')
-        ? $form.closingTemplateId
-        : '',
-      diplomaTemplateId: moduleActive('inscrits')
-        ? $form.diplomaTemplateId
-        : '',
+      // Sent as they stand: the server keeps a form, grid or certificate only
+      // for the section that uses it, whichever door the preset is saved from.
+      feedbackFormId: $form.feedbackFormId,
+      closingTemplateId: $form.closingTemplateId,
+      diplomaTemplateId: $form.diplomaTemplateId,
       publicName: $form.publicName,
       cohortNoun: $form.cohortNoun,
       startTime: $form.startTime,
@@ -1233,8 +1227,8 @@
 
 <!-- Save-as-template sub-dialog (separate so its form isn't nested in the config
      form). Snapshots the current modules + sub-options + default feedback form;
-     an existing name updates that template. No page invalidation - the list is
-     updated optimistically so the in-progress config is never reset. -->
+     an existing name updates that template. No page invalidation - the list takes
+     the template the server stored, so the in-progress config is never reset. -->
 <Dialog.Root bind:open={saveTemplateOpen}>
   <Dialog.Content class="sm:max-w-md">
     <Dialog.Header>
@@ -1255,41 +1249,16 @@
         return async ({ result }) => {
           savingTemplate = false;
           if (result.type === 'success') {
-            const id = result.data?.templateId as string;
+            // The template as the server stored it: an update keeps its id.
+            const saved = result.data?.template as TemplateVM;
             const updated = result.data?.templateUpdated === true;
-            const vm: TemplateVM = {
-              id,
-              name: templateName.trim(),
-              description: templateDescription.trim() || null,
-              publicName: $form.publicName.trim() || null,
-              cohortNoun: $form.cohortNoun.trim() || null,
-              startTime: $form.startTime || null,
-              // Mirror the snapshot's bilan gate, so the optimistic row matches
-              // what the server actually stored.
-              feedbackFormId: moduleActive('bilan')
-                ? $form.feedbackFormId || null
-                : null,
-              closingTemplateId: moduleActive('closings')
-                ? $form.closingTemplateId
-                : '',
-              diplomaTemplateId: moduleActive('inscrits')
-                ? $form.diplomaTemplateId || null
-                : null,
-              modules: [...$form.modules] as EventModuleKey[],
-              moduleSettings: { ...$form.moduleSettings },
-              shownStatuses: [...$form.shownStatuses],
-            };
-            const idx = workingTemplates.findIndex(
-              (t) => t.id === id || t.name === vm.name,
-            );
-            workingTemplates =
-              idx >= 0
-                ? workingTemplates.map((t, i) => (i === idx ? vm : t))
-                : [...workingTemplates, vm];
+            workingTemplates = workingTemplates.some((t) => t.id === saved.id)
+              ? workingTemplates.map((t) => (t.id === saved.id ? saved : t))
+              : [...workingTemplates, saved];
             toast.success(
               updated
-                ? `Modèle « ${vm.name} » mis à jour.`
-                : `Modèle « ${vm.name} » enregistré.`,
+                ? `Modèle « ${saved.name} » mis à jour.`
+                : `Modèle « ${saved.name} » enregistré.`,
             );
             saveTemplateOpen = false;
           } else if (result.type === 'failure') {
