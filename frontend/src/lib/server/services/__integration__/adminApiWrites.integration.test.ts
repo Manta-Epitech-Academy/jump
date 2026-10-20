@@ -580,15 +580,15 @@ describe('admin API writes (integration)', () => {
     const { status, payload } = await call(postConfig, writeSecret, {
       eventId: event.id,
       workshops: [
-        { slug: snake.slug, durationMinutes: 90 },
-        { slug: pacman.slug, durationMinutes: 60, labelOverride: 'Pacman' },
+        { slug: snake.slug },
+        { slug: pacman.slug, labelOverride: 'Pacman' },
       ],
     });
     expect(status).toBe(200);
     expect(payload.after).toMatchObject({
       workshops: [
-        { slug: snake.slug, durationMinutes: 90, labelOverride: null },
-        { slug: pacman.slug, durationMinutes: 60, labelOverride: 'Pacman' },
+        { slug: snake.slug, labelOverride: null },
+        { slug: pacman.slug, labelOverride: 'Pacman' },
       ],
     });
 
@@ -602,7 +602,7 @@ describe('admin API writes (integration)', () => {
 
     const unknown = await call(postConfig, writeSecret, {
       eventId: event.id,
-      workshops: [{ slug: `nowhere-${stamp}`, durationMinutes: 30 }],
+      workshops: [{ slug: `nowhere-${stamp}` }],
     });
     expect(unknown.status).toBe(400);
     expect(String(unknown.payload.error)).toContain('config_workshops');
@@ -738,8 +738,8 @@ describe('admin API writes (integration)', () => {
       diplomaTemplateId: certificate.id,
       closingTemplateId: grid.id,
       workshops: [
-        { slug: snake.slug, durationMinutes: 90, labelOverride: null },
-        { slug: pacman.slug, durationMinutes: 60, labelOverride: 'Pacman' },
+        { slug: snake.slug, labelOverride: null },
+        { slug: pacman.slug, labelOverride: 'Pacman' },
       ],
     };
     expect(Object.keys(written).sort()).toEqual([...writable].sort());

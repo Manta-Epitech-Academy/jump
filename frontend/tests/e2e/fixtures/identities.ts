@@ -28,8 +28,6 @@ export const E2E = {
   workshopActivityId: 'e2e-workshop-activity',
   workshopSlug: 'e2e-atelier',
   workshopLabel: 'Atelier E2E',
-  /** What it is worth on that event: a round number, so the XP is one too. */
-  workshopDurationMinutes: 60,
   /** What the campus puts on its talents' home: its note and its highlight. */
   homeNoteLink: 'https://discord.invalid/e2e',
   homeHighlightTitle: 'Recode le jeu Snake en JS',

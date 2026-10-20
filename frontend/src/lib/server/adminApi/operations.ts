@@ -151,7 +151,6 @@ import {
   getTalentHomeContent,
 } from '$lib/server/services/adminStats/configuration';
 import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
-import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
 import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
 import { writeDiplomaTemplate } from './writes/diplomas';
 import { writeWorkshop, writeWorkshopInstance } from './writes/workshops';
@@ -681,7 +680,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_workshops: defineOperation({
     description:
-      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover). An instance is a host: its slug, its address and the activities declared on it, retired ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take.',
+      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover). An instance is a host: its slug, its address and the activities declared on it, retired ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP: exactly the points CTFd pays for the steps a talent validated. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take.',
     shape: {},
     run: () => getWorkshops(),
   }),
@@ -876,13 +875,6 @@ export const ADMIN_API_OPERATIONS = {
         .array(
           z.strictObject({
             slug: z.string().min(1).describe(handleDescribe('workshopSlug')),
-            durationMinutes: z
-              .number()
-              .int()
-              .positive()
-              .describe(
-                `How long the activity runs at this event, in minutes. It is the scale: finishing it whole is worth durationMinutes x ${WORKSHOP_XP_PER_MINUTE} XP. Changing it changes nobody retroactively, since a talent's scale is pinned when they first enter.`,
-              ),
             labelOverride: z
               .string()
               .nullable()

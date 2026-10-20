@@ -320,7 +320,6 @@ async function applyModuleDiff(
 /** One online activity an event offers, already resolved to its row. */
 export type EventWorkshopLink = {
   activityId: string;
-  durationMinutes: number;
   labelOverride: string | null;
 };
 
@@ -330,8 +329,8 @@ export type EventWorkshopLink = {
  *
  * Replaced whole: removing a link takes the activity off that event's dashboards
  * and nothing else, because a talent's participation holds its own snapshot of
- * the event, the campus and the minute budget and is not bound to this row. XP
- * already granted stay granted.
+ * the event and the campus and is not bound to this row. XP already granted
+ * stay granted.
  */
 async function replaceEventWorkshops(
   tx: Prisma.TransactionClient,
@@ -348,7 +347,6 @@ async function replaceEventWorkshops(
 /** One online activity an event offers, as `write_event_config` takes it. */
 export type EventWorkshopState = {
   slug: string;
-  durationMinutes: number;
   labelOverride: string | null;
 };
 
@@ -366,14 +364,12 @@ export async function eventWorkshopsOf(
     where: { eventId },
     orderBy: { position: 'asc' },
     select: {
-      durationMinutes: true,
       labelOverride: true,
       activity: { select: { slug: true } },
     },
   });
   return links.map((link) => ({
     slug: link.activity.slug,
-    durationMinutes: link.durationMinutes,
     labelOverride: link.labelOverride,
   }));
 }

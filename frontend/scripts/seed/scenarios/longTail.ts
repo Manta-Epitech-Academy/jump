@@ -40,10 +40,7 @@ import {
 import type { Scenario } from './types';
 
 const SANTA = WORKSHOPS.find((w) => w.slug === 'santa-shooter')!;
-const TODAY_ACTIVITY = {
-  slug: SANTA.slug,
-  durationMinutes: SANTA.durationMinutes,
-};
+const TODAY_ACTIVITY = { slug: SANTA.slug };
 
 export const longTail: Scenario = {
   name: 'longue-traine',
