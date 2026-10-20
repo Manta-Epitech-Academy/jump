@@ -127,10 +127,9 @@ export async function lastOkRun(mode: SyncMode): Promise<SyncRunMark | null> {
   const run = await prisma.sync_Run.findFirst({
     where: { mode, status: 'ok', finishedAt: { not: null } },
     orderBy: { finishedAt: 'desc' },
-    select: { startedAt: true, finishedAt: true },
+    select: { startedAt: true },
   });
-  if (!run?.finishedAt) return null;
-  return { startedAt: run.startedAt, finishedAt: run.finishedAt };
+  return run ? { startedAt: run.startedAt } : null;
 }
 
 export type SyncRunRow = {

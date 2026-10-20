@@ -88,11 +88,17 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   it pending, as it leaves the watermark; and a full pass covers an incremental
   request, never the reverse. That is why it is a date and not a flag: a flag
   needs clearing, and the clearing is where it would get lost.
-- **Dueness reads `finishedAt`, the incremental window reads `startedAt`.** They
-  are deliberately two dates. A record modified WHILE a run was executing carries
-  a modstamp that run's `finishedAt` has already passed, so resuming from
-  `finishedAt` drops it silently. `domain/syncSchedule.ts` owns both, plus the
-  margin that absorbs the clock skew between Jump and Salesforce.
+- **Dueness and the incremental window both read `startedAt`, never `finishedAt`.**
+  A record modified WHILE a run was executing carries a modstamp that run's
+  `finishedAt` has already passed, so resuming from `finishedAt` drops it
+  silently. And a cadence of N minutes is a pass starting every N minutes: on
+  2026-10-19 dueness counted from `finishedAt` with a strict comparison, and on
+  the fixed 15 min tick the elapsed time was always a few seconds short, so a 15
+  min cadence ran every 30 and a 3 h one every 3h15 (#419). Starting from
+  `startedAt` alone still falls a hair short, since a run is stamped after the
+  tick that decided it, hence a small wake-up slack. `domain/syncSchedule.ts`
+  owns both dates, that slack, and the margin that absorbs the clock skew
+  between Jump and Salesforce.
 - **`mode` is always a real mode, and `since` is always a key.** The worker
   validates `mode` BEFORE it looks at `shouldSync`, so a heartbeat answer with an
   empty one makes the run throw instead of exiting quietly; and it rejects a
