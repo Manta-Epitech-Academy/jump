@@ -90,8 +90,9 @@ export function workshopCoverUrl(key: string): string {
  * offering: the event running today when there is one (that is the one the
  * day's hero is about), otherwise the most recent that has started, and only
  * failing both a future one the talent is already walking it through. The chosen
- * enrolment is what a first entry pins its event and campus on, so two events of the same day and phase are told apart by id rather than left
- * to whatever order the rows arrived in.
+ * enrolment is what a first entry pins its event and campus on, so two events of
+ * the same day and phase are told apart by id rather than left to whatever
+ * order the rows arrived in.
  *
  * Ordered newest event first, then by the event's own order, which is the order
  * a talent reads them in. Two events of the same day are kept apart, by id, so

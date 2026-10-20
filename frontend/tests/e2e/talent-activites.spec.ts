@@ -2,9 +2,10 @@
  * The beat the whole feature is built around, and the only place it can be
  * asserted: the talent is on another tab while the XP arrive.
  *
- * Everything else about the activities is covered without a browser. The scale
- * is a pure function, the ticket has its own round trip, and the callback has an
- * integration suite that drives the route. What none of them can see is that the
+ * Everything else about the activities is covered without a browser: the ticket
+ * has its own round trip, and the callback, which grants the points CTFd
+ * reports, has an integration suite that drives the route. What none of them can
+ * see is that the
  * page ALREADY MOUNTED when the reward appears: the talent walks the activity in
  * a second tab, comes back, the dashboard revalidates, and only then does `data`
  * carry something to celebrate. A celebration wired to mount does nothing there,

@@ -43,9 +43,9 @@
  *
  * Amount: by default the talent's own score, one XP per point as an online
  * activity pays, so the reward's `XpReward.xpAmount` is left null and the
- * per-talent amount lives on the grant. With `--amount=<n>` every matched talent gets the same flat XP (no score
- * column needed, e.g. an attendance-based reward) and that shared amount is stored
- * on `XpReward.xpAmount` instead. With `--max-score=<n> --xp-cap=<n>` the raw score
+ * per-talent amount lives on the grant. With `--amount=<n>` every matched talent
+ * gets the same flat XP (no score column needed, e.g. an attendance-based
+ * reward) and that shared amount is stored on `XpReward.xpAmount` instead. With `--max-score=<n> --xp-cap=<n>` the raw score
  * is rescaled onto the XP cap (XP = round(score * xpCap / maxScore)), so a CTF
  * graded on its own point base (e.g. 9999) maps onto a fixed XP budget (e.g. 1800);
  * the per-talent scaled amount still lives on each grant.

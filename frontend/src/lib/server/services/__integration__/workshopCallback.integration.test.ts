@@ -17,9 +17,10 @@ import { assertTestDatabase } from './testDatabase';
  *
  * What is under test is the whole path: the signature over the bytes on the
  * wire, the freshness window, the shape check, and the single grant the service
- * sets to the points CTFd reports. Calling `applyWorkshopProgress` directly would have skipped the
- * half that decides whether a request is allowed to write anything at all, which
- * is the half an unauthenticated public endpoint is judged on.
+ * sets to the points CTFd reports. Calling `applyWorkshopProgress` directly
+ * would have skipped the half that decides whether a request is allowed to write
+ * anything at all, which is the half an unauthenticated public endpoint is
+ * judged on.
  */
 describe('the workshop progress callback (integration)', () => {
   const stamp = Date.now();

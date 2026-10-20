@@ -231,8 +231,9 @@ export async function resolveWorkshopEntry(
  *
  * The event and the campus are pinned on CREATION ONLY, so the talent's XP stay
  * attributed to where they started. They are taken off the enrolment that just
- * authorised the entry, which is exact: re-resolving the "closest" event here, the way the minigame path has
- * to, would replace a precise value with a heuristic.
+ * authorised the entry, which is exact: re-resolving the "closest" event here,
+ * the way the minigame path has to, would replace a precise value with a
+ * heuristic.
  *
  * The session is read off the PINNED event, never off `entry.eventId`: a talent
  * who comes back to an activity through a later event resolves to that later
