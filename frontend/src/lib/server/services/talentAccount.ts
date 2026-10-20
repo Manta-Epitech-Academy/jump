@@ -147,6 +147,21 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
 }
 
 /**
+ * A reset to import asked for a talent the RGPD erasure has already
+ * anonymised. There is no import to return to (the erasure deleted the
+ * Salesforce mirror), and resetting would re-create a schooling row and wipe
+ * what the erasure deliberately kept.
+ */
+export class TalentAlreadyErased extends Error {
+  constructor() {
+    super(
+      'Ce talent a été anonymisé (RGPD) : il ne peut plus être réinitialisé.',
+    );
+    this.name = 'TalentAlreadyErased';
+  }
+}
+
+/**
  * Factory reset: bring a talent all the way back to the state the Salesforce
  * worker leaves them in on first import, and nothing more. The admin affordance
  * for cleaning up after testing the talent experience in prod (impersonate →
@@ -183,6 +198,9 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  * erasure but deliberately keeps the XP/stats and the account; this keeps the
  * identity and deliberately destroys the stats.
  *
+ * Refuses a talent the erasure has anonymised ({@link TalentAlreadyErased}),
+ * before writing anything.
+ *
  * S3 deletes run after the transaction commits (an external call inside the tx
  * would risk the interactive-tx timeout rolling back the DB reset), mirroring
  * `anonymizeTalent` → {@link deleteDocumentObjects}.
@@ -195,6 +213,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         nom: true,
         prenom: true,
         userId: true,
+        anonymizedAt: true,
         parentEmail: true,
         parent2Email: true,
         // Every key the onboarding PDFs may sit under: step 1 deletes the
@@ -223,6 +242,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
       },
     });
     if (!talent) return [];
+    if (talent.anonymizedAt) throw new TalentAlreadyErased();
 
     const sf = talent.sfImport;
 

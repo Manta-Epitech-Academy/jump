@@ -2,7 +2,10 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { prisma } from '$lib/server/db';
-import { resetTalentToImport } from '$lib/server/services/talentAccount';
+import {
+  resetTalentToImport,
+  TalentAlreadyErased,
+} from '$lib/server/services/talentAccount';
 import { changeParentEmail } from '$lib/server/services/parentAccount';
 import { parentCompleteWhere } from '$lib/server/db/dossierCompliance';
 import { recordUsage } from '$lib/server/usage/record';
@@ -119,6 +122,9 @@ export const actions: Actions = {
     try {
       await resetTalentToImport(talentId);
     } catch (err) {
+      if (err instanceof TalentAlreadyErased) {
+        return fail(409, { message: err.message });
+      }
       console.error('[resetToImport] failed', err);
       return fail(500, { message: 'Échec de la réinitialisation complète.' });
     }

@@ -2,7 +2,10 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { anonymizeTalent } from '$lib/server/services/anonymizationService';
-import { resetTalentToImport } from '$lib/server/services/talentAccount';
+import {
+  resetTalentToImport,
+  TalentAlreadyErased,
+} from '$lib/server/services/talentAccount';
 import { loadDatamodel } from '../../../../../scripts/seed/schema';
 import { assertTestDatabase } from './testDatabase';
 
@@ -1151,6 +1154,20 @@ describe('what erasure and reset do to every talent table (integration)', () => 
 
     it('deletes every onboarding PDF once the reset has committed', () => {
       expect([...deletedObjects].sort()).toEqual(reset.seeded.documentKeys);
+    });
+
+    // An erased talent has no import to return to (the erasure deleted the
+    // mirror), and a reset would re-create a schooling row and wipe what the
+    // erasure kept, so it is refused before anything is written.
+    it('refuses an erased talent and changes nothing', async () => {
+      const { talentId } = erasure.seeded;
+      await expect(resetTalentToImport(talentId)).rejects.toBeInstanceOf(
+        TalentAlreadyErased,
+      );
+      expect(await rowsOf(erasure.seeded)).toEqual(erasure.after);
+      expect(
+        await prisma.talent.findUniqueOrThrow({ where: { id: talentId } }),
+      ).toEqual(erasure.talentAfter);
     });
   });
 });
