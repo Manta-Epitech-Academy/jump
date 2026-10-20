@@ -2,7 +2,10 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { prisma } from '$lib/server/db';
-import { resetTalentToImport } from '$lib/server/services/talentAccount';
+import {
+  resetTalentToImport,
+  TalentAlreadyErased,
+} from '$lib/server/services/talentAccount';
 import { changeParentEmail } from '$lib/server/services/parentAccount';
 import { parentCompleteWhere } from '$lib/server/db/dossierCompliance';
 import { recordUsage } from '$lib/server/usage/record';
@@ -105,9 +108,10 @@ export const actions: Actions = {
   // the users page drive one mechanism instead of two.
 
   // Factory reset: wipe everything a talent accrued after the Salesforce worker
-  // import (XP, minigames, files, onboarding, parents, login account, event
+  // import (XP, minigames, files, onboarding, parents, the login history, event
   // verdicts) so they're left exactly as the worker leaves a fresh import. The
   // heavy cleanup affordance for after testing the talent experience in prod.
+  // An erased talent is refused (`TalentAlreadyErased`).
   resetToImport: async ({ request, locals }) => {
     recordUsage(USAGE_FEATURES.ADMIN_TALENT_RESET_TO_IMPORT, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
@@ -119,6 +123,9 @@ export const actions: Actions = {
     try {
       await resetTalentToImport(talentId);
     } catch (err) {
+      if (err instanceof TalentAlreadyErased) {
+        return fail(409, { message: err.message });
+      }
       console.error('[resetToImport] failed', err);
       return fail(500, { message: 'Échec de la réinitialisation complète.' });
     }

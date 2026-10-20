@@ -254,7 +254,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     // 2.5 Stamp the talent's activity projections (fire-and-forget). Two durable
     // facts derived from this real request:
-    //   - `firstLoginAt`: set once, on the first real request, never cleared.
+    //   - `firstLoginAt`: set once, on the first real request, and cleared only
+    //     by a reset to import.
     //     It is the durable source for "première connexion" / the cohort funnel's
     //     "connected" gate, replacing a probe of bauth_session (whose rows are
     //     deleted by logout, identity repair and account relinks, so a real

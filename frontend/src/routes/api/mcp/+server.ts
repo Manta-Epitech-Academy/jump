@@ -22,7 +22,7 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { Hono } from 'hono';
 import { StreamableHTTPTransport } from '@hono/mcp';
-import { authenticateAdminApi } from '$lib/server/adminApi/guard';
+import { authenticateOrRefuse } from '$lib/server/adminApi/guard';
 import {
   recordAdminApiCall,
   TRANSPORT_OPERATIONS,
@@ -68,21 +68,15 @@ async function readJson(request: Request): Promise<unknown> {
 }
 
 const handle: RequestHandler = async (event) => {
-  const auth = await authenticateAdminApi(event);
-  if (!auth.ok) {
-    await recordAdminApiCall({
-      caller: auth.caller,
-      operation: TRANSPORT_OPERATIONS.mcp,
-      status: auth.status,
-    });
-    return json({ error: auth.message }, { status: auth.status });
-  }
-
   // The credential, not just the caller: it decides which tools get registered
   // (tier, write capability), and every tool call re-derives from it what that
   // one operation needs. Revocation is settled here rather than there: the
   // transport is stateless, so authentication runs once per HTTP request.
-  const credential = { caller: auth.caller, writeEnabled: auth.writeEnabled };
+  const credential = await authenticateOrRefuse(
+    event,
+    TRANSPORT_OPERATIONS.mcp,
+  );
+  if (credential instanceof Response) return credential;
 
   // Two bounds on what this endpoint takes, both audited like any other call:
   // how big an envelope may be, settled off the declared length before a byte is
@@ -90,7 +84,7 @@ const handle: RequestHandler = async (event) => {
   // before the protocol layer is built.
   if (declaredBytes(event.request) > MAX_ENVELOPE_BYTES) {
     await recordAdminApiCall({
-      caller: auth.caller,
+      caller: credential.caller,
       operation: TRANSPORT_OPERATIONS.mcp,
       status: 413,
     });
@@ -111,7 +105,7 @@ const handle: RequestHandler = async (event) => {
   const refusal = envelopeRefusal(body);
   if (refusal) {
     await recordAdminApiCall({
-      caller: auth.caller,
+      caller: credential.caller,
       operation: TRANSPORT_OPERATIONS.mcp,
       status: refusal.status,
     });

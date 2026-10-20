@@ -6,18 +6,20 @@ import {
 } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { niveauLabel } from '$lib/domain/niveau';
 import { buildXlsx } from '$lib/server/xlsx';
 import {
   presenceSlots,
-  slotKey,
   slotLabelLong,
   statusLabelFr,
   effectiveStatus,
   dbDateToKey,
-  type CellStatus,
+  indexPresences,
+  cellOf,
 } from '$lib/domain/eventPresence';
-import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
+import { isSlotClosed } from '$lib/server/presence/slotClosure';
 import { PRESENCE_EXPORT_SELECT } from '../components/types';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
@@ -33,7 +35,11 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   requireStaffGroup(locals, 'devMember');
   const campusId = getCampusId(locals);
   const timezone = getCampusTimezone(locals);
-  const event = await loadEventOr404(params.id, campusId);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.EMARGEMENT,
+  );
   const db = scopedPrisma(campusId);
 
   const slots = presenceSlots(event, timezone);
@@ -41,7 +47,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   const now = new Date();
   const [participations, presenceRows, closureRows] = await Promise.all([
     db.participation.findMany({
-      where: { eventId: event.id },
+      where: { eventId: event.id, ...visibleParticipationWhere },
       select: PRESENCE_EXPORT_SELECT,
       orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
     }),
@@ -52,6 +58,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         day: true,
         slot: true,
         status: true,
+        source: true,
       },
     }),
     db.eventPresenceClosure.findMany({
@@ -60,25 +67,15 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     }),
   ]);
 
-  // Index stored statuses by talentId|day|slot for O(1) cell lookup.
-  const stored = new Map<string, CellStatus>();
-  for (const r of presenceRows) {
-    stored.set(`${r.talentId}|${dbDateToKey(r.day)}|${r.slot}`, r.status);
-  }
-
-  // A créneau is closed by a manual early-close OR once its 11h/15h cutoff has
-  // passed; an unmarked talent in a closed créneau exports as absent (the same
-  // projection the screen shows), never a stored row.
-  const manualClosed = new Set(
-    closureRows.map((c) => slotKey(dbDateToKey(c.day), c.slot)),
+  const index = indexPresences(
+    presenceRows.map((r) => ({ ...r, day: dbDateToKey(r.day) })),
   );
+
+  // An unmarked talent in a closed créneau exports as absent (the same
+  // projection the screen shows), never a stored row.
   const closed = new Set(
     slots
-      .filter(
-        (s) =>
-          manualClosed.has(s.key) ||
-          isSlotPastCutoff(s.day, s.slot, timezone, now),
-      )
+      .filter((s) => isSlotClosed(s.day, s.slot, closureRows, timezone, now))
       .map((s) => s.key),
   );
 
@@ -94,7 +91,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     const slotCells = slots.map((s) =>
       statusLabelFr(
         effectiveStatus(
-          stored.get(`${p.talentId}|${s.day}|${s.slot}`) ?? 'pending',
+          cellOf(index, p.talentId, s.day, s.slot).status,
           closed.has(s.key),
         ),
       ),

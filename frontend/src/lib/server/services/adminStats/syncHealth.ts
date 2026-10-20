@@ -23,6 +23,7 @@
 import { prisma } from '$lib/server/db';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import { memberStatusCatalogue } from '$lib/server/services/devSpaceVisibility';
+import { isServedToWorker } from '$lib/server/services/syncConfigService';
 import {
   openRunSnapshot,
   recentRuns,
@@ -444,7 +445,7 @@ export async function getSyncSources() {
     campus: r.campus.name,
     label: r.label,
     enabled: r.enabled,
-    servedToWorker: r.enabled && r.campus.externalName !== null,
+    servedToWorker: isServedToWorker(r),
   }));
 
   return {

@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { getFormGraphById } from '$lib/server/feedbackForms';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 
 /**
  * Aggregation for the feedback dashboards (dev "Bilan" page + admin views).
@@ -47,10 +48,11 @@ export interface FormStats {
 }
 
 /**
- * Restricts aggregation. `eventId` scopes to one event (the dev page); `eventIds`
- * scopes to a set of events; `noEvent` scopes to the submissions tied to no event
- * (public responses, whose `eventId` is null) - these are mutually exclusive ways
- * to pick the event axis. `campusName` scopes to one campus across BOTH channels:
+ * Restricts aggregation. `eventId` scopes to one event; `eventIds` scopes to a
+ * set of events; `noEvent` scopes to the submissions tied to no event (public
+ * responses, whose `eventId` is null); `shownCohortOf` scopes to one event's
+ * cohort as the dev space shows it - these are mutually exclusive ways to pick
+ * the event axis. `campusName` scopes to one campus across BOTH channels:
  * authenticated submissions through their event's campus, and public submissions
  * through their self-reported campus label. With no scope, every submission of
  * the form counts (authenticated + public, every event).
@@ -60,6 +62,14 @@ export interface StatsScope {
   eventIds?: string[];
   /** Only submissions with no event (the public, hors-événement bucket). */
   noEvent?: boolean;
+  /**
+   * An event id: only the submissions to that event of talents whose enrolment
+   * there the dev space shows. The dev Bilan's axis, so its figures and its
+   * export count the cohort its roster lists, as every dev surface does
+   * (`visibleParticipationWhere`). `eventId` alone also counts the answers of a
+   * talent masked since, which is what the admin, who sees every enrolment, reads.
+   */
+  shownCohortOf?: string;
   campusName?: string;
 }
 
@@ -87,6 +97,19 @@ export function buildSubmissionWhere(
     ...(scope.eventId ? { eventId: scope.eventId } : {}),
     ...(scope.eventIds ? { eventId: { in: scope.eventIds } } : {}),
     ...(scope.noEvent ? { eventId: null } : {}),
+    ...(scope.shownCohortOf
+      ? {
+          eventId: scope.shownCohortOf,
+          talent: {
+            participations: {
+              some: {
+                eventId: scope.shownCohortOf,
+                ...visibleParticipationWhere,
+              },
+            },
+          },
+        }
+      : {}),
     ...(scope.campusName
       ? {
           OR: [

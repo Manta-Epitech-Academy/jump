@@ -5,10 +5,7 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import {
-  loadEventOr404,
-  requireEventModule,
-} from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { resolveEventClosingIdentity } from '$lib/server/closingTemplates';
@@ -24,8 +21,11 @@ const TOP_STAFF = 5;
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.CLOSINGS);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.CLOSINGS,
+  );
 
   // The module is only half the gate: without a grid there is nothing to ask, so
   // every "Mener le closing" link on this page would land on a 404. The nav entry

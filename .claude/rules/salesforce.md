@@ -109,7 +109,9 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   generator writes none, so a generated database answers an empty list on any
   machine. It is a property of the data, not a flag somebody re-enables by
   forgetting. `seed.md` states the same rule from the other side,
-  and `assert/inertness.ts` refuses a seeded `Sync_Source` outright.
+  and `assert/inertness.ts` refuses a seeded `Sync_Source` outright. The rule is
+  written once, as `servedSourceWhere` in `syncConfigService.ts`, with
+  `isServedToWorker` its row form for the admin answers that report it.
 - **Nothing here touches `Event.devActivatedAt`.** A new campaign under a
   whitelisted parent is discovered automatically, which is the point; publishing
   it to the dev workspace stays an admin's decision. Automatic discovery is not
@@ -164,5 +166,5 @@ Talent profile fields have two sources: the worker sync (Salesforce) and onboard
 - **`Talent` = Jump's current truth.** Onboarding writes it directly (**optimistic**: the student's input shows on their dashboard immediately; staff arbitrate divergences afterward, there is no pending-validation gate).
 - **`TalentSfImport` = 1:1 typed mirror of Salesforce's last claim**: the anti-corruption boundary. Written _only_ by `syncService.syncTalents`, never by onboarding, and upserted only when the inbound payload differs.
 - **`School` = canonical UAI-keyed directory**, resolved lazily from the éducation-nationale annuaire (`server/annuaire.ts` + `schoolService.resolveSchoolByUai`). Only schools actually attended ever land here, never the ~69k national set. It replaced the old free-text `highSchoolName/City/Uai` columns: `Talent` now carries a `schoolId` FK (+ `highSchoolNameManual`, used _only_ when a lycée has no UAI). The student's school and SF's claimed school (`TalentSfImport.sfSchoolId`) both FK the same `School`.
-- **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.)
+- **No-clobber rule:** before a field is talent-confirmed (its `*ValidatedAt` is set), sync re-seeds it on `Talent`; after, sync writes **only the mirror**. Never let SF overwrite a confirmed value. (This fixed a real bug where every sync overwrote the talent's confirmed phone/name.) `sfNoClobber.integration.test.ts` runs the sync and the conflict list over the same talents, so the two cannot read the rule differently.
 - **Conflict** = field is talent-confirmed **AND** `Talent` ≠ `TalentSfImport` (school compared by FK). Computed in `reconciliationService`, never stored. Surfaced at `/staff/admin/sf-conflicts` (list + accept/reject + CSV export); `acceptJump` realigns the mirror optimistically. `niveau` is SF-owned (onboarding never sets it) → always synced, never a conflict.

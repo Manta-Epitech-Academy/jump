@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
 import {
   PRESENCE_SLOTS,
   isPresenceSlot,
@@ -22,7 +23,8 @@ function parseSlot(raw: string | null): PresenceSlot {
  * Validate a (day, slot) against an event and mint the QR check-in link for it.
  * Shared by the live QR endpoint and the printable-PDF endpoint so both encode
  * exactly the same signed slot. The token's `exp` is a stale-link backstop a
- * couple of days past the target day (the real gate is the closure row).
+ * couple of days past the target day (the real gate is `isSlotClosed`, applied
+ * when the code is scanned).
  */
 export async function resolveSlotCheckinLink(opts: {
   eventId: string;
@@ -41,7 +43,11 @@ export async function resolveSlotCheckinLink(opts: {
   if (!opts.day || !DAY_KEY_RE.test(opts.day)) {
     throw error(400, 'Jour invalide.');
   }
-  const event = await loadEventOr404(opts.eventId, opts.campusId);
+  const event = await loadEventOr404(
+    opts.eventId,
+    opts.campusId,
+    EVENT_MODULES.EMARGEMENT,
+  );
   if (!isPresenceSlot(event, opts.timezone, opts.day, slot)) {
     throw error(400, "Ce créneau n'appartient pas à l'événement.");
   }

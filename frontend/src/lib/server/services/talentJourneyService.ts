@@ -98,7 +98,8 @@ export async function getTalentJourney(
 
   // The event's Inscrits list, when the reader can actually open it: same campus
   // (`loadEventOr404`), a member of the dev workspace (`isDevVisibleEvent`), and
-  // the module that gates the page (`requireEventModule`).
+  // the module that gates the page (the surface that page asks `loadEventOr404`
+  // for).
   // Withholding the link rather than pointing at another surface is deliberate -
   // an event with no Inscrits list has nothing this page was sending them to
   // read, and "the first surface it happens to expose" is a different question

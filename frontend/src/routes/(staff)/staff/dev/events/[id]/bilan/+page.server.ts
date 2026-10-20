@@ -3,13 +3,15 @@ import type { PageServerLoad } from './$types';
 import { base } from '$app/paths';
 import { env } from '$env/dynamic/private';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import {
-  loadEventOr404,
-  requireEventModule,
-} from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { prisma } from '$lib/server/db';
-import { computeFormStats, type FormStats } from '$lib/server/feedbackStats';
+import {
+  buildSubmissionWhere,
+  computeFormStats,
+  type FormStats,
+} from '$lib/server/feedbackStats';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
 import { RECO_QUESTION_KEY, feedbackFormPath } from '$lib/domain/feedback';
 
@@ -34,8 +36,7 @@ interface BilanCohort {
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.BILAN);
+  const event = await loadEventOr404(params.id, campusId, EVENT_MODULES.BILAN);
   const db = scopedPrisma(campusId);
 
   // The form this event uses (its override, else the type default). Resolved the
@@ -62,8 +63,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const cohort: Promise<BilanCohort> = (async () => {
     const [participations, submissions, stats] = await Promise.all([
+      // The roster the dev space shows, so `total` counts the same cohort as
+      // the admin response rate's `invitedCount`, and the submissions and
+      // figures beside it are that cohort's (`shownCohortOf`).
       db.participation.findMany({
-        where: { eventId: event.id },
+        where: { eventId: event.id, ...visibleParticipationWhere },
         select: {
           talentId: true,
           talent: { select: { nom: true, prenom: true } },
@@ -72,11 +76,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       }),
       (async () => {
         const subs = await prisma.feedback_Submission.findMany({
-          where: {
-            formId: form.id,
-            eventId: event.id,
-            source: 'authenticated',
-          },
+          where: buildSubmissionWhere(form.id, { shownCohortOf: event.id }),
           select: {
             talentId: true,
             submittedAt: true,
@@ -99,7 +99,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
           recoLabel: s.answers[0]?.selectedOptions[0]?.option.label ?? null,
         }));
       })(),
-      computeFormStats(form.id, { eventId: event.id }),
+      computeFormStats(form.id, { shownCohortOf: event.id }),
     ]);
 
     const byTalent = new Map(

@@ -17,7 +17,7 @@
 
 import { json, type RequestEvent, type RequestHandler } from '@sveltejs/kit';
 import { z } from 'zod';
-import { authenticateAdminApi } from './guard';
+import { authenticateOrRefuse } from './guard';
 import { recordAdminApiCall } from './audit';
 import { executeOperation } from './execute';
 import {
@@ -51,9 +51,10 @@ async function bodyObject(request: Request): Promise<unknown> {
 }
 
 /**
- * What both handlers share on this transport: identify the caller, validate the
- * params, answer. Authorising, running and recording are `executeOperation`'s.
- * `readParams` is what differs between a read and a write.
+ * What both handlers share on this transport: validate the params and shape the
+ * answer. Authentication is `authenticateOrRefuse`'s; authorising, running and
+ * recording are `executeOperation`'s. `readParams` is what differs between a
+ * read and a write.
  */
 function handlerFor(
   name: AdminApiOperationName,
@@ -63,15 +64,8 @@ function handlerFor(
   encode: (data: unknown) => Response = json,
 ): RequestHandler {
   return async (event) => {
-    const auth = await authenticateAdminApi(event);
-    if (!auth.ok) {
-      await recordAdminApiCall({
-        caller: auth.caller,
-        operation: name,
-        status: auth.status,
-      });
-      return json({ error: auth.message }, { status: auth.status });
-    }
+    const credential = await authenticateOrRefuse(event, name);
+    if (credential instanceof Response) return credential;
 
     // The catalogue's schema is strict: an unknown param is a caller bug (or a
     // probe for a filter we do not offer), never silently ignored. Refused here
@@ -81,7 +75,7 @@ function handlerFor(
     const parsed = operation.schema.safeParse(await readParams(event));
     if (!parsed.success) {
       await recordAdminApiCall({
-        caller: auth.caller,
+        caller: credential.caller,
         operation: name,
         status: 400,
       });
@@ -97,7 +91,7 @@ function handlerFor(
     const outcome = await executeOperation({
       name,
       operation,
-      credential: auth,
+      credential,
       params: parsed.data,
       origin: event.url.origin,
     });

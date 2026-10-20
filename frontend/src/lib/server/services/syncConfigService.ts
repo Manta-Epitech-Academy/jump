@@ -12,6 +12,7 @@
  * only reads rows and hands them over.
  */
 
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import {
   decideSync,
@@ -24,22 +25,39 @@ import type { WorkerConfigAnswer } from '$lib/validation/workerSync';
 import { lastOkRun } from './syncRunService';
 
 /**
- * The whitelist, as the worker reads it.
+ * The sources the worker is served.
  *
- * Two filters, and the second one is load-bearing beyond this function. A
- * source is served only if it is enabled AND its campus carries a non-null
+ * Two filters, and the second one is load-bearing beyond this file. A source is
+ * served only if it is enabled AND its campus carries a non-null
  * `Campus.externalName`, because that name is the only handle the worker has on
  * a campus. The generator writes no external name at all, so a generated
  * database answers an empty list on any machine: that is how a validation
  * environment stays out of every sync's scope, and it is a property of the data
  * rather than a setting somebody can re-enable by forgetting. Arming a campus
  * is an explicit act on `/staff/admin/campuses`.
+ *
+ * Stated once here, as a filter and as `isServedToWorker`, the same rule read
+ * off a row, for the answers that report it instead of filtering on it.
  */
+export const servedSourceWhere = {
+  enabled: true,
+  campus: { externalName: { not: null } },
+} satisfies Prisma.Sync_SourceWhereInput;
+
+/** `servedSourceWhere`, read off a row an answer already holds. */
+export function isServedToWorker(source: {
+  enabled: boolean;
+  campus: { externalName: string | null };
+}): boolean {
+  return source.enabled && source.campus.externalName !== null;
+}
+
+/** The whitelist, as the worker reads it. */
 export async function listWorkerSources(): Promise<
   WorkerConfigAnswer['sources']
 > {
   const rows = await prisma.sync_Source.findMany({
-    where: { enabled: true, campus: { externalName: { not: null } } },
+    where: servedSourceWhere,
     select: {
       salesforceCampaignId: true,
       kind: true,
@@ -51,8 +69,8 @@ export async function listWorkerSources(): Promise<
   return rows.map((r) => ({
     salesforceCampaignId: r.salesforceCampaignId,
     kind: r.kind,
-    // Non-null by the `where` above; the assertion is the type system catching
-    // up with the filter, not an assumption.
+    // Non-null by `servedSourceWhere`; the assertion is the type system
+    // catching up with the filter, not an assumption.
     campusExtName: r.campus.externalName!,
   }));
 }

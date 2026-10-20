@@ -9,10 +9,7 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { recomputeEventsCount } from '$lib/server/services/xpService';
-import {
-  loadEventOr404,
-  requireEventModule,
-} from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { cohortNounForms } from '$lib/domain/event';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
@@ -25,11 +22,16 @@ import {
   toDateKey,
   effectiveStatus,
   computeAttendanceRate,
+  indexPresences,
+  cellOf,
   type PresenceRecord,
   type PresenceSlot,
   type CellStatus,
 } from '$lib/domain/eventPresence';
-import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
+import {
+  isSlotClosed,
+  isSlotPastCutoff,
+} from '$lib/server/presence/slotClosure';
 import {
   closePresenceSlot,
   reopenPresenceSlot,
@@ -55,8 +57,11 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 
   const campusId = getCampusId(locals);
   const timezone = getCampusTimezone(locals);
-  const event = await loadEventOr404(params.id, campusId);
-  requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+  const event = await loadEventOr404(
+    params.id,
+    campusId,
+    EVENT_MODULES.EMARGEMENT,
+  );
   const db = scopedPrisma(campusId);
 
   const now = new Date();
@@ -72,20 +77,16 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
     select: { day: true, slot: true },
   });
 
-  // A créneau is closed either because a staff member closed it early (a closure
-  // row) or because its 11h/15h cutoff has passed (campus tz). Both are derived
-  // here, not written by a cron. `pastCutoffKeys` is sent on its own so the UI
-  // can tell an auto-closed créneau (the clock decided, no reopen) from a manual
-  // early-close (reopenable until the cutoff).
-  const manualClosed = new Set(
-    closureRows.map((c) => slotKey(dbDateToKey(c.day), c.slot)),
-  );
+  // Closed = closed early by a staff member or past its 11h/15h cutoff
+  // (`isSlotClosed`), derived here rather than written by a cron.
+  // `pastCutoffKeys` is sent on its own so the UI can tell an auto-closed
+  // créneau (the clock decided, no reopen) from a manual early-close
+  // (reopenable until the cutoff).
   const pastCutoffKeys = slots
     .filter((s) => isSlotPastCutoff(s.day, s.slot, timezone, now))
     .map((s) => s.key);
-  const pastCutoffSet = new Set(pastCutoffKeys);
   const closedKeys = slots
-    .filter((s) => manualClosed.has(s.key) || pastCutoffSet.has(s.key))
+    .filter((s) => isSlotClosed(s.day, s.slot, closureRows, timezone, now))
     .map((s) => s.key);
   const closedSet = new Set(closedKeys);
 
@@ -143,16 +144,14 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 
     // Stage attendance rate over the whole grid: project every unmarked cell in a
     // CLOSED créneau to absent (open créneaux stay pending and are ignored).
-    const storedStatus = new Map(
-      presences.map((p) => [`${p.talentId}|${p.day}|${p.slot}`, p.status]),
-    );
+    const index = indexPresences(presences);
     const effective: CellStatus[] = [];
     for (const s of slots) {
       const closed = closedSet.has(s.key);
       for (const r of rows) {
         effective.push(
           effectiveStatus(
-            storedStatus.get(`${r.talentId}|${s.day}|${s.slot}`) ?? 'pending',
+            cellOf(index, r.talentId, s.day, s.slot).status,
             closed,
           ),
         );
@@ -192,18 +191,27 @@ function requirePresenceSlot(
   }
 }
 
-/** Confirm the talent is enrolled in this campus + event (roster lives on Participation). */
-async function assertEnrolled(
+/**
+ * Confirm the talent is on this event's sheet: enrolled for this campus and
+ * shown in the dev space, the roster the page lists. A masked enrolment is
+ * still an enrolment, which is why the refusal does not say "non inscrit".
+ */
+async function assertOnSheet(
   campusId: string,
   eventId: string,
   talentId: string,
 ): Promise<void> {
   const db = scopedPrisma(campusId);
-  const enrolled = await db.participation.findUnique({
-    where: { talentId_eventId: { talentId, eventId } },
+  const onSheet = await db.participation.findFirst({
+    where: { talentId, eventId, ...visibleParticipationWhere },
     select: { id: true },
   });
-  if (!enrolled) throw error(400, 'Talent non inscrit à cet événement.');
+  if (!onSheet) {
+    throw error(
+      400,
+      "Ce talent ne figure pas sur la feuille d'émargement de cet événement.",
+    );
+  }
 }
 
 export const actions: Actions = {
@@ -213,8 +221,11 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
-    const event = await loadEventOr404(params.id, campusId);
-    requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    const event = await loadEventOr404(
+      params.id,
+      campusId,
+      EVENT_MODULES.EMARGEMENT,
+    );
     requirePresenceSlot(
       event,
       getCampusTimezone(locals),
@@ -222,9 +233,9 @@ export const actions: Actions = {
       form.data.slot,
     );
     // Campus authorization for the write lands here: `loadEventOr404` scoped the
-    // event and `assertEnrolled` the talent's participation, so the raw-client
+    // event and `assertOnSheet` the talent's participation, so the raw-client
     // write below is safe (same shape as xpService's ledger callers).
-    await assertEnrolled(campusId, event.id, form.data.talentId);
+    await assertOnSheet(campusId, event.id, form.data.talentId);
 
     const day = dateKeyToDbDate(form.data.day);
     const { talentId, slot, status } = form.data;
@@ -280,8 +291,11 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
-    const event = await loadEventOr404(params.id, campusId);
-    requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    const event = await loadEventOr404(
+      params.id,
+      campusId,
+      EVENT_MODULES.EMARGEMENT,
+    );
     requirePresenceSlot(
       event,
       getCampusTimezone(locals),
@@ -322,8 +336,11 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
-    const event = await loadEventOr404(params.id, campusId);
-    requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    const event = await loadEventOr404(
+      params.id,
+      campusId,
+      EVENT_MODULES.EMARGEMENT,
+    );
     requirePresenceSlot(
       event,
       getCampusTimezone(locals),
@@ -352,8 +369,11 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
-    const event = await loadEventOr404(params.id, campusId);
-    requireEventModule(event, EVENT_MODULES.EMARGEMENT);
+    const event = await loadEventOr404(
+      params.id,
+      campusId,
+      EVENT_MODULES.EMARGEMENT,
+    );
     requirePresenceSlot(
       event,
       getCampusTimezone(locals),

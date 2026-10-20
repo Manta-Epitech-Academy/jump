@@ -1,9 +1,7 @@
 import type { TalentDeletionRequest } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import {
-  anonymizeTalent,
-  deleteAnonymizedDocuments,
-} from '$lib/server/services/anonymizationService';
+import { anonymizeTalent } from '$lib/server/services/anonymizationService';
+import { deleteDocumentObjects } from '$lib/server/services/onboardingDocuments';
 import { sendActionEmail } from '$lib/server/email/actionMail';
 
 /**
@@ -139,7 +137,7 @@ export async function fulfillTalentDeletion(
   // inside a DB transaction. Both are best-effort: the account is already
   // erased, so neither a storage nor a mail failure may undo it (one logs, the
   // other returns rather than throwing).
-  await deleteAnonymizedDocuments(result.documentKeys);
+  await deleteDocumentObjects(result.documentKeys);
   if (result.contact.user?.email) {
     await sendActionEmail('account_deletion_done', result.contact.user.email, {
       prenom: result.contact.prenom,

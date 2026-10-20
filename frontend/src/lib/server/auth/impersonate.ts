@@ -2,7 +2,10 @@ import type { Cookies } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
-import { ensureTalentUser } from '$lib/server/services/talentAccount';
+import {
+  ensureTalentUser,
+  TalentAccountError,
+} from '$lib/server/services/talentAccount';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 
 export type ImpersonationTarget =
@@ -12,8 +15,10 @@ export type ImpersonationTarget =
   // `id` is a bauth_user id (a staff member always already has one).
   | { kind: 'staff'; id: string };
 
+export type ImpersonationRefusal = 'no_email' | 'identity_conflict' | 'failed';
+
 export type ImpersonationResult =
-  { ok: true; redirect: string } | { ok: false; reason: 'no_email' | 'failed' };
+  { ok: true; redirect: string } | { ok: false; reason: ImpersonationRefusal };
 
 /**
  * The single entry point for admin impersonation, shared by the talents
@@ -36,9 +41,14 @@ export async function startImpersonation(
   if (target.kind === 'talent') {
     try {
       userId = await ensureTalentUser(target.id);
-    } catch {
-      // ensureTalentUser throws when the talent has no email to seed an account.
-      return { ok: false, reason: 'no_email' };
+    } catch (err) {
+      // A talent with no Salesforce address, or one whose address is already
+      // somebody else's, has no login to impersonate: two different problems
+      // for the admin. Anything else is a failure of ours, and is thrown.
+      if (err instanceof TalentAccountError) {
+        return { ok: false, reason: err.kind };
+      }
+      throw err;
     }
     // Impersonated talents land wherever the talent route guards funnel them.
     redirect = '/';
