@@ -138,34 +138,26 @@ async function readForm(formId: string): Promise<FormRead> {
   return answer.form.value;
 }
 
-/** The read, turned back into what the write takes. */
+/**
+ * The fields of write_feedback_form a read does not hand back under their own
+ * name: `planDigest` is the two-step protocol, not the form, and the persona
+ * picture reads back as `personaIcon` (the write keeps it when its address is
+ * left out).
+ */
+const NOT_READ_BACK = new Set(['planDigest', 'personaIconUrl']);
+
+/** Every field the write takes that a read must return. */
+const writable = Object.keys(
+  ADMIN_API_OPERATIONS.write_feedback_form.schema.shape,
+).filter((field) => !NOT_READ_BACK.has(field));
+
+/**
+ * The read, turned back into what the write takes. Built from the write's own
+ * schema, so a field the write gains is carried back here without anyone
+ * remembering to list it, and the guard below fails when the read cannot.
+ */
 function asWrite(form: FormRead & Record<string, unknown>) {
-  const {
-    formId,
-    title,
-    intro,
-    outro,
-    personaName,
-    status,
-    allowsAuthenticatedAccess,
-    allowsPublicAccess,
-    dashboardNudge,
-    questions,
-    sections,
-  } = form;
-  return {
-    formId,
-    title,
-    intro,
-    outro,
-    personaName,
-    status,
-    allowsAuthenticatedAccess,
-    allowsPublicAccess,
-    dashboardNudge,
-    questions,
-    sections,
-  };
+  return Object.fromEntries(writable.map((field) => [field, form[field]]));
 }
 
 describe('feedback forms authored over the API (integration)', () => {
@@ -319,6 +311,25 @@ describe('feedback forms authored over the API (integration)', () => {
     });
     expect(row?.before).toBeNull();
     expect(row?.after).toMatchObject({ formId, title: body.title });
+  });
+
+  // A whole-replace write is only safe to send after reading what it replaces,
+  // so a field the read does not return is one every edit overwrites blind
+  // (#400 for the event write). Same guard as write_event_config's.
+  it('reads back every field write_feedback_form takes', async () => {
+    const created = await write(baseForm('relecture'));
+    const read = await readForm(created.payload.formId!);
+    expect(
+      writable.filter((field) => !(field in read)),
+      'write_feedback_form fields config_feedback_forms does not read back',
+    ).toEqual([]);
+    expect(
+      [...NOT_READ_BACK].filter(
+        (field) =>
+          !(field in ADMIN_API_OPERATIONS.write_feedback_form.schema.shape),
+      ),
+      'exclusions naming no write_feedback_form field',
+    ).toEqual([]);
   });
 
   it('restructures a form nobody has answered, matching rows by identity', async () => {
