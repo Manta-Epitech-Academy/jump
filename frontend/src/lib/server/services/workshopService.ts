@@ -18,7 +18,6 @@
 
 import { prisma } from '$lib/server/db';
 import type { Prisma } from '@prisma/client';
-import { workshopXp } from '$lib/domain/xp';
 import {
   selectWorkshopOfferings,
   workshopCoverUrl,
@@ -50,7 +49,6 @@ export type WorkshopEntry = {
   /** The enrolment that authorised the entry, pinned on first entry only. */
   eventId: string;
   campusId: string;
-  budgetMinutes: number;
 };
 
 /**
@@ -84,7 +82,6 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
               where: { activity: activityWhere },
               select: {
                 position: true,
-                durationMinutes: true,
                 labelOverride: true,
                 activity: {
                   select: {
@@ -128,7 +125,6 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
         status,
         eventId: enrolment.eventId,
         campusId: enrolment.campusId,
-        durationMinutes: link.durationMinutes,
         labelOverride: link.labelOverride,
         activity: link.activity,
       }));
@@ -226,7 +222,6 @@ export async function resolveWorkshopEntry(
     baseUrl: match.activity.instance.baseUrl,
     eventId: match.eventId,
     campusId: match.campusId,
-    budgetMinutes: match.durationMinutes,
   };
 }
 
@@ -234,10 +229,9 @@ export async function resolveWorkshopEntry(
  * Open or reopen the talent's participation, and answer with the session the
  * ticket names.
  *
- * The event, the campus and the minute budget are pinned on CREATION ONLY, which
- * is what makes an admin replaying a duration harmless to whoever has already
- * started. They are taken off the enrolment that just authorised the entry, which
- * is exact: re-resolving the "closest" event here, the way the minigame path has
+ * The event and the campus are pinned on CREATION ONLY, so the talent's XP stay
+ * attributed to where they started. They are taken off the enrolment that just
+ * authorised the entry, which is exact: re-resolving the "closest" event here, the way the minigame path has
  * to, would replace a precise value with a heuristic.
  *
  * The session is read off the PINNED event, never off `entry.eventId`: a talent
@@ -260,7 +254,6 @@ export async function enterWorkshop(
       activityId: entry.activityId,
       eventId: entry.eventId,
       campusId: entry.campusId,
-      budgetMinutes: entry.budgetMinutes,
     },
     update: {},
     select: {
@@ -295,14 +288,21 @@ export type WorkshopCallbackPayload = {
   solvedSteps: number;
   totalSteps: number;
   isComplete: boolean;
+  /**
+   * What CTFd paid this talent on the content: the value of every visible step
+   * they solved, optional ones included. One point is one XP.
+   */
+  points: number;
 };
 
 /**
- * Record what CTFd reports, and recompute the one grant that describes it.
+ * Record what CTFd reports, and set the one grant that describes it.
  *
- * `isComplete` is carried by the contract and deliberately not scored on: the
- * scale reads the steps, so a payload claiming completion with a partial count is
- * paid for what it actually reports.
+ * The grant is `points`, as CTFd counts them: Jump does no arithmetic on it, so
+ * the XP a talent reads here are the points the step showed them there. The
+ * report is a recount, so a value an author changes in CTFd reprices the grant
+ * at the talent's next report, downwards too. `isComplete` and the step counts
+ * are progress to display, never scored on.
  *
  * The progress is filed under the CONTENT the host reports, and only when that
  * content is an activity this very host serves: a report naming an activity
@@ -341,15 +341,9 @@ export async function applyWorkshopProgress(
   };
   const participation = await prisma.workshop_Participation.findUnique({
     where: key,
-    select: { budgetMinutes: true, campusId: true },
+    select: { campusId: true },
   });
   if (!participation) return;
-
-  const amount = workshopXp(
-    payload.solvedSteps,
-    payload.totalSteps,
-    participation.budgetMinutes,
-  );
 
   // No celebration state is written here: what the dashboard owes is derived
   // from this grant (see `getUnseenWorkshopReward`), which is what makes a
@@ -359,7 +353,7 @@ export async function applyWorkshopProgress(
       talentId: payload.talentId,
       source: 'workshop',
       sourceId: workshopGrantSourceId(activity.slug, payload.talentId),
-      amount,
+      amount: payload.points,
       campusId: participation.campusId,
     });
 

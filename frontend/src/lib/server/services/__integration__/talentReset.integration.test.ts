@@ -13,8 +13,7 @@ import { assertTestDatabase } from './testDatabase';
  * was, and the omission is invisible in a diff because the row it leaves is
  * well-formed. It costs a celebration mark (`xpCelebrated`) that survives the
  * `XpGrant` delete, so XP re-earned from zero are never floated until they pass
- * it, and a `budgetMinutes` snapshot that outlives the reset it was supposed to
- * be undone by.
+ * it, and a progress that outlives the reset it was supposed to be undone by.
  *
  * Asserted through `resetTalentToImport` rather than over a list of table names:
  * a test that restated the enumeration would pass by agreeing with the bug.
@@ -73,7 +72,6 @@ describe('resetting a talent to import (integration)', () => {
         activityId,
         eventId,
         campusId,
-        budgetMinutes: 120,
         solvedSteps: 6,
         totalSteps: 15,
         xpCelebrated: 480,
@@ -125,8 +123,8 @@ describe('resetting a talent to import (integration)', () => {
     expect(talent?.xp).toBe(0);
 
     // The enrolment is the worker's and stays, so the activity is still offered:
-    // that is what makes re-entry the path back in, and re-entry is what takes a
-    // fresh budget snapshot.
+    // that is what makes re-entry the path back in, and re-entry is what pins a
+    // fresh participation.
     expect(
       await prisma.participation.count({ where: { talentId, eventId } }),
     ).toBe(1);

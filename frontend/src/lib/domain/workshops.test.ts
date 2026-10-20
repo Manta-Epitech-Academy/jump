@@ -3,6 +3,8 @@ import type { EventLifecycleStatus } from './eventLifecycle';
 import {
   activitiesToDo,
   selectWorkshopOfferings,
+  workshopGrantSourceId,
+  workshopSlugFromSourceId,
   type WorkshopActivity,
 } from './workshops';
 
@@ -96,8 +98,8 @@ describe('selectWorkshopOfferings', () => {
   });
 
   // Two events of the same day, both offering one subject: whichever is chosen
-  // pins the minute budget on a first entry, so it cannot depend on the order
-  // the database happened to return the enrolments in.
+  // pins its event and campus on a first entry, so it cannot depend on the
+  // order the database happened to return the enrolments in.
   it('resolves a tie between two events of the same day the same way every time', () => {
     const club = offering('pacman', '2026-10-28', 'ongoing', 0, 'evt-b');
     const camp = offering('pacman', '2026-10-28', 'ongoing', 0, 'evt-a');
@@ -160,5 +162,20 @@ describe('activitiesToDo', () => {
       snake,
       git,
     ]);
+  });
+});
+
+describe('the activity grant id', () => {
+  it('reads the activity slug back out of what it composed', () => {
+    const sourceId = workshopGrantSourceId('pacman-ia', 'sd_tal_paris_0001');
+    expect(sourceId).toBe('pacman-ia:sd_tal_paris_0001');
+    expect(workshopSlugFromSourceId(sourceId)).toBe('pacman-ia');
+  });
+
+  it('answers null for anything it did not compose', () => {
+    // A `reward` grant's sourceId reaching this parser must not produce a slug
+    // the timeline would then fail to resolve into a label.
+    expect(workshopSlugFromSourceId(null)).toBeNull();
+    expect(workshopSlugFromSourceId('')).toBeNull();
   });
 });

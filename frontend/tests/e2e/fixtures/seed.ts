@@ -166,11 +166,7 @@ export async function seedE2eData(): Promise<void> {
       // members below are on the roster because this row says so.
       shownStatuses: { create: [{ status: 'READY' }, { status: 'MET' }] },
       workshops: {
-        create: {
-          activityId: E2E.workshopActivityId,
-          position: 0,
-          durationMinutes: E2E.workshopDurationMinutes,
-        },
+        create: { activityId: E2E.workshopActivityId, position: 0 },
       },
     },
   });

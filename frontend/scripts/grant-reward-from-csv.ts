@@ -41,9 +41,9 @@
  * `--email-col` / `--score-col`, and `--delimiter` for a non-comma CSV (FR Excel
  * exports with `;`), for a differently shaped file.
  *
- * Amount: by default the talent's own score (per the 10 XP = 1 min scale), so the
- * reward's `XpReward.xpAmount` is left null and the per-talent amount lives on the
- * grant. With `--amount=<n>` every matched talent gets the same flat XP (no score
+ * Amount: by default the talent's own score, one XP per point as an online
+ * activity pays, so the reward's `XpReward.xpAmount` is left null and the
+ * per-talent amount lives on the grant. With `--amount=<n>` every matched talent gets the same flat XP (no score
  * column needed, e.g. an attendance-based reward) and that shared amount is stored
  * on `XpReward.xpAmount` instead. With `--max-score=<n> --xp-cap=<n>` the raw score
  * is rescaled onto the XP cap (XP = round(score * xpCap / maxScore)), so a CTF

@@ -4,12 +4,12 @@ import type { ShownPicture } from './pictures';
 /**
  * How a workshop XP grant is addressed.
  *
- * ONE `XpGrant` per (talent, activity), recomputed on every progress callback
- * rather than appended per validated step, so the talent's timeline carries one
- * line instead of thirty (several of them at "+0 XP") and the rounded total is
- * exactly `budgetMinutes * WORKSHOP_XP_PER_MINUTE`. `grantXp` upserts on
- * `(source, sourceId)`, so a replay writes the same value and a correction
- * repairs in place.
+ * ONE `XpGrant` per (talent, activity), set on every progress callback to the
+ * points CTFd reports for that talent on that content, rather than appended per
+ * validated step, so the talent's timeline carries one line instead of thirty
+ * (several of them at "+0 XP"). `grantXp` upserts on `(source, sourceId)`, so a
+ * replay writes the same value, and a step whose value an author changes in
+ * CTFd reprices the grant in place at the talent's next report.
  *
  * The id is the activity slug and the talent, in that order, because the slug is
  * the stable natural key and is never renamed. It is the activity's and not its
@@ -90,8 +90,7 @@ export function workshopCoverUrl(key: string): string {
  * offering: the event running today when there is one (that is the one the
  * day's hero is about), otherwise the most recent that has started, and only
  * failing both a future one the talent is already walking it through. The chosen
- * enrolment is what a first entry pins its event, campus and minute budget on,
- * so two events of the same day and phase are told apart by id rather than left
+ * enrolment is what a first entry pins its event and campus on, so two events of the same day and phase are told apart by id rather than left
  * to whatever order the rows arrived in.
  *
  * Ordered newest event first, then by the event's own order, which is the order

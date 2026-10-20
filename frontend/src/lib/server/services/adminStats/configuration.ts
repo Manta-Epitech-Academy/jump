@@ -40,7 +40,6 @@ import {
 } from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
 import { CERTIFICATE_TOKENS } from '$lib/domain/diplomas';
-import { WORKSHOP_XP_PER_MINUTE } from '$lib/domain/xp';
 import type { WorkshopCoverKind } from '$lib/domain/workshops';
 import { dbDateToKey } from '$lib/domain/eventPresence';
 import { isHighlightOpen } from '$lib/domain/talentHome';
@@ -308,7 +307,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
     ),
     workshops: metric(
       workshops,
-      "Les activités en ligne que cet événement propose, dans l'ordre où un talent les voit, sous la forme exacte que prend write_event_config (« workshops ») : cette liste y remplace la liste entière, donc pour en ajouter ou en retirer une, renvoyez celle-ci modifiée. « durationMinutes » est le barème de l'activité sur cet événement, « labelOverride » le nom qu'il lui donne à la place de celui du catalogue (null s'il garde ce dernier). Le nom du catalogue et l'instance qui la sert sont dans config_workshops. Liste vide si l'événement n'en propose aucune.",
+      "Les activités en ligne que cet événement propose, dans l'ordre où un talent les voit, sous la forme exacte que prend write_event_config (« workshops ») : cette liste y remplace la liste entière, donc pour en ajouter ou en retirer une, renvoyez celle-ci modifiée. « labelOverride » est le nom qu'il lui donne à la place de celui du catalogue (null s'il garde ce dernier). Le nom du catalogue et l'instance qui la sert sont dans config_workshops. Liste vide si l'événement n'en propose aucune.",
     ),
     shownStatuses: metric(
       event.shownStatuses,
@@ -610,8 +609,8 @@ export async function getWorkshops(): Promise<Workshops> {
       "Les instances qui servent ces activités. « slug » est la clé de l'instance, celle que son administration affiche et que prend write_workshop_instance, « baseUrl » l'adresse vers laquelle un talent est envoyé, « activities » les activités qu'elle sert, y compris celles qui ne sont plus proposées. Une instance passe d'un contenu à l'autre au fil des demandes : chaque contenu reste une activité à part, et les XP d'un talent restent rangés sous celle qu'il a faite.",
     ),
     scale: metric(
-      `Une activité déclarée à N minutes sur un événement vaut N x ${WORKSHOP_XP_PER_MINUTE} XP une fois entièrement terminée, au prorata des étapes validées. Le barème d'un talent est figé à sa première entrée : changer la durée ne reprend d'XP à personne et n'en ajoute pas rétroactivement.`,
-      "Comment une activité se transforme en XP, et ce qu'un changement de durée fait aux talents déjà entrés.",
+      "Une activité rapporte exactement les points que CTFd attribue aux étapes que le talent y a validées : 1 point CTFd vaut 1 XP. Changer la valeur d'une étape dans CTFd s'applique à chaque talent à sa prochaine étape validée, à la hausse comme à la baisse.",
+      "Comment une activité se transforme en XP, et ce qu'un changement de valeur dans CTFd fait aux talents déjà entrés.",
     ),
   };
 }

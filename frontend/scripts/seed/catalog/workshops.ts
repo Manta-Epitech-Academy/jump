@@ -68,10 +68,14 @@ export type WorkshopSpec = {
   /** The host serving it. */
   readonly instance: WorkshopInstanceSpec;
   readonly enabled: boolean;
-  /** How long it runs where a scenario attaches it, in minutes. */
-  readonly durationMinutes: number;
   /** How many steps the subject holds, mirrored by a seeded participation. */
   readonly totalSteps: number;
+  /**
+   * What one counted step is worth in CTFd, so in XP. Uniform here, where a
+   * real subject prices each step: a seeded participation is worth
+   * `solvedSteps * stepPoints`, which is what its callback would report.
+   */
+  readonly stepPoints: number;
   /** The line the hero leads with; null to lead with the label. */
   readonly tagline: string | null;
   /** The pictures, as copied: none for an activity that stands on its label. */
@@ -85,8 +89,8 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     label: 'Pacman IA',
     instance: WORKSHOP_INSTANCES.season,
     enabled: true,
-    durationMinutes: 120,
     totalSteps: 15,
+    stepPoints: 25,
     tagline: 'Bientôt c’est TON code qui fera bouger ce fantôme',
     images: [
       {
@@ -121,8 +125,8 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     label: 'Discover Linux',
     instance: WORKSHOP_INSTANCES.season,
     enabled: false,
-    durationMinutes: 90,
     totalSteps: 12,
+    stepPoints: 10,
     tagline: null,
     images: [
       {
@@ -141,8 +145,8 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     label: 'Santa Shooter',
     instance: WORKSHOP_INSTANCES.santa,
     enabled: true,
-    durationMinutes: 180,
     totalSteps: 31,
+    stepPoints: 50,
     tagline: null,
     images: [],
   },
