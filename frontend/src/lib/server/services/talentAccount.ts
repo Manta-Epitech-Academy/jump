@@ -24,6 +24,22 @@ import { schoolYearOf } from '$lib/domain/schoolYear';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 
 /**
+ * Why `ensureTalentUser` could not give a talent a login: no Salesforce address
+ * to create one from, or an address that is already somebody else's (a parent,
+ * a staff member, another talent). The message is the French sentence the sync
+ * writes into its `SyncError`; `kind` is what a caller branches on.
+ */
+export class TalentAccountError extends Error {
+  constructor(
+    readonly kind: 'no_email' | 'identity_conflict',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'TalentAccountError';
+  }
+}
+
+/**
  * Ensure a talent has a linked `bauth_user` and return its id.
  *
  * Seeded / Salesforce-imported talents exist as `Talent` rows long before they
@@ -33,8 +49,10 @@ import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService
  * reuse an existing `bauth_user` with the same email if one is around (e.g.
  * created by a sibling flow), otherwise create one, then link it back.
  *
- * Throws if the talent has neither a linked user nor an email: without an
- * email BetterAuth has no identifier to hang a sign-in identity off.
+ * Throws a {@link TalentAccountError} when the talent has neither a linked
+ * user nor an email (BetterAuth has no identifier to hang a sign-in identity
+ * off), or when the email already belongs to a parent, a staff member or
+ * another talent.
  */
 export async function ensureTalentUser(talentId: string): Promise<string> {
   const talent = await prisma.talent.findUniqueOrThrow({
@@ -71,7 +89,8 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
 
   const email = talent.sfImport?.sfEmail?.toLowerCase().trim();
   if (!email) {
-    throw new Error(
+    throw new TalentAccountError(
+      'no_email',
       "Le talent n'a pas d'adresse email SF : impossible de créer un compte de connexion.",
     );
   }
@@ -92,7 +111,8 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
     // anomaly (a student carrying a parent/staff email) must be resolved by
     // hand, not papered over by silently linking.
     if (existing.staffProfile || existing.role === 'parent') {
-      throw new Error(
+      throw new TalentAccountError(
+        'identity_conflict',
         "L'adresse du talent correspond à un compte parent ou staff : résolution manuelle requise (conflit d'identité).",
       );
     }
@@ -102,7 +122,8 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
     // instead of a raw P2002 so the sync error names the holder and an admin
     // can resolve it.
     if (existing.talent) {
-      throw new Error(
+      throw new TalentAccountError(
+        'identity_conflict',
         `L'adresse du talent est déjà utilisée par le talent externalId="${existing.talent.externalId}" : résolution manuelle requise (conflit d'identité).`,
       );
     }
