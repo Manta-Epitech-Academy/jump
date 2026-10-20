@@ -4,9 +4,9 @@ import {
   changeUserEmail,
   EmailChangeConflict,
 } from '$lib/server/services/userEmail';
-import { deleteAnonymizedDocuments } from '$lib/server/services/anonymizationService';
 import {
   clearLegacyDocumentKeys,
+  deleteDocumentObjects,
   documentKeysOf,
   TALENT_DOCUMENT_KEYS_SELECT,
 } from '$lib/server/services/onboardingDocuments';
@@ -183,7 +183,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  *
  * S3 deletes run after the transaction commits (an external call inside the tx
  * would risk the interactive-tx timeout rolling back the DB reset), mirroring
- * `anonymizeTalent` → {@link deleteAnonymizedDocuments}.
+ * `anonymizeTalent` → {@link deleteDocumentObjects}.
  */
 export async function resetTalentToImport(talentId: string): Promise<void> {
   const documentKeys = await prisma.$transaction(async (tx) => {
@@ -380,5 +380,5 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
   });
 
   // Post-commit: drop the dereferenced onboarding PDFs from object storage.
-  await deleteAnonymizedDocuments(documentKeys);
+  await deleteDocumentObjects(documentKeys);
 }

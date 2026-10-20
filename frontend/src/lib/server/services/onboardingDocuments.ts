@@ -20,6 +20,7 @@
  */
 import type { Prisma, Talent } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import { getStorage } from '$lib/server/infra/storage';
 
 export type OnboardingDocumentType = 'charter' | 'rules' | 'image-rights';
 
@@ -169,6 +170,34 @@ export function clearLegacyDocumentKeys(): {
   [K in keyof typeof LEGACY_TALENT_DOCUMENT_KEYS]: null;
 } {
   return { rulesFilePath: null, imageRightsFilePath: null };
+}
+
+/**
+ * Best-effort deletion of the onboarding PDFs whose keys an erasure or a reset
+ * collected. Call this *after* their transaction commits: an external call
+ * inside it would risk the interactive-transaction timeout rolling back the
+ * database step, which is the legally required one.
+ *
+ * Best-effort by design: that step has already committed, so a storage hiccup
+ * must not surface as a failure that looks like the erasure didn't happen. Each
+ * delete is logged on failure for manual cleanup rather than thrown. A leaked
+ * object is unreferenced (its columns are null and its dossier row is gone) and
+ * keyed by a cuid, so it isn't reachable through the app; this removes the file.
+ */
+export async function deleteDocumentObjects(
+  keys: readonly string[],
+): Promise<void> {
+  if (keys.length === 0) return;
+  const storage = getStorage();
+  await Promise.all(
+    keys.map((key) =>
+      storage
+        .delete(key)
+        .catch((e) =>
+          console.error(`[documents] failed to delete document ${key}:`, e),
+        ),
+    ),
+  );
 }
 
 /**

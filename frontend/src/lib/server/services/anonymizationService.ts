@@ -1,9 +1,9 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { getStorage } from '$lib/server/infra/storage';
 import { findUnreferencedParentAccount } from '$lib/server/services/parentAccount';
 import {
   clearLegacyDocumentKeys,
+  deleteDocumentObjects,
   documentKeysOf,
   TALENT_DOCUMENT_KEYS_SELECT,
 } from '$lib/server/services/onboardingDocuments';
@@ -56,7 +56,7 @@ import {
  * be deleted from storage to complete the erasure, but that's an external call:
  * it cannot run inside the transaction (it would risk the interactive-tx
  * timeout rolling back the legally-required scrub). Callers hand the keys to
- * {@link deleteAnonymizedDocuments} *after* the transaction commits.
+ * {@link deleteDocumentObjects} *after* the transaction commits.
  */
 export async function anonymizeTalent(
   tx: Prisma.TransactionClient,
@@ -303,33 +303,6 @@ export async function anonymizeTalent(
   return documentKeys;
 }
 
-/**
- * Best-effort deletion of the onboarding PDFs an {@link anonymizeTalent} run
- * dereferenced. Call this *after* the erasure transaction commits.
- *
- * Best-effort by design: the DB scrub is the legally-required step and has
- * already committed, so a storage hiccup must not surface as a failure that
- * looks like the erasure didn't happen: each delete is logged on failure for
- * manual cleanup rather than thrown. A leaked object is unreferenced (its
- * Talent columns are null) and keyed by a cuid + epoch-ms timestamp, so it
- * isn't reachable through the app; this just removes the residual file.
- */
-export async function deleteAnonymizedDocuments(
-  keys: readonly string[],
-): Promise<void> {
-  if (keys.length === 0) return;
-  const storage = getStorage();
-  await Promise.all(
-    keys.map((key) =>
-      storage
-        .delete(key)
-        .catch((e) =>
-          console.error(`[anonymize] failed to delete document ${key}:`, e),
-        ),
-    ),
-  );
-}
-
 export const AnonymizationService = {
   /**
    * Anonymizes student profiles that have been inactive for more than 18 months.
@@ -370,7 +343,7 @@ export const AnonymizationService = {
           anonymizeTalent(tx, student.id),
         );
         // Drop the dereferenced PDFs from storage once the scrub has committed.
-        await deleteAnonymizedDocuments(documentKeys);
+        await deleteDocumentObjects(documentKeys);
         count++;
       } catch (e) {
         // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
