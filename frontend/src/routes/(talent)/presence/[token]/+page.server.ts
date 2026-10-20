@@ -5,6 +5,8 @@ import { recomputeEventsCount } from '$lib/server/services/xpService';
 import { verifyCheckinToken } from '$lib/server/presence/checkinToken';
 import { isSlotClosed } from '$lib/server/presence/slotClosure';
 import { eventDisplayName } from '$lib/domain/event';
+import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import {
   dateKeyToDbDate,
   dayLabelFr,
@@ -45,6 +47,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // Raw client by design: a talent request carries no staff campus to scope by.
   // The signed token (its `eventId`) plus the participation check below are the
   // access gate, in place of the campus scoping the staff routes get.
+  //
+  // A scan writes on the sheet the émargement page shows, so it follows that
+  // sheet: the section has to be on (a code minted before it was switched off
+  // is dead), and the talent has to be on the roster the dev space lists, the
+  // one a staff member could mark (`assertOnSheet`). A masked enrolment would
+  // otherwise leave a mark nobody can see or correct.
   const [event, manualCloses, participation] = await Promise.all([
     prisma.event.findUnique({
       where: { id: eventId },
@@ -55,19 +63,25 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         endDate: true,
         startMinutes: true,
         campus: { select: { timezone: true } },
+        modules: {
+          where: { moduleKey: EVENT_MODULES.EMARGEMENT },
+          select: { moduleKey: true },
+        },
       },
     }),
     prisma.eventPresenceClosure.findMany({
       where: { eventId, day: dayDate, slot },
       select: { day: true, slot: true },
     }),
-    prisma.participation.findUnique({
-      where: { talentId_eventId: { talentId: talent.id, eventId } },
+    prisma.participation.findFirst({
+      where: { talentId: talent.id, eventId, ...visibleParticipationWhere },
       select: { id: true },
     }),
   ]);
 
-  if (!event) return { state: 'invalid' as CheckinState, ...empty };
+  if (!event || event.modules.length === 0) {
+    return { state: 'invalid' as CheckinState, ...empty };
+  }
   const timezone = event.campus?.timezone ?? 'Europe/Paris';
   // The token was signed for a créneau the event has since lost (a QR printed
   // before an afternoon start time was set): nothing to check in to.
