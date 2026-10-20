@@ -609,7 +609,7 @@ export async function getWorkshops(): Promise<Workshops> {
       "Les instances qui servent ces activités. « slug » est la clé de l'instance, celle que son administration affiche et que prend write_workshop_instance, « baseUrl » l'adresse vers laquelle un talent est envoyé, « activities » les activités qu'elle sert, y compris celles qui ne sont plus proposées. Une instance passe d'un contenu à l'autre au fil des demandes : chaque contenu reste une activité à part, et les XP d'un talent restent rangés sous celle qu'il a faite.",
     ),
     scale: metric(
-      "Une activité rapporte exactement les points que CTFd attribue aux étapes que le talent y a validées : 1 point CTFd vaut 1 XP. Changer la valeur d'une étape dans CTFd s'applique à chaque talent à sa prochaine étape validée, à la hausse comme à la baisse.",
+      "Une activité rapporte exactement les points que CTFd attribue aux étapes que le talent y a validées : 1 point CTFd vaut 1 XP. Changer la valeur d'une étape dans CTFd ne s'applique à un talent qu'à sa prochaine étape validée, à la hausse comme à la baisse : tant qu'il n'en valide pas d'autre, et c'est toujours le cas d'un talent qui a déjà tout validé, il garde les XP calculés avec l'ancienne valeur.",
       "Comment une activité se transforme en XP, et ce qu'un changement de valeur dans CTFd fait aux talents déjà entrés.",
     ),
   };
