@@ -152,6 +152,7 @@ import {
 } from '$lib/server/services/adminStats/configuration';
 import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
 import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
+import { getAdminDigestRecipients } from '$lib/server/services/adminStats/adminDigestRecipients';
 import { writeDiplomaTemplate } from './writes/diplomas';
 import { writeWorkshop, writeWorkshopInstance } from './writes/workshops';
 import {
@@ -175,6 +176,7 @@ import {
   writeSyncSource,
 } from './writes/sync';
 import { writeClosingQuestion, writeClosingTemplate } from './writes/closings';
+import { writeAdminDigestRecipient } from './writes/adminDigest';
 import { writeFeedbackForm, copyFeedbackForm } from './writes/feedbackForms';
 import {
   formFields,
@@ -702,6 +704,13 @@ export const ADMIN_API_OPERATIONS = {
       'Saved event-configuration presets and exactly what each one holds: sections and their sub-options, shown Salesforce statuses, public name, cohort noun, arrival time, and the feedback form, certificate and closing grid it points at. A preset is applied by copying its values: to write_event_config for one event, or its modules and shownStatuses to bulk_event_config for many.',
     shape: {},
     run: () => getEventTemplates(),
+  }),
+
+  config_admin_digest: defineOperation({
+    description:
+      'Who receives the weekly admin digest sent on Mondays: every admin account, by the address it logs in with, and whether the digest goes to it. Chosen per admin, never implied by the role; nobody chosen means no digest is sent. Takes no parameter.',
+    shape: {},
+    run: () => getAdminDigestRecipients(),
   }),
 
   stats_school_year_review: defineOperation({
@@ -1335,6 +1344,18 @@ export const ADMIN_API_OPERATIONS = {
       description: z.string().optional(),
     },
     run: (params) => writeEventTemplate(params),
+  }),
+
+  write_admin_digest_recipient: defineWrite({
+    description:
+      'Choose whether one admin receives the weekly admin digest, from the next Monday on. Only an admin account can, since its links need a staff session; one who loses the role stops receiving it with nothing to undo. Safe to repeat.',
+    shape: {
+      address: z.string().min(1).describe(handleDescribe('adminAddress')),
+      receivesDigest: z
+        .boolean()
+        .describe('true to send it to this admin, false to stop.'),
+    },
+    run: (params) => writeAdminDigestRecipient(params),
   }),
 
   ops_retry_pdf_job: defineWrite({

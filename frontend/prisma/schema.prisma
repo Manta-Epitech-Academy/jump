@@ -188,6 +188,12 @@ model StaffProfile {
   // completeness guarantee (the all-time export stays authoritative); null =
   // never exported.
   sfExportedAt             DateTime?
+  /// Whether this admin receives the Monday digest. A choice, not a consequence
+  /// of the role: the role grants reading the admin space, and is now given to
+  /// people the digest was never written for (#426). Honoured only while
+  /// `staffRole` is `admin`, so a demotion stops the mail without anything here
+  /// being cleared. Set through `write_admin_digest_recipient`.
+  receivesAdminDigest      Boolean    @default(false)
   /// Last real (non-impersonated) request, stamped at most once a day in
   /// hooks.server.ts. Exact mirror of `Talent.lastActiveAt`.
   lastActiveAt             DateTime?
