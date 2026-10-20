@@ -22,6 +22,8 @@ import {
   toDateKey,
   effectiveStatus,
   computeAttendanceRate,
+  indexPresences,
+  cellOf,
   type PresenceRecord,
   type PresenceSlot,
   type CellStatus,
@@ -142,16 +144,14 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 
     // Stage attendance rate over the whole grid: project every unmarked cell in a
     // CLOSED créneau to absent (open créneaux stay pending and are ignored).
-    const storedStatus = new Map(
-      presences.map((p) => [`${p.talentId}|${p.day}|${p.slot}`, p.status]),
-    );
+    const index = indexPresences(presences);
     const effective: CellStatus[] = [];
     for (const s of slots) {
       const closed = closedSet.has(s.key);
       for (const r of rows) {
         effective.push(
           effectiveStatus(
-            storedStatus.get(`${r.talentId}|${s.day}|${s.slot}`) ?? 'pending',
+            cellOf(index, r.talentId, s.day, s.slot).status,
             closed,
           ),
         );

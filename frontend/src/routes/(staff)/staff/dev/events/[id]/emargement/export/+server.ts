@@ -16,7 +16,8 @@ import {
   statusLabelFr,
   effectiveStatus,
   dbDateToKey,
-  type CellStatus,
+  indexPresences,
+  cellOf,
 } from '$lib/domain/eventPresence';
 import { isSlotClosed } from '$lib/server/presence/slotClosure';
 import { PRESENCE_EXPORT_SELECT } from '../components/types';
@@ -57,6 +58,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         day: true,
         slot: true,
         status: true,
+        source: true,
       },
     }),
     db.eventPresenceClosure.findMany({
@@ -65,11 +67,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     }),
   ]);
 
-  // Index stored statuses by talentId|day|slot for O(1) cell lookup.
-  const stored = new Map<string, CellStatus>();
-  for (const r of presenceRows) {
-    stored.set(`${r.talentId}|${dbDateToKey(r.day)}|${r.slot}`, r.status);
-  }
+  const index = indexPresences(
+    presenceRows.map((r) => ({ ...r, day: dbDateToKey(r.day) })),
+  );
 
   // An unmarked talent in a closed créneau exports as absent (the same
   // projection the screen shows), never a stored row.
@@ -91,7 +91,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     const slotCells = slots.map((s) =>
       statusLabelFr(
         effectiveStatus(
-          stored.get(`${p.talentId}|${s.day}|${s.slot}`) ?? 'pending',
+          cellOf(index, p.talentId, s.day, s.slot).status,
           closed.has(s.key),
         ),
       ),

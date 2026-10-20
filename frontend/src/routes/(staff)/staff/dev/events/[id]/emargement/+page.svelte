@@ -65,14 +65,12 @@
   const closedSet = $derived(new Set(data.closedKeys));
   const pastCutoffSet = $derived(new Set(data.pastCutoffKeys));
   const isActiveClosed = $derived(
-    activeSlot ? closedSet.has(`${activeSlot.day}|${activeSlot.slot}`) : false,
+    activeSlot ? closedSet.has(activeSlot.key) : false,
   );
   // Past its cutoff = closed by the clock: it can't be reopened (the day moved
   // on); a late arrival is handled by marking that one cell by hand.
   const isActivePastCutoff = $derived(
-    activeSlot
-      ? pastCutoffSet.has(`${activeSlot.day}|${activeSlot.slot}`)
-      : false,
+    activeSlot ? pastCutoffSet.has(activeSlot.key) : false,
   );
 
   // The 5s poll and every optimistic edit replace `data.cohort` with a fresh
