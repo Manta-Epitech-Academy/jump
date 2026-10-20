@@ -239,10 +239,10 @@ export async function writeClosingQuestion(params: {
 
 type SectionInput = {
   title: string;
-  synthesisPosition?: number;
+  synthesisPosition?: number | null;
   questions: {
     questionKey: string;
-    labelOverride?: string;
+    labelOverride?: string | null;
     withNote?: boolean;
   }[];
 };

@@ -17,6 +17,8 @@ import {
   writeClosingTemplate,
 } from '$lib/server/adminApi/writes/closings';
 import { OperationRefusedError } from '$lib/server/adminApi/errors';
+import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
+import { getClosingTemplates } from '$lib/server/services/adminStats/closingConfiguration';
 import { getTalentJourney } from '$lib/server/services/talentJourneyService';
 
 /**
@@ -499,6 +501,34 @@ describe('composing a grid under the two-step contract', () => {
     });
     // Theirs stands: the stale write is refused, never merged or overwritten.
     expect(stored?.sections.map((s) => s.title)).toEqual(['Leur section']);
+  });
+
+  // A grid is edited by reading its composition and sending it back changed, so
+  // the write has to take what the read returns. The read spells an unset
+  // synthesis position and an unset override as null, and the write once took
+  // neither, so echoing a read was a 400 (the #402 shape).
+  it('takes back the composition its read returns', async () => {
+    const read = async () =>
+      (await getClosingTemplates({ templateKey: key })).composition.value!;
+    const before = await read();
+    expect(before.sections[0].synthesisPosition).toBeNull();
+    expect(before.sections[0].questions[0].labelOverride).toBeNull();
+
+    const echo = {
+      templateKey: key,
+      label: before.label,
+      sections: before.sections,
+    };
+    // The operation's own schema is where the null was refused.
+    expect(
+      ADMIN_API_OPERATIONS.write_closing_template.schema.safeParse(echo)
+        .success,
+    ).toBe(true);
+    const dry = await writeClosingTemplate(echo);
+    if (dry.applied) throw new Error('expected a dry run');
+    await writeClosingTemplate({ ...echo, planDigest: dry.planDigest });
+
+    expect(await read()).toEqual(before);
   });
 });
 

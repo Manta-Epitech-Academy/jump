@@ -1289,9 +1289,9 @@ export const ADMIN_API_OPERATIONS = {
               .number()
               .int()
               .min(0)
-              .optional()
+              .nullish()
               .describe(
-                'Where this section sits when the closing is read back, if that differs from the order it is conducted in. Omit to follow the conduct order.',
+                'Where this section sits when the closing is read back, if that differs from the order it is conducted in. Null follows the conduct order.',
               ),
             questions: z
               .array(
@@ -1302,7 +1302,7 @@ export const ADMIN_API_OPERATIONS = {
                     .describe(handleDescribe('closingQuestionKey')),
                   labelOverride: z
                     .string()
-                    .optional()
+                    .nullish()
                     .describe(
                       'What THIS grid reads aloud, when the canonical wording does not fit the format. Changes the prompt only: the figure keeps the bank name and stays comparable.',
                     ),
