@@ -299,8 +299,8 @@ const RESET: Policy = {
       why: 'An audit of how the login identity was repaired; the identity itself is kept.',
     },
     TalentDeletionRequest: {
-      fate: 'delete',
-      why: 'DEFECT: a pending request is a legal one, and a fulfilled one the proof of erasure.',
+      fate: 'keep',
+      why: 'A pending request is a legal one that still has to be answered, and a fulfilled one the proof of erasure.',
     },
     Closing_Record: { fate: 'delete', why: 'Accrued after import.' },
     Closing_ResetEvent: {

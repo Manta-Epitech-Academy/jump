@@ -168,7 +168,7 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  * count stays consistent and a later presence write can't resurrect it),
  * minigame attempts, the CTFd activity mirrors, closings
  * (and the audit trail of any admin reset), interests, reminders, PDF jobs,
- * broadcast-recipient rows, deletion requests, every
+ * broadcast-recipient rows, every
  * onboarding/parent/image-rights/règlement column, and the generated onboarding
  * PDFs in object storage. The login *history* goes too: sessions and any linked
  * OAuth/credential accounts are cleared so the talent is back to
@@ -268,7 +268,9 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     await tx.broadcastRecipient.deleteMany({
       where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
     });
-    await tx.talentDeletionRequest.deleteMany({ where: { talentId } });
+    // Deletion requests are deliberately KEPT: a pending one is a legal request
+    // that still has to be answered, and a fulfilled one is the proof of an
+    // erasure. Neither is something the talent accrued in the app.
     // Bilan feedback the talent submitted after onboarding (answers + their
     // selected options cascade). Talent-created Jump data, so it goes on a reset
     // to import. Scoped to this talent's own rows only: unlike anonymizeTalent
