@@ -354,7 +354,8 @@ model Talent {
   externalId                  String?              @unique
   lastActiveAt                DateTime?
   // First real (non-impersonated) login, stamped once in hooks.server.ts and
-  // never cleared. A durable projection of "has this talent ever connected",
+  // cleared only by a reset to import (a fresh import has never logged in); the
+  // RGPD erasure keeps it for the retention figures. A durable projection of "has this talent ever connected",
   // distinct from probing bauth_session, whose rows are deleted by logout,
   // identity repair and account relinks, so a real login would otherwise read
   // "Jamais" once its session row is gone. Paired with lastActiveAt (MAX
@@ -2677,7 +2678,7 @@ model OtpAttempt {
 /// must stay explainable and auditable after the fact: who repaired which
 /// talent, how, and which accounts were repointed / renamed / dropped. Follows
 /// the repo's "facts as rows" convention (cf. XpGrant / OtpAttempt). Never
-/// updated.
+/// updated, except by the RGPD erasure, which overwrites its two addresses.
 model AuthIdentityRepair {
   id         String   @id @default(cuid())
   talentId   String

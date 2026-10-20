@@ -25,8 +25,15 @@ import { clearGuardianContacts, guardianEmailsOf } from '$lib/domain/contact';
  * règlement parent / droit à l'image, each embeds the student's and guardian's
  * names and a signature) are deleted from object storage, not merely
  * dereferenced. We deliberately keep the de-identified behavioural telemetry
- * (participation, EventPresence, minigame attempts, the xp ledger) so `xp`, `eventsCount` and
- * aggregate stats survive the erasure.
+ * (participation, EventPresence, minigame attempts, the xp ledger, the CTFd
+ * activity mirrors) so `xp`, `eventsCount` and aggregate stats survive the
+ * erasure, and with them the talent's `firstLoginAt` / `lastActiveAt`: the
+ * retention figures read them (the "connected" count of the cohort profile, the
+ * population of feature usage), and with the name gone they identify nobody.
+ *
+ * What it does to each table and each `Talent` column is classified, with the
+ * reason, in `talentScopedData.integration.test.ts`, which fails on a table or a
+ * column nobody has classified: a new one is decided there first.
  *
  * The talent's accounts on the CTFd activity instances are not reached from
  * here: each instance asks Jump which of its accounts belong to an erased talent
@@ -136,10 +143,10 @@ export async function anonymizeTalent(
   //    than nulled field-by-field (drift-proof as columns are added, and very
   //    nearly the same set resetTalentToImport wipes: schooling_YearRecord is
   //    the one row erased here but kept there, see below). The anonymous
-  //    behavioural telemetry
-  //    is deliberately KEPT (participation, minigameAttempt, xpGrant): once the
-  //    name is gone those are de-identified activity backing xp / eventsCount and
-  //    aggregate stats.
+  //    behavioural telemetry is deliberately KEPT (participation,
+  //    eventPresence, minigameAttempt, xpGrant, workshop_Participation): once
+  //    the name is gone those are de-identified activity backing xp /
+  //    eventsCount and aggregate stats.
   //      - talentSfImport / talentInterest / imageRightsDecisionRecord: the SF
   //        mirror, interest selections, and the image-rights ledger (the ledger
   //        embeds the guardian's typed signer name).

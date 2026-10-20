@@ -182,7 +182,7 @@ export class TalentAlreadyErased extends Error {
  * (`EventPresence`, the source `eventsCount` projects from, so the zeroed
  * count stays consistent and a later presence write can't resurrect it),
  * minigame attempts, the CTFd activity mirrors, closings
- * (and the audit trail of any admin reset), interests, reminders, PDF jobs,
+ * (and the audit trail of any admin reset), interests, PDF jobs,
  * broadcast-recipient rows, every
  * onboarding/parent/image-rights/règlement column, and the generated onboarding
  * PDFs in object storage. The login *history* goes too: sessions and any linked
@@ -196,7 +196,9 @@ export class TalentAlreadyErased extends Error {
  *
  * Contrast with `anonymizeTalent`: it scrubs identity to placeholders for RGPD
  * erasure but deliberately keeps the XP/stats and the account; this keeps the
- * identity and deliberately destroys the stats.
+ * identity and deliberately destroys the stats. What each of the two does to
+ * every table and every `Talent` column is classified, with the reason, in
+ * `talentScopedData.integration.test.ts`.
  *
  * Refuses a talent the erasure has anonymised ({@link TalentAlreadyErased}),
  * before writing anything.

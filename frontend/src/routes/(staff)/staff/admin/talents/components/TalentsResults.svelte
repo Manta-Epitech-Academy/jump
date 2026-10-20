@@ -120,8 +120,8 @@
 
   // Factory-reset (back to worker-import state) confirm dialog. Gated behind
   // typing the talent's name: it irreversibly wipes real prod data (XP,
-  // minigames, files, account, event history), so it gets a heavier guard than
-  // the onboarding reset above.
+  // minigames, files, the login history, event history), so it gets a heavier
+  // guard than an ordinary confirmation.
   let wipeOpen = $state(false);
   let wiping = $state(false);
   let wipeTarget = $state<{ id: string; name: string } | null>(null);

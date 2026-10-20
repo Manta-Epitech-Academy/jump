@@ -108,9 +108,10 @@ export const actions: Actions = {
   // the users page drive one mechanism instead of two.
 
   // Factory reset: wipe everything a talent accrued after the Salesforce worker
-  // import (XP, minigames, files, onboarding, parents, login account, event
+  // import (XP, minigames, files, onboarding, parents, the login history, event
   // verdicts) so they're left exactly as the worker leaves a fresh import. The
   // heavy cleanup affordance for after testing the talent experience in prod.
+  // An erased talent is refused (`TalentAlreadyErased`).
   resetToImport: async ({ request, locals }) => {
     recordUsage(USAGE_FEATURES.ADMIN_TALENT_RESET_TO_IMPORT, { locals });
     if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
