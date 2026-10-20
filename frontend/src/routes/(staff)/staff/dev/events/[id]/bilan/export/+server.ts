@@ -13,7 +13,8 @@ import { USAGE_FEATURES } from '$lib/domain/usage';
 // Event-scoped XLSX of the feedback responses, the dev-space counterpart of the
 // QR. Resolves the event's form exactly like the page (override else type
 // default, published + authenticated) so the export never reports a form the
-// page wouldn't show. The route is dev-space + `bilan`-module gated. XLSX inline
+// page wouldn't show, and lists the answers of the cohort the page lists
+// (`shownCohortOf`). The route is dev-space + `bilan`-module gated. XLSX inline
 // strings are inert, so no CSV-style formula guard is needed on the untrusted
 // respondent input.
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -26,7 +27,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   }
 
   const submissions = await prisma.feedback_Submission.findMany({
-    where: buildSubmissionWhere(graph.id, { eventId: event.id }),
+    where: buildSubmissionWhere(graph.id, { shownCohortOf: event.id }),
     orderBy: { submittedAt: 'asc' },
     include: {
       talent: {

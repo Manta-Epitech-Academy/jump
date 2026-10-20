@@ -144,9 +144,9 @@ async function resultsFor(
   scope: Scope,
   axis: EventAxis,
 ): Promise<FormResults> {
-  const [stats, invited] = await Promise.all([
+  const [stats, { invited, responded }] = await Promise.all([
     computeFormStats(formId, { ...axis, campusName: scope.campus?.name }),
-    invitedCount(formId, scope, axis),
+    invitedCohort(formId, scope, axis),
   ]);
   if (!stats) {
     throw new UnknownScopeError(
@@ -163,7 +163,7 @@ async function resultsFor(
     publicSubmissions: stats.publicSubmissions,
     publicShare: share(stats.publicSubmissions, stats.totalSubmissions),
     invited,
-    responseRate: share(stats.authSubmissions, invited),
+    responseRate: share(responded, invited),
     questions: stats.questions.map((question) =>
       toQuestionResults(question, stats.totalSubmissions),
     ),
@@ -228,16 +228,26 @@ function toQuestionResults(
 }
 
 /**
- * How many people could have answered: the visible enrolments on the events this
- * form is attached to, within the scope asked for. Zero when the form is only
- * used publicly, in which case a response rate would be a ratio over nothing.
+ * How many people could have answered, and how many of them did: the visible
+ * enrolments on the events this form is attached to, within the scope asked
+ * for, and those of them with a connected answer to that event. Zero invited
+ * when the form is only used publicly, in which case a response rate would be a
+ * ratio over nothing.
+ *
+ * The answers are matched to the enrolments rather than counted on their own,
+ * so the rate is a share of one cohort: a connected answer from a talent the
+ * dev space has masked since is a response (`connectedSubmissions` counts it)
+ * and not one of the invited, and counting it over `invited` pushed the rate
+ * toward and past 100 %. The pair (talent, event) cannot be correlated in a
+ * Prisma relation filter, so both sides are read and matched here; a form's
+ * events hold a few hundred enrolments.
  */
-async function invitedCount(
+async function invitedCohort(
   formId: string,
   scope: Scope,
   axis: EventAxis,
-): Promise<number> {
-  return prisma.participation.count({
+): Promise<{ invited: number; responded: number }> {
+  const enrolments = await prisma.participation.findMany({
     where: {
       ...visibleParticipationWhere,
       event: {
@@ -249,5 +259,26 @@ async function invitedCount(
         ...(scope.campus ? { campusId: scope.campus.id } : {}),
       },
     },
+    select: { talentId: true, eventId: true },
   });
+  if (enrolments.length === 0) return { invited: 0, responded: 0 };
+
+  const answered = await prisma.feedback_Submission.findMany({
+    where: {
+      formId,
+      source: 'authenticated',
+      eventId: { in: [...new Set(enrolments.map((e) => e.eventId))] },
+      talentId: { in: [...new Set(enrolments.map((e) => e.talentId))] },
+    },
+    select: { talentId: true, eventId: true },
+  });
+  const answeredPairs = new Set(
+    answered.map((s) => `${s.talentId}|${s.eventId}`),
+  );
+  return {
+    invited: enrolments.length,
+    responded: enrolments.filter((e) =>
+      answeredPairs.has(`${e.talentId}|${e.eventId}`),
+    ).length,
+  };
 }

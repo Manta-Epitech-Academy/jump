@@ -83,9 +83,23 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** A read of enrolments: a delegate call, or a relation filter on them. */
-const ENROLMENT_READ =
-  /\bparticipation\.(findMany|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|count|groupBy|aggregate)\(|\bparticipations:\s*\{/g;
+/**
+ * The reads a dev surface makes of a cohort, each with the marker that scopes
+ * it to the cohort the dev space shows: an enrolment read (a delegate call, or a
+ * relation filter on them) spreads `visibleParticipationWhere`, and a read of
+ * bilan answers goes through `shownCohortOf`, which applies it on the answer's
+ * enrolment.
+ */
+const COHORT_READS = [
+  {
+    read: /\bparticipation\.(findMany|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|count|groupBy|aggregate)\(|\bparticipations:\s*\{/g,
+    marker: 'visibleParticipationWhere',
+  },
+  {
+    read: /\bfeedback_Submission\.(findMany|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|count|groupBy|aggregate)\(|\bcomputeFormStats\(/g,
+    marker: 'shownCohortOf',
+  },
+] as const;
 
 /** The text from an opening bracket to the one that closes it. */
 function balanced(source: string, open: number): string {
@@ -100,11 +114,13 @@ function balanced(source: string, open: number): string {
   return source.slice(open);
 }
 
-/** The arguments of every enrolment read in a source that do not carry the fragment. */
+/** The arguments of every cohort read in a source that do not carry its marker. */
 function readsWithoutFragment(source: string): string[] {
-  return [...source.matchAll(ENROLMENT_READ)]
-    .map((m) => balanced(source, (m.index ?? 0) + m[0].length - 1))
-    .filter((arg) => !arg.includes('visibleParticipationWhere'));
+  return COHORT_READS.flatMap(({ read, marker }) =>
+    [...source.matchAll(read)]
+      .map((m) => balanced(source, (m.index ?? 0) + m[0].length - 1))
+      .filter((arg) => !arg.includes(marker)),
+  );
 }
 
 const DEV_ROUTES = 'src/routes/(staff)/staff/dev';
@@ -139,12 +155,16 @@ const DELIBERATE: Record<string, { reads: number; why: string }> = {
  * fragment each read had to remember, and five forgot it (certificates, badges,
  * both exports, the bilan denominator), so a withdrawn talent got a certificate
  * and their phone number went out in a spreadsheet the screen never showed them in.
+ * The bilan's own figures and export read answers rather than enrolments, and
+ * listed a withdrawn talent's name and address the same way.
  */
 describe('every dev roster reads the visible cohort', () => {
   it('finds a read that drops the fragment', () => {
     const doctored = `db.participation.findMany({ where: { eventId } });
-      db.participation.count({ where: { eventId, ...visibleParticipationWhere } });`;
-    expect(readsWithoutFragment(doctored)).toHaveLength(1);
+      db.participation.count({ where: { eventId, ...visibleParticipationWhere } });
+      computeFormStats(form.id, { eventId });
+      computeFormStats(form.id, { shownCohortOf: eventId });`;
+    expect(readsWithoutFragment(doctored)).toHaveLength(2);
   });
 
   it('walks the workspace', () => {
@@ -153,14 +173,14 @@ describe('every dev roster reads the visible cohort', () => {
     );
   });
 
-  it('applies visibleParticipationWhere to every enrolment read', () => {
+  it('scopes every cohort read to the cohort the dev space shows', () => {
     const offenders = devReaders.flatMap((file) => {
       const missing = readsWithoutFragment(readFileSync(file, 'utf-8'));
       const allowed = DELIBERATE[file]?.reads ?? 0;
       return missing.length === allowed
         ? []
         : [
-            `${file}: ${missing.length} read(s) without the fragment, ${allowed} allowed`,
+            `${file}: ${missing.length} read(s) without the cohort, ${allowed} allowed`,
           ];
     });
     expect(offenders).toEqual([]);
