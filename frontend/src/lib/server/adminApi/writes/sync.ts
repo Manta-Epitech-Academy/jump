@@ -17,12 +17,17 @@
  *
  * What they change is read by the worker's next tick, through `/api/worker/config`
  * for the first three and through the next full pass's participations push for
- * a release, so tightening the incremental during a stage takes effect within
- * fifteen minutes with nothing redeployed and nobody touching the cluster.
+ * a release, so tightening the incremental during a stage, or asking for a pass
+ * during a demo, takes effect at the next tick with nothing redeployed and
+ * nobody touching the cluster.
  */
 
 import { prisma } from '$lib/server/db';
 import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
+import {
+  SYNC_CADENCE_MAX_MINUTES,
+  SYNC_CADENCE_MIN_MINUTES,
+} from '$lib/domain/syncSchedule';
 import { upsertMemberStatus } from '$lib/server/services/devSpaceVisibility';
 import { isServedToWorker } from '$lib/server/services/syncConfigService';
 import type { SyncMode, SyncSourceKind } from '@prisma/client';
@@ -34,7 +39,7 @@ import { resolveScope } from '../scope';
  * The shape of a Salesforce id, checked here so a typo is refused rather than
  * silently syncing nothing. The worker asserts the same pattern before it
  * interpolates the id into SOQL, and refusing at the source is the difference
- * between a clear answer now and a run that aborts every fifteen minutes.
+ * between a clear answer now and a run that aborts on every tick.
  */
 const SF_ID_RE = /^[a-zA-Z0-9]{15,18}$/;
 
@@ -152,33 +157,23 @@ export async function writeSyncSource(params: {
 }
 
 /**
- * The floor and the ceiling on a cadence.
- *
- * The floor is the worker's own tick: asking for a pass every two minutes when
- * the CronJob wakes it every fifteen does not make it run more often, it just
- * makes the configured number a lie. The ceiling is a fortnight, past which a
- * full reconcile has stopped being a deletion net in any useful sense.
- */
-const MIN_INTERVAL_MINUTES = 15;
-const MAX_INTERVAL_MINUTES = 20_160;
-
-/**
  * Set how often one pass runs.
  *
  * Safe to repeat: the same value written twice is the same row. Takes effect at
- * the worker's next wake-up, which is within fifteen minutes, because the
- * cadence is read on every tick rather than baked into the deployment.
+ * the worker's next wake-up, because the cadence is read on every tick rather
+ * than baked into the deployment. The bounds are `syncSchedule`'s, the floor
+ * being the tick itself.
  */
 export async function writeSyncCadence(params: {
   mode: SyncMode;
   intervalMinutes: number;
 }): Promise<WriteOutcome> {
   if (
-    params.intervalMinutes < MIN_INTERVAL_MINUTES ||
-    params.intervalMinutes > MAX_INTERVAL_MINUTES
+    params.intervalMinutes < SYNC_CADENCE_MIN_MINUTES ||
+    params.intervalMinutes > SYNC_CADENCE_MAX_MINUTES
   )
     throw new OperationRefusedError(
-      `Intervalle hors bornes : entre ${MIN_INTERVAL_MINUTES} minutes (le worker n'est réveillé que toutes les 15 minutes, en demander davantage n'accélère rien) et ${MAX_INTERVAL_MINUTES} minutes.`,
+      `Intervalle hors bornes : entre ${SYNC_CADENCE_MIN_MINUTES} et ${SYNC_CADENCE_MAX_MINUTES} minutes. Le plancher est le réveil du worker : une cadence plus courte ne le ferait pas tourner plus souvent.`,
     );
 
   const before = await prisma.sync_Cadence.findUnique({

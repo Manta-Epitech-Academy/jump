@@ -68,6 +68,11 @@ import {
 } from '$lib/domain/eventModules';
 import { isCalendarDay, isWallClock } from '$lib/domain/planningTime';
 import {
+  SYNC_CADENCE_MAX_MINUTES,
+  SYNC_CADENCE_MIN_MINUTES,
+  SYNC_WORKER_TICK_MINUTES,
+} from '$lib/domain/syncSchedule';
+import {
   HIGHLIGHT_SUMMARY_MAX,
   HIGHLIGHT_TITLE_MAX,
   TALENT_HOME_NOTE_MAX,
@@ -210,6 +215,11 @@ import {
   USAGE_FEATURE_KEYS,
   USAGE_RAW_RETENTION_MONTHS,
 } from '$lib/domain/usage';
+
+// When a change to the sync's steering is picked up. Built from the tick Jump
+// mirrors, so the four sync tools cannot each quote their own figure, as they
+// all did with "within fifteen minutes".
+const NEXT_WORKER_WAKE_UP = `the worker's next wake-up, within ${SYNC_WORKER_TICK_MINUTES} min`;
 
 // One format check, two arities. The operations that compare or rank across
 // campuses require a year rather than defaulting to all of them, so the required
@@ -1382,8 +1392,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_sync_source: defineWrite({
-    description:
-      'Add a Salesforce campaign to the synchronised perimeter, move it to another campus, rename it, or switch it off. Switching off sets a flag, it deletes nothing, so it can be switched back on. Safe to repeat: this is an upsert on the campaign id, so the same call twice leaves the same row. Adding one requires both campus and kind; changing an existing one only sends what changes. Takes effect at the worker next wake-up, within fifteen minutes.',
+    description: `Add a Salesforce campaign to the synchronised perimeter, move it to another campus, rename it, or switch it off. Switching off sets a flag, it deletes nothing, so it can be switched back on. Safe to repeat: this is an upsert on the campaign id, so the same call twice leaves the same row. Adding one requires both campus and kind; changing an existing one only sends what changes. Takes effect at ${NEXT_WORKER_WAKE_UP}.`,
     shape: {
       salesforceCampaignId: z
         .string()
@@ -1441,8 +1450,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_sync_cadence: defineWrite({
-    description:
-      'Set how often one synchronisation pass runs, in minutes. The incremental pass keeps data fresh; the full pass is the only one that detects a member removed in Salesforce, so spacing it out means deletions arrive later. Safe to repeat: writing the same value twice leaves the same row. Takes effect at the worker next wake-up, within fifteen minutes, with nothing to redeploy.',
+    description: `How often one synchronisation pass runs, in minutes. The incremental pass keeps data fresh; the full pass is the only one that detects a member removed in Salesforce, so spacing it out delays deletions. For one pass now, use ops_request_sync: a lowered cadence stays until someone raises it. Safe to repeat: the same value twice is the same row. Takes effect at ${NEXT_WORKER_WAKE_UP}.`,
     shape: {
       mode: z
         .enum(['full', 'incremental'])
@@ -1452,18 +1460,17 @@ export const ADMIN_API_OPERATIONS = {
       intervalMinutes: z.coerce
         .number()
         .int()
-        .min(15)
-        .max(20160)
+        .min(SYNC_CADENCE_MIN_MINUTES)
+        .max(SYNC_CADENCE_MAX_MINUTES)
         .describe(
-          'Minutes between two passes of this kind. The floor is 15 because the worker is only woken every 15 minutes, so asking for less changes nothing.',
+          `Minutes between two passes of this kind. The floor is the worker's wake-up interval (${SYNC_WORKER_TICK_MINUTES} min): less would not run any more often.`,
         ),
     },
     run: (params) => writeSyncCadence(params),
   }),
 
   ops_request_sync: defineWrite({
-    description:
-      'Ask the synchronisation worker for one pass of the given kind at its next wake-up (within fifteen minutes), without changing any cadence. Use it when someone needs a change made in Salesforce to reach Jump now rather than at the next scheduled pass. The request is satisfied by the first successful pass that starts after it, after which the configured cadences apply again with nothing to restore; a pass that fails leaves it pending. stats_sync_health shows whether a request is pending and what the worker will do next. Safe to repeat: asking again before it runs still yields one pass.',
+    description: `Ask the synchronisation worker for one pass of the given kind at ${NEXT_WORKER_WAKE_UP}, without changing any cadence. Use it when someone needs a change made in Salesforce to reach Jump now rather than at the next scheduled pass. The request is satisfied by the first successful pass that starts after it, after which the configured cadences apply again with nothing to restore; a pass that fails leaves it pending. stats_sync_health shows whether a request is pending and what the worker will do next. Safe to repeat: asking again before it runs still yields one pass.`,
     shape: {
       mode: z
         .enum(['full', 'incremental'])
@@ -1475,8 +1482,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_release_prune_hold: defineWrite({
-    description:
-      'Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted by fixing their sync errors, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to the next wake-up, within fifteen minutes. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.',
+    description: `Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted by fixing their sync errors, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to ${NEXT_WORKER_WAKE_UP}. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.`,
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },

@@ -12,8 +12,9 @@ paths:
 
 Six routes, one caller, and a second repository on the other end
 ([`jump-sf-worker`](https://github.com/Manta-Epitech-Academy/jump-sf-worker)). The
-worker is **driven by Jump and stateless**: a k8s CronJob wakes it on a fixed fine
-tick, it asks what to do, obeys, and reports. It holds no configuration, no cadence
+worker is **driven by Jump and stateless**: a k8s CronJob wakes it every minute
+(the schedule lives in `jump-k3s`, mirrored here by `SYNC_WORKER_TICK_MINUTES`), it
+asks what to do, obeys, and reports. It holds no configuration, no cadence
 and no watermark of its own, exposes no port, and only ever talks outbound.
 
 That inversion is the whole design. Tightening the incremental pass from three
@@ -97,7 +98,9 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   the fixed 15 min tick the elapsed time was always a few seconds short, so a 15
   min cadence ran every 30 and a 3 h one every 3h15 (#419). Starting from
   `startedAt` alone still falls a hair short, since a run is stamped after the
-  tick that decided it, hence a small wake-up slack. `domain/syncSchedule.ts`
+  tick that decided it, hence a small wake-up slack, counted in seconds and held
+  under half the tick: the 2 minutes #421 chose were safe on a 15 min tick and
+  would run a 5 min cadence every 3 on a 1 min one (#423). `domain/syncSchedule.ts`
   owns both dates, that slack, and the margin that absorbs the clock skew
   between Jump and Salesforce.
 - **`mode` is always a real mode, and `since` is always a key.** The worker
@@ -158,6 +161,15 @@ copies out of Salesforce, and the cadence is two numbers changed twice a year.
 surface, over HTTP and as MCP tools. "Sync now" is a request, never a lowered
 cadence: a cadence lowered to get one pass has to be raised again by somebody who
 remembers to.
+
+**A request waits for the next tick, and that wait is why the tick is a minute.**
+On the old 15 min tick a demo waited up to a quarter of an hour to see a
+Salesforce change land (#423). Nothing pushes the worker awake sooner, and that is
+deliberate: Jump starting a Job itself would need cluster rights in the app and tie
+it to the cluster, and the worker listens on no port, all to save under a minute.
+An idle tick costs one call to Jump, since the worker logs in to Salesforce only
+once a pass is due; keep it that way, or the tick pays a Salesforce session every
+minute.
 
 ## Salesforce reconciliation
 
