@@ -62,6 +62,7 @@ export async function anonymizeTalent(
     select: {
       userId: true,
       anonymizedAt: true,
+      externalId: true,
       user: { select: { email: true } },
       parentEmail: true,
       parent2Email: true,
@@ -249,6 +250,19 @@ export async function anonymizeTalent(
   await tx.broadcastRecipient.deleteMany({
     where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
   });
+  // syncError: what the Salesforce sync could not reconcile, logged with the
+  // contact's name and address and keyed by their Salesforce id rather than by
+  // a foreign key, so it is matched on the id read above (the update nulled it).
+  if (talent.externalId) {
+    await tx.syncError.deleteMany({
+      where: {
+        OR: [
+          { attemptedExtId: talent.externalId },
+          { existingExtId: talent.externalId },
+        ],
+      },
+    });
+  }
 
   // Scrub residual PII fields in operational audit logs for this talent:
   //   - AuthIdentityRepair: retains fromEmail/toEmail; replace with anonymized placeholders.

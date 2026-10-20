@@ -25,7 +25,8 @@ import { assertTestDatabase } from './testDatabase';
  * code does it.
  *
  * Its blind spot: a table that names a talent by anything else than a `Talent`
- * foreign key or a `*talentId` column is invisible to the walk.
+ * foreign key or a `*talentId` column is invisible to the walk, so those are
+ * listed by hand in `BY_SALESFORCE_ID`.
  *
  * The two records are separate on purpose. Erasure and reset are different
  * operations that classify tables differently (staff notes survive a reset, not
@@ -56,6 +57,14 @@ type ColumnGroup = {
   fate: 'keep' | 'null' | 'rewrite';
   why: string;
   columns: readonly Prisma.TalentScalarFieldEnum[];
+};
+
+/**
+ * Tables that name a talent by their Salesforce id rather than by a foreign key,
+ * which the schema walk cannot see, with the columns that hold the id.
+ */
+const BY_SALESFORCE_ID: Record<string, readonly string[]> = {
+  SyncError: ['attemptedExtId', 'existingExtId'],
 };
 
 type Policy = {
@@ -183,6 +192,10 @@ const ERASURE: Policy = {
       fate: 'scrub',
       columns: ['reason', 'resolutionNote'],
       why: 'Fulfilled, it is the proof of erasure, so it stays without its free text.',
+    },
+    SyncError: {
+      fate: 'delete',
+      why: "What the sync could not reconcile, logged with the contact's name and address.",
     },
   },
   talent: [
@@ -313,6 +326,10 @@ const RESET: Policy = {
     ImageRightsDecisionRecord: { fate: 'delete', why: 'Decided after import.' },
     BroadcastRecipient: { fate: 'delete', why: 'Sent after import.' },
     Feedback_Submission: { fate: 'delete', why: 'Answered after import.' },
+    SyncError: {
+      fate: 'keep',
+      why: 'An operations record about the Salesforce contact, which the reset keeps.',
+    },
   },
   talent: [
     {
@@ -402,7 +419,15 @@ function talentScopedModels(datamodel: Datamodel): Map<string, string[]> {
       }
     }
   }
-  return new Map([...scoped].map(([model, columns]) => [model, [...columns]]));
+  return new Map([
+    ...[...scoped].map(([model, columns]): [string, string[]] => [
+      model,
+      [...columns],
+    ]),
+    ...Object.entries(BY_SALESFORCE_ID).map(
+      ([model, columns]): [string, string[]] => [model, [...columns]],
+    ),
+  ]);
 }
 
 /** The Prisma delegate of a model, read generically. */
@@ -454,6 +479,7 @@ describe('what erasure and reset do to every talent table (integration)', () => 
    */
   async function seedTalentWithEveryRow(label: string) {
     const email = `${label}-${stamp}@scoped.test`;
+    const externalId = `scoped-${label}-${stamp}`;
     const parentEmail = `${label}-parent-${stamp}@scoped.test`;
     const user = await prisma.bauth_user.create({
       data: {
@@ -517,7 +543,7 @@ describe('what erasure and reset do to every talent table (integration)', () => 
         ...(filled as Prisma.TalentUncheckedCreateInput),
         userId: user.id,
         schoolId: created.schoolA,
-        externalId: `scoped-${label}-${stamp}`,
+        externalId,
         parentEmail,
         parent2Email: `${label}-parent2-${stamp}@scoped.test`,
         // The same key as a dossier row's, which the collection deduplicates.
@@ -649,6 +675,25 @@ describe('what erasure and reset do to every talent table (integration)', () => 
         xpCelebrated: 480,
       },
     });
+    await prisma.syncError.createMany({
+      data: [
+        {
+          errorType: 'DUPLICATE_EMAIL',
+          email,
+          attemptedExtId: externalId,
+          talentName: `Talent ${label}`,
+          message: 'Adresse déjà prise.',
+        },
+        {
+          errorType: 'DUPLICATE_EMAIL',
+          email: `${label}-other-${stamp}@scoped.test`,
+          attemptedExtId: `other-${label}-${stamp}`,
+          existingExtId: externalId,
+          talentName: 'Autre talent',
+          message: 'Adresse déjà prise.',
+        },
+      ],
+    });
     await prisma.authIdentityRepair.create({
       data: {
         talentId,
@@ -661,6 +706,7 @@ describe('what erasure and reset do to every talent table (integration)', () => 
 
     return {
       talentId,
+      externalId,
       userId: user.id,
       parentUserId: parent.id,
       email,
@@ -672,11 +718,13 @@ describe('what erasure and reset do to every talent table (integration)', () => 
   }
 
   /** Every row of a talent, per scoped table, keyed by primary key. */
-  async function rowsOf(talentId: string) {
+  async function rowsOf(talent: { talentId: string; externalId: string }) {
     const rows = new Map<string, Map<string, Row>>();
     for (const [model, columns] of scoped) {
+      const id =
+        model in BY_SALESFORCE_ID ? talent.externalId : talent.talentId;
       const found = await delegate(model).findMany({
-        where: { OR: columns.map((column) => ({ [column]: talentId })) },
+        where: { OR: columns.map((column) => ({ [column]: id })) },
       });
       rows.set(
         model,
@@ -924,7 +972,7 @@ describe('what erasure and reset do to every talent table (integration)', () => 
           },
         })
       ).id;
-      const before = await rowsOf(seeded.talentId);
+      const before = await rowsOf(seeded);
       const talentBefore = await prisma.talent.findUniqueOrThrow({
         where: { id: seeded.talentId },
       });
@@ -934,7 +982,7 @@ describe('what erasure and reset do to every talent table (integration)', () => 
       erasure = {
         seeded,
         before,
-        after: await rowsOf(seeded.talentId),
+        after: await rowsOf(seeded),
         talentBefore,
         talentAfter: await prisma.talent.findUniqueOrThrow({
           where: { id: seeded.talentId },
@@ -944,7 +992,7 @@ describe('what erasure and reset do to every talent table (integration)', () => 
 
     {
       const seeded = await seedTalentWithEveryRow('reset');
-      const before = await rowsOf(seeded.talentId);
+      const before = await rowsOf(seeded);
       const talentBefore = await prisma.talent.findUniqueOrThrow({
         where: { id: seeded.talentId },
       });
@@ -953,7 +1001,7 @@ describe('what erasure and reset do to every talent table (integration)', () => 
       reset = {
         seeded,
         before,
-        after: await rowsOf(seeded.talentId),
+        after: await rowsOf(seeded),
         talentBefore,
         talentAfter: await prisma.talent.findUniqueOrThrow({
           where: { id: seeded.talentId },
@@ -968,6 +1016,17 @@ describe('what erasure and reset do to every talent table (integration)', () => 
     ) as string[];
     await prisma.authIdentityRepair.deleteMany({
       where: { talentId: { in: talents } },
+    });
+    const externalIds = [erasure?.seeded.externalId, reset?.seeded.externalId]
+      .filter(Boolean)
+      .map(String);
+    await prisma.syncError.deleteMany({
+      where: {
+        OR: [
+          { attemptedExtId: { in: externalIds } },
+          { existingExtId: { in: externalIds } },
+        ],
+      },
     });
     await prisma.broadcastRecipient.deleteMany({
       where: { broadcastId: created.broadcastId },
