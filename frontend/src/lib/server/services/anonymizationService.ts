@@ -211,17 +211,24 @@ export async function anonymizeTalent(
     where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
   });
   // syncError: what the Salesforce sync could not reconcile, logged with the
-  // contact's name and address and keyed by their Salesforce id rather than by
-  // a foreign key, so it is matched on the id read above (the update nulled it).
-  if (talent.externalId) {
-    await tx.syncError.deleteMany({
-      where: {
-        OR: [
+  // contact's name and address and keyed by no foreign key, so it is matched on
+  // the identity read above (the update nulled the id): the talent's Salesforce
+  // id on either side of a conflict, and the address they log in with, which is
+  // what a row names when another contact claimed it (that row's message quotes
+  // the holder's Salesforce id too).
+  const syncErrorOf = [
+    ...(talent.externalId
+      ? [
           { attemptedExtId: talent.externalId },
           { existingExtId: talent.externalId },
-        ],
-      },
-    });
+        ]
+      : []),
+    ...(talent.user?.email
+      ? [{ email: { equals: talent.user.email, mode: 'insensitive' as const } }]
+      : []),
+  ];
+  if (syncErrorOf.length > 0) {
+    await tx.syncError.deleteMany({ where: { OR: syncErrorOf } });
   }
 
   // Scrub residual PII fields in operational audit logs for this talent:

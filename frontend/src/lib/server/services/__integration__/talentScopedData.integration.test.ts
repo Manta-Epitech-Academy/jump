@@ -29,7 +29,7 @@ import { assertTestDatabase } from './testDatabase';
  *
  * Its blind spot: a table that names a talent by anything else than a `Talent`
  * foreign key or a `*talentId` column is invisible to the walk, so those are
- * listed by hand in `BY_SALESFORCE_ID`.
+ * listed by hand in `BY_OTHER_IDENTITY`.
  *
  * The two records are separate on purpose. Erasure and reset are different
  * operations that classify tables differently (staff notes survive a reset, not
@@ -62,12 +62,24 @@ type ColumnGroup = {
   columns: readonly Prisma.TalentScalarFieldEnum[];
 };
 
+/** Which of a talent's identities a column names them by. */
+type Identity = 'talentId' | 'externalId' | 'email';
+
+/** A column that names a talent, and by which identity. */
+type TalentColumn = { column: string; holds: Identity };
+
 /**
- * Tables that name a talent by their Salesforce id rather than by a foreign key,
- * which the schema walk cannot see, with the columns that hold the id.
+ * Tables that name a talent by anything else than a foreign key, which the
+ * schema walk cannot see: by their Salesforce id, or by the address they log in
+ * with. `SyncError` does both, the second when another contact claimed the
+ * talent's address.
  */
-const BY_SALESFORCE_ID: Record<string, readonly string[]> = {
-  SyncError: ['attemptedExtId', 'existingExtId'],
+const BY_OTHER_IDENTITY: Record<string, readonly TalentColumn[]> = {
+  SyncError: [
+    { column: 'attemptedExtId', holds: 'externalId' },
+    { column: 'existingExtId', holds: 'externalId' },
+    { column: 'email', holds: 'email' },
+  ],
 };
 
 type Policy = {
@@ -406,7 +418,9 @@ type Datamodel = Awaited<ReturnType<typeof loadDatamodel>>;
 type Row = Record<string, unknown>;
 
 /** Every model that holds a talent's rows, with the columns that name the talent. */
-function talentScopedModels(datamodel: Datamodel): Map<string, string[]> {
+function talentScopedModels(
+  datamodel: Datamodel,
+): Map<string, readonly TalentColumn[]> {
   const scoped = new Map<string, Set<string>>();
   const add = (model: string, column: string) =>
     scoped.set(model, (scoped.get(model) ?? new Set()).add(column));
@@ -423,13 +437,11 @@ function talentScopedModels(datamodel: Datamodel): Map<string, string[]> {
     }
   }
   return new Map([
-    ...[...scoped].map(([model, columns]): [string, string[]] => [
+    ...[...scoped].map(([model, columns]): [string, TalentColumn[]] => [
       model,
-      [...columns],
+      [...columns].map((column) => ({ column, holds: 'talentId' })),
     ]),
-    ...Object.entries(BY_SALESFORCE_ID).map(
-      ([model, columns]): [string, string[]] => [model, [...columns]],
-    ),
+    ...Object.entries(BY_OTHER_IDENTITY),
   ]);
 }
 
@@ -458,7 +470,7 @@ const same = (a: unknown, b: unknown) =>
 describe('what erasure and reset do to every talent table (integration)', () => {
   const stamp = Date.now();
   let datamodel: Datamodel;
-  let scoped: Map<string, string[]>;
+  let scoped: Map<string, readonly TalentColumn[]>;
   const created = {
     campusId: '',
     eventId: '',
@@ -694,6 +706,15 @@ describe('what erasure and reset do to every talent table (integration)', () => 
           talentName: 'Autre talent',
           message: 'Adresse déjà prise.',
         },
+        // Another contact claiming this talent's address: the row names them by
+        // the address, and its message by their Salesforce id.
+        {
+          errorType: 'DUPLICATE_EMAIL',
+          email,
+          attemptedExtId: `claimant-${label}-${stamp}`,
+          talentName: 'Autre contact',
+          message: `L'adresse du talent est déjà utilisée par le talent externalId="${externalId}".`,
+        },
       ],
     });
     await prisma.authIdentityRepair.create({
@@ -720,13 +741,15 @@ describe('what erasure and reset do to every talent table (integration)', () => 
   }
 
   /** Every row of a talent, per scoped table, keyed by primary key. */
-  async function rowsOf(talent: { talentId: string; externalId: string }) {
+  async function rowsOf(talent: Record<Identity, string>) {
     const rows = new Map<string, Map<string, Row>>();
     for (const [model, columns] of scoped) {
-      const id =
-        model in BY_SALESFORCE_ID ? talent.externalId : talent.talentId;
       const found = await delegate(model).findMany({
-        where: { OR: columns.map((column) => ({ [column]: id })) },
+        where: {
+          OR: columns.map(({ column, holds }) => ({
+            [column]: talent[holds],
+          })),
+        },
       });
       rows.set(
         model,
@@ -806,7 +829,7 @@ describe('what erasure and reset do to every talent table (integration)', () => 
     for (const [model, columns] of scoped) {
       if (!policy.tables[model as Prisma.ModelName]) {
         problems.push(
-          `${model} holds talent rows through ${columns.join(', ')}: say in ${name}.tables what ${name.toLowerCase()} does to them (delete, keep or scrub) and why.`,
+          `${model} holds talent rows through ${columns.map((c) => c.column).join(', ')}: say in ${name}.tables what ${name.toLowerCase()} does to them (delete, keep or scrub) and why.`,
         );
       }
     }
@@ -845,12 +868,15 @@ describe('what erasure and reset do to every talent table (integration)', () => 
     return problems;
   }
 
-  function fixtureProblems(rows: Map<string, Map<string, Row>>): string[] {
+  function fixtureProblems(
+    rows: Map<string, Map<string, Row>>,
+    talent: Record<Identity, string>,
+  ): string[] {
     const problems: string[] = [];
     for (const [model, columns] of scoped) {
       const found = [...(rows.get(model)?.values() ?? [])];
-      for (const column of columns) {
-        if (!found.some((row) => row[column] !== null)) {
+      for (const { column, holds } of columns) {
+        if (!found.some((row) => row[column] === talent[holds])) {
           problems.push(
             `${model}.${column} has no fixture row, so this suite cannot see what is done to it: seed one in seedTalentWithEveryRow.`,
           );
@@ -1019,14 +1045,15 @@ describe('what erasure and reset do to every talent table (integration)', () => 
     await prisma.authIdentityRepair.deleteMany({
       where: { talentId: { in: talents } },
     });
-    const externalIds = [erasure?.seeded.externalId, reset?.seeded.externalId]
-      .filter(Boolean)
-      .map(String);
+    const seededRuns = [erasure?.seeded, reset?.seeded].filter(
+      (seeded) => seeded !== undefined,
+    );
     await prisma.syncError.deleteMany({
       where: {
         OR: [
-          { attemptedExtId: { in: externalIds } },
-          { existingExtId: { in: externalIds } },
+          { attemptedExtId: { in: seededRuns.map((r) => r.externalId) } },
+          { existingExtId: { in: seededRuns.map((r) => r.externalId) } },
+          { email: { in: seededRuns.map((r) => r.email) } },
         ],
       },
     });
@@ -1066,7 +1093,7 @@ describe('what erasure and reset do to every talent table (integration)', () => 
   describe('the erasure', () => {
     it('classifies every talent-scoped table and every Talent column', () => {
       expect(classificationProblems('ERASURE', ERASURE)).toEqual([]);
-      expect(fixtureProblems(erasure.before)).toEqual([]);
+      expect(fixtureProblems(erasure.before, erasure.seeded)).toEqual([]);
     });
 
     it('does to each table what its classification says', () => {
@@ -1123,7 +1150,7 @@ describe('what erasure and reset do to every talent table (integration)', () => 
   describe('the reset to import', () => {
     it('classifies every talent-scoped table and every Talent column', () => {
       expect(classificationProblems('RESET', RESET)).toEqual([]);
-      expect(fixtureProblems(reset.before)).toEqual([]);
+      expect(fixtureProblems(reset.before, reset.seeded)).toEqual([]);
     });
 
     it('does to each table what its classification says', () => {
