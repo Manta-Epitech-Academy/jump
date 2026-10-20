@@ -8,6 +8,7 @@ import { eventDisplayName } from '$lib/domain/event';
 import {
   dateKeyToDbDate,
   dayLabelFr,
+  isPresenceSlot,
   slotLabelFr,
   type CellStatus,
   type PresenceSlot,
@@ -50,6 +51,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       select: {
         titre: true,
         publicName: true,
+        date: true,
+        endDate: true,
+        startMinutes: true,
         campus: { select: { timezone: true } },
       },
     }),
@@ -64,6 +68,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   ]);
 
   if (!event) return { state: 'invalid' as CheckinState, ...empty };
+  const timezone = event.campus?.timezone ?? 'Europe/Paris';
+  // The token was signed for a créneau the event has since lost (a QR printed
+  // before an afternoon start time was set): nothing to check in to.
+  if (!isPresenceSlot(event, timezone, day, slot)) {
+    return { state: 'invalid' as CheckinState, ...empty };
+  }
   // Short, friendly label: the event's public name when set, else the SF
   // `titre` as a fallback.
   const withLabel = {
@@ -75,9 +85,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // Closed = a manual early-close OR the 11h/15h cutoff has passed (campus tz).
   // The cutoff check is what makes the QR stop accepting scans on time without
   // any job having to run.
-  const closed =
-    !!closure ||
-    isSlotPastCutoff(day, slot, event.campus?.timezone ?? 'Europe/Paris');
+  const closed = !!closure || isSlotPastCutoff(day, slot, timezone);
   if (closed) return { state: 'closed' as CheckinState, ...withLabel };
   if (!participation)
     return { state: 'not_registered' as CheckinState, ...withLabel };

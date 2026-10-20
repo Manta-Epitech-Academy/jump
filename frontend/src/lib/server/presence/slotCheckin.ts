@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import {
   PRESENCE_SLOTS,
-  presenceDays,
+  isPresenceSlot,
   dateKeyToDbDate,
   type PresenceSlot,
 } from '$lib/domain/eventPresence';
@@ -42,9 +42,8 @@ export async function resolveSlotCheckinLink(opts: {
     throw error(400, 'Jour invalide.');
   }
   const event = await loadEventOr404(opts.eventId, opts.campusId);
-  const days = presenceDays(event, opts.timezone);
-  if (!days.includes(opts.day)) {
-    throw error(400, "Ce jour n'appartient pas à l'événement.");
+  if (!isPresenceSlot(event, opts.timezone, opts.day, slot)) {
+    throw error(400, "Ce créneau n'appartient pas à l'événement.");
   }
 
   const expiresAt = new Date(

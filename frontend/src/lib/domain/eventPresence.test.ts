@@ -7,6 +7,7 @@ import {
   computeSlotStats,
   computeAttendanceRate,
   defaultActiveSlotKey,
+  isPresenceSlot,
 } from './eventPresence';
 
 describe('eventPresence Domain Logic & Projections', () => {
@@ -33,6 +34,7 @@ describe('eventPresence Domain Logic & Projections', () => {
       const event = {
         date: new Date('2026-06-15T22:00:00.000Z'),
         endDate: null,
+        startMinutes: null,
       };
       const days = presenceDays(event, 'Europe/Paris');
       expect(days).toEqual(['2026-06-16']);
@@ -68,12 +70,79 @@ describe('eventPresence Domain Logic & Projections', () => {
       const weekendEvent = {
         date: new Date('2026-09-18T22:00:00.000Z'),
         endDate: new Date('2026-09-19T21:59:00.000Z'),
+        startMinutes: null,
       };
       const days = presenceDays(weekendEvent, 'Europe/Paris');
       expect(days).toEqual(['2026-09-19']);
 
       const slots = presenceSlots(weekendEvent, 'Europe/Paris');
       expect(slots).toHaveLength(2);
+    });
+  });
+
+  describe('presenceSlots by start time', () => {
+    // Saturday October 24, 2026, local midnight in Paris (UTC+2).
+    const club: { date: Date; endDate: Date | null } = {
+      date: new Date('2026-10-23T22:00:00.000Z'),
+      endDate: null,
+    };
+    const keys = (startMinutes: number | null, event = club) =>
+      presenceSlots({ ...event, startMinutes }, 'Europe/Paris').map(
+        (s) => s.key,
+      );
+
+    it('drops the morning of an event that starts in the afternoon', () => {
+      expect(keys(14 * 60)).toEqual(['2026-10-24|afternoon']);
+    });
+
+    it('counts 13h00 as the afternoon and 12h59 as the morning', () => {
+      expect(keys(13 * 60)).toEqual(['2026-10-24|afternoon']);
+      expect(keys(13 * 60 - 1)).toEqual([
+        '2026-10-24|morning',
+        '2026-10-24|afternoon',
+      ]);
+    });
+
+    it('keeps both half-days for a morning start or no start time', () => {
+      const both = ['2026-10-24|morning', '2026-10-24|afternoon'];
+      expect(keys(10 * 60)).toEqual(both);
+      expect(keys(null)).toEqual(both);
+    });
+
+    it('drops the morning of the first day only on a multi-day stage', () => {
+      const stage = {
+        date: new Date('2026-06-14T22:00:00.000Z'), // Monday June 15 local
+        endDate: new Date('2026-06-16T20:00:00.000Z'), // Tuesday June 16 local
+      };
+      expect(keys(14 * 60, stage)).toEqual([
+        '2026-06-15|afternoon',
+        '2026-06-16|morning',
+        '2026-06-16|afternoon',
+      ]);
+    });
+
+    it('keeps the Monday morning of a stage that starts on a weekend', () => {
+      const stage = {
+        date: new Date('2026-06-12T22:00:00.000Z'), // Saturday June 13 local
+        endDate: new Date('2026-06-15T20:00:00.000Z'), // Monday June 15 local
+      };
+      expect(keys(14 * 60, stage)).toEqual([
+        '2026-06-15|morning',
+        '2026-06-15|afternoon',
+      ]);
+    });
+
+    it('refuses a write to a créneau the event does not have', () => {
+      const event = { ...club, startMinutes: 14 * 60 };
+      expect(
+        isPresenceSlot(event, 'Europe/Paris', '2026-10-24', 'morning'),
+      ).toBe(false);
+      expect(
+        isPresenceSlot(event, 'Europe/Paris', '2026-10-24', 'afternoon'),
+      ).toBe(true);
+      expect(
+        isPresenceSlot(event, 'Europe/Paris', '2026-10-25', 'afternoon'),
+      ).toBe(false);
     });
   });
 
