@@ -185,7 +185,7 @@ export async function getEmargementCoverage(
     ),
     keptShare: metric(
       share(totalKept, totalElapsed),
-      "Part des demi-journées écoulées où au moins un pointage a été enregistré, en pourcentage. Les demi-journées à venir n'y entrent pas : un événement qui n'a pas encore eu lieu ne fait pas baisser ce chiffre.",
+      "Part des demi-journées écoulées où au moins un pointage a été enregistré, en pourcentage. Seules les demi-journées écoulées y entrent : un événement qui n'a pas encore eu lieu ne fait pas baisser ce chiffre, sauf un créneau qu'un membre de l'équipe a clôturé à l'avance.",
     ),
     marks: metric(
       totalMarks,
