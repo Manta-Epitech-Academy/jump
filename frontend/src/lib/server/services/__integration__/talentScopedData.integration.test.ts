@@ -207,11 +207,6 @@ const ERASURE: Policy = {
       columns: ['usageAnalyticsOptOutAt'],
     },
     {
-      fate: 'keep',
-      why: 'DEFECT: the PDF this legacy column names is deleted, and the column keeps its key.',
-      columns: ['rulesFilePath'],
-    },
-    {
       fate: 'rewrite',
       why: 'The name becomes a placeholder; the row stays one that lists and figures can carry.',
       columns: ['nom', 'prenom'],
@@ -254,6 +249,11 @@ const ERASURE: Policy = {
       fate: 'null',
       why: "The guardian's typed names and the PDF they signed.",
       columns: GUARDIAN_ACTS,
+    },
+    {
+      fate: 'null',
+      why: 'The legacy règlement PDF is deleted with the others, so its key goes too.',
+      columns: ['rulesFilePath'],
     },
     {
       fate: 'null',
@@ -326,11 +326,6 @@ const RESET: Policy = {
       columns: ['usageAnalyticsOptOutAt', 'anonymizedAt'],
     },
     {
-      fate: 'keep',
-      why: 'DEFECT: the PDF this legacy column names is deleted, and the column keeps its key.',
-      columns: ['rulesFilePath'],
-    },
-    {
       fate: 'rewrite',
       why: "Re-seeded from the Salesforce mirror, as the worker's first import seeds them.",
       columns: ['nom', 'prenom', 'phone', 'civilite', 'niveau', 'schoolId'],
@@ -373,6 +368,11 @@ const RESET: Policy = {
       fate: 'null',
       why: "The guardian's acts, signed after import.",
       columns: GUARDIAN_ACTS,
+    },
+    {
+      fate: 'null',
+      why: 'The legacy règlement PDF is deleted with the others, so its key goes too.',
+      columns: ['rulesFilePath'],
     },
     {
       fate: 'null',

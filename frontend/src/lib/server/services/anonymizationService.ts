@@ -149,14 +149,15 @@ export async function anonymizeTalent(
       parentRulesSignerNom: null,
       parentRulesRelationship: null,
       parentRulesSignedCity: null,
-      // Talent-owned onboarding signature artifacts (charte / règlement PDF
-      // keys + the talent's place-of-signature). Shared with the admin reset via
-      // the canonical list so a new artifact scrubs on both paths; the PDF keys
-      // were captured above for post-commit S3 deletion.
+      // Talent-owned onboarding signature artifacts (the talent's place of
+      // signature, the règlement version and the onboarding year). Shared with
+      // the admin reset via the canonical list so a new artifact scrubs on both
+      // paths.
       ...clearTalentOnboardingArtifacts(),
-      // Image-rights PDF key, parent-decided, so not part of the talent ladder;
-      // captured above for deletion alongside the others.
+      // The two legacy PDF keys, captured above for post-commit deletion: a key
+      // left here would name an object that no longer exists.
       imageRightsFilePath: null,
+      rulesFilePath: null,
       // Guardian 1
       parentType: null,
       parentCivilite: null,

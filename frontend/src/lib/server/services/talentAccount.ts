@@ -314,7 +314,9 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         imageRightsDecidedAt: null,
         imageRightsSignerPrenom: null,
         imageRightsSignerNom: null,
+        // The two legacy PDF keys, collected above and deleted post-commit.
         imageRightsFilePath: null,
+        rulesFilePath: null,
         parentRulesSignedAt: null,
         parentRulesSignerPrenom: null,
         parentRulesSignerNom: null,
