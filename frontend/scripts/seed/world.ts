@@ -36,7 +36,7 @@ import {
   minigameRankBonusLimit,
 } from '../../src/lib/domain/xp';
 import { workshopGrantSourceId } from '../../src/lib/domain/workshops';
-import { fromWallClock } from '../../src/lib/domain/planningTime';
+import { eventEndInstant, eventStartInstant } from '../../src/lib/domain/event';
 import {
   CIVILITE_OPTIONS,
   PARENT_TYPE_OPTIONS,
@@ -193,6 +193,8 @@ export type EventRef = {
   publicName: string | null;
   campusId: string;
   campusName: string;
+  /** The first day on the generator's clock (UTC midnight), for the
+   * generator's own arithmetic. The row holds it at campus midnight. */
   date: Date;
   endDate: Date | null;
   /** Weekdays the event actually runs, for émargement and planning. */
@@ -1122,11 +1124,13 @@ export class World {
     const days = [...opts.days];
     const date = days[0]!;
 
-    // « Date de fin ». The Salesforce sync never sends one - it is typed on the
-    // configuration screen - which is why `activationBlockerKeys` refuses to
-    // make an event visible without it. So the default IS that rule: an
-    // activated event has one, an untouched Salesforce row has none, and 36 of
-    // production's 277 events carry one for exactly that reason.
+    // « Date de fin ». The sync copies the campaign's `EndDate`, and
+    // `activationBlockerKeys` refuses to make an event visible without one.
+    // The default follows production as PROFILE.md measured it (36 of 277
+    // events), which was before the sync wrote the end day, when it was typed
+    // on the configuration screen: an activated event has one, an untouched
+    // row has none. That share is now set by how many campaigns carry an
+    // `EndDate` in Salesforce, and is not measured yet.
     const withEndDate =
       opts.withEndDate ?? (days.length > 1 || opts.devActivated === true);
     // `endDate` is the ONLY column that says an event runs more than one day:
@@ -1142,13 +1146,15 @@ export class World {
         `addEvent(${opts.key}) demande ${days.length} jours sans date de fin, or c’est la date de fin qui porte la durée : les jours suivants ne seraient lus par personne.`,
       );
     }
-    // 23:59 in the CAMPUS's timezone, the way production stores it, not midnight
-    // UTC. `presenceDays` keys the day off the campus clock, so a Réunion event
-    // ending at 23:59 UTC would grow a second émargement day.
+    // Both days as the sync stores them, on the CAMPUS's clock rather than UTC.
+    // `presenceDays` keys the day off the campus clock, so a Réunion event
+    // ending at 23:59 UTC would grow a second émargement day, and a reader that
+    // takes the UTC date of a start held at UTC midnight hides the bug that
+    // reports a Paris event one day early.
+    const start = eventStartInstant(clock.dateKey(date), opts.campus.timezone);
     const endDate = withEndDate
-      ? fromWallClock(
+      ? eventEndInstant(
           clock.dateKey(days[days.length - 1]!),
-          '23:59',
           opts.campus.timezone,
         )
       : null;
@@ -1181,7 +1187,7 @@ export class World {
       titre: opts.titre,
       publicName: opts.publicName ?? null,
       cohortNoun: opts.cohortNoun ?? null,
-      date,
+      date: start,
       endDate,
       startMinutes: opts.startMinutes ?? null,
       campusId: opts.campus.id,

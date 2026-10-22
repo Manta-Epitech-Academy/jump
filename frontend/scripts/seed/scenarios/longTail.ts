@@ -141,10 +141,8 @@ export const longTail: Scenario = {
       // Those carry an end date whether or not anybody configured them, which
       // is not an oversight: the end date IS the second day, so an event
       // running two of them cannot be expressed without one. It leaves a few
-      // events holding a date and nothing else - somebody opened the
-      // configuration screen, typed the window, and never enabled a section -
-      // which is the one shape that gives `endDate` a row where `publicName`
-      // is still null.
+      // events holding the campaign's two days and nothing else, which is the
+      // one shape that gives `endDate` a row where `publicName` is still null.
       //
       // Which is also why `beingPrepared` is excluded rather than left to the
       // arithmetic: index 0 satisfies `% 12` too, and the event that exists to
