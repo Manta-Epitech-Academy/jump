@@ -1,5 +1,3 @@
-import { startOfDay } from './calendarWeek';
-
 /**
  * The talent's own session, as the home's session card renders it. The server
  * collapses the participations into this single discriminated view-model, so
@@ -133,6 +131,11 @@ export type CalendarSlot = {
  * The flattened event-tagged slots plus the overall date range spanning every
  * event. `range` is null when the talent has no events at all, which the grid
  * renders as an empty calendar rather than navigating an empty span.
+ *
+ * The bounds are the stored instants, not days: the grid lays everything out
+ * on the viewer's clock, so `WeekNavigator` takes the day of each bound there.
+ * Taking it here took it on the server's clock instead, and an event stored at
+ * Réunion midnight is the evening before in Paris, where the pods run.
  */
 export type CalendarPlanning = {
   slots: CalendarSlot[];
@@ -153,9 +156,8 @@ export function toCalendarPlanning(
   let end: Date | null = null;
 
   for (const { event } of participations) {
-    const eventStart = startOfDay(event.date);
-    const eventEnd = startOfDay(event.endDate ?? event.date);
-    if (!start || eventStart < start) start = eventStart;
+    const eventEnd = event.endDate ?? event.date;
+    if (!start || event.date < start) start = event.date;
     if (!end || eventEnd > end) end = eventEnd;
 
     for (const slot of event.planningSlots) {

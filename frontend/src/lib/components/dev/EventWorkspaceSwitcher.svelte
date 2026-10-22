@@ -22,11 +22,14 @@
   let {
     events,
     currentId,
+    timezone,
     onpick,
   }: {
     /** The active year's navigable events. Scoping is the host's job. */
     events: SwitcherEvent[];
     currentId: string;
+    /** The campus clock each row's day is read on, as `monthKey` is. */
+    timezone: string;
     onpick: (event: SwitcherEvent) => void;
   } = $props();
 
@@ -35,10 +38,13 @@
   let open = $state(false);
   let listEl = $state<HTMLElement>();
 
-  const dateFmt = new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-  });
+  const dateFmt = $derived(
+    new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      timeZone: timezone,
+    }),
+  );
 
   // On open, scroll the month of the event in view to the top, so the picker
   // opens centered on "now" without breaking the timeline (scroll up for the
