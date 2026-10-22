@@ -149,8 +149,9 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   success, the next tick replays the identical page onto the identical row.
 - `start_date` and `end_date` are `YYYY-MM-DD` or `null`. `null` is Salesforce
   having none: no end day makes a single-day event, and a new campaign with no
-  start day is skipped and listed in `undated`. An ABSENT key, or a value that
-  is no calendar day, is "not sent" and leaves the stored day alone.
+  usable start day is skipped and listed in `undated`. An ABSENT key, a value
+  that is no calendar day, or an end day before the start day is "not sent" and
+  leaves the stored day alone.
 - `campus_ext_name` can be `""`, which resolves to no campus and is skipped.
 - Jump's error body ends up quoted into `Sync_Run.error`, truncated by the worker
   at 300 characters. Keep refusals short and specific.

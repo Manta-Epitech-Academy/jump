@@ -25,6 +25,7 @@ describe('event days from the Salesforce campaign (integration)', () => {
   const campusExternalName = `TEST_DAYS_${stamp}`;
   const datedId = `test_days_dated_${stamp}`;
   const undatedId = `test_days_undated_${stamp}`;
+  const invertedId = `test_days_inverted_${stamp}`;
   const title = `Stage jours ${stamp}`;
   let campusId = '';
 
@@ -50,7 +51,7 @@ describe('event days from the Salesforce campaign (integration)', () => {
   afterAll(async () => {
     try {
       await prisma.event.deleteMany({
-        where: { externalId: { in: [datedId, undatedId] } },
+        where: { externalId: { in: [datedId, undatedId, invertedId] } },
       });
       await prisma.campus.delete({ where: { id: campusId } });
     } catch {
@@ -133,6 +134,47 @@ describe('event days from the Salesforce campaign (integration)', () => {
     expect(older).toMatchObject({ updated: 0 });
     expect(malformed).toMatchObject({ updated: 0 });
     expect(await days()).toEqual(before);
+  });
+
+  // Stored, an end before the start is an event over before it begins, with
+  // no émargement day: the end is read as not sent, on an update and on a
+  // creation alike.
+  it('ignores an end day that falls before the start day', async () => {
+    await syncEvents([
+      {
+        external_id: datedId,
+        title,
+        campus_ext_name: campusExternalName,
+        start_date: '2026-07-07',
+        end_date: '2026-07-11',
+      },
+    ]);
+    const before = await days();
+
+    const inverted = await syncEvents([
+      {
+        external_id: datedId,
+        title,
+        campus_ext_name: campusExternalName,
+        start_date: '2026-07-07',
+        end_date: '2026-07-01',
+      },
+      {
+        external_id: invertedId,
+        title: `Inversé ${stamp}`,
+        campus_ext_name: campusExternalName,
+        start_date: '2026-07-07',
+        end_date: '2026-07-01',
+      },
+    ]);
+    expect(inverted).toMatchObject({ created: 1, updated: 0 });
+    expect(await days()).toEqual(before);
+    expect(
+      await prisma.event.findUniqueOrThrow({
+        where: { externalId: invertedId },
+        select: { endDate: true },
+      }),
+    ).toEqual({ endDate: null });
   });
 
   it('skips a new campaign with no start day and names it, instead of dating it today', async () => {

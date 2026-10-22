@@ -100,8 +100,9 @@ async function resolveSchools(
  * its `EndDate` becomes `endDate`, read in the campus timezone, and a campaign
  * with no `EndDate` is a single-day event. Nothing in Jump edits them, so a
  * wrong day is fixed in Salesforce and lands on the next pass. A NEW campaign
- * with no start day is skipped like an unknown campus, and its id comes back
- * in `undated`: `date` is required, and the sync instant it used to fall back
+ * with no usable start day (none, or a value that is no calendar day) is
+ * skipped like an unknown campus, and its id comes back in `undated`: `date`
+ * is required, and the sync instant it used to fall back
  * to put the event on whatever day the worker happened to run.
  */
 export async function syncEvents(events: WorkerEvent[]) {
@@ -144,13 +145,18 @@ export async function syncEvents(events: WorkerEvent[]) {
       campaignDay(e.start_date, (day) =>
         eventStartInstant(day, campus.timezone),
       ) ?? undefined;
-    const endDate = campaignDay(e.end_date, (day) =>
+    const sentEnd = campaignDay(e.end_date, (day) =>
       eventEndInstant(day, campus.timezone),
     );
 
     const existing = await prisma.event.findUnique({
       where: { externalId: e.external_id },
     });
+    // An end day before the start day is a typo in Salesforce, not a window:
+    // stored, it made an event that is over before it begins, with no
+    // émargement day. It reads as not sent, like a value that is no day.
+    const start = date ?? existing?.date;
+    const endDate = sentEnd && start && sentEnd < start ? undefined : sentEnd;
 
     if (!existing) {
       if (!date) {
@@ -208,8 +214,8 @@ export async function syncEvents(events: WorkerEvent[]) {
 /**
  * A campaign day as the worker sent it, as the instant Jump stores. `null` =
  * Salesforce has none. `undefined` = not sent, which is also how a value that
- * is not a real calendar day reads: skipping one field beats refusing the run
- * over it.
+ * is not a real calendar day reads (and, in `syncEvents`, an end day before
+ * the start day): skipping one field beats refusing the run over it.
  */
 function campaignDay(
   value: string | null | undefined,
