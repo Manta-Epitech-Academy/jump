@@ -51,7 +51,6 @@
     campusName: string;
     dateLabel: string;
     startTime: string;
-    endDate: string;
     modules: EventModuleKey[];
     moduleSettings: Record<string, unknown>;
     devActivated: boolean;
@@ -280,8 +279,6 @@
     activationBlockerKeys({
       publicName: $form.publicName.trim() || null,
       cohortNoun: $form.cohortNoun.trim() || null,
-      // Salesforce's, not the form's: the stored day is the one that counts.
-      endDate: editing?.endDate || null,
       modules: $form.modules,
       devActivated: $form.devActivated,
     }),
@@ -292,12 +289,11 @@
   // What each blocker asks of the admin. The nouns `EVENT_MISSING_LABELS`
   // carries read as an inventory ("il manque : nom public"), which is right
   // where a list is reported and wrong on the one screen that can fix it. Typed
-  // on the union, so a fourth blocker fails the build here instead of quietly
+  // on the union, so a new blocker fails the build here instead of quietly
   // missing from the list.
   const BLOCKER_ACTIONS: Record<ActivationBlocker, string> = {
     modules: 'Activer au moins une section',
     publicName: 'Renseigner un nom public',
-    endDate: 'Renseigner la date de fin de la campagne dans Salesforce',
   };
 
   // The switch shows the effective visibility, so the payload must not keep

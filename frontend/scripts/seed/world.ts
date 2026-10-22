@@ -1090,13 +1090,6 @@ export class World {
     /** The weekdays it runs, from {@link eventWindow}. */
     days: readonly Date[];
     startMinutes?: number | null;
-    /**
-     * Whether the event carries a « date de fin ». Defaults to the two states
-     * the application itself produces - see the comment beside `withEndDate`
-     * below - so a caller only passes this to place the one in between: an
-     * event configured but not activatable because the date is still missing.
-     */
-    withEndDate?: boolean;
     devActivated?: boolean;
     modules?: readonly string[];
     /** Per-module options, keyed by module. Only some modules take any. */
@@ -1124,28 +1117,17 @@ export class World {
     const days = [...opts.days];
     const date = days[0]!;
 
-    // « Date de fin ». The sync copies the campaign's `EndDate`, and
-    // `activationBlockerKeys` refuses to make an event visible without one.
-    // The default follows production as PROFILE.md measured it (36 of 277
-    // events), which was before the sync wrote the end day, when it was typed
-    // on the configuration screen: an activated event has one, an untouched
-    // row has none. That share is now set by how many campaigns carry an
-    // `EndDate` in Salesforce, and is not measured yet.
-    const withEndDate =
-      opts.withEndDate ?? (days.length > 1 || opts.devActivated === true);
+    // « Date de fin », the campaign's `EndDate` as the sync copies it.
     // `endDate` is the ONLY column that says an event runs more than one day:
     // every reader derives its days from `date`..`endDate` (`presenceDays`,
-    // `stageCountdown`, `talentPlanning`, `dateRangeLabel`), so a caller asking
-    // for a window of several days and no end date is asking for a row that
-    // cannot carry the second one. The days would be silently dropped, and the
-    // caller would keep a `days` array nothing it writes agrees with. Refused
-    // here for the same reason the activation gate below is: the generator's
-    // own claims about an event have to hold in the row it writes.
-    if (!withEndDate && days.length > 1) {
-      throw new Error(
-        `addEvent(${opts.key}) demande ${days.length} jours sans date de fin, or c’est la date de fin qui porte la durée : les jours suivants ne seraient lus par personne.`,
-      );
-    }
+    // `stageCountdown`, `talentPlanning`, `dateRangeLabel`), so a multi-day
+    // event always carries one. A single-day event carries one when it is
+    // activated, which is the share PROFILE.md measured (36 of 277 events)
+    // back when the end day was typed on the configuration screen and the
+    // activation asked for it. Today the share is however many campaigns
+    // carry an `EndDate` in Salesforce, which is not measured yet, so the
+    // measured one stands in for it.
+    const withEndDate = days.length > 1 || opts.devActivated === true;
     // Both days as the sync stores them, on the CAMPUS's clock rather than UTC.
     // `presenceDays` keys the day off the campus clock, so a Réunion event
     // ending at 23:59 UTC would grow a second émargement day, and a reader that
@@ -1162,16 +1144,13 @@ export class World {
     // The activation gate, enforced where the row is written instead of checked
     // afterwards. `activationBlockerKeys` is what both the configuration dialog
     // and the admin API refuse an activation on, so an activated event missing
-    // any of the three is a state no human could have reached - and a dev space
+    // any of them is a state no human could have reached - and a dev space
     // showing an event its own configuration screen calls impossible is the one
-    // thing a seeded environment must not do. It was reachable: every
-    // single-day event had a null `endDate`, and `longTail` activated a fifth of
-    // them.
+    // thing a seeded environment must not do.
     if (opts.devActivated) {
       const blockers = activationBlockers({
         publicName: opts.publicName ?? null,
         cohortNoun: opts.cohortNoun ?? null,
-        endDate: endDate === null ? null : endDate.toISOString(),
         modules: opts.modules ?? [],
         devActivated: true,
       });

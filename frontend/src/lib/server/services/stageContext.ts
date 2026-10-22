@@ -36,7 +36,7 @@ import type { Prisma } from '@prisma/client';
  *
  * Not the same rule as `activatableEventWhere` in `services/events`: this one is
  * what IS visible, that one is what MAY be made visible (a stricter set, which
- * also needs a public name and an end date).
+ * also needs a public name).
  */
 export const devVisibleEventWhere = {
   devActivatedAt: { not: null },

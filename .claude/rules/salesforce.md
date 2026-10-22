@@ -130,7 +130,11 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   the campaign name, which dated a campaign named any other way on the day the
   worker ran, and the end day was typed by hand in the config wizard, where the
   next pass would have overwritten it. A wrong day is fixed in Salesforce and
-  lands on the next pass (`ops_request_sync` for one now).
+  lands on the next pass (`ops_request_sync` for one now). And no end day is a
+  single-day event, never a missing field: the activation rule asked for one
+  while Jump typed it, and kept asking once the sync wrote it, which refused
+  every single-day campaign and every later save of a visible event whose
+  campaign had no `EndDate`.
 
 ## Shapes that look like errors and are not
 

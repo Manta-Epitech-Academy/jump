@@ -133,9 +133,9 @@ export function jumpOwnedFields(
  * The rows `bulkSetActivation` is allowed to activate: the SQL twin of
  * `activationBlockers` in `domain/eventReadiness`.
  *
- * Two spellings of one rule is the shape this replaces - the same three
+ * Two spellings of one rule is the shape this replaces - the same
  * conditions sat here as a `where`, in `adminApi/writes/bulk.ts` as a hand-copied
- * predicate, and in a refusal sentence that listed all three with "or" because it
+ * predicate, and in a refusal sentence that listed them all with "or" because it
  * could not tell which one applied. A `where` cannot call a predicate, so the
  * honest arrangement is one rule with two spellings that name each other, and a
  * unit test asserting they read the same fields.
@@ -145,7 +145,6 @@ export function jumpOwnedFields(
  */
 export const activatableEventWhere = {
   modules: { some: {} },
-  endDate: { not: null },
   NOT: [{ publicName: null }, { publicName: '' }],
 } satisfies Prisma.EventWhereInput;
 
@@ -484,8 +483,7 @@ export const EventService = {
    * transaction. Admin-only (the `/staff/admin/events` page is admin-gated and
    * admins are cross-campus, so there is no campus check here; the event id is
    * the authority). `titre` and both days (`date`, `endDate`) are Salesforce's
-   * and only the sync writes them; the stored `endDate` is read here because
-   * the activation rule asks for one.
+   * and only the sync writes them.
    *
    * `workshops` is the one part that is optional: the config dialog has no
    * activity field, so it leaves the event's activities as they are, and only
@@ -513,7 +511,7 @@ export const EventService = {
     // preserve the original activation instant across edits that keep it on.
     const event = await prisma.event.findUniqueOrThrow({
       where: { id: eventId },
-      select: { devActivatedAt: true, endDate: true },
+      select: { devActivatedAt: true },
     });
     // The activation rule, judged on the configuration being saved rather than
     // the one stored. `bulkSetActivation` refuses through `activatableEventWhere`;
@@ -529,7 +527,6 @@ export const EventService = {
       ? activationRefusal({
           publicName: data.publicName.trim() || null,
           cohortNoun: data.cohortNoun.trim() || null,
-          endDate: event.endDate?.toISOString() ?? null,
           modules: data.modules,
           devActivated: data.devActivated,
         })

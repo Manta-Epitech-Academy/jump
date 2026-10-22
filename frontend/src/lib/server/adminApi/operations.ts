@@ -853,7 +853,7 @@ export const ADMIN_API_OPERATIONS = {
         .boolean()
         .optional()
         .describe(
-          'True to show it in the dev workspace, false to hide it. Showing needs a public name, an end date and at least one section, as saved by this call.',
+          'True to show it in the dev workspace, false to hide it. Showing needs a public name and at least one section, as saved by this call.',
         ),
       feedbackFormId: z
         .string()

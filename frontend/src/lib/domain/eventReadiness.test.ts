@@ -22,7 +22,6 @@ import {
 const configured: EventConfigFields = {
   publicName: 'Stage Web Été 2026',
   cohortNoun: 'stagiaire',
-  endDate: '2026-07-10',
   modules: ['inscrits'],
   devActivated: true,
 };
@@ -37,14 +36,12 @@ describe('eventMissingConfig', () => {
       eventMissingConfig({
         publicName: '',
         cohortNoun: null,
-        endDate: '',
         modules: [],
         devActivated: false,
       }),
     ).toEqual([
       EVENT_MISSING_LABELS.publicName,
       EVENT_MISSING_LABELS.cohortNoun,
-      EVENT_MISSING_LABELS.endDate,
       EVENT_MISSING_LABELS.modules,
     ]);
   });
@@ -70,16 +67,16 @@ describe('activationBlockers', () => {
     expect(canBeMadeVisible({ ...configured, devActivated: false })).toBe(true);
   });
 
-  it('names what this event lacks, not the three possibilities', () => {
-    expect(activationBlockers({ ...configured, endDate: null })).toEqual([
-      EVENT_MISSING_LABELS.endDate,
+  it('names what this event lacks, not every possibility', () => {
+    expect(activationBlockers({ ...configured, publicName: null })).toEqual([
+      EVENT_MISSING_LABELS.publicName,
     ]);
   });
 
   // The gap this closes: `configState` calls such an event `ready` ("Prêt à
   // publier", one toggle from live) while the activation write refuses it.
-  it('refuses an event with sections but no end date, which reads as ready', () => {
-    expect(canBeMadeVisible({ ...configured, endDate: '' })).toBe(false);
+  it('refuses an event with sections but no public name, which reads as ready', () => {
+    expect(canBeMadeVisible({ ...configured, publicName: '' })).toBe(false);
   });
 
   // The write does not check the cohort noun, so listing it here would refuse an

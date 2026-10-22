@@ -169,14 +169,13 @@ export async function reachabilityFailures(
   //
   // `World.addEvent` already refuses to activate an event the application would
   // refuse, so the first half below can only fail if somebody bypasses it. The
-  // half that earns its keep is the second: each of the three blockers has to
+  // half that earns its keep is the second: each blocker has to
   // have an example, because the admin cockpit's « il manque : ... » inventory
   // and the configuration dialog's refusal are both read off this rule, and a
   // blocker no event carries is a sentence nobody has ever seen rendered.
   const activationBlockerFields = events.map((event) => ({
     publicName: event.publicName,
     cohortNoun: event.cohortNoun,
-    endDate: event.endDate === null ? null : event.endDate.toISOString(),
     modules: event.modules,
     devActivated: event.devActivatedAt !== null,
   }));

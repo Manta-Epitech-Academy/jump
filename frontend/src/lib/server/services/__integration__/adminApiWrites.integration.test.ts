@@ -246,34 +246,42 @@ describe('admin API writes (integration)', () => {
     await prisma.event.delete({ where: { id: live.id } });
   });
 
-  // The end day the rule asks for is the stored one, which only the sync
-  // writes, so the refusal has to say where it is filled in: nothing the call
-  // could add would satisfy it.
-  it('refuses to show an event Salesforce gave no end day, and says where to set it', async () => {
-    const undated = await prisma.event.create({
+  // No end day is a single-day event, not a missing field: the sync writes
+  // `null` for a campaign with no `EndDate`, and nothing in Jump can supply
+  // one. Asking for it refused every single-day campaign, and once the sync
+  // cleared the end day of a visible event, refused every later save of it.
+  it('shows an event Salesforce gave no end day, and keeps it editable', async () => {
+    const singleDay = await prisma.event.create({
       data: {
-        titre: `WriteNoEnd-${stamp}`,
-        publicName: 'Coding Club sans fin',
+        titre: `WriteSingleDay-${stamp}`,
+        publicName: 'Coding Club d’un jour',
         date: new Date(Date.now() + 30 * 86_400_000),
         campusId,
         modules: { create: { moduleKey: 'inscrits' } },
       },
     });
 
-    const { status, payload } = await call(postConfig, writeSecret, {
-      eventId: undated.id,
+    const shown = await call(postConfig, writeSecret, {
+      eventId: singleDay.id,
       visible: true,
     });
+    expect(shown.status).toBe(200);
+    expect(shown.payload.after).toMatchObject({ visibleInDevWorkspace: true });
 
-    expect(status).toBe(400);
-    expect(String(payload.error)).toContain(
-      'date de fin (à renseigner dans Salesforce)',
-    );
+    const edited = await call(postConfig, writeSecret, {
+      eventId: singleDay.id,
+      startTime: '14:00',
+    });
+    expect(edited.status).toBe(200);
+    expect(edited.payload.after).toMatchObject({
+      startTime: '14:00',
+      visibleInDevWorkspace: true,
+    });
 
     await prisma.eventConfig_Module.deleteMany({
-      where: { eventId: undated.id },
+      where: { eventId: singleDay.id },
     });
-    await prisma.event.delete({ where: { id: undated.id } });
+    await prisma.event.delete({ where: { id: singleDay.id } });
   });
 
   // And the way through, so the refusal above is a detour rather than a dead
@@ -355,9 +363,7 @@ describe('admin API writes (integration)', () => {
     const blank = await prisma.event.create({
       data: {
         titre: `WriteBlank-${stamp}`,
-        // Both days as the sync leaves them: blank is Jump's configuration.
         date: new Date(Date.now() + 30 * 86_400_000),
-        endDate: new Date(Date.now() + 34 * 86_400_000),
         campusId,
       },
     });
@@ -536,18 +542,18 @@ describe('admin API writes (integration)', () => {
 
     const { status, payload } = await call(postConfig, writeSecret, {
       eventId: blank.id,
-      publicName: 'Stage sans fin',
+      cohortNoun: 'stagiaire',
       modules: ['inscrits'],
       visible: true,
     });
 
     expect(status).toBe(400);
-    expect(String(payload.error)).toContain('date de fin');
+    expect(String(payload.error)).toContain('nom public');
     const after = await prisma.event.findUniqueOrThrow({
       where: { id: blank.id },
       include: { modules: true },
     });
-    expect(after.publicName).toBeNull();
+    expect(after.cohortNoun).toBeNull();
     expect(after.modules).toEqual([]);
     expect(after.devActivatedAt).toBeNull();
 
@@ -787,7 +793,6 @@ describe('admin API writes (integration)', () => {
           data: {
             titre: `${titre}-${stamp}`,
             date: new Date(Date.now() + 30 * 86_400_000),
-            endDate: new Date(Date.now() + 31 * 86_400_000),
             campusId,
           },
         }),
@@ -902,10 +907,9 @@ describe('admin API writes (integration)', () => {
         campusId: bulkCampus.id,
       },
     });
-    const noEnd = await prisma.event.create({
+    const unnamed = await prisma.event.create({
       data: {
-        titre: `BulkNoEnd-${stamp}`,
-        publicName: 'Coding Club sans fin',
+        titre: `BulkUnnamed-${stamp}`,
         date: soon,
         campusId: bulkCampus.id,
       },
@@ -933,7 +937,7 @@ describe('admin API writes (integration)', () => {
       skipped: { eventId: string; reason: string }[];
     };
     expect(plan.changes.map((c) => c.eventId).sort()).toEqual(
-      [ready.id, noEnd.id].sort(),
+      [ready.id, unnamed.id].sort(),
     );
     expect(plan.changes.find((c) => c.eventId === ready.id)?.visible).toEqual({
       from: false,
@@ -941,8 +945,8 @@ describe('admin API writes (integration)', () => {
     });
     expect(plan.skipped).toEqual([
       expect.objectContaining({
-        eventId: noEnd.id,
-        reason: expect.stringContaining('date de fin'),
+        eventId: unnamed.id,
+        reason: expect.stringContaining('nom public'),
       }),
     ]);
 
@@ -959,12 +963,12 @@ describe('admin API writes (integration)', () => {
     const byId = new Map(rows.map((row) => [row.id, row]));
     expect(byId.get(ready.id)?.devActivatedAt).not.toBeNull();
     expect(byId.get(ready.id)?.modules).toHaveLength(1);
-    expect(byId.get(noEnd.id)?.devActivatedAt).toBeNull();
-    expect(byId.get(noEnd.id)?.modules).toHaveLength(1);
+    expect(byId.get(unnamed.id)?.devActivatedAt).toBeNull();
+    expect(byId.get(unnamed.id)?.modules).toHaveLength(1);
     expect(byId.get(past.id)?.modules).toHaveLength(0);
 
     await prisma.eventConfig_Module.deleteMany({
-      where: { eventId: { in: [ready.id, noEnd.id, past.id] } },
+      where: { eventId: { in: [ready.id, unnamed.id, past.id] } },
     });
     await prisma.event.deleteMany({ where: { campusId: bulkCampus.id } });
     await prisma.campus.delete({ where: { id: bulkCampus.id } });
