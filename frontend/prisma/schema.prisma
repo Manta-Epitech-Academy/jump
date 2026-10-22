@@ -918,12 +918,16 @@ model Event {
   // "stagiaire" (a real historical value).
   cohortNoun        String?
   date              DateTime
-  // Salesforce gives us the calendar day (`date`/`endDate`) but never a
+  // Salesforce gives us the calendar days (`date`/`endDate`) but never a
   // start time, so the time-of-day is Jump-owned: wall-clock minutes from
   // local midnight (0-1439), `null` until staff set it. Kept separate from
   // `date` precisely so the SF sync, which rewrites `date`, can never
   // clobber it. Compose with the campus timezone for a real instant.
   startMinutes      Int?
+  // The campaign's `EndDate`, written by the sync alone and stored at 23:59
+  // campus-local (`eventEndInstant`); `date` is its `StartDate` at 00:00.
+  // `null` = a single-day event. Nothing in Jump edits either day: a wrong one
+  // is corrected in Salesforce.
   endDate           DateTime?
   campusId          String
   // Which feedback form this event uses (the `bilan` module reports against it,

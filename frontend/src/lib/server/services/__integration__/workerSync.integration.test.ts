@@ -190,7 +190,8 @@ describe('the worker sync loop (integration)', () => {
       {
         external_id: eventExternalId,
         title: `Stage ${stamp}`,
-        date: '2026/07/08',
+        start_date: '2026-07-08',
+        end_date: null,
         campus_ext_name: armedExternalName,
       },
       // A campus nobody has armed: skipped and counted, never a refusal that

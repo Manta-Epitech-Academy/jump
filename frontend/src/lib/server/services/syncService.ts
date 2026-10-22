@@ -33,6 +33,8 @@ import {
   shownStatusesByEvent,
 } from '$lib/server/services/devSpaceVisibility';
 import { schoolYearOf } from '$lib/domain/schoolYear';
+import { eventEndInstant, eventStartInstant } from '$lib/domain/event';
+import { isCalendarDay, type DateKey } from '$lib/domain/planningTime';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 import type {
   WorkerEvent,
@@ -93,6 +95,14 @@ async function resolveSchools(
  * touched either, so an event discovered under a whitelisted parent campaign
  * lands hidden until an admin activates it: automatic discovery is not
  * automatic publication.
+ *
+ * The two days are Salesforce's: the campaign's `StartDate` becomes `date` and
+ * its `EndDate` becomes `endDate`, read in the campus timezone, and a campaign
+ * with no `EndDate` is a single-day event. Nothing in Jump edits them, so a
+ * wrong day is fixed in Salesforce and lands on the next pass. A NEW campaign
+ * with no start day is skipped like an unknown campus, and its id comes back
+ * in `undated`: `date` is required, and the sync instant it used to fall back
+ * to put the event on whatever day the worker happened to run.
  */
 export async function syncEvents(events: WorkerEvent[]) {
   const wanted = [
@@ -102,22 +112,23 @@ export async function syncEvents(events: WorkerEvent[]) {
   ];
   const campuses = await prisma.campus.findMany({
     where: { externalName: { in: wanted } },
-    select: { id: true, externalName: true },
+    select: { id: true, externalName: true, timezone: true },
   });
-  const campusIdByExternalName = new Map(
-    campuses.map((c) => [c.externalName as string, c.id]),
+  const campusByExternalName = new Map(
+    campuses.map((c) => [c.externalName as string, c]),
   );
 
   let created = 0;
   let updated = 0;
   let skipped = 0;
   const unresolvedCampuses = new Set<string>();
+  const undated: string[] = [];
   // Read lazily, once per push: most pushes create no event at all.
   let shownByDefault: string[] | undefined;
 
   for (const e of events) {
-    const campusId = campusIdByExternalName.get(e.campus_ext_name);
-    if (!campusId) {
+    const campus = campusByExternalName.get(e.campus_ext_name);
+    if (!campus) {
       skipped++;
       // `campus_ext_name` is legitimately `""` when the campaign names no
       // campus, which is an ABSENT name rather than an unresolved one. Listing
@@ -126,23 +137,39 @@ export async function syncEvents(events: WorkerEvent[]) {
         unresolvedCampuses.add(e.campus_ext_name);
       continue;
     }
+    const campusId = campus.id;
+    // `undefined` leaves the stored day alone and `null` clears it, which only
+    // the end day can be: an event always has a start.
+    const date =
+      campaignDay(e.start_date, (day) =>
+        eventStartInstant(day, campus.timezone),
+      ) ?? undefined;
+    const endDate = campaignDay(e.end_date, (day) =>
+      eventEndInstant(day, campus.timezone),
+    );
 
     const existing = await prisma.event.findUnique({
       where: { externalId: e.external_id },
     });
 
     if (!existing) {
+      if (!date) {
+        skipped++;
+        undated.push(e.external_id);
+        continue;
+      }
       // Seed the per-event modules and the shown Salesforce statuses once, at
       // creation. After this the rows are Jump-owned: the update branch never
       // touches them, so the dev team's per-event config is never clobbered.
-      // Everything else (window, welcome, feedback form) stays unset until an
-      // admin configures the event from the config wizard - a synced event
-      // lands hidden and single-day.
+      // Everything else (start time, welcome, feedback form) stays unset until
+      // an admin configures the event from the config wizard - a synced event
+      // lands hidden.
       shownByDefault ??= await defaultShownStatuses();
       await prisma.event.create({
         data: {
           externalId: e.external_id,
-          date: e.date ? new Date(e.date) : new Date(),
+          date,
+          endDate,
           titre: e.title,
           campusId,
           modules: {
@@ -157,15 +184,13 @@ export async function syncEvents(events: WorkerEvent[]) {
     } else if (
       existing.titre !== e.title ||
       existing.campusId !== campusId ||
-      (e.date && existing.date.getTime() !== new Date(e.date).getTime())
+      (date !== undefined && !sameInstant(existing.date, date)) ||
+      (endDate !== undefined && !sameInstant(existing.endDate, endDate))
     ) {
       await prisma.event.update({
         where: { externalId: e.external_id },
-        data: {
-          titre: e.title,
-          campusId,
-          date: e.date ? new Date(e.date) : existing.date,
-        },
+        // An `undefined` day is no write at all for Prisma.
+        data: { titre: e.title, campusId, date, endDate },
       });
       updated++;
     }
@@ -176,7 +201,28 @@ export async function syncEvents(events: WorkerEvent[]) {
     updated,
     skipped,
     unresolvedCampuses: [...unresolvedCampuses],
+    undated,
   };
+}
+
+/**
+ * A campaign day as the worker sent it, as the instant Jump stores. `null` =
+ * Salesforce has none. `undefined` = not sent, which is also how a value that
+ * is not a real calendar day reads: skipping one field beats refusing the run
+ * over it.
+ */
+function campaignDay(
+  value: string | null | undefined,
+  toInstant: (day: DateKey) => Date,
+): Date | null | undefined {
+  if (value === null) return null;
+  return value !== undefined && isCalendarDay(value)
+    ? toInstant(value)
+    : undefined;
+}
+
+function sameInstant(a: Date | null, b: Date | null): boolean {
+  return (a?.getTime() ?? null) === (b?.getTime() ?? null);
 }
 
 /**

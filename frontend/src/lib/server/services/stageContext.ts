@@ -180,8 +180,8 @@ export async function loadEventOr404(
 
 /**
  * Effective end of an event for DISPLAY: its explicit `endDate`, else the start
- * `date` (single-day). A multi-day event carries an explicit `endDate` (config
- * wizard or planning template); nothing is synthesised from a type. Thin
+ * `date` (single-day). A multi-day event carries an explicit `endDate`, the
+ * campaign's `EndDate` in Salesforce; nothing is synthesised from a type. Thin
  * server-side alias of the domain `eventWindowEnd`, kept for the object-shaped
  * call sites here.
  *

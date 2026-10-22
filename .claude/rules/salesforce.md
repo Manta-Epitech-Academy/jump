@@ -122,6 +122,15 @@ memory, because `since: undefined` is present in an object and gone from its JSO
 - **`syncEvents` skips what it cannot resolve, it does not refuse the batch.** It
   used to return on the first bad row, leaving everything before it applied and
   everything after it not, with one string to explain the state.
+- **An event's days are Salesforce's, and only the sync writes them.** `date` is
+  the campaign's `StartDate` at 00:00 campus-local, `endDate` its `EndDate` at
+  23:59, both through `eventStartInstant` / `eventEndInstant`, so the campus
+  timezone decides the day and the server's never does. Jump owns the hour
+  (`startMinutes`) and nothing else: the start day was once regex-parsed out of
+  the campaign name, which dated a campaign named any other way on the day the
+  worker ran, and the end day was typed by hand in the config wizard, where the
+  next pass would have overwritten it. A wrong day is fixed in Salesforce and
+  lands on the next pass (`ops_request_sync` for one now).
 
 ## Shapes that look like errors and are not
 
@@ -134,8 +143,10 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   `MISSING_NAME`; the page of 50 that carried it is still reconciled. Refusing it
   at the envelope closes the run in error, and since the watermark only moves on
   success, the next tick replays the identical page onto the identical row.
-- `date` is **absent**, never `null`, when the campaign name carries none, and it
-  is written `YYYY/MM/DD`.
+- `start_date` and `end_date` are `YYYY-MM-DD` or `null`. `null` is Salesforce
+  having none: no end day makes a single-day event, and a new campaign with no
+  start day is skipped and listed in `undated`. An ABSENT key, or a value that
+  is no calendar day, is "not sent" and leaves the stored day alone.
 - `campus_ext_name` can be `""`, which resolves to no campus and is skipped.
 - Jump's error body ends up quoted into `Sync_Run.error`, truncated by the worker
   at 300 characters. Keep refusals short and specific.
