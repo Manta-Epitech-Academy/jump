@@ -323,6 +323,9 @@ describe('the worker sync loop (integration)', () => {
       expect(prunesHeld.value).toContainEqual(
         expect.objectContaining({
           eventId,
+          // The campaign's day, read on the campus clock: its UTC date is the
+          // day before, since Paris midnight is 22:00 UTC in July.
+          date: '2026-07-08',
           cause: 'unresolved_members',
           pendingRemovals: 2,
           releasedAt: null,

@@ -36,6 +36,7 @@ import {
 } from '$lib/server/services/syncConfigService';
 import { hoursSince, syncFreshnessTerms } from './dataFreshness';
 import { eventDisplayName } from '$lib/domain/event';
+import { toDateKey } from '$lib/domain/planningTime';
 
 type PassHealth = {
   at: string;
@@ -200,7 +201,7 @@ async function memberStatusReport(): Promise<MemberStatusReport> {
             titre: true,
             publicName: true,
             date: true,
-            campus: { select: { name: true } },
+            campus: { select: { name: true, timezone: true } },
           },
         });
 
@@ -215,7 +216,7 @@ async function memberStatusReport(): Promise<MemberStatusReport> {
         eventId: event.id,
         event: eventDisplayName(event),
         campus: event.campus.name,
-        date: event.date.toISOString().slice(0, 10),
+        date: toDateKey(event.date, event.campus.timezone),
         count: entry.count,
         statuses: [...entry.statuses].sort(),
       };
@@ -240,7 +241,7 @@ async function heldPrunes(): Promise<HeldPrune[]> {
           titre: true,
           publicName: true,
           date: true,
-          campus: { select: { name: true } },
+          campus: { select: { name: true, timezone: true } },
         },
       },
     },
@@ -249,7 +250,7 @@ async function heldPrunes(): Promise<HeldPrune[]> {
     eventId: r.eventId,
     event: eventDisplayName(r.event),
     campus: r.event.campus.name,
-    date: r.event.date.toISOString().slice(0, 10),
+    date: toDateKey(r.event.date, r.event.campus.timezone),
     cause: r.sentCount === 0 ? 'empty_roster' : 'unresolved_members',
     pendingRemovals: r.pendingRemovals,
     sentCount: r.sentCount,
