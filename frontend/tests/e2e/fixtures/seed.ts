@@ -246,8 +246,9 @@ export async function seedE2eData(): Promise<void> {
       titre: 'E2E-Prochain-Campagne-SF',
       publicName: E2E.upcomingEventName,
       cohortNoun: 'participant',
-      date: dateKeyToDbDate(
+      date: eventStartInstant(
         toDateKey(new Date(Date.now() + 3 * 86_400_000), CAMPUS_TIMEZONE),
+        CAMPUS_TIMEZONE,
       ),
       startMinutes: 14 * 60,
       campusId: E2E.campusId,
