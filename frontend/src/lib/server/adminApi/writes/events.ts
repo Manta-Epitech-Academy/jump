@@ -15,8 +15,8 @@
  *
  * The one thing added on top is **patch semantics**. `updateEventConfig` takes a
  * complete configuration and replaces it, which is right for a form (the form
- * holds every field) and wrong for a tool call: a model asked to "set the end
- * date" would have to supply the public name, the cohort noun, the sections and
+ * holds every field) and wrong for a tool call: a model asked to "set the arrival
+ * time" would have to supply the public name, the cohort noun, the sections and
  * the start time as well, and would cheerfully invent them. So the write reads
  * the current state first, applies only the fields it was actually given (`null`
  * clears a field, an omitted field is left alone), and sends the whole thing
@@ -56,7 +56,6 @@ type EventState = {
   publicName: string | null;
   cohortNoun: string | null;
   startTime: string | null;
-  endDate: string | null;
   modules: string[];
   moduleSettings: Record<string, unknown>;
   shownStatuses: string[];
@@ -108,7 +107,6 @@ export type EventConfigPatch = {
   publicName?: string | null;
   cohortNoun?: string | null;
   startTime?: string | null;
-  endDate?: string | null;
   modules?: string[];
   moduleSettings?: ModuleSettingsPatch;
   shownStatuses?: string[];
@@ -278,7 +276,6 @@ export async function writeEventConfig(
     publicName: patched(params.publicName, event.publicName),
     cohortNoun: patched(params.cohortNoun, event.cohortNoun),
     startTime: patched(params.startTime, event.startTime),
-    endDate: patched(params.endDate, event.endDate),
     modules,
     moduleSettings: mergedModuleSettings(event, modules, params.moduleSettings),
     devActivated: params.visible ?? event.devActivated,

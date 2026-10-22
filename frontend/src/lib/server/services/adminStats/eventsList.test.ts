@@ -40,7 +40,6 @@ function event(over: Partial<AdminEventVM> = {}): AdminEventVM {
     dateLabel: '12 fév. 2026',
     dateTs: 0,
     createdTs: 0,
-    startDateKey: '2026-02-12',
     schoolYearLabel: '2025-2026',
     schoolYearStart: 2025,
     startTime: '',

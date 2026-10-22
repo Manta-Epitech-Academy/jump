@@ -8,7 +8,7 @@ import {
   parseModuleSettings,
   type EventModuleKey,
 } from '$lib/domain/eventModules';
-import { fromWallClock, toDateKey } from '$lib/domain/planningTime';
+import { toDateKey } from '$lib/domain/planningTime';
 import {
   getEventStatus,
   getLifecycleBounds,
@@ -47,8 +47,6 @@ export type AdminEventVM = {
   dateTs: number;
   /** Epoch ms of row creation, for the dashboard's "recently created" order. */
   createdTs: number;
-  /** Start day `YYYY-MM-DD` (campus tz): the end-date input's `min`. */
-  startDateKey: string;
   schoolYearLabel: string;
   schoolYearStart: number;
   /** "HH:MM" Jump-owned start, or "" when unset (shows the type default). */
@@ -72,7 +70,7 @@ export type AdminEventVM = {
    * agree on what "in the dev space" means.
    */
   configState: EventConfigState;
-  /** End day `YYYY-MM-DD` (campus tz) for the form, or "" when unset. */
+  /** Salesforce end day `YYYY-MM-DD` (campus tz), or "" for a single-day event. */
   endDate: string;
   modules: EventModuleKey[];
   /** Per-module sub-options keyed by module key (only enabled modules carry one). */
@@ -110,7 +108,7 @@ export function adminEventRunsClosings(
 }
 
 /**
- * The four values Jump owns on an event, `null` where unset.
+ * The three values Jump owns on an event, `null` where unset.
  *
  * The VM spells "unset" as `""` because forms bind to it; the admin API spells
  * it `null`, the value `write_event_config` clears a field with, so a read sent
@@ -118,21 +116,16 @@ export function adminEventRunsClosings(
  * event read and the write's before and after cannot disagree on the spelling.
  */
 export function jumpOwnedFields(
-  event: Pick<
-    AdminEventVM,
-    'publicName' | 'cohortNoun' | 'startTime' | 'endDate'
-  >,
+  event: Pick<AdminEventVM, 'publicName' | 'cohortNoun' | 'startTime'>,
 ): {
   publicName: string | null;
   cohortNoun: string | null;
   startTime: string | null;
-  endDate: string | null;
 } {
   return {
     publicName: event.publicName || null,
     cohortNoun: event.cohortNoun || null,
     startTime: event.startTime || null,
-    endDate: event.endDate || null,
   };
 }
 
@@ -221,7 +214,6 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
   return rows.map((e) => {
     const tz = e.campus.timezone;
     const sy = schoolYearOf(e.date, tz);
-    const startDateKey = toDateKey(e.date, tz);
     // Same window rule as the dev workspace (both call `getEventStatus`): the
     // raw endDate (null = single-day, a whole-day window) decides the bucket, so
     // the cockpit and the dev space agree.
@@ -244,7 +236,6 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
       dateLabel: dateRangeLabel(e.date, e.endDate, tz),
       dateTs: e.date.getTime(),
       createdTs: e.createdAt.getTime(),
-      startDateKey,
       schoolYearLabel: sy.label,
       schoolYearStart: sy.startYear,
       startTime: minutesToHHMM(e.startMinutes),
@@ -489,15 +480,12 @@ export const EventService = {
 
   /**
    * Admin event configuration: the friendly `publicName`, the Jump-owned start
-   * time-of-day and end date, and the dev-workspace surfaces the event exposes,
-   * all in one transaction. Admin-only (the
-   * `/staff/admin/events` page is admin-gated and admins are cross-campus, so
-   * there is no campus check here; the event id is the authority). The start
-   * `date` and `titre` stay Salesforce-owned. `endDate` is NOT sent by
-   * Salesforce, so Jump owns it here (like the start time): a `YYYY-MM-DD`
-   * campus-tz day, stored at end-of-day so the last day still reads as
-   * "ongoing"; empty clears it back to a single-day event. Note an applied
-   * planning template also rewrites `endDate` (its last day wins).
+   * time-of-day, and the dev-workspace surfaces the event exposes, all in one
+   * transaction. Admin-only (the `/staff/admin/events` page is admin-gated and
+   * admins are cross-campus, so there is no campus check here; the event id is
+   * the authority). `titre` and both days (`date`, `endDate`) are Salesforce's
+   * and only the sync writes them; the stored `endDate` is read here because
+   * the activation rule asks for one.
    *
    * `workshops` is the one part that is optional: the config dialog has no
    * activity field, so it leaves the event's activities as they are, and only
@@ -510,7 +498,6 @@ export const EventService = {
       publicName: string;
       cohortNoun: string;
       startTime: string;
-      endDate: string;
       modules: string[];
       moduleSettings: Record<string, unknown>;
       devActivated: boolean;
@@ -522,15 +509,11 @@ export const EventService = {
     },
   ) {
     // Surfaces a clean 404 (rather than a transaction-level throw) if the event
-    // vanished between the page load and the save. The campus tz turns the
-    // bare end-date day into a correct instant; `devActivatedAt` is read to
+    // vanished between the page load and the save. `devActivatedAt` is read to
     // preserve the original activation instant across edits that keep it on.
     const event = await prisma.event.findUniqueOrThrow({
       where: { id: eventId },
-      select: {
-        devActivatedAt: true,
-        campus: { select: { timezone: true } },
-      },
+      select: { devActivatedAt: true, endDate: true },
     });
     // The activation rule, judged on the configuration being saved rather than
     // the one stored. `bulkSetActivation` refuses through `activatableEventWhere`;
@@ -546,17 +529,12 @@ export const EventService = {
       ? activationRefusal({
           publicName: data.publicName.trim() || null,
           cohortNoun: data.cohortNoun.trim() || null,
-          endDate: data.endDate || null,
+          endDate: event.endDate?.toISOString() ?? null,
           modules: data.modules,
           devActivated: data.devActivated,
         })
       : null;
     if (refusal) throw error(400, refusal);
-    // 23:59 campus-local on the chosen day, so `toDateKey` resolves it to that
-    // day for the émargement créneaux whatever the campus timezone.
-    const endDate = data.endDate
-      ? fromWallClock(data.endDate, '23:59', event.campus.timezone)
-      : null;
     // Keep the existing instant while it stays activated; stamp now on a fresh
     // activation; clear it when deactivated.
     const devActivatedAt = data.devActivated
@@ -612,7 +590,6 @@ export const EventService = {
           // default, so the column never asserts an unmade choice.
           cohortNoun: data.cohortNoun.trim() || null,
           startMinutes: hhmmToMinutes(data.startTime),
-          endDate,
           devActivatedAt,
           feedbackFormId,
           diplomaTemplateId,

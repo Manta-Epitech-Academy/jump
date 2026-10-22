@@ -81,7 +81,7 @@ export type EventConfigFields = {
 export const EVENT_MISSING_LABELS = {
   publicName: 'nom public',
   cohortNoun: 'nom des participants',
-  endDate: 'date de fin',
+  endDate: 'date de fin (à renseigner dans Salesforce)',
   modules: 'aucune section activée',
   activation: "pas encore activé pour l'espace dev",
 } as const;

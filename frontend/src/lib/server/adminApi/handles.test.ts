@@ -53,7 +53,6 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'publicName',
   'cohortNoun',
   'startTime',
-  'endDate',
   'description',
   'reason',
   'label',
