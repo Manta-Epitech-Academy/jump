@@ -107,6 +107,7 @@
                         Le {new Date(
                           child.upcomingEvent.date,
                         ).toLocaleDateString('fr-FR', {
+                          timeZone: child.upcomingEvent.timezone,
                           weekday: 'long',
                           day: 'numeric',
                           month: 'long',

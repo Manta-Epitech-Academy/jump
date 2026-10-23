@@ -39,7 +39,15 @@ export const load: PageServerLoad = async ({ locals }) => {
           event: { date: { gt: new Date() } },
         },
         include: {
-          event: { select: { id: true, titre: true, date: true } },
+          event: {
+            select: {
+              id: true,
+              titre: true,
+              date: true,
+              // The day is read on the event's campus clock, not the reader's.
+              campus: { select: { timezone: true } },
+            },
+          },
         },
         orderBy: { event: { date: 'asc' } },
       });
@@ -50,7 +58,13 @@ export const load: PageServerLoad = async ({ locals }) => {
         nom: child.nom,
         imageRightsStatus: imageRightsStatus(child),
         eventsCount: child._count.participations,
-        upcomingEvent: upcomingParticipation?.event ?? null,
+        upcomingEvent: upcomingParticipation
+          ? {
+              titre: upcomingParticipation.event.titre,
+              date: upcomingParticipation.event.date,
+              timezone: upcomingParticipation.event.campus.timezone,
+            }
+          : null,
       };
     }),
   );

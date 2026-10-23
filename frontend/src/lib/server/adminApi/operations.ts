@@ -787,7 +787,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_event_config: defineWrite({
     description:
-      "Change anything about one event's configuration in one call: names, dates, dev-workspace sections and their options, shown Salesforce statuses, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
+      "Change anything about one event's configuration in one call: names, arrival time, dev-workspace sections and their options, shown Salesforce statuses, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
       // Unset is spelled one way, on both sides: null, as config_event_detail
@@ -807,24 +807,13 @@ export const ADMIN_API_OPERATIONS = {
         .nullable()
         .optional()
         .describe('What one participant is called, e.g. "stagiaire".'),
-      // Both go through the domain predicates rather than a regex copied to
-      // here: `isCalendarDay` also rules out a day that does not exist, which a
-      // shape check accepts and the date parser downstream would only throw on.
+      // Through the domain predicate rather than a regex copied to here.
       startTime: z
         .string()
         .refine(isWallClock, 'Use HH:MM on a 24h clock, e.g. "09:30".')
         .nullable()
         .optional()
         .describe('Arrival time of day, HH:MM. Salesforce never sends one.'),
-      endDate: z
-        .string()
-        .refine(
-          isCalendarDay,
-          'Use a real calendar day as YYYY-MM-DD (there is no 2026-06-31).',
-        )
-        .nullable()
-        .optional()
-        .describe('Last day of the event, YYYY-MM-DD.'),
       modules: z
         .array(z.string())
         .optional()
@@ -864,7 +853,7 @@ export const ADMIN_API_OPERATIONS = {
         .boolean()
         .optional()
         .describe(
-          'True to show it in the dev workspace, false to hide it. Showing needs a public name, an end date and at least one section, as saved by this call.',
+          'True to show it in the dev workspace, false to hide it. Showing needs a public name and at least one section, as saved by this call.',
         ),
       feedbackFormId: z
         .string()

@@ -272,6 +272,7 @@
                         </p>
                         <p class="text-xs font-bold text-muted-foreground">
                           Le {new Date(event.date).toLocaleDateString('fr-FR', {
+                            timeZone: event.timezone,
                             weekday: 'long',
                             day: 'numeric',
                             month: 'long',

@@ -67,12 +67,17 @@ export function isEventToPrepare(input: {
  *
  * Structural rather than `AdminEventVM`, so the rules stay in the domain: the
  * write path holds a Prisma row, the aggregates hold a view model, and both
- * answer the same question about the same five fields.
+ * answer the same question about the same four fields.
+ *
+ * The event's days are not among them: Salesforce owns both, an event always
+ * has a start, and no end day is a single-day event rather than a missing
+ * field. The end day used to be typed on the config screen and so counted as
+ * configuration; once the sync wrote it, asking for it here refused every
+ * single-day campaign and every visible event Salesforce gave no `EndDate`.
  */
 export type EventConfigFields = {
   publicName: string | null;
   cohortNoun: string | null;
-  endDate: string | null;
   modules: readonly unknown[];
   devActivated: boolean;
 };
@@ -81,7 +86,6 @@ export type EventConfigFields = {
 export const EVENT_MISSING_LABELS = {
   publicName: 'nom public',
   cohortNoun: 'nom des participants',
-  endDate: 'date de fin',
   modules: 'aucune section activée',
   activation: "pas encore activé pour l'espace dev",
 } as const;
@@ -103,7 +107,6 @@ export function eventMissingConfig(event: EventConfigFields): string[] {
   const missing: string[] = [];
   if (!event.publicName) missing.push(EVENT_MISSING_LABELS.publicName);
   if (!event.cohortNoun) missing.push(EVENT_MISSING_LABELS.cohortNoun);
-  if (!event.endDate) missing.push(EVENT_MISSING_LABELS.endDate);
   if (event.modules.length === 0) missing.push(EVENT_MISSING_LABELS.modules);
   else if (!event.devActivated) missing.push(EVENT_MISSING_LABELS.activation);
   return missing;
@@ -112,14 +115,10 @@ export function eventMissingConfig(event: EventConfigFields): string[] {
 /**
  * Everything that can stop an activation, in the order a human would fix it.
  * A list rather than a bare union so a caller can iterate the rule - the seed's
- * reachability check proves each of the three has an example somewhere - and so
- * a fourth blocker is added in one place.
+ * reachability check proves each of them has an example somewhere - and so
+ * a third blocker is added in one place.
  */
-export const ACTIVATION_BLOCKERS = [
-  'publicName',
-  'endDate',
-  'modules',
-] as const;
+export const ACTIVATION_BLOCKERS = ['publicName', 'modules'] as const;
 
 /** One thing that can stop an activation. See {@link activationBlockerKeys}. */
 export type ActivationBlocker = (typeof ACTIVATION_BLOCKERS)[number];
@@ -128,20 +127,20 @@ export type ActivationBlocker = (typeof ACTIVATION_BLOCKERS)[number];
  * What stops this event from being made visible, empty when nothing does.
  *
  * A stricter rule than `configState`, and that gap is the bug this closes: an
- * event with sections but no end date is `ready` ("Prêt à publier", one toggle
- * from live) and the activation write refuses it. The rule lived only as a Prisma
+ * event with sections but no public name is `ready` ("Prêt à publier", one
+ * toggle from live) and the activation write refuses it. The rule lived only as a Prisma
  * `where` in `EventService.bulkSetActivation` and as a hand-copied predicate in
  * `adminApi/writes/bulk.ts`, so nothing that *reported* readiness could consult
- * it. Its Prisma twin is `activatableEventWhere` in `server/services/stageContext`.
+ * it. Its Prisma twin is `activatableEventWhere` in `server/services/events`.
  *
  * The cohort noun is deliberately absent: the write does not check it, so listing
  * it here would refuse an activation that actually succeeds.
  *
- * Keys rather than labels, because the same three facts are read aloud in two
+ * Keys rather than labels, because the same facts are read aloud in two
  * registers: an inventory quotes them as nouns ("il manque : nom public"), and
  * the config dialog asks for them as instructions ("Renseigner un nom public").
  * A surface picking its own wording off a key still shares the rule, and the
- * union makes a fourth blocker a compile error there rather than a bullet
+ * union makes a third blocker a compile error there rather than a bullet
  * silently missing from the list.
  */
 export function activationBlockerKeys(
@@ -149,7 +148,6 @@ export function activationBlockerKeys(
 ): ActivationBlocker[] {
   const blockers: ActivationBlocker[] = [];
   if (!event.publicName) blockers.push('publicName');
-  if (!event.endDate) blockers.push('endDate');
   if (event.modules.length === 0) blockers.push('modules');
   return blockers;
 }

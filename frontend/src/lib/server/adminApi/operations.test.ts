@@ -98,17 +98,12 @@ describe('the operation catalogue', () => {
   // over to March, which would save a day nobody asked for. The regression the
   // caller has to see is a refusal naming the problem.
   it('refuses a date that does not exist on the calendar', () => {
-    const config = ADMIN_API_OPERATIONS.write_event_config.schema;
+    const day =
+      ADMIN_API_OPERATIONS.write_talent_home_highlight.schema.shape.date;
 
-    expect(
-      config.safeParse({ eventId: 'e', endDate: '2026-06-31' }).success,
-    ).toBe(false);
-    expect(
-      config.safeParse({ eventId: 'e', endDate: '2026-02-30' }).success,
-    ).toBe(false);
-    expect(
-      config.safeParse({ eventId: 'e', endDate: '2026-06-30' }).success,
-    ).toBe(true);
+    expect(day.safeParse('2026-06-31').success).toBe(false);
+    expect(day.safeParse('2026-02-30').success).toBe(false);
+    expect(day.safeParse('2026-06-30').success).toBe(true);
   });
 
   // Unset has one spelling on the admin API, the one the event read returns
@@ -117,7 +112,7 @@ describe('the operation catalogue', () => {
   it('clears a field Jump owns on null, and on null only', () => {
     const config = ADMIN_API_OPERATIONS.write_event_config.schema;
 
-    for (const field of ['publicName', 'cohortNoun', 'startTime', 'endDate']) {
+    for (const field of ['publicName', 'cohortNoun', 'startTime']) {
       expect(config.safeParse({ eventId: 'e', [field]: null }).success).toBe(
         true,
       );
@@ -184,7 +179,6 @@ const EVENT_FIELD_WRITES: Record<string, string> = {
   publicName: 'write_event_config.publicName',
   cohortNoun: 'write_event_config.cohortNoun',
   startTime: 'write_event_config.startTime',
-  endDate: 'write_event_config.endDate',
   modules: 'write_event_config.modules',
   moduleSettings: 'write_event_config.moduleSettings',
   devActivated: 'write_event_config.visible',

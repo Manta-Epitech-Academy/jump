@@ -190,7 +190,8 @@ describe('the worker sync loop (integration)', () => {
       {
         external_id: eventExternalId,
         title: `Stage ${stamp}`,
-        date: '2026/07/08',
+        start_date: '2026-07-08',
+        end_date: null,
         campus_ext_name: armedExternalName,
       },
       // A campus nobody has armed: skipped and counted, never a refusal that
@@ -322,6 +323,9 @@ describe('the worker sync loop (integration)', () => {
       expect(prunesHeld.value).toContainEqual(
         expect.objectContaining({
           eventId,
+          // The campaign's day, read on the campus clock: its UTC date is the
+          // day before, since Paris midnight is 22:00 UTC in July.
+          date: '2026-07-08',
           cause: 'unresolved_members',
           pendingRemovals: 2,
           releasedAt: null,

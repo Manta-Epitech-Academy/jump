@@ -23,15 +23,18 @@ import {
   dateKeyToDbDate,
   toDateKey,
 } from '../../../src/lib/domain/eventPresence';
-import { fromWallClock } from '../../../src/lib/domain/planningTime';
+import {
+  eventEndInstant,
+  eventStartInstant,
+} from '../../../src/lib/domain/event';
 
 /** The campus this fixture writes, and the clock its event is read on. */
 const CAMPUS_TIMEZONE = 'Europe/Paris';
 
 /**
- * Today ON THE CAMPUS CLOCK, stored the way production stores it: the day at
- * midnight UTC (what Salesforce sends) and the end at 23:59 campus time (what
- * the configuration screen writes). Every reader of an event's day reads the
+ * Today ON THE CAMPUS CLOCK, stored the way the Salesforce sync stores a
+ * campaign's days: the start at midnight and the end at 23:59, campus time.
+ * Every reader of an event's day reads the
  * campus clock, so a fixture built off the UTC date read « hier » for the last
  * one or two hours of every Paris evening, which is when somebody runs `verify`
  * after work.
@@ -43,8 +46,8 @@ const CAMPUS_TIMEZONE = 'Europe/Paris';
 function campusToday(): { date: Date; endDate: Date } {
   const key = toDateKey(new Date(), CAMPUS_TIMEZONE);
   return {
-    date: dateKeyToDbDate(key),
-    endDate: fromWallClock(key, '23:59', CAMPUS_TIMEZONE),
+    date: eventStartInstant(key, CAMPUS_TIMEZONE),
+    endDate: eventEndInstant(key, CAMPUS_TIMEZONE),
   };
 }
 
@@ -243,8 +246,9 @@ export async function seedE2eData(): Promise<void> {
       titre: 'E2E-Prochain-Campagne-SF',
       publicName: E2E.upcomingEventName,
       cohortNoun: 'participant',
-      date: dateKeyToDbDate(
+      date: eventStartInstant(
         toDateKey(new Date(Date.now() + 3 * 86_400_000), CAMPUS_TIMEZONE),
+        CAMPUS_TIMEZONE,
       ),
       startMinutes: 14 * 60,
       campusId: E2E.campusId,

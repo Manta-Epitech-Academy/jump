@@ -24,11 +24,15 @@ export const workerEventSchema = z.object({
   external_id: z.string().min(1),
   title: z.string().min(1),
   /**
-   * `YYYY/MM/DD`, parsed by the worker out of the campaign name. Absent, never
-   * null, when the name carries no date: the worker builds the key as
-   * `undefined` and `JSON.stringify` drops it.
+   * The campaign's `StartDate` and `EndDate`, `YYYY-MM-DD` as Salesforce writes
+   * a Date field, and `null` when the campaign has none. Absent from a worker
+   * that predates them, which the service reads as "not sent" and so leaves
+   * the stored day alone. Loose like the member fields: a value that is not a
+   * real calendar day is also treated as not sent, never refused here, since
+   * a refused envelope fails the run and the next tick replays it.
    */
-  date: z.string().optional(),
+  start_date: z.string().nullable().optional(),
+  end_date: z.string().nullable().optional(),
   /** `Campus.externalName`. Can be the empty string, which resolves to nothing. */
   campus_ext_name: z.string(),
 });

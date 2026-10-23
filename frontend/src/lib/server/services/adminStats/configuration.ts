@@ -186,7 +186,6 @@ export type EventDetail = {
     campus: string;
     dateLabel: string;
     startTime: string | null;
-    endDate: string | null;
     schoolYear: string;
     status: string;
     syncedFromSalesforce: boolean;
@@ -258,7 +257,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
         status: event.status,
         syncedFromSalesforce: event.synced,
       },
-      "Identité de l'événement. « salesforceName » est le nom de la campagne Salesforce, « publicName » celui que voient les équipes et les talents ; null, ce dernier laisse place au premier. « startTime » et « endDate » appartiennent à Jump : Salesforce ne les fournit pas. « publicName », « cohortNoun », « startTime » et « endDate » valent null quand ils ne sont pas renseignés, et c'est null qui les retire dans write_event_config.",
+      "Identité de l'événement. « salesforceName » est le nom de la campagne Salesforce, « publicName » celui que voient les équipes et les talents ; null, ce dernier laisse place au premier. « dateLabel » donne les jours de début et de fin, ceux de la campagne Salesforce : ils se corrigent dans Salesforce, pas dans Jump. « startTime », l'heure d'arrivée, appartient à Jump : Salesforce ne la fournit pas. « publicName », « cohortNoun » et « startTime » valent null quand ils ne sont pas renseignés, et c'est null qui les retire dans write_event_config.",
     ),
     configState: metric(
       {

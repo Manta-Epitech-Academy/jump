@@ -78,6 +78,8 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     event: {
       include: {
         planningSlots: { orderBy: { startTime: 'asc' as const } },
+        // The day is read on the event's campus clock, not the reader's.
+        campus: { select: { timezone: true } },
       },
     },
   };
@@ -137,6 +139,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       id: p.event.id,
       name: p.event.titre,
       date: p.event.date,
+      timezone: p.event.campus.timezone,
       timeSlots: p.event.planningSlots
         .filter((slot) => slot.activityType !== 'orga')
         .map(toParentSlot),

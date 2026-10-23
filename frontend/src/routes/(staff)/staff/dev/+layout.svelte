@@ -202,6 +202,7 @@
         <EventWorkspaceSwitcher
           events={yearEvents}
           currentId={ev.id}
+          timezone={data.timezone}
           onpick={openEvent}
         />
       {/if}

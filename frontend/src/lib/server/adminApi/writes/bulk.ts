@@ -181,9 +181,9 @@ export async function bulkEventConfig(
           ? statusesAfter(event, statusChange)
           : event.shownStatuses;
         // Judged on the event as this call leaves it, so a section the same
-        // call adds counts. An event missing a public name, an end date or a
-        // section cannot be activated, so its gate is left off rather than
-        // armed for a later section to trip.
+        // call adds counts. An event missing a public name or a section cannot
+        // be activated, so its gate is left off rather than armed for a later
+        // section to trip.
         const leftAs = { ...event, modules: modulesTo };
         const visibleTo =
           visible && !event.devActivated && !canBeMadeVisible(leftAs)

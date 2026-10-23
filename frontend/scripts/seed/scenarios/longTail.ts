@@ -89,17 +89,14 @@ export const longTail: Scenario = {
       const configured = index % 5 === 0;
 
       // The one event standing between « à configurer » and « visible »:
-      // sections enabled, a public name typed, and no end date yet - so
-      // `eventConfigState` reads « prêt à publier » while
-      // `activationBlockerKeys` still refuses the toggle. That gap is the whole
-      // reason those are two separate rules, and it had no example: every
-      // configured event here was activated in the same breath, which is also
-      // how a fifth of the dataset ended up ACTIVATED with no end date, a state
-      // the configuration screen would have refused. Index 0 because it is the
-      // upcoming one, which is when a human is actually mid-preparation, and
-      // because it is the only `configured` index the smallest profile reaches
-      // besides index 5 - and index 5 has to stay visible for the school-year
-      // switcher.
+      // sections enabled and no public name typed yet - so `eventConfigState`
+      // reads « prêt à publier » while `activationBlockerKeys` still refuses
+      // the toggle. That gap is the whole reason those are two separate rules,
+      // and it had no example: every configured event here was activated in
+      // the same breath. Index 0 because it is the upcoming one, which is when
+      // a human is actually mid-preparation, and because it is the only
+      // `configured` index the smallest profile reaches besides index 5 - and
+      // index 5 has to stay visible for the school-year switcher.
       const beingPrepared = index === 0;
 
       // Half the configured ones also run closings, which is roughly the share
@@ -141,19 +138,11 @@ export const longTail: Scenario = {
       // Those carry an end date whether or not anybody configured them, which
       // is not an oversight: the end date IS the second day, so an event
       // running two of them cannot be expressed without one. It leaves a few
-      // events holding a date and nothing else - somebody opened the
-      // configuration screen, typed the window, and never enabled a section -
-      // which is the one shape that gives `endDate` a row where `publicName`
-      // is still null.
-      //
-      // Which is also why `beingPrepared` is excluded rather than left to the
-      // arithmetic: index 0 satisfies `% 12` too, and the event that exists to
-      // be MISSING its end date cannot be one of the events whose duration that
-      // date carries. `addEvent` refuses the pair outright, so the two
-      // placements have to be reconciled here rather than discovered later.
+      // events holding the campaign's two days and nothing else, which is the
+      // one shape that gives `endDate` a row where `publicName` is still null.
       const days = world.eventWindow(
         offset,
-        index === 1 || (index % 12 === 0 && !beingPrepared) ? 2 : 1,
+        index === 1 || index % 12 === 0 ? 2 : 1,
       );
       const firstDay = days[0]!;
       // The theme the campus typed after the date, on the sessions the season
@@ -174,11 +163,11 @@ export const longTail: Scenario = {
         }),
         // Only a fifth of events carry a public name; the rest show the raw
         // Salesforce title, which is what staff actually read most of the time.
-        publicName: configured ? codingClubPublicName(firstDay) : null,
+        publicName:
+          configured && !beingPrepared ? codingClubPublicName(firstDay) : null,
         cohortNoun: configured ? COHORT_NOUNS.PARTICIPANT : null,
         campus,
         days,
-        withEndDate: beingPrepared ? false : undefined,
         devActivated: configured && !beingPrepared,
         // One event created inside Jump rather than synced from a campaign.
         // `externalId` is nullable for exactly that, and with no null row the
@@ -359,7 +348,7 @@ export const longTail: Scenario = {
         `${created} événements ordinaires répartis sur tous les campus`,
         `${empty} sans aucun inscrit, ${unconfigured} sans aucun module configuré`,
         'un événement à venir, un en cours (qui propose une activité : le bandeau du jour), un terminé hier',
-        'un événement « prêt à publier » que l’activation refuse : il lui manque la date de fin',
+        'un événement « prêt à publier » que l’activation refuse : il lui manque le nom public',
         `${zeroClosingCampus.name} : closings configurés, inscrits réels, aucun closing conduit`,
         'des cohortes tirées sur la vraie distribution : médiane autour de 23',
       ],

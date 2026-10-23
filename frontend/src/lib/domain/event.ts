@@ -1,3 +1,5 @@
+import { fromWallClock, type DateKey } from './planningTime';
+
 // ─── Cohort noun (`Event.cohortNoun`) ──────────────────────────────────────
 // What a single member of an event's cohort is called across the dev workspace
 // ("stagiaire" for a stage de seconde, "participant" for a coding club,
@@ -76,12 +78,32 @@ export function eventDisplayName(e: {
   return e.publicName?.trim() || e.titre;
 }
 
+// ─── Event days (`Event.date` / `Event.endDate`) ───────────────────────────
+// Salesforce owns both days: the sync copies the campaign's `StartDate` and
+// `EndDate`, which are calendar days with no time and no zone. They are stored
+// as instants read in the campus timezone, so `toDateKey(instant, tz)` gives
+// the day back whatever timezone the server runs in.
+
+/** First instant of an event's start day: 00:00 campus-local. */
+export function eventStartInstant(day: DateKey, tz: string): Date {
+  return fromWallClock(day, '00:00', tz);
+}
+
+/**
+ * Last day of an event, stored at 23:59 campus-local rather than midnight, so
+ * the whole last day still reads as "ongoing" and `toDateKey` resolves it to
+ * that day for the émargement créneaux.
+ */
+export function eventEndInstant(day: DateKey, tz: string): Date {
+  return fromWallClock(day, '23:59', tz);
+}
+
 /**
  * Effective end of an event's active window: its explicit `endDate`, or the
  * start `date` when none is set (a single-day event). Single source of truth so
  * the talent welcome/feedback surfaces and the admin picker's ongoing/past badge
- * stay in lockstep. A multi-day event carries an explicit `endDate` (set in the
- * config wizard or a planning template); nothing is synthesised from a type.
+ * stay in lockstep. A multi-day event carries an explicit `endDate`, the
+ * campaign's `EndDate` in Salesforce; nothing is synthesised from a type.
  */
 export function eventWindowEnd(date: Date, endDate: Date | null): Date {
   return endDate ?? date;

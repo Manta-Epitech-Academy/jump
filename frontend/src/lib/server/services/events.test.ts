@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 import { activatableEventWhere } from './events';
 
 describe('activatableEventWhere', () => {
-  it('reads the same three fields as activationBlockers', () => {
+  it('reads the same fields as activationBlockers', () => {
     const fields = new Set<string>();
     for (const [key, value] of Object.entries(
       activatableEventWhere as Record<string, unknown>,
@@ -28,6 +28,6 @@ describe('activatableEventWhere', () => {
       }
       fields.add(key);
     }
-    expect([...fields].sort()).toEqual(['endDate', 'modules', 'publicName']);
+    expect([...fields].sort()).toEqual(['modules', 'publicName']);
   });
 });

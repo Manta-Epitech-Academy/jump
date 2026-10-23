@@ -21,7 +21,6 @@
   import { Switch } from '$lib/components/ui/switch';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import { TimePicker } from '$lib/components/ui/time-picker';
-  import { DatePicker } from '$lib/components/ui/date-picker';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
   import InfoTooltip from '$lib/components/ui/info-tooltip/InfoTooltip.svelte';
@@ -51,9 +50,7 @@
     cohortNoun: string | null;
     campusName: string;
     dateLabel: string;
-    startDateKey: string;
     startTime: string;
-    endDate: string;
     modules: EventModuleKey[];
     moduleSettings: Record<string, unknown>;
     devActivated: boolean;
@@ -167,7 +164,6 @@
       // template carries "stagiaire"), and an event keeps whatever staff last set.
       cohortNoun: e.cohortNoun ?? '',
       startTime: e.startTime,
-      endDate: e.endDate,
       modules: [...e.modules],
       moduleSettings: withDefaults(e.moduleSettings),
       devActivated: e.devActivated,
@@ -283,7 +279,6 @@
     activationBlockerKeys({
       publicName: $form.publicName.trim() || null,
       cohortNoun: $form.cohortNoun.trim() || null,
-      endDate: $form.endDate || null,
       modules: $form.modules,
       devActivated: $form.devActivated,
     }),
@@ -294,12 +289,11 @@
   // What each blocker asks of the admin. The nouns `EVENT_MISSING_LABELS`
   // carries read as an inventory ("il manque : nom public"), which is right
   // where a list is reported and wrong on the one screen that can fix it. Typed
-  // on the union, so a fourth blocker fails the build here instead of quietly
+  // on the union, so a new blocker fails the build here instead of quietly
   // missing from the list.
   const BLOCKER_ACTIONS: Record<ActivationBlocker, string> = {
     modules: 'Activer au moins une section',
     publicName: 'Renseigner un nom public',
-    endDate: 'Renseigner une date de fin',
   };
 
   // The switch shows the effective visibility, so the payload must not keep
@@ -737,48 +731,27 @@
                 >{/if}
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-2">
-              <div class="space-y-2">
-                <div class="flex h-6 items-center gap-2">
-                  <Label for="startTime" class="flex items-center gap-1.5">
-                    Heure d'arrivée des jeunes
-                    <InfoTooltip
-                      text={`Tant qu'elle n'est pas renseignée, les jeunes ne voient que la date, sans heure. Le staff voit l'horaire par défaut${defaultStartTime ? ` (${defaultStartTime})` : ''} en attendant.`}
-                    />
-                  </Label>
-                  {#if !$form.startTime}
-                    <Badge
-                      variant="outline"
-                      class="border-warning/50 text-xs leading-none font-normal text-warning"
-                    >
-                      À confirmer
-                    </Badge>
-                  {/if}
-                </div>
-                <TimePicker id="startTime" bind:value={$form.startTime} />
-                {#if $errors.startTime}<span class="text-xs text-destructive"
-                    >{$errors.startTime}</span
-                  >{/if}
+            <div class="space-y-2">
+              <div class="flex h-6 items-center gap-2">
+                <Label for="startTime" class="flex items-center gap-1.5">
+                  Heure d'arrivée des jeunes
+                  <InfoTooltip
+                    text={`Tant qu'elle n'est pas renseignée, les jeunes ne voient que la date, sans heure. Le staff voit l'horaire par défaut${defaultStartTime ? ` (${defaultStartTime})` : ''} en attendant.`}
+                  />
+                </Label>
+                {#if !$form.startTime}
+                  <Badge
+                    variant="outline"
+                    class="border-warning/50 text-xs leading-none font-normal text-warning"
+                  >
+                    À confirmer
+                  </Badge>
+                {/if}
               </div>
-              <div class="space-y-2">
-                <div class="flex h-6 items-center">
-                  <Label for="endDate" class="flex items-center gap-1.5">
-                    Date de fin
-                    <InfoTooltip
-                      text="L'import Salesforce ne donne que la date de début. Laissez vide pour la durée par défaut (≈ 2 semaines pour un stage, 1 jour pour les autres)."
-                    />
-                  </Label>
-                </div>
-                <DatePicker
-                  id="endDate"
-                  min={editing?.startDateKey}
-                  placeholder="Durée par défaut"
-                  bind:value={$form.endDate}
-                />
-                {#if $errors.endDate}<span class="text-xs text-destructive"
-                    >{$errors.endDate}</span
-                  >{/if}
-              </div>
+              <TimePicker id="startTime" bind:value={$form.startTime} />
+              {#if $errors.startTime}<span class="text-xs text-destructive"
+                  >{$errors.startTime}</span
+                >{/if}
             </div>
           </div>
 
