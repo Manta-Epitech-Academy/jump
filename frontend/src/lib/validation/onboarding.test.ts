@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { rulesSchema, rulesSchemaWithoutCharter } from './onboarding';
+import {
+  identitySchema,
+  rulesSchema,
+  rulesSchemaWithoutCharter,
+} from './onboarding';
 
 /**
  * The last step of the wizard collects two consents, and only one of them
@@ -76,5 +80,30 @@ describe('rulesSchemaWithoutCharter', () => {
     // Dropping the charte must not relax what a yearly dossier signs.
     const { acceptedRules: _omitted, ...partial } = withoutCharter;
     expect(rulesSchemaWithoutCharter.safeParse(partial).success).toBe(false);
+  });
+});
+
+describe('identitySchema names', () => {
+  const identity = {
+    civilite: 'femme',
+    nom: 'Dupont',
+    prenom: 'Léa',
+    phone: '+33612345678',
+  };
+
+  it.each(['N’Diaye', "N'Golo", 'Marie-Ève', 'Léa (Lily)', 'Ó Súilleabháin'])(
+    'accepts the real name %s as typed',
+    (name) => {
+      // Mails that quote a name escape it themselves, so the form has no
+      // reason to refuse a character a real name carries.
+      const parsed = identitySchema.safeParse({ ...identity, prenom: name });
+      expect(parsed.success && parsed.data.prenom).toBe(name);
+    },
+  );
+
+  it('counts the two characters once the padding is trimmed', () => {
+    expect(
+      identitySchema.safeParse({ ...identity, prenom: '  a ' }).success,
+    ).toBe(false);
   });
 });

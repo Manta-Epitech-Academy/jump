@@ -24,6 +24,17 @@ const phoneSchema = z
 // plain required literal rejects an unchecked box with the given message.
 const requiredConsent = (message: string) => z.literal('true', { message });
 
+// A name is checked once trimmed, so blank padding never counts towards its two
+// characters. No character is refused: real names carry apostrophes, hyphens
+// and accents (N’Diaye, Marie-Ève), and the mails that quote a name escape it
+// themselves (`substituteVariables`). The cap only bounds what a form can store.
+const personName = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(2, `${label} doit faire au moins 2 caractères`)
+    .max(100, `${label} ne peut pas dépasser 100 caractères`);
+
 const optionalPhoneSchema = z
   .string()
   .optional()
@@ -46,11 +57,8 @@ const parent2Schema = z.object({
 // read-only for trust; it's never submitted or persisted here.
 export const identitySchema = z.object({
   civilite: civiliteEnum,
-  nom: z.string().min(2, 'Le nom doit faire au moins 2 caractères').trim(),
-  prenom: z
-    .string()
-    .min(2, 'Le prénom doit faire au moins 2 caractères')
-    .trim(),
+  nom: personName('Le nom'),
+  prenom: personName('Le prénom'),
   phone: phoneSchema,
 });
 
@@ -100,14 +108,8 @@ export const parentsSchema = z
     studentPhone: optionalPhoneSchema,
     parentType: parentTypeEnum,
     parentCivilite: civiliteEnum,
-    parentNom: z
-      .string()
-      .min(2, 'Le nom du parent doit faire au moins 2 caractères')
-      .trim(),
-    parentPrenom: z
-      .string()
-      .min(2, 'Le prénom du parent doit faire au moins 2 caractères')
-      .trim(),
+    parentNom: personName('Le nom du parent'),
+    parentPrenom: personName('Le prénom du parent'),
     parentEmail: z.email('Email parent invalide'),
     parentPhone: phoneSchema,
   })
