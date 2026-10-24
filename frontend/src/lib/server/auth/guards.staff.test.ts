@@ -14,7 +14,7 @@ import { applyRouteGuards } from './guards';
 function eventFor(
   routeId: string,
   path: string,
-  locals: Partial<App.Locals>,
+  locals: Record<string, unknown>,
 ): RequestEvent {
   return {
     url: new URL(`http://localhost${path}`),
