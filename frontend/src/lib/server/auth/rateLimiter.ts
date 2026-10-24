@@ -19,21 +19,19 @@
  * threat well; the two are kept separate for that reason.
  *
  * Storage shape follows `.claude/rules/data-model.md`'s "facts as rows, state as projection"
- * pattern (cf. `XpGrant`, `MinigameAttempt`): the `OtpAttempt` table is the
- * append-only ledger, and the bucket's "current attempt count" is the projection
- * computed fresh on every check. No mutable counter, no in-process state.
+ * pattern (cf. `XpGrant`, `MinigameAttempt`): the `OtpAttempt` table holds one
+ * row per attempt that counts, and the bucket's "current attempt count" is the
+ * projection computed fresh on every claim. No mutable counter, no in-process
+ * state.
  *
- * Call pattern (both endpoints, both routes):
+ * Call pattern (both endpoints, both routes): `await claimAttempt(bucket,
+ * email)` BEFORE the work, and bail with 429 if it is refused. An allowed claim
+ * already counts; `release()` it when the attempt turns out not to:
  *
- *   1. `await checkRateLimit(bucket, email)` BEFORE the work: pure read of the
- *      current count, no row written. Bail with 429 if blocked.
- *   2. Run the work. `await recordAttempt(bucket, email)` only when the attempt
- *      was "real":
- *        - `request`: after the OTP was actually sent (no record on lookup-404
- *          or provider error; only successful sends cost real money / fill
- *          mailboxes).
- *        - `verify`: in the catch branch of the verify call (clean sign-ins
- *          don't consume budget, same reason as the cohort case).
+ *   - `request`: when no code was sent (lookup-404 or an error before the
+ *     send); only a sent code costs real money and fills a mailbox.
+ *   - `verify`: when the sign-in succeeded; clean sign-ins don't consume
+ *     budget, only failures do.
  *
  * Deploy notes:
  *
@@ -53,10 +51,16 @@
  *     (hourly is plenty: at ~1k attempts/day with 10-min windows, the table
  *     peaks at ~50 stale rows between sweeps). Module-level timers would
  *     race across pods, so cleanup is centralised in the cron, not in-process.
- *   - **Race window.** Two pods checking concurrently can each read `count = 4`,
- *     each `create` a row, and the next check sees 6: the cap over-allows by
- *     at most 1 attempt. Irrelevant at a 5-cap, so no transaction or
- *     advisory-lock dance is warranted.
+ *   - **Write first, count second.** A claim commits its row and only then
+ *     counts the window, so of two concurrent claims the later count sees
+ *     both: never admitted past the cap. The price is that a burst larger than
+ *     the cap can be refused whole, each claim counting the others before they
+ *     are taken back; only abuse sends that many at once, and a double submit
+ *     stays well under it. Reading the count first and recording after the work, the shape
+ *     this replaced, let ten parallel requests all read a count under 3.
+ *   - **A refused claim takes its row back**, so hammering a locked address
+ *     does not extend the lock: it lifts when the oldest attempt in the window
+ *     ages out, 10 minutes at most.
  *   - **DB unavailable** → `await` rejects → the form action returns 500. The
  *     login flow already cannot proceed without Postgres (BetterAuth needs it),
  *     so failing closed here is consistent with the rest of the path.
@@ -89,45 +93,47 @@ function normalize(email: string): string {
   return email.toLowerCase().trim();
 }
 
+export type AttemptClaim =
+  | { allowed: true; release: () => Promise<void> }
+  | { allowed: false; retryAfterSeconds: number };
+
 /**
- * Pure read of the current attempt count for `(bucket, email)`. Does not
- * record anything: call {@link recordAttempt} after a real one.
+ * Count one attempt against `(bucket, email)`, unless the window is already
+ * full. The row is written before the window is read; see the file-level doc
+ * for why that order, and for when to call `release`.
  */
-export async function checkRateLimit(
+export async function claimAttempt(
   bucket: OtpAttemptBucket,
   email: string,
-): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
+): Promise<AttemptClaim> {
   const { max, windowMs } = BUCKETS[bucket];
-  const cutoff = new Date(Date.now() - windowMs);
   const normalized = normalize(email);
 
-  // One read covers both questions: is the count at the cap, and (if so) when
-  // does the oldest in-window attempt age out? `take: max` caps the scan; we
-  // never need more than that to answer either question.
+  const { id } = await prisma.otpAttempt.create({
+    data: { bucket, email: normalized },
+    select: { id: true },
+  });
+  const release = async () => {
+    // `deleteMany` rather than `delete`, so a second call, or a row the cron
+    // sweep already took, is not an error.
+    await prisma.otpAttempt.deleteMany({ where: { id } });
+  };
+
+  // One read covers both questions: is this claim over the cap, and (if so)
+  // when does the oldest in-window attempt age out? `take: max + 1` caps the
+  // scan; one row past the cap is all it takes to know.
+  const cutoff = new Date(Date.now() - windowMs);
   const attempts = await prisma.otpAttempt.findMany({
     where: { bucket, email: normalized, createdAt: { gt: cutoff } },
     orderBy: { createdAt: 'asc' },
-    take: max,
+    take: max + 1,
     select: { createdAt: true },
   });
-  if (attempts.length < max) return { allowed: true };
+  if (attempts.length <= max) return { allowed: true, release };
 
+  await release();
   const retryAfterSeconds = Math.ceil(
     (attempts[0]!.createdAt.getTime() + windowMs - Date.now()) / 1000,
   );
   return { allowed: false, retryAfterSeconds };
-}
-
-/**
- * Record one attempt against `(bucket, email)`. Call from the appropriate
- * branch of the handler (see file-level doc): post-send for `request`, catch
- * branch for `verify`.
- */
-export async function recordAttempt(
-  bucket: OtpAttemptBucket,
-  email: string,
-): Promise<void> {
-  await prisma.otpAttempt.create({
-    data: { bucket, email: normalize(email) },
-  });
 }
