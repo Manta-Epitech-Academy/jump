@@ -169,3 +169,17 @@ describe('talent route guards: the dossier is per school year', () => {
     expect(locationOf(res)).toBe('/onboarding');
   });
 });
+
+/**
+ * `/oauth/*` used to be public in the talent group, for a post-OAuth callback
+ * nothing linked to. That callback deleted or rewrote the account of whoever
+ * held a session on a bare GET, so a cross-site link was enough to erase a
+ * parent's login. The route is gone, and so is the exemption: a talent route
+ * under `/oauth` is guarded like any other.
+ */
+describe('talent route guards: no public /oauth prefix', () => {
+  it('sends an anonymous visitor on /oauth/* to the login page', async () => {
+    const res = await applyRouteGuards(eventFor(null, '/oauth/callback'));
+    expect(locationOf(res)).toBe('/login');
+  });
+});

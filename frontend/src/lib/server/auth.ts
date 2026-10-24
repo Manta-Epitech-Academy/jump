@@ -160,10 +160,9 @@ export function createAuthOptions(
       },
     },
 
-    // Role and profile creation are handled by the OAuth callback routes:
-    // - Staff:   /oauth/callback   → sets role to 'staff', creates StaffProfile
-    // - Student: /oauth/callback → sets role to 'student', creates Talent
-    // - OTP:     /login           → sets role to 'student', creates Talent
+    // Role and profile creation are handled by the sign-in routes:
+    // - Staff:   /staff/oauth/callback → sets role to 'staff', creates StaffProfile
+    // - OTP:     /login                → sets role to 'student', creates Talent
     // This avoids the databaseHook guessing the flow based on email domain.
 
     // Where a refusal raised INSIDE BetterAuth lands. Without it the default is
@@ -179,9 +178,8 @@ export function createAuthOptions(
     // itself included.
     //
     // `/staff/login` is the right destination for every one of them only because
-    // the staff door is the only OAuth door anybody can reach: `(talent)/oauth/`
-    // exists but nothing targets it. Reviving that one means giving this a
-    // second answer.
+    // the staff door is the only OAuth door: talents sign in by OTP. Adding a
+    // talent OAuth door means giving this a second answer.
     onAPIError: { errorURL: resolve('/staff/login') },
 
     trustedOrigins: dev

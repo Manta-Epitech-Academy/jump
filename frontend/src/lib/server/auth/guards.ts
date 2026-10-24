@@ -38,7 +38,6 @@ export async function applyRouteGuards(
   const pathTalentLogin = p('/login');
   const pathTalentRoot = p('/');
   const pathTalentOnboarding = p('/onboarding');
-  const pathTalentOAuth = p('/oauth');
   const pathLogout = p('/logout');
   const pathApi = p('/api/');
 
@@ -72,9 +71,7 @@ export async function applyRouteGuards(
 
   // --- Talent Guards ---
   if (isTalentRoute) {
-    const isTalentPublic =
-      currentPath === pathTalentLogin ||
-      currentPath.startsWith(pathTalentOAuth);
+    const isTalentPublic = currentPath === pathTalentLogin;
 
     if (!event.locals.talent && !isTalentPublic) {
       return Response.redirect(
