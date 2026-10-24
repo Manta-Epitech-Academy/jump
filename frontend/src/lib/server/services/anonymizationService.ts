@@ -54,7 +54,8 @@ import { clearGuardianContacts, guardianEmailsOf } from '$lib/domain/contact';
  * This is the *real* deletion mechanism behind both entry points:
  *   - the daily inactivity sweep (`anonymizeInactiveStudents`), and
  *   - a talent's own deletion request once staff fulfil it
- *     (`talentDeletionService.fulfillTalentDeletion`).
+ *     (`talentDeletionService.fulfillTalentDeletion`), which alone also bars
+ *     the Salesforce contact from being imported again (`Sync_ErasedContact`).
  *
  * Idempotent: re-running on an already-anonymised talent is a harmless no-op
  * write (its parent emails are already null, so nothing is re-resolved). Takes

@@ -91,6 +91,7 @@ export type Buffered = {
   broadcastRecipient: Prisma.BroadcastRecipientCreateManyInput[];
   syncError: Prisma.SyncErrorCreateManyInput[];
   sync_Run: Prisma.Sync_RunCreateManyInput[];
+  sync_ErasedContact: Prisma.Sync_ErasedContactCreateManyInput[];
   adminFile: Prisma.AdminFileCreateManyInput[];
   audit_ImpersonationEvent: Prisma.Audit_ImpersonationEventCreateManyInput[];
   usage_FeatureUse: Prisma.Usage_FeatureUseCreateManyInput[];
@@ -155,6 +156,7 @@ const MODEL_ORDER = [
   'broadcastRecipient',
   'syncError',
   'sync_Run',
+  'sync_ErasedContact',
   'adminFile',
   'audit_ImpersonationEvent',
   'usage_FeatureUse',
@@ -343,6 +345,9 @@ export async function wipe(
   );
   await drop('adminFile', () =>
     prisma.adminFile.deleteMany({ where: { id: seeded } }),
+  );
+  await drop('sync_ErasedContact', () =>
+    prisma.sync_ErasedContact.deleteMany({ where: { externalId: seeded } }),
   );
   await drop('sync_Run', () =>
     prisma.sync_Run.deleteMany({ where: { id: seeded } }),

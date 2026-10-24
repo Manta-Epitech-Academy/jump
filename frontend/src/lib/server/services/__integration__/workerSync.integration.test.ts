@@ -306,6 +306,7 @@ describe('the worker sync loop (integration)', () => {
       expect(result).toEqual({
         upserted: 0,
         skipped: 1,
+        erased: 0,
         removed: 0,
         held: true,
       });

@@ -144,7 +144,8 @@ export function addSyncRuns(world: World): void {
  * a request is what runs `anonymizeTalent`, so its talent can only be an erased
  * one (`addErasedTalent`), never somebody who still carries a name, a phone and
  * a Salesforce id. Giving it a drawn talent was a state the application cannot
- * reach.
+ * reach. Fulfilling also bars the contact from the sync (`Sync_ErasedContact`),
+ * under an id nothing else names, since the erasure keeps no link to it.
  */
 export function addDeletionRequests(
   world: World,
@@ -166,6 +167,9 @@ export function addDeletionRequests(
         ? addErasedTalent(world, resolvedAt)
         : drawn.shift();
     if (!talent) break;
+    if (status === 'fulfilled') {
+      world.buffer.sync_ErasedContact.push({ externalId: id('sf', 'efface') });
+    }
     world.buffer.talentDeletionRequest.push({
       id: id('tdr', status),
       talentId: talent.id,

@@ -51,7 +51,9 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   horizontally-scaled pods. This is also why deletions are caught by the spaced
   full reconcile and by nothing else, and why spacing that pass out has a cost.
 - **A full pass prunes only from a complete roster, and holds what it cannot
-  prove.** Complete means non-empty with every member resolved to a known talent.
+  prove.** Complete means non-empty with every member resolved to a known talent,
+  or to a contact erased at their request, whose enrolments no roster can name
+  again and the prune therefore never touches.
   An empty roster looks exactly like a truncated fetch, and a member the talents
   push skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`) may be the very person whose
   enrolment the prune would take, so in either case the enrolments that did
@@ -74,6 +76,12 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   (`syncEvents` for an unknown campus, `syncTalents` for a nameless contact,
   `syncParticipations` for an unknown event or an unprovable prune), and keep
   refusals for a malformed payload, which is a worker bug and not data.
+- **A contact erased at their request is never imported again.** The erasure
+  nulls `Talent.externalId`, so without `Sync_ErasedContact` the next push
+  re-creates the talent and its login as a first sight. Both pushes skip it
+  before anything else, counted in `erased`, never a `SyncError` (which would
+  store the id and the name again). The model says why it holds the id alone
+  and why the inactivity sweep bars nothing.
 - **A failed run moves nothing.** The watermarks are no column anywhere: each is
   read off the latest run of its mode with `status = 'ok'` (`lastOkRun`), and
   which of that run's dates counts is the `startedAt` rule below. So a run

@@ -1997,6 +1997,27 @@ model Sync_Request {
   requestedAt DateTime
 }
 
+/// A Salesforce contact whose talent was erased at their own request, which
+/// the sync must never import again. The erasure nulls `Talent.externalId`, the
+/// one key the sync matches on, so without this row the next push that carries
+/// the contact re-creates the talent, its mirror and its login as if nothing
+/// had happened, and the person's decision is undone within the quarter-hour.
+///
+/// Written by `fulfillTalentDeletion` and nothing else: the inactivity sweep
+/// leaves none, because a talent it erased who enrols again is the return Jump
+/// exists for. Deleted by `readmitSalesforceContact`, when the person asks to
+/// come back, and the next push then imports them from scratch.
+///
+/// The Salesforce id alone, on purpose. No foreign key to the anonymised
+/// `Talent` or to its `TalentDeletionRequest`, and no date either, since one
+/// written in the fulfilment's transaction would equal the request's
+/// `resolvedAt` and join the two: either link would tie a Salesforce identity
+/// back to the activity the erasure keeps (XP, enrolments, attempts), which is
+/// then no longer de-identified.
+model Sync_ErasedContact {
+  externalId String @id
+}
+
 /// A Salesforce `CampaignMember` status Jump knows: the vocabulary, not what any
 /// one event does with it. Normalised (trimmed, upper case) like
 /// `Participation.sfMemberStatus`.

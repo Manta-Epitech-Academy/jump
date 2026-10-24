@@ -294,14 +294,19 @@ async function logSyncError(params: {
  *
  * Never refuses the batch. A row it cannot use comes back in `invalid` with a
  * `SyncError` naming it; see the comment at the top of the loop for what
- * returning instead used to cost.
+ * returning instead used to cost. A contact erased at their request comes back
+ * in `erased`, with nothing written at all.
  */
 export async function syncTalents(talents: WorkerTalent[]) {
   let created = 0;
   let updated = 0;
   let skipped = 0;
   let invalid = 0;
+  let erased = 0;
   const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
+  const erasedIds = await erasedContactsAmong(
+    talents.map((t) => t.external_id),
+  );
 
   // Canonical School per distinct UAI, resolved once for the whole batch.
   const schoolIdByUai = await resolveSchools(talents);
@@ -342,6 +347,16 @@ export async function syncTalents(talents: WorkerTalent[]) {
   };
 
   for (const t of talents) {
+    // A contact whose talent was erased at their request is never imported
+    // again: that is what the erasure promised them. Checked before the name,
+    // because a `SyncError` would store the very id and name the erasure
+    // removed. Counted rather than refused, for the reason below: Salesforce
+    // keeps the contact, so the worker keeps sending it.
+    if (erasedIds.has(t.external_id)) {
+      erased++;
+      continue;
+    }
+
     // A contact with no name is SKIPPED and logged, never a refusal for the
     // batch, which is the rule `syncEvents` above states about an unresolved
     // campus. It matters more here, and this used to return.
@@ -634,7 +649,16 @@ export async function syncTalents(talents: WorkerTalent[]) {
     }
   }
 
-  return { created, updated, skipped, invalid };
+  return { created, updated, skipped, invalid, erased };
+}
+
+/** Which of these Salesforce ids belong to a contact erased at their request. */
+async function erasedContactsAmong(externalIds: string[]) {
+  const rows = await prisma.sync_ErasedContact.findMany({
+    where: { externalId: { in: externalIds } },
+    select: { externalId: true },
+  });
+  return new Set(rows.map((r) => r.externalId));
 }
 
 /**
@@ -658,7 +682,9 @@ export async function syncTalents(talents: WorkerTalent[]) {
  * An `external_id` Jump does not know is counted and skipped: the worker pushes
  * talents before enrolments and fails the run if that push fails, so an unknown
  * one is a member the talents push skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`),
- * which is already its own SyncError.
+ * which is already its own SyncError. A contact erased at their request is the
+ * exception: it is known to be nobody Jump may hold, so it counts as resolved
+ * (`erased`), and a roster carrying one still proves its deletions.
  *
  * **Nothing here refuses, and that is the rule this function was rebuilt on.**
  * Every answer but a malformed payload is a success, because a refusal fails
@@ -693,10 +719,13 @@ export async function syncParticipations(
       eventUnknown: true,
     };
 
-  const known = await prisma.talent.findMany({
-    where: { externalId: { in: externalIds } },
-    select: { id: true, externalId: true },
-  });
+  const [known, erasedIds] = await Promise.all([
+    prisma.talent.findMany({
+      where: { externalId: { in: externalIds } },
+      select: { id: true, externalId: true },
+    }),
+    erasedContactsAmong(externalIds),
+  ]);
   // Read once per roster: what this event shows decides each row's projection,
   // written in the same statement as the status it derives from, and re-derived
   // for the whole event once the roster is written.
@@ -708,12 +737,14 @@ export async function syncParticipations(
 
   let upserted = 0;
   let skipped = 0;
+  let erased = 0;
   const presentTalentIds: string[] = [];
 
   for (const [externalId, rawStatus] of Object.entries(statusByExternalId)) {
     const talentId = talentIdByExternalId.get(externalId);
     if (!talentId) {
-      skipped++;
+      if (erasedIds.has(externalId)) erased++;
+      else skipped++;
       continue;
     }
 
@@ -739,15 +770,16 @@ export async function syncParticipations(
   // members this pass did not send.
   if (upserted > 0) await recomputeShownInDevSpace(prisma, [event.id]);
 
-  if (mode !== 'full') return { upserted, skipped, removed: 0, held: false };
+  if (mode !== 'full')
+    return { upserted, skipped, erased, removed: 0, held: false };
 
   const prune = await pruneFromFullRoster({
     eventId: event.id,
     presentTalentIds,
     sentCount: externalIds.length,
-    resolvedCount: upserted,
+    resolvedCount: upserted + erased,
   });
-  return { upserted, skipped, ...prune };
+  return { upserted, skipped, erased, ...prune };
 }
 
 /**
@@ -755,7 +787,8 @@ export async function syncParticipations(
  * roster can prove it.
  *
  * Absence from a full roster means "gone" only when the roster is COMPLETE:
- * non-empty, and every member resolved to a talent Jump knows. An empty one
+ * non-empty, and every member resolved to a talent Jump knows, or to a contact
+ * erased at their request. An empty one
  * looks exactly like a truncated fetch upstream, and a member the talents push
  * skipped may be the very person whose enrolment would go (a `DUPLICATE_EMAIL`
  * is typically one talent come back under a new Salesforce id). So when the
@@ -769,6 +802,11 @@ export async function syncParticipations(
  * and the next full pass applies the removals if its fresh roster is still
  * empty: the deletion is still made by a full pass and by nothing else, and
  * only while Salesforce still reports the campaign empty.
+ *
+ * An erased talent's enrolments are never pruned. The erasure keeps them as
+ * de-identified activity, and it nulled the Salesforce id a roster would name
+ * the talent by, so no roster can ever mention them again: their absence
+ * proves nothing.
  */
 async function pruneFromFullRoster(roster: {
   eventId: string;
@@ -779,7 +817,11 @@ async function pruneFromFullRoster(roster: {
   const { eventId, presentTalentIds, sentCount, resolvedCount } = roster;
   // `notIn: []` matches every enrolment of the event, which is the prune an
   // empty roster asks for and exactly why that case needs proving first.
-  const absent = { eventId, talentId: { notIn: presentTalentIds } };
+  const absent = {
+    eventId,
+    talentId: { notIn: presentTalentIds },
+    talent: { anonymizedAt: null },
+  };
   const complete = sentCount > 0 && resolvedCount === sentCount;
 
   if (!complete) {
