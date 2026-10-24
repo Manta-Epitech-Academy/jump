@@ -35,14 +35,12 @@ export async function applyRouteGuards(
 
   const pathStaffLogin = p('/staff/login');
   const pathStaffOAuth = p('/staff/oauth');
-  const pathStaffAdmin = p('/staff/admin');
   const pathTalentLogin = p('/login');
   const pathTalentRoot = p('/');
   const pathTalentOnboarding = p('/onboarding');
   const pathTalentOAuth = p('/oauth');
   const pathLogout = p('/logout');
   const pathApi = p('/api/');
-  const pathStaffDev = p('/staff/dev');
 
   const pathTalentWelcome = p('/welcome');
   const pathTalentCharte = p('/charte');
@@ -56,11 +54,18 @@ export async function applyRouteGuards(
   const isTalentRoute = routeId.startsWith('/(talent)');
   const isStaffRoute = routeId.startsWith('/(staff)');
   const isParentRoute = routeId.startsWith('/(parent)');
+  // Decide the admin and dev sub-areas on the matched route, not on
+  // event.url.pathname. The router matches on the decoded path while
+  // url.pathname keeps its percent-encoding, so a pathname compare lets
+  // `/staff/%61dmin/*` resolve to the admin route while reading as non-admin
+  // and skipping the sub-guard. routeId is the decoded match, like the three
+  // space flags above.
   const isAdminPath =
-    currentPath === pathStaffAdmin ||
-    currentPath.startsWith(`${pathStaffAdmin}/`);
+    routeId === '/(staff)/staff/admin' ||
+    routeId.startsWith('/(staff)/staff/admin/');
   const isDevPath =
-    currentPath === pathStaffDev || currentPath.startsWith(`${pathStaffDev}/`);
+    routeId === '/(staff)/staff/dev' ||
+    routeId.startsWith('/(staff)/staff/dev/');
 
   const isPublicPath =
     currentPath.startsWith(pathLogout) || currentPath.startsWith(pathApi);
