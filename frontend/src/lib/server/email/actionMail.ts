@@ -60,8 +60,16 @@ export async function sendActionEmail(
   }
 
   const fullCtx: VariableContext = { ...EMPTY_VARIABLE_CONTEXT, ...ctx };
-  const subject = substituteVariables(mapping.template.subject ?? '', fullCtx);
-  const bodyWithVars = substituteVariables(mapping.template.body, fullCtx);
+  const subject = substituteVariables(
+    mapping.template.subject ?? '',
+    fullCtx,
+    'plain',
+  );
+  const bodyWithVars = substituteVariables(
+    mapping.template.body,
+    fullCtx,
+    'markdown',
+  );
   const { html, text } = renderBroadcastEmail(
     bodyWithVars,
     env.ORIGIN ?? '',

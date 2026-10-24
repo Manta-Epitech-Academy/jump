@@ -188,6 +188,12 @@ export interface BroadcastVariable {
   label: string;
   demo: string;
   contextual: boolean;
+  /**
+   * A URL Jump mints itself, inserted verbatim so a template can use it as a
+   * link target. Every other value is text, typed by a talent, a parent or
+   * staff, and `substituteVariables` keeps it from becoming Markdown syntax.
+   */
+  link?: true;
 }
 
 export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
@@ -253,6 +259,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: 'Lien de connexion magique unique (par destinataire)',
     demo: 'https://jump.epiboost.fr/fastlogin?token=DEMO',
     contextual: true,
+    link: true,
   },
   {
     key: 'parent_fastlogin_link',
@@ -260,6 +267,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: "Lien de connexion magique du parent (s'ouvre sur l'espace parent)",
     demo: 'https://jump.epiboost.fr/parent/fastlogin?token=DEMO',
     contextual: true,
+    link: true,
   },
   {
     key: 'otp_code',
@@ -302,6 +310,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: "Lien de connexion vers l'espace concerné",
     demo: 'https://jump.epiboost.fr/parent/login',
     contextual: true,
+    link: true,
   },
   {
     key: 'deletion_reason',

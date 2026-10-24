@@ -62,8 +62,17 @@ function sanitizeHref(raw: string): string {
 // URL variable hasn't been substituted yet: otherwise marked falls back to
 // inline link parsing and the `:button` prefix leaks into the rendered HTML
 // as literal text (`:buttonLabel` artefact). The renderer below handles the
-// empty-href case explicitly.
-const BUTTON_RE = /^:button\[([^\]\n]+)\]\(([^)\n]*)\)\s*(?:\n|$)/;
+// empty-href case explicitly. Both parts accept CommonMark backslash escapes,
+// which a variable value carries (`substituteVariables`), so `Léa \(Lily\)`
+// stays one label and shows as `Léa (Lily)`.
+const BUTTON_RE =
+  /^:button\[((?:\\.|[^\\\]\n])+)\]\(((?:\\.|[^\\)\n])*)\)\s*(?:\n|$)/;
+
+const ESCAPED_PUNCTUATION_RE = /\\([!-/:-@[-`{-~])/g;
+
+function unescapeMarkdown(text: string): string {
+  return text.replace(ESCAPED_PUNCTUATION_RE, '$1');
+}
 
 const broadcastButton = {
   name: 'broadcastButton',
@@ -78,8 +87,8 @@ const broadcastButton = {
     return {
       type: 'broadcastButton',
       raw: match[0],
-      label: match[1].trim(),
-      href: match[2].trim(),
+      label: unescapeMarkdown(match[1]).trim(),
+      href: unescapeMarkdown(match[2]).trim(),
     };
   },
   renderer(token: Tokens.Generic): string {

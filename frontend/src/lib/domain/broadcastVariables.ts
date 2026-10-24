@@ -60,15 +60,42 @@ export function buildDemoContext(eventName?: string | null): VariableContext {
 
 const TOKEN_RE = /\{\{\s*([a-z_][a-z0-9_]*)\s*\}\}/gi;
 
+const LINK_KEYS: ReadonlySet<string> = new Set(
+  BROADCAST_VARIABLES.filter((v) => v.link).map((v) => v.key),
+);
+
+// Every character that can open a Markdown construct able to add a link or a
+// button (link, image, `:button`, autolink, raw HTML, a protocol URL) or to
+// restyle the mail (emphasis, code, heading, quote, table). `. @ _ + -` are
+// left alone: they make up email addresses, and escaping them would stop gfm
+// linking `{{email_contact_campus}}` to itself, or for `_` and `+` link only
+// the part after it. Unescaped, they can only restyle, never add a target.
+const MARKDOWN_SPECIAL_RE = /[\\`*~[\]()<>!#|:]/g;
+
+/**
+ * `markdown` is for a mail body, which `renderBroadcastEmail` parses after
+ * substitution: a text value is backslash-escaped there, so a name such as
+ * `[Cliquez ici](https://…)` renders as the characters it is instead of a link
+ * in a mail sent under Epitech's name. `plain` is for a subject or an SMS.
+ * Either way a text value is folded onto one line: no name or reason holds a
+ * line break on purpose, and one would start a new Markdown block.
+ */
+export type VariableFormat = 'markdown' | 'plain';
+
 export function substituteVariables(
   text: string,
   ctx: VariableContext,
+  format: VariableFormat,
 ): string {
   return text.replace(TOKEN_RE, (_match, rawKey) => {
     const key = rawKey.toLowerCase() as keyof VariableContext;
     if (!(key in ctx)) return '';
-    const value = ctx[key];
-    return value ?? '';
+    const value = ctx[key] ?? '';
+    if (LINK_KEYS.has(key)) return value;
+    const line = value.replace(/\s+/g, ' ');
+    return format === 'markdown'
+      ? line.replace(MARKDOWN_SPECIAL_RE, '\\$&')
+      : line;
   });
 }
 

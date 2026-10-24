@@ -367,9 +367,13 @@ function buildMailMessage(
   if (!recipient.recipientEmail) return null;
   const ctx = buildContext(recipient, broadcast, personal);
   const subject = broadcast.subjectSnapshot
-    ? substituteVariables(broadcast.subjectSnapshot, ctx)
+    ? substituteVariables(broadcast.subjectSnapshot, ctx, 'plain')
     : '';
-  const bodyWithVars = substituteVariables(broadcast.bodySnapshot, ctx);
+  const bodyWithVars = substituteVariables(
+    broadcast.bodySnapshot,
+    ctx,
+    'markdown',
+  );
   const rendered = renderBroadcastEmail(
     bodyWithVars,
     env.ORIGIN ?? '',
@@ -493,7 +497,7 @@ async function sendSmsSerial(
       // depresses clicks, so click-tracking stays mail-only (where the link
       // hides behind anchor text). The fastlogin-JWT open path still records
       // opens for free, without lengthening the link.
-      const body = substituteVariables(broadcast.bodySnapshot, ctx);
+      const body = substituteVariables(broadcast.bodySnapshot, ctx, 'plain');
       try {
         outcome = await getSmsProvider().sendSms(
           {
