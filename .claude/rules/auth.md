@@ -99,6 +99,14 @@ account creation.
   the silent success exists to hide. Substituting keeps validation, error
   shapes and timing upstream where they belong; the parity is asserted per
   route, per malformed body, in `emailOtpAudience.integration.test.ts`.
+- **None of the plugin's routes is mounted over HTTP.** `disabledPaths` in
+  `server/auth.ts` is read off the plugin, so a route a future release adds is
+  closed on arrival. Jump never needed them (every caller uses `auth.api.*`),
+  and mounted they skipped the per-email ledger in `server/auth/rateLimiter.ts`:
+  one address mailed 100 codes to a talent in a minute. That ledger is the only
+  OTP limit on purpose, because a per-IP one locks out a whole cohort behind a
+  campus NAT. A new caller that sends or checks a code for a visitor goes
+  through it.
 - **The plugin's two server-only endpoints carry no path**, so a matcher cannot
   see them. `server/auth/otpSession.ts` owns both halves of the credential
   (`mintSigninOtp`, `establishOtpSession`) and checks the audience itself.

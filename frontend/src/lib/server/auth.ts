@@ -1,4 +1,4 @@
-import { betterAuth } from 'better-auth';
+import { betterAuth, type BetterAuthPlugin } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin } from 'better-auth/plugins/admin';
 import { emailOTP } from 'better-auth/plugins/email-otp';
@@ -25,9 +25,54 @@ type MicrosoftProviderOverrides = {
   disableProfilePhoto?: boolean;
 };
 
+/** The paths a plugin mounts over HTTP; server-only endpoints carry none. */
+function httpPaths(plugin: BetterAuthPlugin): string[] {
+  return Object.values(plugin.endpoints ?? {}).flatMap((endpoint) =>
+    endpoint.path ? [endpoint.path] : [],
+  );
+}
+
 export function createAuthOptions(
   microsoftOverrides: MicrosoftProviderOverrides = {},
 ) {
+  const emailOtp = emailOTP({
+    async sendVerificationOTP({ email, otp }) {
+      // Same resolver the gate below refuses on, so the template a
+      // recipient gets and the door they are allowed through are one
+      // decision. The `null` branch is exhaustiveness rather than a second
+      // gate: the gate makes this callback unreachable for an address it
+      // refused, and a silent fall-through to the talent template is
+      // exactly how a staff address used to receive the
+      // « futur·e codeur·se » mail.
+      const identity = await resolveOtpIdentity(email);
+      if (!identity) {
+        throw new Error(
+          'sendVerificationOTP called for an address that is neither a talent nor a legal guardian',
+        );
+      }
+      if (identity.audience === 'parent') {
+        await sendParentOtpEmail(email, otp, identity.name ?? undefined);
+        return;
+      }
+      await sendOtpEmail(email, otp, identity.name ?? undefined);
+    },
+    // Never auto-create an account for an unknown email. Talent and parent
+    // accounts are provisioned upstream (SF sync / CSV import / onboarding);
+    // a login is only ever a sign-IN against an existing `bauth_user`. Without
+    // this, emailOTP defaults to sign-up-enabled, so any path that minted an
+    // OTP for an unminted email would silently create an orphan account.
+    // Defence in depth on top of the login route's 404 on an unknown email.
+    disableSignUp: true,
+    otpLength: 6,
+    expiresIn: 600,
+    // Resending within the 10-min window re-sends the SAME code and refreshes
+    // its expiry (until allowedAttempts is hit), instead of rotating a new one.
+    // Avoids the "two emails, which code works?" confusion for students/parents.
+    // Requires a retrievable OTP: works because storage is plaintext (default);
+    // switching `storeOTP` to 'hashed' would silently fall back to rotate.
+    resendStrategy: 'reuse',
+  });
+
   return {
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
 
@@ -79,57 +124,28 @@ export function createAuthOptions(
         // `slideImpersonationExpiry` extends by on activity (see hooks).
         impersonationSessionDuration: IMPERSONATION_IDLE_WINDOW_SEC,
       }),
-      emailOTP({
-        async sendVerificationOTP({ email, otp }) {
-          // Same resolver the gate below refuses on, so the template a
-          // recipient gets and the door they are allowed through are one
-          // decision. The `null` branch is exhaustiveness rather than a second
-          // gate: the gate makes this callback unreachable for an address it
-          // refused, and a silent fall-through to the talent template is
-          // exactly how a staff address used to receive the
-          // « futur·e codeur·se » mail.
-          const identity = await resolveOtpIdentity(email);
-          if (!identity) {
-            throw new Error(
-              'sendVerificationOTP called for an address that is neither a talent nor a legal guardian',
-            );
-          }
-          if (identity.audience === 'parent') {
-            await sendParentOtpEmail(email, otp, identity.name ?? undefined);
-            return;
-          }
-          await sendOtpEmail(email, otp, identity.name ?? undefined);
-        },
-        // Never auto-create an account for an unknown email. Talent and parent
-        // accounts are provisioned upstream (SF sync / CSV import / onboarding);
-        // a login is only ever a sign-IN against an existing `bauth_user`. Without
-        // this, emailOTP defaults to sign-up-enabled, so any path that minted an
-        // OTP for an unminted email would silently create an orphan account.
-        // Defence in depth on top of the login route's 404 on an unknown email.
-        disableSignUp: true,
-        otpLength: 6,
-        expiresIn: 600,
-        // Resending within the 10-min window re-sends the SAME code and refreshes
-        // its expiry (until allowedAttempts is hit), instead of rotating a new one.
-        // Avoids the "two emails, which code works?" confusion for students/parents.
-        // Requires a retrievable OTP: works because storage is plaintext (default);
-        // switching `storeOTP` to 'hashed' would silently fall back to rotate.
-        resendStrategy: 'reuse',
-        // Relax the plugin's per-IP override (defaults: 3 req / 60s on
-        // `/sign-in/email-otp` and friends). With a stage_seconde cohort on a
-        // school's NAT, the default would 429 students 4..200 in the same
-        // minute regardless of correctness. Domain-aware policy lives in
-        // `$lib/server/auth/rateLimiter` (email-keyed); this stays as a sane
-        // per-IP backstop only.
-        rateLimit: { window: 60, max: 100 },
-      }),
-      // Closes the plugin above to staff accounts, on its HTTP routes as well
-      // as on `auth.api.*`. Registered here rather than as a top-level
-      // `hooks.before` so the guard travels with the door it guards; the
-      // reasoning, and why it cannot live in `sendVerificationOTP`, is in the
-      // module.
+      emailOtp,
+      // Closes the plugin above to staff accounts on every `auth.api.*` call
+      // (its HTTP routes are not mounted, see `disabledPaths`). Registered
+      // here rather than as a top-level `hooks.before` so the guard travels
+      // with the door it guards; the reasoning, and why it cannot live in
+      // `sendVerificationOTP`, is in the module.
       emailOtpAudienceGate(),
     ],
+
+    // The OTP plugin serves Jump through `auth.api.*` alone: the `/login`
+    // actions, fastlogin and the broadcast mint all call it server-side, and
+    // the browser client ships no `emailOTPClient()`. Mounted over HTTP, its
+    // routes were a second unauthenticated door beside `/login`, one the
+    // per-email limits in `$lib/server/auth/rateLimiter` never saw (100 codes
+    // mailed to one talent in a minute, from one address). So none is mounted.
+    // The list is read off the plugin rather than written out, so a route a
+    // future release adds is closed on arrival.
+    //
+    // The HTTP router alone reads `disabledPaths`, and reads it before its own
+    // per-IP limiter, which therefore never sees these paths either: the
+    // per-email ledger is the only OTP limit, which a campus NAT needs.
+    disabledPaths: httpPaths(emailOtp),
 
     account: {
       modelName: 'bauth_account',
