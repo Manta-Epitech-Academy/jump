@@ -1,13 +1,17 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
+import { superValidate, message } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
   fulfillTalentDeletion,
   isDeletionRequestOverdue,
+  readmitSalesforceContact,
   rejectTalentDeletion,
 } from '$lib/server/services/talentDeletionService';
+import { readmitContactSchema } from '$lib/validation/accountDeletions';
 
 const talentSelect = {
   id: true,
@@ -26,7 +30,7 @@ const talentSelect = {
 } as const;
 
 export const load: PageServerLoad = async () => {
-  const [pending, resolved] = await Promise.all([
+  const [pending, resolved, readmitForm] = await Promise.all([
     // Oldest first: the closest to breaching the GDPR fulfilment window sits on
     // top, where it's most likely to be acted on.
     prisma.talentDeletionRequest.findMany({
@@ -40,6 +44,7 @@ export const load: PageServerLoad = async () => {
       take: 50,
       include: { talent: { select: talentSelect } },
     }),
+    superValidate(zod4(readmitContactSchema)),
   ]);
 
   const shape = (r: (typeof pending)[number]) => ({
@@ -68,6 +73,7 @@ export const load: PageServerLoad = async () => {
     resolved: resolved.map(shape),
     overdueCount: pending.filter((r) => isDeletionRequestOverdue(r.requestedAt))
       .length,
+    readmitForm,
   };
 };
 
@@ -121,5 +127,35 @@ export const actions: Actions = {
       return fail(500, { message: 'Échec du refus.' });
     }
     return { success: true };
+  },
+
+  // The way back for a person erased at their request: the sync stops
+  // skipping their Salesforce contact and imports it from scratch. Same admin
+  // assert as the erasure it undoes the effect of.
+  readmit: async ({ request, locals }) => {
+    if (locals.staffProfile?.staffRole !== 'admin' || !locals.user) {
+      return fail(403);
+    }
+
+    const form = await superValidate(request, zod4(readmitContactSchema));
+    if (!form.valid) return fail(400, { readmitForm: form });
+
+    const { externalId } = form.data;
+    if (!(await readmitSalesforceContact(externalId))) {
+      return message(
+        form,
+        'Aucune suppression enregistrée pour cet identifiant Salesforce.',
+        { status: 404 },
+      );
+    }
+    // The one trace of who let the contact back: the bar row is gone, and it
+    // never named anybody in Jump to begin with.
+    console.info(
+      `[account-deletions] Salesforce contact ${externalId} readmitted by ${locals.user.id}`,
+    );
+    return message(
+      form,
+      'Retour autorisé : le contact sera réimporté au plus tard à la prochaine reprise complète.',
+    );
   },
 };
