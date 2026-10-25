@@ -40,9 +40,10 @@ async function main() {
     console.error('Invalid email.');
     process.exit(1);
   }
-  // Staff OAuth callback (staff/oauth/callback/+server.ts) deletes any
-  // bauth_user whose email is not @epitech.eu on first login. Fail here
-  // instead of letting that happen later.
+  // The staff Microsoft door (src/lib/server/auth/staffDoor.ts) refuses any
+  // address outside @epitech.eu, so an admin provisioned on one could never
+  // sign in. Fail here instead of at their first login. Inlined from
+  // `isStaffEmailAddress` in src/lib/domain/staff.ts.
   if (!email.endsWith('@epitech.eu')) {
     console.error('Email must be @epitech.eu (staff OAuth restriction).');
     process.exit(1);

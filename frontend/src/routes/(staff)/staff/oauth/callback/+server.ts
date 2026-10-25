@@ -8,7 +8,6 @@ import {
 } from '$lib/domain/staff';
 import { syncMicrosoftAvatar } from '$lib/server/services/microsoftProfile';
 import { consumeRedirectCookie } from '$lib/server/auth/loginRedirect';
-import { discardStaffSignIn } from '$lib/server/auth/staffDoor';
 
 /**
  * Expire BetterAuth's session-data cookie cache so the next request
@@ -27,34 +26,25 @@ function expireSessionCache(redirectUrl: string): Response {
   return new Response(null, { status: 303, headers });
 }
 
-// BetterAuth handles the OAuth exchange via /api/auth/callback/microsoft.
-// This route serves as the post-auth gate that:
-// 1. Verifies @epitech.eu domain.
-// 2. Consumes a StaffInvitation matching the email (if any) to provision
+// BetterAuth handles the OAuth exchange via /api/auth/callback/microsoft, and
+// asks the staff door (`auth/staffDoor.ts`, wired as `validateUserInfo`) before
+// it writes anything. So whoever lands here was admitted already. This route
+// does not admit, it provisions:
+// 1. Consumes a StaffInvitation matching the email (if any) to provision
 //    campus + role on the StaffProfile.
-// 3. Rejects if no invitation and no existing provisioned StaffProfile: staff
-//    must be invited first.
+// 2. Brings `bauth_user.role` back in line with a provisioned profile.
+// 3. Lands the member on their space.
 //
-// Both refusals hand the sign-in to `discardStaffSignIn` rather than deleting
-// the `bauth_user` themselves. BetterAuth may have linked this door onto an
-// identity that already existed (a talent's, a guardian's), and deleting one of
-// those is silent data loss; the helper carries which of the two it is holding
-// and what it is allowed to do about it.
+// It cannot be the gate, and once was: the login page names this route as the
+// sign-in's `callbackURL`, but the client chooses that value, and a sign-in
+// naming any other page never came here (security audit run-1).
 
 export const GET: RequestHandler = async ({ locals, cookies }) => {
-  // Both or neither: `hooks.server.ts` fills the pair from one `getSession`. The
-  // session is read below to discard exactly the one this sign-in minted, so the
-  // guard names it rather than asserting it further down.
-  if (!locals.user || !locals.session) {
+  if (!locals.user) {
     throw redirect(303, `${resolve('/staff/login')}?error=OAuthFailed`);
   }
 
   const email = locals.user.email.toLowerCase();
-
-  if (!email.endsWith('@epitech.eu')) {
-    await discardStaffSignIn(locals.user.id, locals.session.id);
-    throw redirect(303, `${resolve('/staff/login')}?error=UnauthorizedDomain`);
-  }
 
   const existingProfile = await prisma.staffProfile.findUnique({
     where: { userId: locals.user.id },
@@ -71,8 +61,9 @@ export const GET: RequestHandler = async ({ locals, cookies }) => {
     });
 
     if (!invitation) {
-      // No invitation and not an already-provisioned staff: reject
-      await discardStaffSignIn(locals.user.id, locals.session.id);
+      // The door admitted this sign-in on an invitation that has been withdrawn
+      // since, or on a session opened earlier without passing through here.
+      // Nothing to undo: the session carries no profile and no staff role.
       throw redirect(303, `${resolve('/staff/login')}?error=NotInvited`);
     }
 

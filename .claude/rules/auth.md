@@ -6,10 +6,12 @@ paths:
   - "frontend/src/lib/domain/permissions.ts"
   - "frontend/src/hooks.server.ts"
   - "frontend/src/routes/**/login/**"
+  - "frontend/src/routes/**/oauth/**"
   - "frontend/src/routes/api/auth/**"
   - "frontend/src/routes/api/test/login-as/**"
   - "frontend/scripts/{accept-invitation,add-admin-user,bootstrap-admins}.ts"
   - "frontend/src/lib/server/services/__integration__/{emailOtpAudience,microsoftOAuthCallback,staffDoor}.integration.test.ts"
+  - "frontend/src/lib/server/services/__integration__/microsoftSignIn.ts"
   - "frontend/tests/e2e/auth.setup.ts"
 ---
 
@@ -136,11 +138,11 @@ day that member's `bauth_account` row is gone. Which is not hypothetical: 134 of
 Three things hold the invariant, and they are not interchangeable.
 `mapProfileToUser` on the Microsoft provider in `server/auth.ts` holds it at
 creation, which is where it belongs: reaching that callback means the tenant in
-`MICROSOFT_TENANT_ID` authenticated the address and `staff/oauth/callback` then
-refused anything outside `@epitech.eu`. The migration
+`MICROSOFT_TENANT_ID` authenticated the address and the staff door refuses
+anything outside `@epitech.eu`. The migration
 `20260915140000_verify_staff_emails_for_oauth_relink` holds it for the rows that
 predate that, scoped on `StaffProfile` because that row is the proof the
-callback ran. And the provisioning scripts (`bootstrap-admins.ts`,
+member was provisioned. And the provisioning scripts (`bootstrap-admins.ts`,
 `add-admin-user.ts`, `accept-invitation.ts`) write it themselves, which is the
 only reason five accounts could still sign in while the other 134 could not.
 
@@ -158,19 +160,29 @@ unverified row). Both link today, and the `bauth_user` rows carrying an
 what a Salesforce contact holding a staff address produces, are exactly the ones
 that do.
 
-**So the thing that protects a non-staff identity is `auth/staffDoor.ts`, not
-the link test.** `staff/oauth/callback` refuses such a sign-in either way, on the
-domain or on the missing `StaffProfile` and `StaffInvitation`; what
-`discardStaffSignIn` decides is what it is allowed to destroy on the way out.
-The rule is ownership rather than the reason for the refusal: a row carrying a
-`Talent`, a `StaffProfile` or `role: 'parent'` is **released** (the link this
-sign-in made and the session it minted go, the identity stays), and only a row
-carrying none of the three, which is one BetterAuth minted for this sign-in and
-nobody else will want, is deleted. Releasing the link is not housekeeping: left
-behind it would leave a guardian's or a talent's account permanently reachable
-through the staff Microsoft door, which is the disjoint-doors rule under Auth
-System. Deleting instead of releasing is silent and unrecoverable, since
-`Talent.userId` is `onDelete: SetNull`, so it is asserted on the `Talent` row in
-`services/__integration__/staffDoor.integration.test.ts`;
-`services/__integration__/microsoftOAuthCallback.integration.test.ts` carries the
-BetterAuth half, the register path beside the relink.
+**So the thing that protects a non-staff identity is the staff door, not the
+link test, and it decides before BetterAuth writes anything.**
+`staffDoorRefusal` (`server/auth/staffDoor.ts`) is wired as
+`user.validateUserInfo` in `server/auth.ts`, which BetterAuth calls ahead of
+each Microsoft write: creating a `bauth_user`, linking onto an existing one (by
+address, or through `/link-social`), and signing in on an account already
+linked. One rule for all three: outside `@epitech.eu` nobody; a `StaffProfile`
+with a role admits; a row carrying a `Talent` or `role: 'parent'` is refused
+(`NotStaffAccount`) even when an invitation names its address, because turning
+it into staff locks that talent or guardian out of the OTP door and the clash is
+a human's to resolve; otherwise a `StaffInvitation` admits and its absence
+refuses (`NotInvited`). The codes reach `/staff/login` through
+`onAPIError.errorURL`.
+
+**`staff/oauth/callback` provisions, it does not admit.** It used to hold the
+whole decision, and could not: BetterAuth redirects there only after it has
+created or linked the row and set the session cookie, and only because the
+client names it as `callbackURL`. A `sign-in/social` naming `/` kept the session
+and the link (security audit run-1). Deciding first also means a refusal leaves
+nothing to undo, which retired the release-or-delete logic the callback once
+needed. Do not move a refusal back into the callback. The suites sign in with
+`callbackURL: '/'` on purpose, through `services/__integration__/microsoftSignIn.ts`:
+`staffDoor.integration.test.ts` asserts that a refusal leaves no session, no
+link and no new row, and the `Talent` row intact;
+`microsoftOAuthCallback.integration.test.ts` carries the BetterAuth half, the
+register path beside the relink.

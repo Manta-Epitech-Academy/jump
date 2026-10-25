@@ -7,6 +7,7 @@ import { env } from '$env/dynamic/private';
 import { sendOtpEmail, sendParentOtpEmail } from '$lib/server/otp';
 import { resolveOtpIdentity } from '$lib/server/auth/otpAudience';
 import { emailOtpAudienceGate } from '$lib/server/auth/emailOtpAudienceGate';
+import { staffDoorGate } from '$lib/server/auth/staffDoor';
 import { IMPERSONATION_IDLE_WINDOW_SEC } from '$lib/domain/impersonation';
 import { resolve } from '$app/paths';
 import { dev } from '$app/environment';
@@ -99,11 +100,11 @@ export function createAuthOptions(
         //
         // Declared here rather than repaired afterwards: reaching this callback
         // means the tenant named in `MICROSOFT_TENANT_ID` authenticated the
-        // address, and `staff/oauth/callback` refuses anything outside
-        // `@epitech.eu` on top. Within that pair the address IS verified, and
-        // saying so at creation is what keeps the migration's invariant true for
-        // every account created from here on, instead of leaving it to the next
-        // repair.
+        // address, and the staff door (`validateUserInfo` below) refuses
+        // anything outside `@epitech.eu` on top. Within that pair the address IS
+        // verified, and saying so at creation is what keeps the migration's
+        // invariant true for every account created from here on, instead of
+        // leaving it to the next repair.
         //
         // What it does NOT do is decide who may come through this door, and the
         // tempting reading is the opposite one, so it is worth stating. A
@@ -112,7 +113,7 @@ export function createAuthOptions(
         // promoted to `true` by BetterAuth the first time they use the OTP door,
         // so the account-link test admits both long before this line existed.
         // What keeps their account out of the staff space, and intact, is
-        // `auth/staffDoor.ts`.
+        // `auth/staffDoor.ts`, through `validateUserInfo` below.
         mapProfileToUser: () => ({ emailVerified: true }),
         ...microsoftOverrides,
       },
@@ -174,10 +175,16 @@ export function createAuthOptions(
           input: false,
         },
       },
+      // The staff door: who the Microsoft provider may create, link or sign
+      // in, asked by BetterAuth before each of those writes, so it holds
+      // whatever `callbackURL` the client named. The rule, and why it cannot
+      // live in `staff/oauth/callback`, is in the module.
+      validateUserInfo: staffDoorGate,
     },
 
     // Role and profile creation are handled by the sign-in routes:
     // - Staff:   /staff/oauth/callback → sets role to 'staff', creates StaffProfile
+    //            (who may get that far is the staff door above, not the route)
     // - OTP:     /login                → sets role to 'student', creates Talent
     // This avoids the databaseHook guessing the flow based on email domain.
 
