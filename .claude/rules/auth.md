@@ -112,6 +112,16 @@ account creation.
 - **The plugin's two server-only endpoints carry no path**, so a matcher cannot
   see them. `server/auth/otpSession.ts` owns both halves of the credential
   (`mintSigninOtp`, `establishOtpSession`) and checks the audience itself.
+- **The admin plugin is not mounted over HTTP either**, by the same
+  `disabledPaths`, read off it the same way. An admin session reached its
+  routes directly: `impersonate-user` opened a session on a guardian, whom
+  Jump never offers, with no `Audit_ImpersonationEvent` row, and `set-role`
+  wrote `bauth_user.role` without the `StaffProfile.staffRole` it pairs with
+  (security audit run-1). Impersonation starts and stops only through
+  `server/auth/impersonate.ts` (`POST /api/impersonation/stop` for the way
+  back, under `/api` so an impersonated session reaches it), and a role
+  changes only through `updateStaffRole` in `services/staffAdminService.ts`.
+  The browser ships no `adminClient()`.
 - **Opening a staff session locally, without Azure:** `POST /api/test/login-as`
   with `Authorization: Bearer $LOAD_TEST_SECRET`, then paste the returned cookie
   into the browser. No new mechanism and nothing to arm in production: the

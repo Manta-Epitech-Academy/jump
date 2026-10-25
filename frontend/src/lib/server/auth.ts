@@ -74,6 +74,12 @@ export function createAuthOptions(
     resendStrategy: 'reuse',
   });
 
+  const adminPlugin = admin({
+    // Creation window; the same value is the idle window that
+    // `slideImpersonationExpiry` extends by on activity (see hooks).
+    impersonationSessionDuration: IMPERSONATION_IDLE_WINDOW_SEC,
+  });
+
   return {
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
 
@@ -120,11 +126,7 @@ export function createAuthOptions(
     },
 
     plugins: [
-      admin({
-        // Creation window; the same value is the idle window that
-        // `slideImpersonationExpiry` extends by on activity (see hooks).
-        impersonationSessionDuration: IMPERSONATION_IDLE_WINDOW_SEC,
-      }),
+      adminPlugin,
       emailOtp,
       // Closes the plugin above to staff accounts on every `auth.api.*` call
       // (its HTTP routes are not mounted, see `disabledPaths`). Registered
@@ -134,19 +136,24 @@ export function createAuthOptions(
       emailOtpAudienceGate(),
     ],
 
-    // The OTP plugin serves Jump through `auth.api.*` alone: the `/login`
-    // actions, fastlogin and the broadcast mint all call it server-side, and
-    // the browser client ships no `emailOTPClient()`. Mounted over HTTP, its
-    // routes were a second unauthenticated door beside `/login`, one the
-    // per-email limits in `$lib/server/auth/rateLimiter` never saw (100 codes
-    // mailed to one talent in a minute, from one address). So none is mounted.
-    // The list is read off the plugin rather than written out, so a route a
-    // future release adds is closed on arrival.
+    // Both plugins serve Jump through `auth.api.*` alone, and the browser
+    // client ships neither's client plugin. Mounted over HTTP, each was a
+    // second door beside the one Jump guards:
+    // - the OTP routes, unauthenticated beside `/login`, which the per-email
+    //   limits in `$lib/server/auth/rateLimiter` never saw (100 codes mailed
+    //   to one talent in a minute, from one address);
+    // - the admin routes, which an admin session could call to impersonate a
+    //   guardian with no audit row, or to set `bauth_user.role` without the
+    //   `StaffProfile` it pairs with (`bauthRoleForStaffRole`). Impersonation
+    //   starts and stops in `$lib/server/auth/impersonate`, and a role changes
+    //   in `services/staffAdminService.ts`, both columns in one transaction.
+    // So none is mounted. The lists are read off the plugins rather than
+    // written out, so a route a future release adds is closed on arrival.
     //
     // The HTTP router alone reads `disabledPaths`, and reads it before its own
     // per-IP limiter, which therefore never sees these paths either: the
     // per-email ledger is the only OTP limit, which a campus NAT needs.
-    disabledPaths: httpPaths(emailOtp),
+    disabledPaths: [...httpPaths(emailOtp), ...httpPaths(adminPlugin)],
 
     account: {
       modelName: 'bauth_account',

@@ -22,10 +22,10 @@ import {
   afterAll,
   vi,
 } from 'vitest';
-import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
+import { pathSpellings, postAuth } from './authHttp';
 
 // The two OTP mail senders, so the template a recipient gets is observable.
 // Nothing else in the chain is: with no `EmailActionMapping` row in the test
@@ -43,22 +43,6 @@ const staffEmail = `otp.staff.${stamp}@epitech.eu`;
 const talentEmail = `otp.talent.${stamp}@e2e.invalid`;
 const parentEmail = `otp.parent.${stamp}@e2e.invalid`;
 const dualEmail = `otp.dual.${stamp}@epitech.eu`;
-
-function postAuth(path: string, body: unknown): Promise<Response> {
-  return auth.handler(
-    new Request(`${env.ORIGIN}${path}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        // The router checks the origin on every POST; ORIGIN is what
-        // `createAuthOptions` trusts, so a 404 below is the closure and not an
-        // origin refusal.
-        origin: env.ORIGIN!,
-      },
-      body: JSON.stringify(body),
-    }),
-  );
-}
 
 // Bodies are passed loosely on purpose: several tests send one the endpoint's
 // schema rejects, and the point is to see the endpoint's own answer to it.
@@ -199,16 +183,7 @@ describe('email OTP audience (integration)', () => {
       '/email-otp/request-email-change',
       '/email-otp/change-email',
     ];
-    // Spellings a path match could miss. Each one must not reach a handler
-    // either, whether `disabledPaths` or the router is what turns it away.
-    const spellings = (path: string) => [
-      path,
-      `${path}/`,
-      path.toUpperCase(),
-      path.replace('-', '%2D'),
-    ];
-
-    for (const path of pluginPaths.flatMap(spellings)) {
+    for (const path of pluginPaths.flatMap(pathSpellings)) {
       const response = await postAuth(`/api/auth${path}`, {
         email: talentEmail,
         type: 'sign-in',

@@ -1,0 +1,57 @@
+/**
+ * BetterAuth's HTTP surface, as the suites that pin what it mounts reach it.
+ *
+ * Requests go through `auth.handler`, the function the catch-all
+ * `routes/api/auth/[...all]` hands every `/api/auth/*` request to, so a status
+ * asserted here is the one a browser would get, `disabledPaths` included.
+ * `auth.api.*` never reads that option, which is why these suites cannot use it.
+ */
+
+import { createHmac } from 'node:crypto';
+import { env } from '$env/dynamic/private';
+import { auth } from '$lib/server/auth';
+
+export function postAuth(
+  path: string,
+  body: unknown,
+  cookie?: string,
+): Promise<Response> {
+  return auth.handler(
+    new Request(`${env.ORIGIN}${path}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        // The router checks the origin on every POST; ORIGIN is what
+        // `createAuthOptions` trusts, so a 404 is the closure and not an
+        // origin refusal.
+        origin: env.ORIGIN!,
+        ...(cookie ? { cookie } : {}),
+      },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+/**
+ * Spellings of a path a match could miss. Each one must not reach a handler
+ * either, whether `disabledPaths` or the router is what turns it away.
+ */
+export function pathSpellings(path: string): string[] {
+  return [path, `${path}/`, path.toUpperCase(), path.replace('-', '%2D')];
+}
+
+/**
+ * A `Cookie` header carrying a fresh session for `userId`, for the doors no
+ * test can walk (an admin signs in through Microsoft). The session is created
+ * by BetterAuth's own adapter and its cookie signed the way `better-call` signs
+ * it, the same shape `routes/api/test/login-as` mints.
+ */
+export async function sessionCookie(userId: string): Promise<string> {
+  const ctx = await auth.$context;
+  const session = await ctx.internalAdapter.createSession(userId);
+  const signature = createHmac('sha256', ctx.secret)
+    .update(session.token)
+    .digest('base64');
+  const value = encodeURIComponent(`${session.token}.${signature}`);
+  return `${ctx.authCookies.sessionToken.name}=${value}`;
+}
