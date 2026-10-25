@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { startImpersonation } from './impersonate';
+import { startImpersonation, stopImpersonation } from './impersonate';
 import { prisma } from '$lib/server/db';
 import { auth } from '$lib/server/auth';
 import * as talentAccount from '$lib/server/services/talentAccount';
 import type { Cookies } from '@sveltejs/kit';
+
+// What BetterAuth's stop answers, set per test. The call is made with
+// `asResponse: true`, an overload `vi.mocked` cannot type.
+const stop = vi.hoisted(() => ({ response: new Response(null) }));
 
 vi.mock('$lib/server/db', () => ({
   prisma: {
@@ -20,6 +24,7 @@ vi.mock('$lib/server/auth', () => ({
   auth: {
     api: {
       impersonateUser: vi.fn().mockResolvedValue({ ok: true }),
+      stopImpersonating: vi.fn(async () => stop.response),
     },
   },
 }));
@@ -27,6 +32,8 @@ vi.mock('$lib/server/auth', () => ({
 vi.mock('$lib/server/auth/cookies', () => ({
   forwardAuthCookies: vi.fn(),
 }));
+
+const { forwardAuthCookies } = await import('$lib/server/auth/cookies');
 
 describe('impersonate - startImpersonation', () => {
   beforeEach(() => {
@@ -98,5 +105,43 @@ describe('impersonate - startImpersonation', () => {
     });
 
     expect(prisma.$transaction).toHaveBeenCalled();
+  });
+});
+
+describe('impersonate - stopImpersonation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const request = new Request('http://localhost/api/impersonation/stop', {
+    method: 'POST',
+  });
+  const cookies = {} as Cookies;
+
+  it('closes the admin window when the admin leaves, not at their next start', async () => {
+    stop.response = new Response(null, { status: 200 });
+
+    expect(await stopImpersonation(request, cookies, 'admin_user_789')).toBe(
+      true,
+    );
+    expect(auth.api.stopImpersonating).toHaveBeenCalledWith({
+      headers: request.headers,
+      asResponse: true,
+    });
+    expect(prisma.audit_ImpersonationEvent.updateMany).toHaveBeenCalledWith({
+      where: { adminUserId: 'admin_user_789', endedAt: null },
+      data: { endedAt: expect.any(Date) },
+    });
+    expect(forwardAuthCookies).toHaveBeenCalledWith(stop.response, cookies);
+  });
+
+  it('writes nothing and sets no cookie when BetterAuth refuses', async () => {
+    stop.response = new Response(null, { status: 400 });
+
+    expect(await stopImpersonation(request, cookies, 'admin_user_789')).toBe(
+      false,
+    );
+    expect(prisma.audit_ImpersonationEvent.updateMany).not.toHaveBeenCalled();
+    expect(forwardAuthCookies).not.toHaveBeenCalled();
   });
 });

@@ -70,9 +70,10 @@ export async function startImpersonation(
   });
   if (!res.ok) return { ok: false, reason: 'failed' };
 
-  // BetterAuth has no explicit "impersonation ended" server callback we can
-  // trust from all exit paths. Keep a single open window per admin as a
-  // best-effort trail: close any previous open rows before opening this one.
+  // An admin has one open window at a time. `stopImpersonation` closes it on
+  // an explicit exit; a window left to lapse unattended (the machine slept
+  // past the idle expiry) is the one exit Jump never sees, so it is closed
+  // here, when the same admin next starts one.
   const now = new Date();
   await prisma.$transaction([
     prisma.audit_ImpersonationEvent.updateMany({
@@ -90,4 +91,32 @@ export async function startImpersonation(
 
   forwardAuthCookies(res, cookies);
   return { ok: true, redirect };
+}
+
+/**
+ * The way back from `startImpersonation`. BetterAuth deletes the impersonation
+ * session and restores the admin's from its `admin_session` cookie; the
+ * Set-Cookie headers are forwarded into SvelteKit's jar, and the admin's open
+ * audit window is closed at the moment they leave. `adminUserId` is the
+ * session's `impersonatedBy`. Returns false when BetterAuth refused, having
+ * written nothing.
+ */
+export async function stopImpersonation(
+  request: Request,
+  cookies: Cookies,
+  adminUserId: string,
+): Promise<boolean> {
+  const res = await auth.api.stopImpersonating({
+    headers: request.headers,
+    asResponse: true,
+  });
+  if (!res.ok) return false;
+
+  await prisma.audit_ImpersonationEvent.updateMany({
+    where: { adminUserId, endedAt: null },
+    data: { endedAt: new Date() },
+  });
+
+  forwardAuthCookies(res, cookies);
+  return true;
 }
