@@ -12,6 +12,14 @@ import type { StaffGroup } from './permissions';
  */
 export const FORMER_STAFF_LABEL = 'Ancien membre';
 
+/**
+ * Whether an address can belong to a member of staff: the Microsoft door admits
+ * nothing else, so an invitation for anything else is refused at creation.
+ */
+export function isStaffEmailAddress(email: string): boolean {
+  return email.toLowerCase().endsWith('@epitech.eu');
+}
+
 export const staffRoles = ['admin', 'superdev', 'dev'] as const;
 
 export const STAFF_ROLES: readonly {
