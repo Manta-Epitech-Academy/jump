@@ -145,7 +145,6 @@
           {emailEnhance}
           {emailDelayed}
           {emailMessage}
-          errorMessage={data.errorMessage}
         />
       {:else}
         <LoginOtpStep

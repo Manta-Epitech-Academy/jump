@@ -26,30 +26,12 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   // Stash where the guard bounced them from, to replay after OTP verifies.
   captureRedirectCookie(url, cookies, 'talent');
 
-  const errorType = url.searchParams.get('error');
-  let errorMessage = '';
-
-  if (errorType === 'UnauthorizedDomain') {
-    errorMessage = 'Accès refusé. Veuillez utiliser une adresse @epitech.eu.';
-  } else if (errorType === 'OAuthFailed') {
-    errorMessage = "Échec de l'authentification Microsoft.";
-  } else if (errorType === 'OAuthStateMismatch') {
-    errorMessage = 'Erreur de sécurité (State Mismatch). Veuillez réessayer.';
-  } else if (errorType === 'ProviderMissing') {
-    errorMessage =
-      "Le fournisseur d'authentification Microsoft n'est pas configuré.";
-  } else if (errorType === 'StudentNotFound') {
-    errorMessage =
-      "Aucun profil Talent trouvé pour cette adresse email. Contactez l'administration.";
-  }
-
   const emailForm = await superValidate(zod4(camperEmailSchema));
   const otpForm = await superValidate(zod4(camperOtpSchema));
 
   return {
     emailForm,
     otpForm,
-    errorMessage,
   };
 };
 
