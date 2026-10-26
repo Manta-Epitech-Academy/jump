@@ -704,6 +704,7 @@
     formPreviews={data.formPreviews}
     templates={data.templates}
     {sfStatuses}
+    categories={data.categories}
     onSfStatusAdded={addSfStatus}
   />
 

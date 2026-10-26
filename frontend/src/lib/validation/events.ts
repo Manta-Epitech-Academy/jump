@@ -20,6 +20,10 @@ export const adminEventSchema = z.object({
   // back to the neutral default, so an unconfigured event reads "participant"
   // without the column claiming a choice nobody made. Capped so it stays a noun.
   cohortNoun: z.string().trim().max(40).default(''),
+  // Which kind of event it is (`EventConfig_Category.key`), for display and badge
+  // rules only. Empty = uncategorised. Checked server-side: the key must exist,
+  // and an archived one is accepted only on an event that already carries it.
+  categoryKey: z.string().trim().default(''),
   startTime: z
     .string()
     .regex(HHMM_PATTERN, 'Heure invalide (HH:MM).')
@@ -96,6 +100,9 @@ export const eventConfigTemplateSaveSchema = z.object({
   // Cohort noun the preset carries; copied onto the event on apply (mirrors the
   // event form's free-text `cohortNoun`). Blank → stored NULL, like the event.
   cohortNoun: z.string().trim().max(40).default(''),
+  // The category the preset carries; copied onto the event on apply (mirrors the
+  // event form's `categoryKey`). Empty = the preset names none.
+  categoryKey: z.string().trim().default(''),
   // Jump-owned arrival time-of-day the preset carries (mirrors the event form's
   // `startTime`). Empty = the preset names no arrival time.
   startTime: z

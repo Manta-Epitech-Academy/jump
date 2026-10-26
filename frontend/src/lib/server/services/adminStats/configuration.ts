@@ -22,6 +22,8 @@ import {
   type EventWorkshopState,
 } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
+import { EventCategoryService } from '$lib/server/services/eventCategories';
+import type { EventCategoryView } from '$lib/domain/eventCategory';
 import {
   EVENT_MODULE_DEFS,
   EVENT_MODULE_KEYS,
@@ -190,6 +192,7 @@ export type EventDetail = {
     status: string;
     syncedFromSalesforce: boolean;
   }>;
+  category: Metric<EventCategoryView | null>;
   configState: Metric<{ state: string; label: string; hint: string }>;
   missing: Metric<string[]>;
   modules: Metric<ModuleState[]>;
@@ -258,6 +261,10 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
         syncedFromSalesforce: event.synced,
       },
       "Identité de l'événement. « salesforceName » est le nom de la campagne Salesforce, « publicName » celui que voient les équipes et les talents ; null, ce dernier laisse place au premier. « dateLabel » donne les jours de début et de fin, ceux de la campagne Salesforce : ils se corrigent dans Salesforce, pas dans Jump. « startTime », l'heure d'arrivée, appartient à Jump : Salesforce ne la fournit pas. « publicName », « cohortNoun » et « startTime » valent null quand ils ne sont pas renseignés, et c'est null qui les retire dans write_event_config.",
+    ),
+    category: metric(
+      event.category,
+      "La catégorie de l'événement (Coding Club, Stage, Camp...), ou null s'il n'en a pas. Elle donne sa couleur au calendrier et compte pour les badges, sans rien changer d'autre : ce sont les sections qui décident des pages de l'événement. « key » est la clé à passer à write_event_config (categoryKey). « archived » vaut vrai pour une catégorie archivée : l'événement la garde, mais elle n'est plus donnée à un autre.",
     ),
     configState: metric(
       {
@@ -479,6 +486,7 @@ export type TemplateRow = {
   description: string | null;
   publicName: string | null;
   cohortNoun: string | null;
+  categoryKey: string | null;
   startTime: string | null;
   modules: EventModuleKey[];
   moduleSettings: Record<string, unknown>;
@@ -500,6 +508,7 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         description: template.description,
         publicName: template.publicName,
         cohortNoun: template.cohortNoun,
+        categoryKey: template.categoryKey,
         startTime: template.startTime,
         modules: template.modules,
         moduleSettings: template.moduleSettings,
@@ -508,7 +517,24 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         closingTemplateId: template.closingTemplateId,
         shownStatuses: template.shownStatuses,
       })),
-      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun. « publicName », « cohortNoun » et « startTime » valent null quand le modèle n'en porte pas.",
+      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun. « categoryKey » est la clé de la catégorie qu'il donne ; une catégorie archivée depuis n'est plus donnée à un événement, et l'appliquer laisse alors celle de l'événement. « publicName », « cohortNoun », « categoryKey » et « startTime » valent null quand le modèle n'en porte pas.",
+    ),
+  };
+}
+
+// ── The event category catalogue ─────────────────────────────────────────────
+
+export type EventCategoryRow = EventCategoryView & { attachedEvents: number };
+
+export type EventCategories = { categories: Metric<EventCategoryRow[]> };
+
+export async function getEventCategories(): Promise<EventCategories> {
+  const rows = await EventCategoryService.list();
+
+  return {
+    categories: metric(
+      rows,
+      "Les catégories d'événement, archivées comprises, par ordre alphabétique de libellé. « key » est la clé qui l'identifie et que prennent write_event_category, write_event_config et bulk_event_config (categoryKey) ; elle ne change jamais, le libellé (« label ») se renomme. « color » est sa couleur sur le calendrier, en code hexadécimal (#rrggbb). « archived » vaut vrai pour une catégorie archivée : elle n'est plus donnée à un événement, ceux qui la portent la gardent. « attachedEvents » compte les événements qui la portent.",
     ),
   };
 }

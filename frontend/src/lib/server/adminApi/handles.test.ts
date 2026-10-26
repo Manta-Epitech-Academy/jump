@@ -99,9 +99,12 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'allowsPublicAccess',
   'dashboardNudge',
   'questions',
+  // An event category's colour, a #rrggbb an admin picks.
+  'color',
   // Flags, windows and sizes.
   'intervalMinutes',
   'enabled',
+  'archived',
   'visible',
   'receivesDigest',
   // A section's sub-options, keyed by the section, whose keys the schema itself

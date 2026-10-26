@@ -29,6 +29,7 @@ const postTemplate = adminApiWrite('write_event_template');
 const postRequestSync = adminApiWrite('ops_request_sync');
 const postReleasePruneHold = adminApiWrite('ops_release_prune_hold');
 const postWorkshopInstance = adminApiWrite('write_workshop_instance');
+const postCategory = adminApiWrite('write_event_category');
 
 /** Calls a handler the way SvelteKit would, with a bearer and a JSON body. */
 async function call(
@@ -707,6 +708,7 @@ describe('admin API writes (integration)', () => {
       publicName: (d) => d.event.value.publicName,
       cohortNoun: (d) => d.event.value.cohortNoun,
       startTime: (d) => d.event.value.startTime,
+      categoryKey: (d) => d.category.value?.key ?? null,
       // A set on both sides: the write takes any order, the read lists the
       // catalogue's. Sorted so the comparison is about membership only.
       modules: (d) =>
@@ -770,6 +772,13 @@ describe('admin API writes (integration)', () => {
     const grid = await prisma.closing_Template.create({
       data: { key: `readback_grid_${stamp}`, label: 'Grille relue' },
     });
+    const category = await prisma.eventConfig_Category.create({
+      data: {
+        key: `readback-camp-${stamp}`,
+        label: `Camp relu ${stamp}`,
+        color: '#ff5f3a',
+      },
+    });
     const host = await prisma.workshop_Instance.create({
       data: {
         slug: `readback-host-${stamp}`,
@@ -803,6 +812,7 @@ describe('admin API writes (integration)', () => {
       publicName: 'Camp relu',
       cohortNoun: 'campeur',
       startTime: '09:30',
+      categoryKey: category.key,
       modules: ['bilan', 'closings', 'inscrits'],
       moduleSettings: { inscrits: { showStatutColumn: true } },
       shownStatuses: ['MET', 'READY'],
@@ -834,6 +844,7 @@ describe('admin API writes (integration)', () => {
       cohortNoun: null,
       startTime: null,
     });
+    expect(blankDetail.category.value).toBeNull();
 
     await prisma.eventConfig_Workshop.deleteMany({
       where: { eventId: event.id },
@@ -848,6 +859,7 @@ describe('admin API writes (integration)', () => {
       where: { id: { in: [pacman.id, snake.id] } },
     });
     await prisma.workshop_Instance.delete({ where: { id: host.id } });
+    await prisma.eventConfig_Category.delete({ where: { key: category.key } });
     await prisma.closing_Template.delete({ where: { id: grid.id } });
     await prisma.diploma_Template.delete({ where: { id: certificate.id } });
     await prisma.feedback_Form.delete({ where: { id: form.id } });
@@ -1275,6 +1287,257 @@ describe('admin API writes (integration)', () => {
         instance: second,
         baseUrl: address,
       });
+    });
+  });
+
+  describe('event categories', () => {
+    const club = `write-club-${stamp}`;
+    const stage = `write-stage-${stamp}`;
+    const preset = `Preset catégorie ${stamp}`;
+    const eventIds: string[] = [];
+
+    async function newEvent(categoryKey: string | null = null) {
+      const event = await prisma.event.create({
+        data: {
+          titre: `WriteCategory-${stamp}-${eventIds.length}`,
+          date: new Date(Date.now() + 30 * 86_400_000),
+          campusId,
+          categoryKey,
+        },
+      });
+      eventIds.push(event.id);
+      return event.id;
+    }
+
+    afterAll(async () => {
+      await prisma.eventConfig_Template.deleteMany({ where: { name: preset } });
+      await prisma.event.deleteMany({ where: { id: { in: eventIds } } });
+      // The bulk case reaches every event of the campus, the shared ones too,
+      // and a category still carried cannot be deleted.
+      await prisma.event.updateMany({
+        where: { campusId },
+        data: { categoryKey: null },
+      });
+      await prisma.eventConfig_Category.deleteMany({
+        where: { key: { in: [club, stage] } },
+      });
+    });
+
+    it('creates a category, then renames, recolours, archives and unarchives it', async () => {
+      // Any case is taken, one is stored: the colour reads back as the write
+      // takes it again.
+      const created = await call(postCategory, writeSecret, {
+        categoryKey: club,
+        label: 'Coding Club',
+        color: '#013AFB',
+      });
+      expect(created.status).toBe(200);
+      expect(created.payload.before).toBeNull();
+      expect(created.payload.after).toEqual({
+        categoryKey: club,
+        label: 'Coding Club',
+        color: '#013afb',
+        archived: false,
+      });
+
+      const renamed = await call(postCategory, writeSecret, {
+        categoryKey: club,
+        label: 'Club du mercredi',
+        color: '#7a5cff',
+      });
+      expect(renamed.payload.after).toMatchObject({
+        label: 'Club du mercredi',
+        color: '#7a5cff',
+        archived: false,
+      });
+
+      const archived = await call(postCategory, writeSecret, {
+        categoryKey: club,
+        archived: true,
+      });
+      expect(archived.payload.after).toMatchObject({
+        label: 'Club du mercredi',
+        archived: true,
+      });
+      // Archiving again keeps the first instant: nothing moves.
+      const before = await prisma.eventConfig_Category.findUniqueOrThrow({
+        where: { key: club },
+      });
+      await call(postCategory, writeSecret, {
+        categoryKey: club,
+        archived: true,
+      });
+      expect(
+        (
+          await prisma.eventConfig_Category.findUniqueOrThrow({
+            where: { key: club },
+          })
+        ).archivedAt,
+      ).toEqual(before.archivedAt);
+
+      const back = await call(postCategory, writeSecret, {
+        categoryKey: club,
+        archived: false,
+      });
+      expect(back.payload.after).toMatchObject({ archived: false });
+    });
+
+    it('refuses to create a category without a colour, and a label another one holds', async () => {
+      const incomplete = await call(postCategory, writeSecret, {
+        categoryKey: stage,
+        label: 'Stage',
+      });
+      expect(incomplete.status).toBe(400);
+      expect(String(incomplete.payload.error)).toContain('color');
+
+      // Case does not tell two categories apart in a legend.
+      const taken = await call(postCategory, writeSecret, {
+        categoryKey: stage,
+        label: 'CLUB DU MERCREDI',
+        color: '#ff1ef7',
+      });
+      expect(taken.status).toBe(400);
+      expect(String(taken.payload.error)).toContain(`« ${club} »`);
+
+      // A colour name is not a colour the calendar can paint.
+      const named = await call(postCategory, writeSecret, {
+        categoryKey: stage,
+        label: 'Stage',
+        color: 'rose',
+      });
+      expect(named.status).toBe(400);
+      expect(
+        await prisma.eventConfig_Category.count({ where: { key: stage } }),
+      ).toBe(0);
+    });
+
+    it('gives an event a category, and refuses an archived one as a new choice', async () => {
+      await call(postCategory, writeSecret, {
+        categoryKey: stage,
+        label: `Stage ${stamp}`,
+        color: '#ff1ef7',
+      });
+      const id = await newEvent();
+
+      const given = await call(postConfig, writeSecret, {
+        eventId: id,
+        categoryKey: stage,
+      });
+      expect(given.status).toBe(200);
+      expect(given.payload.after).toMatchObject({ categoryKey: stage });
+
+      await call(postCategory, writeSecret, {
+        categoryKey: club,
+        archived: true,
+      });
+      const refused = await call(postConfig, writeSecret, {
+        eventId: id,
+        categoryKey: club,
+      });
+      expect(refused.status).toBe(400);
+      expect(String(refused.payload.error)).toContain('archivée');
+
+      const unknown = await call(postConfig, writeSecret, {
+        eventId: id,
+        categoryKey: `nowhere-${stamp}`,
+      });
+      expect(unknown.status).toBe(400);
+      expect(String(unknown.payload.error)).toContain(
+        'config_event_categories',
+      );
+
+      const cleared = await call(postConfig, writeSecret, {
+        eventId: id,
+        categoryKey: null,
+      });
+      expect(cleared.payload.after).toMatchObject({ categoryKey: null });
+    });
+
+    // AC3: archiving takes a category off the list, never off the events that
+    // carry it, so sending such an event's configuration back unchanged works.
+    it('lets an event keep a category archived since', async () => {
+      const id = await newEvent(club);
+
+      const detail = await getEventDetail(id);
+      expect(detail.category.value).toMatchObject({
+        key: club,
+        archived: true,
+      });
+      const echoed = await call(postConfig, writeSecret, {
+        eventId: id,
+        categoryKey: detail.category.value?.key ?? null,
+        publicName: 'Club gardé',
+      });
+      expect(echoed.status).toBe(200);
+      expect(echoed.payload.after).toMatchObject({ categoryKey: club });
+    });
+
+    // AC2: a preset is a copy, so retargeting it later reaches no event it was
+    // applied to.
+    it("leaves configured events alone when a preset's category changes", async () => {
+      const source = await newEvent(stage);
+      expect(
+        (
+          await call(postTemplate, writeSecret, {
+            eventId: source,
+            name: preset,
+          })
+        ).payload.after,
+      ).toMatchObject({ categoryKey: stage });
+
+      const applied = await newEvent();
+      const template = (await getEventTemplates()).templates.value.find(
+        (t) => t.name === preset,
+      );
+      await call(postConfig, writeSecret, {
+        eventId: applied,
+        categoryKey: template?.categoryKey,
+      });
+
+      await prisma.event.update({
+        where: { id: source },
+        data: { categoryKey: null },
+      });
+      await call(postTemplate, writeSecret, { eventId: source, name: preset });
+
+      expect(
+        (await prisma.event.findUniqueOrThrow({ where: { id: applied } }))
+          .categoryKey,
+      ).toBe(stage);
+    });
+
+    it('plans a category across events, and refuses an archived one before planning', async () => {
+      const id = await newEvent();
+      const filter = {
+        campus: `WriteCampus-${stamp}`,
+        categoryKey: stage,
+      };
+
+      const dry = await call(postBulk, writeSecret, filter);
+      expect(dry.status).toBe(200);
+      const plan = dry.payload.plan as {
+        changes: { eventId: string; category?: unknown }[];
+      };
+      expect(plan.changes.find((c) => c.eventId === id)?.category).toEqual({
+        from: null,
+        to: stage,
+      });
+
+      const applied = await call(postBulk, writeSecret, {
+        ...filter,
+        planDigest: dry.payload.planDigest,
+      });
+      expect(applied.status).toBe(200);
+      expect(
+        (await prisma.event.findUniqueOrThrow({ where: { id } })).categoryKey,
+      ).toBe(stage);
+
+      const archived = await call(postBulk, writeSecret, {
+        campus: `WriteCampus-${stamp}`,
+        categoryKey: club,
+      });
+      expect(archived.status).toBe(400);
+      expect(String(archived.payload.error)).toContain('archivée');
     });
   });
 });

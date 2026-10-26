@@ -47,6 +47,7 @@ export type HandleKind =
   | 'closingId'
   | 'workshopSlug'
   | 'workshopInstanceSlug'
+  | 'eventCategoryKey'
   | 'usageFeatureKey'
   | 'adminAddress';
 
@@ -132,6 +133,27 @@ export const HANDLES: Record<HandleKind, Handle> = {
     frNoun: "clés d'instance",
     frGender: 'f',
     producedBy: [{ operation: 'config_workshops' }],
+  },
+
+  eventCategoryKey: {
+    what: 'Event category key, its stable name; the label is what gets renamed.',
+    frNoun: 'clés de catégorie',
+    frGender: 'f',
+    producedBy: [
+      { operation: 'config_event_categories' },
+      {
+        operation: 'config_event_detail',
+        covers: 'only the category that one event carries',
+      },
+      {
+        operation: 'config_events',
+        covers: 'only the categories the events in scope carry',
+      },
+      {
+        operation: 'config_event_templates',
+        covers: 'only the categories saved presets carry',
+      },
+    ],
   },
 
   eventId: {
@@ -388,6 +410,10 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // An admin, named by the address they log in with: the one person an answer
   // names, and only to choose who receives the weekly digest.
   address: 'adminAddress',
+  // A category by its key, one spelling everywhere: the write that authors it,
+  // the event write and the bulk write that give it. Its key is its identity, so
+  // unlike a closing grid there is no id beside it.
+  categoryKey: 'eventCategoryKey',
 };
 
 const list = (parts: string[]) =>
