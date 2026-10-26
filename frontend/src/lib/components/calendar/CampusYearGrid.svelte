@@ -42,6 +42,19 @@
   const runCorners = (run: { startsRun: boolean; endsRun: boolean }) =>
     cn(run.startsRun && 'rounded-l-md', run.endsRun && 'rounded-r-md');
 
+  /**
+   * A band's outline, drawn round the run and not between its days. A category
+   * colour is the team's choice, so it can match the card it sits on (a white
+   * one in the light theme, a near-black one in the dark): the edge is the fill
+   * shaded toward the text colour, which parts any fill from either ground.
+   */
+  const runEdges = (run: { startsRun: boolean; endsRun: boolean }) =>
+    cn(
+      'border-y border-[color-mix(in_oklab,var(--band-color),var(--foreground)_25%)]',
+      run.startsRun && 'border-l',
+      run.endsRun && 'border-r',
+    );
+
   const eventsOf = (cell: CalendarCell): CalendarEvent[] =>
     cell.eventIds.map((id) => calendar.events[id]);
 
@@ -78,7 +91,7 @@
         <span class="inline-flex items-center gap-2 epi-overline">
           <span
             aria-hidden="true"
-            class="size-2.5 shrink-0 rounded-sm bg-[var(--band-color)]"
+            class="size-2.5 shrink-0 rounded-sm border border-border bg-[var(--band-color)]"
             style:--band-color={bandOf(event).color}
           ></span>
           {event.category?.label ?? 'Sans catégorie'}
@@ -126,6 +139,7 @@
           class={cn(
             'relative flex h-7.5 w-full cursor-pointer items-center justify-center font-mono text-xs font-bold text-[var(--band-ink)] transition-colors',
             runCorners(painted),
+            runEdges(painted),
             lit.includes(event.id)
               ? 'bg-[color-mix(in_oklab,var(--band-color),var(--band-ink)_25%)]'
               : 'bg-[var(--band-color)]',

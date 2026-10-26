@@ -394,7 +394,9 @@ this rule allows: an **event category's colour**, which the team authors over th
 admin API like a certificate design. The calendar needs one colour per kind of
 event, more than the four accents, so the colour is the team's choice and
 outside this contract on purpose. What a component owes it is legibility: a
-swatch carries a border, and text on a category fill takes its colour from the
+swatch carries a border, a calendar band an edge shaded from its own fill toward
+`foreground` (so a white category still shows on a white card, a near-black one
+on a dark one), and text on a category fill takes its colour from the
 fill (`inkOn` in `lib/design/color.ts`: white or `epiDark`, whichever contrasts
 more). Everything else stays on the tokens: on the campus calendar an event
 without a category is a `mutedForeground` fill, and a day without school is a
