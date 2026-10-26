@@ -1294,6 +1294,7 @@ describe('admin API writes (integration)', () => {
     const club = `write-club-${stamp}`;
     const stage = `write-stage-${stamp}`;
     const preset = `Preset catégorie ${stamp}`;
+    const keptPreset = `Preset catégorie archivée ${stamp}`;
     const eventIds: string[] = [];
 
     async function newEvent(categoryKey: string | null = null) {
@@ -1310,7 +1311,9 @@ describe('admin API writes (integration)', () => {
     }
 
     afterAll(async () => {
-      await prisma.eventConfig_Template.deleteMany({ where: { name: preset } });
+      await prisma.eventConfig_Template.deleteMany({
+        where: { name: { in: [preset, keptPreset] } },
+      });
       await prisma.event.deleteMany({ where: { id: { in: eventIds } } });
       // The bulk case reaches every event of the campus, the shared ones too,
       // and a category still carried cannot be deleted.
@@ -1470,6 +1473,15 @@ describe('admin API writes (integration)', () => {
       });
       expect(echoed.status).toBe(200);
       expect(echoed.payload.after).toMatchObject({ categoryKey: club });
+
+      // A preset is a copy of the configuration, archived category included:
+      // it is an event, not a preset, that may not newly receive one.
+      const saved = await call(postTemplate, writeSecret, {
+        eventId: id,
+        name: keptPreset,
+      });
+      expect(saved.status).toBe(200);
+      expect(saved.payload.after).toMatchObject({ categoryKey: club });
     });
 
     // AC2: a preset is a copy, so retargeting it later reaches no event it was
