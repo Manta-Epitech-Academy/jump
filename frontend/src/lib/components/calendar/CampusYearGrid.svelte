@@ -4,7 +4,8 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
   import { FILL_INKS } from '$lib/design/color';
-  import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import type {
     CalendarCell,
     CalendarEvent,
@@ -19,8 +20,9 @@
   //
   // The day under the pointer is what a click opens, so that is where the
   // feedback goes: the whole band of its event lights up, on every week and
-  // month it crosses. The tooltip only describes; it holds nothing to click,
-  // and closes as soon as the pointer leaves the day.
+  // month it crosses, and the day itself trades its number for an arrow, the
+  // sign of a way in rather than of more to read. The tooltip only describes;
+  // it holds nothing to click, and closes as soon as the pointer leaves the day.
   //
   // Two events can share a day. The band is the longest one's, a dot in the
   // corner stands for each other, and the day opens a short list to pick from
@@ -52,13 +54,14 @@
   const enrolmentsLabel = (n: number) =>
     `${n} ${n > 1 ? 'inscrits' : 'inscrit'}`;
 
-  /** The events whose bands are lit: those of the day under the pointer or focus. */
-  let lit = $state<readonly string[]>([]);
+  /** The day under the pointer or focus, and the events whose bands it lights. */
+  let pointed = $state<CalendarCell | null>(null);
+  const lit = $derived(pointed?.eventIds ?? []);
   const lights = (cell: CalendarCell) => ({
-    onpointerenter: () => (lit = cell.eventIds),
-    onpointerleave: () => (lit = []),
-    onfocus: () => (lit = cell.eventIds),
-    onblur: () => (lit = []),
+    onpointerenter: () => (pointed = cell),
+    onpointerleave: () => (pointed = null),
+    onfocus: () => (pointed = cell),
+    onblur: () => (pointed = null),
   });
 </script>
 
@@ -79,12 +82,6 @@
           {/if}
         </span>
         <span class="font-heading text-display-s">{event.name}</span>
-        {#if event.campaign}
-          <span class="flex items-start gap-1.5 text-xs opacity-80">
-            <SalesforceIcon class="mt-px size-3.5 shrink-0" />
-            {event.campaign}
-          </span>
-        {/if}
         <span class="text-sm opacity-80">{event.daysLabelLong}</span>
         <span class="flex items-center justify-between gap-2">
           <span class="font-mono text-xs">
@@ -119,7 +116,12 @@
     style:--band-color={bandOf(event).color}
     style:--band-ink={bandOf(event).ink}
   >
-    {cell.dayOfMonth}
+    {#if tag !== 'span' && pointed?.day === cell.day}
+      {@const Sign = tag === 'button' ? ChevronDown : ArrowRight}
+      <Sign aria-hidden="true" class="size-4" strokeWidth={2.5} />
+    {:else}
+      {cell.dayOfMonth}
+    {/if}
     {#if others.length}
       <span aria-hidden="true" class="absolute top-0.5 right-0.5 flex gap-0.5">
         {#each others.slice(0, 3) as id (id)}
