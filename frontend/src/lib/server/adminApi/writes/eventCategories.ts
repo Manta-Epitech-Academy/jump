@@ -20,6 +20,7 @@
  * event's configuration (`write_event_config`, `bulk_event_config`).
  */
 
+import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import {
   EVENT_CATEGORY_SELECT,
@@ -77,6 +78,28 @@ function archivedAtFor(
   return alreadyArchived ? undefined : new Date();
 }
 
+/**
+ * Runs the write, refusing rather than failing when another call took this key
+ * or this label since they were read: a retry after a timeout, overlapping the
+ * call it retries. Run again, a call reads the state the other one left, and
+ * updates it or names the label's holder.
+ */
+async function refusingRaces(key: string, write: () => Promise<unknown>) {
+  try {
+    await write();
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2002'
+    ) {
+      throw new OperationRefusedError(
+        `Un autre appel vient d'écrire la catégorie « ${key} » ou son libellé. Relancez celui-ci.`,
+      );
+    }
+    throw err;
+  }
+}
+
 export async function writeEventCategory(
   params: EventCategoryPatch,
 ): Promise<WriteOutcome> {
@@ -88,19 +111,23 @@ export async function writeEventCategory(
   const archivedAt = archivedAtFor(params.archived, before?.archived ?? false);
 
   if (before) {
-    await prisma.eventConfig_Category.update({
-      where: { key },
-      data: { label, color, archivedAt },
-    });
+    await refusingRaces(key, () =>
+      prisma.eventConfig_Category.update({
+        where: { key },
+        data: { label, color, archivedAt },
+      }),
+    );
   } else {
     if (!label || !color) {
       throw new OperationRefusedError(
         `La catégorie « ${key} » n'existe pas encore : pour la créer, donnez-lui un libellé (label) et une couleur (color).`,
       );
     }
-    await prisma.eventConfig_Category.create({
-      data: { key, label, color, archivedAt },
-    });
+    await refusingRaces(key, () =>
+      prisma.eventConfig_Category.create({
+        data: { key, label, color, archivedAt },
+      }),
+    );
   }
 
   return { applied: true, before, after: await stateOf(key) };
