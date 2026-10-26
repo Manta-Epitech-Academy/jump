@@ -8,12 +8,8 @@
  * have caught it.
  */
 import { describe, expect, it } from 'vitest';
-import {
-  contrastRatio,
-  cssVarName,
-  loadContract,
-  resolveToken,
-} from './contract';
+import { contrastRatio, FILL_INKS } from './color';
+import { cssVarName, loadContract, resolveToken } from './contract';
 
 const { root, dark, declared } = loadContract();
 
@@ -216,6 +212,15 @@ describe('design contract contrast', () => {
 });
 
 describe('design contract palette discipline', () => {
+  it('should keep the dark ink on a data-chosen fill at the brand near-black', () => {
+    // Arrange: text on an event category's fill picks one of two inks in
+    // `color.ts`, which a component can import and this file cannot hand it.
+    const epiDark = resolveToken('--epi-dark', root, root);
+
+    // Act / Assert
+    expect(FILL_INKS.dark).toBe(epiDark);
+  });
+
   it('should keep the brand blue at one value across both themes', () => {
     // Arrange / Act: the wordmark is painted with it, so a per-theme
     // redefinition would put a non-brand blue in the logo.
