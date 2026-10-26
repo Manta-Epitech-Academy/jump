@@ -11,6 +11,7 @@
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import School from '@lucide/svelte/icons/school';
+  import LayoutGrid from '@lucide/svelte/icons/layout-grid';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -59,7 +60,13 @@
   // shown, so no entry leads to an empty page: the calendar (#440) fills the
   // campus one, the catalogue (#439) and Contribuer (#441) the resources one.
   const CAMPUS_LINKS: NavLink[] = [];
-  const RESOURCE_LINKS: NavLink[] = [];
+  const RESOURCE_LINKS: NavLink[] = [
+    {
+      href: resolve('/staff/dev/catalogue'),
+      label: 'Catalogue',
+      icon: LayoutGrid,
+    },
+  ];
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
