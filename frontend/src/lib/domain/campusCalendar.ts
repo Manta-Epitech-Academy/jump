@@ -26,6 +26,11 @@ import { knowsSchoolHolidays, offDays, type OffDay } from './schoolHolidays';
 export type CalendarEventInput = {
   id: string;
   name: string;
+  /**
+   * The Salesforce campaign it comes from, when its public name hides it: a
+   * glance to check the name against the campaign the dev has in mind.
+   */
+  campaign: string | null;
   first: DateKey;
   last: DateKey;
   /** The school year its start falls in (`schoolYearOf(...).label`). */

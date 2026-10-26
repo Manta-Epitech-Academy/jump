@@ -23,7 +23,6 @@
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
-  import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
   import SchoolYearMenu from '$lib/components/dev/SchoolYearMenu.svelte';
   import {
     landingSurface,
@@ -35,7 +34,6 @@
   } from '$lib/domain/eventModules';
   import {
     defaultEventOfYear,
-    eventsOfSchoolYear,
     navigableSchoolYears,
     type DevWorkspaceEvent,
   } from '$lib/domain/devWorkspace';
@@ -120,12 +118,6 @@
     return [...years, selectedSchoolYear].sort((a, b) => b.localeCompare(a));
   });
 
-  /** The active year's events: the switcher's whole list, and what decides
-      whether there is anything to switch between. */
-  const yearEvents = $derived(
-    eventsOfSchoolYear(workspace.events, selectedSchoolYear),
-  );
-
   /** The event's pages, in the order and under the gates `eventModules` sets. */
   const eventLinks = $derived.by((): NavLink[] => {
     const ev = currentEvent;
@@ -142,9 +134,9 @@
   const openSurface = $derived(surfaceFromPath(page.url.pathname));
 
   /**
-   * Both context controls resolve to one navigation: open `e`, keeping the
-   * surface in view when the target event exposes it. `openSurface` is null off
-   * an event route (a talent fiche), which lands on the first reachable one.
+   * Open `e`, keeping the surface in view when the target event exposes it.
+   * `openSurface` is null off an event route (a talent fiche), which lands on
+   * the first reachable one.
    */
   function openEvent(e: DevWorkspaceEvent) {
     if (e.id === currentEvent?.id) return;
@@ -270,23 +262,13 @@
             Événement sélectionné
           </h2>
           <!-- The event's name, in Anton at a display size: it has to out-rank
-               the 14px entries under it. The switcher sits inline to its right,
-               demoted, so the name stays the label. -->
+               the 14px entries under it. Another event is opened from the
+               calendar, as the mockup does: no picker here. -->
           <div
-            class="flex items-center gap-1.5 font-heading text-display-s text-chrome-foreground"
+            class="flex items-baseline font-heading text-display-s text-chrome-foreground"
           >
-            <span class="flex min-w-0 flex-1 items-baseline">
-              <span class="truncate">{eventDisplayName(ev)}</span>
-              <TitleCursor />
-            </span>
-            {#if yearEvents.length > 1}
-              <EventWorkspaceSwitcher
-                events={yearEvents}
-                currentId={ev.id}
-                timezone={data.timezone}
-                onpick={openEvent}
-              />
-            {/if}
+            <span class="truncate">{eventDisplayName(ev)}</span>
+            <TitleCursor />
           </div>
           <p class="mt-1 mb-3 font-mono text-xs text-chrome-foreground-muted">
             {eventDaysLabel(ev.date, ev.endDate, data.timezone)}

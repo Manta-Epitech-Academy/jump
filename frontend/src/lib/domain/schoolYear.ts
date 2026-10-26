@@ -86,7 +86,7 @@ export function schoolYearBounds(label: string): { from: Date; to: Date } {
   };
 }
 
-/** French month names indexed 1-12 (index 0 unused), for switcher labels. */
+/** French month names indexed 1-12 (index 0 unused), for month labels. */
 export const MOIS_FR = [
   '',
   'janvier',

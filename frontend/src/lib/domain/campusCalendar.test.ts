@@ -16,6 +16,7 @@ function event(
 ): CalendarEventInput {
   return {
     name: over.id,
+    campaign: null,
     first: '2026-10-27',
     last: '2026-10-27',
     schoolYear: '2026-2027',

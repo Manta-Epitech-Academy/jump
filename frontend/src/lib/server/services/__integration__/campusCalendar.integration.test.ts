@@ -36,10 +36,12 @@ describe('loadCampusCalendar (integration)', () => {
       campusId: string,
       date: string,
       activated = true,
+      synced: { publicName: string; externalId: string } | null = null,
     ) => {
       const row = await prisma.event.create({
         data: {
           titre: `Cal ${key} ${stamp}`,
+          ...synced,
           campusId,
           date: new Date(date),
           devActivatedAt: activated ? NOW : null,
@@ -48,7 +50,10 @@ describe('loadCampusCalendar (integration)', () => {
       });
       ids[key] = row.id;
     };
-    await event('camp', home.id, '2026-10-27T00:00:00.000+01:00');
+    await event('camp', home.id, '2026-10-27T00:00:00.000+01:00', true, {
+      publicName: 'Camp',
+      externalId: `cal-${stamp}`,
+    });
     await event('hidden', home.id, '2026-11-04T00:00:00.000+01:00', false);
     await event('elsewhere', other.id, '2026-10-28T00:00:00.000+01:00');
 
@@ -83,7 +88,7 @@ describe('loadCampusCalendar (integration)', () => {
     }
   });
 
-  it('should list its own campus events the dev space can open, with their shown enrolments', async () => {
+  it('should list its own campus events the dev space can open, with their shown enrolments and campaign', async () => {
     // Arrange
     const db = scopedPrisma(campusIds[0]);
 
@@ -98,6 +103,8 @@ describe('loadCampusCalendar (integration)', () => {
     // Assert
     expect(Object.keys(calendar.events)).toEqual([ids.camp]);
     expect(calendar.events[ids.camp]).toMatchObject({
+      name: 'Camp',
+      campaign: `Cal camp ${stamp}`,
       first: '2026-10-27',
       last: '2026-10-27',
       status: 'upcoming',

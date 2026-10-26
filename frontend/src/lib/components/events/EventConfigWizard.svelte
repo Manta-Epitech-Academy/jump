@@ -291,8 +291,8 @@
   // "Visible dans l'espace dev" only takes effect once the event is actually
   // showable: the dev space is nothing but per-module surfaces, so a
   // section-less event made visible shows nothing (it would never get the
-  // "Espace dev" badge nor land in the switcher), and one with no public name
-  // would sit in the switcher under its raw Salesforce title. We gate the
+  // "Espace dev" badge nor land on the campus calendar), and one with no public
+  // name would sit on the calendar under its raw Salesforce title. We gate the
   // toggle on that rather than let an admin tick a promise that silently does
   // nothing. The displayed state is the EFFECTIVE visibility, so toggling the
   // last module off reads as not-visible immediately, matching what the dev

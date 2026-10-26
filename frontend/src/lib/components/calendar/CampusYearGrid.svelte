@@ -4,6 +4,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
   import { FILL_INKS } from '$lib/design/color';
+  import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
   import type {
     CalendarCell,
     CalendarEvent,
@@ -78,6 +79,12 @@
           {/if}
         </span>
         <span class="font-heading text-display-s">{event.name}</span>
+        {#if event.campaign}
+          <span class="flex items-start gap-1.5 text-xs opacity-80">
+            <SalesforceIcon class="mt-px size-3.5 shrink-0" />
+            {event.campaign}
+          </span>
+        {/if}
         <span class="text-sm opacity-80">{event.daysLabelLong}</span>
         <span class="flex items-center justify-between gap-2">
           <span class="font-mono text-xs">

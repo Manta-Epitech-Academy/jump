@@ -44,6 +44,7 @@ export async function loadCampusCalendar(
       id: true,
       titre: true,
       publicName: true,
+      externalId: true,
       date: true,
       endDate: true,
       category: { select: EVENT_CATEGORY_TAG_SELECT },
@@ -61,9 +62,12 @@ export async function loadCampusCalendar(
     events: rows.map((e) => {
       const first = toDateKey(e.date, timezone);
       const last = toDateKey(e.endDate ?? e.date, timezone);
+      const name = eventDisplayName(e);
       return {
         id: e.id,
-        name: eventDisplayName(e),
+        name,
+        // Under its raw title, the name already is the campaign's.
+        campaign: e.externalId && name !== e.titre ? e.titre : null,
         first,
         // A Salesforce end before the start would paint nothing: one day.
         last: last < first ? first : last,
