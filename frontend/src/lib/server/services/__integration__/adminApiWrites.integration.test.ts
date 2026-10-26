@@ -1654,13 +1654,13 @@ describe('admin API writes (integration)', () => {
       const filed = await call(postWorkshop, writeSecret, {
         slug: subject,
         level: 'expert',
-        notions: [' FSM ', 'Arbres de décision', 'fsm'],
+        notions: [' FSM ', 'Arbres de décision', 'fsm', '  '],
         domains: [cyber, ai],
       });
       expect(filed.status).toBe(200);
       expect(filed.payload.after).toMatchObject({
         level: 'expert',
-        // Trimmed, and the repeat dropped whatever its case.
+        // Trimmed, the blank and the repeat dropped whatever its case.
         notions: ['FSM', 'Arbres de décision'],
         domains: [ai, cyber].sort(),
       });

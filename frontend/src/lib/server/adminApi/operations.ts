@@ -1132,11 +1132,11 @@ export const ADMIN_API_OPERATIONS = {
           'How demanding the subject is, shown on its catalogue card; all_levels means open to anybody. Null clears it; omit to leave it.',
         ),
       notions: z
-        .array(z.string().trim().min(1).max(NOTION_LABEL_MAX))
+        .array(z.string().trim().max(NOTION_LABEL_MAX))
         .max(NOTIONS_MAX)
         .optional()
         .describe(
-          'What a talent practises on it, short French labels in the order the catalogue shows them, e.g. ["Arbres de décision", "FSM"]. The complete list: [] clears it, a repeat is dropped. Omit to leave it.',
+          'What a talent practises on it, short French labels in the order the catalogue shows them, e.g. ["Arbres de décision", "FSM"]. The complete list: [] clears it, a blank or a repeat is dropped. Omit to leave it.',
         ),
       domains: z
         .array(z.string().min(1))
