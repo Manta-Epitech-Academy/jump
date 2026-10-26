@@ -33,8 +33,6 @@ export type CalendarEventInput = {
   campaign: string | null;
   first: DateKey;
   last: DateKey;
-  /** The school year its start falls in (`schoolYearOf(...).label`). */
-  schoolYear: string;
   category: EventCategoryTag | null;
   /** Read from `getEventStatus` on the server, never recomputed here. */
   status: EventLifecycleStatus;
@@ -190,19 +188,52 @@ function byPaintPriority(a: CalendarEventInput, b: CalendarEventInput) {
   );
 }
 
-/** The first day of the school year's grid: 1 August of its first year. */
-function gridStart(schoolYear: string): CalendarDate {
-  return new CalendarDate(Number(schoolYear.slice(0, 4)), 8, 1);
+/** The month a year's grid opens on: August. */
+const GRID_FIRST_MONTH = 8;
+
+/**
+ * The first and last day of a school year's grid, 1 August to 31 July, for
+ * the grid and for the query that fills it.
+ */
+export function calendarDays(schoolYear: string): {
+  first: DateKey;
+  last: DateKey;
+} {
+  const start = new CalendarDate(
+    Number(schoolYear.slice(0, 4)),
+    GRID_FIRST_MONTH,
+    1,
+  );
+  return {
+    first: start.toString(),
+    last: start.add({ years: 1 }).subtract({ days: 1 }).toString(),
+  };
 }
 
 /**
- * Lay out a campus's school year.
+ * The year whose grid holds `day`, as a school-year label: the calendar a
+ * person lands on, so today is always on it.
  *
- * The grid runs August to July, the months of Jump's school year (which turns
- * on 31 July), and paints every event day that falls in it, an event of the
- * neighbouring year included. The list and the month counts hold only the
- * events of `schoolYear`, so an event is listed once, in the year its start
- * falls in.
+ * Not `schoolYearOf`, on one day a year. Jump's school year turns on 31 July,
+ * and a grid is made of whole months, August to July, so 31 July sits in the
+ * July closing the year before. On that day `schoolYearOf` already names the
+ * new year, whose grid starts the next morning.
+ */
+export function calendarYearOf(day: DateKey): string {
+  const { year, month } = parseDate(day);
+  const startYear = month >= GRID_FIRST_MONTH ? year : year - 1;
+  return `${startYear}-${startYear + 1}`;
+}
+
+/**
+ * Lay out a campus's school year, as its twelve months from August to July.
+ *
+ * The grid paints every event day that falls in those months, an event that
+ * starts before them or ends after them included. The list and the month
+ * counts hold the events that start in them, so an event is listed once, in
+ * the calendar its first day is painted on. That is the school year it belongs
+ * to on every day but 31 July (`calendarYearOf`): an event starting then is
+ * listed in the July that day sits in.
  */
 export function buildCampusCalendar(input: {
   schoolYear: string;
@@ -211,8 +242,8 @@ export function buildCampusCalendar(input: {
   events: readonly CalendarEventInput[];
 }): CampusCalendar {
   const { schoolYear, today, departement } = input;
-  const start = gridStart(schoolYear);
-  const end = start.add({ years: 1 }).subtract({ days: 1 });
+  const days = calendarDays(schoolYear);
+  const start = parseDate(days.first);
 
   const events: Record<string, CalendarEvent> = {};
   for (const e of input.events) {
@@ -228,14 +259,14 @@ export function buildCampusCalendar(input: {
     };
   }
   const ofYear = input.events
-    .filter((e) => e.schoolYear === schoolYear)
+    .filter((e) => days.first <= e.first && e.first <= days.last)
     .sort(
       (a, b) =>
         a.first.localeCompare(b.first) || a.name.localeCompare(b.name, 'fr'),
     );
   const painting = [...input.events].sort(byPaintPriority);
   const off = departement
-    ? offDays(departement, start.toString(), end.toString())
+    ? offDays(departement, days.first, days.last)
     : new Map<DateKey, OffDay>();
 
   const months: CalendarMonth[] = [];

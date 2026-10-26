@@ -1,12 +1,16 @@
 import type { ScopedPrismaClient } from '$lib/server/db/scoped';
 import {
   buildCampusCalendar,
+  calendarDays,
   type CampusCalendar,
 } from '$lib/domain/campusCalendar';
-import { eventDisplayName, eventStartInstant } from '$lib/domain/event';
+import {
+  eventDisplayName,
+  eventEndInstant,
+  eventStartInstant,
+} from '$lib/domain/event';
 import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
 import { toDateKey } from '$lib/domain/planningTime';
-import { schoolYearOf } from '$lib/domain/schoolYear';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { devVisibleEventWhere } from './stageContext';
 import { EVENT_CATEGORY_TAG_SELECT } from './eventCategories';
@@ -16,9 +20,9 @@ import { EVENT_CATEGORY_TAG_SELECT } from './eventCategories';
  *
  * The events are the dev space's own (`devVisibleEventWhere`): a click opens
  * one, so the calendar holds no event it could not open. Their window is the
- * grid's twelve months plus 31 July, the day the school year turns on, so the
- * grid can paint a neighbouring year's event and the list holds every event of
- * the year. The count beside each is the enrolments the dev space shows.
+ * grid's twelve months (`calendarDays`), any event with a day in them, so the
+ * grid can paint one that starts or ends outside. The count beside each is the
+ * enrolments the dev space shows.
  */
 export async function loadCampusCalendar(
   db: ScopedPrismaClient,
@@ -30,14 +34,14 @@ export async function loadCampusCalendar(
   },
 ): Promise<CampusCalendar> {
   const { timezone, departement, schoolYear, now = new Date() } = input;
-  const startYear = Number(schoolYear.slice(0, 4));
-  const from = eventStartInstant(`${startYear}-07-31`, timezone);
-  const to = eventStartInstant(`${startYear + 1}-08-01`, timezone);
+  const days = calendarDays(schoolYear);
+  const from = eventStartInstant(days.first, timezone);
+  const to = eventEndInstant(days.last, timezone);
 
   const rows = await db.event.findMany({
     where: {
       ...devVisibleEventWhere,
-      date: { lt: to },
+      date: { lte: to },
       OR: [{ endDate: null, date: { gte: from } }, { endDate: { gte: from } }],
     },
     select: {
@@ -71,7 +75,6 @@ export async function loadCampusCalendar(
         first,
         // A Salesforce end before the start would paint nothing: one day.
         last: last < first ? first : last,
-        schoolYear: schoolYearOf(e.date, timezone).label,
         category: e.category,
         status: getEventStatus(e, bounds),
         shownEnrolments: e._count.participations,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildCampusCalendar,
+  calendarYearOf,
   type CalendarEventInput,
   type CampusCalendar,
 } from './campusCalendar';
@@ -19,7 +20,6 @@ function event(
     campaign: null,
     first: '2026-10-27',
     last: '2026-10-27',
-    schoolYear: '2026-2027',
     category: CAMP,
     status: 'upcoming',
     shownEnrolments: 12,
@@ -175,7 +175,6 @@ describe('buildCampusCalendar list and counts', () => {
         id: 'summer',
         first: '2026-07-27',
         last: '2026-08-02',
-        schoolYear: '2025-2026',
       }),
       event({ id: 'sep', first: '2026-09-16', last: '2026-09-16' }),
       event({ id: 'sep2', first: '2026-09-02', last: '2026-09-02' }),
@@ -194,6 +193,25 @@ describe('buildCampusCalendar list and counts', () => {
     expect(calendar.months[1].eventCount).toBe(2);
   });
 
+  it('should list an event starting on 31 July in the July it is painted in', () => {
+    // Arrange: Jump's school year turns on 31 July, so 31 July 2027 opens
+    // 2027-2028, but the 2026-2027 grid is where that day is drawn.
+    const calendar = build([
+      event({ id: 'eve', first: '2027-07-31', last: '2027-07-31' }),
+      event({ id: 'before', first: '2026-07-31', last: '2026-07-31' }),
+    ]);
+
+    // Act
+    const july = calendar.months.at(-1)!;
+
+    // Assert
+    expect(calendar.list.map((g) => g.events.map((e) => e.id))).toEqual([
+      ['eve'],
+    ]);
+    expect(july.eventCount).toBe(1);
+    expect(cell(calendar, '2027-07-31').painted?.id).toBe('eve');
+  });
+
   it('should say a school year without events is empty', () => {
     // Arrange / Act
     const calendar = build([
@@ -201,7 +219,6 @@ describe('buildCampusCalendar list and counts', () => {
         id: 'old',
         first: '2026-07-27',
         last: '2026-08-02',
-        schoolYear: '2025-2026',
       }),
     ]);
 
@@ -287,5 +304,19 @@ describe('buildCampusCalendar events', () => {
       'Coding Club',
     ]);
     expect(calendar.legend.uncategorized).toBe(true);
+  });
+});
+
+describe('calendarYearOf', () => {
+  it.each([
+    ['2026-08-01', '2026-2027'],
+    ['2026-10-26', '2026-2027'],
+    ['2027-07-30', '2026-2027'],
+    ['2027-07-31', '2026-2027'],
+    ['2027-08-01', '2027-2028'],
+  ])('should open %s on the %s grid', (day, year) => {
+    // Arrange / Act / Assert: 31 July already opens the next school year,
+    // but its cell is in the July closing this grid.
+    expect(calendarYearOf(day)).toBe(year);
   });
 });
