@@ -1,7 +1,11 @@
 import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { hhmmToMinutes, minutesToHHMM } from '$lib/domain/event';
+import {
+  eventDaysLabel,
+  hhmmToMinutes,
+  minutesToHHMM,
+} from '$lib/domain/event';
 import {
   eventRunsClosings,
   isEventModuleKey,
@@ -179,23 +183,6 @@ type AdminEventRow = Prisma.EventGetPayload<{
   select: typeof ADMIN_EVENT_SELECT;
 }>;
 
-function dateRangeLabel(
-  date: Date,
-  endDate: Date | null,
-  timezone: string,
-): string {
-  const fmt = new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: timezone,
-  });
-  const start = fmt.format(date);
-  if (!endDate) return start;
-  const end = fmt.format(endDate);
-  return start === end ? start : `${start} → ${end}`;
-}
-
 function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
   // Lifecycle bounds are timezone-dependent and the list is cross-campus, so
   // memoize one bounds object per distinct campus tz instead of recomputing it
@@ -232,7 +219,7 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
       cohortNoun: e.cohortNoun,
       campusId: e.campusId,
       campusName: e.campus.name,
-      dateLabel: dateRangeLabel(e.date, e.endDate, tz),
+      dateLabel: eventDaysLabel(e.date, e.endDate, tz),
       dateTs: e.date.getTime(),
       createdTs: e.createdAt.getTime(),
       schoolYearLabel: sy.label,

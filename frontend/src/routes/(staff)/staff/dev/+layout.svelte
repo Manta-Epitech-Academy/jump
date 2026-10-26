@@ -38,7 +38,7 @@
     navigableSchoolYears,
     type DevWorkspaceEvent,
   } from '$lib/domain/devWorkspace';
-  import { eventDisplayName } from '$lib/domain/event';
+  import { eventDaysLabel, eventDisplayName } from '$lib/domain/event';
   import { schoolYearOf } from '$lib/domain/schoolYear';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
@@ -51,6 +51,15 @@
     bilan: MessageSquareText,
     closings: MessageSquare,
   };
+
+  type NavLink = { href: string; label: string; icon: typeof Users };
+
+  // The menu's three sections, in the mockup's order: the campus, the event in
+  // view, the resources every event shares. A section with no page yet is not
+  // shown, so no entry leads to an empty page: the calendar (#440) fills the
+  // campus one, the catalogue (#439) and Contribuer (#441) the resources one.
+  const CAMPUS_LINKS: NavLink[] = [];
+  const RESOURCE_LINKS: NavLink[] = [];
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
@@ -88,6 +97,17 @@
   const yearEvents = $derived(
     eventsOfSchoolYear(workspace.events, selectedSchoolYear),
   );
+
+  /** The event's pages, in the order and under the gates `eventModules` sets. */
+  const eventLinks = $derived.by((): NavLink[] => {
+    const ev = currentEvent;
+    if (!ev) return [];
+    return reachableSurfaces(ev).map((key) => ({
+      href: resolve(`/staff/dev/events/${ev.id}/${surfaceSegment(key)}`),
+      label: surfaceLabel(key),
+      icon: SURFACE_ICONS[key],
+    }));
+  });
 
   /** The surface in view, so a context change keeps you on it. Derived once
       here rather than in each control, for the same reason as the year. */
@@ -145,15 +165,8 @@
     }
   });
 
-  function isActive(path: string, exact = false) {
-    const basePath = resolve('/').replace(/\/$/, '');
-    const fullPath = `${basePath}${path}`;
-    if (exact || path === '/staff/dev')
-      return (
-        page.url.pathname === fullPath || page.url.pathname === `${fullPath}/`
-      );
-    return page.url.pathname.startsWith(fullPath);
-  }
+  // Links carry resolved hrefs, so a page nested under an entry keeps it lit.
+  const isActive = (href: string) => page.url.pathname.startsWith(href);
 
   const navLinkClass = (active: boolean) => `
     flex items-center gap-3 px-3 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer
@@ -182,43 +195,77 @@
   </a>
 {/snippet}
 
-{#snippet navMenu()}
-  {#if currentEvent}
-    {@const ev = currentEvent}
-    <!-- The event in view is the section heading (underscore motif). The switcher
-         sits inline to its right, demoted: the event name stays the label.
+{#snippet navLinks(links: NavLink[])}
+  <div class="space-y-1">
+    {#each links as link (link.href)}
+      {@const Icon = link.icon}
+      <a href={link.href} class={navLinkClass(isActive(link.href))}>
+        <Icon class="h-5 w-5" />
+        <span>{link.label}</span>
+      </a>
+    {/each}
+  </div>
+{/snippet}
 
-         Anton, and a display size rather than the label size: this is the
-         workspace you are in, not a group label like the admin sidebar's, and it
-         has to out-rank the 14px entries under it. -->
-    <div
-      class="mt-4 mb-2 flex items-center gap-1.5 font-heading text-display-s text-chrome-foreground"
+{#snippet navMenu()}
+  <!-- One menu for the sidebar and the phone drawer alike, so the two cannot
+       split differently. `divide-y` draws a rule between the sections actually
+       rendered, whichever are hidden. With none to render (a campus with no
+       event yet) there is no menu at all, not an empty navigation landmark. -->
+  {#if CAMPUS_LINKS.length || currentEvent || RESOURCE_LINKS.length}
+    <nav
+      aria-label="Menu de l'espace dev"
+      class="divide-y divide-chrome-border"
     >
-      <span class="flex min-w-0 flex-1 items-baseline">
-        <span class="truncate">{eventDisplayName(ev)}</span>
-        <TitleCursor />
-      </span>
-      {#if yearEvents.length > 1}
-        <EventWorkspaceSwitcher
-          events={yearEvents}
-          currentId={ev.id}
-          timezone={data.timezone}
-          onpick={openEvent}
-        />
+      {#if CAMPUS_LINKS.length}
+        <section class="py-4">
+          <!-- Anton, as the event name below: the mockup makes this heading the
+               campus dashboard's link, a screen not asked for yet (#450). -->
+          <h2 class="mb-2 font-heading text-display-s text-chrome-foreground">
+            Campus<TitleCursor />
+          </h2>
+          {@render navLinks(CAMPUS_LINKS)}
+        </section>
       {/if}
-    </div>
-    <nav class="space-y-1">
-      {#each reachableSurfaces(ev) as key (key)}
-        {@const seg = surfaceSegment(key)}
-        {@const Icon = SURFACE_ICONS[key]}
-        <a
-          href={resolve(`/staff/dev/events/${ev.id}/${seg}`)}
-          class={navLinkClass(isActive(`/staff/dev/events/${ev.id}/${seg}`))}
-        >
-          <Icon class="h-5 w-5" />
-          <span>{surfaceLabel(key)}</span>
-        </a>
-      {/each}
+      {#if currentEvent}
+        {@const ev = currentEvent}
+        <section class="py-4">
+          <h2 class="mb-2 epi-overline text-chrome-foreground-muted">
+            Événement sélectionné
+          </h2>
+          <!-- The event's name, in Anton at a display size: it has to out-rank
+               the 14px entries under it. The switcher sits inline to its right,
+               demoted, so the name stays the label. -->
+          <div
+            class="flex items-center gap-1.5 font-heading text-display-s text-chrome-foreground"
+          >
+            <span class="flex min-w-0 flex-1 items-baseline">
+              <span class="truncate">{eventDisplayName(ev)}</span>
+              <TitleCursor />
+            </span>
+            {#if yearEvents.length > 1}
+              <EventWorkspaceSwitcher
+                events={yearEvents}
+                currentId={ev.id}
+                timezone={data.timezone}
+                onpick={openEvent}
+              />
+            {/if}
+          </div>
+          <p class="mt-1 mb-3 font-mono text-xs text-chrome-foreground-muted">
+            {eventDaysLabel(ev.date, ev.endDate, data.timezone)}
+          </p>
+          {@render navLinks(eventLinks)}
+        </section>
+      {/if}
+      {#if RESOURCE_LINKS.length}
+        <section class="py-4">
+          <h2 class="mb-2 epi-overline text-chrome-foreground-muted">
+            Ressources
+          </h2>
+          {@render navLinks(RESOURCE_LINKS)}
+        </section>
+      {/if}
     </nav>
   {/if}
 {/snippet}

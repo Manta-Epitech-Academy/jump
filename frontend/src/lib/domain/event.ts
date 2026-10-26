@@ -109,6 +109,36 @@ export function eventWindowEnd(date: Date, endDate: Date | null): Date {
   return endDate ?? date;
 }
 
+const NBSP = ' ';
+
+/**
+ * The days an event runs, as a person reads them: "12 nov. 2026 → 14 nov. 2026",
+ * or a single day when it starts and ends on the same one. Read on the campus
+ * clock, since the days are stored as campus-local instants: formatted on the
+ * pod's or the browser's clock instead, a Réunion event reads one day early.
+ *
+ * No-break spaces hold each day together and keep the arrow on the first one,
+ * so a narrow column wraps only after "→": left to break anywhere, a 360px
+ * planning header stranded the year on a line of its own.
+ */
+export function eventDaysLabel(
+  date: Date,
+  endDate: Date | null,
+  timezone: string,
+): string {
+  const fmt = new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: timezone,
+  });
+  const day = (d: Date) => fmt.format(d).replaceAll(' ', NBSP);
+  const start = day(date);
+  if (!endDate) return start;
+  const end = day(endDate);
+  return start === end ? start : `${start}${NBSP}→ ${end}`;
+}
+
 // ─── Start time-of-day (`Event.startMinutes`) ──────────────────────────────
 // Jump-owned wall-clock minutes from local midnight (see schema). These pure
 // helpers convert to/from the "HH:MM" form the time picker and form use; the
