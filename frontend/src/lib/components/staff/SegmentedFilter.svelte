@@ -34,6 +34,11 @@
   // None of this applies to a `fullWidth` group on a row of its own (the export
   // period picker, the broadcast channel switch): it is competing with nothing,
   // so only the reading of the labels themselves bounds it.
+  //
+  // The look is the 2027 mockup's, through the tokens (`DESIGN.md`, Segmented
+  // control): the chosen segment is an inverse fill, the one state on the
+  // control nobody has to look twice at, on a flat card ground as tall as a
+  // button so it sits level with the toolbar's fields.
   let {
     options,
     value,
@@ -55,7 +60,7 @@
   role="radiogroup"
   aria-label={ariaLabel}
   class={cn(
-    'items-center rounded-sm border bg-muted/40 p-0.5',
+    'items-center rounded-sm border bg-card p-0.5',
     fullWidth ? 'flex w-full' : 'inline-flex',
   )}
 >
@@ -67,21 +72,16 @@
       aria-checked={active}
       onclick={() => onChange(opt.value)}
       class={cn(
-        'cursor-pointer rounded-[5px] px-3 py-1 text-xs font-bold tracking-wide uppercase transition-colors',
+        'h-7.5 cursor-pointer rounded-sm px-4 text-xs font-bold tracking-wider uppercase transition-colors',
         fullWidth && 'flex-1 text-center',
         active
-          ? 'bg-background text-foreground shadow-raised'
-          : 'text-muted-foreground hover:text-foreground',
+          ? 'bg-foreground text-background'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >
       {opt.label}
       {#if opt.count != null}
-        <span
-          class={cn(
-            'ml-1.5 font-mono',
-            active ? 'text-accent-space' : 'text-muted-foreground',
-          )}
-        >
+        <span class="ml-1.5 font-mono opacity-70">
           {opt.count}
         </span>
       {/if}

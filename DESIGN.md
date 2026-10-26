@@ -627,6 +627,14 @@ accents), and identity is not the same thing as a call to action: the action is
 `primary`. The single exception is `buttonNeon`, and it is one because its text is
 `epiBlue` rather than white.
 
+**Segmented control** (`SegmentedFilter`). The 2027 mockup's: a `card` ground
+with a 1px `border`, 36px tall like a button so it sits level with a toolbar's
+fields, and the chosen segment an inverse fill (`foreground` ground, `background`
+ink). Not the lifted white tab on a grey track it replaced: that state needed a
+second look to tell which segment was on, and it spent a `raised` shadow on a
+staff control. The labels are the button's (IBM Plex Sans bold, uppercase), not
+the mockup's Space Mono, for the button's reason.
+
 **Card.** `card` surface, 1px `border`, `sm` radius, 24px padding, no shadow.
 `cardBrand` is the inverse: `epiBlue` fill, white text, optionally one pixel-square
 decoration. `cardTalent` is the same card at `xl` radius with `raised` elevation.
