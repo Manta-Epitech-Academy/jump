@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **81** modèles · **31** enums · **114** relations
+- **83** modèles · **32** enums · **116** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -14,7 +14,7 @@
 | Cycle de vie talent & RGPD | 6 |
 | Événements & Participations | 9 |
 | Closings | 9 |
-| Planning & Activités | 6 |
+| Planning & Activités | 8 |
 | Progression, Portfolio & XP | 2 |
 | Minijeux | 3 |
 | Feedback | 7 |
@@ -603,6 +603,8 @@ erDiagram
     String instanceId FK
     String label
     String tagline
+    WorkshopLevel level
+    String[] notions
     Boolean enabled
     DateTime createdAt
     DateTime updatedAt
@@ -635,6 +637,17 @@ erDiagram
     Int width
     Int height
   }
+  Workshop_Domain {
+    String key PK
+    String label UK
+    DateTime archivedAt
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Workshop_ActivityDomain {
+    String activityId PK,FK
+    String domainKey PK,FK
+  }
   Talent {
   }
   Campus {
@@ -650,6 +663,8 @@ erDiagram
   Workshop_Activity ||--o{ EventConfig_Workshop : "events"
   Workshop_Activity ||--o{ Workshop_Participation : "participations"
   Workshop_Activity ||--o{ Workshop_CoverImage : "coverImages"
+  Workshop_Activity ||--o{ Workshop_ActivityDomain : "domains"
+  Workshop_Domain ||--o{ Workshop_ActivityDomain : "activities"
 ```
 
 ## 6 · Progression, Portfolio & XP

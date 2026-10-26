@@ -48,6 +48,10 @@ import {
 import { MINIGAMES } from './catalog/platform';
 import { seedWorkshops } from './catalog/workshops';
 import {
+  WORKSHOP_DOMAIN_KEYS,
+  seedWorkshopDomains,
+} from './catalog/workshopDomains';
+import {
   EVENT_CATEGORY_KEYS,
   seedEventCategories,
 } from './catalog/eventCategories';
@@ -288,6 +292,7 @@ async function main(): Promise<void> {
     const removed = await wipe(prisma, log, {
       formSlugs: FEEDBACK_FORM_SLUGS,
       categoryKeys: EVENT_CATEGORY_KEYS,
+      domainKeys: WORKSHOP_DOMAIN_KEYS,
     });
     log(`  ${removed} lignes retirées.`);
 
@@ -297,6 +302,10 @@ async function main(): Promise<void> {
       `  formulaires de bilan   ${await seedFeedbackForms(prisma, clock.today)}`,
     );
     await seedMinigameRotation(prisma, clock.today);
+    // The domains before the activities, which are filed under them.
+    log(
+      `  domaines des sujets    ${await seedWorkshopDomains(prisma, clock.today)}`,
+    );
     log(`  activités en ligne     ${await seedWorkshops(prisma, clock.today)}`);
     log(
       `  catégories d’événement ${await seedEventCategories(prisma, clock.today)}`,

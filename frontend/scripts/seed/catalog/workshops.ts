@@ -1,16 +1,23 @@
 /**
- * The CTFd activity catalogue: two hosts, and the three contents they served.
+ * The CTFd activity catalogue: three hosts, and the five contents they served.
  *
  * One host has served two contents in turn, the first one retired, which is
  * how an instance passes from one request to the next in production and the
  * case the activity key exists for: a regular who walked both keeps two rows in
  * their history, under two names.
  *
- * Three activities, two offered and one retired, because `assert/coverage.ts` wants
+ * Five activities, four offered and one retired, because `assert/coverage.ts` wants
  * both values of every boolean and the `MinigameConfig.enabled` exemption does
  * not carry over: that one sits outside the wipe and its value depends on the
  * history of the database, while these are removed and rewritten on every full
  * run.
+ *
+ * Each is filed in the subject catalogue as an admin would have filed it with
+ * `write_workshop`, and the five between them stand every state the catalogue
+ * has to show or hide: a complete subject in two domains, one with no notions,
+ * one that keeps an archived domain, an offered one still missing its tagline
+ * and pictures (hidden), and the retired one with no level (hidden). Together
+ * they carry every `WorkshopLevel`, which `assert/enums.ts` asks for.
  *
  * Each carries the cover an admin would have written with `write_workshop`,
  * in the three shapes the dashboard has to render: a full one (tagline,
@@ -35,8 +42,9 @@
  * database that had already been seeded once.
  */
 
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, WorkshopLevel } from '@prisma/client';
 import { id } from '../ids';
+import { WORKSHOP_DOMAIN } from './workshopDomains';
 import {
   workshopCoverKey,
   type WorkshopCoverKind,
@@ -60,6 +68,8 @@ export const WORKSHOP_INSTANCES = {
   /** The season's host: one content, then the next. */
   season: { slug: 'ctfd-saison', baseUrl: 'https://saison.ctfd.invalid' },
   santa: { slug: 'ctfd-santa', baseUrl: 'https://santa-shooter.ctfd.invalid' },
+  /** A campus's own host, serving two contents side by side. */
+  campus: { slug: 'ctfd-campus', baseUrl: 'https://campus.ctfd.invalid' },
 } as const satisfies Record<string, WorkshopInstanceSpec>;
 
 export type WorkshopSpec = {
@@ -80,6 +90,12 @@ export type WorkshopSpec = {
   readonly tagline: string | null;
   /** The pictures, as copied: none for an activity that stands on its label. */
   readonly images: readonly CoverImageSpec[];
+  /** How demanding the catalogue says it is; null until an admin says. */
+  readonly level: WorkshopLevel | null;
+  /** What a talent practises on it, in the order the catalogue shows them. */
+  readonly notions: readonly string[];
+  /** The catalogue domains it is filed under, by key. */
+  readonly domains: readonly string[];
 };
 
 export const WORKSHOPS: readonly WorkshopSpec[] = [
@@ -115,6 +131,10 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
         height: 256,
       },
     ],
+    // Complete, and in two domains: the catalogue files it under both.
+    level: 'beginner',
+    notions: ['Arbres de décision', 'Machines à états'],
+    domains: [WORKSHOP_DOMAIN.ALGORITHMICS, WORKSHOP_DOMAIN.AI_DATA],
   },
   {
     // What the season's host served first, retired rather than deleted once
@@ -137,6 +157,10 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
         height: 720,
       },
     ],
+    // Retired before anybody gave it a level: out of the catalogue twice over.
+    level: null,
+    notions: [],
+    domains: [WORKSHOP_DOMAIN.SYSTEMS],
   },
   {
     // Offered and never given a cover, which the dashboard renders with the
@@ -149,6 +173,55 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     stepPoints: 50,
     tagline: null,
     images: [],
+    // Filed in the catalogue but missing its tagline and pictures, so the
+    // catalogue does not show it yet.
+    level: 'intermediate',
+    notions: ['TIC-80', 'Programmation orientée objet'],
+    domains: [WORKSHOP_DOMAIN.GAME_DEV],
+  },
+  {
+    // Complete, and still filed under a domain the team has archived since.
+    slug: 'babel-ship',
+    label: 'BabelShip',
+    instance: WORKSHOP_INSTANCES.campus,
+    enabled: true,
+    totalSteps: 8,
+    stepPoints: 30,
+    tagline: 'Fais parler des navires qui n’ont pas la même langue',
+    images: [
+      {
+        kind: 'poster',
+        file: 'navires',
+        contentType: 'image/webp',
+        width: 1280,
+        height: 720,
+      },
+    ],
+    level: 'all_levels',
+    notions: ['Encodage', 'Morse', 'Chiffre de César'],
+    domains: [WORKSHOP_DOMAIN.CYBERSECURITY, WORKSHOP_DOMAIN.ELECTRONICS],
+  },
+  {
+    // Complete with a mascot alone and no notions: the card drops that line.
+    slug: 'rayban',
+    label: 'RayBan',
+    instance: WORKSHOP_INSTANCES.campus,
+    enabled: true,
+    totalSteps: 10,
+    stepPoints: 40,
+    tagline: 'Une image 3D, née de simples rayons de lumière',
+    images: [
+      {
+        kind: 'mascot',
+        file: 'rayon',
+        contentType: 'image/webp',
+        width: 256,
+        height: 256,
+      },
+    ],
+    level: 'expert',
+    notions: [],
+    domains: [WORKSHOP_DOMAIN.GAME_DEV],
   },
 ];
 
@@ -217,6 +290,8 @@ export async function seedWorkshops(
       instanceId: workshopInstanceId(workshop.instance.slug),
       label: workshop.label,
       tagline: workshop.tagline,
+      level: workshop.level,
+      notions: [...workshop.notions],
       enabled: workshop.enabled,
       createdAt: anchor,
       updatedAt: anchor,
@@ -266,6 +341,33 @@ export async function seedWorkshops(
         };
       });
     }),
+    skipDuplicates: true,
+  });
+
+  // Only onto a domain that is there: `--catalog-only` writes no domain, since
+  // a populated database's domains are the team's, so a seeded activity there
+  // is filed under the ones that already exist and no others.
+  const presentDomains = new Set(
+    (
+      await prisma.workshop_Domain.findMany({
+        where: {
+          key: { in: WORKSHOPS.flatMap((workshop) => workshop.domains) },
+        },
+        select: { key: true },
+      })
+    ).map((domain) => domain.key),
+  );
+  await prisma.workshop_ActivityDomain.createMany({
+    data: WORKSHOPS.filter((workshop) =>
+      ownActivities.has(workshopActivityId(workshop.slug)),
+    ).flatMap((workshop) =>
+      workshop.domains
+        .filter((key) => presentDomains.has(key))
+        .map((domainKey) => ({
+          activityId: workshopActivityId(workshop.slug),
+          domainKey,
+        })),
+    ),
     skipDuplicates: true,
   });
   return count;
