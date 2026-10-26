@@ -9,7 +9,7 @@ import { toDateKey } from '$lib/domain/planningTime';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { devVisibleEventWhere } from './stageContext';
-import { EVENT_CATEGORY_SELECT, eventCategoryView } from './eventCategories';
+import { EVENT_CATEGORY_TAG_SELECT } from './eventCategories';
 
 /**
  * A campus's school year, as the dev space's landing page shows it.
@@ -46,7 +46,7 @@ export async function loadCampusCalendar(
       publicName: true,
       date: true,
       endDate: true,
-      category: { select: EVENT_CATEGORY_SELECT },
+      category: { select: EVENT_CATEGORY_TAG_SELECT },
       _count: {
         select: { participations: { where: visibleParticipationWhere } },
       },
@@ -68,7 +68,7 @@ export async function loadCampusCalendar(
         // A Salesforce end before the start would paint nothing: one day.
         last: last < first ? first : last,
         schoolYear: schoolYearOf(e.date, timezone).label,
-        category: e.category && eventCategoryView(e.category),
+        category: e.category,
         status: getEventStatus(e, bounds),
         shownEnrolments: e._count.participations,
       };

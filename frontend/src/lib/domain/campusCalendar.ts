@@ -5,7 +5,7 @@ import {
   parseDate,
 } from '@internationalized/date';
 import { inkOn, type FillInk } from '../design/color';
-import type { EventCategoryView } from './eventCategory';
+import type { EventCategoryTag } from './eventCategory';
 import type { EventLifecycleStatus } from './eventLifecycle';
 import type { DateKey } from './planningTime';
 import { MOIS_FR } from './schoolYear';
@@ -30,7 +30,7 @@ export type CalendarEventInput = {
   last: DateKey;
   /** The school year its start falls in (`schoolYearOf(...).label`). */
   schoolYear: string;
-  category: EventCategoryView | null;
+  category: EventCategoryTag | null;
   /** Read from `getEventStatus` on the server, never recomputed here. */
   status: EventLifecycleStatus;
   /** Enrolments shown in the dev space, never the count Jump holds. */
@@ -100,7 +100,7 @@ export type CampusCalendar = {
   list: CalendarListGroup[];
   events: Record<string, CalendarEvent>;
   legend: {
-    categories: EventCategoryView[];
+    categories: EventCategoryTag[];
     uncategorized: boolean;
     offDays: OffDaysCoverage;
   };
@@ -308,7 +308,7 @@ export function buildCampusCalendar(input: {
     });
   }
 
-  const categories = new Map<string, EventCategoryView>();
+  const categories = new Map<string, EventCategoryTag>();
   for (const e of input.events) {
     if (e.category) categories.set(e.category.key, e.category);
   }
