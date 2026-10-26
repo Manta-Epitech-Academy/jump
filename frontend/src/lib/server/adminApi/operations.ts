@@ -69,6 +69,7 @@ import {
 import { isCalendarDay, isWallClock } from '$lib/domain/planningTime';
 import {
   EVENT_CATEGORY_COLOR_PATTERN,
+  EVENT_CATEGORY_KEY_MAX,
   EVENT_CATEGORY_KEY_PATTERN,
   EVENT_CATEGORY_LABEL_MAX,
 } from '$lib/domain/eventCategory';
@@ -1373,6 +1374,7 @@ export const ADMIN_API_OPERATIONS = {
     shape: {
       categoryKey: z
         .string()
+        .max(EVENT_CATEGORY_KEY_MAX)
         .regex(
           EVENT_CATEGORY_KEY_PATTERN,
           'Lowercase letters, digits and hyphens only, e.g. "coding-club".',

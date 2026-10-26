@@ -29,6 +29,9 @@ export const EVENT_CATEGORY_KEY_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 /** Ceiling on a label: a legend entry and a chip, not a sentence. */
 export const EVENT_CATEGORY_LABEL_MAX = 40;
 
+/** Ceiling on a key: it spells a label, so it gets the label's. */
+export const EVENT_CATEGORY_KEY_MAX = EVENT_CATEGORY_LABEL_MAX;
+
 /**
  * Why an archived category is refused as a new choice, in the one wording both
  * doors use: the config wizard and the admin API.
