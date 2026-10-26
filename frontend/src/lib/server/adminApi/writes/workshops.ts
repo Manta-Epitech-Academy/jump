@@ -196,19 +196,17 @@ async function workshopState(db: Prisma.TransactionClient, slug: string) {
 
 /**
  * The domains a subject is to be filed under, as keys, or undefined when the
- * call does not say. Each must exist, and an archived one only stays: it is no
- * longer given to a subject, but one already carried is kept, so sending back
- * what `config_workshops` returned is always accepted.
+ * call does not say. Each must exist, which holds once checked: a domain is
+ * archived, never deleted, so this runs before anything is downloaded.
  */
-async function resolvedDomains(
+async function knownDomains(
   requested: readonly string[] | undefined,
-  carried: readonly string[],
 ): Promise<string[] | undefined> {
   if (requested === undefined) return undefined;
   const keys = [...new Set(requested.map((key) => key.trim()))];
   const rows = await prisma.workshop_Domain.findMany({
     where: { key: { in: keys } },
-    select: { key: true, label: true, archivedAt: true },
+    select: { key: true },
   });
   const unknown = keys.filter((key) => !rows.some((row) => row.key === key));
   if (unknown.length > 0) {
@@ -216,13 +214,32 @@ async function resolvedDomains(
       `Domaine${unknown.length > 1 ? 's' : ''} ${unknown.map((key) => `« ${key} »`).join(', ')} introuvable${unknown.length > 1 ? 's' : ''}. ${handleProvenanceFr('workshopDomainKey')}`,
     );
   }
-  const newlyArchived = rows.find(
-    (row) => row.archivedAt && !carried.includes(row.key),
-  );
+  return keys;
+}
+
+/**
+ * An archived domain only stays: it is no longer given to a subject, but one
+ * already carried is kept, so sending back what `config_workshops` returned is
+ * always accepted. What the subject carries is read under its lock, so a write
+ * that has just taken the domain off cannot be undone by one that read it
+ * still there.
+ */
+async function refuseNewlyArchived(
+  tx: Prisma.TransactionClient,
+  activityId: string,
+  keys: readonly string[],
+): Promise<void> {
+  const newlyArchived = await tx.workshop_Domain.findFirst({
+    where: {
+      key: { in: [...keys] },
+      archivedAt: { not: null },
+      activities: { none: { activityId } },
+    },
+    select: { label: true },
+  });
   if (newlyArchived) {
     throw new OperationRefusedError(archivedDomainRefusal(newlyArchived.label));
   }
-  return keys;
 }
 
 /**
@@ -286,11 +303,7 @@ export async function writeWorkshop(params: {
   const slug = params.slug.trim();
   const existing = await prisma.workshop_Activity.findUnique({
     where: { slug },
-    select: {
-      id: true,
-      instance: { select: { id: true, slug: true } },
-      domains: { select: { domainKey: true } },
-    },
+    select: { id: true, instance: { select: { id: true, slug: true } } },
   });
   const label = params.label?.trim();
   if (label === '') {
@@ -316,10 +329,7 @@ export async function writeWorkshop(params: {
     }
   }
 
-  const domains = await resolvedDomains(
-    params.domains,
-    existing?.domains.map((d) => d.domainKey) ?? [],
-  );
+  const domains = await knownDomains(params.domains);
   const notions =
     params.notions === undefined ? undefined : cleanNotions(params.notions);
 
@@ -338,11 +348,13 @@ export async function writeWorkshop(params: {
   // On an existing activity, only what the call names changes: an omitted
   // `enabled` in particular stays as it stands, so editing a label cannot
   // silently put a retired activity back in front of a cohort. Several
-  // statements, so it always runs inside the caller's transaction.
+  // statements, so it always runs inside the caller's transaction, under the
+  // activity's lock.
   const saveActivity = async (
     tx: Prisma.TransactionClient,
     tagline?: string | null,
   ) => {
+    if (domains !== undefined) await refuseNewlyArchived(tx, id, domains);
     const filing = { level: params.level, notions, tagline };
     if (creation) {
       try {
