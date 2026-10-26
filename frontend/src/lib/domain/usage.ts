@@ -321,8 +321,10 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   }),
   [USAGE_FEATURES.DEV_DASHBOARD_VIEW]: def({
     key: USAGE_FEATURES.DEV_DASHBOARD_VIEW,
-    label: 'Tableau de bord dev',
-    definition: `Consultations de l’accueil de l’espace dev. ${BUCKET_NOTE}`,
+    // The same series since the dev space opened: its landing page, which is
+    // the campus calendar since #440.
+    label: 'Calendrier du campus',
+    definition: `Consultations du calendrier du campus, la page d’arrivée de l’espace dev. ${BUCKET_NOTE}`,
     audience: 'staff',
     space: 'dev',
     kind: 'view',

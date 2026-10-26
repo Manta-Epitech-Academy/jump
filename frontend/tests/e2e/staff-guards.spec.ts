@@ -28,8 +28,8 @@ test.describe("un membre de l'espace dev", () => {
     // Three hops, and the end state is the point. The admin sub-guard sends a
     // non-admin to `/staff/login` (it cannot assume the visitor has a space of
     // their own), the login load recognises the session and forwards them via
-    // `getStaffRoleRedirectPath`, and the dev workspace lands on its first
-    // reachable surface. Asserting the destination rather than the first hop is
+    // `getStaffRoleRedirectPath`, and the dev workspace opens on its campus
+    // calendar. Asserting the destination rather than the first hop is
     // what proves the bounce TERMINATES: a rule that sent them back to
     // `/staff/admin` would loop, and a login-page assertion would pass anyway.
     await expect(page).toHaveURL((url) =>

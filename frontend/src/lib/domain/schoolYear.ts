@@ -35,6 +35,16 @@ export function schoolYearOf(
 }
 
 /**
+ * Whether `value` is a school-year label, "2026-2027": two years in a row. For
+ * a label that comes from outside, an address or a parameter, before anything
+ * reads a year out of it.
+ */
+export function isSchoolYearLabel(value: string): boolean {
+  const match = /^(\d{4})-(\d{4})$/.exec(value);
+  return !!match && Number(match[2]) === Number(match[1]) + 1;
+}
+
+/**
  * The school year in progress right now, as a label.
  *
  * Paris, because this is the platform's own cycle rather than a campus's: the

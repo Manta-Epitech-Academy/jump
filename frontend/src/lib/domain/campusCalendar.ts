@@ -81,6 +81,7 @@ export type CalendarListGroup = {
   key: string;
   name: string;
   year: number;
+  /** The day the event starts, as the row's date column reads it: 16, "mer.". */
   events: { id: string; dayOfMonth: number; weekday: string }[];
 };
 
@@ -131,6 +132,16 @@ const JOURS = [
   'vendredi',
   'samedi',
   'dimanche',
+] as const;
+
+const JOURS_COURTS = [
+  'lun.',
+  'mar.',
+  'mer.',
+  'jeu.',
+  'ven.',
+  'sam.',
+  'dim.',
 ] as const;
 
 /** Monday 0 ... Sunday 6, whatever the runtime's locale. */
@@ -293,7 +304,7 @@ export function buildCampusCalendar(input: {
     group.events.push({
       id: e.id,
       dayOfMonth: date.day,
-      weekday: JOURS[weekdayOf(date)],
+      weekday: JOURS_COURTS[weekdayOf(date)],
     });
   }
 
