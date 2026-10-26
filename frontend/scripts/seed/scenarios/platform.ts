@@ -310,6 +310,7 @@ export const platform: Scenario = {
         name: preset.name,
         description: bare ? null : preset.description,
         cohortNoun: bare ? null : preset.cohortNoun,
+        categoryKey: bare ? null : preset.categoryKey,
         publicName: bare ? null : `${preset.name} Epitech`,
         startMinutes: preset.startMinutes,
         closingTemplateId: preset.withClosingGrid

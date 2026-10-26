@@ -22,7 +22,9 @@
  *
  * Nothing here is stored. `Event.eventType` was deleted on purpose - an event
  * is what its modules and its dates say it is - and these are naming functions
- * a scenario calls, not a type an event carries.
+ * a scenario calls, not a type an event carries. The category an event does
+ * carry (`catalog/eventCategories.ts`) is display only and follows the same
+ * dates, through `campLabel`.
  */
 
 const MONTHS_FR = [
