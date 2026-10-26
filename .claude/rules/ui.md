@@ -9,7 +9,7 @@ paths:
 
 Read [`DESIGN.md`](../../DESIGN.md) at the repo root before any visual work: it is the visual contract (tokens, per-space skins, brand primitives, and the argument behind every deviation from the charte). Two guards enforce it and both fail the build: `bun run test` checks the token values and every documented contrast pair against `frontend/src/routes/layout.css`, and `bun run lint:design` refuses an off-palette class.
 
-- **Styling:** Tailwind utility classes only, no inline styles.
+- **Styling:** Tailwind utility classes only, no inline styles. A value only the data knows (an authored colour, a picture's own size) is passed as a custom property, set with `style:--name` and read by a class (`bg-[var(--name)]`), as `EventCategoryChip` and `CopiedPicture` do.
 
 - **UI components:** always use the shadcn-style components in `src/lib/components/ui/` (Tooltip, Select, Breadcrumb, Dialog...) instead of native HTML equivalents (`title=` attributes, bare `<select>`). If a needed component isn't there yet, add it via shadcn-svelte rather than hand-rolling one.
 
