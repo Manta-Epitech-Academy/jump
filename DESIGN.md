@@ -395,7 +395,10 @@ admin API like a certificate design. The calendar needs one colour per kind of
 event, more than the four accents, so the colour is the team's choice and
 outside this contract on purpose. What a component owes it is legibility: a
 swatch carries a border, and text on a category fill takes its colour from the
-fill. Everything else stays on the tokens.
+fill (`inkOn` in `lib/design/color.ts`: white or `epiDark`, whichever contrasts
+more). Everything else stays on the tokens: on the campus calendar an event
+without a category is a `mutedForeground` fill, and a day without school is a
+`muted` ground, so neither can pass for a category.
 
 ### Neutrals: one ramp, and it is blue-tinted
 
