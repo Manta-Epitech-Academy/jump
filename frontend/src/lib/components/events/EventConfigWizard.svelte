@@ -121,6 +121,17 @@
         if (result.type === 'success') {
           open = false;
           toast.success(result.data?.form?.message || 'Événement mis à jour.');
+        } else if (result.type === 'failure') {
+          // The service words its refusals for this screen (an archived
+          // category, an activation the rule forbids, a status Jump does not
+          // know). Unshown, a refused save left the dialog open with nothing
+          // saying why, which reads as a button that does nothing.
+          toast.error(
+            (result.data?.form?.message as string | undefined) ??
+              'Enregistrement refusé : vérifiez les champs signalés.',
+          );
+        } else if (result.type === 'error') {
+          toast.error('Erreur lors de la mise à jour.');
         }
       },
     },
