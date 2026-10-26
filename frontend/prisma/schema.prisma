@@ -742,6 +742,10 @@ model Campus {
   name         String   @unique
   externalName String?  @unique
   timezone     String   @default("Europe/Paris")
+  /// INSEE code of the campus's département ("75", "67", "974", Corsica "20"),
+  /// the vocabulary of `domain/school.ts`. The calendar derives the school
+  /// holiday zone and the public holiday regime from it. Null shows neither.
+  departement  String?
   contactEmail String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

@@ -16,6 +16,7 @@
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import { track, errReason } from '$lib/analytics';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import { academieOf, DEPARTEMENTS } from '$lib/domain/school';
 
   let { data } = $props();
 
@@ -115,6 +116,17 @@
     })),
   );
 
+  // A code alone is easy to mistype for a neighbour; its académie, which the
+  // school holidays follow, is what the admin checks it against.
+  function getDepartementLabel(code: string | null): string {
+    return code ? `${code} · ${academieOf(code) ?? '?'}` : '-';
+  }
+
+  const departementOptions = DEPARTEMENTS.map((code) => ({
+    value: code,
+    label: getDepartementLabel(code),
+  }));
+
   function getTimezoneLabel(value: string): string {
     return allTimezones.find((tz) => tz.value === value)?.label ?? value;
   }
@@ -124,6 +136,7 @@
     $form.name = campus.name;
     $form.externalName = campus.externalName ?? '';
     $form.timezone = campus.timezone ?? 'Europe/Paris';
+    $form.departement = campus.departement ?? '';
     $form.contactEmail = campus.contactEmail ?? '';
     isEditing = true;
     editId = campus.id;
@@ -195,6 +208,12 @@
               {getTimezoneLabel(campus.timezone ?? 'Europe/Paris')}
             </dd>
           </div>
+          <div class="flex items-baseline justify-between gap-3">
+            <dt class="shrink-0 text-muted-foreground">Département</dt>
+            <dd class="text-right">
+              {getDepartementLabel(campus.departement)}
+            </dd>
+          </div>
         </dl>
       </div>
     {/each}
@@ -208,6 +227,7 @@
           <Table.Head>Nom du Campus</Table.Head>
           <Table.Head>Nom externe</Table.Head>
           <Table.Head>Fuseau horaire</Table.Head>
+          <Table.Head>Département</Table.Head>
           <Table.Head class="text-right">Actions</Table.Head>
         </Table.Row>
       </Table.Header>
@@ -223,6 +243,9 @@
             >
             <Table.Cell class="text-xs text-muted-foreground"
               >{getTimezoneLabel(campus.timezone ?? 'Europe/Paris')}</Table.Cell
+            >
+            <Table.Cell class="text-muted-foreground"
+              >{getDepartementLabel(campus.departement)}</Table.Cell
             >
             <Table.Cell class="text-right">
               <Tooltip.Provider delayDuration={300}>
@@ -336,6 +359,31 @@
               />
               {#if $errors.timezone}<span class="text-xs text-destructive"
                   >{$errors.timezone}</span
+                >{/if}
+            </div>
+            <div class="space-y-2">
+              <Label>Département</Label>
+              <input
+                type="hidden"
+                name="departement"
+                value={$form.departement ?? ''}
+              />
+              <SearchableSelect
+                options={departementOptions}
+                value={$form.departement || 'all'}
+                onChange={(v) => ($form.departement = v === 'all' ? '' : v)}
+                allLabel="Non renseigné"
+                placeholder="Choisir un département"
+                searchPlaceholder="Rechercher un code ou une académie…"
+                emptyLabel="Aucun département."
+                triggerClass="w-full"
+              />
+              <p class="text-xs text-muted-foreground">
+                Donne au calendrier du campus ses vacances scolaires et ses
+                jours fériés.
+              </p>
+              {#if $errors.departement}<span class="text-xs text-destructive"
+                  >{$errors.departement}</span
                 >{/if}
             </div>
           </div>
