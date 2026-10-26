@@ -4,15 +4,9 @@
 
   // Where an event stands, as the 2027 mockup writes it: the countdown to its
   // first day, then « en cours », then « terminé ». One pill for the list and
-  // the year view's tooltip, which sits on the inverted tooltip surface and so
-  // takes the `inverse` tones.
-  let {
-    event,
-    inverse = false,
-  }: {
-    event: Pick<CalendarEvent, 'status' | 'daysUntilStart'>;
-    inverse?: boolean;
-  } = $props();
+  // the year view's event card.
+  let { event }: { event: Pick<CalendarEvent, 'status' | 'daysUntilStart'> } =
+    $props();
 
   const label = $derived(
     event.status === 'upcoming'
@@ -23,13 +17,11 @@
   );
 
   const tone = $derived(
-    inverse
-      ? 'bg-background/15 text-background'
-      : event.status === 'upcoming'
-        ? 'bg-primary/10 text-primary'
-        : event.status === 'ongoing'
-          ? 'bg-success/10 text-success'
-          : 'bg-muted text-muted-foreground',
+    event.status === 'upcoming'
+      ? 'bg-primary/10 text-primary'
+      : event.status === 'ongoing'
+        ? 'bg-success/10 text-success'
+        : 'bg-muted text-muted-foreground',
   );
 </script>
 

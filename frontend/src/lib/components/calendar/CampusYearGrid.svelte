@@ -1,15 +1,14 @@
 <script lang="ts">
   import { mergeProps } from 'bits-ui';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import { Button } from '$lib/components/ui/button';
   import * as Popover from '$lib/components/ui/popover';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
   import { FILL_INKS } from '$lib/design/color';
-  import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import type {
     CalendarCell,
     CalendarEvent,
-    CalendarMonth,
     CampusCalendar,
   } from '$lib/domain/campusCalendar';
   import CalendarEventStatus from './CalendarEventStatus.svelte';
@@ -18,15 +17,16 @@
   // its category's colour across its days, the days without school greyed. The
   // layout is decided in `buildCampusCalendar`; this only paints it.
   //
-  // The day under the pointer is what a click opens, so that is where the
-  // feedback goes: the whole band of its event lights up, on every week and
-  // month it crosses, and the day itself trades its number for an arrow, the
-  // sign of a way in rather than of more to read. The tooltip only describes;
-  // it holds nothing to click, and closes as soon as the pointer leaves the day.
+  // A click on an event's day opens a card beside it, as a calendar app does:
+  // what the event is, and a real button to open it. The mockup showed that
+  // card as a hover tooltip saying « Cliquer pour ouvrir », which invited a
+  // click on the tooltip, where nothing can be clicked; and a tooltip does not
+  // exist under a finger. Hover only lights the whole band of the day's event,
+  // on every week and month it crosses, so the pointer finds a shape to click.
   //
   // Two events can share a day. The band is the longest one's, a dot in the
-  // corner stands for each other, and the day opens a short list to pick from
-  // rather than opening one of them behind the other's back.
+  // corner stands for each other, and the card holds each of them with its own
+  // button, so the one behind is never out of reach.
   let {
     calendar,
     hrefOf,
@@ -54,9 +54,14 @@
   const enrolmentsLabel = (n: number) =>
     `${n} ${n > 1 ? 'inscrits' : 'inscrit'}`;
 
-  /** The day under the pointer or focus, and the events whose bands it lights. */
-  let pointed = $state<CalendarCell | null>(null);
-  const lit = $derived(pointed?.eventIds ?? []);
+  /** The day under the pointer or focus, the day whose card is open, and the
+      events whose bands they light. */
+  let pointed = $state.raw<CalendarCell | null>(null);
+  let opened = $state.raw<CalendarCell | null>(null);
+  const lit = $derived([
+    ...(pointed?.eventIds ?? []),
+    ...(opened?.eventIds ?? []),
+  ]);
   const lights = (cell: CalendarCell) => ({
     onpointerenter: () => (pointed = cell),
     onpointerleave: () => (pointed = null),
@@ -65,137 +70,93 @@
   });
 </script>
 
-{#snippet eventTip(cell: CalendarCell)}
-  <div class="flex w-60 flex-col gap-3 py-2">
+{#snippet eventCard(cell: CalendarCell)}
+  <ul class="max-h-[40svh] divide-y overflow-y-auto">
     {#each eventsOf(cell) as event (event.id)}
-      <div class="flex flex-col gap-1.5">
-        <span class="inline-flex items-center gap-2 epi-overline opacity-80">
-          {#if event.category}
-            <span
-              aria-hidden="true"
-              class="size-2.5 shrink-0 rounded-sm bg-[var(--category-color)]"
-              style:--category-color={event.category.color}
-            ></span>
-            {event.category.label}
-          {:else}
-            Sans catégorie
-          {/if}
+      {@const href = hrefOf(event.id)}
+      <li class="flex flex-col gap-1.5 p-4">
+        <span class="inline-flex items-center gap-2 epi-overline">
+          <span
+            aria-hidden="true"
+            class="size-2.5 shrink-0 rounded-sm bg-[var(--band-color)]"
+            style:--band-color={bandOf(event).color}
+          ></span>
+          {event.category?.label ?? 'Sans catégorie'}
         </span>
         <span class="font-heading text-display-s">{event.name}</span>
-        <span class="text-sm opacity-80">{event.daysLabelLong}</span>
+        <span class="text-sm text-muted-foreground">{event.daysLabelLong}</span>
         <span class="flex items-center justify-between gap-2">
           <span class="font-mono text-xs">
             {enrolmentsLabel(event.shownEnrolments)}
           </span>
-          <CalendarEventStatus {event} inverse />
+          <CalendarEventStatus {event} />
         </span>
-      </div>
+        {#if href}
+          <Button {href} size="sm" class="mt-2 w-full">
+            Ouvrir l'événement
+            <ArrowRight />
+          </Button>
+        {/if}
+      </li>
     {/each}
-  </div>
+  </ul>
 {/snippet}
 
-{#snippet band(
+{#snippet eventDay(
   cell: CalendarCell,
   painted: NonNullable<CalendarCell['painted']>,
-  tag: 'a' | 'button' | 'span',
-  attrs: Record<string, unknown>,
+  monthName: string,
 )}
   {@const event = calendar.events[painted.id]}
   {@const others = cell.eventIds.slice(1)}
-  <svelte:element
-    this={tag}
-    {...attrs}
-    class={cn(
-      'relative flex h-7.5 w-full items-center justify-center font-mono text-xs font-bold text-[var(--band-ink)] transition-colors',
-      runCorners(painted),
-      lit.includes(event.id)
-        ? 'bg-[color-mix(in_oklab,var(--band-color),var(--band-ink)_25%)]'
-        : 'bg-[var(--band-color)]',
-      tag !== 'span' && 'cursor-pointer',
-    )}
-    style:--band-color={bandOf(event).color}
-    style:--band-ink={bandOf(event).ink}
+  <Popover.Root
+    onOpenChange={(open) => {
+      if (open) opened = cell;
+      else if (opened === cell) opened = null;
+    }}
   >
-    {#if tag !== 'span' && pointed?.day === cell.day}
-      {@const Sign = tag === 'button' ? ChevronDown : ArrowRight}
-      <Sign aria-hidden="true" class="size-4" strokeWidth={2.5} />
-    {:else}
-      {cell.dayOfMonth}
-    {/if}
-    {#if others.length}
-      <span aria-hidden="true" class="absolute top-0.5 right-0.5 flex gap-0.5">
-        {#each others.slice(0, 3) as id (id)}
-          <span
-            class="size-1.5 rounded-full bg-[var(--band-color)] ring-1 ring-card"
-            style:--band-color={bandOf(calendar.events[id]).color}
-          ></span>
-        {/each}
-      </span>
-    {/if}
-  </svelte:element>
-{/snippet}
-
-{#snippet sharedDay(cell: CalendarCell, month: CalendarMonth)}
-  {@const events = eventsOf(cell)}
-  <Popover.Root>
-    <Tooltip.Root>
-      <Tooltip.Trigger>
-        {#snippet child({ props: tooltipProps })}
-          <Popover.Trigger>
-            {#snippet child({ props: popoverProps })}
-              {@render band(
-                cell,
-                cell.painted!,
-                'button',
-                mergeProps(tooltipProps, popoverProps, lights(cell), {
-                  type: 'button',
-                  'aria-label': `${cell.dayOfMonth} ${month.name}, ${events.length} événements : ${events.map((e) => e.name).join(', ')}`,
-                }),
-              )}
-            {/snippet}
-          </Popover.Trigger>
-        {/snippet}
-      </Tooltip.Trigger>
-      <Tooltip.Content>{@render eventTip(cell)}</Tooltip.Content>
-    </Tooltip.Root>
-    <Popover.Content align="start" class="w-72 p-1.5">
-      <p class="px-2 pt-1 pb-2 epi-overline text-muted-foreground">
-        {events.length} événements le {cell.dayOfMonth}
-        {month.name}
-      </p>
-      <ul class="flex max-h-[40svh] flex-col overflow-y-auto">
-        {#each events as event (event.id)}
-          {@const href = hrefOf(event.id)}
-          <li>
-            <svelte:element
-              this={href ? 'a' : 'div'}
-              {href}
-              class={cn(
-                'flex items-center gap-2.5 rounded-sm px-2 py-2',
-                href && 'cursor-pointer transition-colors hover:bg-accent',
-              )}
+    <Popover.Trigger>
+      {#snippet child({ props })}
+        <button
+          {...mergeProps(props, lights(cell))}
+          type="button"
+          aria-label="{cell.dayOfMonth} {monthName} : {eventsOf(cell)
+            .map((e) => e.name)
+            .join(', ')}"
+          class={cn(
+            'relative flex h-7.5 w-full cursor-pointer items-center justify-center font-mono text-xs font-bold text-[var(--band-ink)] transition-colors',
+            runCorners(painted),
+            lit.includes(event.id)
+              ? 'bg-[color-mix(in_oklab,var(--band-color),var(--band-ink)_25%)]'
+              : 'bg-[var(--band-color)]',
+          )}
+          style:--band-color={bandOf(event).color}
+          style:--band-ink={bandOf(event).ink}
+        >
+          {cell.dayOfMonth}
+          {#if others.length}
+            <span
+              aria-hidden="true"
+              class="absolute top-0.5 right-0.5 flex gap-0.5"
             >
-              <span
-                aria-hidden="true"
-                class="h-8 w-1 shrink-0 rounded-full bg-[var(--band-color)]"
-                style:--band-color={bandOf(event).color}
-              ></span>
-              <span class="flex min-w-0 flex-1 flex-col">
-                <span class="truncate text-sm font-semibold">{event.name}</span>
-                <span class="text-xs text-muted-foreground">
-                  {event.daysLabel}
-                </span>
-              </span>
-              <CalendarEventStatus {event} />
-            </svelte:element>
-          </li>
-        {/each}
-      </ul>
+              {#each others.slice(0, 3) as id (id)}
+                <span
+                  class="size-1.5 rounded-full bg-[var(--band-color)] ring-1 ring-card"
+                  style:--band-color={bandOf(calendar.events[id]).color}
+                ></span>
+              {/each}
+            </span>
+          {/if}
+        </button>
+      {/snippet}
+    </Popover.Trigger>
+    <Popover.Content align="start" class="p-0">
+      {@render eventCard(cell)}
     </Popover.Content>
   </Popover.Root>
 {/snippet}
 
-<Tooltip.Provider delayDuration={100} disableHoverableContent>
+<Tooltip.Provider delayDuration={100}>
   <div class="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
     {#each calendar.months as month (month.key)}
       <section
@@ -232,28 +193,8 @@
           <div class="grid grid-cols-7 gap-y-1">
             {#each { length: month.leadingBlanks }, i (i)}<span></span>{/each}
             {#each month.cells as cell (cell.day)}
-              {#if cell.painted && cell.eventIds.length > 1}
-                {@render sharedDay(cell, month)}
-              {:else if cell.painted}
-                {@const painted = cell.painted}
-                {@const event = calendar.events[painted.id]}
-                {@const href = hrefOf(event.id)}
-                <Tooltip.Root>
-                  <Tooltip.Trigger>
-                    {#snippet child({ props })}
-                      {@render band(
-                        cell,
-                        painted,
-                        href ? 'a' : 'span',
-                        mergeProps(props, lights(cell), {
-                          href,
-                          'aria-label': `${event.name}, ${event.daysLabel}`,
-                        }),
-                      )}
-                    {/snippet}
-                  </Tooltip.Trigger>
-                  <Tooltip.Content>{@render eventTip(cell)}</Tooltip.Content>
-                </Tooltip.Root>
+              {#if cell.painted}
+                {@render eventDay(cell, cell.painted, month.name)}
               {:else}
                 {@const day = cell}
                 {#snippet plain(props: Record<string, unknown> = {})}
