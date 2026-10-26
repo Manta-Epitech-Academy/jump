@@ -20,16 +20,10 @@
  */
 export const EVENT_CATEGORY_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 
-/**
- * A category's key: the identity every operation names and every badge rule
- * will, so it never changes once created. The label is what gets renamed.
- */
-export const EVENT_CATEGORY_KEY_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-
 /** Ceiling on a label: a legend entry and a chip, not a sentence. */
 export const EVENT_CATEGORY_LABEL_MAX = 40;
 
-/** Ceiling on a key: it spells a label, so it gets the label's. */
+/** Ceiling on a key (shaped by `CATALOGUE_KEY_PATTERN`): it spells a label, so it gets the label's. */
 export const EVENT_CATEGORY_KEY_MAX = EVENT_CATEGORY_LABEL_MAX;
 
 /**
