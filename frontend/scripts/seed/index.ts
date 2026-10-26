@@ -47,6 +47,10 @@ import {
 } from './catalog/feedbackForms';
 import { MINIGAMES } from './catalog/platform';
 import { seedWorkshops } from './catalog/workshops';
+import {
+  EVENT_CATEGORY_KEYS,
+  seedEventCategories,
+} from './catalog/eventCategories';
 import { STAGE_TEMPLATE_KEY } from './catalog/closings';
 
 const DEFAULT_SEED = 20260830;
@@ -281,7 +285,10 @@ async function main(): Promise<void> {
     await assertGeneratorOwnsDataset(prisma, log);
 
     log('Nettoyage :');
-    const removed = await wipe(prisma, log, FEEDBACK_FORM_SLUGS);
+    const removed = await wipe(prisma, log, {
+      formSlugs: FEEDBACK_FORM_SLUGS,
+      categoryKeys: EVENT_CATEGORY_KEYS,
+    });
     log(`  ${removed} lignes retirées.`);
 
     log('Catalogues :');
@@ -291,6 +298,9 @@ async function main(): Promise<void> {
     );
     await seedMinigameRotation(prisma, clock.today);
     log(`  activités en ligne     ${await seedWorkshops(prisma, clock.today)}`);
+    log(
+      `  catégories d’événement ${await seedEventCategories(prisma, clock.today)}`,
+    );
 
     const world = new World(ctx);
     await loadPreexistingRows(prisma, world);

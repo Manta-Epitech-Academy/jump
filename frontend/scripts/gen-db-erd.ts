@@ -71,6 +71,7 @@ const DOMAINS: { title: string; models: string[] }[] = [
     title: 'Événements & Participations',
     models: [
       'Event',
+      'EventConfig_Category',
       'EventConfig_Module',
       'EventConfig_Template',
       'EventConfig_TemplateModule',

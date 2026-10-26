@@ -23,6 +23,7 @@ import {
 } from '../catalog/closings';
 import { CLUB_CERTIFICATE } from '../catalog/diplomas';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
+import { clubCategoryOf } from '../catalog/eventCategories';
 import { WORKSHOPS } from '../catalog/workshops';
 import { OPEN_HIGHLIGHT_CAMPUSES } from '../catalog/talentHome';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
@@ -168,6 +169,7 @@ export const club: Scenario = {
         titre: codingClubTitre({ campus: campus.name, date: day }),
         publicName: codingClubPublicName(day),
         cohortNoun: COHORT_NOUNS.PARTICIPANT,
+        categoryKey: clubCategoryOf(day),
         campus,
         days,
         startMinutes: 14 * 60,

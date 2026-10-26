@@ -13,6 +13,7 @@
 import type { MinigameScoring } from '@prisma/client';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { COHORT_NOUNS } from '../../../src/lib/domain/event';
+import { EVENT_CATEGORY } from './eventCategories';
 
 export type MinigameSpec = {
   readonly game: string;
@@ -129,6 +130,7 @@ export type EventTemplateSpec = {
   readonly name: string;
   readonly description: string;
   readonly cohortNoun: string;
+  readonly categoryKey: string;
   readonly startMinutes: number | null;
   readonly modules: readonly string[];
   readonly withClosingGrid: boolean;
@@ -142,6 +144,7 @@ export const EVENT_TEMPLATES: readonly EventTemplateSpec[] = [
     description:
       'Deux semaines, émargement matin et après-midi, closings et diplôme.',
     cohortNoun: COHORT_NOUNS.STAGIAIRE,
+    categoryKey: EVENT_CATEGORY.STAGE,
     startMinutes: 10 * 60,
     modules: [
       EVENT_MODULES.INSCRITS,
@@ -157,6 +160,7 @@ export const EVENT_TEMPLATES: readonly EventTemplateSpec[] = [
     name: 'Coding Club',
     description: 'Journée unique récurrente, émargement et closing court.',
     cohortNoun: COHORT_NOUNS.PARTICIPANT,
+    categoryKey: EVENT_CATEGORY.CODING_CLUB,
     startMinutes: 14 * 60,
     modules: [
       EVENT_MODULES.INSCRITS,
@@ -174,6 +178,7 @@ export const EVENT_TEMPLATES: readonly EventTemplateSpec[] = [
     // two above are what Jump ships as defaults, this one is a word a campus
     // typed into a preset. Singular all the same, because the column is.
     cohortNoun: 'visiteur',
+    categoryKey: EVENT_CATEGORY.OPEN_DAY,
     startMinutes: null,
     modules: [EVENT_MODULES.INSCRITS],
     withClosingGrid: false,

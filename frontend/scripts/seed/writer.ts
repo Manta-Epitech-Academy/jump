@@ -313,15 +313,20 @@ export async function wipe(
   log: (message: string) => void,
   /**
    * Catalogue rows the generator owns but that carry their own natural keys
-   * rather than seed ids - the feedback forms, keyed on a slug. Their seeder is
+   * rather than seed ids - the feedback forms, keyed on a slug, and the event
+   * categories, keyed on the key the API names them by. Their seeders are
    * create-only, which is right for `--catalog-only` against a live database and
    * wrong for a full generation: without this, an edit to a fixture would never
    * reach a database that had already been seeded once, and the fixture and the
    * data would drift apart silently.
    */
-  catalogueFormSlugs: readonly string[] = [],
+  catalogue: {
+    formSlugs?: readonly string[];
+    categoryKeys?: readonly string[];
+  } = {},
 ): Promise<number> {
   const seeded = { startsWith: SEED_ID_PREFIX };
+  const { formSlugs = [], categoryKeys = [] } = catalogue;
   let removed = 0;
   const drop = async (label: string, run: () => Promise<{ count: number }>) => {
     const { count } = await run();
@@ -436,6 +441,20 @@ export async function wipe(
   await drop('eventConfig_Template', () =>
     prisma.eventConfig_Template.deleteMany({ where: { id: seeded } }),
   );
+  // After every seeded event and preset, and only a category nothing else
+  // carries: one an event of the running application holds is left as it is,
+  // since both foreign keys onto it Restrict.
+  if (categoryKeys.length > 0) {
+    await drop('eventConfig_Category', () =>
+      prisma.eventConfig_Category.deleteMany({
+        where: {
+          key: { in: [...categoryKeys] },
+          events: { none: {} },
+          templates: { none: {} },
+        },
+      }),
+    );
+  }
   await drop('diploma_Template', () =>
     prisma.diploma_Template.deleteMany({ where: { id: seeded } }),
   );
@@ -529,10 +548,10 @@ export async function wipe(
   await drop('school', () =>
     prisma.school.deleteMany({ where: { id: seeded } }),
   );
-  if (catalogueFormSlugs.length > 0) {
+  if (formSlugs.length > 0) {
     await drop('feedback_Form', () =>
       prisma.feedback_Form.deleteMany({
-        where: { slug: { in: [...catalogueFormSlugs] } },
+        where: { slug: { in: [...formSlugs] } },
       }),
     );
   }

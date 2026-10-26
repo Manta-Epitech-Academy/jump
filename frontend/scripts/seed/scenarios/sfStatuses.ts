@@ -28,6 +28,7 @@
  */
 
 import { codingClubTitre } from '../catalog/events';
+import { EVENT_CATEGORY, clubCategoryOf } from '../catalog/eventCategories';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
 import {
@@ -61,6 +62,9 @@ export const sfStatuses: Scenario = {
       }),
       publicName: `Portes ouvertes ${campus.name}`,
       cohortNoun: COHORT_NOUNS.PARTICIPANT,
+      // The category the team has archived since: the open day keeps it and
+      // shows it, which is the state the archive rule exists for.
+      categoryKey: EVENT_CATEGORY.OPEN_DAY,
       campus,
       days,
       startMinutes: 9 * 60,
@@ -128,6 +132,7 @@ export const sfStatuses: Scenario = {
       titre: codingClubTitre({ campus: campus.name, date: clubDays[0]! }),
       publicName: `Coding Club ${campus.name}`,
       cohortNoun: COHORT_NOUNS.PARTICIPANT,
+      categoryKey: clubCategoryOf(clubDays[0]!),
       campus,
       days: clubDays,
       startMinutes: 14 * 60,

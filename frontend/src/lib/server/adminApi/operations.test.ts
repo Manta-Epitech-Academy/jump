@@ -112,7 +112,12 @@ describe('the operation catalogue', () => {
   it('clears a field Jump owns on null, and on null only', () => {
     const config = ADMIN_API_OPERATIONS.write_event_config.schema;
 
-    for (const field of ['publicName', 'cohortNoun', 'startTime']) {
+    for (const field of [
+      'publicName',
+      'cohortNoun',
+      'startTime',
+      'categoryKey',
+    ]) {
       expect(config.safeParse({ eventId: 'e', [field]: null }).success).toBe(
         true,
       );
@@ -178,6 +183,7 @@ const EVENT_FIELD_WRITES: Record<string, string> = {
   id: 'write_event_config.eventId',
   publicName: 'write_event_config.publicName',
   cohortNoun: 'write_event_config.cohortNoun',
+  categoryKey: 'write_event_config.categoryKey',
   startTime: 'write_event_config.startTime',
   modules: 'write_event_config.modules',
   moduleSettings: 'write_event_config.moduleSettings',

@@ -917,6 +917,12 @@ model Event {
   // the column never asserts an unmade choice. Past stages were backfilled to
   // "stagiaire" (a real historical value).
   cohortNoun        String?
+  // Which kind of event this is, for display and badge rules only, from the
+  // `EventConfig_Category` catalogue. Nothing changes behaviour on it: the
+  // modules stay the one switch of an event's pages, which is what tells it
+  // apart from the retired `eventType`. NULL = uncategorised, a full citizen
+  // everywhere. Restrict: a category is archived, never deleted.
+  categoryKey       String?
   date              DateTime
   // Salesforce gives us the calendar days (`date`/`endDate`) but never a
   // start time, so the time-of-day is Jump-owned: wall-clock minutes from
@@ -959,6 +965,7 @@ model Event {
   updatedAt         DateTime  @updatedAt
 
   campus              Campus                 @relation(fields: [campusId], references: [id])
+  category            EventConfig_Category?  @relation(fields: [categoryKey], references: [key], onDelete: Restrict)
   feedbackForm        Feedback_Form?         @relation("EventFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
   diplomaTemplate     Diploma_Template?      @relation("EventDiplomaTemplate", fields: [diplomaTemplateId], references: [id], onDelete: Restrict)
   closingTemplate     Closing_Template?      @relation("EventClosingTemplate", fields: [closingTemplateId], references: [id], onDelete: Restrict)
@@ -987,6 +994,7 @@ model Event {
   /// so the old campus kept seeing the cohort and the new one never did.
   @@unique([id, campusId])
   @@index([campusId])
+  @@index([categoryKey])
   @@index([feedbackFormId])
   @@index([diplomaTemplateId])
   @@index([closingTemplateId])
@@ -1039,6 +1047,32 @@ model EventConfig_ShownStatus {
   @@index([status])
 }
 
+/// A kind of event ("Coding Club", "Stage", "Camp"), shown on the campus
+/// calendar and named by badge rules. Data, not code: an admin creates, renames,
+/// recolours and archives one over the API (`write_event_category`), so a new
+/// kind needs no migration, and none ships with this table.
+///
+/// It is the open list `Event.eventType` never was, and it is display only.
+/// Nothing branches on it: the modules stay the one switch of an event's pages.
+///
+/// `key` is the identity every operation names, and it never changes; `label` is
+/// what a person reads and may be renamed. `color` is a `#rrggbb` the team picks,
+/// outside the `DESIGN.md` palette on purpose: the calendar needs one colour per
+/// kind, more than the four brand accents. Archived (`archivedAt` set) rather
+/// than deleted: it is no longer given to an event, and what already carries it
+/// keeps it.
+model EventConfig_Category {
+  key        String    @id
+  label      String    @unique
+  color      String
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  events    Event[]
+  templates EventConfig_Template[]
+}
+
 // A reusable, named event-configuration preset (global), created by staff from
 // the config wizard ("Enregistrer comme modèle"). Applying
 // one is a point-in-time SEED: the wizard copies its modules + settings + default
@@ -1059,6 +1093,11 @@ model EventConfig_Template {
   // apply like the other config fields. Mirrors `Event.cohortNoun`; `null` = the
   // preset names no cohort (the applied event falls back to the neutral default).
   cohortNoun        String?
+  // The category the preset carries, copied onto the event on apply like the
+  // other config fields. Mirrors `Event.categoryKey`; `null` = the preset names
+  // none. An archived one stays here as saved: it is the event, not the preset,
+  // that may not newly receive it.
+  categoryKey       String?
   // Jump-owned arrival time-of-day the preset carries, in wall-clock minutes from
   // local midnight (0-1439), `null` = none (the event falls back to the single
   // default). Mirrors `Event.startMinutes`; copied onto the event on apply.
@@ -1076,6 +1115,7 @@ model EventConfig_Template {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  category        EventConfig_Category?        @relation(fields: [categoryKey], references: [key], onDelete: Restrict)
   feedbackForm    Feedback_Form?               @relation("EventConfigTemplateFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
   diplomaTemplate Diploma_Template?            @relation("EventConfigTemplateDiploma", fields: [diplomaTemplateId], references: [id], onDelete: Restrict)
   closingTemplate Closing_Template?            @relation("EventConfigTemplateClosingTemplate", fields: [closingTemplateId], references: [id], onDelete: Restrict)
@@ -1083,6 +1123,7 @@ model EventConfig_Template {
   modules         EventConfig_TemplateModule[]
   shownStatuses   EventConfig_TemplateShownStatus[]
 
+  @@index([categoryKey])
   @@index([feedbackFormId])
   @@index([diplomaTemplateId])
   @@index([closingTemplateId])

@@ -389,6 +389,14 @@ defines four status colors, all traced back to a brand hue:
 There is **no fifth status color and no separate palette for charts**. A hue that
 is not in this list does not appear in the product.
 
+One hue comes from data rather than from this file, and it is the exception
+this rule allows: an **event category's colour**, which the team authors over the
+admin API like a certificate design. The calendar needs one colour per kind of
+event, more than the four accents, so the colour is the team's choice and
+outside this contract on purpose. What a component owes it is legibility: a
+swatch carries a border, and text on a category fill takes its colour from the
+fill. Everything else stays on the tokens.
+
 ### Neutrals: one ramp, and it is blue-tinted
 
 The charte neutrals are lavender-tinted, not grey: `#f6f7fb`, `#eceef5`,

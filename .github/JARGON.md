@@ -33,6 +33,7 @@ Rule: if a term is ambiguous, add it to this document before using it in a PR or
 | **Activation dev** | Action where an admin makes an event visible in the dev space (`devActivatedAt != null`).                                       | -                                        |
 | **Public name**    | Clean user-facing title of an event (e.g., "Stage Web Été 2026"), distinct from raw Salesforce title. Field `Event.publicName`. | -                                        |
 | **Cohort**         | The set of talents registered for an event, filtered by visible statuses.                                                       | `CampaignMember` rows for the `Campaign` |
+| **Catégorie**      | The kind of event (Coding Club, Stage, Camp...), for the campus calendar and badge rules only: nothing else changes with it, the modules stay the switch of an event's pages. An open list authored over the admin API, archived rather than deleted. Not the retired `eventType`. Field `Event.categoryKey`. | -                                        |
 
 ---
 

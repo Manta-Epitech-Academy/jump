@@ -27,6 +27,7 @@ import {
   codingClubPublicName,
   codingClubTitre,
 } from '../catalog/events';
+import { clubCategoryOf } from '../catalog/eventCategories';
 import { id } from '../ids';
 import { WORKSHOPS } from '../catalog/workshops';
 import {
@@ -166,6 +167,9 @@ export const longTail: Scenario = {
         publicName:
           configured && !beingPrepared ? codingClubPublicName(firstDay) : null,
         cohortNoun: configured ? COHORT_NOUNS.PARTICIPANT : null,
+        // Given with the rest of the configuration, so the long tail nobody
+        // configured is where an uncategorised event comes from.
+        categoryKey: configured ? clubCategoryOf(firstDay) : null,
         campus,
         days,
         devActivated: configured && !beingPrepared,
@@ -318,6 +322,7 @@ export const longTail: Scenario = {
       }),
       publicName: codingClubPublicName(zeroClosingDays[0]!),
       cohortNoun: COHORT_NOUNS.PARTICIPANT,
+      categoryKey: clubCategoryOf(zeroClosingDays[0]!),
       campus: zeroClosingCampus,
       days: zeroClosingDays,
       devActivated: true,
