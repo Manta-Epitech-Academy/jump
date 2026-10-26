@@ -15,7 +15,9 @@
 
   let { data }: { data: PageData } = $props();
 
-  const ALL = 'all';
+  // Underscored, which `CATALOGUE_KEY_PATTERN` refuses: a domain key is
+  // authored, so a plain `all` could one day name a real domain.
+  const ALL = '_all';
   const DOMAIN_PARAM = 'domaine';
 
   const domains = $derived(catalogueDomainOptions(data.subjects));
