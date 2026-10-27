@@ -6,7 +6,9 @@
  * `recordSignInDay`, and several of the first ones of a day arrive together
  * (the page and its data requests, on two pods). Each decides from the row it
  * loaded, so the guard has to be in the statement: a read-then-write would count
- * a day twice, and no mocked client can show that it does not.
+ * a day twice, and no mocked client can show that it does not. The erasure is
+ * one of those races: a request that loaded the row before it committed must
+ * not write a day back once the run is cleared.
  *
  * THE DAY IS THE CAMPUS'S. 21:30 UTC is still today in Paris and already
  * tomorrow at La Réunion, so the same instant extends a run in one zone and
@@ -16,6 +18,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { recordSignInDay } from '$lib/server/services/signInStreak';
+import { anonymizeTalent } from '$lib/server/services/anonymizationService';
 import { dateKeyToDbDate, dbDateToKey } from '$lib/domain/eventPresence';
 import { assertTestDatabase } from './testDatabase';
 
@@ -109,6 +112,14 @@ describe('recordSignInDay', () => {
       days: 5,
       lastDay: '2026-10-27',
     });
+  });
+
+  it('writes nothing on a talent erased while the request was in flight', async () => {
+    // Loaded before the erasure committed, as the hook's row would be.
+    const talent = await talentWith(4, '2026-10-26');
+    await prisma.$transaction((tx) => anonymizeTalent(tx, talent.id));
+    await recordSignInDay(talent, 'Europe/Paris', NOW);
+    expect(await streakOf(talent.id)).toEqual({ days: 0, lastDay: null });
   });
 
   it('reads the day in the campus timezone', async () => {

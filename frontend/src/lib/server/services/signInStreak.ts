@@ -21,6 +21,11 @@ import { toDateKey } from '$lib/domain/planningTime';
  * Strictly earlier, not merely different, so a talent whose campus moves to a
  * zone behind never sees their day go back.
  *
+ * The same `WHERE` refuses an erased talent. The erasure deletes the sessions
+ * and clears the run, but a request already past the hook loaded the row before
+ * it committed, and once the run is cleared the day guard matches again: without
+ * `anonymizedAt`, that late write would put a day back on the erased row.
+ *
  * Days travel as `YYYY-MM-DD` keys cast to `date`, so no `Date` stands in for a
  * calendar day and no timezone can shift one.
  */
@@ -42,6 +47,7 @@ export async function recordSignInDay(
         END,
         "streakLastDay" = ${today}::date
     WHERE "id" = ${talent.id}
+      AND "anonymizedAt" IS NULL
       AND ("streakLastDay" IS NULL OR "streakLastDay" < ${today}::date)
   `;
 }
