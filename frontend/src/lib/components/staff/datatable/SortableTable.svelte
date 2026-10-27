@@ -15,11 +15,14 @@
   import { Checkbox } from '$lib/components/ui/checkbox';
   import { cn } from '$lib/utils';
   import type { ColumnDef, SortDir } from './types';
+  import ColumnFilterButton from './ColumnFilterButton.svelte';
+  import MobileColumnFilters from './MobileColumnFilters.svelte';
 
-  // Purely presentational. It renders the header (with clickable sort
-  // affordances), the rows, and an empty state, but it never sorts, filters
-  // or fetches. The parent owns the data strategy and just hands down the
-  // current `sortKey`/`sortDir` plus an `onSort` callback. That keeps the same
+  // Purely presentational. It renders the header (with clickable sort and
+  // filter affordances), the rows, and an empty state, but it never sorts,
+  // filters or fetches. The parent owns the data strategy and just hands down
+  // the current `sortKey`/`sortDir` plus an `onSort` callback, and each
+  // column's `filter` selection plus its `onChange`. That keeps the same
   // component serving the in-memory inscrits table and the server-paginated
   // admin talents table without either leaking its strategy in here.
   let {
@@ -119,6 +122,10 @@
   } = $props();
 
   const sortableColumns = $derived(columns.filter((c) => c.sortable));
+  const filterColumns = $derived(columns.filter((c) => c.filter));
+  const showMobileSort = $derived(
+    mobileSort && !!onSort && sortableColumns.length > 0,
+  );
   const activeSortColumn = $derived(columns.find((c) => c.key === sortKey));
 
   // Render only the layout in use, never both. The old CSS-only `hidden lg:block`
@@ -211,29 +218,42 @@
                 : undefined}
             >
               {#if col.sortable && onSort}
-                <button
-                  type="button"
-                  onclick={() => onSort?.(col.key)}
-                  class={cn(
-                    // `epi-overline` again rather than inherited: a <button>
-                    // does not inherit text-transform (the UA sets `none` on it
-                    // and Tailwind's preflight inherits font, not case), so
-                    // without it every sortable header lost its uppercase.
-                    'inline-flex cursor-pointer items-center gap-1 epi-overline transition-colors hover:text-foreground',
-                    col.align === 'right' && 'flex-row-reverse',
-                  )}
-                >
-                  {col.label}
-                  {#if sortKey === col.key}
-                    {#if sortDir === 'asc'}
-                      <ArrowUp class="h-3 w-3 text-epi-blue" />
+                <span class="inline-flex items-center gap-2">
+                  <button
+                    type="button"
+                    onclick={() => onSort?.(col.key)}
+                    class={cn(
+                      // `epi-overline` again rather than inherited: a <button>
+                      // does not inherit text-transform (the UA sets `none` on it
+                      // and Tailwind's preflight inherits font, not case), so
+                      // without it every sortable header lost its uppercase.
+                      'inline-flex cursor-pointer items-center gap-1 epi-overline transition-colors hover:text-foreground',
+                      col.align === 'right' && 'flex-row-reverse',
+                    )}
+                  >
+                    {col.label}
+                    {#if sortKey === col.key}
+                      {#if sortDir === 'asc'}
+                        <ArrowUp class="h-3 w-3 text-epi-blue" />
+                      {:else}
+                        <ArrowDown class="h-3 w-3 text-epi-blue" />
+                      {/if}
                     {:else}
-                      <ArrowDown class="h-3 w-3 text-epi-blue" />
+                      <ChevronsUpDown
+                        class="h-3 w-3 text-muted-foreground/50"
+                      />
                     {/if}
-                  {:else}
-                    <ChevronsUpDown class="h-3 w-3 text-muted-foreground/50" />
+                  </button>
+                  {#if col.filter}
+                    <ColumnFilterButton title={col.label} filter={col.filter} />
                   {/if}
-                </button>
+                </span>
+              {:else if col.filter}
+                <ColumnFilterButton
+                  title={col.label}
+                  filter={col.filter}
+                  withLabel
+                />
               {:else}
                 {col.label}
               {/if}
@@ -307,46 +327,52 @@
   <!-- Mobile (below lg): the fixed table can't fit a phone, so each row becomes a
        card. The header's per-column sort buttons go with it, so an optional "Trier"
        dropdown carries the same sort over (it calls the same `onSort`, which the
-       parent already toggles). Cards reuse `rowHref` via the same stretched-link
+       parent already toggles), and a "Filtrer" drawer carries the header's
+       filters over the same way, from the same column definitions. Cards reuse `rowHref` via the same stretched-link
        overlay as the table rows, so cmd/middle-click and keyboard nav behave alike.
        Gated by `showMobile` (a media query), so on desktop this tree is never
        mounted, so the roster renders once, not twice. -->
   <div class="space-y-2">
-    {#if mobileSort && onSort && sortableColumns.length > 0}
-      <div class="flex items-center justify-end">
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger
-            class="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-sm border bg-background px-3 text-xs font-bold uppercase"
-            aria-label="Trier la liste"
-          >
-            <ChevronsUpDown class="h-3.5 w-3.5 text-muted-foreground" />
-            Trier{activeSortColumn ? ` : ${activeSortColumn.label}` : ''}
-            {#if activeSortColumn}
-              {#if sortDir === 'asc'}
-                <ArrowUp class="h-3.5 w-3.5 text-epi-blue" />
-              {:else}
-                <ArrowDown class="h-3.5 w-3.5 text-epi-blue" />
-              {/if}
-            {/if}
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content align="end">
-            {#each sortableColumns as col (col.key)}
-              <DropdownMenu.Item
-                class="cursor-pointer"
-                onSelect={() => onSort?.(col.key)}
-              >
-                {col.label}
-                {#if sortKey === col.key}
-                  {#if sortDir === 'asc'}
-                    <ArrowUp class="ml-auto h-3.5 w-3.5 text-epi-blue" />
-                  {:else}
-                    <ArrowDown class="ml-auto h-3.5 w-3.5 text-epi-blue" />
-                  {/if}
+    {#if showMobileSort || filterColumns.length > 0}
+      <div class="flex items-center justify-end gap-2">
+        {#if filterColumns.length > 0}
+          <MobileColumnFilters columns={filterColumns} />
+        {/if}
+        {#if showMobileSort}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger
+              class="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-sm border bg-background px-3 text-xs font-bold uppercase"
+              aria-label="Trier la liste"
+            >
+              <ChevronsUpDown class="h-3.5 w-3.5 text-muted-foreground" />
+              Trier{activeSortColumn ? ` : ${activeSortColumn.label}` : ''}
+              {#if activeSortColumn}
+                {#if sortDir === 'asc'}
+                  <ArrowUp class="h-3.5 w-3.5 text-epi-blue" />
+                {:else}
+                  <ArrowDown class="h-3.5 w-3.5 text-epi-blue" />
                 {/if}
-              </DropdownMenu.Item>
-            {/each}
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
+              {/if}
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content align="end">
+              {#each sortableColumns as col (col.key)}
+                <DropdownMenu.Item
+                  class="cursor-pointer"
+                  onSelect={() => onSort?.(col.key)}
+                >
+                  {col.label}
+                  {#if sortKey === col.key}
+                    {#if sortDir === 'asc'}
+                      <ArrowUp class="ml-auto h-3.5 w-3.5 text-epi-blue" />
+                    {:else}
+                      <ArrowDown class="ml-auto h-3.5 w-3.5 text-epi-blue" />
+                    {/if}
+                  {/if}
+                </DropdownMenu.Item>
+              {/each}
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
+        {/if}
       </div>
     {/if}
 

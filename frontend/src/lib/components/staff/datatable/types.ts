@@ -1,5 +1,19 @@
 export type SortDir = 'asc' | 'desc';
 
+/** One value a column can be filtered on, with how many rows carry it. */
+export type FacetOption = { value: string; label: string; count: number };
+
+/**
+ * A multi-value filter over a column, opened from the column's header. The
+ * parent owns the selection, as it owns the sort: the table only renders the
+ * control and hands every change back through `onChange`.
+ */
+export type ColumnFilter = {
+  options: FacetOption[];
+  selected: readonly string[];
+  onChange: (values: string[]) => void;
+};
+
 export type ColumnDef = {
   /** Stable sort key, passed back through `onSort`. */
   key: string;
@@ -18,4 +32,11 @@ export type ColumnDef = {
   align?: 'left' | 'right';
   /** Extra classes merged onto the `<th>`. */
   class?: string;
+  /**
+   * Filter the column from its header. A sortable column keeps its label as
+   * the sort button and gains a funnel beside it; a column that only filters
+   * makes its whole label the funnel. On mobile, where there is no header, the
+   * same filters open from a "Filtrer" control beside "Trier".
+   */
+  filter?: ColumnFilter;
 };
