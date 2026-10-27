@@ -129,7 +129,7 @@ describe('BetterAuth core HTTP surface (integration)', () => {
     expect(dev._count.sessions).toBe(1);
   });
 
-  it('still opens the staff door', async () => {
+  it('still opens the staff door, asking Microsoft for no refresh token', async () => {
     const response = await postAuth('/api/auth/sign-in/social', {
       provider: 'microsoft',
       callbackURL: '/staff/oauth/callback',
@@ -137,6 +137,14 @@ describe('BetterAuth core HTTP surface (integration)', () => {
 
     expect(response.status).toBe(200);
     const { url } = (await response.json()) as { url: string };
-    expect(new URL(url).hostname).toBe('login.microsoftonline.com');
+    const authorize = new URL(url);
+    expect(authorize.hostname).toBe('login.microsoftonline.com');
+    // `offline_access` is what makes Microsoft issue a refresh token, the one
+    // credential stored in `bauth_account` that outlives an impersonation
+    // window. Jump never refreshes: the access token is read once, right
+    // after sign-in, for the avatar.
+    expect(authorize.searchParams.get('scope')?.split(' ').sort()).toEqual(
+      ['User.Read', 'email', 'openid', 'profile'].sort(),
+    );
   });
 });

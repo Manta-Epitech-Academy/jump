@@ -85,6 +85,12 @@ export function createAuthOptions(
         clientId: env.MICROSOFT_CLIENT_ID!,
         clientSecret: env.MICROSOFT_CLIENT_SECRET!,
         tenantId: env.MICROSOFT_TENANT_ID,
+        // These four and nothing else. The provider's defaults add
+        // `offline_access`, which makes Microsoft issue a refresh token, stored
+        // in `bauth_account` and outliving any session it was read through.
+        // Jump never refreshes: `syncMicrosoftAvatar` reads the access token
+        // once, right after sign-in.
+        disableDefaultScope: true,
         scope: ['openid', 'profile', 'email', 'User.Read'],
         // Entra ID emits no `email_verified` claim unless it is declared as an
         // optional claim on the app registration, so BetterAuth defaults the
