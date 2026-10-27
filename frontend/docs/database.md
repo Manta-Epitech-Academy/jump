@@ -203,6 +203,7 @@ erDiagram
     String name UK
     String externalName UK
     String timezone
+    String departement
     String contactEmail
     DateTime createdAt
     DateTime updatedAt

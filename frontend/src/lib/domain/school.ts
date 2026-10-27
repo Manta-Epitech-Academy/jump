@@ -88,6 +88,15 @@ const ACADEMIE_BY_DEPARTEMENT = new Map(
 );
 
 /**
+ * Every département an académie answers for, in code order ("01" ... "988",
+ * Corsica as "20"). The values a campus's `departement` may take: a code this
+ * table does not know has no académie, so nothing could be derived from it.
+ */
+export const DEPARTEMENTS: readonly string[] = [
+  ...ACADEMIE_BY_DEPARTEMENT.keys(),
+].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+
+/**
  * The académie a département belongs to, or null when there is no académie to name
  * (a null département, or a territory served by a vice-rectorat this table does not
  * cover, such as Saint-Pierre-et-Miquelon and the TAAF).

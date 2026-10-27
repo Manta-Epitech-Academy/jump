@@ -50,7 +50,7 @@ async function stateOf(key: string) {
 /**
  * Refuses a label another category already reads as, whatever the case: two
  * entries a person cannot tell apart in a legend are one category typed twice,
- * and the calendar filter would offer both.
+ * and the calendar's legend would show both.
  */
 async function refuseTakenLabel(key: string, label: string) {
   const holder = await prisma.eventConfig_Category.findFirst({

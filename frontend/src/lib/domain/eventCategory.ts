@@ -4,7 +4,7 @@
 // configuration, defaulted by the preset, and authored over the admin API.
 //
 // It is display only, and that is what separates it from the `eventType` retired
-// in July 2026: the campus calendar colours and filters by it, a badge rule
+// in July 2026: the campus calendar colours by it, a badge rule
 // counts by it, and nothing else reads it. No screen, module, gate or figure
 // changes with it; the modules stay the one switch of an event's pages. A rule
 // that wants to branch on a category is asking for a module.
@@ -42,3 +42,10 @@ export type EventCategoryView = {
   color: string;
   archived: boolean;
 };
+
+/**
+ * A category as an event wears it outside the admin space. Archiving is a state
+ * of the catalogue (the category is no longer given to a new event), which is
+ * the admin's business: beside an event, its category is just its category.
+ */
+export type EventCategoryTag = Omit<EventCategoryView, 'archived'>;

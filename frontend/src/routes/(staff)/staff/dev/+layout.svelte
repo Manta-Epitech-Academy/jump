@@ -10,6 +10,7 @@
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import School from '@lucide/svelte/icons/school';
   import LayoutGrid from '@lucide/svelte/icons/layout-grid';
   import { page } from '$app/state';
@@ -23,7 +24,6 @@
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
-  import EventWorkspaceSwitcher from '$lib/components/dev/EventWorkspaceSwitcher.svelte';
   import SchoolYearMenu from '$lib/components/dev/SchoolYearMenu.svelte';
   import {
     landingSurface,
@@ -35,31 +35,46 @@
   } from '$lib/domain/eventModules';
   import {
     defaultEventOfYear,
-    eventsOfSchoolYear,
     navigableSchoolYears,
     type DevWorkspaceEvent,
   } from '$lib/domain/devWorkspace';
   import { eventDaysLabel, eventDisplayName } from '$lib/domain/event';
   import { schoolYearOf } from '$lib/domain/schoolYear';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import { provideSelectedEvent } from '$lib/components/dev/selectedEvent';
 
   // Icons live with the component (Svelte components can't sit in the domain
   // layer); order/label/reachability are single-sourced in `eventModules`.
   const SURFACE_ICONS: Record<EventSurfaceKey, typeof Users> = {
     inscrits: Users,
     emargement: UserCheck,
-    planning: CalendarDays,
+    // A clock on the calendar: the event's hours, beside the campus's days.
+    planning: CalendarClock,
     bilan: MessageSquareText,
     closings: MessageSquare,
   };
 
-  type NavLink = { href: string; label: string; icon: typeof Users };
+  type NavLink = {
+    href: string;
+    label: string;
+    icon: typeof Users;
+    /** Lit on its own page only: every dev page sits under the calendar's. */
+    exact?: boolean;
+  };
 
   // The menu's three sections, in the mockup's order: the campus, the event in
   // view, the resources every event shares. A section with no page yet is not
   // shown, so no entry leads to an empty page: the calendar (#440) fills the
-  // campus one, the catalogue (#439) and Contribuer (#441) the resources one.
-  const CAMPUS_LINKS: NavLink[] = [];
+  // campus one, the catalogue (#439) the resources one, where Contribuer (#441)
+  // will join it.
+  const CAMPUS_LINKS: NavLink[] = [
+    {
+      href: resolve('/staff/dev'),
+      label: 'Calendrier',
+      icon: CalendarDays,
+      exact: true,
+    },
+  ];
   const RESOURCE_LINKS: NavLink[] = [
     {
       href: resolve('/staff/dev/catalogue'),
@@ -85,25 +100,31 @@
       workspace.events.find((e) => e.id === lastEventId) ??
       workspace.current,
   );
+  provideSelectedEvent(() => currentEvent?.id ?? null);
 
-  // The academic year shown in the header: a context readout of the event in
-  // view, falling back to the live school year only when the campus has no
-  // events. Single-sourced through `schoolYearOf` so the label format matches
-  // the events' own `schoolYear.label`.
+  /** The campus calendar, whose school year is its own address (`?year=`). */
+  const onCalendar = $derived(page.route.id === '/(staff)/staff/dev');
+
+  // The academic year shown in the header. On the calendar, the year the page
+  // shows. Elsewhere, a context readout of the event in view, falling back to
+  // the live school year only when the campus has no events. Single-sourced
+  // through `schoolYearOf` so the label format matches the events' own
+  // `schoolYear.label`.
   const selectedSchoolYear = $derived(
-    currentEvent?.schoolYear.label ??
-      schoolYearOf(new Date(), data.timezone).label,
+    onCalendar
+      ? (page.data.calendar.schoolYear as string)
+      : (currentEvent?.schoolYear.label ??
+          schoolYearOf(new Date(), data.timezone).label),
   );
 
-  /** The years you can actually go to. Empty on a campus with no event, which
-      leaves the menu as the readout `selectedSchoolYear` already falls back to. */
-  const schoolYears = $derived(navigableSchoolYears(workspace.events));
-
-  /** The active year's events: the switcher's whole list, and what decides
-      whether there is anything to switch between. */
-  const yearEvents = $derived(
-    eventsOfSchoolYear(workspace.events, selectedSchoolYear),
-  );
+  /** The years you can actually go to: those with an event a dev can open, and
+      on the calendar the year it shows, which may have none. Empty on a campus
+      with no event, which leaves the menu as a readout. */
+  const schoolYears = $derived.by(() => {
+    const years = navigableSchoolYears(workspace.events);
+    if (!onCalendar || years.includes(selectedSchoolYear)) return years;
+    return [...years, selectedSchoolYear].sort((a, b) => b.localeCompare(a));
+  });
 
   /** The event's pages, in the order and under the gates `eventModules` sets. */
   const eventLinks = $derived.by((): NavLink[] => {
@@ -121,9 +142,9 @@
   const openSurface = $derived(surfaceFromPath(page.url.pathname));
 
   /**
-   * Both context controls resolve to one navigation: open `e`, keeping the
-   * surface in view when the target event exposes it. `openSurface` is null off
-   * an event route (a talent fiche), which lands on the first reachable one.
+   * Open `e`, keeping the surface in view when the target event exposes it.
+   * `openSurface` is null off an event route (a talent fiche), which lands on
+   * the first reachable one.
    */
   function openEvent(e: DevWorkspaceEvent) {
     if (e.id === currentEvent?.id) return;
@@ -133,13 +154,18 @@
   }
 
   /**
-   * Changing the year is a context jump: land on the event that year defaults
-   * to, the same rule a bare `/staff/dev` lands on. `navigableSchoolYears` and
-   * `defaultEventOfYear` share a reachability filter, so the null below is a
-   * type guard, not a year that quietly does nothing when picked.
+   * On the calendar, changing the year shows that year's calendar. Elsewhere it
+   * is a context jump: land on the event that year defaults to.
+   * `navigableSchoolYears` and `defaultEventOfYear` share a reachability
+   * filter, so the null below is a type guard, not a year that quietly does
+   * nothing when picked.
    */
   function changeSchoolYear(year: string) {
     if (year === selectedSchoolYear) return;
+    if (onCalendar) {
+      goto(`${resolve('/staff/dev')}?year=${year}`);
+      return;
+    }
     const target = defaultEventOfYear(workspace.events, year);
     if (target) openEvent(target);
   }
@@ -173,7 +199,10 @@
   });
 
   // Links carry resolved hrefs, so a page nested under an entry keeps it lit.
-  const isActive = (href: string) => page.url.pathname.startsWith(href);
+  const isActive = (link: NavLink) =>
+    link.exact
+      ? page.url.pathname === link.href
+      : page.url.pathname.startsWith(link.href);
 
   const navLinkClass = (active: boolean) => `
     flex items-center gap-3 px-3 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer
@@ -206,7 +235,7 @@
   <div class="space-y-1">
     {#each links as link (link.href)}
       {@const Icon = link.icon}
-      <a href={link.href} class={navLinkClass(isActive(link.href))}>
+      <a href={link.href} class={navLinkClass(isActive(link))}>
         <Icon class="h-5 w-5" />
         <span>{link.label}</span>
       </a>
@@ -241,23 +270,13 @@
             Événement sélectionné
           </h2>
           <!-- The event's name, in Anton at a display size: it has to out-rank
-               the 14px entries under it. The switcher sits inline to its right,
-               demoted, so the name stays the label. -->
+               the 14px entries under it. Another event is opened from the
+               calendar, as the mockup does: no picker here. -->
           <div
-            class="flex items-center gap-1.5 font-heading text-display-s text-chrome-foreground"
+            class="flex items-baseline font-heading text-display-s text-chrome-foreground"
           >
-            <span class="flex min-w-0 flex-1 items-baseline">
-              <span class="truncate">{eventDisplayName(ev)}</span>
-              <TitleCursor />
-            </span>
-            {#if yearEvents.length > 1}
-              <EventWorkspaceSwitcher
-                events={yearEvents}
-                currentId={ev.id}
-                timezone={data.timezone}
-                onpick={openEvent}
-              />
-            {/if}
+            <span class="truncate">{eventDisplayName(ev)}</span>
+            <TitleCursor />
           </div>
           <p class="mt-1 mb-3 font-mono text-xs text-chrome-foreground-muted">
             {eventDaysLabel(ev.date, ev.endDate, data.timezone)}

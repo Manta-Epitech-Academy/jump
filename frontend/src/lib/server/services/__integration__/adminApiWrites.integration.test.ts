@@ -213,7 +213,7 @@ describe('admin API writes (integration)', () => {
   // The activation rule reaching the path that writes the name and the gate in
   // one call. Patch semantics carry the STORED activation into a call that only
   // meant to edit a name, so without the rule this could take a live event down
-  // to no public name and leave it live, in the dev switcher under its raw
+  // to no public name and leave it live, on the campus calendar under its raw
   // Salesforce title.
   it('refuses to clear the public name of an event that stays visible', async () => {
     const live = await prisma.event.create({

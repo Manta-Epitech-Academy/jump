@@ -164,10 +164,11 @@ export function eventHasModule(
  *    is reachable only when the event has a real schedule.
  *  - `bilan` is a module but also needs a resolvable live feedback form, or its
  *    page 404s.
- * This projection folds those gates in one place so the sidebar nav, the event
- * switcher and the dev landing all agree on the reachable set. Routing off the
- * raw module set instead (the old `firstEnabledModule`) sent the switcher and the
- * landing into a 404 for a bilan-without-form event the nav had already hidden.
+ * This projection folds those gates in one place so the sidebar nav, the campus
+ * calendar and the header's year menu all agree on the reachable set. Routing
+ * off the raw module set instead (the old `firstEnabledModule`) sent the event
+ * switcher of the time and the landing into a 404 for a bilan-without-form
+ * event the nav had already hidden.
  */
 export type EventSurfaceKey = EventModuleKey | 'planning';
 
@@ -247,11 +248,11 @@ export function reachableSurfaces(gates: EventSurfaceGates): EventSurfaceKey[] {
  * exposes nothing).
  *
  * One function rather than two, because every caller asks the same question with
- * a different amount of context. The dev landing has no surface open and passes
- * nothing; the event switcher and the header's year menu pass the surface in
- * view, so changing context keeps you on the page you were reading. Splitting
- * the two is how the year menu ended up dropping devs on `inscrits` while the
- * switcher, one click away, preserved their surface.
+ * a different amount of context. The campus calendar has no surface open and
+ * passes nothing; the header's year menu passes the surface in view, so
+ * changing year keeps you on the page you were reading. Splitting the two is
+ * how the year menu once dropped devs on `inscrits` while the event switcher of
+ * the time, one click away, preserved their surface.
  */
 export function landingSurface(
   gates: EventSurfaceGates,

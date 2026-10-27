@@ -10,11 +10,16 @@ import type { EventCategoryView } from '$lib/domain/eventCategory';
  * event write.
  */
 
-/** The columns a category is shown with, for an `include` or a `select`. */
-export const EVENT_CATEGORY_SELECT = {
+/** The columns an event's category is shown with outside the admin space. */
+export const EVENT_CATEGORY_TAG_SELECT = {
   key: true,
   label: true,
   color: true,
+} satisfies Prisma.EventConfig_CategorySelect;
+
+/** The columns a category is shown with, for an `include` or a `select`. */
+export const EVENT_CATEGORY_SELECT = {
+  ...EVENT_CATEGORY_TAG_SELECT,
   archivedAt: true,
 } satisfies Prisma.EventConfig_CategorySelect;
 

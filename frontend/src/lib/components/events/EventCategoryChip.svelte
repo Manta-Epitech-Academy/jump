@@ -5,11 +5,15 @@
   // the label. The colour is whatever the team picked, so the swatch carries a
   // border: a near-white one still shows on a white card, a near-black one in
   // the dark theme. An archived category is still shown on the events that carry
-  // it, and says so.
+  // it, and says so where archiving means something: in the admin space, whose
+  // callers pass `archived`. Everywhere else it is just the event's category.
   let {
     category,
-  }: { category: Pick<EventCategoryView, 'label' | 'color' | 'archived'> } =
-    $props();
+  }: {
+    category: Pick<EventCategoryView, 'label' | 'color'> & {
+      archived?: boolean;
+    };
+  } = $props();
 </script>
 
 <span class="inline-flex min-w-0 items-center gap-2">

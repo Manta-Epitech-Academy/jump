@@ -66,7 +66,7 @@ export function cohortNounForms(
 /**
  * The event's display name: the admin-set `publicName` if any, else the raw
  * Salesforce `titre`. The single name used everywhere a human reads the event -
- * staff chrome (page titles, breadcrumbs, switcher) and talent surfaces
+ * staff chrome (page titles, breadcrumbs, the campus calendar) and talent surfaces
  * (dashboard, history, QR sheets) alike. An event configured for talents already
  * carries its own `publicName`; when it doesn't, the SF `titre` is an acceptable
  * fallback - the staff-chosen name is shown ~most of the time anyway.
