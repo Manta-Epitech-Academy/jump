@@ -14,6 +14,7 @@
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import InscritsResults from './components/InscritsResults.svelte';
+  import StageCountdownCard from '../components/StageCountdownCard.svelte';
   import LoadingCeremony from '$lib/components/LoadingCeremony.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -104,8 +105,8 @@
     // title falls back to the count-less line.
     generatingDiplomas = true;
     try {
-      const { cohort } = await data.cohort;
-      diplomaCount = cohort.total;
+      const { rows } = await data.cohort;
+      diplomaCount = rows.length;
     } catch {
       diplomaCount = 0;
     }
@@ -184,14 +185,24 @@
     {/snippet}
   </PageHeader>
 
+  <!-- A shell value, so it paints before the cohort lands. It stays here until
+       the event's home page gives it its place in that page's header (#443). -->
+  <div class="max-w-md">
+    <StageCountdownCard
+      status={data.countdown.status}
+      openDate={data.countdown.openDate}
+      endDate={data.countdown.endDate}
+      dayN={data.countdown.dayN}
+      totalDays={data.countdown.totalDays}
+      timezone={data.timezone}
+    />
+  </div>
+
   {#await data.cohort}
     <ResultsSkeleton />
   {:then cohort}
     <InscritsResults
       {...cohort}
-      origin={data.origin}
-      countdown={data.countdown}
-      timezone={data.timezone}
       event={data.event}
       showStatutColumn={data.showStatutColumn}
     />
