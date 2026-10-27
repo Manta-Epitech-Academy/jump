@@ -36,6 +36,8 @@ import {
 } from '../catalog/documentVersions';
 import type { World, TalentRef } from '../world';
 import { CIVILITE_OPTIONS } from '../../../src/lib/domain/profile';
+import { dateKeyToDbDate } from '../../../src/lib/domain/eventPresence';
+import { toDateKey } from '../../../src/lib/domain/planningTime';
 import { id } from '../ids';
 
 /** Where the talent stopped. `null` means they went all the way through. */
@@ -278,6 +280,19 @@ export function addDossier(
     });
     row.welcomeSeenAt = clock.days(filedOffset - 1);
     row.firstLoginAt = clock.days(filedOffset - 1);
-    row.lastActiveAt = clock.days(-5);
+    const lastActiveAt = clock.days(-5);
+    row.lastActiveAt = lastActiveAt;
+    // The run of consecutive days ends on the day of that last visit, read in
+    // the campus timezone as `signInStreak.ts` reads it, so the two columns
+    // cannot tell two stories (La Réunion runs ahead of Paris). Its length is
+    // drawn from the talent's own stream, which takes nothing from the shared
+    // one.
+    const timezone =
+      [...world.campuses.values()].find((c) => c.id === opts.talent.campusId)
+        ?.timezone ?? 'Europe/Paris';
+    row.streakLastDay = dateKeyToDbDate(toDateKey(lastActiveAt, timezone));
+    row.streakDays = world.ctx.rng
+      .fork(`signInStreak:${opts.talent.id}`)
+      .int(1, 12);
   }
 }
