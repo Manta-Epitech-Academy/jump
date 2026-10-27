@@ -23,8 +23,8 @@
   // It leads with how the activity presents itself (its tagline, its cover, its
   // mascot), authored over the API and copied into Jump, and with nothing else: the event's name is a Salesforce campaign title more often
   // than not, and being on the page at all already says « today ». Every
-  // picture is optional and may fail to load (a seeded environment has no bytes
-  // behind its keys): the hero then stands on its label and the brand ground,
+  // picture is optional and may fail to load (its stored object gone, or a
+  // database seeded with no bucket to put the bytes in): the hero then stands on its label and the brand ground,
   // which has to read as finished, not as broken.
   let {
     activities,

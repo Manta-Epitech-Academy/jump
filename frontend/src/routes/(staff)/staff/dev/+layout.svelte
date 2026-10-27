@@ -12,6 +12,7 @@
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import School from '@lucide/svelte/icons/school';
+  import LayoutGrid from '@lucide/svelte/icons/layout-grid';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -63,8 +64,9 @@
 
   // The menu's three sections, in the mockup's order: the campus, the event in
   // view, the resources every event shares. A section with no page yet is not
-  // shown, so no entry leads to an empty page: the catalogue (#439) and
-  // Contribuer (#441) will fill the resources one.
+  // shown, so no entry leads to an empty page: the calendar (#440) fills the
+  // campus one, the catalogue (#439) the resources one, where Contribuer (#441)
+  // will join it.
   const CAMPUS_LINKS: NavLink[] = [
     {
       href: resolve('/staff/dev'),
@@ -73,7 +75,13 @@
       exact: true,
     },
   ];
-  const RESOURCE_LINKS: NavLink[] = [];
+  const RESOURCE_LINKS: NavLink[] = [
+    {
+      href: resolve('/staff/dev/catalogue'),
+      label: 'Catalogue',
+      icon: LayoutGrid,
+    },
+  ];
 
   let { children, data } = $props();
   let user = $derived(data.user as any);

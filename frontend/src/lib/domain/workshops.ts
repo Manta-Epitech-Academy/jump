@@ -51,6 +51,19 @@ export function workshopSlugFromSourceId(
  */
 export type WorkshopCoverKind = 'media' | 'poster' | 'mascot';
 
+/**
+ * Longest stored edge of each picture: the hero's picture slot for the visual
+ * and its still, a small sprite for the mascot. Any proportion and any format
+ * Jump can show are taken, an animation included (`copyRemoteImage`); the hero
+ * lays out whatever it is given. Read by `write_workshop` and by the seed, which
+ * stores its pictures the way the write would have.
+ */
+export const WORKSHOP_COVER_MAX_EDGE: Record<WorkshopCoverKind, number> = {
+  media: 1280,
+  poster: 1280,
+  mascot: 512,
+};
+
 const COVER_PREFIX = 'workshops';
 
 export function workshopCoverKey(

@@ -2540,6 +2540,11 @@ model Workshop_Instance {
 /// configure an activity's look are not the ones who deploy its CTFd, so one
 /// source of truth had to be chosen, and it is the one they hold.
 ///
+/// So is what the staff read of it in the dev space's catalogue, where an
+/// activity is called a subject: its domains, its level and its notions, written
+/// by `write_workshop` too. The catalogue shows only a complete subject, and
+/// what makes one complete is decided in one place (`catalogueGaps`).
+///
 /// It names the host that serves it, many activities to one host: an activity
 /// is on one host at a time, so every event offering it reaches the same place
 /// without restating where. That host is fixed once a talent has entered it,
@@ -2566,17 +2571,36 @@ model Workshop_Activity {
   /// label. Written only through `write_workshop`'s `cover`, so a call that
   /// curates what an activity is and names no cover cannot wipe it.
   tagline        String?
+  /// How demanding the subject is, shown on its catalogue card. Display only:
+  /// nothing gates on it. Null until an admin says.
+  level          WorkshopLevel?
+  /// What a talent practises on it, short French labels in the order they are
+  /// shown ("Arbres de décision", "FSM"). A list rather than a table, because
+  /// nothing filters or counts by a notion: renaming one is rewriting the list
+  /// of each subject that carries it.
+  notions        String[]                 @default([])
   enabled        Boolean                  @default(true)
   createdAt      DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
 
   /// Restrict: a host still serving an activity is not one to delete.
-  instance       Workshop_Instance        @relation(fields: [instanceId], references: [id], onDelete: Restrict)
+  instance       Workshop_Instance         @relation(fields: [instanceId], references: [id], onDelete: Restrict)
   events         EventConfig_Workshop[]
   participations Workshop_Participation[]
   coverImages    Workshop_CoverImage[]
+  domains        Workshop_ActivityDomain[]
 
   @@index([instanceId])
+}
+
+/// How demanding a subject is, a closed list the catalogue card shows. Display
+/// only; the French labels are `WORKSHOP_LEVEL_LABELS`.
+enum WorkshopLevel {
+  beginner
+  intermediate
+  expert
+  /// Open to anybody, beginner or not ("Tous niveaux").
+  all_levels
 }
 
 /// Which picture of a cover an image is.
@@ -2622,6 +2646,41 @@ model Workshop_CoverImage {
   activity Workshop_Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
   @@id([activityId, kind])
+}
+
+/// A field a subject belongs to ("Cybersécurité", "IA/DATA"), what the
+/// catalogue filters by and what a badge rule will count finished activities
+/// by (#448). Data, not code: an admin creates, renames and archives one over
+/// the API (`write_workshop_domain`), so a new field needs no migration, and
+/// none ships with this table.
+///
+/// `key` is the identity every operation names, and it never changes; `label` is
+/// what a person reads and may be renamed. Archived (`archivedAt` set) rather
+/// than deleted: it is no longer given to a subject, and a subject that carries
+/// it keeps it, as an event keeps an archived `EventConfig_Category`.
+model Workshop_Domain {
+  key        String    @id
+  label      String    @unique
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  activities Workshop_ActivityDomain[]
+}
+
+/// A subject in a domain. A pure junction: a subject has several domains and a
+/// domain many subjects, and the link carries nothing of its own.
+model Workshop_ActivityDomain {
+  activityId String
+  domainKey  String
+
+  /// Cascade: the link is the subject's, and goes with it.
+  activity Workshop_Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  /// Restrict: a domain is archived, never deleted out from under a subject.
+  domain   Workshop_Domain   @relation(fields: [domainKey], references: [key], onDelete: Restrict)
+
+  @@id([activityId, domainKey])
+  @@index([domainKey])
 }
 
 /// An event offering an activity: the link, carrying attributes of its own.

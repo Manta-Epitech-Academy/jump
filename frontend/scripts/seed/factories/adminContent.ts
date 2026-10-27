@@ -9,8 +9,8 @@
  * account destroyed the files that person had put in a shared library - and the
  * `SetNull` that replaced it has no visible effect until a row carries a null.
  *
- * The bytes are not here. `s3Key` names an object in the bucket, and a seeded
- * environment has no bucket behind it: the rows exist so the lists, the counts,
+ * The bytes are not here. `s3Key` names an object in the bucket, and the
+ * generator writes none behind it: the rows exist so the lists, the counts,
  * the sorting and the « ancien membre » rendering have something to work on,
  * and a download resolves to nothing. That is the same trade `signatureKey` and
  * `rulesFilePath` already make.

@@ -4,8 +4,8 @@ import { onImageBroken } from './onImageBroken';
 /**
  * Hide every picture inside this node that cannot be shown, for HTML a
  * component renders with `{@html}` and so cannot put `onImageBroken` on itself
- * (a campus note's pictures). A picture whose copy went missing, or one of a
- * generated database whose key has no bytes behind it, leaves no broken-image
+ * (a campus note's pictures). A picture whose copy went missing, or one a
+ * generated database names without its bytes, leaves no broken-image
  * glyph in the middle of the text.
  *
  * The parameter is the HTML rendered, so a new message is walked again.

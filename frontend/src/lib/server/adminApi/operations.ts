@@ -70,9 +70,16 @@ import { isCalendarDay, isWallClock } from '$lib/domain/planningTime';
 import {
   EVENT_CATEGORY_COLOR_PATTERN,
   EVENT_CATEGORY_KEY_MAX,
-  EVENT_CATEGORY_KEY_PATTERN,
   EVENT_CATEGORY_LABEL_MAX,
 } from '$lib/domain/eventCategory';
+import { CATALOGUE_KEY_PATTERN } from '$lib/domain/catalogueKey';
+import {
+  NOTIONS_MAX,
+  NOTION_LABEL_MAX,
+  WORKSHOP_DOMAIN_KEY_MAX,
+  WORKSHOP_DOMAIN_LABEL_MAX,
+  WORKSHOP_LEVELS,
+} from '$lib/domain/workshopCatalogue';
 import {
   SYNC_CADENCE_MAX_MINUTES,
   SYNC_CADENCE_MIN_MINUTES,
@@ -167,6 +174,7 @@ import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearR
 import { getAdminDigestRecipients } from '$lib/server/services/adminStats/adminDigestRecipients';
 import { writeDiplomaTemplate } from './writes/diplomas';
 import { writeWorkshop, writeWorkshopInstance } from './writes/workshops';
+import { writeWorkshopDomain } from './writes/workshopDomains';
 import {
   writeTalentHomeHighlight,
   writeTalentHomeNote,
@@ -700,7 +708,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_workshops: defineOperation({
     description:
-      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover). An instance is a host: its slug, its address and the activities declared on it, retired ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP: exactly the points CTFd pays for the steps a talent validated. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take.',
+      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover), how the subject catalogue of the dev space files it (level, notions, domains, in the shape write_workshop takes) and what still keeps it out of that catalogue. An instance is a host: its slug, its address and the activities declared on it, retired ones included. A domain is a field the catalogue files activities under: its key, its label, whether it is archived and how many activities carry it, archived ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP: exactly the points CTFd pays for the steps a talent validated. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take, and the domain keys of write_workshop and write_workshop_domain.',
     shape: {},
     run: () => getWorkshops(),
   }),
@@ -1082,7 +1090,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_workshop: defineWrite({
-    description: `Declare or update one online activity, the content a CTFd instance serves, identified by its slug: what a talent reads (its French name), the instance serving it, whether it is offered, and how it presents itself on the talent dashboard (its cover). A slug that does not exist yet creates one; on an existing one only the fields you pass change. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content. The cover is a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host: media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same activity. Answers with the activity before and after.`,
+    description: `Declare or update one online activity, the content a CTFd instance serves, identified by its slug: what a talent reads (its French name), the instance serving it, whether it is offered, how it presents itself on the talent dashboard (its cover) and how the subject catalogue of the dev space files it (level, notions, domains). The catalogue shows an activity once it is offered and has a tagline, a level, a domain and a picture; config_workshops says what each one still lacks. A slug that does not exist yet creates one; on an existing one only the fields you pass change. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content. The cover is a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host: media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same activity. Answers with the activity before and after.`,
     shape: {
       slug: z
         .string()
@@ -1116,6 +1124,26 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           'Whether it is offered today. Omit to leave it as it stands, which is what keeps a label fix from putting a retired activity back in front of a cohort.',
         ),
+      level: z
+        .enum(WORKSHOP_LEVELS)
+        .nullable()
+        .optional()
+        .describe(
+          'How demanding the subject is, shown on its catalogue card; all_levels means open to anybody. Null clears it; omit to leave it.',
+        ),
+      notions: z
+        .array(z.string().trim().max(NOTION_LABEL_MAX))
+        .max(NOTIONS_MAX)
+        .optional()
+        .describe(
+          'What a talent practises on it, short French labels in the order the catalogue shows them, e.g. ["Arbres de décision", "FSM"]. The complete list: [] clears it, a blank or a repeat is dropped. Omit to leave it.',
+        ),
+      domains: z
+        .array(z.string().min(1))
+        .optional()
+        .describe(
+          `${handleDescribe('workshopDomainKey')} The complete set of domains it is filed under: [] clears it. An archived domain is refused unless the activity already carries it. Omit to leave it.`,
+        ),
       cover: z
         .strictObject({
           tagline: z
@@ -1144,6 +1172,39 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeWorkshop(params),
+  }),
+
+  write_workshop_domain: defineWrite({
+    description:
+      'Create or update one domain of the subject catalogue by its key: a new key creates one (label required), on an existing one only the fields you pass change. To remove one, archive it: no activity is filed under it any more, those that carry it keep it. There is no delete. An activity gets its domains from write_workshop. Safe to repeat. Answers with the domain before and after.',
+    shape: {
+      domainKey: z
+        .string()
+        .max(WORKSHOP_DOMAIN_KEY_MAX)
+        .regex(
+          CATALOGUE_KEY_PATTERN,
+          'Lowercase letters, digits and hyphens only, e.g. "cybersecurite".',
+        )
+        .describe(
+          `${handleDescribe('workshopDomainKey')} Creates or updates by it. Chosen once and never changed: rename the label instead.`,
+        ),
+      label: z
+        .string()
+        .trim()
+        .min(1)
+        .max(WORKSHOP_DOMAIN_LABEL_MAX)
+        .optional()
+        .describe(
+          'French name the staff read on the catalogue, e.g. "Cybersécurité". Required to create one.',
+        ),
+      archived: z
+        .boolean()
+        .optional()
+        .describe(
+          'True to archive it, false to unarchive it. Omit to leave it as it stands.',
+        ),
+    },
+    run: (params) => writeWorkshopDomain(params),
   }),
 
   write_talent_home_note: defineWrite({
@@ -1376,7 +1437,7 @@ export const ADMIN_API_OPERATIONS = {
         .string()
         .max(EVENT_CATEGORY_KEY_MAX)
         .regex(
-          EVENT_CATEGORY_KEY_PATTERN,
+          CATALOGUE_KEY_PATTERN,
           'Lowercase letters, digits and hyphens only, e.g. "coding-club".',
         )
         .describe(

@@ -358,7 +358,7 @@
   // The active categories, plus the one the event already carries if it has
   // been archived since: an archived category is no longer given to an event,
   // but one that carries it keeps it and shows it. The "none" value has an
-  // underscore, which `EVENT_CATEGORY_KEY_PATTERN` refuses: a key is authored, so
+  // underscore, which `CATALOGUE_KEY_PATTERN` refuses: a key is authored, so
   // a plain word like `none` could one day name a real category.
   const NO_CATEGORY = '_none';
   const NO_CATEGORY_LABEL = 'Aucune catégorie';
