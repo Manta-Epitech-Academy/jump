@@ -6,21 +6,24 @@ import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { prisma } from '$lib/server/db';
 import {
-  buildSubmissionWhere,
   computeFormStats,
+  loadCohortSubmissions,
+  recoQuestionOf,
   type FormStats,
 } from '$lib/server/feedbackStats';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
-import { RECO_QUESTION_KEY, feedbackFormPath } from '$lib/domain/feedback';
+import { feedbackFormPath } from '$lib/domain/feedback';
 
 export interface BilanRow {
   talentId: string;
   nom: string | null;
   prenom: string | null;
   respondedAt: string | null;
-  /** Label of the chosen recommendation option, null if not (yet) answered. */
+  /**
+   * Label of the recommendation verdict picked, null when there is none: not
+   * answered (yet), or an `extra` option, which is no verdict (`recoQuestionOf`).
+   */
   recoLabel: string | null;
 }
 
@@ -56,13 +59,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     );
   }
 
-  const recoQ = form.questions.find((q) => q.key === RECO_QUESTION_KEY) ?? null;
-  const recoOptions = recoQ
-    ? recoQ.options.filter((o) => o.kind === 'choice').map((o) => o.label)
-    : [];
+  const reco = recoQuestionOf(form);
+  const recoLabelOf = new Map(reco?.options.map((o) => [o.id, o.label]));
 
   const cohort: Promise<BilanCohort> = (async () => {
-    const [participations, submissions, stats] = await Promise.all([
+    const [participations, byTalent, stats] = await Promise.all([
       // The roster the dev space shows, so `total` counts the same cohort as
       // the admin response rate's `invitedCount`, and the submissions and
       // figures beside it are that cohort's (`shownCohortOf`).
@@ -74,39 +75,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         },
         orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
       }),
-      (async () => {
-        const subs = await prisma.feedback_Submission.findMany({
-          where: buildSubmissionWhere(form.id, { shownCohortOf: event.id }),
-          select: {
-            talentId: true,
-            submittedAt: true,
-            // Only the recommendation answer is pulled per talent for the roster
-            // column; the empty-string id matches nothing when there is no reco
-            // question, leaving every recoLabel null.
-            answers: {
-              where: { questionId: recoQ?.id ?? '' },
-              select: {
-                selectedOptions: {
-                  select: { option: { select: { label: true } } },
-                },
-              },
-            },
-          },
-        });
-        return subs.map((s) => ({
-          talentId: s.talentId,
-          submittedAt: s.submittedAt,
-          recoLabel: s.answers[0]?.selectedOptions[0]?.option.label ?? null,
-        }));
-      })(),
+      loadCohortSubmissions(form.id, event.id, reco),
       computeFormStats(form.id, { shownCohortOf: event.id }),
     ]);
-
-    const byTalent = new Map(
-      submissions
-        .filter((s) => s.talentId)
-        .map((s) => [s.talentId as string, s]),
-    );
 
     const rows: BilanRow[] = participations.map((p) => {
       const sub = byTalent.get(p.talentId);
@@ -115,7 +86,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         nom: p.talent.nom,
         prenom: p.talent.prenom,
         respondedAt: sub ? sub.submittedAt.toISOString() : null,
-        recoLabel: sub?.recoLabel ?? null,
+        recoLabel: sub?.recoOptionId
+          ? (recoLabelOf.get(sub.recoOptionId) ?? null)
+          : null,
       };
     });
 
@@ -123,7 +96,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       rows,
       respondedCount: rows.filter((r) => r.respondedAt).length,
       total: rows.length,
-      recoOptions,
+      recoOptions: reco?.options.map((o) => o.label) ?? [],
       stats,
     };
   })();

@@ -9,34 +9,33 @@ import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { niveauLabel } from '$lib/domain/niveau';
+import { civiliteLabel } from '$lib/domain/profile';
+import { parcoursLabel } from '$lib/domain/enrolmentHistory';
 import {
-  rulesStatus,
-  inscritStatus,
   INSCRIT_STATUS_LABELS,
   RULES_STATUS_LABELS,
 } from '$lib/domain/dossierCompliance';
 import {
-  imageRightsStatus,
   imageRightsDisplayStatus,
   IMAGE_RIGHTS_DISPLAY_LABELS,
 } from '$lib/domain/imageRights';
 import { buildXlsx } from '$lib/server/xlsx';
-import { INSCRIT_EXPORT_PARTICIPATION_SELECT } from '../components/types';
-import { loadEventDossierSignatures, NO_DOSSIER_SIGNATURES } from '../dossiers';
-import { schoolYearOf } from '$lib/domain/schoolYear';
+import { loadInscritsCohort } from '../rows';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 
 /**
  * Filtered-cohort XLSX export. The inscrits page filters/sorts ~200 rows client
  * side, so it POSTs the talent ids it is currently showing (in display order);
- * the server re-queries them campus + event scoped and recomputes the dossier
- * verdicts from the DB (never trusting the client), then streams the workbook.
+ * the server rebuilds those rows with the page's own loader (`../rows.ts`),
+ * campus + event scoped and recomputed from the DB (never trusting the client),
+ * then streams the workbook.
  *
  * The sheet is richer than the on-screen table on purpose: a download is where
  * the dev actually works the cohort: it adds student + parent phone/email and
  * splits the folded "Statut" into its two gates (règlement, droit à l'image) so
- * the file doubles as a contact list and a "who owes what" triage sheet.
+ * the file doubles as a contact list and a "who owes what" triage sheet. The
+ * contacts are read here only, so they never travel in the page's payload.
  */
 export const POST: RequestHandler = async ({ params, locals, request }) => {
   requireStaffGroup(locals, 'devMember');
@@ -55,14 +54,8 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     ? body.talentIds.filter((x): x is string => typeof x === 'string')
     : [];
 
-  // Same dossier the on-screen column reads: the event's own school year, never
-  // the talent's most recent one.
-  const eventSchoolYear = schoolYearOf(
-    event.date,
-    getCampusTimezone(locals),
-  ).label;
-
-  const [participations, dossiers] = await Promise.all([
+  const [cohort, contacts] = await Promise.all([
+    loadInscritsCohort(db, event, getCampusTimezone(locals), { talentIds }),
     talentIds.length
       ? db.participation.findMany({
           where: {
@@ -70,57 +63,66 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
             talentId: { in: talentIds },
             ...visibleParticipationWhere,
           },
-          select: INSCRIT_EXPORT_PARTICIPATION_SELECT,
+          select: {
+            talentId: true,
+            talent: {
+              select: {
+                phone: true,
+                parentPrenom: true,
+                parentNom: true,
+                parentEmail: true,
+                parentPhone: true,
+              },
+            },
+          },
         })
       : [],
-    loadEventDossierSignatures(db, event.id, eventSchoolYear),
   ]);
+  const contactOf = new Map(contacts.map((c) => [c.talentId, c.talent]));
 
   // Preserve the client's filtered + sorted order.
-  const byTalent = new Map(participations.map((p) => [p.talentId, p]));
+  const byTalent = new Map(cohort.rows.map((r) => [r.talentId, r]));
   const ordered = talentIds
     .map((id) => byTalent.get(id))
-    .filter((p): p is NonNullable<typeof p> => !!p);
+    .filter((r): r is NonNullable<typeof r> => !!r);
 
-  const rows = ordered.map((p) => {
-    const t = p.talent;
-    // Recompute the verdict server-side (never trust the client): the folded
-    // "Statut" mirrors the table badge, and connection + each gate get their own
-    // column so the sheet can be triaged on what a student actually owes.
-    const dossier = dossiers.get(p.talentId) ?? NO_DOSSIER_SIGNATURES;
-    const rules = rulesStatus(
-      dossier.parentRulesSignedAt,
-      dossier.rulesSignedAt,
-    );
-    // Off the event's own dossier, like the règlement above it.
-    const image = imageRightsStatus(dossier);
-    const connected = t.firstLoginAt != null;
-    const status = inscritStatus(t.niveau, connected, rules, image);
-    const parentName = [t.parentPrenom, t.parentNom].filter(Boolean).join(' ');
+  const rows = ordered.map((r) => {
+    const contact = contactOf.get(r.talentId);
+    const parentName = [contact?.parentPrenom, contact?.parentNom]
+      .filter(Boolean)
+      .join(' ');
     return [
-      t.prenom,
-      t.nom,
-      t.school?.name ?? '',
-      t.niveau ? niveauLabel(t.niveau) : '',
-      INSCRIT_STATUS_LABELS[status],
-      connected ? 'Oui' : 'Non',
-      RULES_STATUS_LABELS[rules],
+      civiliteLabel(r.civilite),
+      r.prenom,
+      r.nom,
+      r.xp,
+      parcoursLabel(r.priorEnrolments),
+      r.techInterests.map((i) => i.nom).join(', '),
+      r.schoolName ?? '',
+      r.niveau ? niveauLabel(r.niveau) : '',
+      INSCRIT_STATUS_LABELS[r.status],
+      r.connected ? 'Oui' : 'Non',
+      RULES_STATUS_LABELS[r.rulesStatus],
       IMAGE_RIGHTS_DISPLAY_LABELS[
-        imageRightsDisplayStatus(image, dossier.rulesSignedAt != null)
+        imageRightsDisplayStatus(r.imageStatus, r.studentSigned)
       ],
-      t.user?.email ?? '',
-      t.phone ?? '',
+      r.email ?? '',
+      contact?.phone ?? '',
       parentName,
-      t.parentEmail ?? '',
-      t.parentPhone ?? '',
+      contact?.parentEmail ?? '',
+      contact?.parentPhone ?? '',
     ];
   });
 
   const xlsx = buildXlsx({
     name: 'Inscrits',
     headers: [
+      'Genre',
       'Prénom',
       'Nom',
+      'XP',
+      'Parcours',
+      'Intérêts tech',
       'Lycée',
       'Niveau',
       'Statut',
@@ -134,7 +136,9 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       'Téléphone parent',
     ],
     rows,
-    colWidths: [16, 16, 30, 10, 12, 11, 18, 16, 26, 16, 22, 26, 16],
+    colWidths: [
+      8, 16, 16, 8, 22, 26, 30, 10, 12, 11, 18, 16, 26, 16, 22, 26, 16,
+    ],
   });
 
   // ASCII-safe filename for the Content-Disposition header (the client sets its

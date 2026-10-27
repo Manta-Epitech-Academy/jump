@@ -7,40 +7,45 @@
   import Minus from '@lucide/svelte/icons/minus';
   import Clock from '@lucide/svelte/icons/clock';
   import Unplug from '@lucide/svelte/icons/unplug';
-  import FilterX from '@lucide/svelte/icons/filter-x';
   import Download from '@lucide/svelte/icons/download';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import School from '@lucide/svelte/icons/school';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import { setListParams } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import type {
-    ColumnDef,
-    SortDir,
-  } from '$lib/components/staff/datatable/types';
-  import type { SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
-  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
-  import SearchableSelect, {
-    type SelectOption,
-  } from '$lib/components/staff/SearchableSelect.svelte';
-  import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
+  import ActiveFilterChips, {
+    type ActiveFilterChip,
+  } from '$lib/components/staff/ActiveFilterChips.svelte';
+  import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  import {
+    statusBadgeClass,
+    type StatusTone,
+  } from '$lib/components/staff/statusBadge';
   import { talentFicheHref } from '$lib/components/dev/talentFiche';
-  import StageCountdownCard from '../../components/StageCountdownCard.svelte';
-  import LyceesBreakdown from '../../components/LyceesBreakdown.svelte';
-  import InterestsCloud from '../../components/InterestsCloud.svelte';
-  import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
+  import { niveauLabel } from '$lib/domain/niveau';
   import { cohortNounForms } from '$lib/domain/event';
   import { XP_EXPLAINER_FR } from '$lib/domain/xp';
-  import Sparkles from '@lucide/svelte/icons/sparkles';
-  import { formatGivenName } from '$lib/domain/profile';
-  import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
+  import {
+    civiliteLabel,
+    civiliteShortTitle,
+    formatGivenName,
+  } from '$lib/domain/profile';
+  import { parcoursLabel } from '$lib/domain/enrolmentHistory';
+  import {
+    INSCRITS_SORT_DEFAULT_DIR,
+    inscritsClearedFacetParams,
+    inscritsFacetParams,
+    inscritsSortParams,
+    parseInscritsView,
+    type InscritsFacet,
+  } from '$lib/domain/inscritsView';
   import {
     RULES_STATUS_LABELS,
     NO_DOSSIER_HINT,
@@ -54,7 +59,18 @@
     type ImageRightsDisplayStatus,
   } from '$lib/domain/imageRights';
 
-  import type { InscritRow, SortKey, InscritsCohort } from './types';
+  import type {
+    InscritInterest,
+    InscritRow,
+    InscritsCohort,
+    SortKey,
+  } from './types';
+  import {
+    compareRows,
+    matchesFacets,
+    rosterFacets,
+    type RosterFacet,
+  } from './roster';
   import {
     buildHaystack,
     matchesAllTokens,
@@ -65,34 +81,15 @@
     rowComparator,
   } from '$lib/components/staff/datatable/sort';
 
-  // The streamed cohort payload plus the cheap shell values the table/rail need.
-  // This component owns all filter/sort/export state, so it mounts only once the
-  // data resolves and is the single home for the data-dependent UI.
+  // The streamed cohort payload plus the cheap shell values the table needs.
+  // The view it shows (filters, sort, search) is not held here: it is read off
+  // the address (`$lib/domain/inscritsView`) and every control writes there, so
+  // a reload, a shared link and the Back button all show the same list.
   let {
     rows,
-    availableNiveaux,
-    lyceeOptions: lyceeStats,
-    lyceesBreakdown,
-    interestsCloud,
-    cohort,
-    origin,
-    countdown,
-    timezone,
     event,
     showStatutColumn = true,
   }: InscritsCohort & {
-    origin: {
-      lycee: { nom: string } | null;
-      interest: { id: string; nom: string; emoji: string | null } | null;
-    };
-    countdown: {
-      status: EventLifecycleStatus;
-      openDate: Date;
-      endDate: Date;
-      dayN: number;
-      totalDays: number;
-    };
-    timezone: string;
     event: {
       id: string;
       titre: string;
@@ -131,150 +128,111 @@
           ? 'text-warning'
           : 'text-destructive';
 
-  // Statut badge presentation, one entry per funnel state. Red = never logged in
-  // (the most urgent case), amber = connected but dossier in progress, teal =
-  // connected with both gates done. `no_dossier` is the only untinted one, and
-  // deliberately so: a collégien is not a row anyone chases, and a tint here
-  // would put urgency on the one state that carries none.
+  // Statut badge presentation, one entry per funnel state. Danger = never
+  // logged in (the most urgent case), warning = connected but dossier in
+  // progress, success = connected with both gates done. `no_dossier` reads
+  // « - » in the table (a collégien is not a row anyone chases) and neutral on
+  // a card.
   const INSCRIT_STATUS_BADGE: Record<
     InscritStatus,
-    { icon: typeof Check; class: string }
+    { icon: typeof Check; tone: StatusTone }
   > = {
-    no_dossier: {
-      icon: Minus,
-      class: 'border-dashed border-border text-muted-foreground',
-    },
-    never_connected: {
-      icon: Unplug,
-      class: 'border-destructive/30 bg-destructive/10 text-destructive',
-    },
-    in_progress: {
-      icon: Clock,
-      class: 'border-warning/30 bg-warning/10 text-warning',
-    },
-    ready: {
-      icon: Check,
-      class: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
-    },
+    no_dossier: { icon: Minus, tone: 'neutral' },
+    never_connected: { icon: Unplug, tone: 'danger' },
+    in_progress: { icon: Clock, tone: 'warning' },
+    ready: { icon: Check, tone: 'success' },
   };
 
-  // Sort order: least-ready first in ascending, so the rows still needing a
-  // chase float to the top (never connected before in progress before ready).
-  // `no_dossier` sorts last, past ready: there is nothing to do about it, so it
-  // belongs furthest from the rows that need attention.
-  const STATUS_ORDER: Record<InscritStatus, number> = {
-    never_connected: 0,
-    in_progress: 1,
-    ready: 2,
-    no_dossier: 3,
-  };
+  const view = $derived(parseInscritsView(page.url.searchParams));
+  const search = createUrlSearch();
 
-  let searchQuery = $state('');
-  let niveauFilter = $state<'all' | string>('all');
-  let statutFilter = $state<'all' | InscritStatus>('all');
-  // Default mirrors the server's initial order (nom asc), so the first paint
-  // needs no client reshuffle and the header arrow matches the rows shown.
-  let sortKey = $state<SortKey>('nom');
-  let sortDir = $state<SortDir>('asc');
-
-  // Lycée and interest are server-side "origin" facets carried in the URL, so
-  // the toolbar pickers, the sidebar breakdowns and the dashboard drill-down all
-  // drive one mechanism. They combine (lycée AND interest), so each control sets
-  // only its own param and preserves the other. Search / niveau / statut stay
-  // client-side refinements layered on top of whatever the origin scopes in.
-  const activeLycee = $derived(page.url.searchParams.get('lycee') ?? 'all');
-  const originActive = $derived(
-    Boolean(origin.lycee) || Boolean(origin.interest),
+  const facets = $derived(
+    rosterFacets(rows, { showStatut: showStatutColumn }, view),
+  );
+  const facetOf = $derived(
+    new Map<InscritsFacet, RosterFacet>(facets.map((f) => [f.facet, f])),
   );
 
-  // The table runs `table-layout: fixed` (SortableTable `layout="fixed"`) so it
-  // can never outgrow its grid track and spill over the overview rail: auto
-  // layout did, because `stickyHeader` drops the table's own x-scroll on desktop
-  // (it pins the header to the page scroller). Under fixed layout these widths
-  // are the budget: the fixed-width columns are honoured first and Lycée
-  // (`w-full`) absorbs whatever track is left, truncating its values (school
-  // names are the longest, most variable). The fixed widths sum well under the
-  // track at the `xl` two-column breakpoint, so Lycée always keeps a usable share.
-  const columns = $derived.by<ColumnDef[]>(() => {
-    const cols: ColumnDef[] = [
-      { key: 'avatar', label: '', class: 'w-12' },
-      { key: 'prenom', label: 'Prénom', sortable: true, class: 'w-28' },
-      { key: 'nom', label: 'Nom', sortable: true, class: 'w-40' },
-      // XP right after the name: it's the engagement signal we want the eye to
-      // catch first, shown as a coloured pill (not flush grey data). Defaults to
-      // high-to-low so the first click surfaces the most engaged prospects.
-      {
-        key: 'xp',
-        label: 'XP',
-        sortable: true,
-        class: 'w-24',
-        defaultSortDir: 'desc',
-      },
-      { key: 'lycee', label: 'Lycée', sortable: true, class: 'w-full' },
-      { key: 'niveau', label: 'Niveau', sortable: true, class: 'w-24' },
-    ];
-    // The dossier/statut funnel column is a sub-option (off for non-onboarding
-    // campuses). When hidden, the header, its filter and its per-row cell all go.
-    if (showStatutColumn)
-      cols.push({
-        key: 'status',
-        label: 'Statut',
-        sortable: true,
-        class: 'w-28',
-      });
+  function setFacet(facet: InscritsFacet, values: string[]) {
+    setListParams(inscritsFacetParams(facet, values));
+  }
 
+  // The header filter of a facet, or none when the event does not offer it or
+  // when it has a single value to offer.
+  function filterOf(facet: InscritsFacet): ColumnDef['filter'] {
+    const f = facetOf.get(facet);
+    return f && f.options.length > 0
+      ? {
+          options: f.options,
+          selected: f.selected,
+          onChange: (values) => setFacet(facet, values),
+        }
+      : undefined;
+  }
+
+  // The table holds the mockup's columns and, like the mockup, gives each one
+  // control: the names and XP sort, every other column filters from its
+  // header. It fits the content track (a roster that scrolls sideways loses
+  // the reading of a row); below `xl` the track is too narrow for these
+  // columns, so the rows fold into cards there (`cardsBelow`). Fixed layout:
+  // the widths below are the budget, and Lycée (`w-full`) takes what is left.
+  const columns = $derived.by<ColumnDef[]>(() => {
+    const sortable = (key: SortKey) => ({
+      key,
+      sortable: true,
+      defaultSortDir: INSCRITS_SORT_DEFAULT_DIR[key],
+    });
+    const filtered = (facet: InscritsFacet, label: string, width: string) => ({
+      key: facet,
+      label,
+      class: width,
+      filter: filterOf(facet),
+    });
+    const cols: ColumnDef[] = [
+      filtered('genre', 'Genre', 'w-20'),
+      { ...sortable('prenom'), label: 'Prénom', class: 'w-24' },
+      { ...sortable('nom'), label: 'Nom', class: 'w-28' },
+      // XP right after the name: it's the engagement signal we want the eye to
+      // catch first, shown as a coloured pill (not flush grey data).
+      { ...sortable('xp'), label: 'XP', class: 'w-20' },
+      filtered('parcours', 'Parcours', 'w-32'),
+      filtered('tech', 'Tech', 'w-40'),
+      filtered('lycee', 'Lycée', 'w-full'),
+      filtered('niveau', 'Niveau', 'w-28'),
+    ];
+    if (facetOf.has('statut')) cols.push(filtered('statut', 'Statut', 'w-28'));
     return cols;
   });
 
-  // Niveau filters through a Select (matching Statut), but only worth showing when
-  // the cohort actually spans more than one level (otherwise "Tous / 2nde" is noise).
-  const showNiveauFilter = $derived(availableNiveaux.length > 1);
-  const niveauOptions: SegmentOption[] = $derived([
-    { value: 'all', label: 'Tous' },
-    ...availableNiveaux.map((n) => ({ value: n, label: niveauLabel(n) })),
-  ]);
+  function toggleSort(key: string) {
+    const next = nextSort<SortKey>(
+      columns,
+      { key: view.sort, dir: view.dir },
+      key,
+    );
+    setListParams(inscritsSortParams(next.key, next.dir));
+  }
 
-  // Derived from the labels record rather than hand-listed, in the badge's own
-  // sort order. The previous hand-written version was the one place a new funnel
-  // state could be added without anything failing: the exhaustive `Record`s
-  // above are compile errors until filled, this list would just have silently
-  // omitted the new filter.
-  const statutOptions: SegmentOption[] = [
-    { value: 'all', label: 'Tous' },
-    ...(Object.keys(INSCRIT_STATUS_LABELS) as InscritStatus[])
-      .sort((a, b) => STATUS_ORDER[a] - STATUS_ORDER[b])
-      .map((status) => ({
-        value: status,
-        label: INSCRIT_STATUS_LABELS[status],
+  const chips = $derived<ActiveFilterChip[]>(
+    facets.flatMap((f) =>
+      f.selected.map((value) => ({
+        id: `${f.facet}:${value}`,
+        facet: f.title,
+        label: f.options.find((o) => o.value === value)?.label ?? value,
+        onRemove: () =>
+          setFacet(
+            f.facet,
+            f.selected.filter((v) => v !== value),
+          ),
       })),
-  ];
-
-  // Every lycée in the cohort, ranked by headcount, for the toolbar picker.
-  // (Interests have no picker: their sidebar card is read-only.)
-  const lyceeOptions = $derived<SelectOption[]>(
-    lyceeStats.map((l) => ({
-      value: l.schoolId,
-      label: l.name,
-      count: l.count,
-    })),
+    ),
   );
 
-  function selectLycee(value: string) {
-    setListParams({ lycee: value === 'all' ? '' : value });
-  }
-
-  function toggleSort(key: string) {
-    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
-    sortKey = next.key;
-    sortDir = next.dir;
-  }
-
+  // Clears the filters and the search, keeps the sort: what is cleared is what
+  // narrowed the list, not how it is ordered.
   function resetFilters() {
-    searchQuery = '';
-    niveauFilter = 'all';
-    statutFilter = 'all';
-    // Origin lives in the URL, so clearing it is a navigation, not state.
-    if (originActive) setListParams({ lycee: '', interest: '' });
+    search.clear();
+    setListParams({ ...inscritsClearedFacetParams(), q: '' });
   }
 
   function makeHaystack(r: InscritRow): string {
@@ -287,54 +245,24 @@
     ]);
   }
 
-  // The two columns whose value can be missing. `rowComparator` sinks those
-  // rows in either direction, so `compareRows` only ever sees present values.
-  function sortsLast(r: InscritRow, key: SortKey): boolean {
-    if (key === 'lycee') return !r.schoolName;
-    if (key === 'niveau') return !r.niveau;
-    return false;
-  }
-
-  function compareRows(a: InscritRow, b: InscritRow, key: SortKey): number {
-    switch (key) {
-      case 'prenom':
-        return a.prenom.localeCompare(b.prenom, 'fr');
-      case 'nom':
-        return a.nom.localeCompare(b.nom, 'fr');
-      case 'lycee':
-        return (a.schoolName ?? '').localeCompare(b.schoolName ?? '', 'fr');
-      case 'niveau':
-        return compareNiveaux(a.niveau ?? '', b.niveau ?? '');
-      case 'xp':
-        return a.xp - b.xp;
-      case 'status':
-        return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-    }
-  }
-
   const filtered = $derived.by(() => {
-    const tokens = searchTokens(searchQuery);
-    const out = rows.filter((r) => {
-      if (niveauFilter !== 'all' && r.niveau !== niveauFilter) return false;
-      if (statutFilter !== 'all' && r.status !== statutFilter) return false;
-      return matchesAllTokens(makeHaystack(r), tokens);
-    });
+    const tokens = searchTokens(search.value);
+    const out = rows.filter(
+      (r) =>
+        matchesFacets(r, facets) && matchesAllTokens(makeHaystack(r), tokens),
+    );
     out.sort(
       rowComparator({
-        compare: (a, b) => compareRows(a, b, sortKey),
-        dir: sortDir,
-        isMissing: (r) => sortsLast(r, sortKey),
+        compare: (a, b) => compareRows(a, b, view.sort),
+        dir: view.dir,
       }),
     );
     return out;
   });
 
-  const clientFiltersApplied = $derived(
-    searchQuery.trim().length > 0 ||
-      niveauFilter !== 'all' ||
-      statutFilter !== 'all',
+  const anyFiltersApplied = $derived(
+    chips.length > 0 || search.value.trim().length > 0,
   );
-  const anyFiltersApplied = $derived(clientFiltersApplied || originActive);
 
   let exporting = $state(false);
 
@@ -438,7 +366,40 @@
   {/if}
 {/snippet}
 
-{#if cohort.total === 0}
+{#snippet interestChips(interests: InscritInterest[])}
+  {#if interests.length === 0}
+    <span class="text-sm text-muted-foreground">-</span>
+  {:else}
+    <span class="flex flex-wrap gap-1">
+      {#each interests as interest (interest.id)}
+        <!-- A tag, so a pill (`DESIGN.md`, and the mockup's Tech chips), in
+             sentence case rather than the chip's capitals: an interest is a
+             phrase (« Data science / analyse de données »), and in capitals
+             the longer ones took three lines. -->
+        <span
+          class="rounded-full bg-epi-blue/5 px-2 py-0.5 epi-chip whitespace-normal text-epi-blue normal-case"
+        >
+          {interest.nom}
+        </span>
+      {/each}
+    </span>
+  {/if}
+{/snippet}
+
+{#snippet parcoursPill(r: InscritRow)}
+  {@const label = parcoursLabel(r.priorEnrolments)}
+  {#if r.priorEnrolments === 0}
+    <span
+      class="inline-flex rounded-full bg-epi-tech/10 px-2 py-0.5 epi-chip whitespace-nowrap text-epi-tech-ink normal-case"
+    >
+      {label}
+    </span>
+  {:else}
+    <span class="text-sm whitespace-nowrap">{label}</span>
+  {/if}
+{/snippet}
+
+{#if rows.length === 0}
   <!-- The cohort is synced from Salesforce by the worker, not imported by hand,
        so this is a notice and not an EmptyState: there is no action to offer. -->
   <ResultsNotice
@@ -447,361 +408,269 @@
     description="Personne pour l'instant. Les inscrits apparaissent ici dès qu'ils sont marqués prêts dans Salesforce."
   />
 {:else}
-  <ResultsLayout
-    railClass="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1"
-  >
-    {#snippet main()}
-      <DataTableToolbar
-        searchValue={searchQuery}
-        onSearchInput={(v) => (searchQuery = v)}
-        searchPlaceholder={`Rechercher un ${noun.singular}…`}
-        searchWidthClass="w-full max-w-[230px]"
-        filtersAlign="end"
-        count={filtered.length}
-        countNoun={noun.singular}
-        countNounPlural={noun.plural}
-        filtersApplied={anyFiltersApplied}
+  <div class="space-y-3">
+    <DataTableToolbar
+      searchValue={search.value}
+      onSearchInput={(v) => (search.value = v)}
+      searchPlaceholder={`Rechercher un ${noun.singular}…`}
+      searchWidthClass="w-full max-w-[230px]"
+      count={filtered.length}
+      countNoun={noun.singular}
+      countNounPlural={noun.plural}
+      filtersApplied={anyFiltersApplied}
+    >
+      {#snippet countActions()}
+        <!-- Export keeps to the right edge of the count line (ml-auto), acting
+             on exactly the count shown. -->
+        <Tooltip.Provider delayDuration={300}>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  variant="outline"
+                  size="sm"
+                  onclick={exportXlsx}
+                  disabled={exporting || filtered.length === 0}
+                  class="ml-auto rounded-sm"
+                >
+                  {#if exporting}
+                    <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+                  {:else}
+                    <Download class="mr-1.5 h-4 w-4" />
+                  {/if}
+                  Exporter (XLSX)
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content class="max-w-60 rounded-sm">
+              {@const exportNoun =
+                filtered.length > 1 ? noun.plural : noun.singular}
+              <p>
+                {#if anyFiltersApplied}
+                  Exporte les {filtered.length}
+                  {exportNoun} actuellement affichés (filtres et tri appliqués), pas
+                  toute la cohorte.
+                {:else}
+                  Exporte toute la cohorte ({filtered.length}
+                  {exportNoun}).
+                {/if}
+              </p>
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+      {/snippet}
+    </DataTableToolbar>
+
+    <ActiveFilterChips {chips} onReset={resetFilters} />
+
+    <!-- One provider for the whole table: it only carries the hover-delay
+         config, so the per-row badge tooltips share a single instance rather
+         than spinning up one provider per cohort row (~200 at full stage). -->
+    <Tooltip.Provider delayDuration={150}>
+      <SortableTable
+        {columns}
+        rows={filtered}
+        sortKey={view.sort}
+        sortDir={view.dir}
+        onSort={toggleSort}
+        rowKey={(r) => r.id}
+        rowHref={(r) => talentFicheHref(r.talentId, event.id)}
+        rowLabel={(r) => `Voir la fiche de ${r.prenom} ${r.nom}`}
+        stickyHeader
+        layout="fixed"
+        cardsBelow="xl"
       >
-        {#snippet filters()}
-          {#if showStatutColumn}
-            <div class="flex items-center gap-2">
-              <span class="hidden epi-overline text-muted-foreground sm:inline">
-                Statut
-              </span>
-              <FilterSelect
-                ariaLabel="Filtrer par statut de dossier"
-                options={statutOptions}
-                value={statutFilter}
-                onChange={(v) => (statutFilter = v as typeof statutFilter)}
-              />
-            </div>
-          {/if}
-
-          {#if showNiveauFilter}
-            <div class="flex items-center gap-2">
-              <span class="hidden epi-overline text-muted-foreground sm:inline">
-                Niveau
-              </span>
-              <FilterSelect
-                ariaLabel="Filtrer par niveau scolaire"
-                options={niveauOptions}
-                value={niveauFilter}
-                onChange={(v) => (niveauFilter = v)}
-              />
-            </div>
-          {/if}
-
-          {#if lyceeOptions.length > 0}
-            <div class="w-full sm:w-60">
-              <SearchableSelect
-                options={lyceeOptions}
-                value={activeLycee}
-                onChange={selectLycee}
-                allLabel="Tous les lycées"
-                allCount={cohort.total}
-                placeholder="Tous les lycées"
-                searchPlaceholder="Rechercher un lycée…"
-                emptyLabel="Aucun lycée."
-                triggerClass="w-full"
-                contentClass="w-96"
-              >
-                {#snippet icon()}
-                  <School class="h-4 w-4 text-muted-foreground" />
-                {/snippet}
-              </SearchableSelect>
-            </div>
-          {/if}
-        {/snippet}
-
-        {#snippet countActions()}
-          <!-- Réinitialiser sits inline right after the count it clears, so the
-               control reads against the number it acts on. Export keeps to the
-               right edge of the same line (ml-auto), acting on exactly the count
-               shown; the statut + lycée filters live on the search row above,
-               so this line never gets crowded. -->
-          {#if anyFiltersApplied}
-            <Button
-              variant="ghost"
-              size="sm"
-              onclick={resetFilters}
-              class="h-7 px-2 text-muted-foreground hover:text-foreground"
-            >
-              <FilterX class="mr-1.5 h-4 w-4" />
-              Réinitialiser
-            </Button>
-          {/if}
-          <Tooltip.Provider delayDuration={300}>
+        {#snippet row(r: InscritRow)}
+          <!-- « Mme » / « M. », the word for `autre`, which has no courtesy
+               title, and « - » when the talent left it blank, as every empty
+               cell reads: the two filter values never look alike. -->
+          <Table.Cell class="text-sm text-muted-foreground">
+            {civiliteShortTitle(r.civilite) || civiliteLabel(r.civilite) || '-'}
+          </Table.Cell>
+          <!-- prénom/nom truncate within their fixed columns: realistic names
+               fit, but a freak-long one ellipsizes inside its cell (full value
+               on hover) instead of bleeding into the neighbouring column. -->
+          <Table.Cell class="font-medium">
+            {@const prenom = formatGivenName(r.prenom)}
+            <span class="block truncate" title={prenom}>{prenom}</span>
+          </Table.Cell>
+          <Table.Cell class="font-bold uppercase">
+            <span class="block truncate" title={r.nom}>{r.nom}</span>
+          </Table.Cell>
+          <Table.Cell>
+            <!-- XP as a coloured pill right beside the name: the engagement
+                 signal reads at a glance, not as flush grey data. Still the
+                 row-link anchor (relative z-10) with the hover explainer like
+                 the status badge; click opens the fiche, tabindex=-1 keeps one
+                 tab stop. Rides the table-level Tooltip.Provider. -->
             <Tooltip.Root>
               <Tooltip.Trigger>
                 {#snippet child({ props })}
-                  <Button
+                  <a
                     {...props}
-                    variant="outline"
-                    size="sm"
-                    onclick={exportXlsx}
-                    disabled={exporting || filtered.length === 0}
-                    class="ml-auto rounded-sm"
+                    href={talentFicheHref(r.talentId, event.id)}
+                    tabindex={-1}
+                    class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
                   >
-                    {#if exporting}
-                      <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-                    {:else}
-                      <Download class="mr-1.5 h-4 w-4" />
-                    {/if}
-                    Exporter (XLSX)
-                  </Button>
+                    <Sparkles class="h-3 w-3" />
+                    {r.xp}
+                  </a>
                 {/snippet}
               </Tooltip.Trigger>
-              <Tooltip.Content class="max-w-60 rounded-sm">
-                {@const exportNoun =
-                  filtered.length > 1 ? noun.plural : noun.singular}
-                <p>
-                  {#if anyFiltersApplied}
-                    Exporte les {filtered.length}
-                    {exportNoun} actuellement affichés (filtres et tri appliqués),
-                    pas toute la cohorte.
-                  {:else}
-                    Exporte toute la cohorte ({filtered.length}
-                    {exportNoun}).
-                  {/if}
-                </p>
+              <Tooltip.Content class="max-w-60">
+                <p class="text-xs">{XP_EXPLAINER_FR}</p>
               </Tooltip.Content>
             </Tooltip.Root>
-          </Tooltip.Provider>
-        {/snippet}
-      </DataTableToolbar>
-
-      <!-- One provider for the whole table: it only carries the hover-delay
-           config, so the per-row badge tooltips share a single instance rather
-           than spinning up one provider per cohort row (~200 at full stage). -->
-      <Tooltip.Provider delayDuration={150}>
-        <SortableTable
-          {columns}
-          rows={filtered}
-          {sortKey}
-          {sortDir}
-          onSort={toggleSort}
-          rowKey={(r) => r.id}
-          rowHref={(r) => talentFicheHref(r.talentId, event.id)}
-          rowLabel={(r) => `Voir la fiche de ${r.prenom} ${r.nom}`}
-          stickyHeader
-          layout="fixed"
-        >
-          {#snippet row(r: InscritRow)}
+          </Table.Cell>
+          <Table.Cell>{@render parcoursPill(r)}</Table.Cell>
+          <Table.Cell class="whitespace-normal">
+            {@render interestChips(r.techInterests)}
+          </Table.Cell>
+          <Table.Cell class="text-sm whitespace-normal">
+            {#if r.schoolName}
+              <!-- Some school names run very long (e.g. "Section d'enseignement
+                 général et technologique du Lycée agricole …"). Lycée takes
+                 the width the fixed columns leave, so a name may take a second
+                 line before it is cut; full name on hover. -->
+              <span class="line-clamp-2" title={r.schoolName}>
+                {r.schoolName}
+              </span>
+            {:else}
+              <span class="text-muted-foreground">-</span>
+            {/if}
+          </Table.Cell>
+          <Table.Cell>
+            {#if r.niveau}
+              <Badge
+                variant="secondary"
+                class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
+              >
+                {niveauLabel(r.niveau)}
+              </Badge>
+            {:else}
+              <span class="text-sm text-muted-foreground">-</span>
+            {/if}
+          </Table.Cell>
+          {#if facetOf.has('statut')}
             <Table.Cell>
-              <TalentAvatar
-                talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
-                size="sm"
-              />
-            </Table.Cell>
-            <!-- prénom/nom truncate within their fixed columns: realistic names
-               fit, but a freak-long one ellipsizes inside its cell (full value
-               on hover) instead of bleeding into the neighbouring column. -->
-            <Table.Cell class="font-medium">
-              {@const prenom = formatGivenName(r.prenom)}
-              <span class="block truncate" title={prenom}>{prenom}</span>
-            </Table.Cell>
-            <Table.Cell class="font-bold uppercase">
-              <span class="block truncate" title={r.nom}>{r.nom}</span>
-            </Table.Cell>
-            <Table.Cell>
-              <!-- XP as a coloured pill right beside the name: the engagement
-                   signal reads at a glance, not as flush grey data. Still the
-                   row-link anchor (relative z-10) with the hover explainer like
-                   the status badge; click opens the fiche, tabindex=-1 keeps one
-                   tab stop. Rides the table-level Tooltip.Provider. -->
               <Tooltip.Root>
                 <Tooltip.Trigger>
                   {#snippet child({ props })}
-                    <a
-                      {...props}
-                      href={talentFicheHref(r.talentId, event.id)}
-                      tabindex={-1}
-                      class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
-                    >
-                      <Sparkles class="h-3 w-3" />
-                      {r.xp}
-                    </a>
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content class="max-w-60">
-                  <p class="text-xs">{XP_EXPLAINER_FR}</p>
-                </Tooltip.Content>
-              </Tooltip.Root>
-            </Table.Cell>
-            <Table.Cell class="text-sm">
-              {#if r.schoolName}
-                <!-- Some school names run very long (e.g. "Section d'enseignement
-                   général et technologique du Lycée agricole …"). Under fixed
-                   layout the Lycée column owns a definite width, so the inner
-                   block truncates cleanly to it; full name on hover. -->
-                <span class="block truncate" title={r.schoolName}>
-                  {r.schoolName}
-                </span>
-              {:else}
-                <span class="text-muted-foreground">-</span>
-              {/if}
-            </Table.Cell>
-            <Table.Cell>
-              {#if r.niveau}
-                <Badge
-                  variant="secondary"
-                  class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
-                >
-                  {niveauLabel(r.niveau)}
-                </Badge>
-              {:else}
-                <span class="text-sm text-muted-foreground">-</span>
-              {/if}
-            </Table.Cell>
-            {#if showStatutColumn}
-              <Table.Cell>
-                <Tooltip.Root>
-                  <Tooltip.Trigger>
-                    {#snippet child({ props })}
-                      {@const badge = INSCRIT_STATUS_BADGE[r.status]}
-                      {@const BadgeIcon = badge.icon}
-                      <!-- The badge IS the row link: relative z-10 lifts it above
-                           the stretched-link overlay so it both fires the tooltip
-                           on hover and navigates to the fiche on click (cmd/middle
-                           click included). tabindex=-1 keeps a single tab stop per
-                           row - the overlay link already covers keyboard nav. -->
+                    {@const badge = INSCRIT_STATUS_BADGE[r.status]}
+                    {@const BadgeIcon = badge.icon}
+                    <!-- The badge IS the row link: relative z-10 lifts it above
+                         the stretched-link overlay so it both fires the tooltip
+                         on hover and navigates to the fiche on click (cmd/middle
+                         click included). tabindex=-1 keeps a single tab stop per
+                         row - the overlay link already covers keyboard nav. -->
+                    <!-- A talent with no dossier owes nothing, so the cell
+                         reads « - » like any empty one, and the tooltip says
+                         why. The chip's label was also the one that did not
+                         fit the column. -->
+                    {#if r.status === 'no_dossier'}
+                      <a
+                        {...props}
+                        href={talentFicheHref(r.talentId, event.id)}
+                        tabindex={-1}
+                        aria-label={INSCRIT_STATUS_LABELS[r.status]}
+                        class="relative z-10 text-sm text-muted-foreground"
+                      >
+                        -
+                      </a>
+                    {:else}
                       <a
                         {...props}
                         href={talentFicheHref(r.talentId, event.id)}
                         tabindex={-1}
                         class={cn(
-                          'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',
-                          badge.class,
+                          'relative z-10',
+                          statusBadgeClass(badge.tone),
                         )}
                       >
                         <BadgeIcon class="h-3 w-3" />
                         {INSCRIT_STATUS_LABELS[r.status]}
                       </a>
-                    {/snippet}
-                  </Tooltip.Trigger>
-                  <Tooltip.Content class="max-w-64">
-                    {@render statusBreakdown(r)}
-                  </Tooltip.Content>
-                </Tooltip.Root>
-              </Table.Cell>
-            {/if}
-          {/snippet}
-
-          <!-- Mobile card (below lg): the fixed 6-column roster can't fit a phone,
-               so the row folds to avatar + name with the status badge top-right,
-               then lycée + niveau beneath. The whole card links to the fiche via
-               SortableTable's `rowHref`, so the badge stays a plain span here. -->
-          {#snippet mobileRow(r: InscritRow)}
-            {@const prenom = formatGivenName(r.prenom)}
-            {@const badge = INSCRIT_STATUS_BADGE[r.status]}
-            {@const BadgeIcon = badge.icon}
-            <div class="flex items-start gap-3">
-              <TalentAvatar
-                talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
-                size="sm"
-              />
-              <div class="min-w-0 flex-1 space-y-1">
-                <div class="flex items-start justify-between gap-2">
-                  <p class="min-w-0 truncate text-sm">
-                    <span class="font-medium">{prenom}</span>
-                    <span class="font-bold uppercase">{r.nom}</span>
-                  </p>
-                  <div class="flex shrink-0 items-center gap-1.5">
-                    <span
-                      class="inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
-                    >
-                      <Sparkles class="h-3 w-3" />
-                      {r.xp}
-                    </span>
-                    {#if showStatutColumn}
-                      <span
-                        class={cn(
-                          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',
-                          badge.class,
-                        )}
-                      >
-                        <BadgeIcon class="h-3 w-3" />
-                        {INSCRIT_STATUS_LABELS[r.status]}
-                      </span>
                     {/if}
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <span
-                    class="min-w-0 flex-1 truncate text-xs text-muted-foreground"
-                  >
-                    {r.schoolName || '-'}
+                  {/snippet}
+                </Tooltip.Trigger>
+                <Tooltip.Content class="max-w-64">
+                  {@render statusBreakdown(r)}
+                </Tooltip.Content>
+              </Tooltip.Root>
+            </Table.Cell>
+          {/if}
+        {/snippet}
+
+        <!-- Card (below xl): the roster's columns can't fit there, so the
+             row folds to the name with XP and the status badge top-right, then
+             the parcours, lycée and niveau beneath. Its filters open from the
+             table's "Filtrer" drawer. The whole card links to the fiche via
+             SortableTable's `rowHref`, so the badge stays a plain span here. -->
+        {#snippet mobileRow(r: InscritRow)}
+          {@const prenom = formatGivenName(r.prenom)}
+          {@const badge = INSCRIT_STATUS_BADGE[r.status]}
+          {@const BadgeIcon = badge.icon}
+          <div class="min-w-0 space-y-1">
+            <div class="flex items-start justify-between gap-2">
+              <p class="min-w-0 truncate text-sm">
+                <span class="font-medium">{prenom}</span>
+                <span class="font-bold uppercase">{r.nom}</span>
+              </p>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <span
+                  class="inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
+                >
+                  <Sparkles class="h-3 w-3" />
+                  {r.xp}
+                </span>
+                {#if facetOf.has('statut')}
+                  <span class={statusBadgeClass(badge.tone)}>
+                    <BadgeIcon class="h-3 w-3" />
+                    {INSCRIT_STATUS_LABELS[r.status]}
                   </span>
-                  {#if r.niveau}
-                    <Badge
-                      variant="secondary"
-                      class="shrink-0 rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
-                    >
-                      {niveauLabel(r.niveau)}
-                    </Badge>
-                  {/if}
-                </div>
+                {/if}
               </div>
             </div>
-          {/snippet}
-
-          {#snippet empty()}
-            <div class="flex flex-col items-center gap-3 py-6">
+            <div>{@render parcoursPill(r)}</div>
+            <div class="flex items-center gap-2">
               <span
-                class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
+                class="min-w-0 flex-1 truncate text-xs text-muted-foreground"
               >
-                Aucun résultat
+                {r.schoolName || '-'}
               </span>
-              {#if anyFiltersApplied}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={resetFilters}
-                  class="rounded-sm"
+              {#if r.niveau}
+                <Badge
+                  variant="secondary"
+                  class="shrink-0 rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
                 >
-                  Réinitialiser les filtres
-                </Button>
+                  {niveauLabel(r.niveau)}
+                </Badge>
               {/if}
             </div>
-          {/snippet}
-        </SortableTable>
-      </Tooltip.Provider>
-    {/snippet}
+          </div>
+        {/snippet}
 
-    <!-- Content-first below `xl`: the search and the list (the reason you open
-         this page) come first; this overview rail (countdown + breakdowns, the
-         glanceable secondary info) follows below, its cards laid side by side so
-         the full width reads as intentional rather than a stretched stack. At
-         `xl` the grid folds to one column, giving the sticky vertical rail. -->
-    {#snippet rail()}
-      <StageCountdownCard
-        status={countdown.status}
-        openDate={countdown.openDate}
-        endDate={countdown.endDate}
-        dayN={countdown.dayN}
-        totalDays={countdown.totalDays}
-        {timezone}
-      />
-
-      {#if lyceesBreakdown.rows.length > 0}
-        <LyceesBreakdown
-          eventId={event.id}
-          breakdown={lyceesBreakdown}
-          itemNoun={[noun.singular, noun.plural]}
-          totalParticipations={cohort.total}
-          interaction="readonly"
-        />
-      {/if}
-
-      {#if interestsCloud.rows.length > 0}
-        <InterestsCloud
-          eventId={event.id}
-          breakdown={interestsCloud}
-          totalParticipations={cohort.total}
-          interaction="readonly"
-          title="Centres d’intérêt tech"
-        />
-      {/if}
-    {/snippet}
-  </ResultsLayout>
+        {#snippet empty()}
+          <div class="flex flex-col items-center gap-3 py-6">
+            <span
+              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
+            >
+              Aucun résultat
+            </span>
+            {#if anyFiltersApplied}
+              <Button
+                variant="outline"
+                size="sm"
+                onclick={resetFilters}
+                class="rounded-sm"
+              >
+                Réinitialiser les filtres
+              </Button>
+            {/if}
+          </div>
+        {/snippet}
+      </SortableTable>
+    </Tooltip.Provider>
+  </div>
 {/if}
