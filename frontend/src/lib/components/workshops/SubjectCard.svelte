@@ -14,9 +14,9 @@
   // text on it fails contrast.
   //
   // Only a complete subject reaches it (`catalogueGaps`), so every field but the
-  // notions is there. The picture can still fail to load, a generated database
-  // holding keys with no bytes behind them, and then a brand tile takes its place
-  // so the cards stay aligned.
+  // notions is there. The picture can still fail to load (its stored object gone,
+  // or a database seeded with no bucket to put the bytes in), and then a brand
+  // tile takes its place so the cards stay aligned.
   let { subject }: { subject: CatalogueSubject } = $props();
 
   let broken = $state(false);

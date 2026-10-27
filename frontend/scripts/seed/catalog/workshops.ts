@@ -22,10 +22,12 @@
  * Each carries the cover an admin would have written with `write_workshop`,
  * in the three shapes the dashboard has to render: a full one (tagline,
  * animation, still, mascot), a sparse one (a still and no tagline), and none at
- * all (the label alone). Like every stored file here, the pictures are KEYS
- * WITHOUT BYTES: a seeded environment has no bucket behind
- * them, so the dashboard's fallback for a picture that does not load is what a
- * reviewer sees, which is also the path that most needs looking at.
+ * all (the label alone). The pictures are real, drawn for the seed and kept
+ * beside this file (`pictures/<slug>/`), and stored the way the write stores
+ * what it copies (`preparePicture`, `WORKSHOP_COVER_MAX_EDGE`): a still
+ * re-encoded, an animation kept with its still, each row carrying the size of
+ * the bytes it names. Where the bytes go, and when they go nowhere, is
+ * `../storage.ts`.
  *
  * `baseUrl` POINTS AT A HOST THAT CANNOT RESOLVE, and that is the point rather
  * than a placeholder. `.invalid` is reserved by RFC 2606. A dev or preprod
@@ -42,21 +44,24 @@
  * database that had already been seeded once.
  */
 
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import type { PrismaClient, WorkshopLevel } from '@prisma/client';
 import { id } from '../ids';
+import type { SeedStorage } from '../storage';
 import { WORKSHOP_DOMAIN } from './workshopDomains';
 import {
+  WORKSHOP_COVER_MAX_EDGE,
   workshopCoverKey,
   type WorkshopCoverKind,
 } from '../../../src/lib/domain/workshops';
 import { stillKeyOf } from '../../../src/lib/domain/pictures';
+import { preparePicture } from '../../../src/lib/server/images/prepare';
 
 type CoverImageSpec = {
   readonly kind: WorkshopCoverKind;
+  /** The picture in `pictures/<slug>/`, as an admin would have given it. */
   readonly file: string;
-  readonly contentType: string;
-  readonly width: number;
-  readonly height: number;
 };
 
 export type WorkshopInstanceSpec = {
@@ -109,27 +114,9 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     stepPoints: 25,
     tagline: 'Bientôt c’est TON code qui fera bouger ce fantôme',
     images: [
-      {
-        kind: 'media',
-        file: 'jeu-demo',
-        contentType: 'image/gif',
-        width: 640,
-        height: 400,
-      },
-      {
-        kind: 'poster',
-        file: 'jeu',
-        contentType: 'image/webp',
-        width: 640,
-        height: 400,
-      },
-      {
-        kind: 'mascot',
-        file: 'fantome',
-        contentType: 'image/webp',
-        width: 256,
-        height: 256,
-      },
+      { kind: 'media', file: 'jeu-demo.gif' },
+      { kind: 'poster', file: 'jeu.png' },
+      { kind: 'mascot', file: 'fantome.png' },
     ],
     // Complete, and in two domains: the catalogue files it under both.
     level: 'beginner',
@@ -148,15 +135,7 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     totalSteps: 12,
     stepPoints: 10,
     tagline: null,
-    images: [
-      {
-        kind: 'poster',
-        file: 'terminal',
-        contentType: 'image/webp',
-        width: 1280,
-        height: 720,
-      },
-    ],
+    images: [{ kind: 'poster', file: 'terminal.png' }],
     // Retired before anybody gave it a level: out of the catalogue twice over.
     level: null,
     notions: [],
@@ -188,15 +167,7 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     totalSteps: 8,
     stepPoints: 30,
     tagline: 'Fais parler des navires qui n’ont pas la même langue',
-    images: [
-      {
-        kind: 'poster',
-        file: 'navires',
-        contentType: 'image/webp',
-        width: 1280,
-        height: 720,
-      },
-    ],
+    images: [{ kind: 'poster', file: 'navires.png' }],
     level: 'all_levels',
     notions: ['Encodage', 'Morse', 'Chiffre de César'],
     domains: [WORKSHOP_DOMAIN.CYBERSECURITY, WORKSHOP_DOMAIN.ELECTRONICS],
@@ -210,15 +181,7 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     totalSteps: 10,
     stepPoints: 40,
     tagline: 'Une image 3D, née de simples rayons de lumière',
-    images: [
-      {
-        kind: 'mascot',
-        file: 'rayon',
-        contentType: 'image/webp',
-        width: 256,
-        height: 256,
-      },
-    ],
+    images: [{ kind: 'mascot', file: 'rayon.png' }],
     level: 'expert',
     notions: [],
     domains: [WORKSHOP_DOMAIN.GAME_DEV],
@@ -256,6 +219,7 @@ export function workshopActivityId(slug: string): string {
 export async function seedWorkshops(
   prisma: PrismaClient,
   anchor: Date,
+  storage: SeedStorage | null,
 ): Promise<number> {
   await prisma.workshop_Instance.createMany({
     data: Object.values(WORKSHOP_INSTANCES).map((instance) => ({
@@ -312,37 +276,37 @@ export async function seedWorkshops(
 
   // Create-only like the rows above: an activity an admin has since dressed
   // keeps the pictures it was given.
-  await prisma.workshop_CoverImage.createMany({
-    data: WORKSHOPS.filter((workshop) =>
+  const covers = await Promise.all(
+    WORKSHOPS.filter((workshop) =>
       ownActivities.has(workshopActivityId(workshop.slug)),
-    ).flatMap((workshop) => {
-      const activityId = workshopActivityId(workshop.slug);
-      return workshop.images.map((image) => {
-        const animated = image.contentType === 'image/gif';
-        const extension = animated ? 'gif' : 'webp';
-        const key = workshopCoverKey(
-          activityId,
-          image.kind,
-          '0000seed',
-          extension,
-        );
-        return {
-          activityId,
-          kind: image.kind,
-          // As an admin would have given it: an https address, here on a host
-          // that cannot resolve, since nothing ever downloads it again.
-          sourceUrl: `https://assets.seed.invalid/${workshop.slug}/${image.file}.${image.contentType === 'image/gif' ? 'gif' : 'png'}`,
-          key,
-          // An animation is stored with its first frame, as the copy does.
-          stillKey: animated ? stillKeyOf(key) : null,
-          contentType: image.contentType,
-          width: image.width,
-          height: image.height,
-        };
-      });
-    }),
+    ).flatMap((workshop) =>
+      workshop.images.map((image) => preparedCover(workshop.slug, image)),
+    ),
+  );
+  await prisma.workshop_CoverImage.createMany({
+    data: covers.map((cover) => cover.row),
     skipDuplicates: true,
   });
+
+  // The bytes of the rows that are there under the seed's own keys, and of no
+  // others: a skipped row is an admin's, and its pictures are theirs.
+  if (storage) {
+    const written = new Set(
+      (
+        await prisma.workshop_CoverImage.findMany({
+          where: { key: { in: covers.map((cover) => cover.row.key) } },
+          select: { key: true },
+        })
+      ).map((row) => row.key),
+    );
+    for (const { row, picture } of covers) {
+      if (!written.has(row.key)) continue;
+      await storage.put(row.key, picture.bytes, picture.contentType);
+      if (row.stillKey && picture.still) {
+        await storage.put(row.stillKey, picture.still, 'image/webp');
+      }
+    }
+  }
 
   // Only onto a domain that is there: `--catalog-only` writes no domain, since
   // a populated database's domains are the team's, so a seeded activity there
@@ -371,6 +335,42 @@ export async function seedWorkshops(
     skipDuplicates: true,
   });
   return count;
+}
+
+const PICTURES = path.join(__dirname, 'pictures');
+
+/** A picture of the catalogue, as `write_workshop` would have stored it. */
+async function preparedCover(slug: string, image: CoverImageSpec) {
+  const activityId = workshopActivityId(slug);
+  const raw = new Uint8Array(
+    await readFile(path.join(PICTURES, slug, image.file)),
+  );
+  const picture = await preparePicture(
+    raw,
+    WORKSHOP_COVER_MAX_EDGE[image.kind],
+  );
+  const key = workshopCoverKey(
+    activityId,
+    image.kind,
+    '0000seed',
+    picture.extension,
+  );
+  return {
+    picture,
+    row: {
+      activityId,
+      kind: image.kind,
+      // As an admin would have given it: an https address, here on a host
+      // that cannot resolve, since nothing ever downloads it again.
+      sourceUrl: `https://assets.seed.invalid/${slug}/${image.file}`,
+      key,
+      // An animation is stored with its first frame, as the copy does.
+      stillKey: picture.still ? stillKeyOf(key) : null,
+      contentType: picture.contentType,
+      width: picture.width,
+      height: picture.height,
+    },
+  };
 }
 
 async function presentIds(

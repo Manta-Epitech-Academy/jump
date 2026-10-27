@@ -28,6 +28,7 @@ import {
   SEED_TARGETS,
 } from './guard';
 import { createClock, parseAnchor } from './clock';
+import { openSeedStorage } from './storage';
 import { createRng } from './rng';
 import { isProfileName, PROFILES } from './profiles';
 import { World } from './world';
@@ -239,6 +240,11 @@ async function main(): Promise<void> {
 
   const prisma = createClient();
   const log = (message: string) => console.log(message);
+  // Both modes write the activities, and so their pictures.
+  const pictures = openSeedStorage(target);
+  const picturesLine = pictures.storage
+    ? `  visuels                ${pictures.storage.label}`
+    : `  visuels                sans octets : ${pictures.why}`;
 
   try {
     if (args.catalogOnly) {
@@ -251,8 +257,9 @@ async function main(): Promise<void> {
       );
       await seedMinigameRotation(prisma, clock.today);
       log(
-        `  activités en ligne     ${await seedWorkshops(prisma, clock.today)}`,
+        `  activités en ligne     ${await seedWorkshops(prisma, clock.today, pictures.storage)}`,
       );
+      log(picturesLine);
       const author = await prisma.staffProfile.findFirst({
         select: { userId: true },
       });
@@ -306,7 +313,10 @@ async function main(): Promise<void> {
     log(
       `  domaines des sujets    ${await seedWorkshopDomains(prisma, clock.today)}`,
     );
-    log(`  activités en ligne     ${await seedWorkshops(prisma, clock.today)}`);
+    log(
+      `  activités en ligne     ${await seedWorkshops(prisma, clock.today, pictures.storage)}`,
+    );
+    log(picturesLine);
     log(
       `  catégories d’événement ${await seedEventCategories(prisma, clock.today)}`,
     );
