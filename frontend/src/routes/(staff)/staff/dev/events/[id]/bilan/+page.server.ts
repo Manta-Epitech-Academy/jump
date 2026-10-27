@@ -20,7 +20,10 @@ export interface BilanRow {
   nom: string | null;
   prenom: string | null;
   respondedAt: string | null;
-  /** Label of the chosen recommendation option, null if not (yet) answered. */
+  /**
+   * Label of the recommendation verdict picked, null when there is none: not
+   * answered (yet), or an `extra` option, which is no verdict (`recoQuestionOf`).
+   */
   recoLabel: string | null;
 }
 

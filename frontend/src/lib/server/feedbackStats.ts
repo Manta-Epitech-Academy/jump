@@ -158,8 +158,8 @@ export interface CohortSubmission {
 
 /**
  * The submissions of an event's cohort as the dev space shows it, keyed by
- * talent. The Bilan roster and the Inscrits filter both read their per-talent
- * answer here, so "who answered what" is one query, not one per page.
+ * talent: who answered, when, and which recommendation option they picked, in
+ * one query. The Bilan roster reads it.
  *
  * The recommendation is a single-choice question: the first picked option is
  * the answer.

@@ -9,8 +9,8 @@ import { getFormGraphById } from '$lib/server/feedbackForms';
 import { assertTestDatabase } from './testDatabase';
 
 /**
- * Each talent's answer to an event's recommendation question, the one read the
- * Bilan roster and the Inscrits filter share. What it must get right: the
+ * Each talent's answer to an event's recommendation question, as the Bilan
+ * roster reads it. What it must get right: the
  * answer is an option id (a renamed label still matches), a silent talent has
  * no entry, a masked enrolment's answer is not the cohort's, and a form that
  * asks no recommendation answers for none.
