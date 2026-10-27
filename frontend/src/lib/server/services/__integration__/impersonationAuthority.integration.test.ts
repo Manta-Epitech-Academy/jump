@@ -4,13 +4,9 @@
  * The session BetterAuth mints is a row on the TARGET whose `impersonatedBy`
  * is a bare id, so demoting or deleting the admin left it standing, and the
  * hook's idle slide kept it alive for as long as the holder stayed active
- * (security audit run-1). The suite drives the real `handle` the way a
- * browser holding the impersonation cookie would.
- *
- * On `/api/impersonation/stop`, a route the guards pass for any session, so
- * what is asserted is the session the hook hands on, not a guard redirect: the
- * guards answer with `Response.redirect`, whose headers Node freezes and Bun,
- * which runs Jump, does not, so the hook cannot stamp one under Vitest.
+ * (security audit run-1). The suite drives the real `handle` over a dev
+ * member's route, the way a browser holding the impersonation cookie would,
+ * guards and security headers included.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
@@ -28,20 +24,23 @@ import { cookieJar, sessionCookie } from './authHttp';
 
 const stamp = Date.now();
 
-/** One request carrying `cookie`, through the whole hook. */
-async function visit(cookie: string) {
+/** One request to `/staff/dev` carrying `cookie`, through the whole hook. */
+async function visitDevSpace(cookie: string) {
   const jar = cookieJar(cookie);
-  const url = new URL(`${env.ORIGIN}/api/impersonation/stop`);
+  const url = new URL(`${env.ORIGIN}/staff/dev`);
   const event = {
     request: new Request(url, { headers: { cookie } }),
     url,
     cookies: jar.cookies,
     locals: {},
-    route: { id: '/api/impersonation/stop' },
+    route: { id: '/(staff)/staff/dev' },
     params: {},
   } as unknown as RequestEvent;
-  await handle({ event, resolve: async () => new Response('ok') });
-  return { locals: event.locals, cookie: jar.header() };
+  const response = await handle({
+    event,
+    resolve: async () => new Response('ok'),
+  });
+  return { locals: event.locals, response, cookie: jar.header() };
 }
 
 describe('impersonation authority (integration)', () => {
@@ -106,8 +105,9 @@ describe('impersonation authority (integration)', () => {
     });
 
   it('acts as the target for an admin who still is one', async () => {
-    const { locals } = await visit(impersonationCookie);
+    const { locals, response } = await visitDevSpace(impersonationCookie);
 
+    expect(response.status).toBe(200);
     expect(locals.user?.id).toBe(devId);
     expect(locals.impersonator).toMatchObject({
       userId: adminId,
@@ -119,8 +119,11 @@ describe('impersonation authority (integration)', () => {
   it('hands a demoted admin back to their own session, and closes the window', async () => {
     expect((await updateStaffRole(adminId, 'dev')).ok).toBe(true);
 
-    const { locals, cookie } = await visit(impersonationCookie);
+    const { locals, response, cookie } =
+      await visitDevSpace(impersonationCookie);
 
+    expect(response.status).toBe(303);
+    expect(response.headers.get('location')).toContain('/staff/login');
     expect(locals.user).toBeNull();
     expect(locals.staffProfile).toBeNull();
     expect(await openSessions()).toBe(0);
@@ -132,8 +135,11 @@ describe('impersonation authority (integration)', () => {
   it('signs out the holder of a deleted admin, and closes the window', async () => {
     expect((await deleteStaffUser(adminId)).ok).toBe(true);
 
-    const { locals, cookie } = await visit(impersonationCookie);
+    const { locals, response, cookie } =
+      await visitDevSpace(impersonationCookie);
 
+    expect(response.status).toBe(303);
+    expect(response.headers.get('location')).toContain('/staff/login');
     expect(locals.user).toBeNull();
     expect(locals.staffProfile).toBeNull();
     expect(await openSessions()).toBe(0);

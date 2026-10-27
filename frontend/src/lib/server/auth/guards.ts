@@ -24,6 +24,20 @@ function forbidGroup(group: StaffGroup): never {
   });
 }
 
+/**
+ * A 303 to `location`, resolved against the request. Built rather than taken
+ * from `Response.redirect`, whose headers the Fetch standard freezes: the hook
+ * stamps its security headers on every guard answer, which throws `immutable`
+ * on a runtime that enforces the standard (Node, so Vitest) and only ever
+ * passed because Bun, which runs Jump, does not.
+ */
+function seeOther(location: string, base: URL): Response {
+  return new Response(null, {
+    status: 303,
+    headers: { location: new URL(location, base).href },
+  });
+}
+
 export async function applyRouteGuards(
   event: RequestEvent,
 ): Promise<Response | null> {
@@ -74,14 +88,13 @@ export async function applyRouteGuards(
     const isTalentPublic = currentPath === pathTalentLogin;
 
     if (!event.locals.talent && !isTalentPublic) {
-      return Response.redirect(
-        new URL(loginUrlWithRedirect(pathTalentLogin, event.url), event.url)
-          .href,
-        303,
+      return seeOther(
+        loginUrlWithRedirect(pathTalentLogin, event.url),
+        event.url,
       );
     }
     if (event.locals.talent && currentPath === pathTalentLogin) {
-      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+      return seeOther(pathTalentRoot, event.url);
     }
 
     // The school year both onboarding guards below ask about. The flat columns
@@ -107,10 +120,9 @@ export async function applyRouteGuards(
       !currentPath.startsWith(pathTalentOnboarding) &&
       currentPath !== pathTalentLogin
     ) {
-      return Response.redirect(
-        new URL(onboardingFunnelUrl(pathTalentWelcome, event.url), event.url)
-          .href,
-        303,
+      return seeOther(
+        onboardingFunnelUrl(pathTalentWelcome, event.url),
+        event.url,
       );
     }
 
@@ -139,18 +151,15 @@ export async function applyRouteGuards(
         currentPath !== pathTalentWelcome &&
         currentPath !== pathTalentLogin
       ) {
-        return Response.redirect(
-          new URL(
-            onboardingFunnelUrl(pathTalentOnboarding, event.url),
-            event.url,
-          ).href,
-          303,
+        return seeOther(
+          onboardingFunnelUrl(pathTalentOnboarding, event.url),
+          event.url,
         );
       }
 
       // Already completed: prevent going back to onboarding
       if (!needsOnboarding && currentPath.startsWith(pathTalentOnboarding)) {
-        return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+        return seeOther(pathTalentRoot, event.url);
       }
     }
 
@@ -162,7 +171,7 @@ export async function applyRouteGuards(
       !walksOnboarding &&
       currentPath.startsWith(pathTalentOnboarding)
     ) {
-      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+      return seeOther(pathTalentRoot, event.url);
     }
 
     // Charter guard. The RGPD charte conditions any use of Jump, and it is due
@@ -182,12 +191,9 @@ export async function applyRouteGuards(
       currentPath !== pathTalentWelcome &&
       currentPath !== pathTalentLogin
     ) {
-      return Response.redirect(
-        new URL(
-          walksOnboarding ? pathTalentOnboarding : pathTalentCharte,
-          event.url,
-        ).href,
-        303,
+      return seeOther(
+        walksOnboarding ? pathTalentOnboarding : pathTalentCharte,
+        event.url,
       );
     }
 
@@ -197,7 +203,7 @@ export async function applyRouteGuards(
       event.locals.talent.charterAcceptedAt &&
       currentPath === pathTalentCharte
     ) {
-      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+      return seeOther(pathTalentRoot, event.url);
     }
   }
 
@@ -207,10 +213,9 @@ export async function applyRouteGuards(
       currentPath === pathStaffLogin || currentPath.startsWith(pathStaffOAuth);
 
     if (!isStaffPublic && !event.locals.user) {
-      return Response.redirect(
-        new URL(loginUrlWithRedirect(pathStaffLogin, event.url), event.url)
-          .href,
-        303,
+      return seeOther(
+        loginUrlWithRedirect(pathStaffLogin, event.url),
+        event.url,
       );
     }
 
@@ -222,13 +227,13 @@ export async function applyRouteGuards(
       event.locals.user?.role === 'student' &&
       !event.locals.staffProfile
     ) {
-      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+      return seeOther(pathTalentRoot, event.url);
     }
 
     // Admin sub-guard
     if (isAdminPath) {
       if (event.locals.staffProfile?.staffRole !== 'admin') {
-        return Response.redirect(new URL(pathStaffLogin, event.url).href, 303);
+        return seeOther(pathStaffLogin, event.url);
       }
     }
 
@@ -238,15 +243,9 @@ export async function applyRouteGuards(
       if (!can('devMember', role)) {
         const correctPath = getStaffRoleRedirectPath(role);
         if (correctPath) {
-          return Response.redirect(
-            new URL(p(correctPath), event.url).href,
-            303,
-          );
+          return seeOther(p(correctPath), event.url);
         }
-        return Response.redirect(
-          new URL(`${pathStaffLogin}?error=NoRole`, event.url).href,
-          303,
-        );
+        return seeOther(`${pathStaffLogin}?error=NoRole`, event.url);
       }
     }
   }
@@ -264,13 +263,13 @@ export async function applyRouteGuards(
       !isParentPublic &&
       (!event.locals.user || event.locals.user.role !== 'parent')
     ) {
-      return Response.redirect(new URL(pathParentLogin, event.url).href, 303);
+      return seeOther(pathParentLogin, event.url);
     }
     if (
       event.locals.user?.role === 'parent' &&
       currentPath === pathParentLogin
     ) {
-      return Response.redirect(new URL(pathParentWelcome, event.url).href, 303);
+      return seeOther(pathParentWelcome, event.url);
     }
 
     // Parent flow: welcome → règlement → droit-image → merci
@@ -299,18 +298,12 @@ export async function applyRouteGuards(
           currentPath !== pathParentReglement &&
           currentPath !== pathParentSignature
         ) {
-          return Response.redirect(
-            new URL(pathParentWelcome, event.url).href,
-            303,
-          );
+          return seeOther(pathParentWelcome, event.url);
         }
       } else {
         // All signed: always land on merci (no dashboard in this release)
         if (currentPath !== pathParentMerci) {
-          return Response.redirect(
-            new URL(pathParentMerci, event.url).href,
-            303,
-          );
+          return seeOther(pathParentMerci, event.url);
         }
       }
     }
