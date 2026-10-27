@@ -1,4 +1,4 @@
-import { betterAuth, type BetterAuthPlugin } from 'better-auth';
+import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin } from 'better-auth/plugins/admin';
 import { emailOTP } from 'better-auth/plugins/email-otp';
@@ -8,6 +8,7 @@ import { sendOtpEmail, sendParentOtpEmail } from '$lib/server/otp';
 import { resolveOtpIdentity } from '$lib/server/auth/otpAudience';
 import { emailOtpAudienceGate } from '$lib/server/auth/emailOtpAudienceGate';
 import { staffDoorGate } from '$lib/server/auth/staffDoor';
+import { httpSurface } from '$lib/server/auth/httpSurface';
 import { IMPERSONATION_IDLE_WINDOW_SEC } from '$lib/domain/impersonation';
 import { resolve } from '$app/paths';
 import { dev } from '$app/environment';
@@ -25,13 +26,6 @@ type MicrosoftProviderOverrides = {
   tenantId?: string;
   disableProfilePhoto?: boolean;
 };
-
-/** The paths a plugin mounts over HTTP; server-only endpoints carry none. */
-function httpPaths(plugin: BetterAuthPlugin): string[] {
-  return Object.values(plugin.endpoints ?? {}).flatMap((endpoint) =>
-    endpoint.path ? [endpoint.path] : [],
-  );
-}
 
 export function createAuthOptions(
   microsoftOverrides: MicrosoftProviderOverrides = {},
@@ -126,34 +120,20 @@ export function createAuthOptions(
     },
 
     plugins: [
+      // Over HTTP, BetterAuth answers the staff door's two routes and nothing
+      // else: every other flow, both plugins below included, runs through
+      // `auth.api.*`. The reasoning, and the doors the rest used to open, are
+      // in the module.
+      httpSurface(),
       adminPlugin,
       emailOtp,
       // Closes the plugin above to staff accounts on every `auth.api.*` call
-      // (its HTTP routes are not mounted, see `disabledPaths`). Registered
+      // (its HTTP routes are not mounted, see `httpSurface`). Registered
       // here rather than as a top-level `hooks.before` so the guard travels
       // with the door it guards; the reasoning, and why it cannot live in
       // `sendVerificationOTP`, is in the module.
       emailOtpAudienceGate(),
     ],
-
-    // Both plugins serve Jump through `auth.api.*` alone, and the browser
-    // client ships neither's client plugin. Mounted over HTTP, each was a
-    // second door beside the one Jump guards:
-    // - the OTP routes, unauthenticated beside `/login`, which the per-email
-    //   limits in `$lib/server/auth/rateLimiter` never saw (100 codes mailed
-    //   to one talent in a minute, from one address);
-    // - the admin routes, which an admin session could call to impersonate a
-    //   guardian with no audit row, or to set `bauth_user.role` without the
-    //   `StaffProfile` it pairs with (`bauthRoleForStaffRole`). Impersonation
-    //   starts and stops in `$lib/server/auth/impersonate`, and a role changes
-    //   in `services/staffAdminService.ts`, both columns in one transaction.
-    // So none is mounted. The lists are read off the plugins rather than
-    // written out, so a route a future release adds is closed on arrival.
-    //
-    // The HTTP router alone reads `disabledPaths`, and reads it before its own
-    // per-IP limiter, which therefore never sees these paths either: the
-    // per-email ledger is the only OTP limit, which a campus NAT needs.
-    disabledPaths: [...httpPaths(emailOtp), ...httpPaths(adminPlugin)],
 
     account: {
       modelName: 'bauth_account',

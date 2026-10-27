@@ -3,8 +3,9 @@
  *
  * Requests go through `auth.handler`, the function the catch-all
  * `routes/api/auth/[...all]` hands every `/api/auth/*` request to, so a status
- * asserted here is the one a browser would get, `disabledPaths` included.
- * `auth.api.*` never reads that option, which is why these suites cannot use it.
+ * asserted here is the one a browser would get, `server/auth/httpSurface`
+ * included. `auth.api.*` never passes through it, which is why these suites
+ * cannot use it.
  */
 
 import { createHmac } from 'node:crypto';
@@ -32,9 +33,17 @@ export function postAuth(
   );
 }
 
+export function getAuth(path: string, cookie?: string): Promise<Response> {
+  return auth.handler(
+    new Request(`${env.ORIGIN}${path}`, {
+      headers: cookie ? { cookie } : {},
+    }),
+  );
+}
+
 /**
  * Spellings of a path a match could miss. Each one must not reach a handler
- * either, whether `disabledPaths` or the router is what turns it away.
+ * either, whether `httpSurface` or the router is what turns it away.
  */
 export function pathSpellings(path: string): string[] {
   return [path, `${path}/`, path.toUpperCase(), path.replace('-', '%2D')];

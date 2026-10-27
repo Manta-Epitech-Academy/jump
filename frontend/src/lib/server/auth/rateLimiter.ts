@@ -38,9 +38,9 @@
  *   - **Single source of truth for the OTP path.** BetterAuth's emailOTP plugin
  *     ships its own per-IP limiter (3 req / 60s on `/sign-in/email-otp` by
  *     default), which would lock out 197 of 200 cohort members regardless of
- *     anything we do here. It never runs: BetterAuth applies it in its HTTP
- *     router only, and `auth.ts` mounts none of the plugin's routes there
- *     (`disabledPaths`). Every OTP is minted and consumed through `auth.api.*`,
+ *     anything we do here. It never sees Jump's traffic: BetterAuth applies
+ *     it in its HTTP router only, and none of the plugin's routes is served
+ *     there (`./httpSurface`). Every OTP is minted and consumed through `auth.api.*`,
  *     so this module is the only limit, and a caller that sends or checks a
  *     code on a visitor's behalf must go through it.
  *   - **Cluster-safe.** The ledger is in Postgres, so any number of SvelteKit

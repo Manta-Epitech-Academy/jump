@@ -8,8 +8,10 @@
  *   reusing every other real config value (Prisma adapter, `account.modelName`,
  *   `accountLinking`, `mapProfileToUser`, `validateUserInfo`, `onAPIError`) so
  *   this can't drift from what production actually wires.
- * - `auth.api.signInSocial` to mint a genuine, signed `state` and its cookie.
- * - `auth.handler` to run the real `/api/auth/callback/microsoft` route.
+ * - `auth.handler` for both routes the browser calls, the only two BetterAuth
+ *   serves over HTTP (`server/auth/httpSurface.ts`): `/api/auth/sign-in/social`
+ *   to mint a genuine, signed `state` and its cookie, then
+ *   `/api/auth/callback/microsoft`.
  *
  * The sign-in always names `/` as its `callbackURL`, never
  * `/staff/oauth/callback`. That is the request an attacker sends, and it is the
@@ -91,10 +93,13 @@ export async function signInWithMicrosoft(opts: {
       }),
     );
 
-    const signIn = await testAuth.api.signInSocial({
-      body: { provider: 'microsoft', callbackURL: '/' },
-      asResponse: true,
-    });
+    const signIn = await testAuth.handler(
+      new Request(`${env.ORIGIN}/api/auth/sign-in/social`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: env.ORIGIN! },
+        body: JSON.stringify({ provider: 'microsoft', callbackURL: '/' }),
+      }),
+    );
     const { url } = (await signIn.json()) as { url: string };
     const state = new URL(url).searchParams.get('state');
     expect(state).toBeTruthy();

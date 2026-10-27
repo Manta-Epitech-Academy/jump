@@ -101,27 +101,38 @@ account creation.
   the silent success exists to hide. Substituting keeps validation, error
   shapes and timing upstream where they belong; the parity is asserted per
   route, per malformed body, in `emailOtpAudience.integration.test.ts`.
-- **None of the plugin's routes is mounted over HTTP.** `disabledPaths` in
-  `server/auth.ts` is read off the plugin, so a route a future release adds is
-  closed on arrival. Jump never needed them (every caller uses `auth.api.*`),
-  and mounted they skipped the per-email ledger in `server/auth/rateLimiter.ts`:
-  one address mailed 100 codes to a talent in a minute. That ledger is the only
-  OTP limit on purpose, because a per-IP one locks out a whole cohort behind a
-  campus NAT. A new caller that sends or checks a code for a visitor goes
+- **None of the plugin's routes is served over HTTP**, by the allowlist below.
+  Jump never needed them (every caller uses `auth.api.*`), and mounted they
+  skipped the per-email ledger in `server/auth/rateLimiter.ts`: one address
+  mailed 100 codes to a talent in a minute. That ledger is the only OTP limit
+  on purpose, because a per-IP one locks out a whole cohort behind a campus
+  NAT. A new caller that sends or checks a code for a visitor goes
   through it.
 - **The plugin's two server-only endpoints carry no path**, so a matcher cannot
   see them. `server/auth/otpSession.ts` owns both halves of the credential
   (`mintSigninOtp`, `establishOtpSession`) and checks the audience itself.
-- **The admin plugin is not mounted over HTTP either**, by the same
-  `disabledPaths`, read off it the same way. An admin session reached its
-  routes directly: `impersonate-user` opened a session on a guardian, whom
-  Jump never offers, with no `Audit_ImpersonationEvent` row, and `set-role`
-  wrote `bauth_user.role` without the `StaffProfile.staffRole` it pairs with
-  (security audit run-1). Impersonation starts and stops only through
+- **The admin plugin is not served over HTTP either**, by the same allowlist.
+  An admin session reached its routes directly: `impersonate-user` opened a
+  session on a guardian, whom Jump never offers, with no
+  `Audit_ImpersonationEvent` row, and `set-role` wrote `bauth_user.role`
+  without the `StaffProfile.staffRole` it pairs with (security audit run-1). Impersonation starts and stops only through
   `server/auth/impersonate.ts` (`POST /api/impersonation/stop` for the way
   back, under `/api` so an impersonated session reaches it), and a role
   changes only through `updateStaffRole` in `services/staffAdminService.ts`.
   The browser ships no `adminClient()`.
+- **Over HTTP, BetterAuth serves the staff door and nothing else:**
+  `POST /sign-in/social` and `/callback/microsoft`, the two routes the browser
+  client calls. `server/auth/httpSurface.ts` is an allowlist (an `onRequest`
+  plugin), not BetterAuth's `disabledPaths` denylist, so a route a release
+  adds, core or plugin, is closed on arrival. Every other flow (OTP, the
+  session read in `hooks.server.ts`, logout, impersonation) runs through
+  `auth.api.*`, which the allowlist never sees. The core account, user and
+  session routes act on `session.user`, which for an impersonation session is
+  the target: mounted, an admin acting as a member of staff read their stored
+  Microsoft tokens (`get-access-token`), renamed them and signed them out
+  everywhere, unaudited (security audit run-1). A new browser call to
+  `/api/auth` means a new entry there, argued for; prefer a Jump route that
+  calls `auth.api.*`.
 - **Opening a staff session locally, without Azure:** `POST /api/test/login-as`
   with `Authorization: Bearer $LOAD_TEST_SECRET`, then paste the returned cookie
   into the browser. No new mechanism and nothing to arm in production: the

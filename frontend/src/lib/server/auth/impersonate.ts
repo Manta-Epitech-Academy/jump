@@ -95,8 +95,8 @@ export async function startImpersonation(
 
 /**
  * The way back from `startImpersonation`, and the only one: BetterAuth's own
- * `stop-impersonating` route is not mounted over HTTP (`disabledPaths` in
- * `server/auth.ts`). BetterAuth deletes the impersonation session and restores
+ * `stop-impersonating` route is not mounted over HTTP
+ * (`server/auth/httpSurface.ts`). BetterAuth deletes the impersonation session and restores
  * the admin's from its `admin_session` cookie; the Set-Cookie headers are
  * forwarded into SvelteKit's jar, and the admin's open audit window is closed
  * at the moment they leave. `adminUserId` is the session's `impersonatedBy`.

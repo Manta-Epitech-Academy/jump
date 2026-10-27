@@ -7,8 +7,8 @@
  * long as it did. A test that drove the action would have stayed green
  * throughout.
  *
- * Those endpoints are no longer mounted over HTTP (`disabledPaths` in
- * `$lib/server/auth`), which the first test pins. Everything after it calls
+ * Those endpoints are no longer mounted over HTTP (`server/auth/httpSurface`),
+ * which the first test pins. Everything after it calls
  * `auth.api.*` on the production `auth` singleton, the way the `/login` action
  * does, so what is asserted is the app's real configuration: the gate,
  * `disableSignUp` and the model mappings.
