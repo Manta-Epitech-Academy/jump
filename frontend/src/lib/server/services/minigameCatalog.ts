@@ -48,9 +48,10 @@ function gamesUrl(): string | null {
 }
 
 /**
- * Resolve the catalogue. Returns `[]` when JUMP_GAMES_URL is unset or the
- * service is unreachable and nothing was ever cached: callers must treat an
- * empty catalogue as "no games available", never as an error.
+ * Resolve the catalogue. Returns `[]` when no address is configured (see
+ * `gamesUrl`) or the service is unreachable and nothing was ever cached:
+ * callers must treat an empty catalogue as "no games available", never as an
+ * error.
  */
 export async function getGameCatalog(
   opts: { force?: boolean } = {},
