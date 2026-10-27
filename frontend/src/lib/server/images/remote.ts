@@ -40,14 +40,14 @@ import {
   CanvasTooLargeError,
   describeCanvas,
   MAX_INPUT_PIXELS,
-  processImage,
   readGifSize,
   sniffImageType,
   unsupportedImageName,
 } from './process';
+import { preparePicture, type PreparedPicture } from './prepare';
 
 /**
- * The most a download reads. A still is re-encoded (`processImage`) to a size
+ * The most a download reads. A still is re-encoded (`preparePicture`) to a size
  * that has nothing to do with this, so the cap only bounds what the pod holds
  * while decoding, and a photograph straight off a camera fits under it.
  */
@@ -71,24 +71,7 @@ const REQUEST_HEADERS = {
   'user-agent': 'Jump/1.0 (Epitech Academy; picture copy)',
   accept: 'image/*',
 };
-const WEBP_QUALITY = 80;
 const MAX_REDIRECTS = 5;
-
-/** Longest edge of the still derived from an animation. */
-const STILL_MAX_EDGE = 1280;
-
-export type CopiedImage = {
-  bytes: Uint8Array;
-  contentType: string;
-  extension: string;
-  width: number;
-  height: number;
-  /**
-   * For an animation, its first frame as a WebP: what a talent who asked for
-   * reduced motion sees instead. Null for a still.
-   */
-  still: Uint8Array | null;
-};
 
 /**
  * Why a picture was refused, as the end of a French sentence the caller opens
@@ -224,24 +207,9 @@ async function download(url: URL): Promise<Uint8Array> {
 
 const ACCEPTED_FORMATS = 'un PNG, un JPEG, un WebP ou un GIF';
 
-/** Re-encode, or say in French why the picture cannot be. */
-async function reencode(raw: Uint8Array, maxEdge: number) {
-  try {
-    return await processImage(raw, { maxEdge, quality: WEBP_QUALITY });
-  } catch (err) {
-    if (err instanceof CanvasTooLargeError) {
-      throw refuse(
-        `fait ${describeCanvas(err)}, au-delà de ${Math.floor(MAX_INPUT_PIXELS / 1_000_000)} mégapixels : en donner une version plus petite`,
-      );
-    }
-    throw refuse("n'a pas pu être lue");
-  }
-}
-
 /**
- * Download a picture and turn it into what Jump stores: a still re-encoded to
- * WebP within `maxEdge`, or an animation kept byte for byte with its first
- * frame beside it as a still.
+ * Download a picture and turn it into what Jump stores (`preparePicture`),
+ * after judging it here, where a refusal has to say in French why.
  */
 export async function copyRemoteImage(
   url: URL,
@@ -249,7 +217,7 @@ export async function copyRemoteImage(
     /** Longest stored edge, past which a still is downscaled. */
     maxEdge: number;
   },
-): Promise<CopiedImage> {
+): Promise<PreparedPicture> {
   const raw = await download(url);
 
   const type = sniffImageType(raw);
@@ -268,24 +236,19 @@ export async function copyRemoteImage(
         `est un GIF de plus de ${megabytes(REMOTE_ANIMATION_MAX_BYTES)}, trop lourd pour un téléphone : en donner une version compressée`,
       );
     }
-    const size = readGifSize(raw);
-    if (!size) throw refuse("n'a pas de dimensions lisibles");
-    const still = await reencode(
-      raw,
-      Math.min(options.maxEdge, STILL_MAX_EDGE),
-    );
-    return {
-      bytes: raw,
-      contentType: 'image/gif',
-      extension: 'gif',
-      ...size,
-      still: still.bytes,
-    };
+    if (!readGifSize(raw)) throw refuse("n'a pas de dimensions lisibles");
   }
 
-  // Re-encoded like every image Jump stores, which also drops EXIF.
-  const processed = await reencode(raw, options.maxEdge);
-  return { ...processed, extension: 'webp', still: null };
+  try {
+    return await preparePicture(raw, options.maxEdge);
+  } catch (err) {
+    if (err instanceof CanvasTooLargeError) {
+      throw refuse(
+        `fait ${describeCanvas(err)}, au-delà de ${Math.floor(MAX_INPUT_PIXELS / 1_000_000)} mégapixels : en donner une version plus petite`,
+      );
+    }
+    throw refuse("n'a pas pu être lue");
+  }
 }
 
 export type StoredObject = {

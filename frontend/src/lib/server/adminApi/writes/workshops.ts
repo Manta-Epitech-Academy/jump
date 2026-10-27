@@ -31,6 +31,7 @@ import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';
 import { replacePictures, type StoredPicture } from '$lib/server/images/remote';
 import {
+  WORKSHOP_COVER_MAX_EDGE,
   workshopCoverKey,
   type WorkshopCoverKind,
 } from '$lib/domain/workshops';
@@ -140,18 +141,6 @@ const COVER_LABEL_FR: Record<WorkshopCoverKind, string> = {
   media: 'Le visuel',
   poster: "L'image fixe",
   mascot: 'La mascotte',
-};
-
-/**
- * Longest stored edge of each picture: the hero's picture slot for the visual
- * and its still, a small sprite for the mascot. Any proportion and any format
- * Jump can show are taken, an animation included (`copyRemoteImage`); the hero
- * lays out whatever it is given.
- */
-const COVER_MAX_EDGE: Record<WorkshopCoverKind, number> = {
-  media: 1280,
-  poster: 1280,
-  mascot: 512,
 };
 
 const COVER_IMAGE_SELECT = {
@@ -412,7 +401,7 @@ export async function writeWorkshop(params: {
     requests: COVER_KINDS.filter((kind) => urls[kind]).map((kind) => ({
       slot: kind,
       sourceUrl: urls[kind]!,
-      maxEdge: COVER_MAX_EDGE[kind],
+      maxEdge: WORKSHOP_COVER_MAX_EDGE[kind],
     })),
     keyFor: (request, writeId, extension) =>
       workshopCoverKey(
