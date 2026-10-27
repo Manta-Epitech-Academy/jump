@@ -394,8 +394,13 @@ this rule allows: an **event category's colour**, which the team authors over th
 admin API like a certificate design. The calendar needs one colour per kind of
 event, more than the four accents, so the colour is the team's choice and
 outside this contract on purpose. What a component owes it is legibility: a
-swatch carries a border, and text on a category fill takes its colour from the
-fill. Everything else stays on the tokens.
+swatch carries a border, a calendar band an edge shaded from its own fill toward
+`foreground` (so a white category still shows on a white card, a near-black one
+on a dark one), and text on a category fill takes its colour from the
+fill (`inkOn` in `lib/design/color.ts`: white or `epiDark`, whichever contrasts
+more). Everything else stays on the tokens: on the campus calendar an event
+without a category is a `mutedForeground` fill, and a day without school is a
+`muted` ground, so neither can pass for a category.
 
 ### Neutrals: one ramp, and it is blue-tinted
 
@@ -623,6 +628,14 @@ label. Magenta is the admin space's identity (page titles, active nav, tile
 accents), and identity is not the same thing as a call to action: the action is
 `primary`. The single exception is `buttonNeon`, and it is one because its text is
 `epiBlue` rather than white.
+
+**Segmented control** (`SegmentedFilter`). The 2027 mockup's: a `card` ground
+with a 1px `border`, 36px tall like a button so it sits level with a toolbar's
+fields, and the chosen segment an inverse fill (`foreground` ground, `background`
+ink). Not the lifted white tab on a grey track it replaced: that state needed a
+second look to tell which segment was on, and it spent a `raised` shadow on a
+staff control. The labels are the button's (IBM Plex Sans bold, uppercase), not
+the mockup's Space Mono, for the button's reason.
 
 **Card.** `card` surface, 1px `border`, `sm` radius, 24px padding, no shadow.
 `cardBrand` is the inverse: `epiBlue` fill, white text, optionally one pixel-square

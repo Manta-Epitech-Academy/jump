@@ -36,11 +36,11 @@ const isNavigable = (e: DevWorkspaceEvent) => reachableSurfaces(e).length > 0;
  * The event a set defaults to: the one in progress, else the soonest to come,
  * else the most recent past one. Null on an empty set.
  *
- * The workspace's own landing and the header's year jump are the same question
- * asked of a different set, so they are the same function: coming back to the
- * live year lands exactly where a bare `/staff/dev` would, and opening a
- * finished year lands on its LAST event rather than its first, which is what
- * "show me that year" means.
+ * The event the menu names as selected before any is opened, and the header's
+ * year jump from an event page, are the same question asked of a different set,
+ * so they are the same function: coming back to the live year lands on the
+ * event the menu already defaults to, and opening a finished year lands on its
+ * LAST event rather than its first, which is what "show me that year" means.
  *
  * Sorts what it is handed instead of trusting the caller's order. The inline
  * version this replaces leant on its caller's `orderBy: { date: 'desc' }` for

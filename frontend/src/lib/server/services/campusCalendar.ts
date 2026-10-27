@@ -1,0 +1,84 @@
+import type { ScopedPrismaClient } from '$lib/server/db/scoped';
+import {
+  buildCampusCalendar,
+  calendarDays,
+  type CampusCalendar,
+} from '$lib/domain/campusCalendar';
+import {
+  eventDisplayName,
+  eventEndInstant,
+  eventStartInstant,
+} from '$lib/domain/event';
+import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
+import { toDateKey } from '$lib/domain/planningTime';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { devVisibleEventWhere } from './stageContext';
+import { EVENT_CATEGORY_TAG_SELECT } from './eventCategories';
+
+/**
+ * A campus's school year, as the dev space's landing page shows it.
+ *
+ * The events are the dev space's own (`devVisibleEventWhere`): a click opens
+ * one, so the calendar holds no event it could not open. Their window is the
+ * grid's twelve months (`calendarDays`), any event with a day in them, so the
+ * grid can paint one that starts or ends outside. The count beside each is the
+ * enrolments the dev space shows.
+ */
+export async function loadCampusCalendar(
+  db: ScopedPrismaClient,
+  input: {
+    timezone: string;
+    departement: string | null;
+    schoolYear: string;
+    now?: Date;
+  },
+): Promise<CampusCalendar> {
+  const { timezone, departement, schoolYear, now = new Date() } = input;
+  const days = calendarDays(schoolYear);
+  const from = eventStartInstant(days.first, timezone);
+  const to = eventEndInstant(days.last, timezone);
+
+  const rows = await db.event.findMany({
+    where: {
+      ...devVisibleEventWhere,
+      date: { lte: to },
+      OR: [{ endDate: null, date: { gte: from } }, { endDate: { gte: from } }],
+    },
+    select: {
+      id: true,
+      titre: true,
+      publicName: true,
+      externalId: true,
+      date: true,
+      endDate: true,
+      category: { select: EVENT_CATEGORY_TAG_SELECT },
+      _count: {
+        select: { participations: { where: visibleParticipationWhere } },
+      },
+    },
+  });
+
+  const bounds = getLifecycleBounds(timezone, now);
+  return buildCampusCalendar({
+    schoolYear,
+    today: toDateKey(now, timezone),
+    departement,
+    events: rows.map((e) => {
+      const first = toDateKey(e.date, timezone);
+      const last = toDateKey(e.endDate ?? e.date, timezone);
+      const name = eventDisplayName(e);
+      return {
+        id: e.id,
+        name,
+        // Under its raw title, the name already is the campaign's.
+        campaign: e.externalId && name !== e.titre ? e.titre : null,
+        first,
+        // A Salesforce end before the start would paint nothing: one day.
+        last: last < first ? first : last,
+        category: e.category,
+        status: getEventStatus(e, bounds),
+        shownEnrolments: e._count.participations,
+      };
+    }),
+  });
+}

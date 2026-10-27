@@ -496,6 +496,7 @@ export class World {
       // these a real external name and real minors' data starts landing on it.
       externalName: null,
       timezone: spec.timezone,
+      departement: spec.departement,
       contactEmail:
         spec.withContactEmail === false
           ? null
