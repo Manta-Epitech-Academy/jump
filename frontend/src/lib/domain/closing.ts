@@ -485,12 +485,3 @@ export const CLOSING_STATUS_LABELS: Record<ClosingListStatus, string> = {
   in_progress: 'En cours',
   done: 'Finalisé',
 };
-
-/** Chip classes mirror the inscrits page status badges so the two dev-space
- *  cohort tables share one color language: todo = neutral, in_progress = amber
- *  (action pending), done = epi-tech (gate cleared). */
-export const CLOSING_STATUS_CHIP_CLASS: Record<ClosingListStatus, string> = {
-  todo: 'border-border bg-muted text-muted-foreground',
-  in_progress: 'border-warning/30 bg-warning/10 text-warning',
-  done: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
-};

@@ -24,6 +24,10 @@
     type ActiveFilterChip,
   } from '$lib/components/staff/ActiveFilterChips.svelte';
   import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  import {
+    statusBadgeClass,
+    type StatusTone,
+  } from '$lib/components/staff/statusBadge';
   import { talentFicheHref } from '$lib/components/dev/talentFiche';
   import { niveauLabel } from '$lib/domain/niveau';
   import { cohortNounForms } from '$lib/domain/event';
@@ -124,31 +128,19 @@
           ? 'text-warning'
           : 'text-destructive';
 
-  // Statut badge presentation, one entry per funnel state. Red = never logged in
-  // (the most urgent case), amber = connected but dossier in progress, teal =
-  // connected with both gates done. `no_dossier` is the only untinted one, and
-  // deliberately so: a collégien is not a row anyone chases, and a tint here
-  // would put urgency on the one state that carries none.
+  // Statut badge presentation, one entry per funnel state. Danger = never
+  // logged in (the most urgent case), warning = connected but dossier in
+  // progress, success = connected with both gates done. `no_dossier` reads
+  // « - » in the table (a collégien is not a row anyone chases) and neutral on
+  // a card.
   const INSCRIT_STATUS_BADGE: Record<
     InscritStatus,
-    { icon: typeof Check; class: string }
+    { icon: typeof Check; tone: StatusTone }
   > = {
-    no_dossier: {
-      icon: Minus,
-      class: 'border-dashed border-border text-muted-foreground',
-    },
-    never_connected: {
-      icon: Unplug,
-      class: 'border-destructive/30 bg-destructive/10 text-destructive',
-    },
-    in_progress: {
-      icon: Clock,
-      class: 'border-warning/30 bg-warning/10 text-warning',
-    },
-    ready: {
-      icon: Check,
-      class: 'border-epi-tech/30 bg-epi-tech/10 text-epi-tech-ink',
-    },
+    no_dossier: { icon: Minus, tone: 'neutral' },
+    never_connected: { icon: Unplug, tone: 'danger' },
+    in_progress: { icon: Clock, tone: 'warning' },
+    ready: { icon: Check, tone: 'success' },
   };
 
   const view = $derived(parseInscritsView(page.url.searchParams));
@@ -592,8 +584,8 @@
                         href={talentFicheHref(r.talentId, event.id)}
                         tabindex={-1}
                         class={cn(
-                          'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip whitespace-nowrap',
-                          badge.class,
+                          'relative z-10',
+                          statusBadgeClass(badge.tone),
                         )}
                       >
                         <BadgeIcon class="h-3 w-3" />
@@ -633,12 +625,7 @@
                   {r.xp}
                 </span>
                 {#if facetOf.has('statut')}
-                  <span
-                    class={cn(
-                      'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',
-                      badge.class,
-                    )}
-                  >
+                  <span class={statusBadgeClass(badge.tone)}>
                     <BadgeIcon class="h-3 w-3" />
                     {INSCRIT_STATUS_LABELS[r.status]}
                   </span>
