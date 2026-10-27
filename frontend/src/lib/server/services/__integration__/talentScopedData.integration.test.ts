@@ -288,6 +288,16 @@ const ERASURE: Policy = {
       why: 'The guardians are data subjects too.',
       columns: GUARDIAN_CONTACTS,
     },
+    {
+      fate: 'rewrite',
+      why: 'The run of consecutive days feeds only their own badges: back to no run.',
+      columns: ['streakDays'],
+    },
+    {
+      fate: 'null',
+      why: 'The day that run last grew, with it.',
+      columns: ['streakLastDay'],
+    },
   ],
 };
 
@@ -410,6 +420,16 @@ const RESET: Policy = {
       fate: 'null',
       why: 'Guardians entered during onboarding.',
       columns: GUARDIAN_CONTACTS,
+    },
+    {
+      fate: 'rewrite',
+      why: 'A fresh import has never logged in, so it has no run of days: back to 0.',
+      columns: ['streakDays'],
+    },
+    {
+      fate: 'null',
+      why: 'The day that run last grew, with it.',
+      columns: ['streakLastDay'],
     },
   ],
 };

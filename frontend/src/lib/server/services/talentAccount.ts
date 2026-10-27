@@ -20,6 +20,7 @@ import {
   clearTalentOnboardingArtifacts,
 } from '$lib/domain/talentOnboarding';
 import { clearGuardianContacts, guardianEmailsOf } from '$lib/domain/contact';
+import { clearSignInStreak } from '$lib/server/services/signInStreak';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 
@@ -349,11 +350,12 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         setupDescription: null,
         interestsFreeText: null,
         // Activity projections: a fresh-import talent has never logged in, so
-        // both the first-login and last-active facts are dropped. The login
-        // identity itself is kept (step 3 clears only its history), so `userId`
-        // stays linked.
+        // the first-login and last-active facts and the run of consecutive days
+        // are dropped. The login identity itself is kept (step 3 clears only
+        // its history), so `userId` stays linked.
         lastActiveAt: null,
         firstLoginAt: null,
+        ...clearSignInStreak(),
       },
     });
 

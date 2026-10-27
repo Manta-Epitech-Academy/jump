@@ -14,6 +14,7 @@ import {
   clearTalentOnboardingArtifacts,
 } from '$lib/domain/talentOnboarding';
 import { clearGuardianContacts, guardianEmailsOf } from '$lib/domain/contact';
+import { clearSignInStreak } from '$lib/server/services/signInStreak';
 
 /**
  * The single GDPR-erasure primitive. Clears a talent's PII in place rather than
@@ -30,6 +31,8 @@ import { clearGuardianContacts, guardianEmailsOf } from '$lib/domain/contact';
  * erasure, and with them the talent's `firstLoginAt` / `lastActiveAt`: the
  * retention figures read them (the "connected" count of the cohort profile, the
  * population of feature usage), and with the name gone they identify nobody.
+ * The run of consecutive days (`streakDays` / `streakLastDay`) is not kept: no
+ * figure reads it, only the badges of the talent being erased.
  *
  * What it does to each table and each `Talent` column is classified, with the
  * reason, in `talentScopedData.integration.test.ts`, which fails on a table or a
@@ -133,6 +136,9 @@ export async function anonymizeTalent(
       ...clearLegacyDocumentKeys(),
       // Both guardians: data subjects too.
       ...clearGuardianContacts(),
+      // The run of consecutive days feeds only this talent's own badges, so it
+      // goes with them.
+      ...clearSignInStreak(),
       niveau: null,
     },
   });

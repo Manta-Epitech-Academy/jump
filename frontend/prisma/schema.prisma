@@ -367,6 +367,21 @@ model Talent {
   // "Jamais" once its session row is gone. Paired with lastActiveAt (MAX
   // activity); this is the MIN.
   firstLoginAt                DateTime?
+  /// The talent's run of consecutive days in Jump, the one fact the series
+  /// badges need (#447). `streakDays` is the length of the MOST RECENT run,
+  /// which ended on `streakLastDay`, a day read in the campus timezone. A missed
+  /// day does not lower it: nothing writes without a visit, so the run restarts
+  /// at 1 on the next one. The best run is not kept.
+  ///
+  /// Two values and no history, on purpose. "Facts are rows" does not apply
+  /// here: a row per day would be the connection log of a minor, which no
+  /// figure needs. Nor is it usage tracking: that one runs without consent
+  /// because it cannot tell who the talent is, and a badge has to, so the two
+  /// never read each other. Written only by `services/signInStreak.ts` from
+  /// `hooks.server.ts`, never under impersonation, and cleared by the erasure
+  /// and the reset to import.
+  streakDays                  Int                  @default(0)
+  streakLastDay               DateTime?            @db.Date
   /// When this talent objected to usage measurement (RGPD art. 21). Set, and the
   /// recorder writes nothing for them. Null means no objection, which is the
   /// default: the basis is legitimate interest, not consent, so measurement runs
