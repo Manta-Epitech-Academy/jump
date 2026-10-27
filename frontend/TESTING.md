@@ -178,12 +178,13 @@ describe('studentService (integration)', () => {
 
 **Ce que couvre la suite, et pourquoi ces parcours-là :**
 
-| Spec                        | Ce qu'elle prouve                                                                                                                                                        |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `staff-guards.spec.ts`      | La matrice inter-espaces : dev refoulé de l'admin, admin renvoyé de l'espace dev, talent renvoyé sur son dashboard, anonyme envoyé au bon login avec `?redirect=` intact |
-| `talent-onboarding.spec.ts` | La porte d'onboarding tient dans les deux sens : dossier vierge poussé dans le tunnel, dossier complet non renvoyé en arrière                                            |
-| `parent-flow.spec.ts`       | Le prédicat « ce responsable doit-il encore quelque chose » (`parentBlockedWhere`) décide de la destination                                                              |
-| `emargement.spec.ts`        | Le seul parcours **mutant** : un membre dev marque une présence et l'état revient de la base après rechargement                                                          |
+| Spec                        | Ce qu'elle prouve                                                                                                                                                                               |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `staff-guards.spec.ts`      | La matrice inter-espaces : dev refoulé de l'admin, admin renvoyé de l'espace dev, talent renvoyé sur son dashboard, anonyme envoyé au bon login avec `?redirect=` intact                        |
+| `talent-onboarding.spec.ts` | La porte d'onboarding tient dans les deux sens : dossier vierge poussé dans le tunnel, dossier complet non renvoyé en arrière                                                                   |
+| `parent-flow.spec.ts`       | Le prédicat « ce responsable doit-il encore quelque chose » (`parentBlockedWhere`) décide de la destination                                                                                     |
+| `emargement.spec.ts`        | Le seul parcours **mutant** : un membre dev marque une présence et l'état revient de la base après rechargement                                                                                 |
+| `inscrits-filters.spec.ts`  | Les filtres des inscrits vivent dans l'adresse : posés depuis l'en-tête, ils survivent au rechargement, le retour arrière défait le dernier, et l'export reçoit exactement les lignes affichées |
 
 Le critère de sélection est le même partout : ce qui n'est vérifiable qu'au
 travers du serveur réel. Les gardes vivent dans `hooks.server.ts` et pas dans une
