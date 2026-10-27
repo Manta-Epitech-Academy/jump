@@ -3,7 +3,7 @@
   import { Button } from '$lib/components/ui/button';
   import Funnel from '@lucide/svelte/icons/funnel';
   import { cn } from '$lib/utils';
-  import FacetSections from './FacetSections.svelte';
+  import FilterDrillMenu from './FilterDrillMenu.svelte';
   import type { ColumnDef, NamedFilter } from './types';
 
   // The header filters of a table that renders as cards, where there is no
@@ -42,8 +42,8 @@
     <Drawer.Header>
       <Drawer.Title>Filtrer la liste</Drawer.Title>
     </Drawer.Header>
-    <div class="max-h-[60vh] overflow-y-auto px-4">
-      <FacetSections {filters} />
+    <div class="px-4">
+      <FilterDrillMenu {filters} />
     </div>
     <Drawer.Footer>
       <Button onclick={() => (open = false)}>Voir la liste</Button>

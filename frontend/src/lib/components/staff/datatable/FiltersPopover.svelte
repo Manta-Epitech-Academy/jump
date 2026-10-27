@@ -2,7 +2,7 @@
   import * as Popover from '$lib/components/ui/popover';
   import Funnel from '@lucide/svelte/icons/funnel';
   import { cn } from '$lib/utils';
-  import FacetSections from './FacetSections.svelte';
+  import FilterDrillMenu from './FilterDrillMenu.svelte';
   import type { NamedFilter } from './types';
 
   // The filters a table offers without a column to hold them (the Inscrits'
@@ -28,8 +28,8 @@
       <Funnel class="h-4 w-4" />
       Filtres{activeCount > 0 ? ` (${activeCount})` : ''}
     </Popover.Trigger>
-    <Popover.Content class="max-h-[70vh] w-72 overflow-y-auto p-3" align="end">
-      <FacetSections {filters} />
+    <Popover.Content class="w-64 p-0" align="end">
+      <FilterDrillMenu {filters} onDone={() => (open = false)} />
     </Popover.Content>
   </Popover.Root>
 {/if}
