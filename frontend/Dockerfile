@@ -17,6 +17,9 @@ RUN bun install --frozen-lockfile
 # Copy source and build
 COPY . .
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" bunx prisma generate
+# The commit becomes the app's version (svelte.config.js). Declared after the
+# install and generate steps so a new commit does not invalidate their cache.
+ARG GIT_SHA
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" BETTER_AUTH_SECRET="build-placeholder" bun run build
 
 # Step 2: The generator's image, built with `--target seeder`
