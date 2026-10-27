@@ -9,6 +9,7 @@
  */
 
 import { createHmac } from 'node:crypto';
+import type { Cookies } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { auth } from '$lib/server/auth';
 
@@ -63,4 +64,30 @@ export async function sessionCookie(userId: string): Promise<string> {
     .digest('base64');
   const value = encodeURIComponent(`${session.token}.${signature}`);
   return `${ctx.authCookies.sessionToken.name}=${value}`;
+}
+
+/**
+ * SvelteKit's cookie jar, reduced to what `forwardAuthCookies` writes and the
+ * hook reads, read back as the `Cookie` header the browser would send next. A
+ * cookie set with `maxAge: 0` is gone, as BetterAuth expires one.
+ */
+export function cookieJar(initial: string) {
+  const values = new Map(
+    initial.split('; ').map((pair) => {
+      const at = pair.indexOf('=');
+      return [pair.slice(0, at), decodeURIComponent(pair.slice(at + 1))];
+    }),
+  );
+  const cookies = {
+    get: (name: string) => values.get(name),
+    set: (name: string, value: string, opts?: { maxAge?: number }) => {
+      if (opts?.maxAge === 0) values.delete(name);
+      else values.set(name, value);
+    },
+  } as unknown as Cookies;
+  const header = () =>
+    [...values]
+      .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
+      .join('; ');
+  return { cookies, header };
 }

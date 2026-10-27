@@ -10,7 +10,6 @@
  * `auth.api.*` from `server/auth/impersonate.ts`.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { Cookies } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import {
@@ -19,30 +18,9 @@ import {
 } from '$lib/server/auth/impersonate';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
-import { pathSpellings, postAuth, sessionCookie } from './authHttp';
+import { cookieJar, pathSpellings, postAuth, sessionCookie } from './authHttp';
 
 const stamp = Date.now();
-
-/**
- * SvelteKit's cookie jar, reduced to what `forwardAuthCookies` writes, read
- * back as the `Cookie` header the browser would send next.
- */
-function cookieJar(initial: string) {
-  const values = new Map(
-    initial.split('; ').map((pair) => {
-      const at = pair.indexOf('=');
-      return [pair.slice(0, at), decodeURIComponent(pair.slice(at + 1))];
-    }),
-  );
-  const cookies = {
-    set: (name: string, value: string) => void values.set(name, value),
-  } as unknown as Cookies;
-  const header = () =>
-    [...values]
-      .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
-      .join('; ');
-  return { cookies, header };
-}
 
 function requestWith(cookie: string): Request {
   return new Request(`${env.ORIGIN}/staff/admin/impersonate`, {

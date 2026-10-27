@@ -8,7 +8,11 @@ import {
   usageConnectionFeature,
 } from '$lib/domain/usage';
 import { applyRouteGuards } from '$lib/server/auth/guards';
-import { slideImpersonationExpiry } from '$lib/server/auth/impersonation';
+import {
+  loadImpersonator,
+  slideImpersonationExpiry,
+} from '$lib/server/auth/impersonation';
+import { revokeImpersonation } from '$lib/server/auth/impersonate';
 import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { resolveTalentCampus } from '$lib/server/services/talentCampus';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
@@ -164,6 +168,32 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.armedRealSendsUntil = null;
   event.locals.devRedirectPin = null;
 
+  // 1.5 An impersonated session acts on the admin's authority, so it holds
+  // only while that admin still is one (see `loadImpersonator`). Checked
+  // before anything is loaded for the target: a revoked session reaches the
+  // guards as a visitor with no session, on this very request. BetterAuth
+  // stores the admin's user id in `session.impersonatedBy`.
+  const impersonatedById =
+    (event.locals.session as { impersonatedBy?: string | null } | null)
+      ?.impersonatedBy ?? null;
+  if (impersonatedById && event.locals.session) {
+    const impersonator = await loadImpersonator(impersonatedById);
+    if (impersonator) {
+      // The real admin, so analytics attribute actions to the actor and not
+      // to the impersonated user.
+      event.locals.impersonator = impersonator;
+      // Keep an actively-used impersonation session from hitting its hard
+      // wall: slide its expiry forward so an admin testing a talent's flow is
+      // never bounced to login (which would drop their own admin session
+      // too). An abandoned session still lapses after the idle window.
+      slideImpersonationExpiry(event.locals.session);
+    } else {
+      await revokeImpersonation(event.request, event.cookies, impersonatedById);
+      event.locals.user = null;
+      event.locals.session = null;
+    }
+  }
+
   // 2. Load profiles + refresh role from DB in a single query.
   // BetterAuth caches the session payload (including role) in a cookie for 5
   // minutes, so locals.user.role can lag behind the DB after admin changes,
@@ -205,48 +235,6 @@ export const handle: Handle = async ({ event, resolve }) => {
       );
       event.locals.talentCampusName = talentCampus.campusName;
       event.locals.talentCampusId = talentCampus.campusId;
-    }
-
-    // Resolve the real admin behind an impersonated session so analytics can
-    // attribute actions to the actor (not the impersonated user). BetterAuth
-    // stores the admin's user id in `session.impersonatedBy`.
-    const impersonatedById =
-      (event.locals.session as { impersonatedBy?: string | null } | null)
-        ?.impersonatedBy ?? null;
-    // Keep an actively-used impersonation session from hitting its hard wall:
-    // slide its expiry forward so an admin testing a talent's flow is never
-    // bounced to login (which would drop their own admin session too). An
-    // abandoned session still lapses after the idle window. See the helper.
-    if (impersonatedById && event.locals.session) {
-      slideImpersonationExpiry(event.locals.session);
-    }
-    if (impersonatedById) {
-      const adminRecord = await prisma.bauth_user.findUnique({
-        where: { id: impersonatedById },
-        select: {
-          email: true,
-          staffProfile: {
-            select: {
-              id: true,
-              staffRole: true,
-              campus: { select: { name: true } },
-              devRedirectEmails: true,
-              devRedirectPhones: true,
-            },
-          },
-        },
-      });
-      if (adminRecord) {
-        event.locals.impersonator = {
-          userId: impersonatedById,
-          email: adminRecord.email ?? null,
-          staffProfileId: adminRecord.staffProfile?.id ?? null,
-          staffRole: adminRecord.staffProfile?.staffRole ?? null,
-          campusName: adminRecord.staffProfile?.campus?.name ?? null,
-          devRedirectEmails: adminRecord.staffProfile?.devRedirectEmails ?? [],
-          devRedirectPhones: adminRecord.staffProfile?.devRedirectPhones ?? [],
-        };
-      }
     }
 
     event.locals.stagePhaseOverride = readDevPhaseOverride(event);

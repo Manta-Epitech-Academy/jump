@@ -74,12 +74,8 @@ export async function startImpersonation(
   // an explicit exit; a window left to lapse unattended (the machine slept
   // past the idle expiry) is the one exit Jump never sees, so it is closed
   // here, when the same admin next starts one.
-  const now = new Date();
   await prisma.$transaction([
-    prisma.audit_ImpersonationEvent.updateMany({
-      where: { adminUserId, endedAt: null },
-      data: { endedAt: now },
-    }),
+    closeImpersonationWindows(adminUserId),
     prisma.audit_ImpersonationEvent.create({
       data: {
         adminUserId,
@@ -113,11 +109,40 @@ export async function stopImpersonation(
   });
   if (!res.ok) return false;
 
-  await prisma.audit_ImpersonationEvent.updateMany({
-    where: { adminUserId, endedAt: null },
-    data: { endedAt: new Date() },
-  });
+  await closeImpersonationWindows(adminUserId);
 
   forwardAuthCookies(res, cookies);
   return true;
+}
+
+/**
+ * Ends an impersonation whose admin no longer holds the role
+ * (`loadImpersonator` answered null): the holder leaves the target's identity
+ * on this request. A demoted admin is handed back to their own session, now
+ * under their new role, exactly as `stopImpersonation` would; a deleted one
+ * has no session to return to (it went with their row), so the browser is
+ * signed out instead. Either way the impersonation row is gone, its cookies
+ * (cookie cache included) are expired, and the audit window is closed.
+ */
+export async function revokeImpersonation(
+  request: Request,
+  cookies: Cookies,
+  adminUserId: string,
+): Promise<void> {
+  if (await stopImpersonation(request, cookies, adminUserId)) return;
+
+  const res = await auth.api.signOut({
+    headers: request.headers,
+    asResponse: true,
+  });
+  await closeImpersonationWindows(adminUserId);
+  forwardAuthCookies(res, cookies);
+}
+
+/** Close every open audit window of this admin: they have one at a time. */
+function closeImpersonationWindows(adminUserId: string) {
+  return prisma.audit_ImpersonationEvent.updateMany({
+    where: { adminUserId, endedAt: null },
+    data: { endedAt: new Date() },
+  });
 }

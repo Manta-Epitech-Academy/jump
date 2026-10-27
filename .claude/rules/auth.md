@@ -120,6 +120,16 @@ account creation.
   back, under `/api` so an impersonated session reaches it), and a role
   changes only through `updateStaffRole` in `services/staffAdminService.ts`.
   The browser ships no `adminClient()`.
+- **An impersonation holds only while its admin is still one**, checked by
+  `hooks.server.ts` on every request (`loadImpersonator`), not revoked where
+  a role changes. The session is a row on the target whose `impersonatedBy`
+  has no relation, so a demoted or deleted admin kept acting as a talent for
+  as long as they stayed active (security audit run-1). Role writers are
+  spread over services, scripts and reconciliation, and BetterAuth's cookie
+  cache serves a deleted row for five minutes, so a check at the writers
+  would be neither complete nor immediate. A refused session goes through
+  `revokeImpersonation`: back to the admin's own session if they still have
+  one, signed out otherwise, audit window closed either way.
 - **Over HTTP, BetterAuth serves the staff door and nothing else:**
   `POST /sign-in/social` and `/callback/microsoft`, the two routes the browser
   client calls. `server/auth/httpSurface.ts` is an allowlist (an `onRequest`
