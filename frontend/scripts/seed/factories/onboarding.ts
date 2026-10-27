@@ -278,21 +278,26 @@ export function addDossier(
       filePath: `documents/${opts.talent.id}/charter.pdf`,
       processedAt: charterAcceptedAt,
     });
-    row.welcomeSeenAt = clock.days(filedOffset - 1);
-    row.firstLoginAt = clock.days(filedOffset - 1);
-    const lastActiveAt = clock.days(-5);
+    const firstLoginOffset = filedOffset - 1;
+    const lastActiveOffset = -5;
+    row.welcomeSeenAt = clock.days(firstLoginOffset);
+    row.firstLoginAt = clock.days(firstLoginOffset);
+    const lastActiveAt = clock.days(lastActiveOffset);
     row.lastActiveAt = lastActiveAt;
     // The run of consecutive days ends on the day of that last visit, read in
     // the campus timezone as `signInStreak.ts` reads it, so the two columns
-    // cannot tell two stories (La Réunion runs ahead of Paris). Its length is
-    // drawn from the talent's own stream, which takes nothing from the shared
-    // one.
+    // cannot tell two stories (La Réunion runs ahead of Paris). It cannot start
+    // before the first login either, which bounds its length: a dossier filed
+    // late in the stage window leaves fewer days than the draw would take. The
+    // length is drawn from the talent's own stream, which takes nothing from the
+    // shared one.
     const timezone =
       [...world.campuses.values()].find((c) => c.id === opts.talent.campusId)
         ?.timezone ?? 'Europe/Paris';
+    const daysSinceFirstLogin = lastActiveOffset - firstLoginOffset + 1;
     row.streakLastDay = dateKeyToDbDate(toDateKey(lastActiveAt, timezone));
     row.streakDays = world.ctx.rng
       .fork(`signInStreak:${opts.talent.id}`)
-      .int(1, 12);
+      .int(1, Math.min(12, daysSinceFirstLogin));
   }
 }
