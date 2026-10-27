@@ -23,17 +23,17 @@
   import ActiveFilterChips, {
     type ActiveFilterChip,
   } from '$lib/components/staff/ActiveFilterChips.svelte';
-  import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  import FiltersPopover from '$lib/components/staff/datatable/FiltersPopover.svelte';
+  import type {
+    ColumnDef,
+    NamedFilter,
+  } from '$lib/components/staff/datatable/types';
   import { talentFicheHref } from '$lib/components/dev/talentFiche';
   import { niveauLabel } from '$lib/domain/niveau';
   import { cohortNounForms } from '$lib/domain/event';
   import { XP_EXPLAINER_FR } from '$lib/domain/xp';
   import { civiliteShortTitle, formatGivenName } from '$lib/domain/profile';
   import { parcoursLabel } from '$lib/domain/enrolmentHistory';
-  import {
-    CLOSING_STATUS_LABELS,
-    CLOSING_STATUS_CHIP_CLASS,
-  } from '$lib/domain/closing';
   import {
     INSCRITS_SORT_DEFAULT_DIR,
     inscritsClearedFacetParams,
@@ -185,16 +185,11 @@
       : undefined;
   }
 
-  const recoLabelOf = $derived(
-    new Map(reco?.options.map((o) => [o.id, o.label])),
-  );
-
-  // Every filter sits in the header of the column it filters, as the mockup
-  // draws it, so each facet has a column: the event's optional ones (Statut,
-  // Closing, Reco) come and go with the data that feeds them. The table is
-  // wider than the content track on most screens, so it scrolls sideways in
-  // its own box (auto layout, no sticky header, which needs the page to be the
-  // only scroller) and Lycée truncates past a readable width.
+  // The table holds the mockup's columns, each filtering from its header, and
+  // fits the content track: a roster that scrolls sideways loses the reading
+  // of a row. Below `xl` the content track is too narrow for them, so the rows
+  // fold into cards there (`cardsBelow`). Fixed layout: the widths below are
+  // the budget, and Lycée (`w-full`) takes what is left, truncating.
   const columns = $derived.by<ColumnDef[]>(() => {
     const sortable = (key: SortKey) => ({
       key,
@@ -202,38 +197,56 @@
       defaultSortDir: INSCRITS_SORT_DEFAULT_DIR[key],
     });
     const cols: ColumnDef[] = [
-      { key: 'genre', label: 'Genre', filter: filterOf('genre') },
-      { ...sortable('prenom'), label: 'Prénom' },
-      { ...sortable('nom'), label: 'Nom' },
+      {
+        key: 'genre',
+        label: 'Genre',
+        class: 'w-20',
+        filter: filterOf('genre'),
+      },
+      { ...sortable('prenom'), label: 'Prénom', class: 'w-24' },
+      { ...sortable('nom'), label: 'Nom', class: 'w-28' },
       // XP right after the name: it's the engagement signal we want the eye to
       // catch first, shown as a coloured pill (not flush grey data).
-      { ...sortable('xp'), label: 'XP' },
+      { ...sortable('xp'), label: 'XP', class: 'w-20' },
       {
         ...sortable('parcours'),
         label: 'Parcours',
+        class: 'w-32',
         filter: filterOf('parcours'),
       },
-      { key: 'tech', label: 'Tech', filter: filterOf('tech') },
-      { key: 'perso', label: 'Perso', filter: filterOf('perso') },
-      { ...sortable('lycee'), label: 'Lycée', filter: filterOf('lycee') },
-      { ...sortable('niveau'), label: 'Niveau', filter: filterOf('niveau') },
+      { key: 'tech', label: 'Tech', class: 'w-32', filter: filterOf('tech') },
+      {
+        ...sortable('lycee'),
+        label: 'Lycée',
+        class: 'w-full',
+        filter: filterOf('lycee'),
+      },
+      {
+        ...sortable('niveau'),
+        label: 'Niveau',
+        class: 'w-28',
+        filter: filterOf('niveau'),
+      },
     ];
     if (facetOf.has('statut'))
       cols.push({
         ...sortable('status'),
         label: 'Statut',
+        class: 'w-28',
         filter: filterOf('statut'),
       });
-    if (facetOf.has('closing'))
-      cols.push({
-        key: 'closing',
-        label: 'Closing',
-        filter: filterOf('closing'),
-      });
-    if (facetOf.has('reco'))
-      cols.push({ key: 'reco', label: 'Reco', filter: filterOf('reco') });
     return cols;
   });
+
+  // The facets worth narrowing on but not worth a column on every row: the
+  // toolbar's "Filtres" holds them, and the chips show them like the others.
+  const extraFilters = $derived<NamedFilter[]>(
+    (['perso', 'closing', 'reco'] as const).flatMap((facet) => {
+      const filter = filterOf(facet);
+      const title = facetOf.get(facet)?.title;
+      return filter && title ? [{ key: facet, label: title, filter }] : [];
+    }),
+  );
 
   function toggleSort(key: string) {
     const next = nextSort<SortKey>(
@@ -295,9 +308,6 @@
   const anyFiltersApplied = $derived(
     chips.length > 0 || search.value.trim().length > 0,
   );
-
-  // At most two chips in a cell; the rest folds into "+N", named on hover.
-  const CELL_CHIPS = 2;
 
   let exporting = $state(false);
 
@@ -401,25 +411,25 @@
   {/if}
 {/snippet}
 
+<!-- One chip, the first in the catalogue's order, and the rest as "+N": the
+     column keeps one line per row whatever a talent declared. All of them on
+     hover. -->
 {#snippet interestChips(interests: InscritInterest[])}
   {#if interests.length === 0}
     <span class="text-sm text-muted-foreground">-</span>
   {:else}
     <span
-      class="flex flex-wrap gap-1"
+      class="flex min-w-0 items-center gap-1"
       title={interests.map((i) => i.nom).join(', ')}
     >
-      {#each interests.slice(0, CELL_CHIPS) as interest (interest.id)}
-        <Badge
-          variant="secondary"
-          class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
-        >
-          {interest.nom}
-        </Badge>
-      {/each}
-      {#if interests.length > CELL_CHIPS}
-        <span class="epi-chip text-muted-foreground">
-          +{interests.length - CELL_CHIPS}
+      <span
+        class="min-w-0 truncate rounded-sm bg-epi-blue/5 px-2 epi-chip text-epi-blue"
+      >
+        {interests[0].nom}
+      </span>
+      {#if interests.length > 1}
+        <span class="shrink-0 epi-chip text-muted-foreground">
+          +{interests.length - 1}
         </span>
       {/if}
     </span>
@@ -435,7 +445,7 @@
       {label}
     </span>
   {:else}
-    <span class="text-sm whitespace-nowrap">{label}</span>
+    <span class="text-sm">{label}</span>
   {/if}
 {/snippet}
 
@@ -457,8 +467,12 @@
       count={filtered.length}
       countNoun={noun.singular}
       countNounPlural={noun.plural}
+      filtersAlign="end"
       filtersApplied={anyFiltersApplied}
     >
+      {#snippet filters()}
+        <FiltersPopover filters={extraFilters} />
+      {/snippet}
       {#snippet countActions()}
         <!-- Export keeps to the right edge of the count line (ml-auto), acting
              on exactly the count shown. -->
@@ -517,20 +531,23 @@
         rowKey={(r) => r.id}
         rowHref={(r) => talentFicheHref(r.talentId, event.id)}
         rowLabel={(r) => `Voir la fiche de ${r.prenom} ${r.nom}`}
+        stickyHeader
+        layout="fixed"
+        cardsBelow="xl"
       >
         {#snippet row(r: InscritRow)}
           <Table.Cell class="text-sm text-muted-foreground">
             {civiliteShortTitle(r.civilite)}
           </Table.Cell>
-          <!-- prénom/nom truncate past a readable width: realistic names fit,
-               a freak-long one ellipsizes (full value on hover) instead of
-               widening the whole table. -->
+          <!-- prénom/nom truncate within their fixed columns: realistic names
+               fit, but a freak-long one ellipsizes inside its cell (full value
+               on hover) instead of bleeding into the neighbouring column. -->
           <Table.Cell class="font-medium">
             {@const prenom = formatGivenName(r.prenom)}
-            <span class="block max-w-36 truncate" title={prenom}>{prenom}</span>
+            <span class="block truncate" title={prenom}>{prenom}</span>
           </Table.Cell>
           <Table.Cell class="font-bold uppercase">
-            <span class="block max-w-44 truncate" title={r.nom}>{r.nom}</span>
+            <span class="block truncate" title={r.nom}>{r.nom}</span>
           </Table.Cell>
           <Table.Cell>
             <!-- XP as a coloured pill right beside the name: the engagement
@@ -557,15 +574,19 @@
               </Tooltip.Content>
             </Tooltip.Root>
           </Table.Cell>
-          <Table.Cell>{@render parcoursPill(r)}</Table.Cell>
+          <!-- The one cell allowed a second line: "Déjà inscrit·e 2 fois" is
+               the longest wording and worth keeping whole. -->
+          <Table.Cell class="whitespace-normal">
+            {@render parcoursPill(r)}
+          </Table.Cell>
           <Table.Cell>{@render interestChips(r.techInterests)}</Table.Cell>
-          <Table.Cell>{@render interestChips(r.persoInterests)}</Table.Cell>
           <Table.Cell class="text-sm">
             {#if r.schoolName}
               <!-- Some school names run very long (e.g. "Section d'enseignement
-                 général et technologique du Lycée agricole …"), so the cell
-                 caps its width and truncates; full name on hover. -->
-              <span class="block max-w-56 truncate" title={r.schoolName}>
+                 général et technologique du Lycée agricole …"). Under fixed
+                 layout the Lycée column owns a definite width, so the inner
+                 block truncates cleanly to it; full name on hover. -->
+              <span class="block truncate" title={r.schoolName}>
                 {r.schoolName}
               </span>
             {:else}
@@ -616,34 +637,9 @@
               </Tooltip.Root>
             </Table.Cell>
           {/if}
-          {#if facetOf.has('closing')}
-            <Table.Cell>
-              {#if r.closingStatus}
-                <span
-                  class={cn(
-                    'inline-flex rounded-full border px-2 py-0.5 epi-chip whitespace-nowrap',
-                    CLOSING_STATUS_CHIP_CLASS[r.closingStatus],
-                  )}
-                >
-                  {CLOSING_STATUS_LABELS[r.closingStatus]}
-                </span>
-              {/if}
-            </Table.Cell>
-          {/if}
-          {#if facetOf.has('reco')}
-            <Table.Cell class="text-sm">
-              {#if r.recoOptionId && recoLabelOf.has(r.recoOptionId)}
-                <span class="block max-w-40 truncate">
-                  {recoLabelOf.get(r.recoOptionId)}
-                </span>
-              {:else}
-                <span class="text-muted-foreground">-</span>
-              {/if}
-            </Table.Cell>
-          {/if}
         {/snippet}
 
-        <!-- Mobile card (below lg): the wide roster can't fit a phone, so the
+        <!-- Card (below xl): the roster's columns can't fit there, so the
              row folds to the name with XP and the status badge top-right, then
              the parcours, lycée and niveau beneath. Its filters open from the
              table's "Filtrer" drawer. The whole card links to the fiche via
