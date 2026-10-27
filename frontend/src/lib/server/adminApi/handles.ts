@@ -48,6 +48,7 @@ export type HandleKind =
   | 'workshopSlug'
   | 'workshopInstanceSlug'
   | 'eventCategoryKey'
+  | 'workshopDomainKey'
   | 'usageFeatureKey'
   | 'adminAddress';
 
@@ -131,6 +132,13 @@ export const HANDLES: Record<HandleKind, Handle> = {
   workshopInstanceSlug: {
     what: 'Instance slug, the stable key of one deployed CTFd host, whatever content it serves.',
     frNoun: "clés d'instance",
+    frGender: 'f',
+    producedBy: [{ operation: 'config_workshops' }],
+  },
+
+  workshopDomainKey: {
+    what: 'Domain key, the stable name of one field the subject catalogue files activities under; the label is what gets renamed.',
+    frNoun: 'clés de domaine',
     frGender: 'f',
     producedBy: [{ operation: 'config_workshops' }],
   },
@@ -414,6 +422,10 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // the event write and the bulk write that give it. Its key is its identity, so
   // unlike a closing grid there is no id beside it.
   categoryKey: 'eventCategoryKey',
+  // A domain by its key, the same way: the write that authors it, and the
+  // complete set of them an activity is filed under.
+  domainKey: 'workshopDomainKey',
+  domains: 'workshopDomainKey',
 };
 
 const list = (parts: string[]) =>

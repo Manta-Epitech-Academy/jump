@@ -61,6 +61,10 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   // How an activity presents itself: a line and the addresses of pictures Jump
   // downloads. Authored, not picked from anything Jump holds.
   'cover',
+  // How the subject catalogue files an activity: a level its own schema spells
+  // out, and notions an admin writes. The domains it names are a handle.
+  'level',
+  'notions',
   // What a campus puts on its talents' home: its note, and the event it puts
   // forward with the address of that event's outside sign-up form.
   'markdown',

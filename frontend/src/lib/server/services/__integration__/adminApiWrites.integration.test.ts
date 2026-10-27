@@ -19,6 +19,7 @@ import { planDigest } from '$lib/server/adminApi/plan';
 import {
   getEventDetail,
   getEventTemplates,
+  getWorkshops,
   type EventDetail,
 } from '$lib/server/services/adminStats/configuration';
 import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
@@ -30,6 +31,8 @@ const postRequestSync = adminApiWrite('ops_request_sync');
 const postReleasePruneHold = adminApiWrite('ops_release_prune_hold');
 const postWorkshopInstance = adminApiWrite('write_workshop_instance');
 const postCategory = adminApiWrite('write_event_category');
+const postWorkshop = adminApiWrite('write_workshop');
+const postDomain = adminApiWrite('write_workshop_domain');
 
 /** Calls a handler the way SvelteKit would, with a bearer and a JSON body. */
 async function call(
@@ -1550,6 +1553,207 @@ describe('admin API writes (integration)', () => {
       });
       expect(archived.status).toBe(400);
       expect(String(archived.payload.error)).toContain('archivée');
+    });
+  });
+
+  describe('the subject catalogue', () => {
+    const host = `catalogue-${stamp}`;
+    const subject = `catalogue-sujet-${stamp}`;
+    const cyber = `cyber-${stamp}`;
+    const ai = `ia-${stamp}`;
+    const retired = `electronique-${stamp}`;
+
+    beforeAll(async () => {
+      await call(postWorkshopInstance, writeSecret, {
+        instance: host,
+        baseUrl: `https://${host}.ctfd.test`,
+      });
+      await call(postWorkshop, writeSecret, {
+        slug: subject,
+        label: 'Sujet de catalogue',
+        instance: host,
+      });
+    });
+
+    afterAll(async () => {
+      await prisma.workshop_Activity.deleteMany({ where: { slug: subject } });
+      await prisma.workshop_Instance.deleteMany({ where: { slug: host } });
+      await prisma.workshop_Domain.deleteMany({
+        where: { key: { in: [cyber, ai, retired] } },
+      });
+    });
+
+    const activityRead = async () =>
+      (await getWorkshops()).activities.value.find((a) => a.slug === subject)!;
+
+    it('creates a domain, then renames, archives and unarchives it', async () => {
+      const created = await call(postDomain, writeSecret, {
+        domainKey: cyber,
+        label: `Cyber ${stamp}`,
+      });
+      expect(created.status).toBe(200);
+      expect(created.payload.before).toBeNull();
+      expect(created.payload.after).toEqual({
+        domainKey: cyber,
+        label: `Cyber ${stamp}`,
+        archived: false,
+      });
+
+      const renamed = await call(postDomain, writeSecret, {
+        domainKey: cyber,
+        label: `Cybersécurité ${stamp}`,
+      });
+      expect(renamed.payload.after).toMatchObject({
+        label: `Cybersécurité ${stamp}`,
+      });
+
+      await call(postDomain, writeSecret, { domainKey: cyber, archived: true });
+      // Archiving again keeps the first instant: nothing moves.
+      const first = await prisma.workshop_Domain.findUniqueOrThrow({
+        where: { key: cyber },
+      });
+      await call(postDomain, writeSecret, { domainKey: cyber, archived: true });
+      expect(
+        (
+          await prisma.workshop_Domain.findUniqueOrThrow({
+            where: { key: cyber },
+          })
+        ).archivedAt,
+      ).toEqual(first.archivedAt);
+
+      const back = await call(postDomain, writeSecret, {
+        domainKey: cyber,
+        archived: false,
+      });
+      expect(back.payload.after).toMatchObject({ archived: false });
+    });
+
+    it('refuses to create a domain without a label, and a label another one holds', async () => {
+      const incomplete = await call(postDomain, writeSecret, { domainKey: ai });
+      expect(incomplete.status).toBe(400);
+      expect(String(incomplete.payload.error)).toContain('label');
+
+      // Case does not tell two domains apart in the filter.
+      const taken = await call(postDomain, writeSecret, {
+        domainKey: ai,
+        label: `CYBERSÉCURITÉ ${stamp}`,
+      });
+      expect(taken.status).toBe(400);
+      expect(String(taken.payload.error)).toContain(`« ${cyber} »`);
+      expect(await prisma.workshop_Domain.count({ where: { key: ai } })).toBe(
+        0,
+      );
+    });
+
+    it('files a subject, leaves its filing alone when a call does not name it, and clears it', async () => {
+      await call(postDomain, writeSecret, {
+        domainKey: ai,
+        label: `IA ${stamp}`,
+      });
+
+      const filed = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        level: 'expert',
+        notions: [' FSM ', 'Arbres de décision', 'fsm', '  '],
+        domains: [cyber, ai],
+      });
+      expect(filed.status).toBe(200);
+      expect(filed.payload.after).toMatchObject({
+        level: 'expert',
+        // Trimmed, the blank and the repeat dropped whatever its case.
+        notions: ['FSM', 'Arbres de décision'],
+        domains: [ai, cyber].sort(),
+      });
+
+      const relabelled = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        label: 'Sujet renommé',
+      });
+      expect(relabelled.payload.after).toMatchObject({
+        level: 'expert',
+        notions: ['FSM', 'Arbres de décision'],
+        domains: [ai, cyber].sort(),
+      });
+
+      const cleared = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        level: null,
+        notions: [],
+        domains: [],
+      });
+      expect(cleared.payload.after).toMatchObject({
+        level: null,
+        notions: [],
+        domains: [],
+      });
+    });
+
+    it('refuses an unknown domain, and an archived one unless the subject already carries it', async () => {
+      const unknown = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        domains: [`inconnu-${stamp}`],
+      });
+      expect(unknown.status).toBe(400);
+      expect(String(unknown.payload.error)).toContain('config_workshops');
+
+      await call(postDomain, writeSecret, {
+        domainKey: retired,
+        label: `Électronique ${stamp}`,
+      });
+      await call(postWorkshop, writeSecret, {
+        slug: subject,
+        domains: [retired],
+      });
+      await call(postDomain, writeSecret, {
+        domainKey: retired,
+        archived: true,
+      });
+
+      // Carried before it was archived: kept, so the read sent back is taken.
+      const kept = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        domains: [retired, cyber],
+      });
+      expect(kept.status).toBe(200);
+
+      await call(postWorkshop, writeSecret, { slug: subject, domains: [] });
+      const fresh = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        domains: [retired],
+      });
+      expect(fresh.status).toBe(400);
+      expect(String(fresh.payload.error)).toContain('archivé');
+    });
+
+    it('reads back its filing in the shape the write takes, with what it lacks for the catalogue', async () => {
+      await call(postWorkshop, writeSecret, {
+        slug: subject,
+        level: 'beginner',
+        notions: ['Encodage'],
+        domains: [cyber],
+      });
+      const read = await activityRead();
+      // No tagline and no picture yet: the catalogue does not show it.
+      expect(read.missingForCatalogue).toEqual(['tagline', 'picture']);
+
+      const echoed = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        level: read.level,
+        notions: read.notions,
+        domains: read.domains,
+      });
+      expect(echoed.status).toBe(200);
+      expect(echoed.payload.after).toEqual(echoed.payload.before);
+
+      const domains = (await getWorkshops()).domains.value;
+      expect(domains.find((d) => d.key === cyber)).toMatchObject({
+        archived: false,
+        subjects: 1,
+      });
+      expect(domains.find((d) => d.key === retired)).toMatchObject({
+        archived: true,
+        subjects: 0,
+      });
     });
   });
 });

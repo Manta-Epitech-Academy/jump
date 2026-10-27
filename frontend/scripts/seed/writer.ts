@@ -314,7 +314,7 @@ export async function wipe(
   /**
    * Catalogue rows the generator owns but that carry their own natural keys
    * rather than seed ids - the feedback forms, keyed on a slug, and the event
-   * categories, keyed on the key the API names them by. Their seeders are
+   * categories and workshop domains, keyed on the key the API names them by. Their seeders are
    * create-only, which is right for `--catalog-only` against a live database and
    * wrong for a full generation: without this, an edit to a fixture would never
    * reach a database that had already been seeded once, and the fixture and the
@@ -323,10 +323,11 @@ export async function wipe(
   catalogue: {
     formSlugs?: readonly string[];
     categoryKeys?: readonly string[];
+    domainKeys?: readonly string[];
   } = {},
 ): Promise<number> {
   const seeded = { startsWith: SEED_ID_PREFIX };
-  const { formSlugs = [], categoryKeys = [] } = catalogue;
+  const { formSlugs = [], categoryKeys = [], domainKeys = [] } = catalogue;
   let removed = 0;
   const drop = async (label: string, run: () => Promise<{ count: number }>) => {
     const { count } = await run();
@@ -466,6 +467,16 @@ export async function wipe(
   await drop('workshop_Instance', () =>
     prisma.workshop_Instance.deleteMany({ where: { id: seeded } }),
   );
+  // After every seeded activity, whose links went with it, and only a domain
+  // nothing else carries: one a subject of the running application is filed
+  // under is left as it is, since the link Restricts onto it.
+  if (domainKeys.length > 0) {
+    await drop('workshop_Domain', () =>
+      prisma.workshop_Domain.deleteMany({
+        where: { key: { in: [...domainKeys] }, activities: { none: {} } },
+      }),
+    );
+  }
   await drop('closing_TemplateQuestion', () =>
     prisma.closing_TemplateQuestion.deleteMany({ where: { id: seeded } }),
   );

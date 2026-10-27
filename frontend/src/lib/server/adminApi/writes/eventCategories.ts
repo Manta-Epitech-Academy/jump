@@ -20,13 +20,13 @@
  * event's configuration (`write_event_config`, `bulk_event_config`).
  */
 
-import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import {
   EVENT_CATEGORY_SELECT,
   eventCategoryView,
 } from '$lib/server/services/eventCategories';
 import { OperationRefusedError } from '../errors';
+import { archivedAtFor, refusingRaces } from './catalogue';
 import type { WriteOutcome } from '../plan';
 
 export type EventCategoryPatch = {
@@ -64,42 +64,6 @@ async function refuseTakenLabel(key: string, label: string) {
   }
 }
 
-/**
- * The archive instant to write: untouched when the call does not say, cleared on
- * unarchive, and on archive the first instant kept, so repeating the call
- * changes nothing.
- */
-function archivedAtFor(
-  archived: boolean | undefined,
-  alreadyArchived: boolean,
-): Date | null | undefined {
-  if (archived === undefined) return undefined;
-  if (!archived) return null;
-  return alreadyArchived ? undefined : new Date();
-}
-
-/**
- * Runs the write, refusing rather than failing when another call took this key
- * or this label since they were read: a retry after a timeout, overlapping the
- * call it retries. Run again, a call reads the state the other one left, and
- * updates it or names the label's holder.
- */
-async function refusingRaces(key: string, write: () => Promise<unknown>) {
-  try {
-    await write();
-  } catch (err) {
-    if (
-      err instanceof Prisma.PrismaClientKnownRequestError &&
-      err.code === 'P2002'
-    ) {
-      throw new OperationRefusedError(
-        `Un autre appel vient d'écrire la catégorie « ${key} » ou son libellé. Relancez celui-ci.`,
-      );
-    }
-    throw err;
-  }
-}
-
 export async function writeEventCategory(
   params: EventCategoryPatch,
 ): Promise<WriteOutcome> {
@@ -109,9 +73,10 @@ export async function writeEventCategory(
   const color = params.color?.toLowerCase();
   if (label) await refuseTakenLabel(key, label);
   const archivedAt = archivedAtFor(params.archived, before?.archived ?? false);
+  const race = `Un autre appel vient d'écrire la catégorie « ${key} » ou son libellé. Relancez celui-ci.`;
 
   if (before) {
-    await refusingRaces(key, () =>
+    await refusingRaces(race, () =>
       prisma.eventConfig_Category.update({
         where: { key },
         data: { label, color, archivedAt },
@@ -123,7 +88,7 @@ export async function writeEventCategory(
         `La catégorie « ${key} » n'existe pas encore : pour la créer, donnez-lui un libellé (label) et une couleur (color).`,
       );
     }
-    await refusingRaces(key, () =>
+    await refusingRaces(race, () =>
       prisma.eventConfig_Category.create({
         data: { key, label, color, archivedAt },
       }),

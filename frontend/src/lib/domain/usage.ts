@@ -62,6 +62,7 @@ export const USAGE_FEATURES = {
   DEV_CLOSING_CONDUCT_VIEW: 'dev_closing_conduct_view',
   DEV_PLANNING_VIEW: 'dev_planning_view',
   DEV_TALENT_FICHE_VIEW: 'dev_talent_fiche_view',
+  DEV_CATALOGUE_VIEW: 'dev_catalogue_view',
   DEV_TALENT_NOTE_CREATE: 'dev_talent_note_create',
   DEV_TALENT_NOTE_EDIT: 'dev_talent_note_edit',
   DEV_TALENT_NOTE_DELETE: 'dev_talent_note_delete',
@@ -534,6 +535,18 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     key: USAGE_FEATURES.DEV_TALENT_FICHE_VIEW,
     label: 'Fiche d’un jeune',
     definition: `Consultations de la fiche individuelle d’un jeune. ${BUCKET_NOTE}`,
+    audience: 'staff',
+    space: 'dev',
+    kind: 'view',
+    scope: 'campus',
+    dedupe: 'bucket',
+  }),
+  // Whether the teams open it decides whether a subject's detailed page, left
+  // out of #439, is worth building.
+  [USAGE_FEATURES.DEV_CATALOGUE_VIEW]: def({
+    key: USAGE_FEATURES.DEV_CATALOGUE_VIEW,
+    label: 'Catalogue des sujets',
+    definition: `Consultations du catalogue des sujets, le même pour tous les campus. ${BUCKET_NOTE}`,
     audience: 'staff',
     space: 'dev',
     kind: 'view',
@@ -1440,6 +1453,7 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
     USAGE_FEATURES.DEV_CLOSING_CONDUCT_VIEW,
   '/(staff)/staff/dev/events/[id]/planning': USAGE_FEATURES.DEV_PLANNING_VIEW,
   '/(staff)/staff/dev/students/[id]': USAGE_FEATURES.DEV_TALENT_FICHE_VIEW,
+  '/(staff)/staff/dev/catalogue': USAGE_FEATURES.DEV_CATALOGUE_VIEW,
 
   // Admin space
   '/(staff)/staff/admin': USAGE_FEATURES.ADMIN_DASHBOARD_VIEW,
