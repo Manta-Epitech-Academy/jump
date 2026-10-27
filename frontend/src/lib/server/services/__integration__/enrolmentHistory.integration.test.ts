@@ -4,11 +4,11 @@ import { countPriorEnrolments } from '../enrolmentHistory';
 import { assertTestDatabase } from './testDatabase';
 
 /**
- * The count behind "Déjà inscrit N fois". It has to stay on the campus (the
- * scoped client does not scope this groupBy, so the campus is written by hand
- * and a leak would be silent), skip the enrolments the dev space masks, and
- * count only events strictly before the one being read: the event itself and a
- * later one are not history.
+ * The count behind a talent's parcours (« 3ᵉ inscription »). It has to stay on
+ * the campus (the scoped client does not scope this groupBy, so the campus is
+ * written by hand and a leak would be silent), skip the enrolments the dev
+ * space masks, and count only events strictly before the one being read: the
+ * event itself and a later one are not history.
  */
 describe('prior enrolments (integration)', () => {
   const stamp = Date.now();

@@ -93,9 +93,7 @@
                  The dotted underline is worn at rest, not on hover, which is
                  what tells the two apart: half a list linking and half not,
                  with both drawn identically until the pointer lands, reads as
-                 rows that are broken rather than as rows that lead nowhere.
-                 Same affordance `OriginBreakdownCard` gives its clickable
-                 rows. -->
+                 rows that are broken rather than as rows that lead nowhere. -->
             {#if entry.eventHref}
               <a
                 href={entry.eventHref}
