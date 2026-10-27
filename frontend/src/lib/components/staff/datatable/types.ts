@@ -14,6 +14,10 @@ export type ColumnFilter = {
   onChange: (values: string[]) => void;
 };
 
+/** A filter with the name it is listed under, for the menus that gather
+ *  several (the mobile drawer, a toolbar's "Filtres"). */
+export type NamedFilter = { key: string; label: string; filter: ColumnFilter };
+
 export type ColumnDef = {
   /** Stable sort key, passed back through `onSort`. */
   key: string;

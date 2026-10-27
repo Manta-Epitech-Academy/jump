@@ -42,14 +42,19 @@
         )}
       >
         {#if withLabel}{title}{/if}
-        <Funnel class="size-3" />
-        {#if active}
-          <span
-            class="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-epi-blue px-1 text-xs font-bold tracking-normal text-primary-foreground tabular-nums"
-          >
-            {filter.selected.length}
-          </span>
-        {/if}
+        <!-- The count sits on the funnel rather than beside it, so an active
+             filter costs its column no width: a roster's columns are budgeted
+             to fit the page. -->
+        <span class="relative inline-flex">
+          <Funnel class="size-3" />
+          {#if active}
+            <span
+              class="absolute -top-2 -right-3 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-epi-blue px-1 text-xs font-bold tracking-normal text-primary-foreground tabular-nums"
+            >
+              {filter.selected.length}
+            </span>
+          {/if}
+        </span>
       </button>
     {/snippet}
   </Popover.Trigger>

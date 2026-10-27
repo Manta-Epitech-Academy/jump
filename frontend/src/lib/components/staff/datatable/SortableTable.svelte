@@ -42,6 +42,7 @@
     layout = 'auto',
     mobileRow,
     mobileSort = true,
+    cardsBelow = 'lg',
     selectable = false,
     selected,
   }: {
@@ -109,6 +110,13 @@
     /** Show the compact "Trier" dropdown above the mobile cards (sortable cols only). */
     mobileSort?: boolean;
     /**
+     * The width below which `mobileRow` cards replace the table. `lg` (1024px)
+     * suits most rosters; a table whose columns need more than the content
+     * track leaves at `lg` (about 690px beside the sidebar) switches at `xl`
+     * instead, so it never has to scroll sideways or squeeze its columns.
+     */
+    cardsBelow?: 'lg' | 'xl';
+    /**
      * Opt-in row selection. Renders a leading checkbox column (desktop + mobile)
      * plus a select-all header box. The parent owns `selected`, keyed by `rowKey`,
      * and renders its own bulk-action bar off `selected.size`; this component only
@@ -134,9 +142,14 @@
   // media query keeps a single tree mounted. SSR (and the first client paint,
   // before `mounted`) renders the desktop table so it matches the server HTML
   // and avoids a hydration mismatch; mobile clients swap to cards right after
-  // mount. `lg` = 1024px, the same seam the old classes used. When no `mobileRow`
+  // mount. The seam is `lg` (1024px) unless `cardsBelow` moves it. When no `mobileRow`
   // is supplied (e.g. the admin talents table) the desktop table always renders.
-  const isDesktop = new MediaQuery('(min-width: 1024px)', true);
+  const isDesktop = $derived(
+    new MediaQuery(
+      cardsBelow === 'xl' ? '(min-width: 1280px)' : '(min-width: 1024px)',
+      true,
+    ),
+  );
   let mounted = $state(false);
   onMount(() => {
     mounted = true;
