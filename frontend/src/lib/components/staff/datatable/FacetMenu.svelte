@@ -57,7 +57,14 @@
   }
 </script>
 
-<Command.Root label={`Filtrer par ${title.toLowerCase()}`} filter={matchLabel}>
+<!-- Command highlights its first row from the start, which reads as "ticked"
+     when several menus sit side by side (the mobile drawer). The highlight
+     shows only while the menu has focus, where it is the keyboard cursor. -->
+<Command.Root
+  label={`Filtrer par ${title.toLowerCase()}`}
+  filter={matchLabel}
+  class="group/facet"
+>
   {#if searchable}
     <Command.Input placeholder="Rechercher…" />
   {/if}
@@ -72,7 +79,7 @@
         keywords={[opt.label]}
         onSelect={() => toggle(opt.value)}
         aria-checked={on}
-        class="cursor-pointer"
+        class="cursor-pointer hover:bg-accent aria-selected:bg-transparent aria-selected:text-foreground group-focus-within/facet:aria-selected:bg-accent group-focus-within/facet:aria-selected:text-accent-foreground"
       >
         <span
           aria-hidden="true"
