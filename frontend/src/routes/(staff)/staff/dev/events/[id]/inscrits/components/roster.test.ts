@@ -29,14 +29,11 @@ function row(over: Partial<InscritRow> & { id: string }): InscritRow {
     xp: 0,
     priorEnrolments: 0,
     techInterests: [],
-    persoInterests: [],
     status: 'ready',
     connected: true,
     rulesStatus: 'signed',
     imageStatus: 'accepted',
     studentSigned: true,
-    closingStatus: null,
-    recoOptionId: null,
     email: null,
     sfMemberStatus: 'READY',
     ...over,
@@ -65,11 +62,7 @@ const cohort = [
   }),
 ];
 
-const full: RosterContext = {
-  showStatut: true,
-  hasClosings: false,
-  reco: null,
-};
+const full: RosterContext = { showStatut: true };
 
 function kept(query: string, ctx: RosterContext = full): string[] {
   const facets = rosterFacets(
@@ -142,51 +135,14 @@ describe('the inscrits filters', () => {
     expect(niveau?.selected).toEqual([]);
   });
 
-  it('does not offer, nor apply, a filter the event has no data for', () => {
-    const ctx: RosterContext = {
-      showStatut: false,
-      hasClosings: false,
-      reco: null,
-    };
+  it('does not offer, nor apply, the statut where the campus does not onboard', () => {
+    const ctx: RosterContext = { showStatut: false };
     const facets = rosterFacets(
       cohort,
       ctx,
       parseInscritsView(new URLSearchParams()),
     );
     expect(facet(facets, 'statut')).toBeUndefined();
-    expect(facet(facets, 'closing')).toBeUndefined();
-    expect(facet(facets, 'reco')).toBeUndefined();
-    expect(kept('statut=never_connected&closing=done', ctx)).toEqual([
-      'a',
-      'b',
-      'c',
-      'd',
-    ]);
-  });
-
-  it("lists the form's verdicts in its order, then who has not answered", () => {
-    const answered = [
-      row({ id: 'x', recoOptionId: 'non' }),
-      row({ id: 'y', recoOptionId: 'oui' }),
-      row({ id: 'z' }),
-    ];
-    const ctx: RosterContext = {
-      ...full,
-      reco: {
-        options: [
-          { id: 'oui', label: 'Oui' },
-          { id: 'non', label: 'Non' },
-        ],
-      },
-    };
-    const reco = facet(
-      rosterFacets(answered, ctx, parseInscritsView(new URLSearchParams())),
-      'reco',
-    );
-    expect(reco?.options.map((o) => o.label)).toEqual([
-      'Oui',
-      'Non',
-      'Sans réponse',
-    ]);
+    expect(kept('statut=never_connected', ctx)).toEqual(['a', 'b', 'c', 'd']);
   });
 });

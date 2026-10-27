@@ -1,17 +1,10 @@
 import type { Prisma } from '@prisma/client';
 import type { ScopedPrismaClient } from '$lib/server/db/scoped';
 import type { EventRecord } from '$lib/server/services/stageContext';
-import { EVENT_MODULES, eventRunsClosings } from '$lib/domain/eventModules';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { rulesStatus, inscritStatus } from '$lib/domain/dossierCompliance';
 import { imageRightsStatus } from '$lib/domain/imageRights';
-import { closingListStatus } from '$lib/domain/closing';
 import { schoolYearOf } from '$lib/domain/schoolYear';
-import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
-import {
-  loadCohortSubmissions,
-  recoQuestionOf,
-} from '$lib/server/feedbackStats';
 import { countPriorEnrolments } from '$lib/server/services/enrolmentHistory';
 import { loadEventDossierSignatures, NO_DOSSIER_SIGNATURES } from './dossiers';
 import type {
@@ -53,13 +46,12 @@ const INSCRIT_TALENT_SELECT = {
   school: { select: { id: true, name: true } },
   // The Genre column, and the parcours wording agrees with it.
   civilite: true,
-  // The Tech and Perso columns. The interest rows are a handful of short
-  // strings, so they ride the cohort rather than a second catalogue query.
+  // The Tech column. The interest rows are a handful of short strings, so
+  // they ride the cohort rather than a second catalogue query.
   interests: {
+    where: { interest: { kind: 'tech' } },
     select: {
-      interest: {
-        select: { id: true, nom: true, emoji: true, kind: true, order: true },
-      },
+      interest: { select: { id: true, nom: true, emoji: true, order: true } },
     },
   },
 } satisfies Prisma.TalentSelect;
@@ -71,21 +63,14 @@ const INSCRIT_PARTICIPATION_SELECT = {
   sfMemberStatus: true,
 } satisfies Prisma.ParticipationSelect;
 
-type InterestLink = {
-  interest: InscritInterest & { kind: string; order: number };
-};
+type InterestLink = { interest: InscritInterest & { order: number } };
 
-/** A talent's interests split by kind, each in the catalogue's own order. */
-function splitInterests(links: InterestLink[]): {
-  tech: InscritInterest[];
-  perso: InscritInterest[];
-} {
-  const sorted = links.map((l) => l.interest).sort((a, b) => a.order - b.order);
-  const chip = ({ id, nom, emoji }: InscritInterest) => ({ id, nom, emoji });
-  return {
-    tech: sorted.filter((i) => i.kind === 'tech').map(chip),
-    perso: sorted.filter((i) => i.kind !== 'tech').map(chip),
-  };
+/** A talent's tech interests in the catalogue's own order. */
+function techInterests(links: InterestLink[]): InscritInterest[] {
+  return links
+    .map((l) => l.interest)
+    .sort((a, b) => a.order - b.order)
+    .map(({ id, nom, emoji }) => ({ id, nom, emoji }));
 }
 
 /**
@@ -96,10 +81,6 @@ function splitInterests(links: InterestLink[]): {
  *
  * `talentIds` narrows it to the rows the export was asked for; the page takes
  * the whole cohort, ordered by nom as the table first shows it.
- *
- * A column whose data the event does not have comes back empty and says so:
- * `hasClosings` false when the event runs no closings, `reco` null when it has
- * no live form asking the recommendation question.
  */
 export async function loadInscritsCohort(
   db: ScopedPrismaClient,
@@ -107,22 +88,11 @@ export async function loadInscritsCohort(
   timezone: string,
   { talentIds }: { talentIds?: readonly string[] } = {},
 ): Promise<InscritsCohort> {
-  const hasClosings = eventRunsClosings({
-    modules: event.modules,
-    hasClosingTemplate: event.closingTemplateId !== null,
-  });
-  // The bilan module and a live form: the same pair the Bilan page needs, so
-  // the column shows exactly when that page exists.
-  const form = event.modules.has(EVENT_MODULES.BILAN)
-    ? await resolvePublishedEventForm(event)
-    : null;
-  const reco = form ? recoQuestionOf(form) : null;
-
   // The règlement applying to this event is the one of the event's own school
   // year, so that is the dossier the statut column reads (see `./dossiers`).
   const schoolYear = schoolYearOf(event.date, timezone).label;
 
-  const [participations, dossiers, closings, submissions] = await Promise.all([
+  const [participations, dossiers] = await Promise.all([
     db.participation.findMany({
       where: {
         eventId: event.id,
@@ -133,22 +103,12 @@ export async function loadInscritsCohort(
       orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
     }),
     loadEventDossierSignatures(db, event.id, schoolYear),
-    hasClosings
-      ? db.closing_Record.findMany({
-          where: { eventId: event.id },
-          select: { talentId: true, status: true },
-        })
-      : [],
-    form && reco
-      ? loadCohortSubmissions(form.id, event.id, reco)
-      : new Map<string, never>(),
   ]);
   const prior = await countPriorEnrolments(
     event.campusId,
     participations.map((p) => p.talentId),
     event.date,
   );
-  const closingOf = new Map(closings.map((c) => [c.talentId, c]));
 
   const rows: InscritRow[] = participations.map((p) => {
     const t = p.talent;
@@ -161,7 +121,6 @@ export async function loadInscritsCohort(
     // column would answer for whichever year this talent last opened.
     const image = imageRightsStatus(dossier);
     const connected = t.firstLoginAt != null;
-    const interests = splitInterests(t.interests);
     return {
       id: p.id,
       talentId: p.talentId,
@@ -173,25 +132,16 @@ export async function loadInscritsCohort(
       schoolName: t.school?.name ?? null,
       xp: t.xp,
       priorEnrolments: prior.get(p.talentId) ?? 0,
-      techInterests: interests.tech,
-      persoInterests: interests.perso,
+      techInterests: techInterests(t.interests),
       status: inscritStatus(t.niveau, connected, rules, image),
       connected,
       rulesStatus: rules,
       imageStatus: image,
       studentSigned: dossier.rulesSignedAt != null,
-      closingStatus: hasClosings
-        ? closingListStatus(closingOf.get(p.talentId))
-        : null,
-      recoOptionId: submissions.get(p.talentId)?.recoOptionId ?? null,
       email: t.user?.email ?? null,
       sfMemberStatus: p.sfMemberStatus,
     };
   });
 
-  return {
-    rows,
-    hasClosings,
-    reco: reco ? { options: reco.options } : null,
-  };
+  return { rows };
 }

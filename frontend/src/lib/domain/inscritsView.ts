@@ -9,10 +9,10 @@
  *
  * - **One param per facet, values comma-joined** (`?niveau=2nde,1ere`), the
  *   shape `?campus=` already has on the admin directories. Every value is an id
- *   or an enum key, never a label: an id, a niveau code, a closing state, a
- *   reco option id. None of them contains a comma.
+ *   or an enum key, never a label: a lycée or interest id, a niveau code, a
+ *   dossier state. None of them contains a comma.
  * - **`aucun` is the "not filled in" value**, for the facets a talent can lack
- *   (no lycée, no niveau, no answer).
+ *   (no lycée, no niveau, no tech interest).
  * - **The default view writes nothing.** An empty facet drops its param, and so
  *   does the default sort, so the bare address is the unfiltered list.
  *
@@ -25,12 +25,9 @@ export const INSCRITS_FACETS = [
   'genre',
   'parcours',
   'tech',
-  'perso',
   'lycee',
   'niveau',
   'statut',
-  'closing',
-  'reco',
 ] as const;
 
 export type InscritsFacet = (typeof INSCRITS_FACETS)[number];

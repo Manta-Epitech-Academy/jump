@@ -11,7 +11,6 @@ import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { niveauLabel } from '$lib/domain/niveau';
 import { civiliteLabel } from '$lib/domain/profile';
 import { parcoursLabel } from '$lib/domain/enrolmentHistory';
-import { CLOSING_STATUS_LABELS } from '$lib/domain/closing';
 import {
   INSCRIT_STATUS_LABELS,
   RULES_STATUS_LABELS,
@@ -80,7 +79,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       : [],
   ]);
   const contactOf = new Map(contacts.map((c) => [c.talentId, c.talent]));
-  const recoLabelOf = new Map(cohort.reco?.options.map((o) => [o.id, o.label]));
 
   // Preserve the client's filtered + sorted order.
   const byTalent = new Map(cohort.rows.map((r) => [r.talentId, r]));
@@ -88,26 +86,11 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     .map((id) => byTalent.get(id))
     .filter((r): r is NonNullable<typeof r> => !!r);
 
-  // The event's optional columns, present exactly when the page shows them.
-  const optional = [
-    ...(cohort.hasClosings ? (['Closing'] as const) : []),
-    ...(cohort.reco ? (['Recommandation'] as const) : []),
-  ];
-
   const rows = ordered.map((r) => {
     const contact = contactOf.get(r.talentId);
     const parentName = [contact?.parentPrenom, contact?.parentNom]
       .filter(Boolean)
       .join(' ');
-    const optionalCells = optional.map((column) =>
-      column === 'Closing'
-        ? r.closingStatus
-          ? CLOSING_STATUS_LABELS[r.closingStatus]
-          : ''
-        : r.recoOptionId
-          ? (recoLabelOf.get(r.recoOptionId) ?? '')
-          : '',
-    );
     return [
       civiliteLabel(r.civilite),
       r.prenom,
@@ -115,7 +98,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       r.xp,
       parcoursLabel(r.priorEnrolments),
       r.techInterests.map((i) => i.nom).join(', '),
-      r.persoInterests.map((i) => i.nom).join(', '),
       r.schoolName ?? '',
       r.niveau ? niveauLabel(r.niveau) : '',
       INSCRIT_STATUS_LABELS[r.status],
@@ -124,7 +106,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       IMAGE_RIGHTS_DISPLAY_LABELS[
         imageRightsDisplayStatus(r.imageStatus, r.studentSigned)
       ],
-      ...optionalCells,
       r.email ?? '',
       contact?.phone ?? '',
       parentName,
@@ -142,14 +123,12 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       'XP',
       'Parcours',
       'Intérêts tech',
-      'Intérêts perso',
       'Lycée',
       'Niveau',
       'Statut',
       'Connexion',
       'Règlement intérieur',
       "Droit à l'image",
-      ...optional,
       'Email élève',
       'Téléphone élève',
       'Parent',
@@ -158,25 +137,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     ],
     rows,
     colWidths: [
-      8,
-      16,
-      16,
-      8,
-      22,
-      26,
-      26,
-      30,
-      10,
-      12,
-      11,
-      18,
-      16,
-      ...optional.map(() => 18),
-      26,
-      16,
-      22,
-      26,
-      16,
+      8, 16, 16, 8, 22, 26, 30, 10, 12, 11, 18, 16, 26, 16, 22, 26, 16,
     ],
   });
 

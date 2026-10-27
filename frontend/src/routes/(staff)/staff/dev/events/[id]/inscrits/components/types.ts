@@ -1,6 +1,5 @@
 import type { InscritStatus, RulesStatus } from '$lib/domain/dossierCompliance';
 import type { ImageRightsStatus } from '$lib/domain/imageRights';
-import type { ClosingListStatus } from '$lib/domain/closing';
 import type { InscritsSortKey } from '$lib/domain/inscritsView';
 
 /** An interest as a row carries it: enough for a chip and a filter value. */
@@ -21,9 +20,8 @@ export type InscritRow = {
   // Enrolments on the campus at earlier events: the Parcours column
   // (`$lib/domain/enrolmentHistory`).
   priorEnrolments: number;
-  // Declared interests, split by kind and in the catalogue's own order.
+  // Declared tech interests, in the catalogue's own order.
   techInterests: InscritInterest[];
-  persoInterests: InscritInterest[];
   // Folded three-state funnel status (jamais / en cours / prêt); see
   // `inscritStatus`. Drives the badge, the statut filter and the sort.
   status: InscritStatus;
@@ -39,11 +37,6 @@ export type InscritRow = {
   // "pending" in the tooltip; distinct from `rulesStatus === 'signed'`, which a
   // staff offline attestation can reach without ever inviting a parent.
   studentSigned: boolean;
-  // The talent's closing at this event; null when the event runs no closings.
-  closingStatus: ClosingListStatus | null;
-  // The recommendation option picked on the event's form; null when unanswered
-  // or when the form asks none (`InscritsCohort.reco` says which).
-  recoOptionId: string | null;
   // Search haystack extras (not shown as columns).
   email: string | null;
   sfMemberStatus: string | null;
@@ -56,9 +49,4 @@ export type SortKey = InscritsSortKey;
  *  streamed shape and the consuming component can never drift. */
 export type InscritsCohort = {
   rows: InscritRow[];
-  /** Whether the event runs closings: shows the Closing column. */
-  hasClosings: boolean;
-  /** The form's recommendation verdicts in its own order, or null when the
-   *  event has no live form asking one: shows the Reco column. */
-  reco: { options: { id: string; label: string }[] } | null;
 };

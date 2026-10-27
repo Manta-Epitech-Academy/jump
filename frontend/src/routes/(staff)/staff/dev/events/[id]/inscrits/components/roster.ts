@@ -5,10 +5,6 @@ import {
   type InscritStatus,
 } from '$lib/domain/dossierCompliance';
 import {
-  CLOSING_STATUS_LABELS,
-  type ClosingListStatus,
-} from '$lib/domain/closing';
-import {
   PARCOURS_BUCKETS,
   PARCOURS_BUCKET_LABELS,
   parcoursBucket,
@@ -20,7 +16,7 @@ import {
   type InscritsView,
 } from '$lib/domain/inscritsView';
 import type { FacetOption } from '$lib/components/staff/datatable/types';
-import type { InscritRow, InscritsCohort, SortKey } from './types';
+import type { InscritRow, SortKey } from './types';
 
 /**
  * What the Inscrits table filters and sorts on, kept out of the component so
@@ -34,10 +30,14 @@ import type { InscritRow, InscritsCohort, SortKey } from './types';
  *   kept when, for every active facet, it carries one of the values ticked.
  * - **A value the cohort does not carry is ignored**, so a stale or hand-edited
  *   address filters on what still exists instead of emptying the list.
- * - **A facet the event has no data for is not offered**, and its param, if an
- *   address carries one, is ignored: no Closing on an event without closings.
- *   Its column still shows; a facet whose cohort carries a single value keeps
- *   its column too, with no filter, since it could not narrow the list.
+ * - **A facet the campus does not use is not offered**, and its param, if an
+ *   address carries one, is ignored: no Statut where the campus does not
+ *   onboard. A facet whose cohort carries a single value keeps its column,
+ *   with no filter, since it could not narrow the list.
+ *
+ * Every facet is a column of the table. What a roster row does not show is
+ * filtered on the page it belongs to: a closing's state on Closings, a
+ * recommendation on Feedback.
  */
 
 /** The statut filter's order: the rows still needing a chase first (never
@@ -50,13 +50,9 @@ export const INSCRIT_STATUS_ORDER: Record<InscritStatus, number> = {
   no_dossier: 3,
 };
 
-const CLOSING_ORDER: ClosingListStatus[] = ['todo', 'in_progress', 'done'];
-
-/** What the event has data for, which decides the facets on offer. */
+/** What the campus uses, which decides the facets on offer. */
 export type RosterContext = {
   showStatut: boolean;
-  hasClosings: InscritsCohort['hasClosings'];
-  reco: InscritsCohort['reco'];
 };
 
 /** One facet as the table offers it, with the values the view ticks in it. */
@@ -77,7 +73,7 @@ type FacetDef = {
   valuesOf: (row: InscritRow) => string[];
   /** The facet's values with their labels, in the order the menu lists them,
    *  before the ones no inscrit carries are dropped. */
-  vocabulary: (rows: InscritRow[], ctx: RosterContext) => [string, string][];
+  vocabulary: (rows: InscritRow[]) => [string, string][];
 };
 
 /** "Most carried first, then by name", for the open vocabularies. */
@@ -102,24 +98,6 @@ function byCount(
 
 const NOT_FILLED: [string, string] = [INSCRITS_NONE, 'Non renseigné'];
 
-function interestFacet(
-  title: string,
-  pick: (row: InscritRow) => InscritRow['techInterests'],
-): FacetDef {
-  return {
-    title,
-    available: () => true,
-    valuesOf: (r) => {
-      const ids = pick(r).map((i) => i.id);
-      return ids.length > 0 ? ids : [INSCRITS_NONE];
-    },
-    vocabulary: (rows) => [
-      ...byCount(rows, (r) => pick(r).map((i) => [i.id, i.nom])),
-      [INSCRITS_NONE, 'Aucun'],
-    ],
-  };
-}
-
 const FACETS: Record<InscritsFacet, FacetDef> = {
   genre: {
     title: 'Genre',
@@ -137,8 +115,18 @@ const FACETS: Record<InscritsFacet, FacetDef> = {
     vocabulary: () =>
       PARCOURS_BUCKETS.map((b) => [b, PARCOURS_BUCKET_LABELS[b]]),
   },
-  tech: interestFacet('Tech', (r) => r.techInterests),
-  perso: interestFacet('Perso', (r) => r.persoInterests),
+  tech: {
+    title: 'Tech',
+    available: () => true,
+    valuesOf: (r) => {
+      const ids = r.techInterests.map((i) => i.id);
+      return ids.length > 0 ? ids : [INSCRITS_NONE];
+    },
+    vocabulary: (rows) => [
+      ...byCount(rows, (r) => r.techInterests.map((i) => [i.id, i.nom])),
+      [INSCRITS_NONE, 'Aucun'],
+    ],
+  },
   lycee: {
     title: 'Lycée',
     available: () => true,
@@ -170,27 +158,9 @@ const FACETS: Record<InscritsFacet, FacetDef> = {
         .sort((a, b) => INSCRIT_STATUS_ORDER[a] - INSCRIT_STATUS_ORDER[b])
         .map((s) => [s, INSCRIT_STATUS_LABELS[s]]),
   },
-  closing: {
-    title: 'Closing',
-    available: (ctx) => ctx.hasClosings,
-    valuesOf: (r) => (r.closingStatus ? [r.closingStatus] : []),
-    vocabulary: () => CLOSING_ORDER.map((s) => [s, CLOSING_STATUS_LABELS[s]]),
-  },
-  reco: {
-    title: 'Reco',
-    available: (ctx) => ctx.reco !== null,
-    valuesOf: (r) => [r.recoOptionId ?? INSCRITS_NONE],
-    vocabulary: (_rows, ctx) => [
-      ...(ctx.reco?.options ?? []).map((o): [string, string] => [
-        o.id,
-        o.label,
-      ]),
-      [INSCRITS_NONE, 'Sans réponse'],
-    ],
-  },
 };
 
-/** The facets the event offers, each with its counted values and what the
+/** The facets the campus offers, each with its counted values and what the
  *  view ticks in it. */
 export function rosterFacets(
   rows: InscritRow[],
@@ -205,7 +175,7 @@ export function rosterFacets(
         for (const value of def.valuesOf(row))
           counts.set(value, (counts.get(value) ?? 0) + 1);
       const options = def
-        .vocabulary(rows, ctx)
+        .vocabulary(rows)
         .filter(([value]) => (counts.get(value) ?? 0) > 0)
         .map(([value, label]) => ({
           value,

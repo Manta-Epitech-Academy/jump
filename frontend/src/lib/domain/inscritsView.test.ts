@@ -60,7 +60,7 @@ describe('the inscrits view address', () => {
       { q: 'lou' },
       inscritsSortParams('xp', 'desc'),
       inscritsFacetParams('genre', ['femme']),
-      inscritsFacetParams('reco', ['option-1']),
+      inscritsFacetParams('tech', ['interest-1']),
       inscritsClearedFacetParams(),
     );
     expect(params.toString()).toBe('q=lou&sort=xp');

@@ -23,11 +23,7 @@
   import ActiveFilterChips, {
     type ActiveFilterChip,
   } from '$lib/components/staff/ActiveFilterChips.svelte';
-  import FiltersPopover from '$lib/components/staff/datatable/FiltersPopover.svelte';
-  import type {
-    ColumnDef,
-    NamedFilter,
-  } from '$lib/components/staff/datatable/types';
+  import type { ColumnDef } from '$lib/components/staff/datatable/types';
   import { talentFicheHref } from '$lib/components/dev/talentFiche';
   import { niveauLabel } from '$lib/domain/niveau';
   import { cohortNounForms } from '$lib/domain/event';
@@ -87,8 +83,6 @@
   // a reload, a shared link and the Back button all show the same list.
   let {
     rows,
-    hasClosings,
-    reco,
     event,
     showStatutColumn = true,
   }: InscritsCohort & {
@@ -161,11 +155,7 @@
   const search = createUrlSearch();
 
   const facets = $derived(
-    rosterFacets(
-      rows,
-      { showStatut: showStatutColumn, hasClosings, reco },
-      view,
-    ),
+    rosterFacets(rows, { showStatut: showStatutColumn }, view),
   );
   const facetOf = $derived(
     new Map<InscritsFacet, RosterFacet>(facets.map((f) => [f.facet, f])),
@@ -221,16 +211,6 @@
     if (facetOf.has('statut')) cols.push(filtered('statut', 'Statut', 'w-28'));
     return cols;
   });
-
-  // The facets worth narrowing on but not worth a column on every row: the
-  // toolbar's "Filtres" holds them, and the chips show them like the others.
-  const extraFilters = $derived<NamedFilter[]>(
-    (['perso', 'closing', 'reco'] as const).flatMap((facet) => {
-      const filter = filterOf(facet);
-      const title = facetOf.get(facet)?.title;
-      return filter && title ? [{ key: facet, label: title, filter }] : [];
-    }),
-  );
 
   function toggleSort(key: string) {
     const next = nextSort<SortKey>(
@@ -400,11 +380,12 @@
   {:else}
     <span class="flex flex-wrap gap-1">
       {#each interests as interest (interest.id)}
-        <!-- Sentence case, not the chip's capitals: an interest is a phrase
-             (« Data science / analyse de données »), and in capitals the
-             longer ones took three lines. -->
+        <!-- A tag, so a pill (`DESIGN.md`, and the mockup's Tech chips), in
+             sentence case rather than the chip's capitals: an interest is a
+             phrase (« Data science / analyse de données »), and in capitals
+             the longer ones took three lines. -->
         <span
-          class="rounded-sm bg-epi-blue/5 px-2 epi-chip whitespace-normal text-epi-blue normal-case"
+          class="rounded-full bg-epi-blue/5 px-2 py-0.5 epi-chip whitespace-normal text-epi-blue normal-case"
         >
           {interest.nom}
         </span>
@@ -444,12 +425,8 @@
       count={filtered.length}
       countNoun={noun.singular}
       countNounPlural={noun.plural}
-      filtersAlign="end"
       filtersApplied={anyFiltersApplied}
     >
-      {#snippet filters()}
-        <FiltersPopover filters={extraFilters} />
-      {/snippet}
       {#snippet countActions()}
         <!-- Export keeps to the right edge of the count line (ml-auto), acting
              on exactly the count shown. -->
