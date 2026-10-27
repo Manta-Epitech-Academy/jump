@@ -7,6 +7,10 @@
  * presence would call a talent who came three times without being checked in a
  * newcomer. An enrolment the dev space masks does not count, like everywhere
  * else in that space.
+ *
+ * Worded as the rank of this enrolment (« 3ᵉ inscription »): one short line in
+ * a roster cell, and the same words whoever the talent is, where « Déjà
+ * inscrit·e 2 fois » took two lines and an agreement with the civilité.
  */
 
 /** The filter's buckets, newcomer first. The last one gathers the long tail. */
@@ -21,33 +25,15 @@ export function parcoursBucket(priorEnrolments: number): ParcoursBucket {
   return '3-et-plus';
 }
 
-/**
- * Neutral labels for the filter, where one line stands for talents of every
- * gender. The cell beside each talent agrees with them instead
- * (`parcoursLabel`).
- */
 export const PARCOURS_BUCKET_LABELS: Record<ParcoursBucket, string> = {
-  nouveau: 'Première inscription',
-  '1': '1 inscription passée',
-  '2': '2 inscriptions passées',
-  '3-et-plus': '3 inscriptions passées ou plus',
+  nouveau: '1ʳᵉ inscription',
+  '1': '2ᵉ inscription',
+  '2': '3ᵉ inscription',
+  '3-et-plus': '4ᵉ inscription ou plus',
 };
 
-/**
- * The cell's wording, agreed with the talent's civilité: "Nouvelle",
- * "Déjà inscrit 2 fois". `autre` and an unknown civilité take the inclusive
- * form rather than defaulting to the masculine.
- */
-export function parcoursLabel(
-  priorEnrolments: number,
-  civilite: string | null | undefined,
-): string {
-  const [nouveau, inscrit] =
-    civilite === 'femme'
-      ? ['Nouvelle', 'inscrite']
-      : civilite === 'homme'
-        ? ['Nouveau', 'inscrit']
-        : ['Nouveau·elle', 'inscrit·e'];
-  if (priorEnrolments <= 0) return nouveau;
-  return `Déjà ${inscrit} ${priorEnrolments} fois`;
+/** This enrolment's rank on the campus: « 1ʳᵉ inscription », « 5ᵉ inscription ». */
+export function parcoursLabel(priorEnrolments: number): string {
+  const rank = Math.max(0, priorEnrolments) + 1;
+  return rank === 1 ? '1ʳᵉ inscription' : `${rank}ᵉ inscription`;
 }

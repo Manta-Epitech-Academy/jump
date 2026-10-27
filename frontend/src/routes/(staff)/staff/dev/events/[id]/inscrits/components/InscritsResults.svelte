@@ -32,7 +32,11 @@
   import { niveauLabel } from '$lib/domain/niveau';
   import { cohortNounForms } from '$lib/domain/event';
   import { XP_EXPLAINER_FR } from '$lib/domain/xp';
-  import { civiliteShortTitle, formatGivenName } from '$lib/domain/profile';
+  import {
+    civiliteLabel,
+    civiliteShortTitle,
+    formatGivenName,
+  } from '$lib/domain/profile';
   import { parcoursLabel } from '$lib/domain/enrolmentHistory';
   import {
     INSCRITS_SORT_DEFAULT_DIR,
@@ -65,7 +69,6 @@
     compareRows,
     matchesFacets,
     rosterFacets,
-    sortsLast,
     type RosterFacet,
   } from './roster';
   import {
@@ -185,56 +188,37 @@
       : undefined;
   }
 
-  // The table holds the mockup's columns, each filtering from its header, and
-  // fits the content track: a roster that scrolls sideways loses the reading
-  // of a row. Below `xl` the content track is too narrow for them, so the rows
-  // fold into cards there (`cardsBelow`). Fixed layout: the widths below are
-  // the budget, and Lycée (`w-full`) takes what is left, truncating.
+  // The table holds the mockup's columns and, like the mockup, gives each one
+  // control: the names and XP sort, every other column filters from its
+  // header. It fits the content track (a roster that scrolls sideways loses
+  // the reading of a row); below `xl` the track is too narrow for these
+  // columns, so the rows fold into cards there (`cardsBelow`). Fixed layout:
+  // the widths below are the budget, and Lycée (`w-full`) takes what is left.
   const columns = $derived.by<ColumnDef[]>(() => {
     const sortable = (key: SortKey) => ({
       key,
       sortable: true,
       defaultSortDir: INSCRITS_SORT_DEFAULT_DIR[key],
     });
+    const filtered = (facet: InscritsFacet, label: string, width: string) => ({
+      key: facet,
+      label,
+      class: width,
+      filter: filterOf(facet),
+    });
     const cols: ColumnDef[] = [
-      {
-        key: 'genre',
-        label: 'Genre',
-        class: 'w-20',
-        filter: filterOf('genre'),
-      },
+      filtered('genre', 'Genre', 'w-20'),
       { ...sortable('prenom'), label: 'Prénom', class: 'w-24' },
       { ...sortable('nom'), label: 'Nom', class: 'w-28' },
       // XP right after the name: it's the engagement signal we want the eye to
       // catch first, shown as a coloured pill (not flush grey data).
       { ...sortable('xp'), label: 'XP', class: 'w-20' },
-      {
-        ...sortable('parcours'),
-        label: 'Parcours',
-        class: 'w-32',
-        filter: filterOf('parcours'),
-      },
-      { key: 'tech', label: 'Tech', class: 'w-32', filter: filterOf('tech') },
-      {
-        ...sortable('lycee'),
-        label: 'Lycée',
-        class: 'w-full',
-        filter: filterOf('lycee'),
-      },
-      {
-        ...sortable('niveau'),
-        label: 'Niveau',
-        class: 'w-28',
-        filter: filterOf('niveau'),
-      },
+      filtered('parcours', 'Parcours', 'w-32'),
+      filtered('tech', 'Tech', 'w-40'),
+      filtered('lycee', 'Lycée', 'w-full'),
+      filtered('niveau', 'Niveau', 'w-28'),
     ];
-    if (facetOf.has('statut'))
-      cols.push({
-        ...sortable('status'),
-        label: 'Statut',
-        class: 'w-28',
-        filter: filterOf('statut'),
-      });
+    if (facetOf.has('statut')) cols.push(filtered('statut', 'Statut', 'w-28'));
     return cols;
   });
 
@@ -299,7 +283,6 @@
       rowComparator({
         compare: (a, b) => compareRows(a, b, view.sort),
         dir: view.dir,
-        isMissing: (r) => sortsLast(r, view.sort),
       }),
     );
     return out;
@@ -411,41 +394,35 @@
   {/if}
 {/snippet}
 
-<!-- One chip, the first in the catalogue's order, and the rest as "+N": the
-     column keeps one line per row whatever a talent declared. All of them on
-     hover. -->
 {#snippet interestChips(interests: InscritInterest[])}
   {#if interests.length === 0}
     <span class="text-sm text-muted-foreground">-</span>
   {:else}
-    <span
-      class="flex min-w-0 items-center gap-1"
-      title={interests.map((i) => i.nom).join(', ')}
-    >
-      <span
-        class="min-w-0 truncate rounded-sm bg-epi-blue/5 px-2 epi-chip text-epi-blue"
-      >
-        {interests[0].nom}
-      </span>
-      {#if interests.length > 1}
-        <span class="shrink-0 epi-chip text-muted-foreground">
-          +{interests.length - 1}
+    <span class="flex flex-wrap gap-1">
+      {#each interests as interest (interest.id)}
+        <!-- Sentence case, not the chip's capitals: an interest is a phrase
+             (« Data science / analyse de données »), and in capitals the
+             longer ones took three lines. -->
+        <span
+          class="rounded-sm bg-epi-blue/5 px-2 epi-chip whitespace-normal text-epi-blue normal-case"
+        >
+          {interest.nom}
         </span>
-      {/if}
+      {/each}
     </span>
   {/if}
 {/snippet}
 
 {#snippet parcoursPill(r: InscritRow)}
-  {@const label = parcoursLabel(r.priorEnrolments, r.civilite)}
+  {@const label = parcoursLabel(r.priorEnrolments)}
   {#if r.priorEnrolments === 0}
     <span
-      class="inline-flex rounded-full bg-epi-tech/10 px-2 py-0.5 epi-chip whitespace-nowrap text-epi-tech-ink"
+      class="inline-flex rounded-full bg-epi-tech/10 px-2 py-0.5 epi-chip whitespace-nowrap text-epi-tech-ink normal-case"
     >
       {label}
     </span>
   {:else}
-    <span class="text-sm">{label}</span>
+    <span class="text-sm whitespace-nowrap">{label}</span>
   {/if}
 {/snippet}
 
@@ -536,8 +513,11 @@
         cardsBelow="xl"
       >
         {#snippet row(r: InscritRow)}
+          <!-- « Mme » / « M. », the word for `autre`, which has no courtesy
+               title, and « - » when the talent left it blank, as every empty
+               cell reads: the two filter values never look alike. -->
           <Table.Cell class="text-sm text-muted-foreground">
-            {civiliteShortTitle(r.civilite)}
+            {civiliteShortTitle(r.civilite) || civiliteLabel(r.civilite) || '-'}
           </Table.Cell>
           <!-- prénom/nom truncate within their fixed columns: realistic names
                fit, but a freak-long one ellipsizes inside its cell (full value
@@ -574,19 +554,17 @@
               </Tooltip.Content>
             </Tooltip.Root>
           </Table.Cell>
-          <!-- The one cell allowed a second line: "Déjà inscrit·e 2 fois" is
-               the longest wording and worth keeping whole. -->
+          <Table.Cell>{@render parcoursPill(r)}</Table.Cell>
           <Table.Cell class="whitespace-normal">
-            {@render parcoursPill(r)}
+            {@render interestChips(r.techInterests)}
           </Table.Cell>
-          <Table.Cell>{@render interestChips(r.techInterests)}</Table.Cell>
-          <Table.Cell class="text-sm">
+          <Table.Cell class="text-sm whitespace-normal">
             {#if r.schoolName}
               <!-- Some school names run very long (e.g. "Section d'enseignement
-                 général et technologique du Lycée agricole …"). Under fixed
-                 layout the Lycée column owns a definite width, so the inner
-                 block truncates cleanly to it; full name on hover. -->
-              <span class="block truncate" title={r.schoolName}>
+                 général et technologique du Lycée agricole …"). Lycée takes
+                 the width the fixed columns leave, so a name may take a second
+                 line before it is cut; full name on hover. -->
+              <span class="line-clamp-2" title={r.schoolName}>
                 {r.schoolName}
               </span>
             {:else}
@@ -617,18 +595,34 @@
                          on hover and navigates to the fiche on click (cmd/middle
                          click included). tabindex=-1 keeps a single tab stop per
                          row - the overlay link already covers keyboard nav. -->
-                    <a
-                      {...props}
-                      href={talentFicheHref(r.talentId, event.id)}
-                      tabindex={-1}
-                      class={cn(
-                        'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip whitespace-nowrap',
-                        badge.class,
-                      )}
-                    >
-                      <BadgeIcon class="h-3 w-3" />
-                      {INSCRIT_STATUS_LABELS[r.status]}
-                    </a>
+                    <!-- A talent with no dossier owes nothing, so the cell
+                         reads « - » like any empty one, and the tooltip says
+                         why. The chip's label was also the one that did not
+                         fit the column. -->
+                    {#if r.status === 'no_dossier'}
+                      <a
+                        {...props}
+                        href={talentFicheHref(r.talentId, event.id)}
+                        tabindex={-1}
+                        aria-label={INSCRIT_STATUS_LABELS[r.status]}
+                        class="relative z-10 text-sm text-muted-foreground"
+                      >
+                        -
+                      </a>
+                    {:else}
+                      <a
+                        {...props}
+                        href={talentFicheHref(r.talentId, event.id)}
+                        tabindex={-1}
+                        class={cn(
+                          'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip whitespace-nowrap',
+                          badge.class,
+                        )}
+                      >
+                        <BadgeIcon class="h-3 w-3" />
+                        {INSCRIT_STATUS_LABELS[r.status]}
+                      </a>
+                    {/if}
                   {/snippet}
                 </Tooltip.Trigger>
                 <Tooltip.Content class="max-w-64">

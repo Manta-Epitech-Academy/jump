@@ -79,7 +79,7 @@ describe('the inscrits view address', () => {
   it('reads a written sort back as itself', () => {
     for (const [sort, dir] of [
       ['xp', 'asc'],
-      ['parcours', 'desc'],
+      ['prenom', 'desc'],
       ['nom', 'desc'],
     ] as const) {
       const view = parseInscritsView(written(inscritsSortParams(sort, dir)));

@@ -40,10 +40,9 @@ import type { InscritRow, InscritsCohort, SortKey } from './types';
  *   its column too, with no filter, since it could not narrow the list.
  */
 
-/** Sort order: least-ready first in ascending, so the rows still needing a
- *  chase float to the top (never connected before in progress before ready).
- *  `no_dossier` sorts last, past ready: there is nothing to do about it, so it
- *  belongs furthest from the rows that need attention. */
+/** The statut filter's order: the rows still needing a chase first (never
+ *  connected before in progress before ready). `no_dossier` comes last, past
+ *  ready: there is nothing to do about it. */
 export const INSCRIT_STATUS_ORDER: Record<InscritStatus, number> = {
   never_connected: 0,
   in_progress: 1,
@@ -237,14 +236,6 @@ export function matchesFacets(row: InscritRow, facets: RosterFacet[]): boolean {
   );
 }
 
-/** The columns whose value can be missing. `rowComparator` sinks those rows
- *  in either direction, so `compareRows` only ever sees present values. */
-export function sortsLast(r: InscritRow, key: SortKey): boolean {
-  if (key === 'lycee') return !r.schoolName;
-  if (key === 'niveau') return !r.niveau;
-  return false;
-}
-
 export function compareRows(
   a: InscritRow,
   b: InscritRow,
@@ -255,17 +246,7 @@ export function compareRows(
       return a.prenom.localeCompare(b.prenom, 'fr');
     case 'nom':
       return a.nom.localeCompare(b.nom, 'fr');
-    case 'lycee':
-      return (a.schoolName ?? '').localeCompare(b.schoolName ?? '', 'fr');
-    case 'niveau':
-      return compareNiveaux(a.niveau ?? '', b.niveau ?? '');
     case 'xp':
       return a.xp - b.xp;
-    case 'parcours':
-      // Ties broken by XP, so among talents enrolled as often the most
-      // engaged come first, as they do on the XP column.
-      return a.priorEnrolments - b.priorEnrolments || a.xp - b.xp;
-    case 'status':
-      return INSCRIT_STATUS_ORDER[a.status] - INSCRIT_STATUS_ORDER[b.status];
   }
 }

@@ -41,17 +41,15 @@ export const INSCRITS_NONE = 'aucun';
 export type InscritsSortDir = 'asc' | 'desc';
 
 /**
- * The sortable columns and the direction a first click sorts them in: XP and
- * parcours read best high-to-low, the rest alphabetically.
+ * The sortable columns and the direction a first click sorts them in: XP reads
+ * best high-to-low, names alphabetically. Only these three sort: as in the
+ * mockup, a column offers one control, and the others (genre, parcours, lycée,
+ * niveau, statut) filter instead.
  */
 export const INSCRITS_SORT_DEFAULT_DIR = {
   prenom: 'asc',
   nom: 'asc',
   xp: 'desc',
-  parcours: 'desc',
-  lycee: 'asc',
-  niveau: 'asc',
-  status: 'asc',
 } as const satisfies Record<string, InscritsSortDir>;
 
 export type InscritsSortKey = keyof typeof INSCRITS_SORT_DEFAULT_DIR;

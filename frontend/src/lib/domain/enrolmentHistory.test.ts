@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   PARCOURS_BUCKETS,
+  PARCOURS_BUCKET_LABELS,
   parcoursBucket,
   parcoursLabel,
 } from './enrolmentHistory';
@@ -9,7 +10,8 @@ import {
  * The parcours sorts a roster into newcomers and returning talents, which is
  * the split recruitment works from. What must hold: zero is a newcomer and
  * nothing else is, the tail folds into one bucket instead of growing a filter
- * value per count, and the wording never guesses a gender it does not know.
+ * value per count, and a cell and the filter value it falls under say the same
+ * rank.
  */
 describe('parcours', () => {
   it('calls only a talent with no past enrolment a newcomer', () => {
@@ -24,13 +26,13 @@ describe('parcours', () => {
     expect(PARCOURS_BUCKETS).toHaveLength(4);
   });
 
-  it('agrees with the civilité, inclusive when it is not known', () => {
-    expect(parcoursLabel(0, 'femme')).toBe('Nouvelle');
-    expect(parcoursLabel(0, 'homme')).toBe('Nouveau');
-    expect(parcoursLabel(0, 'autre')).toBe('Nouveau·elle');
-    expect(parcoursLabel(0, null)).toBe('Nouveau·elle');
-    expect(parcoursLabel(3, 'femme')).toBe('Déjà inscrite 3 fois');
-    expect(parcoursLabel(1, 'homme')).toBe('Déjà inscrit 1 fois');
-    expect(parcoursLabel(2, null)).toBe('Déjà inscrit·e 2 fois');
+  it('names the rank of this enrolment, as its filter value does', () => {
+    expect(parcoursLabel(0)).toBe('1ʳᵉ inscription');
+    expect(parcoursLabel(2)).toBe('3ᵉ inscription');
+    expect(parcoursLabel(7)).toBe('8ᵉ inscription');
+    for (const prior of [0, 1, 2])
+      expect(parcoursLabel(prior)).toBe(
+        PARCOURS_BUCKET_LABELS[parcoursBucket(prior)],
+      );
   });
 });

@@ -113,7 +113,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       r.prenom,
       r.nom,
       r.xp,
-      parcoursLabel(r.priorEnrolments, r.civilite),
+      parcoursLabel(r.priorEnrolments),
       r.techInterests.map((i) => i.nom).join(', '),
       r.persoInterests.map((i) => i.nom).join(', '),
       r.schoolName ?? '',

@@ -45,7 +45,7 @@ test.describe('les filtres des inscrits', () => {
       .poll(() => shownNames(page))
       .toEqual(['ROSTERDEUX', 'ROSTERTROIS', 'ROSTERUN']);
 
-    await tick(page, 'Filtrer par niveau', 'Seconde');
+    await tick(page, /^Niveau/, 'Seconde');
     await expect(page).toHaveURL(/[?&]niveau=Seconde/);
     await expect
       .poll(() => shownNames(page))
