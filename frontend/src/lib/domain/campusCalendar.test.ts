@@ -245,25 +245,25 @@ describe('buildCampusCalendar events', () => {
       '2026-09-16',
       '2026-09-16',
       '16 sept.',
-      'mercredi 16 septembre 2026 · 1 jour',
+      'mercredi 16 septembre 2026 · Durée : 1 jour',
     ],
     [
       '2026-10-27',
       '2026-10-30',
       'du 27 au 30 oct.',
-      'du 27 au 30 octobre 2026 · 4 jours',
+      'du 27 au 30 octobre 2026 · Durée : 4 jours',
     ],
     [
       '2027-02-26',
       '2027-03-02',
       'du 26 févr. au 2 mars',
-      'du 26 février au 2 mars 2027 · 5 jours',
+      'du 26 février au 2 mars 2027 · Durée : 5 jours',
     ],
     [
       '2026-12-30',
       '2027-01-02',
       'du 30 déc. au 2 janv.',
-      'du 30 décembre 2026 au 2 janvier 2027 · 4 jours',
+      'du 30 décembre 2026 au 2 janvier 2027 · Durée : 4 jours',
     ],
   ])('should name the days %s to %s', (first, last, short, long) => {
     // Arrange / Act

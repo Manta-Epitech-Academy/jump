@@ -47,7 +47,7 @@ export type CalendarEvent = CalendarEventInput & {
   fill: CalendarFill;
   /** "du 27 au 30 oct.", or "16 sept." for one day. */
   daysLabel: string;
-  /** "du 27 au 30 octobre 2026 · 4 jours", or "mercredi 16 septembre 2026 · 1 jour". */
+  /** "du 27 au 30 octobre 2026 · Durée : 4 jours", or "mercredi 16 septembre 2026 · Durée : 1 jour". */
   daysLabelLong: string;
   /** Calendar days from today to the first day, for an upcoming event. */
   daysUntilStart: number | null;
@@ -176,14 +176,16 @@ export function eventDayKeys(
   return { first, last: last < first ? first : last };
 }
 
-/** The days an event runs, written out with their count: « du 20 au 24
- *  octobre 2026 · 5 jours ». The calendar's event card and the event's home
+/** The days an event runs, written out with their length: « du 20 au 24
+ *  octobre 2026 · Durée : 5 jours ». The calendar's event card and the event's home
  *  both read it. */
 export function daysLabelLong(first: DateKey, last: DateKey): string {
   const a = parseDate(first);
   const b = parseDate(last);
   const count = daysBetween(first, last) + 1;
-  const length = `${count} ${count > 1 ? 'jours' : 'jour'}`;
+  // Named, because a bare « 12 jours » sits next to a countdown (« J-10 » on
+  // the calendar, « Ouverture dans… » on the event's home) and reads as one.
+  const length = `Durée : ${count} ${count > 1 ? 'jours' : 'jour'}`;
   if (first === last) {
     return `${JOURS[weekdayOf(a)]} ${a.day} ${MOIS_FR[a.month]} ${a.year} · ${length}`;
   }
