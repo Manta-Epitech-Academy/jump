@@ -16,7 +16,11 @@
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import { track, errReason } from '$lib/analytics';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import { academieOf, DEPARTEMENTS } from '$lib/domain/school';
+  import {
+    academieOf,
+    departementName,
+    DEPARTEMENTS,
+  } from '$lib/domain/school';
 
   let { data } = $props();
 
@@ -116,10 +120,17 @@
     })),
   );
 
-  // A code alone is easy to mistype for a neighbour; its académie, which the
-  // school holidays follow, is what the admin checks it against.
+  // A code alone is easy to mistype for a neighbour, so its name is what the
+  // admin checks it against. The académie says what the choice changes (the
+  // school holidays follow it), and lets a search by the campus's city find
+  // its départements.
   function getDepartementLabel(code: string | null): string {
-    return code ? `${code} · ${academieOf(code) ?? '?'}` : '-';
+    if (!code) return '-';
+    const academie = academieOf(code);
+    const name = `${code} · ${departementName(code) ?? '?'}`;
+    if (!academie) return name;
+    const de = /^[aeiouyàâéèêîôû]/i.test(academie) ? "d'" : 'de ';
+    return `${name} (académie ${de}${academie})`;
   }
 
   const departementOptions = DEPARTEMENTS.map((code) => ({
@@ -374,7 +385,7 @@
                 onChange={(v) => ($form.departement = v === 'all' ? '' : v)}
                 allLabel="Non renseigné"
                 placeholder="Choisir un département"
-                searchPlaceholder="Rechercher un code ou une académie…"
+                searchPlaceholder="Rechercher un département, un code ou une académie…"
                 emptyLabel="Aucun département."
                 triggerClass="w-full"
               />
