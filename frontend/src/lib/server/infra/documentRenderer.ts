@@ -167,9 +167,22 @@ export async function renderPng(input: {
    * it rather than replacing it, so setting both rendered at scale squared.
    */
   scale?: number;
+  /**
+   * The box to keep, in CSS pixels of the `widthPx` x `heightPx` page. Defaults
+   * to the whole page; a sheet that prints several items (a page of badges)
+   * passes the box of one.
+   */
+  clip?: { x: number; y: number; width: number; height: number };
   fontTimeoutMs?: number;
 }): Promise<Uint8Array<ArrayBuffer>> {
-  const { html, widthPx, heightPx, scale = 1, fontTimeoutMs = 2000 } = input;
+  const {
+    html,
+    widthPx,
+    heightPx,
+    scale = 1,
+    clip = { x: 0, y: 0, width: widthPx, height: heightPx },
+    fontTimeoutMs = 2000,
+  } = input;
 
   return withRenderedPage(html, fontTimeoutMs, async (page) => {
     await page.setViewport({
@@ -180,9 +193,9 @@ export async function renderPng(input: {
     const png = await page.screenshot({
       type: 'png',
       // CSS pixels, unscaled: the clip says which box, the viewport says at what
-      // density. The output is therefore `widthPx * scale` wide, which is what
-      // the caller reports.
-      clip: { x: 0, y: 0, width: widthPx, height: heightPx },
+      // density. The output is therefore `clip.width * scale` wide, which is
+      // what the caller reports.
+      clip,
     });
     return new Uint8Array(png) as Uint8Array<ArrayBuffer>;
   });

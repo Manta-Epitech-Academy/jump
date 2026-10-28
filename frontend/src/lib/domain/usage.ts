@@ -42,8 +42,10 @@ export const USAGE_FEATURES = {
   // ── Dev space (staff) ─────────────────────────────────────────────
   DEV_CONNECTION: 'dev_connection',
   DEV_DASHBOARD_VIEW: 'dev_dashboard_view',
+  DEV_EVENT_HOME_VIEW: 'dev_event_home_view',
   DEV_INSCRITS_VIEW: 'dev_inscrits_view',
   DEV_INSCRITS_EXPORT: 'dev_inscrits_export',
+  DEV_EVENT_EXPORT: 'dev_event_export',
   DEV_BADGES_RENDER: 'dev_badges_render',
   DEV_DIPLOMAS_RENDER: 'dev_diplomas_render',
   DEV_EMARGEMENT_VIEW: 'dev_emargement_view',
@@ -330,6 +332,16 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     scope: 'campus',
     dedupe: 'bucket',
   }),
+  [USAGE_FEATURES.DEV_EVENT_HOME_VIEW]: def({
+    key: USAGE_FEATURES.DEV_EVENT_HOME_VIEW,
+    label: 'Accueil d’un événement',
+    definition: `Consultations de l’accueil d’un événement, ses chiffres et ses actions. ${BUCKET_NOTE}`,
+    audience: 'staff',
+    space: 'dev',
+    kind: 'view',
+    scope: 'event',
+    dedupe: 'bucket',
+  }),
   [USAGE_FEATURES.DEV_INSCRITS_VIEW]: def({
     key: USAGE_FEATURES.DEV_INSCRITS_VIEW,
     label: 'Liste des inscrits',
@@ -345,6 +357,17 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     label: 'Export xlsx des inscrits',
     definition:
       'Exports xlsx de la liste des inscrits. Un par téléchargement demandé, quel que soit le filtre appliqué au moment de l’export.',
+    audience: 'staff',
+    space: 'dev',
+    kind: 'export',
+    scope: 'event',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.DEV_EVENT_EXPORT]: def({
+    key: USAGE_FEATURES.DEV_EVENT_EXPORT,
+    label: 'Export xlsx de l’événement',
+    definition:
+      'Exports xlsx de l’événement entier depuis son accueil, une feuille par section de l’événement. Un par téléchargement demandé.',
     audience: 'staff',
     space: 'dev',
     kind: 'export',
@@ -1421,6 +1444,7 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
 export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
   // Dev space
   '/(staff)/staff/dev': USAGE_FEATURES.DEV_DASHBOARD_VIEW,
+  '/(staff)/staff/dev/events/[id]': USAGE_FEATURES.DEV_EVENT_HOME_VIEW,
   '/(staff)/staff/dev/events/[id]/inscrits': USAGE_FEATURES.DEV_INSCRITS_VIEW,
   '/(staff)/staff/dev/events/[id]/emargement':
     USAGE_FEATURES.DEV_EMARGEMENT_VIEW,
@@ -1472,7 +1496,7 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
 
 /**
  * The connection key for a space, from the route being visited. It matches by
- * PREFIX, so every request into a space carries one, not only the 36 routes
+ * PREFIX, so every request into a space carries one, not only the routes
  * `USAGE_VIEW_ROUTES` names: a day spent on an uncatalogued page is still a day
  * this person came.
  *

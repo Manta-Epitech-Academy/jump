@@ -10,28 +10,15 @@
     type CampusCalendarView,
   } from '$lib/components/calendar/CalendarViewToggle.svelte';
   import { selectedEvent } from '$lib/components/dev/selectedEvent';
-  import { landingSurface, surfaceSegment } from '$lib/domain/eventModules';
+  import { eventSurfacePath } from '$lib/domain/eventModules';
 
   let { data } = $props();
 
   let view = $state<CampusCalendarView>('year');
   const selected = selectedEvent();
 
-  /** An event opens on its first page, the one a pick in the menu lands on. */
-  const hrefs = $derived(
-    new Map(
-      data.workspace.events.map((e) => {
-        const surface = landingSurface(e);
-        return [
-          e.id,
-          surface
-            ? resolve(`/staff/dev/events/${e.id}/${surfaceSegment(surface)}`)
-            : null,
-        ];
-      }),
-    ),
-  );
-  const hrefOf = (id: string) => hrefs.get(id) ?? null;
+  /** An event opens on its home, the page a pick in the menu lands on. */
+  const hrefOf = (id: string) => resolve(eventSurfacePath(id, 'home'));
 </script>
 
 <svelte:head>

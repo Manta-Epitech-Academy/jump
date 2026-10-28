@@ -45,6 +45,7 @@
     inscritsSortParams,
     parseInscritsView,
     type InscritsFacet,
+    type InscritsSortKey,
   } from '$lib/domain/inscritsView';
   import {
     RULES_STATUS_LABELS,
@@ -59,18 +60,15 @@
     type ImageRightsDisplayStatus,
   } from '$lib/domain/imageRights';
 
-  import type {
-    InscritInterest,
-    InscritRow,
-    InscritsCohort,
-    SortKey,
-  } from './types';
   import {
     compareRows,
     matchesFacets,
     rosterFacets,
+    type InscritInterest,
+    type InscritRow,
+    type InscritsCohort,
     type RosterFacet,
-  } from './roster';
+  } from '$lib/domain/inscritsRoster';
   import {
     buildHaystack,
     matchesAllTokens,
@@ -177,7 +175,7 @@
   // columns, so the rows fold into cards there (`cardsBelow`). Fixed layout:
   // the widths below are the budget, and Lycée (`w-full`) takes what is left.
   const columns = $derived.by<ColumnDef[]>(() => {
-    const sortable = (key: SortKey) => ({
+    const sortable = (key: InscritsSortKey) => ({
       key,
       sortable: true,
       defaultSortDir: INSCRITS_SORT_DEFAULT_DIR[key],
@@ -205,7 +203,7 @@
   });
 
   function toggleSort(key: string) {
-    const next = nextSort<SortKey>(
+    const next = nextSort<InscritsSortKey>(
       columns,
       { key: view.sort, dir: view.dir },
       key,

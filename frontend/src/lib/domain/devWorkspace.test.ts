@@ -9,7 +9,7 @@ import {
 
 type Overrides = Partial<DevWorkspaceEvent> & { id: string; date: string };
 
-/** A navigable event (inscrits reaches with no data gate) unless told otherwise. */
+/** An event exposing Inscrits, which reaches with no data gate. */
 function ev({ id, date, ...rest }: Overrides): DevWorkspaceEvent {
   return {
     id,
@@ -110,12 +110,12 @@ describe('defaultEvent', () => {
 });
 
 describe('navigableSchoolYears', () => {
-  it('should list only years holding an event a dev can open', () => {
+  it('should list a year whose only event has every section gated off', () => {
     // Arrange
     const events = [
       ev({ id: 'open', date: '2025-10-01' }),
-      // Bilan is a module, but its page needs a live feedback form: this event
-      // exposes nothing, so its year is not somewhere you can go.
+      // Bilan is a module, but its page needs a live feedback form. The event
+      // still opens, on its home, so its year is somewhere you can go.
       ev({
         id: 'gated',
         date: '2023-10-01',
@@ -127,7 +127,7 @@ describe('navigableSchoolYears', () => {
     // Act
     const years = navigableSchoolYears(events);
     // Assert
-    expect(years).toEqual(['2025-2026']);
+    expect(years).toEqual(['2025-2026', '2023-2024']);
   });
 
   it('should list years most recent first', () => {
@@ -151,13 +151,6 @@ describe('defaultEventOfYear', () => {
       ev({ id: 'a', date: '2024-10-01' }),
       ev({ id: 'b', date: '2025-11-01' }),
       ev({ id: 'c', date: '2026-05-01' }),
-      ev({
-        id: 'gated',
-        date: '2022-10-01',
-        modules: ['bilan'],
-        hasFeedbackForm: false,
-        hasClosingTemplate: false,
-      }),
     ];
     // Act
     const listed = navigableSchoolYears(events);
@@ -184,7 +177,7 @@ describe('defaultEventOfYear', () => {
 });
 
 describe('eventsOfSchoolYear', () => {
-  it('should keep only the navigable events of that year', () => {
+  it('should keep the events of that year, whatever they expose', () => {
     // Arrange
     const events = [
       ev({ id: 'kept', date: '2025-10-01' }),
@@ -200,6 +193,6 @@ describe('eventsOfSchoolYear', () => {
     // Act
     const scoped = eventsOfSchoolYear(events, '2025-2026');
     // Assert
-    expect(scoped.map((e) => e.id)).toEqual(['kept']);
+    expect(scoped.map((e) => e.id)).toEqual(['kept', 'gated']);
   });
 });

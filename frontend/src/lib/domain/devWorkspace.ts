@@ -1,5 +1,5 @@
 import type { EventLifecycleStatus } from './eventLifecycle';
-import { reachableSurfaces, type EventSurfaceGates } from './eventModules';
+import type { EventSurfaceGates } from './eventModules';
 
 /**
  * The dev workspace's view of one of its events, as both ends of the wire see
@@ -29,9 +29,6 @@ export interface DevWorkspaceEvent extends EventSurfaceGates {
 const byDateAsc = (a: DevWorkspaceEvent, b: DevWorkspaceEvent) =>
   new Date(a.date).getTime() - new Date(b.date).getTime();
 
-/** Whether a dev can open this event at all, i.e. it exposes a surface. */
-const isNavigable = (e: DevWorkspaceEvent) => reachableSurfaces(e).length > 0;
-
 /**
  * The event a set defaults to: the one in progress, else the soonest to come,
  * else the most recent past one. Null on an empty set.
@@ -60,38 +57,34 @@ export function defaultEvent<T extends DevWorkspaceEvent>(
 
 /**
  * The school years the workspace can switch to, most recent first: those holding
- * at least one event a dev can actually open.
- *
- * Reachability belongs to the list, not to a check after the click. A year whose
- * only event exposes nothing (a bilan with no live form) is not an entry that
- * quietly does nothing when picked, it is not an entry. Ordered on `startYear`
- * rather than on the label text, which is what the label means.
+ * at least one of its events. Every event opens on its home, so every one of
+ * them is somewhere to land. Ordered on `startYear` rather than on the label
+ * text, which is what the label means.
  */
 export function navigableSchoolYears(
   events: readonly DevWorkspaceEvent[],
 ): string[] {
   const byLabel = new Map<string, number>();
   for (const e of events) {
-    if (isNavigable(e)) byLabel.set(e.schoolYear.label, e.schoolYear.startYear);
+    byLabel.set(e.schoolYear.label, e.schoolYear.startYear);
   }
   return [...byLabel].sort((a, b) => b[1] - a[1]).map(([label]) => label);
 }
 
-/** The navigable events of one school year, in the order they were given. */
+/** The events of one school year, in the order they were given. */
 export function eventsOfSchoolYear<T extends DevWorkspaceEvent>(
   events: readonly T[],
   year: string,
 ): T[] {
-  return events.filter((e) => e.schoolYear.label === year && isNavigable(e));
+  return events.filter((e) => e.schoolYear.label === year);
 }
 
 /**
  * The event to open when the workspace switches to `year`.
  *
- * Non-null for every year `navigableSchoolYears` lists: same input, same
- * reachability filter. That pairing is the contract, and it is what leaves the
- * caller with a type guard instead of a branch where picking a year does
- * nothing at all.
+ * Non-null for every year `navigableSchoolYears` lists: same input, the same
+ * years. That pairing is the contract, and it is what leaves the caller with a
+ * type guard instead of a branch where picking a year does nothing at all.
  */
 export function defaultEventOfYear<T extends DevWorkspaceEvent>(
   events: readonly T[],

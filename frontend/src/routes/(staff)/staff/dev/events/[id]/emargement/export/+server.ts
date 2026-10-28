@@ -7,129 +7,37 @@ import {
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { niveauLabel } from '$lib/domain/niveau';
-import { buildXlsx } from '$lib/server/xlsx';
-import {
-  presenceSlots,
-  slotLabelLong,
-  statusLabelFr,
-  effectiveStatus,
-  dbDateToKey,
-  indexPresences,
-  cellOf,
-} from '$lib/domain/eventPresence';
-import { isSlotClosed } from '$lib/server/presence/slotClosure';
-import { PRESENCE_EXPORT_SELECT } from '../components/types';
+import { asciiFilename, buildXlsx, xlsxResponse } from '$lib/server/xlsx';
+import { presenceSheet } from '$lib/server/services/eventSheets';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 
 /**
- * Full-period émargement export: one row per enrolled talent, one column per
- * créneau (≈20 over a 2-week stage, a single one for an afternoon club), each cell the recorded state (an unmarked
- * talent reads "Absent" once the créneau is closed, "En attente" while it is
- * still open). Always the whole grid (not the on-screen filter), so the file is
- * the complete attendance record for the period.
+ * Full-period émargement export: the whole attendance grid of the period
+ * (`presenceSheet`), never the on-screen filter.
  */
 export const GET: RequestHandler = async ({ params, locals }) => {
   requireStaffGroup(locals, 'devMember');
   const campusId = getCampusId(locals);
-  const timezone = getCampusTimezone(locals);
   const event = await loadEventOr404(
     params.id,
     campusId,
     EVENT_MODULES.EMARGEMENT,
   );
-  const db = scopedPrisma(campusId);
 
-  const slots = presenceSlots(event, timezone);
-
-  const now = new Date();
-  const [participations, presenceRows, closureRows] = await Promise.all([
-    db.participation.findMany({
-      where: { eventId: event.id, ...visibleParticipationWhere },
-      select: PRESENCE_EXPORT_SELECT,
-      orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-    }),
-    db.eventPresence.findMany({
-      where: { eventId: event.id },
-      select: {
-        talentId: true,
-        day: true,
-        slot: true,
-        status: true,
-        source: true,
-      },
-    }),
-    db.eventPresenceClosure.findMany({
-      where: { eventId: event.id },
-      select: { day: true, slot: true },
-    }),
-  ]);
-
-  const index = indexPresences(
-    presenceRows.map((r) => ({ ...r, day: dbDateToKey(r.day) })),
+  const sheet = await presenceSheet(
+    scopedPrisma(campusId),
+    event,
+    getCampusTimezone(locals),
   );
-
-  // An unmarked talent in a closed créneau exports as absent (the same
-  // projection the screen shows), never a stored row.
-  const closed = new Set(
-    slots
-      .filter((s) => isSlotClosed(s.day, s.slot, closureRows, timezone, now))
-      .map((s) => s.key),
-  );
-
-  const rows = participations.map((p) => {
-    const t = p.talent;
-    const base = [
-      t.prenom,
-      t.nom,
-      t.niveau ? niveauLabel(t.niveau) : '',
-      t.phone ?? '',
-      t.parentPhone ?? '',
-    ];
-    const slotCells = slots.map((s) =>
-      statusLabelFr(
-        effectiveStatus(
-          cellOf(index, p.talentId, s.day, s.slot).status,
-          closed.has(s.key),
-        ),
-      ),
-    );
-    return [...base, ...slotCells];
-  });
-
-  const xlsx = buildXlsx({
-    name: 'Émargement',
-    headers: [
-      'Prénom',
-      'Nom',
-      'Niveau',
-      'Tél. élève',
-      'Tél. parent',
-      ...slots.map(slotLabelLong),
-    ],
-    rows,
-    colWidths: [16, 16, 10, 16, 16, ...slots.map(() => 18)],
-  });
-
-  const safeTitle =
-    event.titre
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^A-Za-z0-9 _-]/g, '')
-      .trim() || 'emargement';
 
   recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_EXPORT, {
     locals,
     eventId: params.id,
   });
 
-  return new Response(xlsx.buffer as ArrayBuffer, {
-    headers: {
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="Emargement - ${safeTitle}.xlsx"`,
-    },
-  });
+  return xlsxResponse(
+    buildXlsx(sheet),
+    `Emargement - ${asciiFilename(event.titre, 'emargement')}`,
+  );
 };

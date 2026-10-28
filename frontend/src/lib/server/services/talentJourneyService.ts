@@ -102,8 +102,8 @@ export async function getTalentJourney(
   // for).
   // Withholding the link rather than pointing at another surface is deliberate -
   // an event with no Inscrits list has nothing this page was sending them to
-  // read, and "the first surface it happens to expose" is a different question
-  // (`landingSurface`), asked by the workspace, which knows the event.
+  // read, and where an event opens (its home, `landingSurface`) is a different
+  // question, asked by the workspace, which knows the event.
   //
   // The row itself stays, link or no link: what somebody attended is a fact
   // about that person, and dropping the events an admin has not activated would

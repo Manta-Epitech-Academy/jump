@@ -6,17 +6,20 @@ import { rulesStatus, inscritStatus } from '$lib/domain/dossierCompliance';
 import { imageRightsStatus } from '$lib/domain/imageRights';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { countPriorEnrolments } from '$lib/server/services/enrolmentHistory';
-import { loadEventDossierSignatures, NO_DOSSIER_SIGNATURES } from './dossiers';
+import {
+  loadEventDossierSignatures,
+  NO_DOSSIER_SIGNATURES,
+} from './eventDossierSignatures';
 import type {
   InscritInterest,
   InscritRow,
   InscritsCohort,
-} from './components/types';
+} from '$lib/domain/inscritsRoster';
 
 // The talent columns the roster shows and filters on, and nothing else: the
 // cohort fetch (~200 rows) must not drag the full Talent row (Salesforce-mirror
 // columns). Contact details are not here either: the page never shows them, so
-// the XLSX export reads them on its own (`export/+server.ts`) and they never
+// the XLSX export reads them on its own (`inscrits/export/+server.ts`) and they never
 // reach the page's payload.
 const INSCRIT_TALENT_SELECT = {
   id: true,
@@ -89,7 +92,8 @@ export async function loadInscritsCohort(
   { talentIds }: { talentIds?: readonly string[] } = {},
 ): Promise<InscritsCohort> {
   // The règlement applying to this event is the one of the event's own school
-  // year, so that is the dossier the statut column reads (see `./dossiers`).
+  // year, so that is the dossier the statut column reads (see
+  // `./eventDossierSignatures`).
   const schoolYear = schoolYearOf(event.date, timezone).label;
 
   const [participations, dossiers] = await Promise.all([

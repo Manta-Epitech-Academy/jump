@@ -2,6 +2,7 @@ import type { ScopedPrismaClient } from '$lib/server/db/scoped';
 import {
   buildCampusCalendar,
   calendarDays,
+  eventDayKeys,
   type CampusCalendar,
 } from '$lib/domain/campusCalendar';
 import {
@@ -64,8 +65,7 @@ export async function loadCampusCalendar(
     today: toDateKey(now, timezone),
     departement,
     events: rows.map((e) => {
-      const first = toDateKey(e.date, timezone);
-      const last = toDateKey(e.endDate ?? e.date, timezone);
+      const { first, last } = eventDayKeys(e.date, e.endDate, timezone);
       const name = eventDisplayName(e);
       return {
         id: e.id,
@@ -73,8 +73,7 @@ export async function loadCampusCalendar(
         // Under its raw title, the name already is the campaign's.
         campaign: e.externalId && name !== e.titre ? e.titre : null,
         first,
-        // A Salesforce end before the start would paint nothing: one day.
-        last: last < first ? first : last,
+        last,
         category: e.category,
         status: getEventStatus(e, bounds),
         shownEnrolments: e._count.participations,

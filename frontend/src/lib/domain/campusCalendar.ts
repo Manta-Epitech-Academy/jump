@@ -7,7 +7,7 @@ import {
 import { inkOn, type FillInk } from '../design/color';
 import type { EventCategoryTag } from './eventCategory';
 import type { EventLifecycleStatus } from './eventLifecycle';
-import type { DateKey } from './planningTime';
+import { toDateKey, type DateKey } from './planningTime';
 import { MOIS_FR } from './schoolYear';
 import { knowsSchoolHolidays, offDays, type OffDay } from './schoolHolidays';
 
@@ -162,13 +162,27 @@ function daysLabel(first: DateKey, last: DateKey): string {
     : `du ${a.day} ${MOIS_COURTS[a.month]} au ${b.day} ${MOIS_COURTS[b.month]}`;
 }
 
-function daysLabelLong(first: DateKey, last: DateKey): string {
+/**
+ * An event's first and last day on the campus clock. A Salesforce end before
+ * the start would paint nothing, so it is read as a single day.
+ */
+export function eventDayKeys(
+  date: Date,
+  endDate: Date | null,
+  timezone: string,
+): { first: DateKey; last: DateKey } {
+  const first = toDateKey(date, timezone);
+  const last = toDateKey(endDate ?? date, timezone);
+  return { first, last: last < first ? first : last };
+}
+
+/** The days an event runs, written out: « du 20 au 24 octobre 2026 », or
+ *  « mercredi 16 septembre 2026 » for a single day. */
+export function daysRangeLong(first: DateKey, last: DateKey): string {
   const a = parseDate(first);
   const b = parseDate(last);
-  const count = daysBetween(first, last) + 1;
-  const length = `${count} ${count > 1 ? 'jours' : 'jour'}`;
   if (first === last) {
-    return `${JOURS[weekdayOf(a)]} ${a.day} ${MOIS_FR[a.month]} ${a.year} · ${length}`;
+    return `${JOURS[weekdayOf(a)]} ${a.day} ${MOIS_FR[a.month]} ${a.year}`;
   }
   const from =
     a.year !== b.year
@@ -176,7 +190,21 @@ function daysLabelLong(first: DateKey, last: DateKey): string {
       : a.month !== b.month
         ? `${a.day} ${MOIS_FR[a.month]}`
         : `${a.day}`;
-  return `du ${from} au ${b.day} ${MOIS_FR[b.month]} ${b.year} · ${length}`;
+  return `du ${from} au ${b.day} ${MOIS_FR[b.month]} ${b.year}`;
+}
+
+/** How many days an event runs: « 5 jours ». */
+export function daysLength(first: DateKey, last: DateKey): string {
+  const count = daysBetween(first, last) + 1;
+  return `${count} ${count > 1 ? 'jours' : 'jour'}`;
+}
+
+/** The calendar card's line, as the mockup writes it: « du 20 au 24 octobre
+ *  2026 · 5 jours ». The « J-13 » beside it is a different shape, so the
+ *  length needs no label there; the event's home, under a countdown written
+ *  in days and hours, labels it « Durée : ». */
+function daysLabelLong(first: DateKey, last: DateKey): string {
+  return `${daysRangeLong(first, last)} · ${daysLength(first, last)}`;
 }
 
 /** Longest first; on a tie, the earlier start, then the name. */

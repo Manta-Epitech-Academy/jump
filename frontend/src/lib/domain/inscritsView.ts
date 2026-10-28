@@ -1,3 +1,10 @@
+import {
+  clearedFacetParams,
+  facetParam,
+  FACET_NONE,
+  parseFacetValues,
+} from '$lib/domain/listFacets';
+
 /**
  * The Inscrits page's view, carried in its address: the facets it filters on
  * and the column it sorts by. A reload, a link shared with a colleague, the
@@ -33,7 +40,7 @@ export const INSCRITS_FACETS = [
 export type InscritsFacet = (typeof INSCRITS_FACETS)[number];
 
 /** The facet value of a row that has none (no lycée, no answer...). */
-export const INSCRITS_NONE = 'aucun';
+export const INSCRITS_NONE = FACET_NONE;
 
 export type InscritsSortDir = 'asc' | 'desc';
 
@@ -64,19 +71,13 @@ function isSortKey(value: string | null): value is InscritsSortKey {
   return value !== null && Object.hasOwn(INSCRITS_SORT_DEFAULT_DIR, value);
 }
 
-function parseFacet(raw: string | null): string[] {
-  if (!raw) return [];
-  const values = raw
-    .split(',')
-    .map((v) => v.trim())
-    .filter(Boolean);
-  return [...new Set(values)];
-}
-
 /** Read the view off a querystring. Unknown params and values are ignored. */
 export function parseInscritsView(params: URLSearchParams): InscritsView {
   const facets = Object.fromEntries(
-    INSCRITS_FACETS.map((facet) => [facet, parseFacet(params.get(facet))]),
+    INSCRITS_FACETS.map((facet) => [
+      facet,
+      parseFacetValues(params.get(facet)),
+    ]),
   ) as Record<InscritsFacet, string[]>;
   const rawSort = params.get('sort');
   const sort = isSortKey(rawSort) ? rawSort : INSCRITS_DEFAULT_SORT;
@@ -96,12 +97,12 @@ export function inscritsFacetParams(
   facet: InscritsFacet,
   values: readonly string[],
 ): Record<string, string> {
-  return { [facet]: [...new Set(values)].join(',') };
+  return { [facet]: facetParam(values) };
 }
 
 /** The params that clear every facet, leaving the sort and the search. */
 export function inscritsClearedFacetParams(): Record<string, string> {
-  return Object.fromEntries(INSCRITS_FACETS.map((facet) => [facet, '']));
+  return clearedFacetParams(INSCRITS_FACETS);
 }
 
 /**
