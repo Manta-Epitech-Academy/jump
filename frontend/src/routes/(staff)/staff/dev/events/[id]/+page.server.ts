@@ -24,7 +24,11 @@ import {
   getEventStatus,
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
-import { daysLabelLong, eventDayKeys } from '$lib/domain/campusCalendar';
+import {
+  daysLength,
+  daysRangeLong,
+  eventDayKeys,
+} from '$lib/domain/campusCalendar';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { eventHomeFigures, type EventHomeFigures } from '$lib/domain/eventHome';
 
@@ -92,7 +96,8 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
       id: event.id,
       name: eventDisplayName(event),
       category: row.category,
-      daysLabel: daysLabelLong(first, last),
+      days: daysRangeLong(first, last),
+      length: daysLength(first, last),
       externalId: event.externalId,
     },
     countdown: {

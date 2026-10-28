@@ -48,7 +48,12 @@
               <EventCategoryChip category={data.event.category} />
               <span aria-hidden="true">·</span>
             {/if}
-            <span>{data.event.daysLabel}</span>
+            <span>{data.event.days}</span>
+            <!-- Labelled here, unlike on the calendar card: right under a
+                 countdown in days and hours, a bare « 12 jours » reads as the
+                 time left. -->
+            <span aria-hidden="true">·</span>
+            <span>Durée : {data.event.length}</span>
           </p>
           <EventCountdown
             status={data.countdown.status}
