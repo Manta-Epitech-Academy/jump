@@ -2,7 +2,7 @@
  * Minimal dependency-free XLSX writer.
  *
  * A `.xlsx` is an Office Open XML package: a ZIP archive of a handful of XML
- * parts. For our needs (a single sheet of text cells with a bold header) the
+ * parts. For our needs (sheets of text cells, each with a bold header) the
  * XML is trivial, and the only thing a library would really buy us is the ZIP
  * container, which we sidestep with *stored* (uncompressed) entries, so no
  * deflate and no dependency. Strings are written inline (`t="inlineStr"`), so
@@ -11,9 +11,10 @@
  * Cells are text or numbers (numbers as real numeric cells, so Excel treats
  * them as numbers). Dates are passed as already-formatted strings: the caller
  * owns the campus timezone, so formatting there avoids the Excel date-serial /
- * timezone minefield. Single sheet, bold header. If a future export genuinely
- * needs true date cells, multiple sheets, or formulas/styling, reach for a real
- * library rather than growing this.
+ * timezone minefield. One or more sheets, bold header. A sheet more is the
+ * same worksheet part again, listed in three index parts, so several sheets do
+ * not change what this writer is. If a future export genuinely needs true date
+ * cells, formulas or styling, reach for a real library rather than growing this.
  */
 
 /** A single cell value. `null`/`undefined`/`''` render as a blank cell. */
@@ -50,24 +51,45 @@ function columnName(index: number): string {
   return name;
 }
 
-// ---- static package parts ------------------------------------------------
+// ---- package parts -------------------------------------------------------
 
-const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`;
+function contentTypesXml(sheetCount: number): string {
+  const sheets = Array.from(
+    { length: sheetCount },
+    (_, i) =>
+      `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`,
+  ).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets}</Types>`;
+}
 
 const ROOT_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
 
-const WORKBOOK_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+// Sheet i is `rId{i+1}`; the styles part takes the id after the last sheet.
+function workbookRelsXml(sheetCount: number): string {
+  const sheets = Array.from(
+    { length: sheetCount },
+    (_, i) =>
+      `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`,
+  ).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets}<Relationship Id="rId${sheetCount + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+}
 
 // Two cell formats: index 0 = default, index 1 = bold (header row).
 const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
 
-function workbookXml(sheetName: string): string {
+function workbookXml(sheetNames: readonly string[]): string {
+  const sheets = sheetNames
+    .map(
+      (name, i) =>
+        `<sheet name="${escapeXml(name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`,
+    )
+    .join('');
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${escapeXml(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets}</sheets></workbook>`;
 }
 
 function cellXml(
@@ -219,26 +241,84 @@ export type XlsxSheet = {
   colWidths?: number[];
 };
 
-/** Build a single-sheet `.xlsx` workbook as bytes. */
-export function buildXlsx(sheet: XlsxSheet): Uint8Array {
+/**
+ * Excel's rules for a tab name: none of `\ / ? * [ ]`, at most 31 characters,
+ * and unique in the workbook, case aside (Excel refuses to open a workbook
+ * with two tabs of the same name). A clash takes a " (2)" suffix.
+ */
+function sheetNames(sheets: readonly XlsxSheet[]): string[] {
+  const taken = new Set<string>();
+  return sheets.map((sheet, i) => {
+    const base =
+      sheet.name
+        .replace(/[\\/?*[\]]/g, ' ')
+        .trim()
+        .slice(0, 31) || `Feuille${i + 1}`;
+    let name = base;
+    for (let n = 2; taken.has(name.toLowerCase()); n++) {
+      const suffix = ` (${n})`;
+      name = base.slice(0, 31 - suffix.length) + suffix;
+    }
+    taken.add(name.toLowerCase());
+    return name;
+  });
+}
+
+/** Build an `.xlsx` workbook as bytes, one tab per sheet in the order given. */
+export function buildXlsx(first: XlsxSheet, ...rest: XlsxSheet[]): Uint8Array {
+  const sheets = [first, ...rest];
   const enc = new TextEncoder();
-  const safeName =
-    sheet.name
-      .replace(/[\\/?*[\]]/g, ' ')
-      .trim()
-      .slice(0, 31) || 'Feuille1';
 
   return zipStore([
-    { name: '[Content_Types].xml', data: enc.encode(CONTENT_TYPES) },
-    { name: '_rels/.rels', data: enc.encode(ROOT_RELS) },
-    { name: 'xl/workbook.xml', data: enc.encode(workbookXml(safeName)) },
-    { name: 'xl/_rels/workbook.xml.rels', data: enc.encode(WORKBOOK_RELS) },
-    { name: 'xl/styles.xml', data: enc.encode(STYLES) },
     {
-      name: 'xl/worksheets/sheet1.xml',
+      name: '[Content_Types].xml',
+      data: enc.encode(contentTypesXml(sheets.length)),
+    },
+    { name: '_rels/.rels', data: enc.encode(ROOT_RELS) },
+    {
+      name: 'xl/workbook.xml',
+      data: enc.encode(workbookXml(sheetNames(sheets))),
+    },
+    {
+      name: 'xl/_rels/workbook.xml.rels',
+      data: enc.encode(workbookRelsXml(sheets.length)),
+    },
+    { name: 'xl/styles.xml', data: enc.encode(STYLES) },
+    ...sheets.map((sheet, i) => ({
+      name: `xl/worksheets/sheet${i + 1}.xml`,
       data: enc.encode(
         worksheetXml(sheet.headers, sheet.rows, sheet.colWidths),
       ),
-    },
+    })),
   ]);
+}
+
+/**
+ * An ASCII-only label for a `Content-Disposition` filename: accents stripped,
+ * anything else outside letters, digits, space, `_` and `-` dropped. The page
+ * names the download itself where it can; this is the fallback a header can
+ * carry safely.
+ */
+export function asciiFilename(label: string, fallback: string): string {
+  return (
+    label
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^A-Za-z0-9 _-]/g, '')
+      .trim() || fallback
+  );
+}
+
+/** A workbook as a download. `filename` is used as given, so pass it through
+ *  `asciiFilename` first. */
+export function xlsxResponse(bytes: Uint8Array, filename: string): Response {
+  // `buildXlsx` returns an exactly-sized Uint8Array, so its backing buffer is
+  // the whole payload.
+  return new Response(bytes.buffer as ArrayBuffer, {
+    headers: {
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${filename}.xlsx"`,
+    },
+  });
 }
