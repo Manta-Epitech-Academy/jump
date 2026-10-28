@@ -9,9 +9,10 @@ import { resolveOtpIdentity } from '$lib/server/auth/otpAudience';
 import { emailOtpAudienceGate } from '$lib/server/auth/emailOtpAudienceGate';
 import { staffDoorGate } from '$lib/server/auth/staffDoor';
 import { httpSurface } from '$lib/server/auth/httpSurface';
+import { pinnedMicrosoftTenant } from '$lib/server/auth/microsoftTenant';
 import { IMPERSONATION_IDLE_WINDOW_SEC } from '$lib/domain/impersonation';
 import { resolve } from '$app/paths';
-import { dev } from '$app/environment';
+import { building, dev } from '$app/environment';
 
 // Microsoft provider overrides, and only those: the one thing an integration
 // test needs to change is where the provider's token/authorize endpoints
@@ -23,7 +24,6 @@ import { dev } from '$app/environment';
 // exactly the kind of drift #296 was.
 type MicrosoftProviderOverrides = {
   authority?: string;
-  tenantId?: string;
   disableProfilePhoto?: boolean;
 };
 
@@ -84,7 +84,13 @@ export function createAuthOptions(
       microsoft: {
         clientId: env.MICROSOFT_CLIENT_ID!,
         clientSecret: env.MICROSOFT_CLIENT_SECRET!,
-        tenantId: env.MICROSOFT_TENANT_ID,
+        // Refuses to boot unless pinned to one directory, which is what lets
+        // the address below be trusted (see the module). Not while `building`:
+        // `vite build` evaluates this module with no runtime env, and the
+        // instance it builds never serves.
+        tenantId: building
+          ? undefined
+          : pinnedMicrosoftTenant(env.MICROSOFT_TENANT_ID),
         // These four and nothing else. The provider's defaults add
         // `offline_access`, which makes Microsoft issue a refresh token, stored
         // in `bauth_account` and outliving any session it was read through.
@@ -105,7 +111,7 @@ export function createAuthOptions(
         // `prisma/migrations/20260915140000_verify_staff_emails_for_oauth_relink`.
         //
         // Declared here rather than repaired afterwards: reaching this callback
-        // means the tenant named in `MICROSOFT_TENANT_ID` authenticated the
+        // means the directory `MICROSOFT_TENANT_ID` pins authenticated the
         // address, and the staff door (`validateUserInfo` below) refuses
         // anything outside `@epitech.eu` on top. Within that pair the address IS
         // verified, and saying so at creation is what keeps the migration's

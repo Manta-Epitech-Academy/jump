@@ -170,7 +170,11 @@ Three things hold the invariant, and they are not interchangeable.
 `mapProfileToUser` on the Microsoft provider in `server/auth.ts` holds it at
 creation, which is where it belongs: reaching that callback means the tenant in
 `MICROSOFT_TENANT_ID` authenticated the address and the staff door refuses
-anything outside `@epitech.eu`. The migration
+anything outside `@epitech.eu`. That reading holds because the server refuses to
+boot unless the value is one directory's id (`server/auth/microsoftTenant.ts`):
+blank, the provider falls back to `common` without a word, and any directory's
+administrator could assert an admin's address and be linked onto their account
+(security audit run-1). The migration
 `20260915140000_verify_staff_emails_for_oauth_relink` holds it for the rows that
 predate that, scoped on `StaffProfile` because that row is the proof the
 member was provisioned. And the provisioning scripts (`bootstrap-admins.ts`,
