@@ -157,10 +157,10 @@ describe('the closings cards', () => {
       ['bon_profil', 1, '50 %'],
       ['aucun', 1, '50 %'],
     ]);
-    expect(closings?.verdicts[0].link.params).toEqual({
-      statut: 'done',
-      avis: 'bon_profil',
-    });
+    expect(closings?.verdicts.map((p) => p.link.params)).toEqual([
+      { avis: 'bon_profil' },
+      { statut: 'done', avis: 'aucun' },
+    ]);
   });
 
   it('opens the progress parts on the Closings page by status', () => {

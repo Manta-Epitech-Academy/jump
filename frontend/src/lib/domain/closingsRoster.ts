@@ -51,10 +51,19 @@ export type ClosingsRoster = {
 };
 
 /**
- * The status buckets and the verdict breakdown of a roster. A verdict counts
- * only once its closing is finalised: an in-progress closing may carry a
- * recommendation picked mid-way, which is not yet the team's conclusion.
+ * The team's verdict on a closing, once it is one: an in-progress closing may
+ * carry a recommendation picked mid-way, which is not yet the team's
+ * conclusion, so only a finalised closing has a verdict. The one reading of it,
+ * for every surface that shows or counts one (the home's card, the Closings
+ * list and its filter, the exported sheet), so no two of them can disagree.
  */
+export function closingVerdict(
+  row: Pick<ClosingRow, 'status' | 'recommendation'>,
+): ClosingRecommendation | null {
+  return row.status === 'done' ? row.recommendation : null;
+}
+
+/** The status buckets and the verdict breakdown of a roster. */
 export function tallyClosings(
   rows: readonly ClosingRow[],
 ): Pick<ClosingsRoster, 'counts' | 'recoCounts'> {
@@ -64,8 +73,8 @@ export function tallyClosings(
   ) as RecoCounts;
   for (const row of rows) {
     counts[row.status]++;
-    if (row.status === 'done' && row.recommendation)
-      recoCounts[row.recommendation]++;
+    const verdict = closingVerdict(row);
+    if (verdict) recoCounts[verdict]++;
   }
   return { counts, recoCounts };
 }
@@ -94,7 +103,7 @@ const FACETS: Record<ClosingsFacet, FacetDef<ClosingRow>> = {
   },
   avis: {
     title: 'Avis',
-    valuesOf: (r) => [r.recommendation ?? FACET_NONE],
+    valuesOf: (r) => [closingVerdict(r) ?? FACET_NONE],
     vocabulary: () => [
       ...CLOSING_RECOMMENDATION_DISPLAY_ORDER.map((r): [string, string] => [
         r,

@@ -42,6 +42,7 @@ import {
   CLOSING_RECOMMENDATIONS,
   CLOSING_STATUS_LABELS,
 } from '$lib/domain/closing';
+import { closingVerdict } from '$lib/domain/closingsRoster';
 
 /**
  * The sheets an event's exports are made of, one builder per section. Each
@@ -322,16 +323,17 @@ export async function closingsSheet(
   return {
     name: 'Closings',
     headers: ['Prénom', 'Nom', 'Statut', 'Mené par', 'Date', 'Avis'],
-    rows: rows.map((r) => [
-      r.prenom,
-      r.nom,
-      CLOSING_STATUS_LABELS[r.status],
-      r.staffName ?? '',
-      r.conductedAt ? dateFmt.format(new Date(r.conductedAt)) : '',
-      r.status === 'done' && r.recommendation
-        ? CLOSING_RECOMMENDATIONS[r.recommendation].label
-        : '',
-    ]),
+    rows: rows.map((r) => {
+      const verdict = closingVerdict(r);
+      return [
+        r.prenom,
+        r.nom,
+        CLOSING_STATUS_LABELS[r.status],
+        r.staffName ?? '',
+        r.conductedAt ? dateFmt.format(new Date(r.conductedAt)) : '',
+        verdict ? CLOSING_RECOMMENDATIONS[verdict].label : '',
+      ];
+    }),
     colWidths: [16, 16, 12, 22, 12, 26],
   };
 }

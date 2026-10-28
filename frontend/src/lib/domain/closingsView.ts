@@ -12,9 +12,10 @@ import {
  *
  * The facets are the mockup's header filters: who conducted the closing
  * (`mene`, a staff id or `aucun`), its state (`statut`), the team's verdict
- * (`avis`, a `ClosingRecommendation` or `aucun`). The home counts a verdict
- * only once its closing is finalised, so its links write `statut=done` beside
- * it and the list shows exactly the closings the card counted.
+ * (`avis`, a `ClosingRecommendation` or `aucun`). A verdict is a finalised
+ * closing's (`closingVerdict`), so `avis=bon_profil` alone lists exactly the
+ * closings the home's card counted; `avis=aucun` also holds every closing not
+ * finalised yet, so the card's « Sans avis » writes `statut=done` beside it.
  */
 
 /** The facets, in the order the table shows their columns. */

@@ -37,6 +37,7 @@
     type ClosingsSortKey,
   } from '$lib/domain/closingsView';
   import {
+    closingVerdict,
     closingsFacets,
     matchesClosingsFacets,
     type ClosingsFacetState,
@@ -329,8 +330,9 @@
             {@render statusBadge(r.status, false)}
           </Table.Cell>
           <Table.Cell>
-            {#if r.recommendation}
-              <ClosingVerdictChip recommendation={r.recommendation} short />
+            {@const verdict = closingVerdict(r)}
+            {#if verdict}
+              <ClosingVerdictChip recommendation={verdict} short />
             {:else}
               <span class="text-muted-foreground">-</span>
             {/if}
@@ -339,6 +341,7 @@
 
         {#snippet mobileRow(r: ClosingRow)}
           {@const prenom = formatGivenName(r.prenom)}
+          {@const verdict = closingVerdict(r)}
           <div class="flex items-start gap-3">
             <TalentAvatar
               talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
@@ -365,8 +368,8 @@
                   <span class="shrink-0">{dateFmt(r.conductedAt)}</span>
                 {/if}
               </div>
-              {#if r.recommendation}
-                <ClosingVerdictChip recommendation={r.recommendation} short />
+              {#if verdict}
+                <ClosingVerdictChip recommendation={verdict} short />
               {/if}
             </div>
           </div>

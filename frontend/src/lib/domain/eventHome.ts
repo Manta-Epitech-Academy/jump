@@ -27,7 +27,7 @@ import {
  *   each part opens Inscrits filtered on exactly the values it counted.
  * - The closings' progress and the team's verdicts come from the Closings
  *   roster and open the Closings page filtered; a verdict counts once its
- *   closing is finalised, so its link asks for `statut=done` beside it.
+ *   closing is finalised (`closingVerdict`), on the card as on the list.
  * - The recommendation comes from the Feedback roster and opens the Feedback
  *   page filtered on the option, by id.
  *
@@ -262,13 +262,6 @@ const VERDICT_TONE: Record<RecommendationToneToken, ChartTone> = {
   'epi-drift': 'drift',
 };
 
-/** The finalised closings carrying one verdict: the list a verdict's part
- *  counted, since a verdict counts once its closing is finalised. */
-const finalisedWith = (avis: string): Record<string, string> => ({
-  ...closingsFacetParams('statut', ['done']),
-  ...closingsFacetParams('avis', [avis]),
-});
-
 function closingsFigures(roster: ClosingsRoster): HomeClosings {
   const progress = (['done', 'in_progress', 'todo'] as const)
     .filter((status) => roster.counts[status] > 0)
@@ -295,7 +288,7 @@ function closingsFigures(roster: ClosingsRoster): HomeClosings {
     tone: VERDICT_TONE[CLOSING_RECOMMENDATIONS[r].tone],
     link: {
       surface: 'closings',
-      params: finalisedWith(r),
+      params: closingsFacetParams('avis', [r]),
     },
   }));
   // A closing finalised without a verdict still belongs to the whole the ring
@@ -308,9 +301,14 @@ function closingsFigures(roster: ClosingsRoster): HomeClosings {
       count: finalised - withVerdict,
       share: shareOf(finalised - withVerdict, finalised),
       tone: 'muted',
+      // Without a verdict is also every closing not finalised yet, so the list
+      // is narrowed to the finalised ones the part counted.
       link: {
         surface: 'closings',
-        params: finalisedWith(FACET_NONE),
+        params: {
+          ...closingsFacetParams('statut', ['done']),
+          ...closingsFacetParams('avis', [FACET_NONE]),
+        },
       },
     });
 

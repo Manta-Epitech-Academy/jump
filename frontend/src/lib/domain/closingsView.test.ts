@@ -13,7 +13,8 @@ import {
 
 /**
  * The Closings address is written by the page's header filters and by the
- * event home's cards, which send a finalised verdict as `statut=done&avis=…`.
+ * event home's cards, which send a verdict as `avis=…` and the finalised
+ * closings without one as `statut=done&avis=aucun`.
  * What has to hold: a written view reads back as itself, the bare address is
  * the whole roster by nom, and the list keeps exactly the closings the home
  * counted.
@@ -99,11 +100,10 @@ describe('the closings view address', () => {
 
 describe('the closings filters', () => {
   it('keep the finalised closings of one verdict, as the home counts them', () => {
-    const params = written(
-      closingsFacetParams('statut', ['done']),
-      closingsFacetParams('avis', ['bon_profil']),
-    );
-    expect(kept(params)).toEqual(['a']);
+    // `c` carries the same recommendation, picked mid-closing: no verdict yet.
+    expect(kept(written(closingsFacetParams('avis', ['bon_profil'])))).toEqual([
+      'a',
+    ]);
   });
 
   it('read `aucun` as a closing nobody conducted, or one without a verdict', () => {
