@@ -163,3 +163,37 @@ export async function revokeXp(
   });
   await recomputeTalentXp(tx, input.talentId);
 }
+
+/**
+ * Hands every grant of one talent to another, for the merge of two talents that
+ * are one Salesforce person, and refreshes the receiver's balance.
+ *
+ * The sources keyed on a talent (`onboarding`, `onboarding_early_bird`,
+ * `reward`, `workshop`, see the list at the top) carry the giver's id inside
+ * `sourceId`, so it is rewritten to the receiver's: left as it was, the next
+ * grant of the same fact to the receiver would not find it and would stack. A
+ * talent id is a cuid, which no other part of a `sourceId` can contain. Where
+ * the receiver already holds the same fact, the receiver's grant stands and
+ * the giver's is dropped, so one fact is never paid twice.
+ */
+export async function moveTalentGrants(
+  tx: Prisma.TransactionClient,
+  fromTalentId: string,
+  toTalentId: string,
+): Promise<void> {
+  await tx.$executeRaw`
+    DELETE FROM "XpGrant" g
+    USING "XpGrant" kept
+    WHERE g."talentId" = ${fromTalentId}
+      AND kept."talentId" = ${toTalentId}
+      AND kept."source" = g."source"
+      AND kept."sourceId" = replace(g."sourceId", ${fromTalentId}, ${toTalentId})
+  `;
+  await tx.$executeRaw`
+    UPDATE "XpGrant"
+    SET "talentId" = ${toTalentId},
+        "sourceId" = replace("sourceId", ${fromTalentId}, ${toTalentId})
+    WHERE "talentId" = ${fromTalentId}
+  `;
+  await recomputeTalentXp(tx, toTalentId);
+}
