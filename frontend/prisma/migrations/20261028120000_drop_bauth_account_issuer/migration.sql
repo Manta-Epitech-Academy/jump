@@ -7,9 +7,13 @@
 -- fails with "Argument `issuer` is missing"
 -- (https://www.better-auth.com/docs/guides/1-7-upgrade-guide).
 --
--- Dropped rather than relaxed to NULL: nothing in Jump reads the column, and
--- the model now matches what BetterAuth's own generator emits for Prisma (no
--- field, no compound unique). The index goes first, as the guide asks.
+-- Warnings: `issuer` and its unique index `bauth_account_issuer_accountId_key`
+-- are dropped with no backfill. Every row written since
+-- `20260831120000_add_bauth_account_issuer` carries a value, and nothing reads
+-- it: no code in Jump, and no BetterAuth from 1.7.3 on. Dropped rather than
+-- relaxed to NULL so the model matches what BetterAuth's own generator emits
+-- for Prisma (no field, no compound unique). The index goes first, as the
+-- guide asks.
 DROP INDEX "bauth_account_issuer_accountId_key";
 
 ALTER TABLE "bauth_account" DROP COLUMN "issuer";
