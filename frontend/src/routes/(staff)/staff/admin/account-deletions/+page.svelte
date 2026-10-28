@@ -14,7 +14,7 @@
   import * as Alert from '$lib/components/ui/alert';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Dialog from '$lib/components/ui/dialog';
-  import EmptyState from '$lib/components/EmptyState.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import TalentName from '$lib/components/students/TalentName.svelte';
   import { formatDateTimeFr } from '$lib/utils';
@@ -89,10 +89,11 @@
       <Card.Content class="p-0">
         {#if data.pending.length === 0}
           <div class="p-6">
-            <EmptyState
+            <ResultsNotice
+              compact
               icon={ShieldCheck}
               title="Tout est traité"
-              description="Aucune demande de suppression en attente. Tu es à jour. Le pipeline est serein."
+              description="Aucune demande de suppression en attente."
             />
           </div>
         {:else}

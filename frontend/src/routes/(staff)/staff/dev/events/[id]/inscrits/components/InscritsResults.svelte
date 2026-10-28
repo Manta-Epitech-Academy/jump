@@ -399,7 +399,7 @@
 
 {#if rows.length === 0}
   <!-- The cohort is synced from Salesforce by the worker, not imported by hand,
-       so this is a notice and not an EmptyState: there is no action to offer. -->
+       so there is no action to offer: the notice says where the rows come from. -->
   <ResultsNotice
     icon={Users}
     title={`Aucun ${noun.singular} inscrit`}

@@ -801,7 +801,7 @@
 
       <Collapsible.Content class="space-y-3 pt-3">
         {#if data.invitations.length === 0}
-          <ResultsNotice description="Aucune invitation en attente." />
+          <ResultsNotice compact description="Aucune invitation en attente." />
         {:else}
           <DataTableToolbar
             searchValue={inviteSearch}
