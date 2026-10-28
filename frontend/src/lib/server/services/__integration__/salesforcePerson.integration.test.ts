@@ -142,8 +142,14 @@ describe('one Salesforce person, one talent (integration)', () => {
         member(lead(6), address('second')),
       ]);
       await prisma.talent.updateMany({
-        where: { externalId: { in: [lead(5), lead(6)] } },
+        where: { externalId: lead(5) },
         data: { firstLoginAt: new Date('2026-03-01T10:00:00.000Z') },
+      });
+      // Logged in before `firstLoginAt` existed and never since: the charte
+      // it accepted is all that shows the login.
+      await prisma.talent.updateMany({
+        where: { externalId: lead(6) },
+        data: { charterAcceptedAt: new Date('2026-03-01T10:00:00.000Z') },
       });
     });
 
@@ -182,7 +188,7 @@ describe('one Salesforce person, one talent (integration)', () => {
     it('merges them and clears the error once only one of them was used', async () => {
       await prisma.talent.updateMany({
         where: { externalId: lead(6) },
-        data: { firstLoginAt: null },
+        data: { charterAcceptedAt: null },
       });
 
       await syncTalents([

@@ -151,7 +151,11 @@ export async function mergeTalents(
  * since siblings share one.
  *
  * The talent kept is the one a person used (logged in, or started a dossier),
- * otherwise the one already keyed on the contact, otherwise the oldest. When
+ * otherwise the one already keyed on the contact, otherwise the oldest. A login
+ * is read on `firstLoginAt` and on the charte, which only the talent accepts,
+ * from inside the app: `firstLoginAt` was backfilled from the sessions still
+ * alive when it was added, so a talent who logged in before then and never
+ * again has none, and the charte is what still shows it. When
  * more than one was used, nothing is merged and the answer is `refused`: which
  * login and which dossier the person keeps is not Jump's to guess, and the
  * caller records it for an admin. A refusal changes nothing, so the next pass
@@ -183,11 +187,15 @@ export async function claimSalesforcePerson(
         id: true,
         externalId: true,
         firstLoginAt: true,
+        charterAcceptedAt: true,
         _count: { select: { onboardingRecords: true } },
       },
     });
     const used = talents.filter(
-      (t) => t.firstLoginAt !== null || t._count.onboardingRecords > 0,
+      (t) =>
+        t.firstLoginAt !== null ||
+        t.charterAcceptedAt !== null ||
+        t._count.onboardingRecords > 0,
     );
     if (used.length > 1) return 'refused';
     const kept =
