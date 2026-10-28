@@ -123,14 +123,17 @@
   // A code alone is easy to mistype for a neighbour, so its name is what the
   // admin checks it against. The académie says what the choice changes (the
   // school holidays follow it), and lets a search by the campus's city find
-  // its départements.
+  // its départements. It is left out where it only repeats the name (Paris, the
+  // overseas départements), which also spares the Pacific collectivities a title
+  // they do not hold: a vice-rectorat serves them, not an académie.
   function getDepartementLabel(code: string | null): string {
     if (!code) return '-';
+    const name = departementName(code);
+    const label = `${code} · ${name ?? '?'}`;
     const academie = academieOf(code);
-    const name = `${code} · ${departementName(code) ?? '?'}`;
-    if (!academie) return name;
+    if (!academie || academie === name) return label;
     const de = /^[aeiouyàâéèêîôû]/i.test(academie) ? "d'" : 'de ';
-    return `${name} (académie ${de}${academie})`;
+    return `${label} (académie ${de}${academie})`;
   }
 
   const departementOptions = DEPARTEMENTS.map((code) => ({
