@@ -28,22 +28,6 @@
   <title>{data.talentName} · Closing</title>
 </svelte:head>
 
-{#snippet flow()}
-  <ClosingFlow
-    form={data.form}
-    grid={data.grid}
-    synthesisSections={data.synthesisSections}
-    retiredAnswers={data.retiredAnswers}
-    talentName={data.talentName}
-    conductedLabel={data.conductedLabel}
-    conductedBy={data.conductedBy}
-    conductedByImage={data.conductedByImage}
-    closingsHref={resolve(`/staff/dev/events/${data.event.id}/closings`)}
-    bind:status
-    bind:step
-  />
-{/snippet}
-
 <!-- Bounded as a whole once finalised, header included: a synthesis is a document,
      and a header whose "Voir la fiche" sat a thousand pixels from the page it
      heads is not heading anything. While it is being conducted the page keeps the
@@ -78,14 +62,28 @@
     ficheHref={talentFicheHref(data.talentId, data.event.id)}
   />
 
-  {#if isDone}
-    {@render flow()}
-  {:else}
-    <div class="grid gap-6 lg:grid-cols-10">
-      <div class="min-w-0 space-y-6 lg:col-span-7">
-        {@render flow()}
-      </div>
+  <!-- One tree whatever the status, so clôture never remounts the flow: it
+       used to render in one branch while in progress and in another once done,
+       and the switch dropped the flow's local state, the « Closing finalisé »
+       banner with it, at the one moment the banner exists for. -->
+  <div class={cn(!isDone && 'grid gap-6 lg:grid-cols-10')}>
+    <div class={cn('min-w-0 space-y-6', !isDone && 'lg:col-span-7')}>
+      <ClosingFlow
+        form={data.form}
+        grid={data.grid}
+        synthesisSections={data.synthesisSections}
+        retiredAnswers={data.retiredAnswers}
+        talentName={data.talentName}
+        conductedLabel={data.conductedLabel}
+        conductedBy={data.conductedBy}
+        conductedByImage={data.conductedByImage}
+        closingsHref={resolve(`/staff/dev/events/${data.event.id}/closings`)}
+        bind:status
+        bind:step
+      />
+    </div>
 
+    {#if !isDone}
       <div class="lg:col-span-3">
         <div class="space-y-3 lg:sticky lg:top-6">
           {#if status === 'in_progress'}
@@ -102,6 +100,6 @@
           </a>
         </div>
       </div>
-    </div>
-  {/if}
+    {/if}
+  </div>
 </div>
