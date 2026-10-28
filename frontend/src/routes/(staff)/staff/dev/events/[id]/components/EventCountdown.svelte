@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import Timer from '@lucide/svelte/icons/timer';
   import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
 
@@ -20,8 +19,12 @@
     openDate: Date;
   } = $props();
 
+  // An effect on `status`, not `onMount`: going from one event's home to
+  // another's keeps this component and hands it the next event, which may be
+  // the first one still to open.
   let now = $state(Date.now());
-  onMount(() => {
+  $effect(() => {
+    now = Date.now();
     if (status !== 'upcoming') return;
     const id = setInterval(() => (now = Date.now()), 60_000);
     return () => clearInterval(id);
