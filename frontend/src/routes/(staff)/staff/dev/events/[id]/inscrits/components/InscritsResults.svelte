@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
-  import Users from '@lucide/svelte/icons/users';
   import X from '@lucide/svelte/icons/x';
   import Check from '@lucide/svelte/icons/check';
   import Minus from '@lucide/svelte/icons/minus';
@@ -18,7 +17,7 @@
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import { setListParams } from '$lib/components/staff/datatable/urlList';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import ActiveFilterChips, {
     type ActiveFilterChip,
@@ -398,13 +397,7 @@
 {/snippet}
 
 {#if rows.length === 0}
-  <!-- The cohort is synced from Salesforce by the worker, not imported by hand,
-       so there is no action to offer: the notice says where the rows come from. -->
-  <ResultsNotice
-    icon={Users}
-    title={`Aucun ${noun.singular} inscrit`}
-    description="Personne pour l'instant. Les inscrits apparaissent ici dès qu'ils sont marqués prêts dans Salesforce."
-  />
+  <EmptyCohortNotice cohortNoun={event.cohortNoun} />
 {:else}
   <div class="space-y-3">
     <DataTableToolbar

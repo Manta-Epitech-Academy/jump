@@ -3,12 +3,11 @@
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
   import Circle from '@lucide/svelte/icons/circle';
-  import MessageSquare from '@lucide/svelte/icons/message-square';
   import * as Table from '$lib/components/ui/table';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type { ColumnDef } from '$lib/components/staff/datatable/types';
   import { setListParams } from '$lib/components/staff/datatable/urlList';
@@ -264,11 +263,7 @@
 {/snippet}
 
 {#if total === 0}
-  <ResultsNotice
-    icon={MessageSquare}
-    title={`Aucun ${noun.singular} inscrit`}
-    description="Les closings apparaîtront ici dès que la cohorte de l'événement sera synchronisée."
-  />
+  <EmptyCohortNotice {cohortNoun} />
 {:else}
   <ResultsLayout
     railClass="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1"

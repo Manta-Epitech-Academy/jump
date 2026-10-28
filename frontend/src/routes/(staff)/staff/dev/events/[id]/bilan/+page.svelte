@@ -7,6 +7,7 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
   import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import QrProjectionDialog from '$lib/components/staff/QrProjectionDialog.svelte';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
@@ -69,30 +70,34 @@
   {#await data.cohort}
     <ResultsSkeleton />
   {:then cohort}
-    <!-- The roster is the working surface, the rail carries the glanceable
+    {#if cohort.rows.length === 0}
+      <EmptyCohortNotice cohortNoun={data.event.cohortNoun} />
+    {:else}
+      <!-- The roster is the working surface, the rail carries the glanceable
          summary (taux de réponse + the recommendation breakdown, the one chart
          that matters). The page is read-only (no poll, no optimistic write), so
          a bare {#await} is the right pattern, like inscrits/closings; no $state
          unwrap needed. The rail holds a single card, hence no card grid. -->
-    <ResultsLayout>
-      {#snippet main()}
-        <BilanRoster
-          rows={cohort.rows}
-          recoOptions={cohort.recoOptions}
-          eventId={data.event.id}
-          cohortNoun={data.event.cohortNoun}
-        />
-      {/snippet}
+      <ResultsLayout>
+        {#snippet main()}
+          <BilanRoster
+            rows={cohort.rows}
+            recoOptions={cohort.recoOptions}
+            eventId={data.event.id}
+            cohortNoun={data.event.cohortNoun}
+          />
+        {/snippet}
 
-      {#snippet rail()}
-        <StatsPanel
-          respondedCount={cohort.respondedCount}
-          total={cohort.total}
-          stats={cohort.stats}
-          cohortNoun={data.event.cohortNoun}
-        />
-      {/snippet}
-    </ResultsLayout>
+        {#snippet rail()}
+          <StatsPanel
+            respondedCount={cohort.respondedCount}
+            total={cohort.total}
+            stats={cohort.stats}
+            cohortNoun={data.event.cohortNoun}
+          />
+        {/snippet}
+      </ResultsLayout>
+    {/if}
   {:catch}
     <ResultsNotice
       title="Chargement impossible"

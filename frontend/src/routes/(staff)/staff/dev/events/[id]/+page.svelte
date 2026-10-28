@@ -25,9 +25,11 @@
   let { data }: { data: PageData } = $props();
 
   // Badges, certificates and the inscrits sheet all print the cohort, so they
-  // answer only where the Inscrits section is on (`loadEventOr404`).
+  // answer only where the Inscrits section is on (`loadEventOr404`), and only
+  // once there is someone to print: with no inscrit they would hand back an
+  // empty PDF, and the page already says why there is no one.
   const printsCohort = $derived(
-    data.reachable.includes(EVENT_MODULES.INSCRITS),
+    data.reachable.includes(EVENT_MODULES.INSCRITS) && data.rosterSize > 0,
   );
 </script>
 
@@ -120,7 +122,12 @@
       {/snippet}
     </ResultsSkeleton>
   {:then figures}
-    <HomeFigures {figures} eventId={data.event.id} reachable={data.reachable} />
+    <HomeFigures
+      {figures}
+      eventId={data.event.id}
+      cohortNoun={data.event.cohortNoun}
+      reachable={data.reachable}
+    />
   {:catch}
     <ResultsNotice
       title="Chargement impossible"

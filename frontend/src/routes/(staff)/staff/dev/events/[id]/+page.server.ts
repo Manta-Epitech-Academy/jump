@@ -99,6 +99,7 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
       days: daysRangeLong(first, last),
       length: daysLength(first, last),
       externalId: event.externalId,
+      cohortNoun: event.cohortNoun,
     },
     countdown: {
       status: applyPhaseOverride(

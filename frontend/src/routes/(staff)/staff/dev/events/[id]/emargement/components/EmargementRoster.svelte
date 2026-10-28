@@ -6,7 +6,6 @@
   import FilterX from '@lucide/svelte/icons/filter-x';
   import Phone from '@lucide/svelte/icons/phone';
   import NotebookPen from '@lucide/svelte/icons/notebook-pen';
-  import Users from '@lucide/svelte/icons/users';
   import Lock from '@lucide/svelte/icons/lock';
   import LockOpen from '@lucide/svelte/icons/lock-open';
   import CheckCheck from '@lucide/svelte/icons/check-check';
@@ -15,7 +14,7 @@
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
   import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
@@ -292,11 +291,7 @@
      slot-lifecycle controls all surface tooltips from here. -->
 <Tooltip.Provider delayDuration={150}>
   {#if rows.length === 0}
-    <ResultsNotice
-      icon={Users}
-      title={`Aucun ${noun.singular} inscrit`}
-      description={`Les ${noun.plural} apparaîtront ici une fois la synchronisation effectuée.`}
-    />
+    <EmptyCohortNotice {cohortNoun} />
   {:else}
     <ResultsLayout
       railClass="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-1"
