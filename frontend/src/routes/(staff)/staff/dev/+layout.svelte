@@ -13,7 +13,7 @@
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import School from '@lucide/svelte/icons/school';
   import LayoutGrid from '@lucide/svelte/icons/layout-grid';
-  import House from '@lucide/svelte/icons/house';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -46,8 +46,9 @@
 
   // Icons live with the component (Svelte components can't sit in the domain
   // layer); order/label/reachability are single-sourced in `eventModules`.
-  const SURFACE_ICONS: Record<EventSurfaceKey, typeof Users> = {
-    home: House,
+  // The event's pages under its block; the home is the block itself.
+  type PageSurface = Exclude<EventSurfaceKey, 'home'>;
+  const SURFACE_ICONS: Record<PageSurface, typeof Users> = {
     inscrits: Users,
     emargement: UserCheck,
     // A clock on the calendar: the event's hours, beside the campus's days.
@@ -128,19 +129,27 @@
     return [...years, selectedSchoolYear].sort((a, b) => b.localeCompare(a));
   });
 
-  /** The event's pages, in the order and under the gates `eventModules` sets. */
+  /** The event's pages, in the order and under the gates `eventModules` sets.
+      The home is not among them: the event's block above them opens it, as
+      the mockup draws it, so the event's name is the way to its home. */
   const eventLinks = $derived.by((): NavLink[] => {
     const ev = currentEvent;
     if (!ev) return [];
-    return reachableSurfaces(ev).map((key) => ({
-      href: resolve(eventSurfacePath(ev.id, key)),
-      label: surfaceLabel(key),
-      icon: SURFACE_ICONS[key],
-      // Every other page sits under the home's address, so the home would
-      // stay lit on all of them.
-      exact: key === 'home',
-    }));
+    return reachableSurfaces(ev)
+      .filter((key): key is PageSurface => key !== 'home')
+      .map((key) => ({
+        href: resolve(eventSurfacePath(ev.id, key)),
+        label: surfaceLabel(key),
+        icon: SURFACE_ICONS[key],
+      }));
   });
+
+  const eventHomeHref = $derived(
+    currentEvent ? resolve(eventSurfacePath(currentEvent.id, 'home')) : null,
+  );
+  const onEventHome = $derived(
+    eventHomeHref !== null && page.url.pathname === eventHomeHref,
+  );
 
   /** The surface in view, so a context change keeps you on it. Derived once
       here rather than in each control, for the same reason as the year. */
@@ -273,17 +282,40 @@
             Événement sélectionné
           </h2>
           <!-- The event's name, in Anton at a display size: it has to out-rank
-               the 14px entries under it. Another event is opened from the
-               calendar, as the mockup does: no picker here. -->
-          <div
-            class="flex items-baseline font-heading text-display-s text-chrome-foreground"
+               the 14px entries under it. It is the way to the event's home, as
+               the mockup draws it: one entry wearing the event's name rather
+               than an « Accueil » among its pages, lit like any entry when its
+               page is open, with the chevron that says it leads somewhere.
+               Another event is opened from the calendar: no picker here. -->
+          <a
+            href={eventHomeHref}
+            aria-current={onEventHome ? 'page' : undefined}
+            class="group mb-2 flex cursor-pointer items-center gap-2 rounded-sm px-3 py-2.5 transition-colors {onEventHome
+              ? 'bg-epi-blue text-white'
+              : 'text-chrome-foreground hover:bg-chrome-hover'}"
           >
-            <span class="truncate">{eventDisplayName(ev)}</span>
-            <TitleCursor />
-          </div>
-          <p class="mt-1 mb-3 font-mono text-xs text-chrome-foreground-muted">
-            {eventDaysLabel(ev.date, ev.endDate, data.timezone)}
-          </p>
+            <span class="min-w-0 flex-1">
+              <!-- The cursor rides inside the truncated text, so a long name
+                   ends on its ellipsis rather than on a cursor left floating
+                   after it. -->
+              <span class="block truncate font-heading text-display-s"
+                >{eventDisplayName(ev)}<TitleCursor /></span
+              >
+              <span
+                class="mt-1 block font-mono text-xs {onEventHome
+                  ? 'text-white/80'
+                  : 'text-chrome-foreground-muted'}"
+              >
+                {eventDaysLabel(ev.date, ev.endDate, data.timezone)}
+              </span>
+            </span>
+            <ChevronRight
+              aria-hidden="true"
+              class="size-4 shrink-0 transition-transform group-hover:translate-x-0.5 {onEventHome
+                ? 'text-white'
+                : 'text-chrome-foreground-muted'}"
+            />
+          </a>
           {@render navLinks(eventLinks)}
         </section>
       {/if}

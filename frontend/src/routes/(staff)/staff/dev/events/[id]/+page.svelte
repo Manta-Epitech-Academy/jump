@@ -35,7 +35,10 @@
 
 <div class="space-y-8 pb-10">
   <Tooltip.Provider delayDuration={150}>
-    <PageHeader title={data.event.name}>
+    <!-- Top-aligned: the action tiles are taller than the title block, and
+         the shared bottom alignment would push the title below where every
+         other page sets it. -->
+    <PageHeader title={data.event.name} class="md:items-start">
       {#snippet meta()}
         <div class="flex flex-col gap-2">
           <p

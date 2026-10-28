@@ -5,7 +5,7 @@
   import RingChart from '$lib/components/staff/charts/RingChart.svelte';
   import { CHART_TONE_CLASS } from '$lib/components/staff/charts/chartTone';
   import { cn } from '$lib/utils';
-  import HomeCard from './HomeCard.svelte';
+  import HomeCard, { type HomeCardEmpty } from './HomeCard.svelte';
 
   // A whole in parts: the ring, then its legend, each row of which opens the
   // list filtered on that part. The legend is the control; the ring only
@@ -27,7 +27,7 @@
     /** The figure in a donut's middle, with the word under it. */
     figure?: number;
     unit?: string;
-    empty?: string | null;
+    empty?: HomeCardEmpty | null;
     hrefOf: (link: HomeLink) => string | null;
     /** A line under the legend (the feedback's response rate). */
     below?: Snippet;

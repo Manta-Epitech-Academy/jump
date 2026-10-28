@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import Sparkles from '@lucide/svelte/icons/sparkles';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import type { HomeTalent } from '$lib/domain/eventHome';
   import { formatGivenName } from '$lib/domain/profile';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import { talentFicheHref } from '$lib/components/dev/talentFiche';
-  import HomeCard from './HomeCard.svelte';
+  import HomeCard, { type HomeCardEmpty } from './HomeCard.svelte';
 
   // A short list of talents (furthest into their parcours, most XP), each
   // opening their fiche. `xp` shows the detail as the roster's XP pill: raw XP,
@@ -22,7 +23,7 @@
     talents: HomeTalent[];
     eventId: string;
     xp?: boolean;
-    empty?: string | null;
+    empty?: HomeCardEmpty | null;
     footer?: Snippet;
   } = $props();
 </script>
@@ -62,6 +63,10 @@
               >{t.detail}</span
             >
           {/if}
+          <ChevronRight
+            class="size-3.5 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
         </a>
       </li>
     {/each}
