@@ -717,6 +717,74 @@ describe('the figures the two stores must agree on', () => {
     expect(answer.celluleMasquee.value).toBeNull();
   });
 
+  it('masks both halves of the year-on-year comparison on a campus', async () => {
+    // The row masked the count while `comparaison` returned last year's actors
+    // and the gap, unmasked: their sum was the masked figure (security audit
+    // run-1). The comparison reads by campus, so the campus is its narrowing.
+    const { periode, periodeReference } = (
+      await getFeatureUsage({ schoolYear: SCHOOL_YEAR }, {}, LATER)
+    ).evolution.value!;
+    // Seen from LATER the school year runs past twelve months, so the two
+    // halves share months: take one month that belongs to each half alone.
+    const current = periode.find((m) => !periodeReference.includes(m))!;
+    const reference = periodeReference.find((m) => !periode.includes(m))!;
+    const monthly = (month: string, distinctActors: number) => ({
+      feature: USAGE_FEATURES.TALENT_CALENDAR_VIEW,
+      actorKind: 'talent' as const,
+      campusId: campusB,
+      month,
+      uses: distinctActors,
+      distinctActors,
+      computedAt: new Date(),
+    });
+    const ask = () =>
+      getFeatureUsage(
+        {
+          schoolYear: SCHOOL_YEAR,
+          campus: { id: campusB, name: CAMPUS_B },
+        },
+        { feature: USAGE_FEATURES.TALENT_CALENDAR_VIEW },
+        LATER,
+      );
+
+    await prisma.usage_FeatureMonthly.createMany({
+      data: [monthly(current, 3), monthly(reference, 2)],
+    });
+    const small = (await ask()).comparaison!;
+    expect(small.acteursDistinctsMoisDePointe.value).toEqual({
+      previous: null,
+      absolute: null,
+      relative: null,
+    });
+    expect(small.partDeLaPopulation.value.previous).toBeNull();
+
+    // Above the floor on both sides, the comparison answers in full.
+    await prisma.usage_FeatureMonthly.deleteMany({
+      where: {
+        feature: USAGE_FEATURES.TALENT_CALENDAR_VIEW,
+        campusId: campusB,
+      },
+    });
+    await prisma.usage_FeatureMonthly.createMany({
+      data: [
+        monthly(current, USAGE_SMALL_CELL_FLOOR + 3),
+        monthly(reference, USAGE_SMALL_CELL_FLOOR),
+      ],
+    });
+    const large = (await ask()).comparaison!;
+    expect(large.acteursDistinctsMoisDePointe.value).toMatchObject({
+      previous: USAGE_SMALL_CELL_FLOOR,
+      absolute: 3,
+    });
+
+    await prisma.usage_FeatureMonthly.deleteMany({
+      where: {
+        feature: USAGE_FEATURES.TALENT_CALENDAR_VIEW,
+        campusId: campusB,
+      },
+    });
+  });
+
   it('tells never-measured apart from measured-at-zero', async () => {
     const before = await getFeatureUsage(
       { schoolYear: SCHOOL_YEAR },

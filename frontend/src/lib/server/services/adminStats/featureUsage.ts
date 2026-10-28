@@ -425,6 +425,12 @@ type Comparison = {
   /** Null when the reference period holds no measurement at all. */
   previousFor: (key: string) => number | null;
   previousActorsFor: (key: string) => number | null;
+  /**
+   * Whether the halves were read narrowed, for {@link maskCell}. The cube
+   * carries a campus and never an event, so this is the campus filter alone:
+   * an event-scoped call compares its campus's months.
+   */
+  narrowed: boolean;
 };
 
 /**
@@ -457,10 +463,18 @@ async function readComparison(
       ref.hasAnyRow ? (reference.get(key)?.uses ?? 0) : null,
     previousActorsFor: (key) =>
       ref.hasAnyRow ? (reference.get(key)?.peakActors ?? 0) : null,
+    narrowed: campusId !== null,
   };
 }
 
-/** The full trio, returned only when one feature was named. */
+/**
+ * The full trio, returned only when one feature was named.
+ *
+ * Both halves of the actor count go through {@link maskCell}: a masked current
+ * month plus last year's unmasked figure and the gap between them hands the
+ * count back by addition (security audit run-1). A masked side leaves the gap
+ * null, which `variation` already does for any missing side.
+ */
 function buildComparison(
   feature: UsageFeatureKey,
   comparison: Comparison,
@@ -470,7 +484,10 @@ function buildComparison(
   const def = USAGE_FEATURE_DEFS[feature];
   const base = def.audience === 'staff' ? pop.staff : pop.talents;
   const row = rows.find((r) => r.feature === feature);
-  const previousActors = comparison.previousActorsFor(feature);
+  const mask = (actors: number | null) =>
+    actors === null ? null : maskCell(feature, actors, comparison.narrowed);
+  const currentActors = mask(comparison.current.get(feature)?.peakActors ?? 0);
+  const previousActors = mask(comparison.previousActorsFor(feature));
   return {
     feature,
     periode: comparison.periode,
@@ -482,7 +499,7 @@ function buildComparison(
       COMPARISON_LABEL,
     ),
     acteursDistinctsMoisDePointe: variation(
-      comparison.current.get(feature)?.peakActors ?? 0,
+      currentActors,
       previousActors,
       'count',
       COMPARISON_LABEL,
