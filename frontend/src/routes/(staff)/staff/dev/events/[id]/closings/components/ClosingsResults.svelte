@@ -318,7 +318,12 @@
                 </span>
               </span>
             {:else}
-              <span class="text-muted-foreground"
+              <!-- « Ancien membre de l'équipe » is wider than the column: it
+                   truncates like a name does, rather than running under the
+                   date beside it. -->
+              <span
+                class="block truncate text-muted-foreground"
+                title={conductorLabel(r) ?? undefined}
                 >{conductorLabel(r) ?? '-'}</span
               >
             {/if}
