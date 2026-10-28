@@ -84,6 +84,10 @@ export interface AuthConflict {
 /** The repair operation a verdict maps to. `null` verdicts are escalate-only. */
 export type AuthRepairAction = 'repointDrop' | 'swap' | 'sever';
 
+/** The repairs that fix a verdict, as opposed to `sever`, which only stops an
+ * exposure and leaves the talent without its login. */
+export type AuthVerdictRepair = Exclude<AuthRepairAction, 'sever'>;
+
 /** French label per verdict, for the admin table. */
 export const VERDICT_LABELS: Record<AuthConflictVerdict, string> = {
   ORPHAN_HOLDER: 'Orphelin actif',
@@ -97,7 +101,7 @@ export const VERDICT_LABELS: Record<AuthConflictVerdict, string> = {
  * to Salesforce (parent/staff holder, degraded inversion) rather than forced. */
 export function actionForVerdict(
   verdict: AuthConflictVerdict,
-): AuthRepairAction | null {
+): AuthVerdictRepair | null {
   switch (verdict) {
     case 'ORPHAN_HOLDER':
       return 'repointDrop';

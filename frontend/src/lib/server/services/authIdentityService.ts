@@ -163,29 +163,11 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
     const holderRow = directory.accountOf(targetEmail);
 
     // ── Forward: who holds the target email → the verdict. ────────────────
-    let verdict: AuthConflictVerdict;
-    let partnerTalentId: string | null = null;
-
     // No account holds the target email → the sync realigns the linked account
     // itself (changeUserEmail), so this is never a standing conflict. Skip it.
-    if (!holderRow) continue;
-    if (holderRow.staffProfile !== null) {
-      verdict = 'STAFF_HOLDER';
-    } else if (
-      holderRow.role === 'parent' ||
-      directory.isParentAddress(targetEmail)
-    ) {
-      verdict = 'PARENT_HOLDER';
-    } else if (holderRow.talent) {
-      // Held by another Talent B. Symmetric inversion ⇔ B's own email is the
-      // stale email this talent is squatting (they are each other's), i.e. a
-      // clean two-sided swap. Otherwise it is degraded and needs manual care.
-      const symmetric = norm(holderRow.talent.sfImport?.sfEmail) === staleEmail;
-      verdict = symmetric ? 'SYMMETRIC_INVERSION' : 'DEGRADED_INVERSION';
-      partnerTalentId = holderRow.talent.id;
-    } else {
-      verdict = 'ORPHAN_HOLDER';
-    }
+    const forward = directory.verdictOf(targetEmail, staleEmail, t.id);
+    if (!holderRow || !forward) continue;
+    const { verdict, partnerTalentId } = forward;
 
     // ── Backward: does the stale email belong to a real, loggable identity? ──
     // If so, that person logging in lands on THIS talent's dashboard. `staleOwner`
@@ -246,6 +228,12 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
  *   - `ownerOf`: who legitimately owns the address, ignoring the account that
  *     currently squats it (a staff account, a parent contact, another talent's
  *     Salesforce address). null = nobody, a value without an owner.
+ *
+ * And `verdictOf`, the Connexion tab's verdict on a talent whose login is in
+ * the way of its Salesforce address, which decides what that tab can repair.
+ * It classifies for that decision, not for display: an address that is both a
+ * guardian's and another talent's login reads as a parent here, and as that
+ * talent under `holderOf`.
  *
  * `exceptTalentId` is the talent being described, so its own identity reads as
  * `this_talent` (holder) or as no owner (owner). Emails in `bauth_user` are
@@ -343,11 +331,43 @@ export async function loadAddressDirectory(emails: Iterable<string>) {
     return ownerOf(email, exceptTalentId) ?? { kind: 'orphan' };
   };
 
+  // What the Connexion tab decides about a talent whose linked account carries
+  // `staleEmail` while the account holding `targetEmail` is in the way. null
+  // when no account holds the target, or when it is the talent's own: the sync
+  // realigns that by itself. The tab and the sync-errors page both read it, so
+  // the page never offers a repair the tab does not.
+  const verdictOf = (
+    targetEmail: string,
+    staleEmail: string,
+    exceptTalentId: string,
+  ): {
+    verdict: AuthConflictVerdict;
+    partnerTalentId: string | null;
+  } | null => {
+    const row = accountByEmail.get(targetEmail);
+    if (!row || row.talent?.id === exceptTalentId) return null;
+    if (row.staffProfile !== null)
+      return { verdict: 'STAFF_HOLDER', partnerTalentId: null };
+    if (row.role === 'parent' || parentEmailToTalent.has(targetEmail))
+      return { verdict: 'PARENT_HOLDER', partnerTalentId: null };
+    if (row.talent) {
+      // Held by another Talent B. Symmetric inversion ⇔ B's own email is the
+      // stale email this talent is squatting (they are each other's), i.e. a
+      // clean two-sided swap. Otherwise it is degraded and needs manual care.
+      const symmetric = norm(row.talent.sfImport?.sfEmail) === staleEmail;
+      return {
+        verdict: symmetric ? 'SYMMETRIC_INVERSION' : 'DEGRADED_INVERSION',
+        partnerTalentId: row.talent.id,
+      };
+    }
+    return { verdict: 'ORPHAN_HOLDER', partnerTalentId: null };
+  };
+
   return {
     accountOf: (email: string): AccountRow | null =>
       accountByEmail.get(email) ?? null,
-    isParentAddress: (email: string): boolean => parentEmailToTalent.has(email),
     holderOf,
     ownerOf,
+    verdictOf,
   };
 }
