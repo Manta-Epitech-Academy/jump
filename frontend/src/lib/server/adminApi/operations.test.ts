@@ -148,6 +148,19 @@ describe('what a credential is offered as tools', () => {
     expect(offered).toContain('bulk_event_config');
   });
 
+  // Verbatim text an admin did not write never shares a session with the writes.
+  it('keeps the verbatim testimonials away from a token that can write', () => {
+    expect(names({ tier: 'core', writeEnabled: true })).not.toContain(
+      'stats_closing_testimonials',
+    );
+    expect(names({ tier: 'core', writeEnabled: false })).toContain(
+      'stats_closing_testimonials',
+    );
+    expect(names({ tier: 'leadership', writeEnabled: false })).toContain(
+      'stats_closing_testimonials',
+    );
+  });
+
   // Belt and braces with the catalogue rule: even a leadership token that
   // somehow carried the write capability is offered nothing that mutates.
   //

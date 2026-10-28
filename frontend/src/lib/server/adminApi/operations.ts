@@ -348,6 +348,15 @@ export type AdminApiOperation = {
    * somebody has to remember.
    */
   leadership: boolean;
+  /**
+   * The answer carries text typed by someone with less authority than an admin
+   * (a closing testimonial), returned verbatim. Such a read is never served to
+   * a credential that can write: in one MCP session, a sentence written as an
+   * instruction would otherwise sit next to the write tools it could ask a
+   * model to call, with only prose telling the model not to (security audit
+   * run-1). An admin reads it with a read-only or leadership token.
+   */
+  untrustedText: boolean;
   /** Bulk: a dry run first, then an apply echoing that plan's digest. */
   twoStep: boolean;
   run: (
@@ -381,6 +390,8 @@ function defineOperation<Shape extends z.ZodRawShape>(op: {
   shape: Shape;
   /** Grant this read to leadership tokens too. Absent = core team only. */
   leadership?: true;
+  /** Returns text an admin did not write, verbatim (see the field). */
+  untrustedText?: true;
   run: (
     params: z.output<z.ZodObject<Shape>>,
     ctx: OperationContext,
@@ -392,6 +403,7 @@ function defineOperation<Shape extends z.ZodRawShape>(op: {
     schema: z.strictObject(op.shape),
     kind: 'read',
     leadership,
+    untrustedText: op.untrustedText ?? false,
     twoStep: false,
     run: async (params, ctx) => {
       const answer = await op.run(params as z.output<z.ZodObject<Shape>>, ctx);
@@ -450,6 +462,7 @@ function defineWrite<Shape extends z.ZodRawShape>(op: {
     schema: z.strictObject(op.shape),
     kind: 'write',
     leadership: false,
+    untrustedText: false,
     twoStep: op.twoStep ?? false,
     run: (params, ctx) => op.run(params as z.output<z.ZodObject<Shape>>, ctx),
   };
@@ -1778,6 +1791,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_closing_testimonials: defineOperation({
     leadership: true,
+    untrustedText: true,
     description: `Sentences students wrote about the event, word for word, from the one question each closing grid marks as quotable. Most recent first, no student identified. Default ${TESTIMONIALS_DEFAULT_LIMIT}, ${TESTIMONIALS_MAX_LIMIT} maximum.`,
     shape: {
       schoolYear,
@@ -1866,6 +1880,21 @@ export function isOperationAllowedForTier(
   return tier === 'core' || operation.leadership;
 }
 
+/**
+ * Whether a credential's write capability admits an operation. The single
+ * expression of that rule, read by the guard and by the MCP server like
+ * {@link isOperationAllowedForTier}: a write needs the capability, and a read
+ * that returns untrusted text needs its absence.
+ */
+export function isOperationAllowedForCapability(
+  operation: AdminApiOperation,
+  writeEnabled: boolean,
+): boolean {
+  return operation.kind === 'write'
+    ? writeEnabled
+    : !(operation.untrustedText && writeEnabled);
+}
+
 /** The operations a tier can call, in catalogue order. */
 export function operationsForTier(
   tier: AdminApiTier,
@@ -1886,7 +1915,7 @@ export function operationsOfferedTo(credential: {
   tier: AdminApiTier;
   writeEnabled: boolean;
 }): [AdminApiOperationName, AdminApiOperation][] {
-  return operationsForTier(credential.tier).filter(
-    ([, op]) => op.kind !== 'write' || credential.writeEnabled,
+  return operationsForTier(credential.tier).filter(([, op]) =>
+    isOperationAllowedForCapability(op, credential.writeEnabled),
   );
 }

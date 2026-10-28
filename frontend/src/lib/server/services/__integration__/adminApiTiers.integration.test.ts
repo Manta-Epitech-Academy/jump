@@ -25,6 +25,8 @@ import { TRANSPORT_OPERATIONS } from '$lib/server/adminApi/audit';
 const LEADERSHIP_OPERATION = ADMIN_API_OPERATIONS.stats_cohort_profile;
 const CORE_ONLY_OPERATION = ADMIN_API_OPERATIONS.ops_pdf_jobs_health;
 const WRITE_OPERATION = ADMIN_API_OPERATIONS.write_event_config;
+const UNTRUSTED_TEXT_OPERATION =
+  ADMIN_API_OPERATIONS.stats_closing_testimonials;
 
 function requestWith(secret?: string) {
   return {
@@ -148,6 +150,31 @@ describe('admin API tiers and write capability (integration)', () => {
     expect(authorizeOperation(credential, WRITE_OPERATION)).toEqual({
       ok: true,
     });
+  });
+
+  // A testimonial is typed by a student or a dev, returned verbatim. Next to the
+  // write tools in one session, a sentence written as an instruction could ask
+  // the model to call one, with only prose telling it not to.
+  it('serves verbatim student text to a read-only token, never to one that can write', async () => {
+    const reader = await mintToken(adminUserId, { label: 'Core témoignages' });
+    expect(
+      authorizeOperation(
+        await credentialFor(reader.secret),
+        UNTRUSTED_TEXT_OPERATION,
+      ),
+    ).toEqual({ ok: true });
+
+    const writer = await mintToken(adminUserId, {
+      label: 'Core écriture témoignages',
+      writeEnabled: true,
+    });
+    const refusal = authorizeOperation(
+      await credentialFor(writer.secret),
+      UNTRUSTED_TEXT_OPERATION,
+    );
+    expect(refusal).toMatchObject({ ok: false, status: 403 });
+    if (refusal.ok) throw new Error('unreachable');
+    expect(refusal.message).toContain('lecture seule');
   });
 
   // Writes are token-only on purpose: a mutation has to be attributable to a

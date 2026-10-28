@@ -28,13 +28,17 @@ function documented(document: Document) {
 }
 
 describe('the HTTP reference', () => {
-  it('documents every mounted operation at its own path for a write-enabled core token', async () => {
+  // Every mounted operation but the verbatim-text reads, which a token that can
+  // write is never served (`untrustedText`); the read-only case shows them.
+  it('documents every mounted operation it may call at its own path for a write-enabled core token', async () => {
     const document = await buildOpenApiDocument({
       tier: 'core',
       writeEnabled: true,
       origin,
     });
-    const mounted = await httpOperations();
+    const mounted = (await httpOperations()).filter(
+      (r) => !ADMIN_API_OPERATIONS[r.name].untrustedText,
+    );
 
     expect(
       Object.entries(document.paths).flatMap(([path, item]) =>
@@ -58,6 +62,9 @@ describe('the HTTP reference', () => {
 
     expect(kinds).not.toContain('write');
     expect(kinds.length).toBeGreaterThan(0);
+    expect(documented(document).map(({ name }) => name)).toContain(
+      'stats_closing_testimonials',
+    );
   });
 
   it('shows a leadership token the steering figures only', async () => {
