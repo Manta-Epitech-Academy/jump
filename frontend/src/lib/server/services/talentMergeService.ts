@@ -156,6 +156,11 @@ export async function mergeTalents(
  * login and which dossier the person keeps is not Jump's to guess, and the
  * caller records it for an admin. A refusal changes nothing, so the next pass
  * meets it again until someone settles it.
+ *
+ * The talents are locked before they are read, so that decision holds until
+ * the merge commits: a login, a dossier or another pass reaching one of them
+ * meanwhile waits, and lands either before the read, which then sees it, or
+ * after the merge.
  */
 export async function claimSalesforcePerson(
   externalId: string,
@@ -163,31 +168,36 @@ export async function claimSalesforcePerson(
 ): Promise<'ready' | 'refused'> {
   const formerIds = convertedLeadIds.filter((id) => id !== externalId);
   if (formerIds.length === 0) return 'ready';
+  const personIds = [externalId, ...formerIds];
 
-  const talents = await prisma.talent.findMany({
-    where: { externalId: { in: [externalId, ...formerIds] } },
-    orderBy: { createdAt: 'asc' },
-    select: {
-      id: true,
-      externalId: true,
-      firstLoginAt: true,
-      _count: { select: { onboardingRecords: true } },
-    },
-  });
-  const used = talents.filter(
-    (t) => t.firstLoginAt !== null || t._count.onboardingRecords > 0,
-  );
-  if (used.length > 1) return 'refused';
-  const kept =
-    used[0] ?? talents.find((t) => t.externalId === externalId) ?? talents[0];
-  if (!kept) return 'ready';
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`
+      SELECT 1 FROM "Talent"
+      WHERE "externalId" IN (${Prisma.join(personIds)})
+      FOR UPDATE
+    `;
+    const talents = await tx.talent.findMany({
+      where: { externalId: { in: personIds } },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        externalId: true,
+        firstLoginAt: true,
+        _count: { select: { onboardingRecords: true } },
+      },
+    });
+    const used = talents.filter(
+      (t) => t.firstLoginAt !== null || t._count.onboardingRecords > 0,
+    );
+    if (used.length > 1) return 'refused';
+    const kept =
+      used[0] ?? talents.find((t) => t.externalId === externalId) ?? talents[0];
+    if (!kept) return 'ready';
 
-  const absorbed = talents.filter((t) => t.id !== kept.id).map((t) => t.id);
-  if (absorbed.length === 0 && kept.externalId === externalId) return 'ready';
-  await prisma.$transaction(async (tx) => {
-    await mergeTalents(tx, kept.id, absorbed);
+    const absorbed = talents.filter((t) => t.id !== kept.id).map((t) => t.id);
+    if (absorbed.length > 0) await mergeTalents(tx, kept.id, absorbed);
     if (kept.externalId !== externalId)
       await tx.talent.update({ where: { id: kept.id }, data: { externalId } });
+    return 'ready';
   });
-  return 'ready';
 }
