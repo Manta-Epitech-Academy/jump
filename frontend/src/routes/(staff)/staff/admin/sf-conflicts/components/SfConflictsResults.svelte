@@ -414,7 +414,6 @@
                           {c.email ?? '-'}
                           <SalesforceIconLink
                             externalId={c.externalId}
-                            kind="lead"
                             label="Ouvrir le contact dans Salesforce"
                           />
                         </div>
@@ -498,7 +497,6 @@
                       {g.email ?? '-'}
                       <SalesforceIconLink
                         externalId={g.externalId}
-                        kind="lead"
                         label="Ouvrir le contact dans Salesforce"
                       />
                     </span>
@@ -610,7 +608,6 @@
                           {c.targetEmail}
                           <SalesforceIconLink
                             externalId={c.externalId}
-                            kind="lead"
                             label="Ouvrir le contact dans Salesforce"
                           />
                         </div>

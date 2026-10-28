@@ -66,6 +66,8 @@ export const CIVILITE_OPTIONS = [
   { value: 'autre', label: 'Autre' },
 ] as const;
 
+export type Civilite = (typeof CIVILITE_OPTIONS)[number]['value'];
+
 export const PARENT_TYPE_OPTIONS = [
   { value: 'pere', label: 'Père' },
   { value: 'mere', label: 'Mère' },

@@ -116,7 +116,6 @@
            clickable against the saturated blue. -->
       <SalesforceLinkButton
         {externalId}
-        kind="lead"
         label="Fiche Salesforce"
         variant="inverse"
         class="w-full shrink-0 justify-center font-semibold sm:order-4 sm:ml-auto sm:w-auto sm:self-start"

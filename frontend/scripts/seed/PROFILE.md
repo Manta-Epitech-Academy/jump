@@ -17,15 +17,17 @@ change rien, et ce n'est pas une raison de re-relever.
 nouvelle lecture de la base de production. Un chiffre qui manque ici se demande,
 il ne se re-relève pas.
 
-Quatre exceptions, datées et signalées sur place : la couverture des closings
+Cinq exceptions, datées et signalées sur place : la couverture des closings
 par format et le taux de connexion d'une cohorte de stage ont été relevés le
 **2026-09-03**, la ventilation du stage de seconde par campus le **2026-09-06**,
-sur le même instantané restauré, et le détail des minijeux et des sommets d'XP
-le **2026-09-14**, sur le dump du 10/07 resté en local. Chaque fois parce que le
-générateur en dépendait et que le chiffre manquait. Les quatre blocs disent d'où
-ils viennent et ce qui prouve qu'il s'agit bien du même jeu de données - le
-quatrième en particulier, qui est le seul à ne pas venir de l'instantané du
-29/08.
+sur le même instantané restauré, le détail des minijeux et des sommets d'XP
+le **2026-09-14**, sur le dump du 10/07 resté en local, et la civilité des
+talents le **2026-10-28**, demandée au MCP d'administration. Chaque fois parce
+que le générateur en dépendait et que le chiffre manquait. Les cinq blocs disent
+d'où ils viennent et ce qui prouve qu'il s'agit bien du même jeu de données - le
+quatrième en particulier, qui ne vient pas de l'instantané du 29/08, et le
+cinquième, qui porte sur la production du jour, en agrégats, et sur un autre
+périmètre.
 
 Il existe pour une raison précise : le générateur de `scripts/seed/` ne doit pas
 inventer des proportions. Chaque distribution qu'il applique vient d'une ligne de
@@ -251,6 +253,36 @@ est validé mais dont aucune école n'est résolue.
 
 XP : min 0, p25 0, p50 0, p75 200, p95 1 767, max 9 190. **3 902 talents à zéro**
 (72 %). `eventsCount` : 0 pour 2 112, 1 pour 2 429, 2 pour 682, 3 et plus pour 171.
+
+### Civilité (relevé du 2026-10-28)
+
+Demandée au MCP d'administration le **2026-10-28** (#473), parce que ce fichier
+n'en disait rien et que le générateur la tirait au hasard. Agrégats seulement,
+sur la production du jour et non sur l'instantané du 29/08 : le périmètre est
+celui des outils `stats_*`, les **6 283 talents qui ont au moins une inscription
+affichée dans l'espace dev**, tous campus et toutes années.
+
+`stats_cohort_profile` :
+
+| Civilité      | Talents | Part   |
+| ------------- | ------- | ------ |
+| Homme         | 4 401   | 70 %   |
+| Femme         | 974     | 15,5 % |
+| Autre         | 1       | ~0 %   |
+| Non renseigné | 907     | 14,4 % |
+
+Soit 18,1 % de femmes parmi les civilités renseignées.
+
+`stats_onboarding_funnel`, même périmètre, même jour : **5 046 talents arrêtés à
+l'étape Identité**, plus **199 collégiens** qui n'ont pas de dossier. Soit 5 245
+talents qui n'ont jamais validé cette étape.
+
+Ce que les deux disent ensemble. La civilité a deux sources : Salesforce, qui
+n'envoie qu'un genre binaire et le recopie tant que le talent n'a rien confirmé,
+et l'étape Identité, qui l'exige (`identitySchema`). Les 907 talents sans
+civilité sont donc tous parmi les 5 245 qui n'ont pas passé l'étape, et
+**Salesforce porte un genre pour 4 338 de ces 5 245 talents**. « Autre » n'existe
+que par l'étape Identité, puisque Salesforce n'a pas de valeur pour le dire.
 
 ## Inscription (onboarding)
 

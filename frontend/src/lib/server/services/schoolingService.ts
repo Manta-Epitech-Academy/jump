@@ -37,6 +37,26 @@ async function refreshTalentSchoolingProjection(
 }
 
 /**
+ * Re-derives the `Talent.niveau` / `Talent.schoolId` projections from the
+ * talent's current school year record, for a caller that moved records onto
+ * the talent instead of writing one (the merge of one Salesforce person's
+ * talents). Without a current record the projection stays as it is, as it
+ * does when only older years are written.
+ */
+export async function recomputeSchoolingProjection(
+  tx: Prisma.TransactionClient,
+  talentId: string,
+  timezone: string = 'Europe/Paris',
+): Promise<void> {
+  const schoolYear = schoolYearOf(new Date(), timezone).label;
+  const record = await tx.schooling_YearRecord.findUnique({
+    where: { talentId_schoolYear: { talentId, schoolYear } },
+    select: { talentId: true, schoolYear: true, niveau: true, schoolId: true },
+  });
+  if (record) await refreshTalentSchoolingProjection(tx, record, timezone);
+}
+
+/**
  * Upserts a student's `Schooling_YearRecord` for a given school year and, when
  * that year is the current one, refreshes the `Talent.niveau`/`Talent.schoolId`
  * projections in the same transaction.

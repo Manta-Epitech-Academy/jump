@@ -23,11 +23,13 @@ export const SYNC_ERROR_KIND_LABELS: Record<SyncErrorKind, string> = {
   MISSING_NAME: 'Contact sans nom',
   ADDRESS_TAKEN: 'Adresse déjà utilisée',
   LOGIN_FAILURE: 'Échec technique de connexion',
+  MERGE_REFUSED: 'Fiches à réunir',
 };
 
 /** Display order, the one the page filter and the API breakdown follow. */
 export const SYNC_ERROR_KINDS: readonly SyncErrorKind[] = [
   'ADDRESS_TAKEN',
+  'MERGE_REFUSED',
   'MISSING_NAME',
   'LOGIN_FAILURE',
 ];
@@ -64,7 +66,8 @@ export type SyncErrorSituation =
        */
       repair: AuthVerdictRepair | null;
     }
-  | { kind: 'LOGIN_FAILURE'; hasAccount: boolean };
+  | { kind: 'LOGIN_FAILURE'; hasAccount: boolean }
+  | { kind: 'MERGE_REFUSED' };
 
 /** Who can fix it, and where. `none` is said, never replaced by a fix that
  * cannot be made. */
@@ -132,11 +135,13 @@ function addressRemedy(
   repair: AuthVerdictRepair | null,
 ): SyncErrorRemedy {
   // Said before any repair: swapping the logins of two records of one person
-  // would not make them one.
+  // would not make them one. Jump merges the talents of the Leads Salesforce
+  // converted into one contact, so two that remain apart are a Lead that was
+  // never converted: converting it into the contact is the fix.
   if (holder.kind === 'talent' && holder.sameName)
     return {
-      who: 'none',
-      text: "Aucune correction connue aujourd'hui : Jump ne sait pas réunir deux fiches, et l'ancienne fiche Salesforce n'est souvent plus modifiable.",
+      who: 'salesforce',
+      text: 'Si les deux fiches sont la même personne, convertir dans Salesforce son lead resté seul vers son contact : Jump réunit les deux fiches au plus tard à la reprise complète suivante.',
     };
   if (repair)
     return {
@@ -204,6 +209,18 @@ export function explainSyncError(
         label,
         consequence: loginConsequence(situation.hasAccount),
         ...addressTaken(situation.holder, situation.repair),
+      };
+    case 'MERGE_REFUSED':
+      return {
+        label,
+        whatHappened:
+          "Salesforce rattache plusieurs fiches Jump à ce contact (les leads qu'il a été avant d'être converti), et plusieurs d'entre elles ont déjà servi : une connexion ou un dossier d'onboarding. Jump ne les réunit pas seul, pour ne rien perdre de ce qui y a été fait.",
+        consequence:
+          'La personne garde plusieurs fiches, et Jump ne reprend plus ses informations depuis Salesforce.',
+        remedy: {
+          who: 'developer',
+          text: 'Choisir la fiche que la personne garde demande un arbitrage : transmettre ce cas à un développeur, avec les fiches en cause.',
+        },
       };
     case 'LOGIN_FAILURE':
       return {

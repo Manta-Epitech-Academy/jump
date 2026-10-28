@@ -20,7 +20,6 @@
         <SalesforceLinkButton
           {...props}
           {externalId}
-          kind="campaign"
           label="Campagne Salesforce"
           size="default"
           class={ACTION_TILE_CLASS}
