@@ -14,29 +14,32 @@ import {
   type AddressHolder,
   type SyncErrorSituation,
 } from './syncError';
+import type { AuthVerdictRepair } from './authIdentity';
 
 const holders: (AddressHolder | null)[] = [
   null,
-  { kind: 'talent', account: true, sameName: false },
-  { kind: 'talent', account: false, sameName: false },
-  { kind: 'talent', account: true, sameName: true },
-  { kind: 'talent', account: false, sameName: true },
-  { kind: 'parent', account: true },
-  { kind: 'parent', account: false },
+  { kind: 'talent', sameName: false },
+  { kind: 'talent', sameName: true },
+  { kind: 'parent' },
   { kind: 'staff' },
   { kind: 'orphan' },
 ];
+
+const repairs: (AuthVerdictRepair | null)[] = [null, 'repointDrop', 'swap'];
 
 const situations: SyncErrorSituation[] = [
   { kind: 'MISSING_NAME' },
   { kind: 'LOGIN_FAILURE', hasAccount: true },
   { kind: 'LOGIN_FAILURE', hasAccount: false },
   ...[true, false].flatMap((hasAccount) =>
-    holders.map((holder): SyncErrorSituation => ({
-      kind: 'ADDRESS_TAKEN',
-      hasAccount,
-      holder,
-    })),
+    holders.flatMap((holder) =>
+      repairs.map((repair): SyncErrorSituation => ({
+        kind: 'ADDRESS_TAKEN',
+        hasAccount,
+        holder,
+        repair,
+      })),
+    ),
   ),
 ];
 
@@ -60,12 +63,14 @@ describe('explainSyncError', () => {
     const without = explainSyncError({
       kind: 'ADDRESS_TAKEN',
       hasAccount: false,
-      holder: { kind: 'parent', account: true },
+      holder: { kind: 'parent' },
+      repair: null,
     });
     const withAccount = explainSyncError({
       kind: 'ADDRESS_TAKEN',
       hasAccount: true,
-      holder: { kind: 'parent', account: true },
+      holder: { kind: 'parent' },
+      repair: null,
     });
     expect(without.consequence).toMatch(/ne peut pas se connecter/);
     expect(withAccount.consequence).toMatch(/ancienne adresse/);
@@ -73,34 +78,55 @@ describe('explainSyncError', () => {
 
   it('admits there is no fix for one person recorded twice', () => {
     for (const hasAccount of [true, false])
-      for (const account of [true, false])
+      for (const repair of repairs)
         expect(
           explainSyncError({
             kind: 'ADDRESS_TAKEN',
             hasAccount,
-            holder: { kind: 'talent', account, sameName: true },
+            holder: { kind: 'talent', sameName: true },
+            repair,
           }).remedy.who,
         ).toBe('none');
   });
 
-  it('sends to the Connexion tab only when it lists the case', () => {
-    // The tab lists a talent with an account whose Salesforce address another
-    // account holds, and repairs only an orphan or an inversion between two
-    // talents. A parent or a staff holder is fixed in Salesforce.
-    const remedyOf = (hasAccount: boolean, holder: AddressHolder) =>
-      explainSyncError({ kind: 'ADDRESS_TAKEN', hasAccount, holder }).remedy
-        .who;
-    expect(remedyOf(true, { kind: 'orphan' })).toBe('jump');
-    expect(
-      remedyOf(true, { kind: 'talent', account: true, sameName: false }),
-    ).toBe('jump');
-    expect(
-      remedyOf(false, { kind: 'talent', account: true, sameName: false }),
-    ).toBe('salesforce');
-    expect(remedyOf(true, { kind: 'parent', account: true })).toBe(
+  it('sends to the Connexion tab exactly when the tab has a repair', () => {
+    // The page reads the tab's own verdict, so a holder the tab only escalates
+    // (a degraded inversion, a parent, a staff account) never reads « Dans
+    // Jump » here, whatever account stands behind it.
+    const remedyOf = (
+      holder: AddressHolder,
+      repair: AuthVerdictRepair | null,
+    ) =>
+      explainSyncError({
+        kind: 'ADDRESS_TAKEN',
+        hasAccount: true,
+        holder,
+        repair,
+      }).remedy;
+    expect(remedyOf({ kind: 'orphan' }, 'repointDrop')).toMatchObject({
+      who: 'jump',
+      text: expect.stringMatching(/Basculer/),
+    });
+    expect(remedyOf({ kind: 'talent', sameName: false }, 'swap')).toMatchObject(
+      { who: 'jump', text: expect.stringMatching(/Échanger/) },
+    );
+    expect(remedyOf({ kind: 'talent', sameName: false }, null).who).toBe(
       'salesforce',
     );
-    expect(remedyOf(true, { kind: 'staff' })).toBe('salesforce');
+    expect(remedyOf({ kind: 'parent' }, null).who).toBe('salesforce');
+    expect(remedyOf({ kind: 'staff' }, null).who).toBe('salesforce');
+  });
+
+  it('leaves an orphan account to the next pass when there is no account to repoint', () => {
+    // `ensureTalentUser` adopts an orphan as the login of a talent without one.
+    expect(
+      explainSyncError({
+        kind: 'ADDRESS_TAKEN',
+        hasAccount: false,
+        holder: { kind: 'orphan' },
+        repair: null,
+      }).remedy.who,
+    ).toBe('automatic');
   });
 
   it('asks nothing of anyone once the address is free', () => {
@@ -109,6 +135,7 @@ describe('explainSyncError', () => {
         kind: 'ADDRESS_TAKEN',
         hasAccount: false,
         holder: null,
+        repair: null,
       }).remedy.who,
     ).toBe('automatic');
   });

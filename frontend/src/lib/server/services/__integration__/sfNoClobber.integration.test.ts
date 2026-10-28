@@ -266,7 +266,8 @@ describe('the Salesforce sync keeps what a talent confirmed (integration)', () =
     expect(open?.situation).toEqual({
       kind: 'ADDRESS_TAKEN',
       hasAccount: false,
-      holder: { kind: 'parent', account: true },
+      holder: { kind: 'parent' },
+      repair: null,
     });
     expect(open?.explanation.consequence).toMatch(/ne peut pas se connecter/);
     expect(open?.explanation.remedy.who).toBe('salesforce');

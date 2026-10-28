@@ -13,7 +13,7 @@ import type { Sync_ErrorKind } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { loadAddressDirectory } from '$lib/server/services/authIdentityService';
 import { foldForSearch } from '$lib/components/staff/datatable/search';
-import type { AccountNature } from '$lib/domain/authIdentity';
+import { actionForVerdict, type AccountNature } from '$lib/domain/authIdentity';
 import {
   explainSyncError,
   type AddressHolder,
@@ -60,14 +60,12 @@ const sameName = (
   foldForSearch(`${b.prenom} ${b.nom}`).replace(/\s+/g, ' ').trim();
 
 /**
- * Reduce a named holder to what decides the remedy. `viaAccount` says whether
- * an account holds the address (`holderOf`) or only a person's contact does
- * (`ownerOf`). `this_talent` means the talent's own account holds it now, which
- * is the problem gone, so it reads as nobody.
+ * Reduce a named holder to what the explanation says about it. `this_talent`
+ * means the talent's own account holds the address now, which is the problem
+ * gone, so it reads as nobody.
  */
 function holderSituation(
   nature: AccountNature | null,
-  viaAccount: boolean,
   subject: { prenom: string; nom: string },
 ): AddressHolder | null {
   if (!nature) return null;
@@ -79,13 +77,9 @@ function holderSituation(
     case 'orphan':
       return { kind: 'orphan' };
     case 'parent':
-      return { kind: 'parent', account: viaAccount };
+      return { kind: 'parent' };
     case 'talent':
-      return {
-        kind: 'talent',
-        account: viaAccount,
-        sameName: sameName(nature, subject),
-      };
+      return { kind: 'talent', sameName: sameName(nature, subject) };
   }
 }
 
@@ -199,13 +193,20 @@ export async function loadOpenSyncErrors(): Promise<OpenSyncError[]> {
       };
     }
 
-    const byAccount = sfEmail ? directory.holderOf(sfEmail, t.id) : null;
-    const holder =
-      byAccount ?? (sfEmail ? directory.ownerOf(sfEmail, t.id) : null);
+    const holder = sfEmail
+      ? (directory.holderOf(sfEmail, t.id) ?? directory.ownerOf(sfEmail, t.id))
+      : null;
+    // What the Connexion tab can do here, from its own verdict: it lists only
+    // a talent whose account carries another address than Salesforce's.
+    const verdict =
+      sfEmail && subject.loginEmail
+        ? directory.verdictOf(sfEmail, subject.loginEmail, t.id)
+        : null;
     const situation: SyncErrorSituation = {
       kind: 'ADDRESS_TAKEN',
       hasAccount,
-      holder: holderSituation(holder, byAccount !== null, t),
+      holder: holderSituation(holder, t),
+      repair: verdict ? actionForVerdict(verdict.verdict) : null,
     };
     return {
       ...base,

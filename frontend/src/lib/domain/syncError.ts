@@ -14,6 +14,7 @@
  */
 
 import type { Sync_ErrorKind } from '@prisma/client';
+import type { AuthVerdictRepair } from './authIdentity';
 
 export type SyncErrorKind = Sync_ErrorKind;
 
@@ -32,15 +33,14 @@ export const SYNC_ERROR_KINDS: readonly SyncErrorKind[] = [
 ];
 
 /**
- * Who stands behind the address a talent could not take, reduced to what
- * decides the remedy. `account` says whether a login account holds it (the
- * Connexion tab of Divergences Salesforce can act only on an account), and
- * `sameName` whether the other talent carries this talent's own name, which is
- * how one person recorded twice in Salesforce shows from Jump.
+ * Who stands behind the address a talent could not take, reduced to what the
+ * explanation says about them. `sameName` is whether the other talent carries
+ * this talent's own name, which is how one person recorded twice in Salesforce
+ * shows from Jump.
  */
 export type AddressHolder =
-  | { kind: 'talent'; account: boolean; sameName: boolean }
-  | { kind: 'parent'; account: boolean }
+  | { kind: 'talent'; sameName: boolean }
+  | { kind: 'parent' }
   | { kind: 'staff' }
   | { kind: 'orphan' };
 
@@ -56,6 +56,12 @@ export type SyncErrorSituation =
       hasAccount: boolean;
       /** Who holds the address now; null when nobody does any more. */
       holder: AddressHolder | null;
+      /**
+       * The repair the Connexion tab of Divergences Salesforce offers for this
+       * talent (`actionForVerdict` on its verdict), null when the tab lists
+       * the case without one or does not list it at all.
+       */
+      repair: AuthVerdictRepair | null;
     }
   | { kind: 'LOGIN_FAILURE'; hasAccount: boolean };
 
@@ -90,9 +96,75 @@ function loginConsequence(hasAccount: boolean): string {
     : "Le talent ne peut pas se connecter : il n'a pas de compte de connexion.";
 }
 
+/** The Connexion tab's repairs, said as the step an admin takes there. */
+const CONNEXION_REPAIRS: Record<AuthVerdictRepair, string> = {
+  repointDrop:
+    'Basculer le talent sur ce compte dans Divergences Salesforce, onglet Connexion.',
+  swap: 'Échanger les deux comptes dans Divergences Salesforce, onglet Connexion.',
+};
+
+const SALESFORCE_OWN_ADDRESS =
+  "Mettre l'adresse du talent lui-même dans Salesforce. Le compte est réglé au passage suivant.";
+
+function holderSentence(
+  holder: AddressHolder,
+  repair: AuthVerdictRepair | null,
+): string {
+  switch (holder.kind) {
+    case 'parent':
+      return "L'adresse Salesforce du talent est celle d'un parent.";
+    case 'staff':
+      return "L'adresse Salesforce du talent est celle d'un compte staff.";
+    case 'orphan':
+      return "L'adresse Salesforce du talent est portée par un compte de connexion rattaché à personne.";
+    case 'talent':
+      if (holder.sameName)
+        return "L'adresse Salesforce du talent est déjà celle d'un autre talent qui porte le même nom : très probablement la même personne, enregistrée deux fois dans Salesforce.";
+      return repair === 'swap'
+        ? "L'adresse Salesforce du talent est celle du compte d'un autre talent, et son propre compte porte l'adresse de cet autre talent : leurs deux adresses sont inversées."
+        : "L'adresse Salesforce du talent est déjà celle d'un autre talent.";
+  }
+}
+
+function addressRemedy(
+  holder: AddressHolder,
+  repair: AuthVerdictRepair | null,
+): SyncErrorRemedy {
+  // Said before any repair: swapping the logins of two records of one person
+  // would not make them one.
+  if (holder.kind === 'talent' && holder.sameName)
+    return {
+      who: 'none',
+      text: "Aucune correction connue aujourd'hui : Jump ne sait pas réunir deux fiches, et l'ancienne fiche Salesforce n'est souvent plus modifiable.",
+    };
+  if (repair)
+    return {
+      who: 'jump',
+      text: CONNEXION_REPAIRS[repair],
+      href: CONNEXION_TAB,
+    };
+  switch (holder.kind) {
+    case 'parent':
+    case 'staff':
+      return { who: 'salesforce', text: SALESFORCE_OWN_ADDRESS };
+    case 'orphan':
+      // No repair means the talent has no account yet, and `ensureTalentUser`
+      // adopts an orphan account as its login on the next pass.
+      return {
+        who: 'automatic',
+        text: 'Rien à faire : le prochain passage rattache le talent à ce compte.',
+      };
+    case 'talent':
+      return {
+        who: 'salesforce',
+        text: "Corriger l'adresse de celui des deux contacts qui porte la mauvaise dans Salesforce.",
+      };
+  }
+}
+
 function addressTaken(
-  hasAccount: boolean,
   holder: AddressHolder | null,
+  repair: AuthVerdictRepair | null,
 ): Pick<SyncErrorExplanation, 'whatHappened' | 'remedy'> {
   if (!holder)
     return {
@@ -103,67 +175,10 @@ function addressTaken(
         text: 'Rien à faire : le prochain passage règle le compte de connexion.',
       },
     };
-
-  switch (holder.kind) {
-    case 'parent':
-      return {
-        whatHappened: "L'adresse Salesforce du talent est celle d'un parent.",
-        remedy: {
-          who: 'salesforce',
-          text: "Mettre l'adresse du talent lui-même dans Salesforce. Le compte est réglé au passage suivant.",
-        },
-      };
-    case 'staff':
-      return {
-        whatHappened:
-          "L'adresse Salesforce du talent est celle d'un compte staff.",
-        remedy: {
-          who: 'salesforce',
-          text: "Mettre l'adresse du talent lui-même dans Salesforce. Le compte est réglé au passage suivant.",
-        },
-      };
-    case 'orphan':
-      // `ensureTalentUser` adopts an orphan account on its own, so only a
-      // talent who already has an account meets one, and the Connexion tab
-      // repoints it onto the orphan.
-      return {
-        whatHappened:
-          "L'adresse Salesforce du talent est portée par un compte de connexion rattaché à personne.",
-        remedy: {
-          who: 'jump',
-          text: 'Basculer le talent sur ce compte dans Divergences Salesforce, onglet Connexion.',
-          href: CONNEXION_TAB,
-        },
-      };
-    case 'talent':
-      if (holder.sameName)
-        return {
-          whatHappened:
-            "L'adresse Salesforce du talent est déjà celle d'un autre talent qui porte le même nom : très probablement la même personne, enregistrée deux fois dans Salesforce.",
-          remedy: {
-            who: 'none',
-            text: "Aucune correction connue aujourd'hui : Jump ne sait pas réunir deux fiches, et l'ancienne fiche Salesforce n'est souvent plus modifiable.",
-          },
-        };
-      if (hasAccount && holder.account)
-        return {
-          whatHappened:
-            "L'adresse Salesforce du talent est déjà celle du compte d'un autre talent.",
-          remedy: {
-            who: 'jump',
-            text: 'Arbitrer entre les deux comptes dans Divergences Salesforce, onglet Connexion.',
-            href: CONNEXION_TAB,
-          },
-        };
-      return {
-        whatHappened:
-          "L'adresse Salesforce du talent est déjà celle d'un autre talent.",
-        remedy: {
-          who: 'salesforce',
-          text: "Corriger l'adresse de celui des deux contacts qui porte la mauvaise dans Salesforce.",
-        },
-      };
-  }
+  return {
+    whatHappened: holderSentence(holder, repair),
+    remedy: addressRemedy(holder, repair),
+  };
 }
 
 export function explainSyncError(
@@ -187,7 +202,7 @@ export function explainSyncError(
       return {
         label,
         consequence: loginConsequence(situation.hasAccount),
-        ...addressTaken(situation.hasAccount, situation.holder),
+        ...addressTaken(situation.holder, situation.repair),
       };
     case 'LOGIN_FAILURE':
       return {
