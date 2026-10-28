@@ -28,6 +28,7 @@ import {
   LOCKED_DOWN_CSP,
 } from '$lib/security/csp';
 import { workshopBaseUrls } from '$lib/server/workshops/origins';
+import { isCrossSiteWrite } from '$lib/security/crossSite';
 import { createInitialModeExpression } from 'mode-watcher';
 
 // Every CSP directive that is a fixed constant (or gone with the recorder, issue
@@ -148,6 +149,17 @@ function recordVisit(event: Parameters<Handle>[0]['event']) {
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
+  // 0. A write a browser sent from another site is refused before anything
+  // runs, for every route: see `security/crossSite.ts` for why kit's own check
+  // is not enough.
+  if (isCrossSiteWrite(event.request, event.url.origin)) {
+    const refused = new Response('Cross-site requests are forbidden', {
+      status: 403,
+    });
+    await setSecurityHeaders(refused);
+    return refused;
+  }
+
   recordOpenIfTracked(event);
 
   // 1. Get session from BetterAuth

@@ -143,6 +143,16 @@ account creation.
   everywhere, unaudited (security audit run-1). A new browser call to
   `/api/auth` means a new entry there, argued for; prefer a Jump route that
   calls `auth.api.*`.
+- **A write a browser sends from another site is refused in `hooks.server.ts`,
+  for every route** (`security/crossSite.ts`, the rule of Go's
+  `CrossOriginProtection`). Kit's `csrf.checkOrigin` covers form content types
+  only, the session cookie is `SameSite=Lax`, and the CTFd instances share
+  production's site (`*.epiboost.fr`): a script on one could POST a bodyless
+  `fetch` to any JSON `+server.ts` as a logged-in admin, such as the test send
+  from the official sender (security audit run-1). A caller with neither
+  `Sec-Fetch-Site` nor `Origin` is a server and passes on its own secret. A
+  new flow where a browser writes to Jump from another origin (a `form_post`
+  OAuth return, an embedded form) is refused until argued for here.
 - **Opening a staff session locally, without Azure:** `POST /api/test/login-as`
   with `Authorization: Bearer $LOAD_TEST_SECRET`, then paste the returned cookie
   into the browser. No new mechanism and nothing to arm in production: the
