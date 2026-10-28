@@ -829,7 +829,8 @@ export class World {
      * What Salesforce claims, when it differs from what the talent confirmed.
      * A phone number may be an explicit `null`: a contact Salesforce holds no
      * number for, which the reconciliation reports as « manquant ». So may a
-     * civility, which is otherwise drawn (see `salesforceCivilite`).
+     * civility, which otherwise agrees with a placed person and is drawn for
+     * a drawn one (see `salesforceCivilite`).
      */
     sfClaims?: {
       nom?: string;
@@ -867,7 +868,11 @@ export class World {
         `${talentId} n’a pas d’identifiant Salesforce : Salesforce ne peut rien en prétendre.`,
       );
     const sfCivilite = fromSalesforce
-      ? this.salesforceCivilite(declaredCivilite, opts.sfClaims?.civilite)
+      ? this.salesforceCivilite(
+          declaredCivilite,
+          opts.sfClaims?.civilite,
+          opts.person !== undefined,
+        )
       : null;
 
     this.buffer.talent.push({
@@ -949,17 +954,24 @@ export class World {
 
   /**
    * The gender Salesforce holds for a person, as the sync maps it onto a
-   * civility (`mapGender`): the person's own when it holds one, as often as
-   * production says it does. Salesforce has no value for « autre », so it
-   * holds nothing for a person who declares it. A claim the caller places
-   * consumes no draw.
+   * civility (`mapGender`): a claim the caller places, otherwise the person's
+   * own. Salesforce has no value for « autre », so it holds nothing for a
+   * person who declares it.
+   *
+   * Whether it holds one at all is drawn only for a drawn person, as often as
+   * production says it does. A placed person is placed whole: Salesforce
+   * agrees with it, as every other field of the mirror defaults to Jump's
+   * value, so a scenario's persona reads the same whatever the seed and
+   * placing one consumes no draw.
    */
   private salesforceCivilite(
     declared: Civilite,
     claim: Exclude<Civilite, 'autre'> | null | undefined,
+    placed: boolean,
   ): Exclude<Civilite, 'autre'> | null {
     if (claim !== undefined) return claim;
     if (declared === 'autre') return null;
+    if (placed) return declared;
     return this.identityRng.weighted(SF_GENDER_COVERAGE) ? declared : null;
   }
 
