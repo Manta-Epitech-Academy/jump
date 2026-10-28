@@ -66,7 +66,7 @@ active=$(printf '%s' "$payload" | jq -r '.stop_hook_active // false' 2>/dev/null
 cd "$repo_root/frontend" 2>/dev/null || exit 0
 
 failures=""
-for script in lint:scripts lint lint:design lint:tests lint:prose; do
+for script in lint:scripts lint:bun-pin lint lint:design lint:tests lint:prose; do
   if ! jq -e --arg s "$script" '.scripts[$s]' package.json >/dev/null 2>&1; then
     printf '[agent-stop-gate] no `%s` script in package.json; not gating on it.\n' "$script" >&2
     continue

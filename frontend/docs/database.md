@@ -55,8 +55,7 @@ erDiagram
   bauth_account {
     String id PK
     String userId FK
-    String issuer UK
-    String accountId UK
+    String accountId
     String providerId
     String accessToken
     String refreshToken
@@ -170,6 +169,8 @@ erDiagram
     String externalId UK
     DateTime lastActiveAt
     DateTime firstLoginAt
+    Int streakDays
+    DateTime streakLastDay
     DateTime usageAnalyticsOptOutAt
     DateTime welcomeSeenAt
     DateTime anonymizedAt

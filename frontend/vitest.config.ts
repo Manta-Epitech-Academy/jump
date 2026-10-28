@@ -17,9 +17,12 @@ process.env.KIT_OUTDIR ??= '.svelte-kit-test';
 export default defineConfig({
   plugins: [sveltekit()],
   test: {
+    // Inline projects inherit this root config, plugins included (vitest 5's
+    // `extends: true` default), and inherited arrays are appended to. So the
+    // plugin is declared once, above: repeating it in a project would run a
+    // second `sveltekit()`, and its `sync.all()`, for that project.
     projects: [
       {
-        plugins: [sveltekit()],
         test: {
           name: 'unit',
           include: ['src/**/*.test.ts'],
@@ -27,7 +30,6 @@ export default defineConfig({
         },
       },
       {
-        plugins: [sveltekit()],
         test: {
           name: 'integration',
           include: ['src/**/__integration__/**/*.integration.test.ts'],

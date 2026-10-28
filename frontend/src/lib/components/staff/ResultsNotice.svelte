@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Component } from 'svelte';
-  import type { Icon as IconType } from '@lucide/svelte';
+  import type { LucideIcon } from '@lucide/svelte';
 
   // The quiet panel every staff list page shows in place of its results: the
   // streamed cohort failed to load, or there is genuinely nothing to list. It
@@ -17,7 +17,7 @@
     description,
   }: {
     /** Lucide icon above the title. Omit for a failure, which needs no picture. */
-    icon?: typeof IconType | Component;
+    icon?: LucideIcon | Component;
     /**
      * Overline-styled heading. Omit for a one-line notice, which then renders
      * the description alone at body size instead of as a subtitle.
