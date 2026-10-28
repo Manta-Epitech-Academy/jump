@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
+  import { adminTalentHref } from '$lib/components/admin/adminTalentHref';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import Funnel from '@lucide/svelte/icons/funnel';
@@ -13,7 +13,7 @@
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import { civiliteCourtesyTitle } from '$lib/domain/profile';
-  import type { NotesCohort, NoteFilters, NoteDirectoryRow } from '../query';
+  import type { NotesCohort, NoteFilters } from '../query';
   import { nextSort } from '$lib/components/staff/datatable/sort';
   import {
     goToListPage,
@@ -93,11 +93,6 @@
     );
     setListParams({ sort: next.key, dir: next.dir });
   }
-
-  function talentsLink(t: NoteDirectoryRow['talent']) {
-    const q = t.email ?? `${t.prenom} ${t.nom}`.trim();
-    return `${resolve('/staff/admin/talents')}?q=${encodeURIComponent(q)}`;
-  }
 </script>
 
 <div class="space-y-4">
@@ -149,7 +144,7 @@
     {#snippet row(note)}
       <Table.Cell>
         <a
-          href={talentsLink(note.talent)}
+          href={adminTalentHref(note.talent)}
           class="inline-flex max-w-full transition-opacity hover:opacity-80"
           title="Voir le talent dans l'annuaire"
         >
@@ -206,7 +201,7 @@
       <div class="space-y-1.5">
         <div class="flex items-start justify-between gap-2">
           <a
-            href={talentsLink(note.talent)}
+            href={adminTalentHref(note.talent)}
             class="min-w-0 transition-opacity hover:opacity-80"
             title="Voir le talent dans l'annuaire"
           >
