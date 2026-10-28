@@ -532,7 +532,6 @@ describe('what erasure and reset do to every talent table (integration)', () => 
         },
         accounts: {
           create: {
-            issuer: 'test',
             accountId: `${label}-${stamp}`,
             providerId: 'test',
           },

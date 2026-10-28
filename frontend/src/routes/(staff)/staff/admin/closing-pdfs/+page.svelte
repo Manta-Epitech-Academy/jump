@@ -24,7 +24,7 @@
   import { Input } from '$lib/components/ui/input';
   import * as Table from '$lib/components/ui/table';
   import KpiTile, { type KpiTone } from '$lib/components/staff/KpiTile.svelte';
-  import type { Icon as IconType } from '@lucide/svelte';
+  import type { LucideIcon } from '@lucide/svelte';
   import {
     CLOSING_RECOMMENDATIONS,
     CLOSING_RECOMMENDATION_DISPLAY_ORDER,
@@ -90,7 +90,7 @@
     'epi-drift': 'neutral',
     'epi-tomorrow': 'pink',
   };
-  const recoIcon: Record<RecommendationIconToken, typeof IconType> = {
+  const recoIcon: Record<RecommendationIconToken, LucideIcon> = {
     laugh: Laugh,
     smile: Smile,
     meh: Meh,
@@ -108,7 +108,7 @@
     label: string;
     caption: string;
     tone: KpiTone;
-    Icon: typeof IconType;
+    Icon: LucideIcon;
   };
   const cards: KpiCard[] = [
     {
