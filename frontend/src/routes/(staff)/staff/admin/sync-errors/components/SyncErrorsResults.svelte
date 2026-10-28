@@ -201,9 +201,16 @@
         })
       : null;
 
+  // A talent whose account holds the address logs in with it, and the address
+  // finds that one talent where its name finds every homonym (the subject
+  // itself, when one person is recorded twice). A guardian's child, or a
+  // talent the address is only the Salesforce address of, is found by name.
   const holderHref = (r: Row) => {
     const t = holderTalent(r);
-    return t ? adminTalentHref({ email: null, ...t }) : null;
+    if (!t) return null;
+    const login =
+      r.holder?.kind === 'talent' && r.holder.linked ? r.subject.sfEmail : null;
+    return adminTalentHref({ email: login, prenom: t.prenom, nom: t.nom });
   };
 </script>
 
