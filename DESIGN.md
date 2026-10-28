@@ -154,6 +154,11 @@ components:
     textColor: '{colors.epiBlue}'
     rounded: '{rounded.sm}'
     height: 36px
+  buttonInverse:
+    backgroundColor: '{colors.primaryForeground}'
+    textColor: '{colors.primary}'
+    rounded: '{rounded.sm}'
+    height: 36px
   buttonDestructive:
     backgroundColor: '{colors.destructive}'
     textColor: '{colors.statusForeground}'
@@ -448,8 +453,9 @@ dark is arguably more Epitech than light. Five rules make it cheap:
    dark green panel with white on it becomes a neon one with white on it at
    1.3:1. That is not a hypothetical: it took out the XP medallion on the talent
    fiche and every avatar ground on the same hero. A fill on a dark surface is a
-   translucent white panel (`bg-white/10`, the charte's overlay language) or a
-   raw brand accent carrying `epiBlue` or `epiDark` text.
+   translucent white panel (`bg-white/10`, the charte's overlay language), a
+   raw brand accent carrying `epiBlue` or `epiDark` text, or, on a brand-blue
+   surface only, plain white carrying `epiBlue` (`buttonInverse`, below).
 
    The status roles are the one place a fill legitimately names an ink, because
    an error bar has to be red in both themes. They get away with it only in
@@ -619,7 +625,15 @@ instead, which is where it costs nothing.
 
 Primary is `primary` filled. `buttonNeon` (`epiTech` fill, `epiBlue` text) is the
 charte's celebration CTA: use it for the one hopeful action on a talent or login
-surface, never in a staff toolbar. Destructive is `destructive` filled. Press
+surface, never in a staff toolbar. `buttonInverse` is the primary pair swapped,
+white with `epiBlue` text (7.0:1), and it is THE action of a brand-blue surface,
+staff or talent: the catalogue card's « Accéder au sujet », the talent hero's
+« Fiche Salesforce ». The charte is blue and white, so this is the brand's own
+pair, not an accent pressed into service; it stays white in either theme because
+the surface stays blue. Any other action on that surface takes the translucent
+`overlay`, which reads as secondary next to it, and which is what made the
+catalogue's main action look disabled until the 2027 mockup's white button was
+restored (#459). Destructive is `destructive` filled. Press
 translates 1px down, no scale change.
 
 **A raw accent is never a button fill.** `epiTomorrow` with white text is 3.10:1
