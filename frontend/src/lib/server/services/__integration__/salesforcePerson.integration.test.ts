@@ -57,7 +57,7 @@ describe('one Salesforce person, one talent (integration)', () => {
   });
 
   afterAll(async () => {
-    const ids = [1, 2, 3, 4, 5, 6].flatMap((n) => [lead(n), contact(n)]);
+    const ids = [1, 2, 3, 4, 5, 6, 7].flatMap((n) => [lead(n), contact(n)]);
     await prisma.sync_Error.deleteMany({ where: { externalId: { in: ids } } });
     await prisma.talent.deleteMany({ where: { externalId: { in: ids } } });
     await prisma.bauth_user.deleteMany({
@@ -133,6 +133,20 @@ describe('one Salesforce person, one talent (integration)', () => {
       }),
     ).toBeNull();
     expect(result.invalid).toBe(0);
+  });
+
+  it('keeps the talent already on the contact over an older Lead talent', async () => {
+    // Neither was used: the Lead's talent is the older, the contact's is the
+    // one Salesforce now names.
+    await syncTalents([member(lead(7), address('lead7'))]);
+    await syncTalents([member(contact(7), address('contact7'))]);
+    const [onContact] = await talentsOf([contact(7)]);
+
+    await syncTalents([member(contact(7), address('contact7'), [lead(7)])]);
+
+    expect(await talentsOf([lead(7), contact(7)])).toEqual([
+      expect.objectContaining({ id: onContact!.id, externalId: contact(7) }),
+    ]);
   });
 
   describe('a person whose records were each used', () => {
