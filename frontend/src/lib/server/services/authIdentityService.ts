@@ -288,15 +288,29 @@ export async function loadAddressDirectory(emails: Iterable<string>) {
         parentEmailToTalent.set(pe, person);
   }
 
+  // A parent is a guardian contact on a talent, or a parent login: the role is
+  // what `ensureTalentUser` and the verdict above refuse on, so a parent login
+  // no talent names any more is still a parent, never an orphan to repoint.
+  const parentOf = (email: string): AccountNature | null => {
+    const p = parentEmailToTalent.get(email);
+    if (p)
+      return {
+        kind: 'parent',
+        child: { talentId: p.id, prenom: p.prenom, nom: p.nom },
+      };
+    return accountByEmail.get(email)?.role === 'parent'
+      ? { kind: 'parent', child: null }
+      : null;
+  };
+
   const ownerOf = (
     email: string,
     exceptTalentId: string,
   ): AccountNature | null => {
     const acc = accountByEmail.get(email);
     if (acc?.staffProfile) return { kind: 'staff', name: acc.name };
-    const p = parentEmailToTalent.get(email);
-    if (p)
-      return { kind: 'parent', talentId: p.id, prenom: p.prenom, nom: p.nom };
+    const parent = parentOf(email);
+    if (parent) return parent;
     const ot = talentByEmail.get(email);
     if (ot && ot.id !== exceptTalentId)
       return {

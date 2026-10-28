@@ -46,7 +46,12 @@ export type AccountNature =
        * talent's login email but the account isn't theirs. */
       linked: boolean;
     }
-  | { kind: 'parent'; talentId: string; prenom: string; nom: string }
+  | {
+      kind: 'parent';
+      /** The talent whose guardian contact carries the address, or null for a
+       * parent login no talent names any more. */
+      child: { talentId: string; prenom: string; nom: string } | null;
+    }
   | { kind: 'staff'; name: string | null };
 
 export interface AuthConflict {
@@ -124,7 +129,9 @@ export function natureLabel(n: AccountNature | null): string {
         ? `Autre talent : ${n.prenom} ${n.nom} (compte lié)`
         : `Email d’un autre talent : ${n.prenom} ${n.nom}`;
     case 'parent':
-      return `Parent de ${n.prenom} ${n.nom}`;
+      return n.child
+        ? `Parent de ${n.child.prenom} ${n.child.nom}`
+        : 'Compte parent (rattaché à aucun talent)';
     case 'staff':
       return n.name ? `Compte staff : ${n.name}` : 'Compte staff';
   }
