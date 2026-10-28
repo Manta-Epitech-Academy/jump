@@ -322,6 +322,20 @@ const EMPTY_SET: ReadonlySet<string> = new Set<string>();
  * asks for somebody the draw almost never produces - see `placeCareer` for what
  * a scenario does instead.
  */
+const CAREER_MIX = [
+  [1, 69.0],
+  [2, 23.4],
+  [3, 5.19],
+  [4, 1.32],
+  [5, 0.53],
+  [6, 0.13],
+  [7, 0.15],
+  [8, 0.15],
+  [9, 0.09],
+  [10, 0.02],
+  [11, 0.04],
+] as const satisfies readonly (readonly [number, number])[];
+
 /**
  * A generated person's civility, from PROFILE.md's « Civilité » block: the
  * talents of the production cohort who carry one, as counts.
@@ -340,29 +354,16 @@ const CIVILITE_MIX = [
  * 5 245 production talents who never validated the identity step, and so carry
  * exactly what the sync wrote, 4 338 have a civility and 907 have none.
  *
- * Drawn over every talent, though the measure only covers those who never
- * confirmed: a talent who did confirm overwrote whatever the sync wrote, so
- * Salesforce's coverage of them could not be read off `Talent.civilite`, and
- * nothing says it differs.
+ * Drawn over every drawn person, though the measure only covers those who
+ * never confirmed: a talent who did confirm overwrote whatever the sync wrote,
+ * so Salesforce's coverage of them could not be read off `Talent.civilite`, and
+ * nothing says it differs. A placed person is not drawn: see
+ * `salesforceCivilite`.
  */
 const SF_GENDER_COVERAGE = [
   [true, 4338],
   [false, 907],
 ] as const satisfies readonly (readonly [boolean, number])[];
-
-const CAREER_MIX = [
-  [1, 69.0],
-  [2, 23.4],
-  [3, 5.19],
-  [4, 1.32],
-  [5, 0.53],
-  [6, 0.13],
-  [7, 0.15],
-  [8, 0.15],
-  [9, 0.09],
-  [10, 0.02],
-  [11, 0.04],
-] as const satisfies readonly (readonly [number, number])[];
 
 export class World {
   readonly buffer: Buffered = createBuffer();
