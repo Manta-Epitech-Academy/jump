@@ -601,11 +601,11 @@ merge. Pour le détail, et pour les quatre règles cosmétiques retirées quand 
 Trois jobs dans `.github/workflows/test.yml`, tous trois checks **requis** sur la
 règle `push dev` (voir `.github/settings/repo-config.json`) :
 
-| Job                          | Ce qu'il exécute                                                                                             |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint`, `lint:design`, `lint:tests`, `lint:prose`, `check`                  |
-| **Unit & Integration Tests** | `test:coverage`, puis `test:integration` contre un vrai Postgres, puis `test:schema-drift`, puis `test:seed` |
-| **E2E Tests**                | build + serveur + les specs Playwright, avec le rapport HTML uploadé en cas d'échec                          |
+| Job                          | Ce qu'il exécute                                                                                                                       |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lint & Type Check**        | `lint:scripts` (bit exécutable), `lint:bun-pin` (une seule version de Bun), `lint`, `lint:design`, `lint:tests`, `lint:prose`, `check` |
+| **Unit & Integration Tests** | `test:coverage`, puis `test:integration` contre un vrai Postgres, puis `test:schema-drift`, puis `test:seed`                           |
+| **E2E Tests**                | build + serveur + les specs Playwright, avec le rapport HTML uploadé en cas d'échec                                                    |
 
 **Une PR ne peut pas être mergée si un de ces jobs échoue** (à une réserve près,
 documentée dans `CONTRIBUTING.md` : une exception de bypass sur la règle `push dev`

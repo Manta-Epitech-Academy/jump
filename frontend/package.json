@@ -6,6 +6,7 @@
   "engines": {
     "bun": ">=1.3.14"
   },
+  "packageManager": "bun@1.4.4",
   "scripts": {
     "db:generate": "prisma generate && bun run scripts/gen-db-erd.ts",
     "db:migrate": "prisma migrate dev && bun run scripts/gen-db-erd.ts",
@@ -37,7 +38,8 @@
     "lint:tests": "bun run scripts/lint-tests.ts",
     "lint:prose": "bun run scripts/lint-prose.ts",
     "lint:scripts": "sh ../scripts/check-exec-bits.sh",
-    "verify": "bun run lint:scripts && bun run lint && bun run lint:design && bun run lint:tests && bun run lint:prose && bun run check && bun run test && bun run test:integration && bun run test:schema-drift && bun run test:seed && bun run test:e2e"
+    "lint:bun-pin": "sh ../scripts/check-bun-pin.sh",
+    "verify": "bun run lint:scripts && bun run lint:bun-pin && bun run lint && bun run lint:design && bun run lint:tests && bun run lint:prose && bun run check && bun run test && bun run test:integration && bun run test:schema-drift && bun run test:seed && bun run test:e2e"
   },
   "devDependencies": {
     "@internationalized/date": "^3.12.4",
