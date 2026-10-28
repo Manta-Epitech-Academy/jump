@@ -101,8 +101,8 @@ describe('the worker sync loop (integration)', () => {
           },
         },
       });
-      await prisma.syncError.deleteMany({
-        where: { attemptedExtId: namelessExternalId },
+      await prisma.sync_Error.deleteMany({
+        where: { externalId: namelessExternalId },
       });
       await prisma.event.deleteMany({
         where: { externalId: { in: [eventExternalId, otherEventExternalId] } },
@@ -520,13 +520,88 @@ describe('the worker sync loop (integration)', () => {
 
     // Skipped, not silent: a talent who never appears in Jump with nothing
     // saying why is the failure mode this surface is written against.
-    const logged = await prisma.syncError.findFirst({
-      where: { attemptedExtId: namelessExternalId },
-      select: { errorType: true, resolved: true },
+    const logged = await prisma.sync_Error.findUnique({
+      where: { externalId: namelessExternalId },
+      select: { kind: true, contactName: true, talentId: true },
     });
-    expect(logged).toMatchObject({
-      errorType: 'MISSING_NAME',
-      resolved: false,
+    expect(logged).toEqual({
+      kind: 'MISSING_NAME',
+      contactName: 'Sansnom',
+      talentId: null,
+    });
+  });
+
+  // The sync owns an error's life: nobody resolves one by hand, so a row
+  // that outlived its cause would be a queue that lies.
+  describe('closing a sync error', () => {
+    const missingName = () =>
+      prisma.sync_Error.findUnique({
+        where: { externalId: namelessExternalId },
+      });
+
+    it('closes a nameless contact once it arrives named', async () => {
+      await syncTalents([
+        {
+          external_id: namelessExternalId,
+          first_name: '',
+          last_name: 'Sansnom',
+        },
+      ]);
+      expect(await missingName()).not.toBeNull();
+
+      await syncTalents([
+        {
+          external_id: namelessExternalId,
+          first_name: 'Enfin',
+          last_name: 'Sansnom',
+        },
+      ]);
+      expect(await missingName()).toBeNull();
+      await prisma.talent.delete({ where: { externalId: namelessExternalId } });
+    });
+
+    it('drops on a successful full run an error that run did not reproduce', async () => {
+      const failNameless = () =>
+        syncTalents([
+          {
+            external_id: namelessExternalId,
+            first_name: ' ',
+            last_name: 'Sansnom',
+          },
+        ]);
+
+      // Reproduced during the run: still true, so it stays.
+      await failNameless();
+      const renewing = await openRun('full');
+      runIds.push(renewing.id);
+      await failNameless();
+      await closeRun(renewing.id, {
+        status: 'ok',
+        counters: { events: 0, talents: 1, participations: 0 },
+      });
+      expect(await missingName()).not.toBeNull();
+
+      // Neither an incremental nor a failed full proves anything: one carries
+      // only touched campaigns, the other may not have reached the contact.
+      const incremental = await openRun('incremental');
+      runIds.push(incremental.id);
+      await closeRun(incremental.id, {
+        status: 'ok',
+        counters: { events: 0, talents: 0, participations: 0 },
+      });
+      const failed = await openRun('full');
+      runIds.push(failed.id);
+      await closeRun(failed.id, { status: 'error', error: 'boom' });
+      expect(await missingName()).not.toBeNull();
+
+      // A full pass that carried every contact and did not meet it: gone.
+      const leaving = await openRun('full');
+      runIds.push(leaving.id);
+      await closeRun(leaving.id, {
+        status: 'ok',
+        counters: { events: 0, talents: 0, participations: 0 },
+      });
+      expect(await missingName()).toBeNull();
     });
   });
 

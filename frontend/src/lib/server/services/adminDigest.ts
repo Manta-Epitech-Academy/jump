@@ -77,7 +77,7 @@ export type AdminDigest = {
   /** Structured counts, so the job can log what it announced. */
   summary: {
     eventsToPrepare: number;
-    unresolvedSyncErrors: number;
+    openSyncErrors: number;
     prunesHeldEvents: number;
     unrecognisedSfStatuses: number;
     lastSyncAgeHours: number | null;
@@ -134,7 +134,7 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
   // and reading one of them here would call a platform stale on the strength of
   // a pass that is simply not due yet.
   const last = freshness.value;
-  const unresolvedErrors = sync.unresolvedErrors.value;
+  const openErrors = sync.openErrors.value;
   const prunesHeld = sync.prunesHeldEvents.value;
   const unrecognisedStatuses = sync.unrecognisedStatuses.value;
   const unrecognisedEvents = sync.unrecognisedStatusEvents.value.length;
@@ -189,19 +189,19 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
       : `Dernière synchronisation Salesforce il y a <strong>${last.ageHours} h</strong>.`;
 
   const syncErrorsLine =
-    unresolvedErrors > 0
-      ? `${last ? '' : 'Pourtant, '}<strong>${unresolvedErrors}</strong> ${plural(unresolvedErrors, 'erreur', 'erreurs')} de synchronisation ${plural(unresolvedErrors, 'est', 'sont')} à arbitrer sur ${link(syncErrorsUrl, 'la page dédiée')}.`
+    openErrors > 0
+      ? `${last ? '' : 'Pourtant, '}<strong>${openErrors}</strong> ${plural(openErrors, 'erreur', 'erreurs')} de synchronisation ${plural(openErrors, 'est ouverte', 'sont ouvertes')}, avec ce qu'elles empêchent et qui peut les corriger sur ${link(syncErrorsUrl, 'la page dédiée')}.`
       : last
-        ? 'Aucune erreur en attente.'
+        ? 'Aucune erreur de synchronisation ouverte.'
         : '';
 
   // A held prune fails nothing, so without this line it reaches nobody: the run
   // closes ok and the freshness above reads healthy. Its two ways out are a
-  // member's sync error (the page linked) or confirming that the campaign was
-  // emptied, which only the admin API can do.
+  // nameless contact completed in Salesforce (listed on the page linked) or
+  // confirming that the campaign was emptied, which only the admin API can do.
   const prunesHeldLine =
     prunesHeld > 0
-      ? `<strong>${prunesHeld}</strong> ${plural(prunesHeld, 'événement garde', 'événements gardent')} des inscriptions qu'une reprise complète n'a pas pu confirmer comme retirées de Salesforce, et rien n'y est supprimé sans preuve. Des membres non rattachés se traitent sur ${link(syncErrorsUrl, 'la page dédiée')} ; une campagne réellement vidée se confirme par l'API d'administration.`
+      ? `<strong>${prunesHeld}</strong> ${plural(prunesHeld, 'événement garde', 'événements gardent')} des inscriptions qu'une reprise complète n'a pas pu confirmer comme retirées de Salesforce, et rien n'y est supprimé sans preuve. Les contacts sans nom qui les retiennent sont sur ${link(syncErrorsUrl, 'la page dédiée')} ; une campagne réellement vidée se confirme par l'API d'administration.`
       : '';
 
   // Same reason as the held prunes: a status Jump does not know fails nothing,
@@ -354,8 +354,8 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
       ? `Dernière synchronisation Salesforce : il y a ${last.ageHours} h${last.stale ? ' (à vérifier)' : ''}.`
       : `Aucune synchronisation Salesforce n'a jamais été enregistrée (à vérifier en priorité).`,
     !last || last.stale ? `  Voir : ${dashboardUrl}` : '',
-    `Erreurs de synchronisation à arbitrer : ${unresolvedErrors}`,
-    unresolvedErrors > 0 ? `  Voir : ${syncErrorsUrl}` : '',
+    `Erreurs de synchronisation ouvertes : ${openErrors}`,
+    openErrors > 0 ? `  Voir : ${syncErrorsUrl}` : '',
     prunesHeld > 0
       ? `Événements dont une reprise complète a conservé des inscriptions faute de preuve : ${prunesHeld}`
       : '',
@@ -370,7 +370,7 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     text: textLines.join('\n'),
     summary: {
       eventsToPrepare: toPrepare,
-      unresolvedSyncErrors: unresolvedErrors,
+      openSyncErrors: openErrors,
       prunesHeldEvents: prunesHeld,
       unrecognisedSfStatuses: unrecognisedStatuses,
       lastSyncAgeHours: last?.ageHours ?? null,

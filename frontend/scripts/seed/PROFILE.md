@@ -56,7 +56,7 @@ soit un jeu de données joli et inutile, soit un jeu complet et irréaliste.
 | Closing_Answer        | 18 587 | Event                     | 292    |
 | Feedback_Answer       | 11 937 | Note_TalentNote           | 235    |
 | Feedback_AnswerOption | 11 148 | Planning_Slot             | 220    |
-| Participation         | 7 638  | SyncError                 | 142    |
+| Participation         | 7 638  | SyncError (`Sync_Error`)  | 142    |
 | XpGrant               | 7 379  | StaffProfile              | 138    |
 | bauth_user            | 6 330  | EventConfig_Module        | 130    |
 | Talent                | 5 394  | MinigamePublication       | 72     |
@@ -452,7 +452,9 @@ Soit 57 événements configurés sur 292.
   destinataires, 2 échecs. Ventilation : 1 939 talents, 365 parents, 2 staff.
 - **Rendus PDF** : 2 390 réussis, 34 en attente.
 - **Erreurs de synchronisation** : 142 lignes, **un seul type**, `DUPLICATE_EMAIL`,
-  36 résolues, et une occurrence répétée 11 357 fois.
+  36 résolues, et une occurrence répétée 11 357 fois. Mesuré sur l'ancienne table
+  `SyncError` : `Sync_Error` (#462) distingue trois causes, ne garde que les
+  erreurs ouvertes et ne compte plus les occurrences.
 - **Minijeux** : 64 publications utilisées, 668 talents, 2 954 parties terminées,
   1 077 en attente, 450 invalides.
 - **États rares** : 1 demande de suppression, 3 réinitialisations de closing,

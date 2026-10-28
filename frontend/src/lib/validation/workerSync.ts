@@ -51,7 +51,7 @@ export const workerTalentSchema = z.object({
    * empty one is ordinary data; refusing it here would refuse the whole page of
    * 50 that carried it, the run would close in error, the watermark would not
    * move and the next tick would replay the identical page. `syncTalents` skips
-   * the row and logs a `SyncError` instead. `external_id` is different: with no
+   * the row and logs a `Sync_Error` instead. `external_id` is different: with no
    * id there is nothing to key the row on and nothing to tell an admin to go
    * look at, so the envelope is the right place to refuse it.
    */

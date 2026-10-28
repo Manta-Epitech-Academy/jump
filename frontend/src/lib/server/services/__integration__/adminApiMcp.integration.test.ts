@@ -139,7 +139,7 @@ describe('the admin MCP server (integration)', () => {
     expect(result.isError).toBeFalsy();
     const payload = JSON.parse(textOf(result));
     // The tier's whole contract: a figure never travels without what it counts.
-    expect(payload.unresolvedErrors).toMatchObject({
+    expect(payload.openErrors).toMatchObject({
       definition: expect.any(String),
     });
 

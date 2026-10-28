@@ -861,7 +861,7 @@ export class World {
         // The sync mints a login from this address, so a contact Salesforce
         // holds none for stays accountless with no error to explain it, which
         // is the state this places. The other way to have no account, an
-        // address another account already owns, comes with a `DUPLICATE_EMAIL`
+        // address another account already owns, comes with an `ADDRESS_TAKEN`
         // sync error, and `assert/reachability.ts` says why that one is never
         // seeded.
         sfEmail: withAccount ? email : null,

@@ -411,6 +411,7 @@ model Talent {
   onboardingRecords   Onboarding_Record[]
   notes               Note_TalentNote[]
   workshopEntries     Workshop_Participation[]
+  syncError           Sync_Error?
 
   @@index([xp])
   @@index([schoolId])
@@ -1861,29 +1862,6 @@ model Closing_ResetEvent {
   @@index([talentId, createdAt])
 }
 
-// ── Sync Error Logging ──
-
-model SyncError {
-  id              String    @id @default(cuid())
-  errorType       String
-  email           String
-  attemptedExtId  String
-  existingExtId   String?
-  talentName      String
-  eventExtId      String?
-  message         String
-  resolved        Boolean   @default(false)
-  resolvedAt      DateTime?
-  occurrenceCount Int       @default(1)
-  lastOccurredAt  DateTime  @default(now())
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  @@unique([email, attemptedExtId])
-  @@index([resolved])
-  @@index([lastOccurredAt])
-}
-
 model AppSetting {
   key       String   @id
   value     String
@@ -1992,7 +1970,7 @@ model Sync_Cadence {
 /// A full pass deletes every enrolment its roster does not mention, so the
 /// roster has to be COMPLETE for that absence to mean anything: non-empty, and
 /// every member resolved to a talent Jump knows. A member the talents push
-/// skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`) may be the very person whose
+/// skipped (a `Sync_Error` of kind `MISSING_NAME`) may be the very person whose
 /// enrolment the prune would take. When the roster is not complete, the
 /// enrolments it does carry are still written and the removals are held here
 /// instead of applied.
@@ -2032,6 +2010,58 @@ model Sync_PruneHold {
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([lastHeldAt])
+}
+
+/// What a Salesforce sync could not do: one closed cause per kind, read by
+/// `/staff/admin/sync-errors` and `stats_sync_health`.
+enum Sync_ErrorKind {
+  /// The contact has no first name or no last name, so Jump cannot take it in.
+  MISSING_NAME
+  /// The talent's Salesforce address is already somebody else's login or
+  /// contact address, so its login account cannot carry it.
+  ADDRESS_TAKEN
+  /// Creating or renaming the talent's login account failed for a technical
+  /// reason, retried on every pass.
+  LOGIN_FAILURE
+}
+
+/// One thing the sync could not do, and only for as long as it keeps failing.
+///
+/// The sync owns the state, not an admin: a pass that finds the problem gone
+/// deletes the row, and an `ok` full pass deletes every row it did not
+/// reproduce, since it carried every talent and an error it did not meet
+/// describes nothing (the rule `Sync_PruneHold` follows). There is no
+/// "resolved" flag on purpose: one used to hide a row that the next pass
+/// reopened in silence, so an empty queue did not mean nothing was wrong.
+///
+/// Only the cause is stored. What it means for the talent, who holds the
+/// address, and who can fix it are derived when read (`$lib/domain/syncError`),
+/// so they describe the state now rather than the state at the failure.
+///
+/// Two shapes, held by a CHECK in the migration. A login error belongs to a
+/// talent Jump has (`talentId`, one per talent: its address and name are read
+/// off the talent and its Salesforce mirror). A nameless contact has no talent
+/// row to point at, so it carries what Salesforce sent (`externalId`,
+/// `contactName`, `email`).
+model Sync_Error {
+  id              String         @id @default(cuid())
+  kind            Sync_ErrorKind
+  talentId        String?        @unique
+  /// The Salesforce id of a nameless contact. Null on a talent's row.
+  externalId      String?        @unique
+  /// What Salesforce sent as the name: one half at most, or nothing.
+  contactName     String?
+  /// The contact's Salesforce address, null when it has none.
+  email           String?
+  /// The technical cause of a login failure, for a developer. English, never
+  /// shown as an explanation.
+  detail          String?
+  firstOccurredAt DateTime       @default(now())
+  lastOccurredAt  DateTime       @default(now())
+
+  talent Talent? @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@index([lastOccurredAt])
 }
 
 /// A person asking for a pass of one mode now, rather than when the cadence

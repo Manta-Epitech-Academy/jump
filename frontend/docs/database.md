@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **83** modèles · **32** enums · **116** relations
+- **83** modèles · **33** enums · **117** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -1051,21 +1051,16 @@ erDiagram
     String uploadedById FK
     DateTime createdAt
   }
-  SyncError {
+  Sync_Error {
     String id PK
-    String errorType
-    String email UK
-    String attemptedExtId UK
-    String existingExtId
-    String talentName
-    String eventExtId
-    String message
-    Boolean resolved
-    DateTime resolvedAt
-    Int occurrenceCount
+    Sync_ErrorKind kind
+    String talentId FK,UK
+    String externalId UK
+    String contactName
+    String email
+    String detail
+    DateTime firstOccurredAt
     DateTime lastOccurredAt
-    DateTime createdAt
-    DateTime updatedAt
   }
   Sync_Source {
     String id PK
@@ -1133,12 +1128,15 @@ erDiagram
   }
   StaffProfile {
   }
+  Talent {
+  }
   Campus {
   }
   Event {
   }
   bauth_user ||--o{ AdminApi_Token : "adminApiTokens"
   StaffProfile |o--o{ AdminFile : "adminFiles"
+  Talent ||--o| Sync_Error : "syncError"
   Campus |o--o{ Signatory : "signatories"
   Campus ||--o{ Sync_Source : "syncSources"
   Event ||--|| Sync_PruneHold : "syncPruneHold"

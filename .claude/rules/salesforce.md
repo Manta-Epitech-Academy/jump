@@ -53,7 +53,7 @@ memory, because `since: undefined` is present in an object and gone from its JSO
 - **A full pass prunes only from a complete roster, and holds what it cannot
   prove.** Complete means non-empty with every member resolved to a known talent.
   An empty roster looks exactly like a truncated fetch, and a member the talents
-  push skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`) may be the very person whose
+  push skipped (a nameless contact, `MISSING_NAME`) may be the very person whose
   enrolment the prune would take, so in either case the enrolments that did
   resolve are written, the removals are recorded on `Sync_PruneHold`, and the
   call succeeds. A later complete roster lifts the hold by pruning normally; an
@@ -63,7 +63,18 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   `stats_sync_health.prunesHeld` lists them. **Only an empty roster can be
   released**, and a CHECK holds it: over unresolved members a release would
   hand a person exactly the deletion the hold refused, so that hold lifts by
-  fixing the member's SyncError and nothing else.
+  completing the member's contact in Salesforce and nothing else.
+- **A sync error lives exactly as long as the sync reproduces it, and nobody
+  resolves one.** `Sync_Error` holds what a pass could not do, one closed cause
+  per row (`Sync_ErrorKind`): a nameless contact, an address already taken, a
+  technical login failure. A pass that finds the problem gone deletes the row,
+  and an `ok` full run deletes every row it did not meet, as it does the holds.
+  A « Résoudre » button used to hide a row that the next pass reopened in
+  silence, so 217 errors sat open with « résolu » meaning nothing (#462); a
+  manual resolve brought back is that queue again. Only the cause is stored:
+  what it prevents, who holds the address and who can fix it are derived when
+  read (`domain/syncError.ts`, through `syncErrorQueue.ts`), and the admin page
+  and `stats_sync_health` read that one derivation.
 - **A refusal that replays identically must never fail a run.** A refusal fails
   the call, the worker closes the run in error, and a failed run is replayed at
   the next tick with the same input, so a refusal that depends only on that input
@@ -143,7 +154,7 @@ memory, because `since: undefined` is present in an object and gone from its JSO
 - A participation value can be `""`: the worker maps a null `CampaignMember.Status`
   to the empty string rather than dropping the member.
 - `first_name` can be `""`, because `Contact.FirstName` is optional in Salesforce.
-  The row is skipped, counted in `invalid` and logged as a `SyncError` of kind
+  The row is skipped, counted in `invalid` and logged as a `Sync_Error` of kind
   `MISSING_NAME`; the page of 50 that carried it is still reconciled. Refusing it
   at the envelope closes the run in error, and since the watermark only moves on
   success, the next tick replays the identical page onto the identical row.

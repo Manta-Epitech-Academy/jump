@@ -23,13 +23,19 @@ import {
 } from '../../../src/lib/domain/usage';
 
 /**
- * Unresolved sync errors.
+ * Open sync errors, one of each cause.
  *
- * Production carries 142, all of one type, 106 still open, and one of them has
- * recurred 11357 times. That last number is the point: a queue screen that
- * renders an occurrence count has to survive a five-digit one, and a triage
- * screen has to make the difference between a one-off and something that has
- * been failing on every sync for months.
+ * Production held 142 rows of one undifferentiated type, 106 open, one of them
+ * met on every pass for months: an open error has to read as old, so these
+ * start four months back and were met again yesterday. A third are nameless
+ * contacts, which carry what Salesforce sent and no talent; the rest belong to
+ * a talent, as an address already taken or a technical failure.
+ *
+ * The address conflicts read as settled on the page ("libre aujourd'hui"):
+ * nothing here holds the talent's address, because a seeded talent's login
+ * and Salesforce address always agree (`assert/reachability.ts` says why that
+ * divergence is never placed). The holders are proved by the integration
+ * tests instead.
  */
 export function addSyncErrors(
   world: World,
@@ -37,28 +43,32 @@ export function addSyncErrors(
 ): void {
   const clock = world.ctx.clock;
   for (const [index, talent] of talents.entries()) {
-    const resolved = index % 4 === 0;
-    // An error the rebind can act on names the fiche it collided with; one
-    // raised before any fiche was resolved does not, and `syncErrorService`'s
-    // refusal branch is reachable only through the second. A queue where every
-    // row carries an existing extId can never show that refusal.
-    const collided = index % 3 !== 0;
-    world.buffer.syncError.push({
+    const met = {
       id: id('sye', seq(index, 3)),
-      errorType: 'DUPLICATE_EMAIL',
-      email: talent.email,
-      attemptedExtId: `sf_dup_${seq(index, 6)}`,
-      existingExtId: collided ? `sf_${seq(index, 6)}` : null,
-      // Set on an error raised while syncing a campaign rather than a contact.
-      eventExtId: index % 5 === 0 ? `sfc_${seq(index, 6)}` : null,
-      talentName: `${talent.prenom} ${talent.nom}`,
-      message: 'Une autre fiche porte déjà cette adresse email.',
-      resolved,
-      resolvedAt: resolved ? clock.days(-9) : null,
-      occurrenceCount: index === 0 ? 11357 : 1 + index * 3,
+      firstOccurredAt: clock.days(-120 + index),
       lastOccurredAt: clock.days(-1),
-      createdAt: clock.days(-120),
-    });
+    };
+    if (index % 3 === 0) {
+      // Salesforce sends one half of the name, or none, and an address or
+      // none: both halves of each nullable column.
+      world.buffer.sync_Error.push({
+        ...met,
+        kind: 'MISSING_NAME',
+        externalId: `sf_noname_${seq(index, 6)}`,
+        contactName: index % 2 === 0 ? talent.nom : null,
+        email: index % 6 === 0 ? talent.email : null,
+      });
+    } else {
+      world.buffer.sync_Error.push({
+        ...met,
+        kind: index % 3 === 1 ? 'ADDRESS_TAKEN' : 'LOGIN_FAILURE',
+        talentId: talent.id,
+        detail:
+          index % 3 === 1
+            ? null
+            : 'Timed out fetching a new connection from the connection pool.',
+      });
+    }
   }
 }
 
