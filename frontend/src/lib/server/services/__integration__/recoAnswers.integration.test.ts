@@ -12,8 +12,8 @@ import { assertTestDatabase } from './testDatabase';
  * Each talent's answer to an event's recommendation question, as the Bilan
  * roster reads it. What it must get right: the
  * answer is an option id (a renamed label still matches), a silent talent has
- * no entry, a masked enrolment's answer is not the cohort's, and a form that
- * asks no recommendation answers for none.
+ * no entry, a masked enrolment's answer is not the cohort's, the extra box is
+ * no verdict, and a form that asks no recommendation answers for none.
  */
 describe('recommendation answers per talent (integration)', () => {
   const stamp = Date.now();
@@ -23,6 +23,7 @@ describe('recommendation answers per talent (integration)', () => {
   let plainFormId = '';
   const talentIds: string[] = [];
   let yesOptionId = '';
+  let otherOptionId = '';
 
   beforeAll(async () => {
     assertTestDatabase();
@@ -56,6 +57,7 @@ describe('recommendation answers per talent (integration)', () => {
     recoFormId = recoForm.id;
     const [question] = recoForm.questions;
     yesOptionId = question.options.find((o) => o.label === 'Oui')!.id;
+    otherOptionId = question.options.find((o) => o.label === 'Autre')!.id;
     plainFormId = (
       await prisma.feedback_Form.create({
         data: {
@@ -78,9 +80,10 @@ describe('recommendation answers per talent (integration)', () => {
     ).id;
 
     const cohort = [
-      { nom: 'Oui', shown: true, answers: true },
-      { nom: 'Silence', shown: true, answers: false },
-      { nom: 'Masquée', shown: false, answers: true },
+      { nom: 'Oui', shown: true, picks: () => yesOptionId },
+      { nom: 'Silence', shown: true, picks: null },
+      { nom: 'Masquée', shown: false, picks: () => yesOptionId },
+      { nom: 'Autre', shown: true, picks: () => otherOptionId },
     ];
     for (const member of cohort) {
       const talent = await prisma.talent.create({
@@ -96,7 +99,7 @@ describe('recommendation answers per talent (integration)', () => {
           shownInDevSpace: member.shown,
         },
       });
-      if (!member.answers) continue;
+      if (!member.picks) continue;
       await prisma.feedback_Submission.create({
         data: {
           formId: recoFormId,
@@ -106,7 +109,7 @@ describe('recommendation answers per talent (integration)', () => {
           answers: {
             create: {
               questionId: question.id,
-              selectedOptions: { create: { optionId: yesOptionId } },
+              selectedOptions: { create: { optionId: member.picks() } },
             },
           },
         },
@@ -143,6 +146,15 @@ describe('recommendation answers per talent (integration)', () => {
     expect(byTalent.get(answered)?.recoOptionId).toBe(yesOptionId);
     expect(byTalent.has(silent)).toBe(false);
     expect(byTalent.has(masked)).toBe(false);
+  });
+
+  it('lists who picked the extra box as answering, with no verdict', async () => {
+    const reco = recoQuestionOf((await getFormGraphById(recoFormId))!);
+    const byTalent = await loadCohortSubmissions(recoFormId, eventId, reco);
+    expect(byTalent.get(talentIds[3])).toEqual({
+      submittedAt: expect.any(Date),
+      recoOptionId: null,
+    });
   });
 
   it('still lists who answered when the form asks no recommendation', async () => {
