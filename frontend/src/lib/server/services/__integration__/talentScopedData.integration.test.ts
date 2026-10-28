@@ -69,15 +69,15 @@ type Identity = 'talentId' | 'externalId' | 'email';
 type TalentColumn = { column: string; holds: Identity };
 
 /**
- * Tables that name a talent by anything else than a foreign key, which the
+ * Columns that name a talent by anything else than a foreign key, which the
  * schema walk cannot see: by their Salesforce id, or by the address they log in
- * with. `SyncError` does both, the second when another contact claimed the
- * talent's address.
+ * with. Added to whatever foreign key the walk found on the same table.
+ * `Sync_Error` points at a talent for a login error, and names a nameless
+ * contact by both, the second when that contact carries the talent's address.
  */
 const BY_OTHER_IDENTITY: Record<string, readonly TalentColumn[]> = {
-  SyncError: [
-    { column: 'attemptedExtId', holds: 'externalId' },
-    { column: 'existingExtId', holds: 'externalId' },
+  Sync_Error: [
+    { column: 'externalId', holds: 'externalId' },
     { column: 'email', holds: 'email' },
   ],
 };
@@ -208,9 +208,9 @@ const ERASURE: Policy = {
       columns: ['reason', 'resolutionNote'],
       why: 'Fulfilled, it is the proof of erasure, so it stays without its free text.',
     },
-    SyncError: {
+    Sync_Error: {
       fate: 'delete',
-      why: "What the sync could not reconcile, logged with the contact's name and address.",
+      why: 'What the sync could not do for this person: a login error on the talent, or a nameless contact logged with its name and address.',
     },
   },
   talent: [
@@ -351,9 +351,9 @@ const RESET: Policy = {
     ImageRightsDecisionRecord: { fate: 'delete', why: 'Decided after import.' },
     BroadcastRecipient: { fate: 'delete', why: 'Sent after import.' },
     Feedback_Submission: { fate: 'delete', why: 'Answered after import.' },
-    SyncError: {
+    Sync_Error: {
       fate: 'keep',
-      why: 'An operations record about the Salesforce contact, which the reset keeps.',
+      why: 'An operations record about the Salesforce contact, which the reset keeps and the next pass settles.',
     },
   },
   talent: [
@@ -456,13 +456,18 @@ function talentScopedModels(
       }
     }
   }
-  return new Map([
-    ...[...scoped].map(([model, columns]): [string, TalentColumn[]] => [
+  const byKey = new Map<string, TalentColumn[]>(
+    [...scoped].map(([model, columns]) => [
       model,
-      [...columns].map((column) => ({ column, holds: 'talentId' })),
+      [...columns].map((column): TalentColumn => ({
+        column,
+        holds: 'talentId',
+      })),
     ]),
-    ...Object.entries(BY_OTHER_IDENTITY),
-  ]);
+  );
+  for (const [model, columns] of Object.entries(BY_OTHER_IDENTITY))
+    byKey.set(model, [...(byKey.get(model) ?? []), ...columns]);
+  return byKey;
 }
 
 /** The Prisma delegate of a model, read generically. */
@@ -709,31 +714,22 @@ describe('what erasure and reset do to every talent table (integration)', () => 
         xpCelebrated: 480,
       },
     });
-    await prisma.syncError.createMany({
+    await prisma.sync_Error.createMany({
       data: [
+        { kind: 'ADDRESS_TAKEN', talentId },
+        // The talent's own Salesforce contact, arrived nameless after it was
+        // taken in: named by its Salesforce id.
         {
-          errorType: 'DUPLICATE_EMAIL',
-          email,
-          attemptedExtId: externalId,
-          talentName: `Talent ${label}`,
-          message: 'Adresse déjà prise.',
+          kind: 'MISSING_NAME',
+          externalId,
+          contactName: `Talent ${label}`,
         },
+        // Another nameless contact carrying this talent's address: named by
+        // the address.
         {
-          errorType: 'DUPLICATE_EMAIL',
-          email: `${label}-other-${stamp}@scoped.test`,
-          attemptedExtId: `other-${label}-${stamp}`,
-          existingExtId: externalId,
-          talentName: 'Autre talent',
-          message: 'Adresse déjà prise.',
-        },
-        // Another contact claiming this talent's address: the row names them by
-        // the address, and its message by their Salesforce id.
-        {
-          errorType: 'DUPLICATE_EMAIL',
+          kind: 'MISSING_NAME',
+          externalId: `claimant-${label}-${stamp}`,
           email,
-          attemptedExtId: `claimant-${label}-${stamp}`,
-          talentName: 'Autre contact',
-          message: `L'adresse du talent est déjà utilisée par le talent externalId="${externalId}".`,
         },
       ],
     });
@@ -1068,11 +1064,11 @@ describe('what erasure and reset do to every talent table (integration)', () => 
     const seededRuns = [erasure?.seeded, reset?.seeded].filter(
       (seeded) => seeded !== undefined,
     );
-    await prisma.syncError.deleteMany({
+    // Login errors go with the talents (cascade); the contacts' do not.
+    await prisma.sync_Error.deleteMany({
       where: {
         OR: [
-          { attemptedExtId: { in: seededRuns.map((r) => r.externalId) } },
-          { existingExtId: { in: seededRuns.map((r) => r.externalId) } },
+          { externalId: { in: seededRuns.map((r) => r.externalId) } },
           { email: { in: seededRuns.map((r) => r.email) } },
         ],
       },

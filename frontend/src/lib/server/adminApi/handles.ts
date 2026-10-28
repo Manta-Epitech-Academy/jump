@@ -37,7 +37,6 @@ export type HandleKind =
   | 'diplomaCode'
   | 'diplomaTemplateId'
   | 'pdfJobId'
-  | 'syncErrorType'
   | 'salesforceCampaignId'
   | 'sfStatus'
   | 'moduleKey'
@@ -255,12 +254,6 @@ export const HANDLES: Record<HandleKind, Handle> = {
       },
     ],
   },
-  syncErrorType: {
-    what: 'Kind of synchronisation error.',
-    frNoun: "types d'erreur de synchronisation",
-    frGender: 'm',
-    producedBy: [{ operation: 'stats_sync_health' }],
-  },
   salesforceCampaignId: {
     what: 'Salesforce campaign id in the synchronised perimeter.',
     frNoun: 'identifiants de campagne Salesforce',
@@ -386,7 +379,6 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   code: 'diplomaCode',
   diplomaTemplateId: 'diplomaTemplateId',
   jobId: 'pdfJobId',
-  errorType: 'syncErrorType',
   salesforceCampaignId: 'salesforceCampaignId',
   modules: 'moduleKey',
   // Salesforce status words: the list an event shows (a complete set, like

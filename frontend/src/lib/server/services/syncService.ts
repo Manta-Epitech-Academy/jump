@@ -16,6 +16,12 @@ import { normalizePhoneToE164 } from '$lib/domain/phone';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 import { autoResolveAuthIdentity } from '$lib/server/services/authIdentityRepairService';
 import {
+  clearMissingNames,
+  recordMissingName,
+  settleLoginError,
+  type LoginFailure,
+} from '$lib/server/services/syncErrorService';
+import {
   ensureTalentUser,
   TalentAccountError,
 } from '$lib/server/services/talentAccount';
@@ -232,49 +238,52 @@ function sameInstant(a: Date | null, b: Date | null): boolean {
 }
 
 /**
- * Record one talent the sync could not reconcile, for an admin to arbitrate on
- * `/staff/admin/sync-errors`.
+ * Drive a talent's login account toward Salesforce's address, and say what stood
+ * in the way: the login error this pass leaves on the talent, or null when
+ * nothing did.
  *
- * `errorType` is a parameter rather than a constant: the table groups on it
- * (`stats_sync_health.errorsByType`, and `ops_resolve_sync_errors` filters on
- * it), so a second kind of failure logged under the first one is a queue nobody
- * can triage. It is keyed on `(email, attemptedExtId)`, and the Salesforce id is
- * the half that is always there, so a row with no email still gets its own line.
+ * The eager-mint invariant (every Salesforce talent carries a `bauth_user`
+ * minted from its Salesforce address) has to hold whether the talent was just
+ * created or found without an account (a first mint that failed, or a reset),
+ * so both branches of `syncTalents` come through here. A clean rename succeeds
+ * silently. A rename onto an address an account already holds is healed only
+ * in the safe orphan case (`autoResolveAuthIdentity`); anything else is left
+ * to an admin, because Salesforce is an unreliable source and an inversion or
+ * an exposure is never forced on its say-so.
+ *
+ * Never throws. A failure here is one talent's, and a throw would fail the
+ * run, which the next tick replays onto the same talent forever: the rule the
+ * nameless contact in `syncTalents` follows too.
  */
-async function logSyncError(params: {
-  errorType: string;
-  email: string;
-  attemptedExtId: string;
-  existingExtId: string | null;
-  talentName: string;
-  eventExtId: string | null;
-  message: string;
-}) {
-  await prisma.syncError.upsert({
-    where: {
-      email_attemptedExtId: {
-        email: params.email,
-        attemptedExtId: params.attemptedExtId,
-      },
-    },
-    update: {
-      occurrenceCount: { increment: 1 },
-      lastOccurredAt: new Date(),
-      existingExtId: params.existingExtId,
-      message: params.message,
-      resolved: false,
-      resolvedAt: null,
-    },
-    create: {
-      errorType: params.errorType,
-      email: params.email,
-      attemptedExtId: params.attemptedExtId,
-      existingExtId: params.existingExtId,
-      talentName: params.talentName,
-      eventExtId: params.eventExtId,
-      message: params.message,
-    },
-  });
+async function reconcileLoginIdentity(
+  talent: { id: string; userId: string | null; linkedEmail: string | null },
+  email: string | null,
+): Promise<LoginFailure | null> {
+  if (!email) return null;
+  try {
+    if (!talent.userId) await ensureTalentUser(talent.id);
+    else if (email !== talent.linkedEmail)
+      await changeUserEmail(talent.userId, email);
+    return null;
+  } catch (err) {
+    if (err instanceof TalentAccountError && err.kind === 'identity_conflict')
+      return { kind: 'ADDRESS_TAKEN', detail: null };
+    if (err instanceof EmailChangeConflict) {
+      try {
+        const outcome = await autoResolveAuthIdentity(talent.id, 'sync');
+        return outcome === 'skipped'
+          ? { kind: 'ADDRESS_TAKEN', detail: null }
+          : null;
+      } catch (repairErr) {
+        return { kind: 'LOGIN_FAILURE', detail: technicalCause(repairErr) };
+      }
+    }
+    return { kind: 'LOGIN_FAILURE', detail: technicalCause(err) };
+  }
+}
+
+function technicalCause(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 /**
@@ -293,8 +302,10 @@ async function logSyncError(params: {
  * needed the context the enrolment gave it.
  *
  * Never refuses the batch. A row it cannot use comes back in `invalid` with a
- * `SyncError` naming it; see the comment at the top of the loop for what
- * returning instead used to cost.
+ * `Sync_Error` naming it; see the comment at the top of the loop for what
+ * returning instead used to cost. The talent's login errors are settled here
+ * too, on every talent the pass carries, so the queue says what is still
+ * failing rather than what once did.
  */
 export async function syncTalents(talents: WorkerTalent[]) {
   let created = 0;
@@ -305,41 +316,8 @@ export async function syncTalents(talents: WorkerTalent[]) {
 
   // Canonical School per distinct UAI, resolved once for the whole batch.
   const schoolIdByUai = await resolveSchools(talents);
-
-  // Ensure the talent's login identity exists, logging a failure the way a
-  // first-sight mint does. The eager-mint invariant (every SF talent carries a
-  // bauth_user minted from its SF email) must hold whether we just created the
-  // talent or found an existing one whose account went missing (a transient
-  // first-sight failure, or a factory reset), so both branches funnel through
-  // here rather than minting on first sight only.
-  const mintLoginIdentity = async (
-    talentId: string,
-    sf: { external_id: string; first_name: string; last_name: string },
-    loginEmail: string,
-  ) => {
-    try {
-      await ensureTalentUser(talentId);
-    } catch (err) {
-      // An address that is already somebody else's is fixed in Salesforce: the
-      // Connexion tab of Divergences Salesforce lists linked talents only, and
-      // this one has no login yet. Anything else is retried by the next pass.
-      const remedy =
-        err instanceof TalentAccountError && err.kind === 'identity_conflict'
-          ? "Corrigez l'adresse dans Salesforce : le compte sera créé au prochain sync."
-          : 'Réessai au prochain sync.';
-      await logSyncError({
-        errorType: 'DUPLICATE_EMAIL',
-        email: loginEmail,
-        attemptedExtId: sf.external_id,
-        existingExtId: null,
-        talentName: `${sf.first_name} ${sf.last_name}`,
-        eventExtId: null,
-        message: `Compte de connexion non créé pour "${loginEmail}" : ${
-          err instanceof Error ? err.message : 'erreur inconnue'
-        }. ${remedy}`,
-      });
-    }
-  };
+  // Contacts that arrive named, whose nameless-contact error is now gone.
+  const named: string[] = [];
 
   for (const t of talents) {
     // A contact with no name is SKIPPED and logged, never a refusal for the
@@ -359,24 +337,23 @@ export async function syncTalents(talents: WorkerTalent[]) {
     // Tightening `workerTalentSchema` to `.min(1)` instead would refuse the
     // whole page of 50 at the envelope, which is the same stall wearing a
     // louder error. The name is what the envelope deliberately leaves loose.
-    if (!t.first_name || !t.last_name) {
+    //
+    // A name of spaces is no name: it would create a talent nobody can find.
+    if (!t.first_name?.trim() || !t.last_name?.trim()) {
       invalid++;
       // The talent simply never appears in Jump otherwise, and a silent
       // absence is the failure mode this whole surface is written against.
-      // `SyncError` is where a person the sync could not reconcile goes, and
+      // `Sync_Error` is where a person the sync could not reconcile goes, and
       // the fix is upstream: somebody completes the contact in Salesforce.
-      await logSyncError({
-        errorType: 'MISSING_NAME',
-        email: t.email?.toLowerCase().trim() || '',
-        attemptedExtId: t.external_id,
-        existingExtId: null,
-        talentName: `${t.first_name} ${t.last_name}`.trim(),
-        eventExtId: null,
-        message:
-          'Contact Salesforce sans prénom ou sans nom : la fiche talent ne peut pas être créée. Complétez le contact dans Salesforce, il sera repris à la prochaine synchronisation.',
+      await recordMissingName({
+        externalId: t.external_id,
+        contactName:
+          `${t.first_name ?? ''} ${t.last_name ?? ''}`.trim() || null,
+        email: t.email?.toLowerCase().trim() || null,
       });
       continue;
     }
+    named.push(t.external_id);
 
     const email = t.email?.toLowerCase().trim() || null;
     // Store SF's phone in canonical E.164 so a bare "765719823" and a full
@@ -412,6 +389,9 @@ export async function syncTalents(talents: WorkerTalent[]) {
         nom: true,
         // Linked login account email, to skip the reconcile when already aligned.
         user: { select: { email: true } },
+        // The login error already stored, so a pass that finds nothing wrong
+        // deletes it without a query when there is none.
+        syncError: { select: { kind: true } },
         phone: true,
         civilite: true,
         niveau: true,
@@ -501,11 +481,19 @@ export async function syncTalents(talents: WorkerTalent[]) {
 
       // Eager-mint the login account at import so `bauth_user.email` is the
       // identity from day one (same shape as the CSV campaign path), no window
-      // where a Talent exists without an account. A parent/staff-owned email
-      // can't be forced into a student login (`ensureTalentUser` throws); log it
-      // and move on. The talent is still imported, just accountless until an
-      // admin resolves the collision. Emailless SF rows stay accountless.
-      if (email) await mintLoginIdentity(talentId, t, email);
+      // where a Talent exists without an account. An address that is already
+      // somebody else's can't be forced into a student login: the talent is
+      // still imported, accountless, and the error says who holds it.
+      // Emailless SF rows stay accountless. A talent seen for the first time
+      // has no login error stored yet.
+      await settleLoginError(
+        talentId,
+        null,
+        await reconcileLoginIdentity(
+          { id: talentId, userId: null, linkedEmail: null },
+          email,
+        ),
+      );
     } else {
       talentId = existing.id;
 
@@ -587,53 +575,27 @@ export async function syncTalents(talents: WorkerTalent[]) {
         });
       }
 
-      // Drive the login identity toward SF's claimed email through the single
-      // write path. A clean rename succeeds silently; a collision (another
-      // account holds it, or it's a parent/staff address) is auto-healed only for
-      // the safe orphan case (repoint) and otherwise left as a conflict in
-      // Divergences Salesforce › Connexion for an admin. SF is an unreliable
-      // source, so inversions/exposures are never auto-forced.
-      const linkedEmail = existing.user?.email?.toLowerCase().trim() ?? null;
-      if (email && !existing.userId) {
-        // The account went missing on an existing talent: a first-sight mint
-        // that failed transiently, or a factory reset. Re-mint it so OTP login
-        // works again. This is the "réessai au prochain sync" the create branch
-        // promises when its own mint fails.
-        await mintLoginIdentity(existing.id, t, email);
-      } else if (existing.userId && email && email !== linkedEmail) {
-        try {
-          await changeUserEmail(existing.userId, email);
-        } catch (err) {
-          if (!(err instanceof EmailChangeConflict)) {
-            await logSyncError({
-              errorType: 'DUPLICATE_EMAIL',
-              email,
-              attemptedExtId: t.external_id,
-              existingExtId: null,
-              talentName: `${t.first_name} ${t.last_name}`,
-              eventExtId: null,
-              message: `Réconciliation de l'identité de connexion échouée pour "${email}" : ${err instanceof Error ? err.message : 'erreur inconnue'} (réessai au prochain sync).`,
-            });
-          } else {
-            const outcome = await autoResolveAuthIdentity(existing.id, 'sync');
-            if (outcome === 'skipped') {
-              await logSyncError({
-                errorType: 'DUPLICATE_EMAIL',
-                email,
-                attemptedExtId: t.external_id,
-                existingExtId: null,
-                talentName: `${t.first_name} ${t.last_name}`,
-                eventExtId: null,
-                message: `Divergence d'identité de connexion non auto-résoluble pour "${email}", à arbitrer dans Divergences Salesforce › Connexion.`,
-              });
-            }
-          }
-        }
-      }
+      // Drive the login identity toward SF's claimed email, then settle the
+      // talent's login error on what that found. An account gone missing on an
+      // existing talent (a first mint that failed, or a reset) is minted again
+      // here, which is the retry the create branch relies on.
+      await settleLoginError(
+        existing.id,
+        existing.syncError?.kind ?? null,
+        await reconcileLoginIdentity(
+          {
+            id: existing.id,
+            userId: existing.userId,
+            linkedEmail: existing.user?.email?.toLowerCase().trim() ?? null,
+          },
+          email,
+        ),
+      );
       if (mirrorChanged || hasPatch || schoolingChanged) updated++;
     }
   }
 
+  await clearMissingNames(named);
   return { created, updated, skipped, invalid };
 }
 
@@ -657,8 +619,9 @@ export async function syncTalents(talents: WorkerTalent[]) {
  *
  * An `external_id` Jump does not know is counted and skipped: the worker pushes
  * talents before enrolments and fails the run if that push fails, so an unknown
- * one is a member the talents push skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`),
- * which is already its own SyncError.
+ * one is a contact the talents push skipped for having no name, which is
+ * already its own `Sync_Error` (`MISSING_NAME`). A talent whose login failed is
+ * still created, so its enrolments resolve.
  *
  * **Nothing here refuses, and that is the rule this function was rebuilt on.**
  * Every answer but a malformed payload is a success, because a refusal fails
@@ -757,14 +720,15 @@ export async function syncParticipations(
  * Absence from a full roster means "gone" only when the roster is COMPLETE:
  * non-empty, and every member resolved to a talent Jump knows. An empty one
  * looks exactly like a truncated fetch upstream, and a member the talents push
- * skipped may be the very person whose enrolment would go (a `DUPLICATE_EMAIL`
- * is typically one talent come back under a new Salesforce id). So when the
+ * skipped (a nameless contact) may be the very person whose enrolment would
+ * go. So when the
  * roster is not complete and the prune would actually remove something, the
  * removals are recorded on `Sync_PruneHold` and nothing is deleted.
  *
  * A hold is lifted by the event itself, never by a clock. A later pass with a
  * complete roster prunes normally and deletes the row, which is the ordinary
- * outcome once the skipped member's SyncError is fixed. An admin who confirms
+ * outcome once the skipped member's contact is completed in Salesforce, which
+ * also closes its `Sync_Error`. An admin who confirms
  * that a campaign really was emptied sets `releasedAt` (`ops_release_prune_hold`),
  * and the next full pass applies the removals if its fresh roster is still
  * empty: the deletion is still made by a full pass and by nothing else, and
@@ -789,7 +753,7 @@ async function pruneFromFullRoster(roster: {
     // A release confirms that the campaign is EMPTY in Salesforce, so only an
     // empty roster spends it. A roster with members is not covered by it,
     // whatever it holds: an unresolved member may be the very person whose
-    // enrolment would go, and that hold lifts once their SyncError is fixed.
+    // enrolment would go, and that hold lifts once their contact is completed.
     const released =
       pendingRemovals > 0 &&
       sentCount === 0 &&

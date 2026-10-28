@@ -27,8 +27,9 @@ import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService
 /**
  * Why `ensureTalentUser` could not give a talent a login: no Salesforce address
  * to create one from, or an address that is already somebody else's (a parent,
- * a staff member, another talent). The message is the French sentence the sync
- * writes into its `SyncError`; `kind` is what a caller branches on.
+ * a staff member, another talent). `kind` is what a caller branches on: the
+ * sync records an `identity_conflict` as an `ADDRESS_TAKEN` sync error, and
+ * says who holds the address when the error is read, not here.
  */
 export class TalentAccountError extends Error {
   constructor(

@@ -209,7 +209,7 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'AppSetting',
       'Signatory',
       'AdminFile',
-      'SyncError',
+      'Sync_Error',
       'Sync_Source',
       'Sync_Run',
       'Sync_Cadence',

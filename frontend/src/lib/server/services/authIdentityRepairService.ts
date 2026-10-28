@@ -6,6 +6,7 @@ import {
   planRepointAndDrop,
 } from '$lib/server/authIdentityRepairCore';
 import type { AuthRepairAction } from '$lib/domain/authIdentity';
+import { clearLoginError } from '$lib/server/services/syncErrorService';
 
 export type { AuthRepairAction } from '$lib/domain/authIdentity';
 
@@ -26,19 +27,23 @@ export async function runAuthRepair(
   talentId: string,
   resolvedBy: string,
 ): Promise<void> {
-  switch (action) {
-    case 'repointDrop':
-      await prisma.$transaction((tx) =>
-        applyRepointAndDrop(tx, talentId, resolvedBy),
-      );
-      return;
-    case 'swap':
-      await prisma.$transaction((tx) => applySwap(tx, talentId, resolvedBy));
-      return;
-    case 'sever':
-      await prisma.$transaction((tx) => applySever(tx, talentId, resolvedBy));
-      return;
-  }
+  await prisma.$transaction(async (tx) => {
+    switch (action) {
+      case 'repointDrop':
+        await applyRepointAndDrop(tx, talentId, resolvedBy);
+        break;
+      case 'swap':
+        await applySwap(tx, talentId, resolvedBy);
+        break;
+      case 'sever':
+        await applySever(tx, talentId, resolvedBy);
+        break;
+    }
+    // The repair is what the talent's login error was waiting for: close it
+    // with the repair rather than at the next pass. A swap's partner is
+    // settled by that pass, which carries both talents.
+    await clearLoginError(tx, talentId);
+  });
 }
 
 export type AutoResolveOutcome = 'repoint_drop' | 'skipped';

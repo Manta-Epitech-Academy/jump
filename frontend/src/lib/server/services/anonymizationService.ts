@@ -216,26 +216,29 @@ export async function anonymizeTalent(
   await tx.broadcastRecipient.deleteMany({
     where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
   });
-  // syncError: what the Salesforce sync could not reconcile, logged with the
-  // contact's name and address and keyed by no foreign key, so it is matched on
-  // the identity read above (the update nulled the id): the talent's Salesforce
-  // id on either side of a conflict, and the address they log in with, which is
-  // what a row names when another contact claimed it (that row's message quotes
-  // the holder's Salesforce id too).
-  const syncErrorOf = [
-    ...(talent.externalId
-      ? [
-          { attemptedExtId: talent.externalId },
-          { existingExtId: talent.externalId },
-        ]
-      : []),
-    ...(talent.user?.email
-      ? [{ email: { equals: talent.user.email, mode: 'insensitive' as const } }]
-      : []),
-  ];
-  if (syncErrorOf.length > 0) {
-    await tx.syncError.deleteMany({ where: { OR: syncErrorOf } });
-  }
+  // Sync_Error: what the Salesforce sync could not do for this person. A login
+  // error points at the talent; a nameless-contact error has no talent to point
+  // at and carries the contact's Salesforce id, name and address instead, so it
+  // is matched on the identity read above (the update nulled the id): the
+  // talent's Salesforce id, and the address they log in with.
+  await tx.sync_Error.deleteMany({
+    where: {
+      OR: [
+        { talentId },
+        ...(talent.externalId ? [{ externalId: talent.externalId }] : []),
+        ...(talent.user?.email
+          ? [
+              {
+                email: {
+                  equals: talent.user.email,
+                  mode: 'insensitive' as const,
+                },
+              },
+            ]
+          : []),
+      ],
+    },
+  });
 
   // Scrub residual PII fields in operational audit logs for this talent:
   //   - AuthIdentityRepair: retains fromEmail/toEmail; replace with anonymized placeholders.

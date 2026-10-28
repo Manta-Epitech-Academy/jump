@@ -1,7 +1,7 @@
 /**
  * Is Salesforce still talking to us, and is anything stuck?
  *
- * Reads the `Sync_Run` ledger plus the `SyncError` backlog. The staleness
+ * Reads the `Sync_Run` ledger plus the open `Sync_Error` queue. The staleness
  * threshold is stated in the answer rather than judged here: a consumer should
  * quote the age, not invent a verdict.
  *
@@ -37,6 +37,11 @@ import {
 import { hoursSince, syncFreshnessTerms } from './dataFreshness';
 import { eventDisplayName } from '$lib/domain/event';
 import { toDateKey } from '$lib/domain/planningTime';
+import { REMEDY_WHO_LABELS, type SyncErrorKind } from '$lib/domain/syncError';
+import {
+  loadOpenSyncErrors,
+  type OpenSyncError,
+} from '$lib/server/services/syncErrorQueue';
 
 type PassHealth = {
   at: string;
@@ -52,8 +57,9 @@ type PassHealth = {
  *
  * `cause` is derived here rather than left to be read off the counts, because
  * the consumer is told never to compute: an empty roster and one with
- * unresolved members call for different acts (confirm the emptying, or fix the
- * member's SyncError), so the answer names which one it is.
+ * unresolved members call for different acts (confirm the emptying, or
+ * complete the member's contact in Salesforce), so the answer names which one
+ * it is.
  */
 /** Held events listed by name before the answer stops naming them. */
 export const PRUNES_HELD_LIMIT = 50;
@@ -70,6 +76,49 @@ type HeldPrune = {
   firstHeldAt: string;
   releasedAt: string | null;
 };
+
+/**
+ * The open sync errors that read the same, and how many there are. The
+ * sentences are the admin page's own (`explainSyncError`), so an error asked
+ * about here is explained as it is on /staff/admin/sync-errors, without the
+ * names the page puts beside them.
+ */
+type ErrorSituationRow = {
+  kind: SyncErrorKind;
+  label: string;
+  whatHappened: string;
+  consequence: string;
+  /** Who can fix it, or « Aucune correction connue ». */
+  fixedBy: string;
+  remedy: string;
+  count: number;
+  share: number | null;
+};
+
+function errorSituations(open: OpenSyncError[]): ErrorSituationRow[] {
+  const bySituation = new Map<string, ErrorSituationRow>();
+  for (const e of open) {
+    const key = JSON.stringify(e.situation);
+    const row = bySituation.get(key);
+    if (row) {
+      row.count++;
+      continue;
+    }
+    bySituation.set(key, {
+      kind: e.kind,
+      label: e.explanation.label,
+      whatHappened: e.explanation.whatHappened,
+      consequence: e.explanation.consequence,
+      fixedBy: REMEDY_WHO_LABELS[e.explanation.remedy.who],
+      remedy: e.explanation.remedy.text,
+      count: 1,
+      share: null,
+    });
+  }
+  return [...bySituation.values()]
+    .map((r) => ({ ...r, share: share(r.count, open.length) }))
+    .sort((a, b) => b.count - a.count);
+}
 
 /** Events carrying an unrecognised status listed by name before the answer stops. */
 export const UNRECOGNISED_STATUS_EVENTS_LIMIT = 50;
@@ -113,9 +162,9 @@ export type SyncHealth = {
   nextRun: Metric<{ due: boolean; mode: string; reason: string }>;
   pendingRequests: Metric<{ full: string | null; incremental: string | null }>;
   runningSince: Metric<string | null>;
-  unresolvedErrors: Metric;
-  errorsByType: Metric<{ errorType: string; count: number }[]>;
-  oldestUnresolvedAgeDays: Metric<number | null>;
+  openErrors: Metric;
+  errorsBySituation: Metric<ErrorSituationRow[]>;
+  oldestOpenAgeDays: Metric<number | null>;
   unresolvedSchools: Metric;
   prunesHeldEvents: Metric;
   prunesHeld: Metric<HeldPrune[]>;
@@ -304,9 +353,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     cadences,
     { decision, pending },
     running,
-    unresolved,
-    grouped,
-    oldest,
+    openErrors,
     unresolvedSchools,
     prunesHeldEvents,
     prunesHeld,
@@ -317,18 +364,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     listCadences(),
     currentSyncDecision(),
     openRunSnapshot(),
-    prisma.syncError.count({ where: { resolved: false } }),
-    prisma.syncError.groupBy({
-      by: ['errorType'],
-      where: { resolved: false },
-      _count: { _all: true },
-      orderBy: { _count: { errorType: 'desc' } },
-    }),
-    prisma.syncError.findFirst({
-      where: { resolved: false },
-      orderBy: { createdAt: 'asc' },
-      select: { createdAt: true },
-    }),
+    loadOpenSyncErrors(),
     prisma.school.count({ where: { resolvedAt: null } }),
     prisma.sync_PruneHold.count(),
     heldPrunes(),
@@ -372,19 +408,21 @@ export async function getSyncHealth(): Promise<SyncHealth> {
       running ? running.startedAt.toISOString() : null,
       "Début de la synchronisation en cours, ou null s'il n'y en a aucune. Une valeur ancienne signale un run qui n'a jamais été refermé, donc un worker interrompu en plein travail : la fenêtre sera rejouée au réveil suivant, rien n'est perdu.",
     ),
-    unresolvedErrors: metric(
-      unresolved,
-      "Erreurs de synchronisation non traitées : chaque ligne est un talent ou un événement que la synchronisation n'a pas pu rapprocher et qu'un admin doit arbitrer sur /staff/admin/sync-errors.",
+    openErrors: metric(
+      openErrors.length,
+      "Erreurs de synchronisation ouvertes : chacune est un contact ou un compte de connexion que la synchronisation n'arrive pas à reprendre en ce moment, détaillé sur /staff/admin/sync-errors. Personne ne les clôt à la main : une erreur disparaît quand un passage ne la reproduit plus, si bien que zéro veut dire que rien n'est en échec.",
     ),
-    errorsByType: metric(
-      grouped.map((g) => ({ errorType: g.errorType, count: g._count._all })),
-      'Répartition des erreurs non traitées par nature technique du conflit.',
+    errorsBySituation: metric(
+      errorSituations(openErrors),
+      "Les erreurs ouvertes regroupées par situation, de la plus à la moins fréquente, avec l'explication qu'en donne la page /staff/admin/sync-errors : « label » est la cause, « whatHappened » ce qui s'est passé, « consequence » ce que cela empêche pour le talent, « fixedBy » qui peut la corriger et « remedy » comment, ou pourquoi aucune correction n'est connue. « count » est le nombre d'erreurs dans cette situation et « share » leur part des erreurs ouvertes, en pourcentage. Liste vide s'il n'y en a aucune.",
     ),
-    oldestUnresolvedAgeDays: metric(
-      oldest
-        ? Math.floor((Date.now() - oldest.createdAt.getTime()) / 86_400_000)
+    oldestOpenAgeDays: metric(
+      openErrors.length
+        ? Math.floor(
+            (Date.now() - openErrors[0].firstOccurredAt.getTime()) / 86_400_000,
+          )
         : null,
-      "Ancienneté, en jours, de la plus vieille erreur non traitée. Null s'il n'y en a aucune.",
+      "Ancienneté, en jours, de la plus vieille erreur ouverte, comptée depuis le premier passage qui l'a rencontrée. Null s'il n'y en a aucune.",
     ),
     unresolvedSchools: metric(
       unresolvedSchools,
@@ -396,7 +434,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     ),
     prunesHeld: metric(
       prunesHeld,
-      `Événements dont la dernière reprise complète a retenu des suppressions d'inscription au lieu de les appliquer, faute de pouvoir les prouver : une reprise complète supprime les inscrits absents de Salesforce, et elle ne le fait que si la liste reçue est complète. Rien n'est perdu ni bloqué, les autres campagnes se synchronisent normalement. « pendingRemovals » est le nombre d'inscriptions conservées en attendant. « cause » vaut « unresolved_members » quand des membres envoyés n'ont pas pu être rattachés à un talent (« resolvedCount » sur « sentCount ») : il faut alors traiter leurs erreurs sur /staff/admin/sync-errors, et la reprise complète suivante appliquera les suppressions d'elle-même. Elle vaut « empty_roster » quand la campagne est arrivée vide : si elle a réellement été vidée dans Salesforce, l'opération ops_release_prune_hold le confirme, et la reprise complète suivante supprime les inscriptions si la campagne lui arrive encore vide ; « releasedAt » est la date de cette confirmation. Seule une campagne arrivée vide se confirme ainsi : un membre non rattaché peut être l'inscrit que la suppression emporterait. Du plus ancien au plus récent, limité à ${PRUNES_HELD_LIMIT} lignes. Liste vide si rien n'est retenu.`,
+      `Événements dont la dernière reprise complète a retenu des suppressions d'inscription au lieu de les appliquer, faute de pouvoir les prouver : une reprise complète supprime les inscrits absents de Salesforce, et elle ne le fait que si la liste reçue est complète. Rien n'est perdu ni bloqué, les autres campagnes se synchronisent normalement. « pendingRemovals » est le nombre d'inscriptions conservées en attendant. « cause » vaut « unresolved_members » quand des membres envoyés n'ont pas pu être rattachés à un talent (« resolvedCount » sur « sentCount ») : ce sont des contacts Salesforce sans nom, listés sur /staff/admin/sync-errors : une fois complétés dans Salesforce, la reprise complète suivante appliquera les suppressions d'elle-même. Elle vaut « empty_roster » quand la campagne est arrivée vide : si elle a réellement été vidée dans Salesforce, l'opération ops_release_prune_hold le confirme, et la reprise complète suivante supprime les inscriptions si la campagne lui arrive encore vide ; « releasedAt » est la date de cette confirmation. Seule une campagne arrivée vide se confirme ainsi : un membre non rattaché peut être l'inscrit que la suppression emporterait. Du plus ancien au plus récent, limité à ${PRUNES_HELD_LIMIT} lignes. Liste vide si rien n'est retenu.`,
     ),
     prunesHeldTruncated: prunesHeldEvents > PRUNES_HELD_LIMIT,
     memberStatuses: metric(

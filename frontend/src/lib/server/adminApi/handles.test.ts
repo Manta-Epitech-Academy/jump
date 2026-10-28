@@ -5,8 +5,9 @@
  * screen. So a parameter no answer produces is not awkward, it is unusable - and
  * the failure is silent, because the operation is right there in the tool list and
  * refuses only when called with a value nobody could have. Two of those had
- * shipped: `ops_resolve_sync_errors.ids`, which no read has ever fed, and an event
- * id that for a leadership token existed only for events already over.
+ * shipped: `ops_resolve_sync_errors.ids` (the operation is retired since),
+ * which no read had ever fed, and an event id that for a leadership token
+ * existed only for events already over.
  *
  * The per-tier clause is the whole point. A handle produced by a core-only answer
  * is not reachable from a leadership token, and that exact hole had already
