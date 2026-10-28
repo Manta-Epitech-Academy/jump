@@ -3,15 +3,22 @@
  * authored here, so a BetterAuth bump can change what it writes without
  * anything in this codebase noticing. It has happened twice. 1.7.0 started
  * writing a required `bauth_account.issuer` that the schema lacked (#296), and
- * 1.7.3 stopped writing it again while our migration had made it NOT NULL:
- * both times every Microsoft sign-in failed, at query time, in production.
+ * every Microsoft sign-in failed in production. 1.7.3 stopped writing it again
+ * while our migration had made it NOT NULL, which would have failed them all a
+ * second time.
  *
- * BetterAuth checks this itself at startup for its Kysely and Drizzle adapters,
- * and rejects requests on a mismatch. Its Prisma adapter registers no such
- * check, so this test runs the same comparison (`diffSchema`, against what
- * `getExpectedSchema` says this configuration writes) on the migrated test
- * database. It fails on the bump that drifts, naming the table and column,
- * instead of on the first insert in production.
+ * BetterAuth now checks this itself: its Prisma adapter compares the generated
+ * client's model with what this configuration writes, and rejects requests on
+ * a mismatch. But that check runs in the deployed pod, where a drift it finds
+ * is a refused sign-in in production. This test runs the same comparison
+ * (`diffSchema`, against `getExpectedSchema`) on the migrated test database,
+ * so the bump that drifts fails in CI instead, naming the table and column.
+ *
+ * `@better-auth/core` is not declared in package.json, on purpose. `better-auth`
+ * pins it to its own exact version, and its Prisma adapter imports this same
+ * `db/internal` subpath, so what runs here is the comparison the installed
+ * BetterAuth runs. A pin of our own could resolve a second copy that lags the
+ * next bump, and this test would then check against the wrong version.
  *
  * `microsoftOAuthCallback.integration.test.ts` stays the round-trip proof on
  * top of this one: it drives a real callback through BetterAuth.
