@@ -561,15 +561,19 @@ export const actions: Actions = {
       });
     }
 
-    const { jobId } = await signOnboardingRules({
+    const signed = await signOnboardingRules({
       talentId: locals.talent.id,
       city: result.data.city,
     });
+    // Not at the rules step: a stale tab, a second submit, or a crafted POST.
+    // The wizard's `load` resumes at the step actually owed, or sends a talent
+    // who has just finished to the dashboard, so there is nothing to say here.
+    if (!signed.ok) throw redirect(303, resolve('/onboarding'));
 
     // Generate the PDF + upload to S3 in the background: NOT awaited, so the
     // student reaches the dashboard immediately and the file lands a few seconds
     // later. Failures are visible and re-runnable at /staff/admin/onboarding-pdfs.
-    void runOnboardingPdfJob(jobId);
+    void runOnboardingPdfJob(signed.jobId);
 
     // Arm the arrival celebration (fired on the next dashboard load), then resume
     // the page the talent was heading for when onboarding interrupted them (e.g.

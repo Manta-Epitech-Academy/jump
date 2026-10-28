@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
+import { reachRulesStep } from './onboardingLadder';
 import {
   signOnboardingRules,
   validateTalentInterests,
@@ -25,21 +26,9 @@ describe('onboardingService (integration)', () => {
   let generalInterestId = '';
 
   /** A talent with a participation, so they have a campus (early-bird needs one). */
-  async function makeTalent(
-    over: Partial<{
-      infoValidatedAt: Date | null;
-      highSchoolValidatedAt: Date | null;
-      parentsValidatedAt: Date | null;
-      techInterestsValidatedAt: Date | null;
-      generalInterestsValidatedAt: Date | null;
-      equipmentValidatedAt: Date | null;
-      processingCompletedAt: Date | null;
-      rulesSignedAt: Date | null;
-      charterAcceptedAt: Date | null;
-    }> = {},
-  ) {
+  async function makeTalent() {
     const talent = await prisma.talent.create({
-      data: { nom: 'Test', prenom: 'Talent', ...over },
+      data: { nom: 'Test', prenom: 'Talent' },
     });
     talentIds.push(talent.id);
     await prisma.participation.create({
@@ -96,20 +85,15 @@ describe('onboardingService (integration)', () => {
   });
 
   it('stamps the signature, grants the arrival XP and enqueues the PDF job in one go', async () => {
-    const talent = await makeTalent({
-      infoValidatedAt: new Date(),
-      highSchoolValidatedAt: new Date(),
-      parentsValidatedAt: new Date(),
-      techInterestsValidatedAt: new Date(),
-      generalInterestsValidatedAt: new Date(),
-      equipmentValidatedAt: new Date(),
-      processingCompletedAt: new Date(),
-    });
+    const talent = await makeTalent();
+    await reachRulesStep(talent.id);
 
-    const { jobId } = await signOnboardingRules({
+    const signed = await signOnboardingRules({
       talentId: talent.id,
       city: 'Lille',
     });
+    if (!signed.ok) throw new Error(`signature refused: ${signed.reason}`);
+    const { jobId } = signed;
 
     const [after, grants, job] = await Promise.all([
       prisma.talent.findUnique({ where: { id: talent.id } }),
@@ -131,6 +115,49 @@ describe('onboardingService (integration)', () => {
     const total = grants.reduce((sum, g) => sum + g.amount, 0);
     expect(after?.xp).toBe(total);
     expect(job?.documentType).toBe('rules');
+  });
+
+  it('refuses a signature posted before the rules step, writing nothing', async () => {
+    // The action takes any POST while onboarding is open. A signature sent from
+    // step one took the welcome XP and an early-bird tier, and pushed every
+    // talent who really finished after it down a tier (security audit run-1).
+    const talent = await makeTalent();
+
+    const signed = await signOnboardingRules({
+      talentId: talent.id,
+      city: 'Lille',
+    });
+
+    const [after, grants, jobs] = await Promise.all([
+      prisma.talent.findUniqueOrThrow({ where: { id: talent.id } }),
+      prisma.xpGrant.count({ where: { talentId: talent.id } }),
+      prisma.onboardingPdfJob.count({ where: { talentId: talent.id } }),
+    ]);
+    expect(after.rulesSignedAt).toBeNull();
+    expect(after.charterAcceptedAt).toBeNull();
+    expect(grants).toBe(0);
+    expect(jobs).toBe(0);
+    expect(signed).toEqual({ ok: false, reason: 'not_at_rules' });
+  });
+
+  it('takes one of two simultaneous submits and refuses the other', async () => {
+    // A double click on the signature form. The second must not restamp the
+    // date the talent signed nor queue a second render of the same document.
+    const talent = await makeTalent();
+    await reachRulesStep(talent.id);
+
+    const results = await Promise.all([
+      signOnboardingRules({ talentId: talent.id, city: 'Lille' }),
+      signOnboardingRules({ talentId: talent.id, city: 'Lille' }),
+    ]);
+
+    expect(
+      await prisma.onboardingPdfJob.count({ where: { talentId: talent.id } }),
+    ).toBe(1);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.filter((r) => !r.ok)).toEqual([
+      { ok: false, reason: 'not_at_rules' },
+    ]);
   });
 
   it('swaps the whole interest selection and stamps both interest steps', async () => {

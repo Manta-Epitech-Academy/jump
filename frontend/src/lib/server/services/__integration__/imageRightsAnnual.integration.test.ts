@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
 import { drainOnboardingPdfJobs } from './onboardingPdfJobs';
+import { reachRulesStep } from './onboardingLadder';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { parentBlockedWhere } from '$lib/server/db/dossierCompliance';
 import { isParentDossierComplete } from '$lib/domain/dossierCompliance';
@@ -169,10 +170,12 @@ describe("droit à l'image, décision annuelle (integration)", () => {
 
     // The talent walks the règlement again, which opens this year's dossier and
     // moves the projection onto it.
-    await signOnboardingRules({
+    await reachRulesStep(talentId);
+    const signed = await signOnboardingRules({
       talentId,
       city: 'Paris',
     });
+    expect(signed.ok).toBe(true);
     await drainJobs();
 
     const after = await projection();

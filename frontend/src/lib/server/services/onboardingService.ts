@@ -26,6 +26,7 @@ import { enqueueOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobSe
 import type { ServiceResult } from './result';
 import { CURRENT_REGLEMENT_VERSION } from '$lib/content/reglement';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { getOnboardingStep } from '$lib/domain/talentOnboarding';
 import {
   patchCurrentOnboardingRecord,
   upsertOnboardingYearRecord,
@@ -98,12 +99,21 @@ export async function validateTalentInterests(
  * Returns the enqueued job's id; the caller kicks off `runOnboardingPdfJob`
  * without awaiting it (the generation + S3 upload is the only slow part, and it
  * must not sit between the talent and their dashboard).
+ *
+ * Refuses (`not_at_rules`, nothing written) unless this year's dossier is at the
+ * `rules` step. The wizard only renders the signature form there, but the action
+ * takes any POST while onboarding is open, and a signature posted from step one
+ * took the welcome XP and an early-bird tier ahead of talents who had finished
+ * (security audit run-1). Checking here rather than in the action is what makes
+ * `rulesSignedAt` mean "the whole ladder is done" for every reader, the
+ * early-bird count first among them. A second submit of the same form is refused
+ * the same way, so it can neither restamp the signature nor queue a second PDF.
  */
 export async function signOnboardingRules(input: {
   talentId: string;
   city: string;
   signedAt?: Date;
-}): Promise<{ jobId: string }> {
+}): Promise<ServiceResult<'not_at_rules', { jobId: string }>> {
   const { talentId, city } = input;
   const now = input.signedAt ?? new Date();
   // One resolution for the dossier this act writes, the early-bird count and the
@@ -111,6 +121,19 @@ export async function signOnboardingRules(input: {
   const schoolYear = currentSchoolYearLabel();
 
   const job = await prisma.$transaction(async (tx) => {
+    // Lock the dossier row before reading the step, so two submits of the form
+    // serialize: the second one waits, then reads the signature the first one
+    // committed and is refused. Taken before the per-campus lock below, so the
+    // two are always acquired in the same order.
+    await tx.$executeRaw`
+      SELECT 1 FROM "Onboarding_Record"
+      WHERE "talentId" = ${talentId} AND "schoolYear" = ${schoolYear}
+      FOR UPDATE`;
+    const dossier = await tx.onboarding_Record.findUnique({
+      where: { talentId_schoolYear: { talentId, schoolYear } },
+    });
+    if (!dossier || getOnboardingStep(dossier) !== 'rules') return null;
+
     // Resolve the talent's campus (most-recent participation) and their 0-based
     // position among completers in that campus, BEFORE stamping this talent's
     // own rulesSignedAt below, so the count is "those who finished before me".
@@ -185,5 +208,6 @@ export async function signOnboardingRules(input: {
     });
   });
 
-  return { jobId: job.id };
+  if (!job) return { ok: false, reason: 'not_at_rules' };
+  return { ok: true, jobId: job.id };
 }
