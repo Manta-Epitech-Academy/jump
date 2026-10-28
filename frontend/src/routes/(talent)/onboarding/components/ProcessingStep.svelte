@@ -40,9 +40,9 @@
   <div
     class="relative mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-epi-blue/10"
   >
-    <Sparkles class="h-10 w-10 animate-pulse text-epi-blue" />
+    <Sparkles class="h-10 w-10 text-epi-blue motion-safe:animate-pulse" />
     <div
-      class="absolute inset-0 animate-ping rounded-full ring-4 ring-epi-blue/20"
+      class="absolute inset-0 rounded-full ring-4 ring-epi-blue/20 motion-safe:animate-ping"
     ></div>
   </div>
 

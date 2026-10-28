@@ -63,7 +63,7 @@
   {#if data.overdueCount > 0}
     <div in:fly={{ y: 12, duration: 300 }}>
       <Alert.Root variant="destructive">
-        <ShieldAlert class="animate-pulse" />
+        <ShieldAlert class="motion-safe:animate-pulse" />
         <Alert.Title class="font-heading">
           {data.overdueCount} demande{data.overdueCount > 1 ? 's' : ''} en retard
         </Alert.Title>

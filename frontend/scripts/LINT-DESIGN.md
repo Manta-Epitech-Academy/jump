@@ -16,21 +16,23 @@ Il est **lexical** : il cherche des classes interdites dans les composants. La p
 
 ## Règles vérifiées
 
-| #   | Règle                                                | Pourquoi                                                                                      | Référence DESIGN.md |
-| --- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------- |
-| 1   | Aucune famille de couleur Tailwind hors palette      | `slate` était une deuxième rampe neutre concurrente des tokens ; `amber` une palette inventée | § Colors            |
-| 2   | Aucune taille de police arbitraire (`text-[Npx]`)    | 210 occurrences réinventaient la couche overline, dont une à 8 px                             | § Typography        |
-| 3   | Aucun `font-black` / `font-extrabold`                | IBM Plex Sans Variable est `font-weight: 100 700` : 900 rend 700                              | § Typography        |
-| 4   | Aucun `backdrop-blur`                                | La charte préfère les bords francs                                                            | § Elevation & Depth |
-| 5   | Aucun fond en dégradé                                | La texture de marque est `blueprint-grid` + carrés pixel (un fondu de troncature est permis)  | § Elevation & Depth |
-| 6   | Aucune ombre hors des trois niveaux                  | `shadow-raised` / `shadow-overlay`, ou rien                                                   | § Elevation & Depth |
-| 7   | Aucun rayon hors échelle (`rounded-2xl`, `3xl`, nu)  | 16 px est le plafond, y compris dans les espaces souples                                      | § Shapes            |
-| 8   | Aucune ombre teintée                                 | La lueur colorée se traite en photo, pas en `box-shadow`                                      | § Elevation & Depth |
-| 9   | Aucun `transition-all`                               | Anime aussi les propriétés de layout ; `transition-ui` nomme les siennes                      | § Motion            |
-| 10  | Aucune durée > 320 ms                                | Plafond d'une transition d'état (une animation de célébration annonce sa propre durée)        | § Motion            |
-| 11  | Aucune image de fond en style inline                 | La grille blueprint est un utilitaire, pas un `style=` recopié                                | § Layout            |
-| 12  | Aucun accent brut en remplissage de bouton           | Blanc sur `epi-tomorrow` est à 3,10:1                                                         | § Components        |
-| 13  | Aucun `outline-none` sans indicateur de remplacement | Deux éditeurs inline n'avaient aucun indicateur de focus                                      | § Accessibility     |
+| #   | Règle                                                                 | Pourquoi                                                                                        | Référence DESIGN.md |
+| --- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------- |
+| 1   | Aucune famille de couleur Tailwind hors palette                       | `slate` était une deuxième rampe neutre concurrente des tokens ; `amber` une palette inventée   | § Colors            |
+| 2   | Aucune taille de police arbitraire (`text-[Npx]`)                     | 210 occurrences réinventaient la couche overline, dont une à 8 px                               | § Typography        |
+| 3   | Aucun `font-black` / `font-extrabold`                                 | IBM Plex Sans Variable est `font-weight: 100 700` : 900 rend 700                                | § Typography        |
+| 4   | Aucun `backdrop-blur`                                                 | La charte préfère les bords francs                                                              | § Elevation & Depth |
+| 5   | Aucun fond en dégradé                                                 | La texture de marque est `blueprint-grid` + carrés pixel (un fondu de troncature est permis)    | § Elevation & Depth |
+| 6   | Aucune ombre hors des trois niveaux                                   | `shadow-raised` / `shadow-overlay`, ou rien                                                     | § Elevation & Depth |
+| 7   | Aucun rayon hors échelle (`rounded-2xl`, `3xl`, nu)                   | 16 px est le plafond, y compris dans les espaces souples                                        | § Shapes            |
+| 8   | Aucune ombre teintée                                                  | La lueur colorée se traite en photo, pas en `box-shadow`                                        | § Elevation & Depth |
+| 9   | Aucun `transition-all`                                                | Anime aussi les propriétés de layout ; `transition-ui` nomme les siennes                        | § Motion            |
+| 10  | Aucune durée > 320 ms                                                 | Plafond d'une transition d'état (une animation de célébration annonce sa propre durée)          | § Motion            |
+| 11  | Aucune image de fond en style inline                                  | La grille blueprint est un utilitaire, pas un `style=` recopié                                  | § Layout            |
+| 12  | Aucun accent brut en remplissage de bouton                            | Blanc sur `epi-tomorrow` est à 3,10:1                                                           | § Components        |
+| 13  | Aucun `outline-none` sans indicateur de remplacement                  | Deux éditeurs inline n'avaient aucun indicateur de focus                                        | § Accessibility     |
+| 14  | Aucune boucle `animate-ping` / `pulse` / `bounce` sans `motion-safe:` | Sept boucles tournaient pour tout le monde, y compris qui demande moins de mouvement            | § Motion            |
+| 15  | Aucun `hover:scale-` / `active:scale-` dans les espaces staff         | Un appui se marque par `active:translate-y-px` ; les espaces talent et parent ne sont pas visés | § Motion            |
 
 Pour la règle 13, le script accepte un indicateur de remplacement (`focus:border-`, `focus-visible:border-`, `focus-within:border-`) trouvé sur la ligne fautive ou les cinq suivantes.
 

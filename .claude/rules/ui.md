@@ -17,7 +17,7 @@ Read [`DESIGN.md`](../../DESIGN.md) at the repo root before any visual work: it 
 
 - **UI & Interaction Skills:** Optional design skills live in `.claude/skills/`:
   - `impeccable` (`.claude/skills/impeccable/SKILL.md`): UX audit, spacing, contrast, and anti-slop review.
-  - `emil-design-eng` (`.claude/skills/emil-design-eng/SKILL.md`): interaction design, spring physics, and micro-animations.
+  - `emil-design-eng` (`.claude/skills/emil-design-eng/SKILL.md`): interaction design, spring physics, and micro-animations. Its springs and its scale on press are overruled here: `DESIGN.md` § Motion has neither, and `lint:design` refuses a press scale in the staff spaces.
     `DESIGN.md` and the existing shadcn-svelte components in `src/lib/components/ui/` remain the absolute source of truth: skills must never introduce out-of-palette colors or ad-hoc raw HTML replacements for standard UI components.
 
 - **Copy density: a control gets one line, the rest goes behind a ⓘ.** A screen is read to be acted on, so a sentence that does not change what the person clicks pushes the control that does further down, and past a few of those they stop reading the ones that mattered too. The order to apply, in this order:

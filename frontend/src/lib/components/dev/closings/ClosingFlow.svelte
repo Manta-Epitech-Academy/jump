@@ -14,6 +14,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { fly } from 'svelte/transition';
+  import { prefersReducedMotion } from 'svelte/motion';
   import type { TransitionConfig } from 'svelte/transition';
   import { superForm, type SuperValidated } from 'sveltekit-superforms';
   import { toast } from 'svelte-sonner';
@@ -170,15 +171,18 @@
   // Onboarding's step transition: the outgoing card slides left + fades while
   // the incoming one flies in from the right. Local copy (8 lines) rather than a
   // cross-route import; the parent is position:relative so the absolute exit
-  // overlaps cleanly.
+  // overlaps cleanly. 120ms out then 200ms in: a step settles within DESIGN.md's
+  // 320ms ceiling (it took 430ms), over the 16px slide that is its longest.
+  // Asked for less motion, the step only fades.
+  const stepSlide = $derived(prefersReducedMotion.current ? 0 : 16);
   function exitSlide(
     _node: Element,
-    { duration = 180 }: { duration?: number } = {},
+    { duration = 120, x = 16 }: { duration?: number; x?: number } = {},
   ): TransitionConfig {
     return {
       duration,
       css: (t: number, u: number) =>
-        `position: absolute; top: 0; left: 0; right: 0; opacity: ${t}; transform: translateX(${-30 * u}px);`,
+        `position: absolute; top: 0; left: 0; right: 0; opacity: ${t}; transform: translateX(${-x * u}px);`,
     };
   }
 
@@ -442,7 +446,7 @@
   }
 
   const chipBase =
-    'cursor-pointer rounded-sm border px-3.5 py-2 text-sm font-medium transition select-none active:scale-95 disabled:cursor-default disabled:active:scale-100';
+    'cursor-pointer rounded-sm border px-3.5 py-2 text-sm font-medium transition select-none active:translate-y-px disabled:cursor-default disabled:active:translate-y-0';
   const chipIdle =
     'border-border bg-background text-foreground hover:border-epi-blue/40 hover:bg-epi-blue/5';
   // Active = tinted, not solid: a /10 wash + ring keeps the selection legible
@@ -611,7 +615,7 @@
             disabled={!interactive}
             onclick={() => setStars(q.id, idx + 1)}
             aria-label={`${idx + 1} sur ${q.max}`}
-            class="cursor-pointer rounded-sm p-0.5 transition-transform hover:scale-110 active:scale-95 disabled:cursor-default disabled:hover:scale-100 disabled:active:scale-100"
+            class="cursor-pointer rounded-sm p-0.5 transition-transform active:translate-y-px disabled:cursor-default disabled:active:translate-y-0"
           >
             <Star
               class={cn(
@@ -972,8 +976,8 @@
                  short step sits balanced instead of clumped at the top. -->
             <div
               class="flex min-h-140 w-full flex-col justify-center"
-              in:fly|local={{ x: 30, duration: 250, delay: 180 }}
-              out:exitSlide|local={{ duration: 180 }}
+              in:fly|local={{ x: stepSlide, duration: 200, delay: 120 }}
+              out:exitSlide|local={{ duration: 120, x: stepSlide }}
             >
               {#if isIntro}
                 <!-- ── Cover: guide + the lifecycle CTA for the current status ── -->
@@ -1077,7 +1081,7 @@
                           disabled={!interactive}
                           onclick={() => setRecommendation(value)}
                           class={cn(
-                            'flex cursor-pointer flex-col items-center gap-1.5 rounded-sm border px-2 py-3 text-center transition-ui active:scale-[0.98] disabled:cursor-default disabled:active:scale-100',
+                            'flex cursor-pointer flex-col items-center gap-1.5 rounded-sm border px-2 py-3 text-center transition-ui active:translate-y-px disabled:cursor-default disabled:active:translate-y-0',
                             active
                               ? TONE_ACTIVE[desc.tone]
                               : TONE_IDLE[desc.tone],
