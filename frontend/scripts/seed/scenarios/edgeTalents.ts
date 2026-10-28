@@ -19,7 +19,6 @@ import {
   versionForYear,
 } from '../catalog/documentVersions';
 import { MANUAL_SCHOOL_NAMES } from '../catalog/schools';
-import { NOMS, PRENOMS } from '../catalog/people';
 import { addDossier } from '../factories/onboarding';
 import { addMinigameAttempt } from '../factories/engagement';
 import { NIVEAUX } from '../../../src/lib/domain/niveau';
@@ -30,7 +29,7 @@ export const edgeTalents: Scenario = {
   summary:
     'Un talent par état rare : dossier bloqué à chaque étape, collégien, sans compte, divergence CRM.',
   run(world) {
-    const { rng, clock } = world.ctx;
+    const { clock } = world.ctx;
     const campus = [...world.campuses.values()][0]!;
     const schoolYear = clock.schoolYear;
     const lastYear = clock.schoolYearBefore(1);
@@ -42,7 +41,6 @@ export const edgeTalents: Scenario = {
       extra: Partial<Parameters<typeof world.addTalent>[0]> = {},
     ) =>
       world.addTalent({
-        prenom: rng.pick(PRENOMS),
         nom,
         niveau,
         campus,
@@ -184,6 +182,24 @@ export const edgeTalents: Scenario = {
       world.addSchoolingRecord(talent, schoolYear, null);
     }
 
+    // A talent who declared « Autre ». One talent in 6 283 in production, so
+    // no draw produces it at any profile, and every reader of the civility
+    // (the cohort split, the « Genre » filter, the exports, a courtesy title
+    // that must stay blank) has a branch for it. Only the identity step can
+    // write it: Salesforce has no such value, so it holds no gender here and
+    // the reconciliation has nothing to report.
+    const autre = spawn('Civiliteautre', '1ere', {
+      person: { prenom: 'Sacha', civilite: 'autre' },
+    });
+    world.enrol(event, autre);
+    world.addSchoolingRecord(autre, schoolYear, null);
+    addDossier(world, {
+      talent: autre,
+      schoolYear,
+      stopAt: null,
+      imageRights: 'accepted',
+    });
+
     // No login account at all: 70 talents are in this state, and every screen
     // that offers impersonation has to say so instead of offering it. The sync
     // mints a login from the address Salesforce holds, so this one is a contact
@@ -210,21 +226,22 @@ export const edgeTalents: Scenario = {
     // confirmed. This is the only way /staff/admin/sf-conflicts has a row.
     //
     // Salesforce does not always say as much as Jump does, and that is what the
-    // second and the fourth are for: a contact with no number is a « manquant »
-    // line rather than a divergence, and a civility is a claim Salesforce only
-    // sometimes holds. The third has Salesforce disagreeing about it, the
-    // fourth agreeing, so a civility on the mirror is not read as a conflict
-    // by default. Names are never missing: the sync refuses a contact without
-    // them.
-    const CIVILITE_CLAIMS = [
-      null,
-      null,
-      { jump: 'femme', salesforce: 'homme' },
-      { jump: 'homme', salesforce: 'homme' },
+    // second is for: a contact with no number and no gender is two « manquant »
+    // lines rather than divergences. The third has Salesforce disagreeing about
+    // the civility the talent declared, and the first and fourth agreeing, so
+    // a civility on the mirror is not read as a conflict by default. All four
+    // are placed, persons and claims alike, so the page has the same rows
+    // whatever the seed. Names are never missing: the sync refuses a contact
+    // without them.
+    const DIVERGENT_CIVILITES = [
+      { person: { prenom: 'Léa', civilite: 'femme' }, salesforce: 'femme' },
+      { person: { prenom: 'Hugo', civilite: 'homme' }, salesforce: null },
+      { person: { prenom: 'Emma', civilite: 'femme' }, salesforce: 'homme' },
+      { person: { prenom: 'Lucas', civilite: 'homme' }, salesforce: 'homme' },
     ] as const;
-    for (let i = 0; i < 4; i += 1) {
+    for (const [i, { person, salesforce }] of DIVERGENT_CIVILITES.entries()) {
       const divergent = world.addTalent({
-        prenom: PRENOMS[i % PRENOMS.length]!,
+        person,
         nom: `Divergence${i}`,
         niveau: '2nde',
         campus,
@@ -232,6 +249,7 @@ export const edgeTalents: Scenario = {
         sfClaims: {
           nom: `Divergence${i}Ancien`,
           phone: i === 1 ? null : '+33611111111',
+          civilite: salesforce,
         },
       });
       world.enrol(event, divergent);
@@ -242,8 +260,6 @@ export const edgeTalents: Scenario = {
         stopAt: null,
         imageRights: 'accepted',
       });
-      const civilite = CIVILITE_CLAIMS[i];
-      if (civilite) world.placeCivilite(divergent, civilite);
     }
 
     // A talent who never came from Salesforce, so with no mirror either, and a
@@ -259,7 +275,6 @@ export const edgeTalents: Scenario = {
     // snapshots of what was true at the time, so « on ne savait pas encore » is
     // a state they are nullable for and that nothing else produces.
     const unplaced = world.addTalent({
-      prenom: rng.pick(PRENOMS),
       nom: 'Sanscampus',
       niveau: '2nde',
       campus: null,

@@ -46,7 +46,6 @@ import {
   CLUB_TEMPLATE_QUESTION_KEYS,
   STAGE_TEMPLATE_QUESTION_KEYS,
 } from '../catalog/closings';
-import { PRENOMS } from '../catalog/people';
 import { conductClosing } from '../factories/closing';
 import { addDossier } from '../factories/onboarding';
 import {
@@ -146,7 +145,6 @@ export const careers: Scenario = {
 
     const spawn = (nom: string, career: number): TalentRef =>
       world.addTalent({
-        prenom: rng.pick(PRENOMS),
         nom,
         niveau: 'terminale',
         campus,
