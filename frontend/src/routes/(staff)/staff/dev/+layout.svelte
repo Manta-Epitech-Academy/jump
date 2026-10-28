@@ -13,6 +13,7 @@
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import School from '@lucide/svelte/icons/school';
   import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+  import House from '@lucide/svelte/icons/house';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -26,10 +27,10 @@
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import SchoolYearMenu from '$lib/components/dev/SchoolYearMenu.svelte';
   import {
+    eventSurfacePath,
     landingSurface,
     reachableSurfaces,
     surfaceFromPath,
-    surfaceSegment,
     surfaceLabel,
     type EventSurfaceKey,
   } from '$lib/domain/eventModules';
@@ -46,6 +47,7 @@
   // Icons live with the component (Svelte components can't sit in the domain
   // layer); order/label/reachability are single-sourced in `eventModules`.
   const SURFACE_ICONS: Record<EventSurfaceKey, typeof Users> = {
+    home: House,
     inscrits: Users,
     emargement: UserCheck,
     // A clock on the calendar: the event's hours, beside the campus's days.
@@ -117,8 +119,8 @@
           schoolYearOf(new Date(), data.timezone).label),
   );
 
-  /** The years you can actually go to: those with an event a dev can open, and
-      on the calendar the year it shows, which may have none. Empty on a campus
+  /** The years you can actually go to: those with an event, and on the
+      calendar the year it shows, which may have none. Empty on a campus
       with no event, which leaves the menu as a readout. */
   const schoolYears = $derived.by(() => {
     const years = navigableSchoolYears(workspace.events);
@@ -131,9 +133,12 @@
     const ev = currentEvent;
     if (!ev) return [];
     return reachableSurfaces(ev).map((key) => ({
-      href: resolve(`/staff/dev/events/${ev.id}/${surfaceSegment(key)}`),
+      href: resolve(eventSurfacePath(ev.id, key)),
       label: surfaceLabel(key),
       icon: SURFACE_ICONS[key],
+      // Every other page sits under the home's address, so the home would
+      // stay lit on all of them.
+      exact: key === 'home',
     }));
   });
 
@@ -144,21 +149,19 @@
   /**
    * Open `e`, keeping the surface in view when the target event exposes it.
    * `openSurface` is null off an event route (a talent fiche), which lands on
-   * the first reachable one.
+   * the event's home.
    */
   function openEvent(e: DevWorkspaceEvent) {
     if (e.id === currentEvent?.id) return;
-    const surface = landingSurface(e, openSurface);
-    if (!surface) return;
-    goto(resolve(`/staff/dev/events/${e.id}/${surfaceSegment(surface)}`));
+    goto(resolve(eventSurfacePath(e.id, landingSurface(e, openSurface))));
   }
 
   /**
    * On the calendar, changing the year shows that year's calendar. Elsewhere it
    * is a context jump: land on the event that year defaults to.
-   * `navigableSchoolYears` and `defaultEventOfYear` share a reachability
-   * filter, so the null below is a type guard, not a year that quietly does
-   * nothing when picked.
+   * `navigableSchoolYears` and `defaultEventOfYear` read the same years, so the
+   * null below is a type guard, not a year that quietly does nothing when
+   * picked.
    */
   function changeSchoolYear(year: string) {
     if (year === selectedSchoolYear) return;

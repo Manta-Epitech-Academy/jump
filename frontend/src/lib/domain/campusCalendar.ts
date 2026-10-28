@@ -7,7 +7,7 @@ import {
 import { inkOn, type FillInk } from '../design/color';
 import type { EventCategoryTag } from './eventCategory';
 import type { EventLifecycleStatus } from './eventLifecycle';
-import type { DateKey } from './planningTime';
+import { toDateKey, type DateKey } from './planningTime';
 import { MOIS_FR } from './schoolYear';
 import { knowsSchoolHolidays, offDays, type OffDay } from './schoolHolidays';
 
@@ -162,7 +162,24 @@ function daysLabel(first: DateKey, last: DateKey): string {
     : `du ${a.day} ${MOIS_COURTS[a.month]} au ${b.day} ${MOIS_COURTS[b.month]}`;
 }
 
-function daysLabelLong(first: DateKey, last: DateKey): string {
+/**
+ * An event's first and last day on the campus clock. A Salesforce end before
+ * the start would paint nothing, so it is read as a single day.
+ */
+export function eventDayKeys(
+  date: Date,
+  endDate: Date | null,
+  timezone: string,
+): { first: DateKey; last: DateKey } {
+  const first = toDateKey(date, timezone);
+  const last = toDateKey(endDate ?? date, timezone);
+  return { first, last: last < first ? first : last };
+}
+
+/** The days an event runs, written out with their count: « du 20 au 24
+ *  octobre 2026 · 5 jours ». The calendar's event card and the event's home
+ *  both read it. */
+export function daysLabelLong(first: DateKey, last: DateKey): string {
   const a = parseDate(first);
   const b = parseDate(last);
   const count = daysBetween(first, last) + 1;

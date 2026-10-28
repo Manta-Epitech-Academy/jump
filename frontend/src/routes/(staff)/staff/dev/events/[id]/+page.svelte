@@ -1,0 +1,120 @@
+<script lang="ts">
+  import { resolve } from '$app/paths';
+  import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
+  import { Button } from '$lib/components/ui/button';
+  import { Skeleton } from '$lib/components/ui/skeleton';
+  import * as Tooltip from '$lib/components/ui/tooltip';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import EventCategoryChip from '$lib/components/events/EventCategoryChip.svelte';
+  import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
+  import { ACTION_TILE_CLASS } from '$lib/components/events/actionTile';
+  import { EVENT_MODULES } from '$lib/domain/eventModules';
+  import type { PageData } from './$types';
+  import EventCountdown from './components/EventCountdown.svelte';
+  import EventBadgesAction from './components/EventBadgesAction.svelte';
+  import EventCertificatesAction from './components/EventCertificatesAction.svelte';
+  import HomeFigures from './components/home/HomeFigures.svelte';
+
+  // The event's home: where it opens, what it amounts to at a glance, and the
+  // actions that act on the whole event. Each figure opens the page it comes
+  // from, filtered on it.
+  let { data }: { data: PageData } = $props();
+
+  // Badges, certificates and the inscrits sheet all print the cohort, so they
+  // answer only where the Inscrits section is on (`loadEventOr404`).
+  const printsCohort = $derived(
+    data.reachable.includes(EVENT_MODULES.INSCRITS),
+  );
+</script>
+
+<svelte:head>
+  <title>{data.event.name} · Accueil</title>
+</svelte:head>
+
+<div class="space-y-8 pb-10">
+  <Tooltip.Provider delayDuration={150}>
+    <PageHeader title={data.event.name}>
+      {#snippet meta()}
+        <div class="flex flex-col gap-2">
+          <p
+            class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted-foreground"
+          >
+            {#if data.event.category}
+              <EventCategoryChip category={data.event.category} />
+              <span aria-hidden="true">·</span>
+            {/if}
+            <span>{data.event.daysLabel}</span>
+          </p>
+          <EventCountdown
+            status={data.countdown.status}
+            openDate={data.countdown.openDate}
+          />
+        </div>
+      {/snippet}
+      {#snippet actions()}
+        <div class="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto">
+          {#if printsCohort}
+            <EventBadgesAction
+              eventId={data.event.id}
+              eventName={data.event.name}
+              count={data.rosterSize}
+            />
+            {#if data.diploma}
+              <EventCertificatesAction
+                eventId={data.event.id}
+                eventName={data.event.name}
+                label={data.diploma.label}
+                count={data.rosterSize}
+              />
+            {/if}
+          {/if}
+          <EventSalesforceButton externalId={data.event.externalId} />
+          {#if data.exportSections.length > 0}
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    href={resolve(`/staff/dev/events/${data.event.id}/export`)}
+                    download
+                    variant="outline"
+                    class={ACTION_TILE_CLASS}
+                  >
+                    <FileSpreadsheet />
+                    Exporter Excel
+                  </Button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content class="max-w-64">
+                Tout l'événement, une feuille par section : {data.exportSections.join(
+                  ', ',
+                )}.
+              </Tooltip.Content>
+            </Tooltip.Root>
+          {/if}
+        </div>
+      {/snippet}
+    </PageHeader>
+  </Tooltip.Provider>
+
+  {#await data.figures}
+    <ResultsSkeleton>
+      {#snippet shape()}
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] gap-5">
+          {#each Array.from({ length: 9 }, (_, i) => i) as i (i)}
+            <Skeleton class="h-80 w-full" />
+          {/each}
+        </div>
+      {/snippet}
+    </ResultsSkeleton>
+  {:then figures}
+    <HomeFigures {figures} eventId={data.event.id} reachable={data.reachable} />
+  {:catch}
+    <ResultsNotice
+      title="Chargement impossible"
+      description="Les chiffres de l'événement n'ont pas pu être chargés. Rechargez la page pour réessayer."
+    />
+  {/await}
+</div>
