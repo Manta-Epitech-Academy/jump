@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
   import Circle from '@lucide/svelte/icons/circle';
@@ -9,10 +10,9 @@
   import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import type {
-    ColumnDef,
-    SortDir,
-  } from '$lib/components/staff/datatable/types';
+  import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  import { setListParams } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import { type SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
@@ -22,10 +22,21 @@
   import { formatGivenName } from '$lib/domain/profile';
   import { cohortNounForms } from '$lib/domain/event';
   import {
+    CLOSING_RECOMMENDATIONS,
+    CLOSING_RECOMMENDATION_DISPLAY_ORDER,
     CLOSING_STATUS_LABELS,
     type ClosingListStatus,
   } from '$lib/domain/closing';
-  import type { ClosingRow, SortKey, ClosingsCohort } from './types';
+  import {
+    CLOSINGS_NO_VERDICT,
+    closingsFilterParams,
+    closingsSortParams,
+    matchesClosingsView,
+    parseClosingsView,
+    type ClosingsSortKey,
+    type ClosingsVerdictFilter,
+  } from '$lib/domain/closingsView';
+  import type { ClosingRow, ClosingsCohort } from './types';
   import SynthesisCard from './SynthesisCard.svelte';
   import StaffTallyCard from './StaffTallyCard.svelte';
   import GuideCard from '$lib/components/dev/closings/GuideCard.svelte';
@@ -86,10 +97,10 @@
     done: 2,
   };
 
-  let searchQuery = $state('');
-  let statutFilter = $state<'all' | ClosingListStatus>('all');
-  let sortKey = $state<SortKey>('nom');
-  let sortDir = $state<SortDir>('asc');
+  // Filters, sort and search live in the address (`$lib/domain/closingsView`),
+  // so the event home's cards can open this list already filtered.
+  const view = $derived(parseClosingsView(page.url.searchParams));
+  const search = createUrlSearch();
 
   const columns: ColumnDef[] = [
     { key: 'avatar', label: '', class: 'w-12' },
@@ -112,10 +123,24 @@
     { value: 'done', label: CLOSING_STATUS_LABELS.done },
   ];
 
+  // The team's verdict: filtered here rather than shown as a column, the page
+  // that owns it (`ui.md`).
+  const avisOptions: SegmentOption[] = [
+    { value: 'all', label: 'Tous' },
+    ...CLOSING_RECOMMENDATION_DISPLAY_ORDER.map((r) => ({
+      value: r,
+      label: CLOSING_RECOMMENDATIONS[r].label,
+    })),
+    { value: CLOSINGS_NO_VERDICT, label: 'Sans avis' },
+  ];
+
   function toggleSort(key: string) {
-    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
-    sortKey = next.key;
-    sortDir = next.dir;
+    const next = nextSort<ClosingsSortKey>(
+      columns,
+      { key: view.sort, dir: view.dir },
+      key,
+    );
+    setListParams(closingsSortParams(next.key, next.dir));
   }
 
   const dateFmt = (d: Date | string | null) =>
@@ -132,13 +157,17 @@
   // that HAVE been conducted rather than leading with the empty half of the
   // roster. It used to lead with them: the null cases lived inside the asc/desc
   // flip, which inverted the intent along with the order.
-  function sortsLast(r: ClosingRow, key: SortKey): boolean {
+  function sortsLast(r: ClosingRow, key: ClosingsSortKey): boolean {
     if (key === 'staff') return !r.staffName;
     if (key === 'date') return !r.conductedAt;
     return false;
   }
 
-  function compareRows(a: ClosingRow, b: ClosingRow, key: SortKey): number {
+  function compareRows(
+    a: ClosingRow,
+    b: ClosingRow,
+    key: ClosingsSortKey,
+  ): number {
     switch (key) {
       case 'prenom':
         return a.prenom.localeCompare(b.prenom, 'fr');
@@ -157,9 +186,9 @@
   }
 
   const filtered = $derived.by(() => {
-    const tokens = searchTokens(searchQuery);
+    const tokens = searchTokens(search.value);
     const out = rows.filter((r) => {
-      if (statutFilter !== 'all' && r.status !== statutFilter) return false;
+      if (!matchesClosingsView(r, view)) return false;
       return matchesAllTokens(
         buildHaystack([r.prenom, r.nom, r.staffName]),
         tokens,
@@ -167,16 +196,18 @@
     });
     out.sort(
       rowComparator({
-        compare: (a, b) => compareRows(a, b, sortKey),
-        dir: sortDir,
-        isMissing: (r) => sortsLast(r, sortKey),
+        compare: (a, b) => compareRows(a, b, view.sort),
+        dir: view.dir,
+        isMissing: (r) => sortsLast(r, view.sort),
       }),
     );
     return out;
   });
 
   const anyFiltersApplied = $derived(
-    searchQuery.trim().length > 0 || statutFilter !== 'all',
+    search.value.trim().length > 0 ||
+      view.statut !== null ||
+      view.avis !== null,
   );
   // A closing is an event-scoped act, so it is conducted on its own page under
   // the event rather than on the talent fiche: this roster is the way in
@@ -215,8 +246,8 @@
   >
     {#snippet main()}
       <DataTableToolbar
-        searchValue={searchQuery}
-        onSearchInput={(v) => (searchQuery = v)}
+        searchValue={search.value}
+        onSearchInput={(v) => (search.value = v)}
         searchPlaceholder={`Rechercher un ${noun.singular}…`}
         searchWidthClass="w-full max-w-[230px]"
         filtersAlign="end"
@@ -232,8 +263,29 @@
             <FilterSelect
               ariaLabel="Filtrer par statut de closing"
               options={statutOptions}
-              value={statutFilter}
-              onChange={(v) => (statutFilter = v as typeof statutFilter)}
+              value={view.statut ?? 'all'}
+              onChange={(v) =>
+                setListParams(
+                  closingsFilterParams({
+                    statut: v === 'all' ? null : (v as ClosingListStatus),
+                  }),
+                )}
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="hidden epi-overline text-muted-foreground sm:inline">
+              Avis
+            </span>
+            <FilterSelect
+              ariaLabel="Filtrer par avis de l'équipe"
+              options={avisOptions}
+              value={view.avis ?? 'all'}
+              onChange={(v) =>
+                setListParams(
+                  closingsFilterParams({
+                    avis: v === 'all' ? null : (v as ClosingsVerdictFilter),
+                  }),
+                )}
             />
           </div>
         {/snippet}
@@ -242,8 +294,8 @@
       <SortableTable
         {columns}
         rows={filtered}
-        {sortKey}
-        {sortDir}
+        sortKey={view.sort}
+        sortDir={view.dir}
         onSort={toggleSort}
         rowKey={(r) => r.talentId}
         rowHref={conductHref}

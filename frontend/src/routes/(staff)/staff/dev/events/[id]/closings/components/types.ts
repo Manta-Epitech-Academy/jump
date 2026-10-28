@@ -2,8 +2,6 @@ import type { ClosingsRoster } from '$lib/domain/closingsRoster';
 
 export type { ClosingRow } from '$lib/domain/closingsRoster';
 
-export type SortKey = 'prenom' | 'nom' | 'staff' | 'date' | 'status';
-
 /** One staff member with the number of closings they conducted, for the
  *  "Closings menés" leaderboard. */
 export type StaffTally = {
