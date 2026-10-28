@@ -67,14 +67,34 @@ type CoverImageSpec = {
 export type WorkshopInstanceSpec = {
   readonly slug: string;
   readonly baseUrl: string;
+  /**
+   * The code its catalogue cards show; null for a host Jump holds none for,
+   * whose subjects are shown without one.
+   */
+  readonly supervisorCode: string | null;
 };
 
 export const WORKSHOP_INSTANCES = {
   /** The season's host: one content, then the next. */
-  season: { slug: 'ctfd-saison', baseUrl: 'https://saison.ctfd.invalid' },
-  santa: { slug: 'ctfd-santa', baseUrl: 'https://santa-shooter.ctfd.invalid' },
-  /** A campus's own host, serving two contents side by side. */
-  campus: { slug: 'ctfd-campus', baseUrl: 'https://campus.ctfd.invalid' },
+  season: {
+    slug: 'ctfd-saison',
+    baseUrl: 'https://saison.ctfd.invalid',
+    supervisorCode: null,
+  },
+  santa: {
+    slug: 'ctfd-santa',
+    baseUrl: 'https://santa-shooter.ctfd.invalid',
+    supervisorCode: null,
+  },
+  /**
+   * A campus's own host, serving two contents side by side: both of its
+   * catalogue cards show its one supervisor code.
+   */
+  campus: {
+    slug: 'ctfd-campus',
+    baseUrl: 'https://campus.ctfd.invalid',
+    supervisorCode: 'CAMPUS-SUPERVISION-2026',
+  },
 } as const satisfies Record<string, WorkshopInstanceSpec>;
 
 export type WorkshopSpec = {
@@ -226,6 +246,7 @@ export async function seedWorkshops(
       id: workshopInstanceId(instance.slug),
       slug: instance.slug,
       baseUrl: instance.baseUrl,
+      supervisorCode: instance.supervisorCode,
       createdAt: anchor,
       updatedAt: anchor,
     })),
