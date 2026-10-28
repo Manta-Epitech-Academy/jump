@@ -216,7 +216,7 @@ export function explainSyncError(
         whatHappened:
           "Salesforce rattache plusieurs fiches Jump à ce contact (les leads qu'il a été avant d'être converti), et plusieurs d'entre elles ont déjà servi : une connexion ou un dossier d'onboarding. Jump ne les réunit pas seul, pour ne rien perdre de ce qui y a été fait.",
         consequence:
-          "La personne garde plusieurs fiches, et Jump ne reprend plus ses informations depuis Salesforce. Tant qu'elles restent séparées, une reprise complète ne retire aucune inscription des campagnes où elle figure.",
+          'La personne garde plusieurs fiches, et Jump ne reprend plus ses informations depuis Salesforce.',
         remedy: {
           who: 'developer',
           text: 'Choisir la fiche que la personne garde demande un arbitrage : transmettre ce cas à un développeur, avec les fiches en cause.',
