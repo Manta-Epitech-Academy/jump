@@ -80,6 +80,7 @@ import {
   WORKSHOP_DOMAIN_LABEL_MAX,
   WORKSHOP_LEVELS,
 } from '$lib/domain/workshopCatalogue';
+import { SUPERVISOR_CODE_MAX } from '$lib/domain/workshops';
 import {
   SYNC_CADENCE_MAX_MINUTES,
   SYNC_CADENCE_MIN_MINUTES,
@@ -1087,6 +1088,7 @@ export const ADMIN_API_OPERATIONS = {
         ),
       supervisorCode: z
         .string()
+        .max(SUPERVISOR_CODE_MAX)
         .nullable()
         .optional()
         .describe(

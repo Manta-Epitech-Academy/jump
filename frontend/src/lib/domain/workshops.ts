@@ -100,6 +100,13 @@ export function supervisorJoinUrl(baseUrl: string): string {
 }
 
 /**
+ * Ceiling on an instance's supervisor code, there to bound what one call can
+ * store, not to shape the code: the plugin sets none, and a code a person
+ * types on `/supervisor/join` sits far below it.
+ */
+export const SUPERVISOR_CODE_MAX = 128;
+
+/**
  * Which activities a talent is offered, through which enrolment, and which of
  * them are today's.
  *
