@@ -8,7 +8,7 @@
   import ImageIcon from '@lucide/svelte/icons/image';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import ScrollText from '@lucide/svelte/icons/scroll-text';
-  import type { Icon as IconType } from '@lucide/svelte';
+  import type { LucideIcon } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import { buttonVariants } from '$lib/components/ui/button';
   import * as Popover from '$lib/components/ui/popover';
@@ -59,12 +59,11 @@
     sinceRange ? exportWindow.countIn(sinceRange) : 0,
   );
 
-  const rows: { type: DocType | null; label: string; Icon: typeof IconType }[] =
-    [
-      { type: null, label: 'Tout télécharger', Icon: Archive },
-      { type: 'image-rights', label: "Droits à l'image", Icon: ImageIcon },
-      { type: 'rules', label: 'Règlements co-signés', Icon: ScrollText },
-    ];
+  const rows: { type: DocType | null; label: string; Icon: LucideIcon }[] = [
+    { type: null, label: 'Tout télécharger', Icon: Archive },
+    { type: 'image-rights', label: "Droits à l'image", Icon: ImageIcon },
+    { type: 'rules', label: 'Règlements co-signés', Icon: ScrollText },
+  ];
 
   // Native `download` anchors keep the streamed response (the browser shows its
   // own progress). The toast acknowledges the click, since the server spends a
@@ -84,7 +83,7 @@
   label: string,
   count: number,
   href: string,
-  Icon: typeof IconType,
+  Icon: LucideIcon,
   disabled: boolean,
 )}
   {#if count > 0 && !disabled}

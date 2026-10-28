@@ -7,7 +7,7 @@
   import Users from '@lucide/svelte/icons/users';
   import UsersRound from '@lucide/svelte/icons/users-round';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import type { Icon as IconType } from '@lucide/svelte';
+  import type { LucideIcon } from '@lucide/svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { ADMIN_NAV } from '$lib/components/admin/adminNav';
   import {
@@ -117,7 +117,7 @@
   const staff = $derived(results.filter((r) => r.type === 'staff'));
 </script>
 
-{#snippet personItem(r: PersonResult, Icon: typeof IconType)}
+{#snippet personItem(r: PersonResult, Icon: LucideIcon)}
   <Command.Item onSelect={() => navigateTo(r)} class="gap-3 px-3 py-2.5">
     <Icon class="h-4 w-4 text-muted-foreground" />
     <div class="flex min-w-0 flex-col">
