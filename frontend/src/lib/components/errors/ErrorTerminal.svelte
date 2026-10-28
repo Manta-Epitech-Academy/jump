@@ -4,6 +4,7 @@
   import ServerCrash from '@lucide/svelte/icons/server-crash';
   import Terminal from '@lucide/svelte/icons/terminal';
   import House from '@lucide/svelte/icons/house';
+  import RotateCw from '@lucide/svelte/icons/rotate-cw';
 
   // The branded "system log" error screen, shared by the root and staff error
   // boundaries so every unstyled status (404 / 500 / …) reads the same. The
@@ -19,10 +20,17 @@
 
   const is404 = $derived(page.status === 404);
   const message = $derived(page.error?.message);
-  // A custom 404 message (e.g. "Stagiaire introuvable") is worth surfacing; the
-  // segfault gag is only the fallback for a bare unmatched-route 404 ("Not
-  // Found"), which carries no useful detail.
+  // A message the app wrote (« Stagiaire introuvable ») is worth surfacing.
+  // SvelteKit's own defaults are not: they are English and say nothing.
+  //
+  // The terminal stays, it is the brand's "code as a language", but what it
+  // prints is plain French: it used to answer a lost page with « Segmentation
+  // fault (core dumped) » and a crash with « Veuillez contacter
+  // l'administrateur système », which a recruiter, a parent or a 15-year-old
+  // can do nothing with. The copy is impersonal because talents (tu) and staff
+  // (vous) both land here.
   const genericNotFound = $derived(!message || message === 'Not Found');
+  const genericError = $derived(!message || message === 'Internal Error');
 </script>
 
 <div class="error-container">
@@ -84,27 +92,44 @@
           </span>
           <span>
             {#if is404 && genericNotFound}
-              Segmentation fault (core dumped). L'URL demandée pointe vers une
-              zone mémoire non allouée.
+              Cette page n'existe pas, ou plus : l'adresse est peut-être
+              incomplète.
+            {:else if !is404 && genericError}
+              Un problème est survenu de notre côté.
             {:else}
-              {message || 'Exception non gérée survenue lors du traitement.'}
+              {message}
             {/if}
           </span>
         </div>
         {#if !is404}
           <div class="log-line hint">
             <span class="log-prompt">&gt; hint:</span>
-            <span>Veuillez contacter l'administrateur système.</span>
+            <span
+              >Un nouvel essai dans un instant règle souvent le problème.</span
+            >
           </div>
         {/if}
       </div>
     </div>
 
-    <!-- Action Button -->
-    <a href={homeHref} class="btn-home">
-      <House size={18} />
-      {homeLabel}
-    </a>
+    <!-- Actions: a crash is often passing, so it offers the retry first; a
+         missing page will not come back by reloading it. -->
+    <div class="actions">
+      {#if !is404}
+        <button
+          type="button"
+          class="btn-retry"
+          onclick={() => location.reload()}
+        >
+          <RotateCw size={18} />
+          Réessayer
+        </button>
+      {/if}
+      <a href={homeHref} class="btn-home">
+        <House size={18} />
+        {homeLabel}
+      </a>
+    </div>
   </div>
 </div>
 
@@ -208,11 +233,6 @@
     box-shadow:
       0 20px 25px -5px rgb(0 0 0 / 0.1),
       0 8px 10px -6px rgb(0 0 0 / 0.1);
-    transition: transform 0.2s;
-  }
-
-  .icon-circle:hover {
-    transform: scale(1.05);
   }
 
   .border-404 {
@@ -326,7 +346,9 @@
     color: #ffffff;
     text-decoration: none;
     box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    transition: all 0.2s;
+    transition:
+      background-color 0.2s,
+      transform 0.2s;
     border: none;
     cursor: pointer;
   }
@@ -334,5 +356,48 @@
   .btn-home:hover {
     background-color: color-mix(in srgb, var(--epi-blue) 90%, transparent);
     transform: translateY(-2px);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .btn-retry {
+    display: inline-flex;
+    height: 3rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    padding: 0 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-color);
+    transition: background-color 0.2s;
+    cursor: pointer;
+  }
+
+  .btn-retry:hover {
+    background-color: var(--muted-bg);
+  }
+
+  /* The glow breathes forever and the button lifts: neither carries meaning,
+     so neither moves for someone who asked for less motion. */
+  @media (prefers-reduced-motion: reduce) {
+    .glow {
+      animation: none;
+    }
+    .btn-home,
+    .btn-retry {
+      transition: none;
+    }
+    .btn-home:hover {
+      transform: none;
+    }
   }
 </style>
