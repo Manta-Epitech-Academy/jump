@@ -20,7 +20,7 @@ import {
   IMAGE_RIGHTS_DISPLAY_LABELS,
 } from '$lib/domain/imageRights';
 import { buildXlsx } from '$lib/server/xlsx';
-import { loadInscritsCohort } from '../rows';
+import { loadInscritsCohort } from '$lib/server/services/inscritsCohort';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 

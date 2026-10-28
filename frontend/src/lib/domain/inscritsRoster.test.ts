@@ -6,8 +6,8 @@ import {
   rosterFacets,
   type RosterContext,
   type RosterFacet,
-} from './roster';
-import type { InscritRow } from './types';
+  type InscritRow,
+} from './inscritsRoster';
 
 /**
  * The Inscrits filters, checked against a small cohort. What a dev relies on:

@@ -3,7 +3,9 @@ import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
 import {
   INSCRIT_STATUS_LABELS,
   type InscritStatus,
+  type RulesStatus,
 } from '$lib/domain/dossierCompliance';
+import type { ImageRightsStatus } from '$lib/domain/imageRights';
 import {
   PARCOURS_BUCKETS,
   PARCOURS_BUCKET_LABELS,
@@ -13,10 +15,60 @@ import {
   INSCRITS_FACETS,
   INSCRITS_NONE,
   type InscritsFacet,
+  type InscritsSortKey,
   type InscritsView,
 } from '$lib/domain/inscritsView';
-import type { FacetOption } from '$lib/components/staff/datatable/types';
-import type { InscritRow, SortKey } from './types';
+
+/** An interest as a row carries it: enough for a chip and a filter value. */
+export type InscritInterest = { id: string; nom: string; emoji: string | null };
+
+/** One roster row of an event, as the Inscrits page lists it and the event
+ *  home counts it. `id` is the participation id (stable row key). */
+export type InscritRow = {
+  id: string;
+  talentId: string;
+  nom: string;
+  prenom: string;
+  civilite: string | null;
+  niveau: string | null;
+  schoolId: string | null;
+  schoolName: string | null;
+  // Cumulative XP, drives the sortable XP column + its explainer tooltip.
+  xp: number;
+  // Enrolments on the campus at earlier events: the Parcours column
+  // (`$lib/domain/enrolmentHistory`).
+  priorEnrolments: number;
+  // Declared tech interests, in the catalogue's own order.
+  techInterests: InscritInterest[];
+  // Folded three-state funnel status (jamais / en cours / prêt); see
+  // `inscritStatus`. Drives the badge, the statut filter and the sort.
+  status: InscritStatus;
+  // Whether the talent ever genuinely logged in: gates the status above and
+  // drives the tooltip's Connexion line.
+  connected: boolean;
+  // Per-document dossier states behind the status badge: drive its tooltip
+  // breakdown and feed the fold above.
+  rulesStatus: RulesStatus;
+  imageStatus: ImageRightsStatus;
+  // The student's own online signature (`rulesSignedAt != null`), the act that
+  // invites the guardian. Splits an undecided image into "awaiting parent" vs
+  // "pending" in the tooltip; distinct from `rulesStatus === 'signed'`, which a
+  // staff offline attestation can reach without ever inviting a parent.
+  studentSigned: boolean;
+  // Search haystack extras (not shown as columns).
+  email: string | null;
+  sfMemberStatus: string | null;
+};
+
+/** The cohort payload streamed behind the Inscrits page shell's `{#await}`:
+ *  everything that needs the DB. */
+export type InscritsCohort = {
+  rows: InscritRow[];
+};
+
+/** One value of a facet with how many inscrits carry it. The shape a column's
+ *  filter menu lists, and the one a card of the event home draws. */
+export type FacetCount = { value: string; label: string; count: number };
 
 /**
  * What the Inscrits table filters and sorts on, kept out of the component so
@@ -61,7 +113,7 @@ export type RosterFacet = {
   /** The column's label, and the chip's "Clé :". */
   title: string;
   /** Empty when the facet cannot narrow the list (one value or none). */
-  options: FacetOption[];
+  options: FacetCount[];
   /** The ticked values the cohort carries (see "ignored" above). */
   selected: string[];
 };
@@ -160,6 +212,28 @@ const FACETS: Record<InscritsFacet, FacetDef> = {
   },
 };
 
+/**
+ * Every value of a facet the cohort carries, with how many inscrits carry it,
+ * in the order its menu lists them. The one count the Inscrits filters and the
+ * event home's cards share, so a card's part always names a value the filter it
+ * opens recognises. Unlike a filter, it keeps a facet whose cohort carries a
+ * single value: a card still has that one part to show.
+ */
+export function facetTally(
+  rows: InscritRow[],
+  facet: InscritsFacet,
+): FacetCount[] {
+  const def = FACETS[facet];
+  const counts = new Map<string, number>();
+  for (const row of rows)
+    for (const value of def.valuesOf(row))
+      counts.set(value, (counts.get(value) ?? 0) + 1);
+  return def
+    .vocabulary(rows)
+    .filter(([value]) => (counts.get(value) ?? 0) > 0)
+    .map(([value, label]) => ({ value, label, count: counts.get(value) ?? 0 }));
+}
+
 /** The facets the campus offers, each with its counted values and what the
  *  view ticks in it. */
 export function rosterFacets(
@@ -169,19 +243,7 @@ export function rosterFacets(
 ): RosterFacet[] {
   return INSCRITS_FACETS.filter((facet) => FACETS[facet].available(ctx)).map(
     (facet) => {
-      const def = FACETS[facet];
-      const counts = new Map<string, number>();
-      for (const row of rows)
-        for (const value of def.valuesOf(row))
-          counts.set(value, (counts.get(value) ?? 0) + 1);
-      const options = def
-        .vocabulary(rows)
-        .filter(([value]) => (counts.get(value) ?? 0) > 0)
-        .map(([value, label]) => ({
-          value,
-          label,
-          count: counts.get(value) ?? 0,
-        }));
+      const options = facetTally(rows, facet);
       // One value cannot narrow anything (every inscrit has it), so such a
       // facet is not offered as a filter and its param is ignored.
       const offered = new Set(
@@ -189,7 +251,7 @@ export function rosterFacets(
       );
       return {
         facet,
-        title: def.title,
+        title: FACETS[facet].title,
         options: options.length > 1 ? options : [],
         selected: view.facets[facet].filter((v) => offered.has(v)),
       };
@@ -209,7 +271,7 @@ export function matchesFacets(row: InscritRow, facets: RosterFacet[]): boolean {
 export function compareRows(
   a: InscritRow,
   b: InscritRow,
-  key: SortKey,
+  key: InscritsSortKey,
 ): number {
   switch (key) {
     case 'prenom':

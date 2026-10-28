@@ -19,8 +19,8 @@ import {
 import { effectiveStartMinutes } from '$lib/domain/event';
 import { composeEventStartInstant } from '$lib/server/eventTime';
 import { stageCountdown } from '$lib/domain/eventPresence';
-import { loadInscritsCohort } from './rows';
-import type { InscritsCohort } from './components/types';
+import { loadInscritsCohort } from '$lib/server/services/inscritsCohort';
+import type { InscritsCohort } from '$lib/domain/inscritsRoster';
 
 // The load reads nothing off the address on purpose. The page's filters, sort
 // and search all live in the querystring (`$lib/domain/inscritsView`) and are

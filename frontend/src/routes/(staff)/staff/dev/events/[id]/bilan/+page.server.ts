@@ -5,13 +5,12 @@ import { env } from '$env/dynamic/private';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import {
   computeFormStats,
-  loadCohortSubmissions,
   recoQuestionOf,
   type FormStats,
 } from '$lib/server/feedbackStats';
+import { loadFeedbackRoster } from '$lib/server/services/feedbackRoster';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
 import { feedbackFormPath } from '$lib/domain/feedback';
 
@@ -63,39 +62,25 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const recoLabelOf = new Map(reco?.options.map((o) => [o.id, o.label]));
 
   const cohort: Promise<BilanCohort> = (async () => {
-    const [participations, byTalent, stats] = await Promise.all([
-      // The roster the dev space shows, so `total` counts the same cohort as
-      // the admin response rate's `invitedCount`, and the submissions and
-      // figures beside it are that cohort's (`shownCohortOf`).
-      db.participation.findMany({
-        where: { eventId: event.id, ...visibleParticipationWhere },
-        select: {
-          talentId: true,
-          talent: { select: { nom: true, prenom: true } },
-        },
-        orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-      }),
-      loadCohortSubmissions(form.id, event.id, reco),
+    const [roster, stats] = await Promise.all([
+      loadFeedbackRoster(db, event.id, form.id, reco),
       computeFormStats(form.id, { shownCohortOf: event.id }),
     ]);
 
-    const rows: BilanRow[] = participations.map((p) => {
-      const sub = byTalent.get(p.talentId);
-      return {
-        talentId: p.talentId,
-        nom: p.talent.nom,
-        prenom: p.talent.prenom,
-        respondedAt: sub ? sub.submittedAt.toISOString() : null,
-        recoLabel: sub?.recoOptionId
-          ? (recoLabelOf.get(sub.recoOptionId) ?? null)
-          : null,
-      };
-    });
+    const rows: BilanRow[] = roster.rows.map((r) => ({
+      talentId: r.talentId,
+      nom: r.nom,
+      prenom: r.prenom,
+      respondedAt: r.respondedAt?.toISOString() ?? null,
+      recoLabel: r.recoOptionId
+        ? (recoLabelOf.get(r.recoOptionId) ?? null)
+        : null,
+    }));
 
     return {
       rows,
-      respondedCount: rows.filter((r) => r.respondedAt).length,
-      total: rows.length,
+      respondedCount: roster.respondedCount,
+      total: roster.total,
       recoOptions: reco?.options.map((o) => o.label) ?? [],
       stats,
     };
