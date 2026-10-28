@@ -287,8 +287,8 @@ const TOOL_LIST_BUDGET = [
   // answered for the activities' sibling entities), plus the level, notions and
   // domains as fields of write_workshop. Raised again for the supervisor code
   // (#459), a field of write_workshop_instance rather than a tool, since it is
-  // the host's.
-  ['core, write-enabled', coreWriter, 93_600],
+  // the host's, and a condition of the catalogue write_workshop states.
+  ['core, write-enabled', coreWriter, 93_700],
 ] as const;
 
 describe('what a client loads up front', () => {

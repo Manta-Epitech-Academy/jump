@@ -86,11 +86,13 @@ export const WorkshopCatalogueService = {
         level: row.level,
         domainCount: row.domains.length,
         pictureCount: row.coverImages.length,
+        supervisorCode: row.instance.supervisorCode,
       });
       if (gaps.length > 0) return [];
       const picture = thumbnailOf(row.coverImages);
+      const { supervisorCode } = row.instance;
       // Narrowing only: `catalogueGaps` has already required each of them.
-      if (!row.tagline || !row.level || !picture) return [];
+      if (!row.tagline || !row.level || !picture || !supervisorCode) return [];
       return [
         {
           slug: row.slug,
@@ -104,12 +106,10 @@ export const WorkshopCatalogueService = {
             width: picture.width,
             height: picture.height,
           },
-          supervisor: row.instance.supervisorCode
-            ? {
-                code: row.instance.supervisorCode,
-                joinUrl: supervisorJoinUrl(row.instance.baseUrl),
-              }
-            : null,
+          supervisor: {
+            code: supervisorCode,
+            joinUrl: supervisorJoinUrl(row.instance.baseUrl),
+          },
         },
       ];
     });

@@ -4,6 +4,7 @@ import { prisma } from '$lib/server/db';
 import { WorkshopCatalogueService } from '$lib/server/services/workshopCatalogue';
 import { stillKeyOf } from '$lib/domain/pictures';
 import { workshopCoverKey, workshopCoverUrl } from '$lib/domain/workshops';
+import type { CatalogueGap } from '$lib/domain/workshopCatalogue';
 import { assertTestDatabase } from './testDatabase';
 
 /**
@@ -18,17 +19,19 @@ describe('the subject catalogue (integration)', () => {
   const domainKey = `catalogue-${stamp}`;
   const archivedKey = `catalogue-archive-${stamp}`;
   let instanceId = '';
+  /** A host Jump holds no supervisor code for. */
+  let closedInstanceId = '';
 
   /** A complete subject, less whatever `without` names. */
   async function subject(
     name: string,
-    without: 'enabled' | 'tagline' | 'level' | 'domains' | 'picture' | null,
+    without: CatalogueGap | null,
     domains: string[] = [domainKey],
   ) {
     const data: Prisma.Workshop_ActivityUncheckedCreateInput = {
       slug: slug(name),
       label: `Sujet ${name}`,
-      instanceId,
+      instanceId: without === 'supervisorCode' ? closedInstanceId : instanceId,
       enabled: without !== 'enabled',
       tagline: without === 'tagline' ? null : `Accroche ${name}`,
       level: without === 'level' ? null : 'beginner',
@@ -64,6 +67,15 @@ describe('the subject catalogue (integration)', () => {
         data: {
           slug: `catalogue-host-${stamp}`,
           baseUrl: 'https://catalogue.ctfd.invalid',
+          supervisorCode: 'CODE-2026',
+        },
+      })
+    ).id;
+    closedInstanceId = (
+      await prisma.workshop_Instance.create({
+        data: {
+          slug: `catalogue-closed-host-${stamp}`,
+          baseUrl: 'https://catalogue-closed.ctfd.invalid',
         },
       })
     ).id;
@@ -85,6 +97,7 @@ describe('the subject catalogue (integration)', () => {
       'level',
       'domains',
       'picture',
+      'supervisorCode',
     ] as const) {
       await subject(`sans-${gap}`, gap);
     }
@@ -92,8 +105,13 @@ describe('the subject catalogue (integration)', () => {
 
   afterAll(async () => {
     try {
-      await prisma.workshop_Activity.deleteMany({ where: { instanceId } });
-      await prisma.workshop_Instance.deleteMany({ where: { id: instanceId } });
+      const instances = [instanceId, closedInstanceId];
+      await prisma.workshop_Activity.deleteMany({
+        where: { instanceId: { in: instances } },
+      });
+      await prisma.workshop_Instance.deleteMany({
+        where: { id: { in: instances } },
+      });
       await prisma.workshop_Domain.deleteMany({
         where: { key: { in: [domainKey, archivedKey] } },
       });
@@ -128,17 +146,9 @@ describe('the subject catalogue (integration)', () => {
     );
   });
 
-  it("shows its instance's supervisor code and join page, and the subject without one", async () => {
-    const complete = async () =>
-      (await shown()).find((s) => s.slug === slug('complet'))!;
-    expect((await complete()).supervisor).toBeNull();
-
-    await prisma.workshop_Instance.update({
-      where: { id: instanceId },
-      data: { supervisorCode: 'CODE-2026' },
-    });
-
-    expect((await complete()).supervisor).toEqual({
+  it("carries its instance's supervisor code and the page that takes it", async () => {
+    const complete = (await shown()).find((s) => s.slug === slug('complet'))!;
+    expect(complete.supervisor).toEqual({
       code: 'CODE-2026',
       joinUrl: 'https://catalogue.ctfd.invalid/supervisor/join',
     });

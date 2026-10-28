@@ -17,7 +17,9 @@
  * has to show or hide: a complete subject in two domains, one with no notions,
  * one that keeps an archived domain, an offered one still missing its tagline
  * and pictures (hidden), and the retired one with no level (hidden). Together
- * they carry every `WorkshopLevel`, which `assert/enums.ts` asks for.
+ * they carry every `WorkshopLevel`, which `assert/enums.ts` asks for. The
+ * shown ones sit on two hosts with two supervisor codes, so the cards show the
+ * code is the host's; the third host, serving only a hidden subject, has none.
  *
  * Each carries the cover an admin would have written with `write_workshop`,
  * in the three shapes the dashboard has to render: a full one (tagline,
@@ -69,7 +71,7 @@ export type WorkshopInstanceSpec = {
   readonly baseUrl: string;
   /**
    * The code its catalogue cards show; null for a host Jump holds none for,
-   * whose subjects are shown without one.
+   * whose subjects the catalogue keeps off.
    */
   readonly supervisorCode: string | null;
 };
@@ -79,7 +81,7 @@ export const WORKSHOP_INSTANCES = {
   season: {
     slug: 'ctfd-saison',
     baseUrl: 'https://saison.ctfd.invalid',
-    supervisorCode: null,
+    supervisorCode: 'SAISON-SUPERVISION-2026',
   },
   santa: {
     slug: 'ctfd-santa',

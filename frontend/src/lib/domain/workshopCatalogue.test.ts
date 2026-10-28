@@ -14,6 +14,7 @@ const complete: CatalogueCompleteness = {
   level: 'beginner',
   domainCount: 1,
   pictureCount: 1,
+  supervisorCode: 'CODE-2026',
 };
 
 describe('catalogueGaps', () => {
@@ -29,10 +30,21 @@ describe('catalogueGaps', () => {
         level: null,
         domainCount: 0,
         pictureCount: 0,
+        supervisorCode: null,
       }),
-    ).toEqual(['enabled', 'tagline', 'level', 'domains', 'picture']);
+    ).toEqual([
+      'enabled',
+      'tagline',
+      'level',
+      'domains',
+      'picture',
+      'supervisorCode',
+    ]);
     expect(catalogueGaps({ ...complete, pictureCount: 0 })).toEqual([
       'picture',
+    ]);
+    expect(catalogueGaps({ ...complete, supervisorCode: null })).toEqual([
+      'supervisorCode',
     ]);
   });
 });

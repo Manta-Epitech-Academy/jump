@@ -10,8 +10,9 @@ import type { WorkshopCoverKind } from './workshops';
 // themselves, `write_workshop_domain`.
 //
 // A subject is shown only once it is complete. A card with no tagline or no
-// picture tells a team nothing to choose on, and the catalogue is better empty
-// than filled with blanks, so the rule is decided here, once, and read twice:
+// picture tells a team nothing to choose on, and one with no supervisor code
+// leaves the mantas running it at a closed door (#459): the catalogue is better
+// empty than filled with blanks, so the rule is decided here, once, and read twice:
 // the page keeps the complete subjects, and `config_workshops` tells the admin
 // what each other one lacks.
 
@@ -70,9 +71,13 @@ export function cleanNotions(notions: readonly string[]): string[] {
   return kept;
 }
 
-/** What a subject can lack, named after the field of `write_workshop` that fills it. */
+/**
+ * What a subject can lack, named after the field that fills it: a field of
+ * `write_workshop`, or for `supervisorCode` of `write_workshop_instance`, since
+ * the code is its instance's.
+ */
 export type CatalogueGap =
-  'enabled' | 'tagline' | 'level' | 'domains' | 'picture';
+  'enabled' | 'tagline' | 'level' | 'domains' | 'picture' | 'supervisorCode';
 
 export type CatalogueCompleteness = {
   enabled: boolean;
@@ -80,12 +85,15 @@ export type CatalogueCompleteness = {
   level: WorkshopLevel | null;
   domainCount: number;
   pictureCount: number;
+  /** Its instance's. */
+  supervisorCode: string | null;
 };
 
 /**
  * What keeps a subject out of the catalogue; empty when it is shown. Offered,
- * with a tagline, a level, at least one domain and at least one picture. The
- * notions are not asked for: a card without them drops that line.
+ * with a tagline, a level, at least one domain, at least one picture, and an
+ * instance holding a supervisor code. The notions are not asked for: a card
+ * without them drops that line.
  */
 export function catalogueGaps(subject: CatalogueCompleteness): CatalogueGap[] {
   const gaps: CatalogueGap[] = [];
@@ -94,6 +102,7 @@ export function catalogueGaps(subject: CatalogueCompleteness): CatalogueGap[] {
   if (!subject.level) gaps.push('level');
   if (subject.domainCount === 0) gaps.push('domains');
   if (subject.pictureCount === 0) gaps.push('picture');
+  if (!subject.supervisorCode) gaps.push('supervisorCode');
   return gaps;
 }
 
@@ -130,12 +139,8 @@ export type CatalogueSubject = {
   notions: string[];
   /** Always a still: the mascot, the chosen still or the visual's first frame. */
   thumbnail: { url: string; width: number; height: number };
-  /**
-   * How the staff supervise it: its instance's code and the page that takes it.
-   * Null when Jump holds no code for the instance, which is not a gap: the
-   * subject is still shown, without the code and the link to a closed door.
-   */
-  supervisor: CatalogueSupervisor | null;
+  /** How the staff supervise it: its instance's code and the page that takes it. */
+  supervisor: CatalogueSupervisor;
 };
 
 export type CatalogueSupervisor = { code: string; joinUrl: string };

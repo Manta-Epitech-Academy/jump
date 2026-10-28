@@ -1807,8 +1807,13 @@ describe('admin API writes (integration)', () => {
         domains: [cyber],
       });
       const read = await activityRead();
-      // No tagline and no picture yet: the catalogue does not show it.
-      expect(read.missingForCatalogue).toEqual(['tagline', 'picture']);
+      // No tagline, no picture and no code on its instance yet: the catalogue
+      // does not show it.
+      expect(read.missingForCatalogue).toEqual([
+        'tagline',
+        'picture',
+        'supervisorCode',
+      ]);
 
       const echoed = await call(postWorkshop, writeSecret, {
         slug: subject,
