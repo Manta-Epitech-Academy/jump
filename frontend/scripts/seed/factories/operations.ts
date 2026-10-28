@@ -265,6 +265,7 @@ export function addErasedTalent(world: World, erasedAt: Date): TalentRef {
     niveau: null,
     campusId: null,
     parentEmail: null,
+    declaredCivilite: null,
   };
 }
 

@@ -47,7 +47,7 @@ export const campusHome: Scenario = {
     });
 
     const talent = world.addTalent({
-      prenom: 'Inès',
+      person: { prenom: 'Inès', civilite: 'femme' },
       nom: 'Vitrine',
       niveau: '2nde',
       campus,

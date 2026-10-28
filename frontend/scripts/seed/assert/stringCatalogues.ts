@@ -32,6 +32,7 @@
 
 import type { PrismaClient } from '@prisma/client';
 import { NIVEAUX } from '../../../src/lib/domain/niveau';
+import { CIVILITE_OPTIONS } from '../../../src/lib/domain/profile';
 import { EVENT_MODULE_KEYS } from '../../../src/lib/domain/eventModules';
 import { EMAIL_ACTION_KEYS } from '../../../src/lib/domain/emailActions';
 import { USAGE_FEATURE_KEYS } from '../../../src/lib/domain/usage';
@@ -111,6 +112,25 @@ const CATALOGUES: readonly Catalogue[] = [
       },
     ],
     values: () => NIVEAUX,
+    requireEveryValue: true,
+  },
+  {
+    // One vocabulary over the talent, the guardians and the mirror. « Autre »
+    // is the value this is really for: one talent in 6 283 in production, so
+    // it is placed rather than drawn, and every reader of the column branches
+    // on it.
+    vocabulary: 'civilité',
+    columns: [
+      { table: 'Talent', field: 'civilite', ownedBy: BY_ID },
+      { table: 'Talent', field: 'parentCivilite', ownedBy: BY_ID },
+      { table: 'Talent', field: 'parent2Civilite', ownedBy: BY_ID },
+      {
+        table: 'TalentSfImport',
+        field: 'civilite',
+        ownedBy: `"talentId" LIKE 'sd_%'`,
+      },
+    ],
+    values: () => CIVILITE_OPTIONS.map((option) => option.value),
     requireEveryValue: true,
   },
   {

@@ -317,6 +317,47 @@ export async function reachabilityFailures(
     );
   }
 
+  // A talent's civility, as its two writers leave it. The identity step
+  // requires one (`identitySchema`), so a talent past it always holds one. The
+  // sync maps Salesforce's binary gender (`mapGender`), so the mirror never
+  // holds « autre », and it re-seeds the talent's column until the talent
+  // confirms, so before that the two agree. The first is a state the generator
+  // used to produce, on 30% of the dossiers past that step; the other two hold
+  // the model that replaced it, where the talent's column starts as
+  // Salesforce's claim.
+  const civiliteRows = await prisma.$queryRaw<
+    { unanswered: number; nonBinaryMirror: number; unconfirmedDrift: number }[]
+  >`
+    SELECT
+      COUNT(*) FILTER (
+        WHERE t."infoValidatedAt" IS NOT NULL AND t."civilite" IS NULL
+      )::int AS "unanswered",
+      COUNT(*) FILTER (
+        WHERE s."civilite" IS NOT NULL AND s."civilite" NOT IN ('homme', 'femme')
+      )::int AS "nonBinaryMirror",
+      COUNT(*) FILTER (
+        WHERE s."talentId" IS NOT NULL
+          AND t."infoValidatedAt" IS NULL
+          AND t."civilite" IS DISTINCT FROM s."civilite"
+      )::int AS "unconfirmedDrift"
+    FROM "Talent" t
+    LEFT JOIN "TalentSfImport" s ON s."talentId" = t."id"
+    WHERE t."id" LIKE 'sd_%'
+  `;
+  const civilites = civiliteRows[0]!;
+  if (civilites.unanswered > 0)
+    failures.push(
+      `${civilites.unanswered} talents ont validé l'étape Identité sans civilité, que l'étape exige`,
+    );
+  if (civilites.nonBinaryMirror > 0)
+    failures.push(
+      `${civilites.nonBinaryMirror} miroirs Salesforce portent une civilité que Salesforce ne peut pas envoyer`,
+    );
+  if (civilites.unconfirmedDrift > 0)
+    failures.push(
+      `${civilites.unconfirmedDrift} talents sans étape Identité validée ont une autre civilité que leur miroir, que la synchronisation recopie pourtant`,
+    );
+
   // The Salesforce member statuses, and what each event's dev space does with
   // them.
   //
