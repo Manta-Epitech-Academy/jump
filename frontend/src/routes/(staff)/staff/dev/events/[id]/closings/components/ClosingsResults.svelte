@@ -287,6 +287,7 @@
       <ActiveFilterChips {chips} onReset={resetFilters} />
 
       <SortableTable
+        onResetFilters={anyFiltersApplied ? resetFilters : undefined}
         {columns}
         rows={filtered}
         sortKey={view.sort}
@@ -376,16 +377,6 @@
                 <ClosingVerdictChip recommendation={verdict} short />
               {/if}
             </div>
-          </div>
-        {/snippet}
-
-        {#snippet empty()}
-          <div class="flex flex-col items-center gap-3 py-6">
-            <span
-              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-            >
-              Aucun résultat
-            </span>
           </div>
         {/snippet}
       </SortableTable>

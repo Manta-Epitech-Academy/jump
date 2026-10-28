@@ -3,11 +3,13 @@
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import Funnel from '@lucide/svelte/icons/funnel';
+  import StickyNote from '@lucide/svelte/icons/sticky-note';
   import { Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import type { ColumnDef } from '$lib/components/staff/datatable/types';
   import SearchableSelect from '$lib/components/staff/SearchableSelect.svelte';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
@@ -18,6 +20,7 @@
   import {
     goToListPage,
     setListParams,
+    resetListParams,
   } from '$lib/components/staff/datatable/urlList';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
 
@@ -47,6 +50,11 @@
   const hasFilters = $derived(
     !!(filterState.q || filterState.campusIds.length || filterState.author),
   );
+
+  function resetFilters() {
+    search.clear();
+    resetListParams();
+  }
 
   const campusOptions = $derived(
     campuses.map((c) => ({ value: c.id, label: c.name })),
@@ -133,124 +141,125 @@
     {/snippet}
   </DataTableToolbar>
 
-  <SortableTable
-    {columns}
-    rows={notes}
-    sortKey={filterState.sort}
-    sortDir={filterState.dir}
-    onSort={toggleSort}
-    rowKey={(n) => n.id}
-  >
-    {#snippet row(note)}
-      <Table.Cell>
-        <a
-          href={adminTalentHref(note.talent)}
-          class="inline-flex max-w-full transition-opacity hover:opacity-80"
-          title="Voir le talent dans l'annuaire"
-        >
-          <StudentAvatarItem
-            student={note.talent}
-            subText={note.campus}
-            courtesyTitle={civiliteCourtesyTitle(note.talent.civilite)}
-          />
-        </a>
-      </Table.Cell>
-      <Table.Cell class="py-2">
-        <p class="text-sm whitespace-pre-wrap">{note.body}</p>
-        {#if note.eventTitre}
-          <p
-            class="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground"
-          >
-            <CalendarDays class="h-3 w-3 shrink-0" />
-            <span class="truncate">{note.eventTitre}</span>
-          </p>
-        {/if}
-      </Table.Cell>
-      <Table.Cell class="text-sm whitespace-nowrap text-muted-foreground">
-        {#if note.author}
-          {note.author.name ?? 'Staff'}
-        {:else}
-          <span class="italic">Auteur inconnu</span>
-        {/if}
-      </Table.Cell>
-      <Table.Cell class="text-sm whitespace-nowrap text-muted-foreground">
-        {when(note.createdAt, note.timezone)}
-        {#if note.edited}
-          <span class="block text-xs">
-            modifié{note.editedByName ? ` par ${note.editedByName}` : ''} le {when(
-              note.updatedAt,
-              note.timezone,
-            )}
-          </span>
-        {/if}
-      </Table.Cell>
-      <Table.Cell class="text-right">
-        <Button
-          size="icon"
-          variant="ghost"
-          class="h-7 w-7 rounded-sm text-muted-foreground opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 hover:text-destructive"
-          onclick={() => requestDelete(note.id)}
-          aria-label="Supprimer la note"
-        >
-          <Trash2 class="h-3.5 w-3.5" />
-        </Button>
-      </Table.Cell>
-    {/snippet}
-
-    {#snippet mobileRow(note)}
-      <div class="space-y-1.5">
-        <div class="flex items-start justify-between gap-2">
+  {#if notes.length === 0 && !hasFilters}
+    <ResultsNotice
+      icon={StickyNote}
+      title="Aucune note"
+      description="Les notes que l'équipe dev écrit sur les talents apparaîtront ici."
+    />
+  {:else}
+    <SortableTable
+      {columns}
+      rows={notes}
+      sortKey={filterState.sort}
+      sortDir={filterState.dir}
+      onSort={toggleSort}
+      rowKey={(n) => n.id}
+      onResetFilters={hasFilters ? resetFilters : undefined}
+    >
+      {#snippet row(note)}
+        <Table.Cell>
           <a
             href={adminTalentHref(note.talent)}
-            class="min-w-0 transition-opacity hover:opacity-80"
+            class="inline-flex max-w-full transition-opacity hover:opacity-80"
             title="Voir le talent dans l'annuaire"
           >
             <StudentAvatarItem
               student={note.talent}
               subText={note.campus}
               courtesyTitle={civiliteCourtesyTitle(note.talent.civilite)}
-              size="sm"
             />
           </a>
+        </Table.Cell>
+        <Table.Cell class="py-2">
+          <p class="text-sm whitespace-pre-wrap">{note.body}</p>
+          {#if note.eventTitre}
+            <p
+              class="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground"
+            >
+              <CalendarDays class="h-3 w-3 shrink-0" />
+              <span class="truncate">{note.eventTitre}</span>
+            </p>
+          {/if}
+        </Table.Cell>
+        <Table.Cell class="text-sm whitespace-nowrap text-muted-foreground">
+          {#if note.author}
+            {note.author.name ?? 'Staff'}
+          {:else}
+            <span class="italic">Auteur inconnu</span>
+          {/if}
+        </Table.Cell>
+        <Table.Cell class="text-sm whitespace-nowrap text-muted-foreground">
+          {when(note.createdAt, note.timezone)}
+          {#if note.edited}
+            <span class="block text-xs">
+              modifié{note.editedByName ? ` par ${note.editedByName}` : ''} le {when(
+                note.updatedAt,
+                note.timezone,
+              )}
+            </span>
+          {/if}
+        </Table.Cell>
+        <Table.Cell class="text-right">
           <Button
             size="icon"
             variant="ghost"
-            class="h-7 w-7 shrink-0 rounded-sm text-muted-foreground hover:text-destructive"
+            class="h-7 w-7 rounded-sm text-muted-foreground opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 hover:text-destructive"
             onclick={() => requestDelete(note.id)}
             aria-label="Supprimer la note"
           >
             <Trash2 class="h-3.5 w-3.5" />
           </Button>
-        </div>
-        <p class="text-sm whitespace-pre-wrap">{note.body}</p>
-        {#if note.eventTitre}
-          <p class="flex items-center gap-1 text-xs text-muted-foreground">
-            <CalendarDays class="h-3 w-3 shrink-0" />
-            <span class="truncate">{note.eventTitre}</span>
+        </Table.Cell>
+      {/snippet}
+
+      {#snippet mobileRow(note)}
+        <div class="space-y-1.5">
+          <div class="flex items-start justify-between gap-2">
+            <a
+              href={adminTalentHref(note.talent)}
+              class="min-w-0 transition-opacity hover:opacity-80"
+              title="Voir le talent dans l'annuaire"
+            >
+              <StudentAvatarItem
+                student={note.talent}
+                subText={note.campus}
+                courtesyTitle={civiliteCourtesyTitle(note.talent.civilite)}
+                size="sm"
+              />
+            </a>
+            <Button
+              size="icon"
+              variant="ghost"
+              class="h-7 w-7 shrink-0 rounded-sm text-muted-foreground hover:text-destructive"
+              onclick={() => requestDelete(note.id)}
+              aria-label="Supprimer la note"
+            >
+              <Trash2 class="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <p class="text-sm whitespace-pre-wrap">{note.body}</p>
+          {#if note.eventTitre}
+            <p class="flex items-center gap-1 text-xs text-muted-foreground">
+              <CalendarDays class="h-3 w-3 shrink-0" />
+              <span class="truncate">{note.eventTitre}</span>
+            </p>
+          {/if}
+          <p class="text-xs text-muted-foreground">
+            {#if note.author}{note.author.name ?? 'Staff'}{:else}<span
+                class="italic">Auteur inconnu</span
+              >{/if} · {when(note.createdAt, note.timezone)}
           </p>
-        {/if}
-        <p class="text-xs text-muted-foreground">
-          {#if note.author}{note.author.name ?? 'Staff'}{:else}<span
-              class="italic">Auteur inconnu</span
-            >{/if} · {when(note.createdAt, note.timezone)}
-        </p>
-      </div>
-    {/snippet}
+        </div>
+      {/snippet}
+    </SortableTable>
 
-    {#snippet empty()}
-      <span class="text-sm text-muted-foreground">
-        {hasFilters
-          ? 'Aucune note ne correspond aux filtres.'
-          : 'Aucune note pour le moment.'}
-      </span>
-    {/snippet}
-  </SortableTable>
-
-  <Pagination
-    page={filterState.page}
-    {totalPages}
-    onPageChange={goToListPage}
-  />
+    <Pagination
+      page={filterState.page}
+      {totalPages}
+      onPageChange={goToListPage}
+    />
+  {/if}
 </div>
 
 <ConfirmDeleteDialog

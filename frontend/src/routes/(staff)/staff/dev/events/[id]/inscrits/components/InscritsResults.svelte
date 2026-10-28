@@ -467,6 +467,7 @@
          than spinning up one provider per cohort row (~200 at full stage). -->
     <Tooltip.Provider delayDuration={150}>
       <SortableTable
+        onResetFilters={anyFiltersApplied ? resetFilters : undefined}
         {columns}
         rows={filtered}
         sortKey={view.sort}
@@ -646,26 +647,6 @@
                 </Badge>
               {/if}
             </div>
-          </div>
-        {/snippet}
-
-        {#snippet empty()}
-          <div class="flex flex-col items-center gap-3 py-6">
-            <span
-              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-            >
-              Aucun résultat
-            </span>
-            {#if anyFiltersApplied}
-              <Button
-                variant="outline"
-                size="sm"
-                onclick={resetFilters}
-                class="rounded-sm"
-              >
-                Réinitialiser les filtres
-              </Button>
-            {/if}
           </div>
         {/snippet}
       </SortableTable>

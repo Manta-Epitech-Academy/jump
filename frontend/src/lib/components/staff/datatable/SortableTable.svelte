@@ -13,6 +13,8 @@
   import * as Table from '$lib/components/ui/table';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import { Checkbox } from '$lib/components/ui/checkbox';
+  import { Button } from '$lib/components/ui/button';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import { cn } from '$lib/utils';
   import type { ColumnDef, SortDir } from './types';
   import ColumnFilterButton from './ColumnFilterButton.svelte';
@@ -36,7 +38,7 @@
     rowLabel,
     onRowClick,
     row,
-    empty,
+    onResetFilters,
     headerClass = 'bg-muted/50',
     stickyHeader = false,
     layout = 'auto',
@@ -76,8 +78,13 @@
     onRowClick?: (row: T, index: number) => void;
     /** Renders the `<Table.Cell>`s for a row. */
     row: Snippet<[T, number]>;
-    /** Optional custom empty state (defaults to a muted "Aucun résultat"). */
-    empty?: Snippet;
+    /**
+     * Pass it only while a filter or a search is applied: a table filtered
+     * down to no rows then offers to clear them. A list with nothing in it at
+     * all is a different state, and not this component's: the page shows a
+     * `ResultsNotice` in place of the table, saying what will come.
+     */
+    onResetFilters?: () => void;
     headerClass?: string;
     /**
      * Freeze the header as the page scrolls, desktop only (`lg+`). There, the
@@ -186,8 +193,24 @@
   }
 </script>
 
+<!-- What every staff table says when its rows are filtered down to none. It
+     used to be a snippet each page wrote for itself, eleven times, and one of
+     them (Closings) had lost the reset its siblings offer. -->
+{#snippet noMatch()}
+  <div class="flex flex-col items-center gap-3 py-6">
+    <p class="epi-overline text-muted-foreground">
+      Aucun résultat<TitleCursor />
+    </p>
+    {#if onResetFilters}
+      <Button variant="outline" size="sm" onclick={onResetFilters}>
+        Réinitialiser les filtres
+      </Button>
+    {/if}
+  </div>
+{/snippet}
+
 {#if showDesktop}
-  <div class="rounded-sm border bg-card shadow-raised">
+  <div class="rounded-sm border bg-card shadow-card">
     <Table.Root
       class={layout === 'fixed' ? 'table-fixed' : undefined}
       containerClass={stickyHeader ? 'lg:overflow-visible' : undefined}
@@ -281,12 +304,7 @@
               colspan={columns.length + (selectable ? 1 : 0)}
               class="h-32 text-center"
             >
-              {#if empty}
-                {@render empty()}
-              {:else}
-                <span class="text-sm text-muted-foreground">Aucun résultat</span
-                >
-              {/if}
+              {@render noMatch()}
             </Table.Cell>
           </Table.Row>
         {:else}
@@ -390,12 +408,8 @@
     {/if}
 
     {#if rows.length === 0}
-      <div class="rounded-sm border bg-card p-6 text-center shadow-raised">
-        {#if empty}
-          {@render empty()}
-        {:else}
-          <span class="text-sm text-muted-foreground">Aucun résultat</span>
-        {/if}
+      <div class="rounded-sm border bg-card p-6 text-center shadow-card">
+        {@render noMatch()}
       </div>
     {:else}
       {#each rows as r, i (rowKey(r, i))}
@@ -403,7 +417,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div
           class={cn(
-            'relative rounded-sm border bg-card p-3 shadow-raised',
+            'relative rounded-sm border bg-card p-3 shadow-card',
             onRowClick && 'cursor-pointer',
           )}
           onclick={onRowClick ? () => onRowClick(r, i) : undefined}

@@ -345,6 +345,7 @@
         </DataTableToolbar>
 
         <SortableTable
+          onResetFilters={anyFilter ? resetFilters : undefined}
           {columns}
           rows={filtered}
           {sortKey}
@@ -501,26 +502,6 @@
                 disabled={!canEdit}
                 onset={(s) => setStatus(r, s)}
               />
-            </div>
-          {/snippet}
-
-          {#snippet empty()}
-            <div class="flex flex-col items-center gap-3 py-6">
-              <span
-                class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-              >
-                Aucun résultat
-              </span>
-              {#if anyFilter}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={resetFilters}
-                  class="rounded-sm"
-                >
-                  Réinitialiser les filtres
-                </Button>
-              {/if}
             </div>
           {/snippet}
         </SortableTable>

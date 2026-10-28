@@ -4,7 +4,6 @@
   import Clock from '@lucide/svelte/icons/clock';
   import * as Table from '$lib/components/ui/table';
   import { cn } from '$lib/utils';
-  import { Button } from '$lib/components/ui/button';
   import { formatGivenName } from '$lib/domain/profile';
   import { cohortNounForms } from '$lib/domain/event';
   import { optionPolarity, type AnswerPolarity } from '$lib/domain/polarity';
@@ -234,7 +233,7 @@
     rowKey={(r) => r.talentId}
     row={rowSnippet}
     mobileRow={mobileRowSnippet}
-    empty={emptySnippet}
+    onResetFilters={anyFiltersApplied ? resetFilters : undefined}
     stickyHeader
     layout="fixed"
   />
@@ -322,25 +321,5 @@
       {@render recoBadge(r)}
     </div>
     {@render statutBadge(r)}
-  </div>
-{/snippet}
-
-{#snippet emptySnippet()}
-  <div class="flex flex-col items-center gap-3 py-6">
-    <span
-      class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-    >
-      Aucun résultat
-    </span>
-    {#if anyFiltersApplied}
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={resetFilters}
-        class="rounded-sm"
-      >
-        Réinitialiser les filtres
-      </Button>
-    {/if}
   </div>
 {/snippet}

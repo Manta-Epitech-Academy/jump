@@ -281,6 +281,7 @@
 
     <Tooltip.Provider delayDuration={300}>
       <SortableTable
+        onResetFilters={anyFiltersApplied ? resetFilters : undefined}
         {columns}
         {rows}
         {sortKey}
@@ -434,26 +435,6 @@
               </Tooltip.Root>
             </div>
           </Table.Cell>
-        {/snippet}
-
-        {#snippet empty()}
-          <div class="flex flex-col items-center gap-3 py-6">
-            <span
-              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-            >
-              Aucun formulaire ne correspond
-            </span>
-            {#if anyFiltersApplied}
-              <Button
-                variant="outline"
-                size="sm"
-                onclick={resetFilters}
-                class="rounded-sm"
-              >
-                Réinitialiser les filtres
-              </Button>
-            {/if}
-          </div>
         {/snippet}
       </SortableTable>
     </Tooltip.Provider>
