@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
+import { schoolYearOf } from '$lib/domain/schoolYear';
 import { assertTestDatabase } from './testDatabase';
 import { mergeTalents } from '../talentMergeService';
 
@@ -101,6 +102,16 @@ describe('mergeTalents (integration)', () => {
         },
       ],
     });
+    // Only the absorbed record was synced this school year: its schooling
+    // becomes the survivor's, and so does the niveau it projects.
+    await prisma.schooling_YearRecord.create({
+      data: {
+        talentId: absorbedId,
+        schoolYear: schoolYearOf(new Date(), 'Europe/Paris').label,
+        niveau: 'terminale',
+        source: 'sync',
+      },
+    });
 
     await prisma.$transaction((tx) =>
       mergeTalents(tx, survivorId, [absorbedId]),
@@ -155,8 +166,8 @@ describe('mergeTalents (integration)', () => {
     expect(
       await prisma.talent.findUniqueOrThrow({
         where: { id: survivorId },
-        select: { xp: true, eventsCount: true },
+        select: { xp: true, eventsCount: true, niveau: true },
       }),
-    ).toEqual({ xp: 150, eventsCount: 1 });
+    ).toEqual({ xp: 150, eventsCount: 1, niveau: 'terminale' });
   });
 });

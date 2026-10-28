@@ -501,7 +501,7 @@ const MERGE: Policy = {
   talent: [
     {
       fate: 'keep',
-      why: 'The survivor is the record the person and the staff have been reading: its identity, login, school and activity stay.',
+      why: 'The survivor is the record the person and the staff have been reading: its identity, login and activity stay.',
       columns: [
         'id',
         'externalId',
@@ -513,13 +513,16 @@ const MERGE: Policy = {
         'prenom',
         'phone',
         'civilite',
-        'niveau',
-        'schoolId',
         'lastActiveAt',
         'firstLoginAt',
         'streakDays',
         'streakLastDay',
       ],
+    },
+    {
+      fate: 'keep',
+      why: "The projection of the current school year's record, re-derived after the move: the fixture's record is a past year's, which moves nothing, and talentMerge.integration.test.ts proves a current one taken from an absorbed talent does.",
+      columns: ['niveau', 'schoolId'],
     },
     {
       fate: 'keep',

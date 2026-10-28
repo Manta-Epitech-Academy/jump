@@ -30,6 +30,7 @@ import {
   moveTalentGrants,
   recomputeEventsCount,
 } from '$lib/server/services/xpService';
+import { recomputeSchoolingProjection } from '$lib/server/services/schoolingService';
 
 /**
  * A table whose rows move from an absorbed talent to the survivor: the column
@@ -138,6 +139,9 @@ export async function mergeTalents(
   }
 
   await recomputeEventsCount(tx, survivorId);
+  // The current year's record may have come from an absorbed talent, and the
+  // sync only refreshes the projection when it writes one.
+  await recomputeSchoolingProjection(tx, survivorId);
 }
 
 /**
