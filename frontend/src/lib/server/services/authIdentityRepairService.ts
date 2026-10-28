@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import {
   applyRepointAndDrop,
@@ -6,7 +7,7 @@ import {
   planRepointAndDrop,
 } from '$lib/server/authIdentityRepairCore';
 import type { AuthRepairAction } from '$lib/domain/authIdentity';
-import { clearLoginError } from '$lib/server/services/syncErrorService';
+import { clearLoginErrors } from '$lib/server/services/syncErrorService';
 
 export type { AuthRepairAction } from '$lib/domain/authIdentity';
 
@@ -28,22 +29,36 @@ export async function runAuthRepair(
   resolvedBy: string,
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    switch (action) {
-      case 'repointDrop':
-        await applyRepointAndDrop(tx, talentId, resolvedBy);
-        break;
-      case 'swap':
-        await applySwap(tx, talentId, resolvedBy);
-        break;
-      case 'sever':
-        await applySever(tx, talentId, resolvedBy);
-        break;
-    }
-    // The repair is what the talent's login error was waiting for: close it
-    // with the repair rather than at the next pass. A swap's partner is
-    // settled by that pass, which carries both talents.
-    await clearLoginError(tx, talentId);
+    const realigned = await applyRepair(tx, action, talentId, resolvedBy);
+    // The repair is what those talents' login errors were waiting for: close
+    // them with it rather than at the next pass.
+    await clearLoginErrors(tx, realigned);
   });
+}
+
+/** Apply one repair, and return the talents whose login it put back on their
+ * Salesforce address. */
+async function applyRepair(
+  tx: Prisma.TransactionClient,
+  action: AuthRepairAction,
+  talentId: string,
+  resolvedBy: string,
+): Promise<string[]> {
+  switch (action) {
+    case 'repointDrop':
+      await applyRepointAndDrop(tx, talentId, resolvedBy);
+      return [talentId];
+    case 'swap': {
+      const plan = await applySwap(tx, talentId, resolvedBy);
+      return [plan.aTalentId, plan.bTalentId];
+    }
+    case 'sever':
+      // Stops an exposure and nothing more: the talent is left without a
+      // login, so the cause of its error still holds and the next pass that
+      // carries it says so.
+      await applySever(tx, talentId, resolvedBy);
+      return [];
+  }
 }
 
 export type AutoResolveOutcome = 'repoint_drop' | 'skipped';

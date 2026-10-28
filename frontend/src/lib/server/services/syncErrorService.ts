@@ -98,14 +98,16 @@ export async function settleLoginError(
 }
 
 /**
- * Delete the login error of a talent whose login an admin just repaired, in the
- * repair's own transaction, so the queue does not keep it until the next pass.
+ * Delete the login errors of the talents a repair just put back on their
+ * Salesforce address, in the repair's own transaction, so the queue does not
+ * keep them until the next pass.
  */
-export async function clearLoginError(
+export async function clearLoginErrors(
   tx: Prisma.TransactionClient,
-  talentId: string,
+  talentIds: string[],
 ): Promise<void> {
-  await tx.sync_Error.deleteMany({ where: { talentId } });
+  if (talentIds.length === 0) return;
+  await tx.sync_Error.deleteMany({ where: { talentId: { in: talentIds } } });
 }
 
 /**
