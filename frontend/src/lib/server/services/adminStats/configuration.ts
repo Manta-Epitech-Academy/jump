@@ -575,6 +575,8 @@ export type WorkshopActivityRow = {
 export type WorkshopInstanceRow = {
   slug: string;
   baseUrl: string;
+  /** In the shape `write_workshop_instance` takes: null when it has none. */
+  supervisorCode: string | null;
   /** The slugs of every activity declared on it, retired ones included. */
   activities: string[];
 };
@@ -628,6 +630,7 @@ export async function getWorkshops(): Promise<Workshops> {
       select: {
         slug: true,
         baseUrl: true,
+        supervisorCode: true,
         activities: { select: { slug: true }, orderBy: { slug: 'asc' } },
       },
     }),
@@ -664,9 +667,10 @@ export async function getWorkshops(): Promise<Workshops> {
       instances.map((instance) => ({
         slug: instance.slug,
         baseUrl: instance.baseUrl,
+        supervisorCode: instance.supervisorCode,
         activities: instance.activities.map((a) => a.slug),
       })),
-      "Les instances qui servent ces activités. « slug » est la clé de l'instance, celle que son administration affiche et que prend write_workshop_instance, « baseUrl » l'adresse vers laquelle un talent est envoyé, « activities » les activités qu'elle sert, y compris celles qui ne sont plus proposées. Une instance passe d'un contenu à l'autre au fil des demandes : chaque contenu reste une activité à part, et les XP d'un talent restent rangés sous celle qu'il a faite.",
+      "Les instances qui servent ces activités. « slug » est la clé de l'instance, celle que son administration affiche et que prend write_workshop_instance, « baseUrl » l'adresse vers laquelle un talent est envoyé, « supervisorCode » le code que l'instance demande sur sa page d'inscription superviseur, montré au staff sur chacun de ses sujets dans le catalogue (null si Jump n'en a pas, et alors le catalogue n'en montre aucun), « activities » les activités qu'elle sert, y compris celles qui ne sont plus proposées. Une instance passe d'un contenu à l'autre au fil des demandes : chaque contenu reste une activité à part, et les XP d'un talent restent rangés sous celle qu'il a faite.",
     ),
     domains: metric(
       domains,

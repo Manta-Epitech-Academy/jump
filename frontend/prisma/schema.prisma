@@ -2506,11 +2506,11 @@ model XpReward {
 /// this diverges from jump-games: there is a single jump-games backend and there
 /// are eleven CTFd hosts, so the address belongs to the row.
 model Workshop_Instance {
-  id         String              @id @default(cuid())
+  id             String   @id @default(cuid())
   /// Stable natural key, and also the ticket audience (`workshop:<slug>`) the
   /// plugin compares against its own configured instance name. It names the
   /// host only, so a rotation keeps it.
-  slug       String              @unique
+  slug           String   @unique
   /// Origin of the CTFd, no trailing slash: the entry action redirects to
   /// `<baseUrl>/jump/enter?t=...`. A generated database points this at a
   /// NON-ROUTABLE host on purpose, because a dev or preprod row carrying the
@@ -2522,9 +2522,21 @@ model Workshop_Instance {
   /// entry the instance refuses with its own talents sent elsewhere.
   /// `writeWorkshopInstance`, the one writer, refuses it by name rather than an
   /// index refusing it with nothing to say.
-  baseUrl    String
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
+  baseUrl        String
+  /// The code the instance asks for on `<baseUrl>/supervisor/join`, where the
+  /// people running the room make their supervisor account. The plugin holds
+  /// one per instance (`workshop_supervisor_code`), so every activity of the
+  /// host shows the same one on its catalogue card. Copied from the instance,
+  /// never typed: the call its `/admin/workshop/jump` page prints carries it,
+  /// and a code changed there is brought over by running that call again.
+  /// Null when the instance has none, which is a closed door there too.
+  ///
+  /// A shared secret every staff member reading the catalogue sees, which is
+  /// what was decided for supervisor access (#449): any staff account may
+  /// supervise. Never on a talent surface.
+  supervisorCode String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   activities Workshop_Activity[]
 }

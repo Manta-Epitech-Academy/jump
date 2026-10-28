@@ -1293,6 +1293,80 @@ describe('admin API writes (integration)', () => {
     });
   });
 
+  // The supervisor code is a patch field of the host: brought over by the call
+  // the instance prints, left alone by one written before it existed.
+  describe("a CTFd host's supervisor code", () => {
+    const host = `write-host-code-${stamp}`;
+    const address = `https://host-code-${stamp}.example.invalid`;
+    const readCode = async () =>
+      (await getWorkshops()).instances.value.find((i) => i.slug === host)!
+        .supervisorCode;
+
+    afterAll(async () => {
+      await prisma.workshop_Instance.deleteMany({ where: { slug: host } });
+    });
+
+    it('is stored trimmed, and reported before and after', async () => {
+      await call(postWorkshopInstance, writeSecret, {
+        instance: host,
+        baseUrl: address,
+      });
+      const { status, payload } = await call(
+        postWorkshopInstance,
+        writeSecret,
+        { instance: host, baseUrl: address, supervisorCode: '  ABCD-2026 ' },
+      );
+
+      expect(status).toBe(200);
+      expect(payload.before).toMatchObject({ supervisorCode: null });
+      expect(payload.after).toMatchObject({ supervisorCode: 'ABCD-2026' });
+      expect(await readCode()).toBe('ABCD-2026');
+    });
+
+    it('is left alone by a call that does not name it', async () => {
+      await call(postWorkshopInstance, writeSecret, {
+        instance: host,
+        baseUrl: address,
+      });
+
+      expect(await readCode()).toBe('ABCD-2026');
+    });
+
+    it('comes back from config_workshops in the shape the write takes', async () => {
+      const read = (await getWorkshops()).instances.value.find(
+        (i) => i.slug === host,
+      )!;
+      const { status, payload } = await call(
+        postWorkshopInstance,
+        writeSecret,
+        {
+          instance: read.slug,
+          baseUrl: read.baseUrl,
+          supervisorCode: read.supervisorCode,
+        },
+      );
+
+      expect(status).toBe(200);
+      expect(payload.before).toEqual(payload.after);
+    });
+
+    it.each([null, '   '])('is cleared by %j', async (cleared) => {
+      await call(postWorkshopInstance, writeSecret, {
+        instance: host,
+        baseUrl: address,
+        supervisorCode: 'ABCD-2026',
+      });
+      const { status } = await call(postWorkshopInstance, writeSecret, {
+        instance: host,
+        baseUrl: address,
+        supervisorCode: cleared,
+      });
+
+      expect(status).toBe(200);
+      expect(await readCode()).toBeNull();
+    });
+  });
+
   describe('event categories', () => {
     const club = `write-club-${stamp}`;
     const stage = `write-stage-${stamp}`;

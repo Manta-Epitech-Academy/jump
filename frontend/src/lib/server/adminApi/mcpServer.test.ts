@@ -285,8 +285,10 @@ const TOOL_LIST_BUDGET = [
   // Raised for the subject catalogue (#439): the domains are a new entity, so
   // one write of their own (their read is config_workshops, which already
   // answered for the activities' sibling entities), plus the level, notions and
-  // domains as fields of write_workshop.
-  ['core, write-enabled', coreWriter, 93_300],
+  // domains as fields of write_workshop. Raised again for the supervisor code
+  // (#459), a field of write_workshop_instance rather than a tool, since it is
+  // the host's.
+  ['core, write-enabled', coreWriter, 93_600],
 ] as const;
 
 describe('what a client loads up front', () => {

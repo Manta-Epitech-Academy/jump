@@ -170,6 +170,8 @@ erDiagram
     String externalId UK
     DateTime lastActiveAt
     DateTime firstLoginAt
+    Int streakDays
+    DateTime streakLastDay
     DateTime usageAnalyticsOptOutAt
     DateTime welcomeSeenAt
     DateTime anonymizedAt
@@ -595,6 +597,7 @@ erDiagram
     String id PK
     String slug UK
     String baseUrl
+    String supervisorCode
     DateTime createdAt
     DateTime updatedAt
   }

@@ -708,7 +708,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_workshops: defineOperation({
     description:
-      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover), how the subject catalogue of the dev space files it (level, notions, domains, in the shape write_workshop takes) and what still keeps it out of that catalogue. An instance is a host: its slug, its address and the activities declared on it, retired ones included. A domain is a field the catalogue files activities under: its key, its label, whether it is archived and how many activities carry it, archived ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP: exactly the points CTFd pays for the steps a talent validated. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take, and the domain keys of write_workshop and write_workshop_domain.',
+      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover), how the subject catalogue of the dev space files it (level, notions, domains, in the shape write_workshop takes) and what still keeps it out of that catalogue. An instance is a host: its slug, its address, its supervisor code and the activities declared on it, retired ones included. A domain is a field the catalogue files activities under: its key, its label, whether it is archived and how many activities carry it, archived ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP: exactly the points CTFd pays for the steps a talent validated. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take, and the domain keys of write_workshop and write_workshop_domain.',
     shape: {},
     run: () => getWorkshops(),
   }),
@@ -1067,7 +1067,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_workshop_instance: defineWrite({
     description:
-      'Declare or update one CTFd instance, the host online activities run on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and nothing else; what the instance serves is write_workshop. Safe to repeat: the same slug and the same address leave one instance. Answers with the instance before and after.',
+      "Declare or update one CTFd instance, the host online activities run on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and which supervisor code the catalogue shows; what the instance serves is write_workshop. The instance's /admin/workshop/jump page prints this call filled in: run that rather than typing values. Safe to repeat: the same call leaves the same instance. Answers with the instance before and after.",
     shape: {
       instance: z
         .string()
@@ -1084,6 +1084,13 @@ export const ADMIN_API_OPERATIONS = {
         .min(1)
         .describe(
           'Address of the CTFd instance, origin only with no path, e.g. "https://pacman.epiboost.fr". Jump appends the entry path itself.',
+        ),
+      supervisorCode: z
+        .string()
+        .nullable()
+        .optional()
+        .describe(
+          "The code the instance asks for on /supervisor/join, as its /admin/workshop/settings page holds it, shown on each of its subjects in the staff's catalogue. Omit to leave it; null or empty clears it.",
         ),
     },
     run: (params) => writeWorkshopInstance(params),
