@@ -130,7 +130,15 @@ export type CatalogueSubject = {
   notions: string[];
   /** Always a still: the mascot, the chosen still or the visual's first frame. */
   thumbnail: { url: string; width: number; height: number };
+  /**
+   * How the staff supervise it: its instance's code and the page that takes it.
+   * Null when Jump holds no code for the instance, which is not a gap: the
+   * subject is still shown, without the code and the link to a closed door.
+   */
+  supervisor: CatalogueSupervisor | null;
 };
+
+export type CatalogueSupervisor = { code: string; joinUrl: string };
 
 export type CatalogueDomainOption = CatalogueDomain & {
   /** Subjects shown under it. */

@@ -88,6 +88,18 @@ export function workshopCoverUrl(key: string): string {
 }
 
 /**
+ * Where the staff become supervisors of an instance: the plugin's page that
+ * takes the instance's supervisor code (`plugins/workshop/staff.py`, `join`).
+ * Its path is the plugin's, quoted here, so moving it there breaks the
+ * catalogue's « Accéder au sujet ». It is the one address that fits every
+ * visitor: someone signed in is sent on to the subject, a newcomer finds the
+ * form, and someone whose session is gone is told there where to sign in.
+ */
+export function supervisorJoinUrl(baseUrl: string): string {
+  return `${baseUrl}/supervisor/join`;
+}
+
+/**
  * Which activities a talent is offered, through which enrolment, and which of
  * them are today's.
  *

@@ -127,4 +127,20 @@ describe('the subject catalogue (integration)', () => {
       ),
     );
   });
+
+  it("shows its instance's supervisor code and join page, and the subject without one", async () => {
+    const complete = async () =>
+      (await shown()).find((s) => s.slug === slug('complet'))!;
+    expect((await complete()).supervisor).toBeNull();
+
+    await prisma.workshop_Instance.update({
+      where: { id: instanceId },
+      data: { supervisorCode: 'CODE-2026' },
+    });
+
+    expect((await complete()).supervisor).toEqual({
+      code: 'CODE-2026',
+      joinUrl: 'https://catalogue.ctfd.invalid/supervisor/join',
+    });
+  });
 });
