@@ -143,114 +143,24 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
   );
   if (drifted.length === 0) return [];
 
-  // 2. Resolve the holder of each target/stale email in one query, plus the
+  // 2. Resolve the holder of each target/stale email in one pass, plus the
   //    parent/talent email indexes needed for the verdict and the exposure
-  //    (backward) check. Emails in bauth_user are written lowercased by every
-  //    sign-in / link path, so an `in` over normalized values matches them.
-  const lookupEmails = new Set<string>();
+  //    (backward) check.
+  const lookupEmails: string[] = [];
   for (const t of drifted) {
     const target = norm(t.sfImport?.sfEmail);
     const stale = norm(t.user!.email);
-    if (target) lookupEmails.add(target);
-    if (stale) lookupEmails.add(stale);
+    if (target) lookupEmails.push(target);
+    if (stale) lookupEmails.push(stale);
   }
-
-  const accounts = await prisma.bauth_user.findMany({
-    where: { email: { in: [...lookupEmails] } },
-    select: ACCOUNT_SELECT,
-  });
-  const accountByEmail = new Map(accounts.map((a) => [norm(a.email)!, a]));
-
-  // Index of every talent's own email and parent emails, to tell WHO a target /
-  // stale email really belongs to (verdict, exposure, and the "who is this"
-  // detail) and to confirm inversion symmetry.
-  const allTalents = await prisma.talent.findMany({
-    select: {
-      id: true,
-      prenom: true,
-      nom: true,
-      sfImport: { select: { sfEmail: true } },
-      parentEmail: true,
-      parent2Email: true,
-    },
-  });
-  type Person = { id: string; prenom: string; nom: string };
-  const talentByEmail = new Map<string, Person>();
-  const parentEmailToTalent = new Map<string, Person>();
-  for (const t of allTalents) {
-    const person: Person = { id: t.id, prenom: t.prenom, nom: t.nom };
-    const e = norm(t.sfImport?.sfEmail);
-    if (e && !talentByEmail.has(e)) talentByEmail.set(e, person);
-    for (const pe of [norm(t.parentEmail), norm(t.parent2Email)])
-      if (pe && !parentEmailToTalent.has(pe))
-        parentEmailToTalent.set(pe, person);
-  }
-
-  // What an account holding `email` is (orphan / staff / parent / talent), from
-  // its relations first, then from who owns the email. `exceptTalentId` is the
-  // talent being classified, so its own identity reads as `this_talent`.
-  type HolderRow = (typeof accounts)[number];
-  const holderNatureOf = (
-    row: HolderRow | null,
-    email: string,
-    exceptTalentId: string,
-  ): AccountNature | null => {
-    if (!row) return null;
-    if (row.staffProfile) return { kind: 'staff', name: row.name };
-    if (row.talent)
-      return row.talent.id === exceptTalentId
-        ? { kind: 'this_talent' }
-        : {
-            kind: 'talent',
-            talentId: row.talent.id,
-            prenom: row.talent.prenom,
-            nom: row.talent.nom,
-            linked: true,
-          };
-    const p = parentEmailToTalent.get(email);
-    if (p)
-      return { kind: 'parent', talentId: p.id, prenom: p.prenom, nom: p.nom };
-    const ot = talentByEmail.get(email);
-    if (ot && ot.id !== exceptTalentId)
-      return {
-        kind: 'talent',
-        talentId: ot.id,
-        prenom: ot.prenom,
-        nom: ot.nom,
-        linked: false,
-      };
-    return { kind: 'orphan' };
-  };
-
-  // Who legitimately owns an email, ignoring the account that currently squats
-  // it. null = nobody (a wrong value). Used for the stale email's exposure.
-  const emailOwnerOf = (
-    email: string,
-    exceptTalentId: string,
-  ): AccountNature | null => {
-    const acc = accountByEmail.get(email);
-    if (acc?.staffProfile) return { kind: 'staff', name: acc.name };
-    const p = parentEmailToTalent.get(email);
-    if (p)
-      return { kind: 'parent', talentId: p.id, prenom: p.prenom, nom: p.nom };
-    const ot = talentByEmail.get(email);
-    if (ot && ot.id !== exceptTalentId)
-      return {
-        kind: 'talent',
-        talentId: ot.id,
-        prenom: ot.prenom,
-        nom: ot.nom,
-        linked: false,
-      };
-    return null;
-  };
+  const directory = await loadAddressDirectory(lookupEmails);
 
   const out: AuthConflict[] = [];
   for (const t of drifted) {
     const linkedRow = t.user!;
     const targetEmail = norm(t.sfImport?.sfEmail)!;
     const staleEmail = norm(linkedRow.email)!;
-    const holderRow = accountByEmail.get(targetEmail) ?? null;
+    const holderRow = directory.accountOf(targetEmail);
 
     // ── Forward: who holds the target email → the verdict. ────────────────
     let verdict: AuthConflictVerdict;
@@ -263,7 +173,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
       verdict = 'STAFF_HOLDER';
     } else if (
       holderRow.role === 'parent' ||
-      parentEmailToTalent.has(targetEmail)
+      directory.isParentAddress(targetEmail)
     ) {
       verdict = 'PARENT_HOLDER';
     } else if (holderRow.talent) {
@@ -280,7 +190,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
     // ── Backward: does the stale email belong to a real, loggable identity? ──
     // If so, that person logging in lands on THIS talent's dashboard. `staleOwner`
     // carries the specific identity (for the detail); `exposureKind` is its tag.
-    const staleOwner = emailOwnerOf(staleEmail, t.id);
+    const staleOwner = directory.ownerOf(staleEmail, t.id);
     const exposureKind: ExposureKind | null =
       staleOwner?.kind === 'staff'
         ? 'staff'
@@ -299,7 +209,7 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
       linked: summarize(linkedRow),
       holder: holderRow ? summarize(holderRow) : null,
       verdict,
-      holderNature: holderNatureOf(holderRow, targetEmail, t.id),
+      holderNature: directory.holderOf(targetEmail, t.id),
       staleOwner,
       exposureRisk: staleOwner !== null,
       exposureKind,
@@ -322,4 +232,108 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
       a.nom.localeCompare(b.nom),
   );
   return out;
+}
+
+/**
+ * Who an address belongs to, for a batch of addresses: the account that holds
+ * it, and the person it is the address of. Shared by the Connexion tab above and
+ * by the sync-errors page, so one holder is never described two ways.
+ *
+ * Two different questions, kept apart on purpose:
+ *   - `holderOf`: what the ACCOUNT holding the address is (orphan / staff /
+ *     parent / talent), from its relations first, then from who owns the
+ *     address. null when no account holds it.
+ *   - `ownerOf`: who legitimately owns the address, ignoring the account that
+ *     currently squats it (a staff account, a parent contact, another talent's
+ *     Salesforce address). null = nobody, a value without an owner.
+ *
+ * `exceptTalentId` is the talent being described, so its own identity reads as
+ * `this_talent` (holder) or as no owner (owner). Emails in `bauth_user` are
+ * written lowercased by every sign-in and link path, so an `in` over
+ * normalised values matches them. The talent index is the whole table, loaded
+ * once: it answers "whose address is this" for parents, who have no row.
+ */
+export async function loadAddressDirectory(emails: Iterable<string>) {
+  const wanted = [...new Set([...emails].map(norm).filter((e) => e !== null))];
+
+  const [accounts, allTalents] = await Promise.all([
+    wanted.length
+      ? prisma.bauth_user.findMany({
+          where: { email: { in: wanted } },
+          select: ACCOUNT_SELECT,
+        })
+      : Promise.resolve([] as AccountRow[]),
+    prisma.talent.findMany({
+      select: {
+        id: true,
+        prenom: true,
+        nom: true,
+        sfImport: { select: { sfEmail: true } },
+        parentEmail: true,
+        parent2Email: true,
+      },
+    }),
+  ]);
+  const accountByEmail = new Map(accounts.map((a) => [norm(a.email)!, a]));
+
+  type Person = { id: string; prenom: string; nom: string };
+  const talentByEmail = new Map<string, Person>();
+  const parentEmailToTalent = new Map<string, Person>();
+  for (const t of allTalents) {
+    const person: Person = { id: t.id, prenom: t.prenom, nom: t.nom };
+    const e = norm(t.sfImport?.sfEmail);
+    if (e && !talentByEmail.has(e)) talentByEmail.set(e, person);
+    for (const pe of [norm(t.parentEmail), norm(t.parent2Email)])
+      if (pe && !parentEmailToTalent.has(pe))
+        parentEmailToTalent.set(pe, person);
+  }
+
+  const ownerOf = (
+    email: string,
+    exceptTalentId: string,
+  ): AccountNature | null => {
+    const acc = accountByEmail.get(email);
+    if (acc?.staffProfile) return { kind: 'staff', name: acc.name };
+    const p = parentEmailToTalent.get(email);
+    if (p)
+      return { kind: 'parent', talentId: p.id, prenom: p.prenom, nom: p.nom };
+    const ot = talentByEmail.get(email);
+    if (ot && ot.id !== exceptTalentId)
+      return {
+        kind: 'talent',
+        talentId: ot.id,
+        prenom: ot.prenom,
+        nom: ot.nom,
+        linked: false,
+      };
+    return null;
+  };
+
+  const holderOf = (
+    email: string,
+    exceptTalentId: string,
+  ): AccountNature | null => {
+    const row = accountByEmail.get(email);
+    if (!row) return null;
+    if (row.staffProfile) return { kind: 'staff', name: row.name };
+    if (row.talent)
+      return row.talent.id === exceptTalentId
+        ? { kind: 'this_talent' }
+        : {
+            kind: 'talent',
+            talentId: row.talent.id,
+            prenom: row.talent.prenom,
+            nom: row.talent.nom,
+            linked: true,
+          };
+    return ownerOf(email, exceptTalentId) ?? { kind: 'orphan' };
+  };
+
+  return {
+    accountOf: (email: string): AccountRow | null =>
+      accountByEmail.get(email) ?? null,
+    isParentAddress: (email: string): boolean => parentEmailToTalent.has(email),
+    holderOf,
+    ownerOf,
+  };
 }
