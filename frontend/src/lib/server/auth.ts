@@ -121,7 +121,7 @@ export function createAuthOptions(
         // What it does NOT do is decide who may come through this door, and the
         // tempting reading is the opposite one, so it is worth stating. A
         // guardian's row is written `emailVerified: true` by
-        // `ensureParentAccount` and `changeParentEmail`, and a talent's is
+        // `setParentLogin`, and a talent's is
         // promoted to `true` by BetterAuth the first time they use the OTP door,
         // so the account-link test admits both long before this line existed.
         // What keeps their account out of the staff space, and intact, is

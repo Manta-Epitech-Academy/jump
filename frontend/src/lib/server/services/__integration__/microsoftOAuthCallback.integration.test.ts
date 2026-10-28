@@ -133,7 +133,7 @@ describe('Microsoft OAuth callback (integration)', () => {
     // What `accountLinking.requireLocalEmailVerified` actually refuses, which is
     // narrower than the option's name suggests: a `bauth_user` still carrying
     // the `false` it was created with. A guardian's row never carries it
-    // (`ensureParentAccount` writes `true`) and a talent's stops carrying it the
+    // (`setParentLogin` writes `true`) and a talent's stops carrying it the
     // first time they use the OTP door, so this is NOT what keeps either of them
     // out of the staff space. That is `auth/staffDoor.ts`, asserted next door in
     // `staffDoor.integration.test.ts`. Keep the option at its default anyway:

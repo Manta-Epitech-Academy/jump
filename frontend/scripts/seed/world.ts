@@ -908,7 +908,7 @@ export class World {
    *
    * Writing the column is not enough on its own: the app never authenticates
    * against it directly, only against a separate `bauth_user` (role `parent`)
-   * that `ensureParentAccount` (`onboardingService.ts`) mints the moment the
+   * that `setParentLogin` (`parentAccount.ts`) mints the moment the
    * wizard's parents step is submitted. A dataset that writes the column and not
    * the account looks identical everywhere a screen only reads `Talent` - the
    * fiche, the broadcast audience, the compliance figures - and only fails at
@@ -968,7 +968,7 @@ export class World {
    * parents rung, and (for the one family carrying a second guardian) a scenario
    * calling `setGuardian` again to layer `parent2Email` on. `bauth_user.email` is
    * unique, so a second unconditional push would fail the write rather than
-   * merely duplicate a row - the same reason `ensureParentAccount` itself looks
+   * merely duplicate a row - the same reason `setParentLogin` itself looks
    * an existing row up before creating one, and the one part of it worth
    * mirroring here (that function also refreshes the account's `name` on an
    * existing row; nothing in this dataset ever changes a guardian's declared

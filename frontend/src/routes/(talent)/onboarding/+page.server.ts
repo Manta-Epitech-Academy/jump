@@ -25,7 +25,11 @@ import {
 } from '$lib/server/services/onboardingYearService';
 import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
 import {
-  ensureParentAccount,
+  isParentLoginRace,
+  setParentLogin,
+  type SetParentLoginResult,
+} from '$lib/server/services/parentAccount';
+import {
   validateTalentInterests,
   signOnboardingRules,
 } from '$lib/server/services/onboardingService';
@@ -300,20 +304,52 @@ export const actions: Actions = {
     }
 
     const parentEmail = result.data.parentEmail.toLowerCase().trim();
+    const talentId = locals.talent.id;
 
-    // Provision the parent-1 login first, so a validated address always has a
-    // working parent account (the welcome link / co-signature flow are useless
-    // without one). `refused` means the address already belongs to another
-    // (non-parent) Jump account, a student's or a staff member's: one email is
-    // one account with one role, so it can never also host a parent login.
-    // Reject the step before anything is persisted and tell the talent to use a
-    // different address, rather than silently leave the parent unable to connect.
-    const provisioned = await ensureParentAccount({
-      email: parentEmail,
-      prenom: result.data.parentPrenom,
-      nom: result.data.parentNom,
-    });
-    if (provisioned === 'refused') {
+    // Parent 1's address and login move together (`setParentLogin`), in the
+    // same transaction as the rest of the step: a validated address always has
+    // a working parent account, since the welcome link and the co-signature are
+    // useless without one. `email_taken` means the address already belongs to
+    // another (non-parent) Jump account, a student's or a staff member's: one
+    // email is one account with one role. Nothing is persisted then, and the
+    // talent is asked for a different address rather than leaving the parent
+    // unable to connect.
+    let login: SetParentLoginResult;
+    try {
+      login = await prisma.$transaction(async (tx) => {
+        const set = await setParentLogin(tx, talentId, {
+          email: parentEmail,
+          name: `${result.data.parentPrenom} ${result.data.parentNom}`.trim(),
+        });
+        if (!set.ok) return set;
+        await tx.talent.update({
+          where: { id: talentId },
+          data: {
+            parentType: result.data.parentType,
+            parentCivilite: result.data.parentCivilite,
+            parentNom: result.data.parentNom,
+            parentPrenom: result.data.parentPrenom,
+            parentPhone: result.data.parentPhone || null,
+            parent2Type: result.data.parent2Type || null,
+            parent2Civilite: result.data.parent2Civilite || null,
+            parent2Nom: result.data.parent2Nom || null,
+            parent2Prenom: result.data.parent2Prenom || null,
+            parent2Email: result.data.parent2Email
+              ? result.data.parent2Email.toLowerCase().trim()
+              : null,
+            parent2Phone: result.data.parent2Phone || null,
+          },
+        });
+        await patchCurrentOnboardingRecord(tx, talentId, {
+          parentsValidatedAt: new Date(),
+        });
+        return set;
+      });
+    } catch (err) {
+      if (!isParentLoginRace(err)) throw err;
+      login = { ok: false, reason: 'email_taken' };
+    }
+    if (!login.ok) {
       return fail(400, {
         step: 'parents' as const,
         errors: {
@@ -325,46 +361,18 @@ export const actions: Actions = {
       });
     }
 
-    const talentId = locals.talent.id;
-    await prisma.$transaction(async (tx) => {
-      await tx.talent.update({
-        where: { id: talentId },
-        data: {
-          parentType: result.data.parentType,
-          parentCivilite: result.data.parentCivilite,
-          parentNom: result.data.parentNom,
-          parentPrenom: result.data.parentPrenom,
-          parentEmail,
-          parentPhone: result.data.parentPhone || null,
-          parent2Type: result.data.parent2Type || null,
-          parent2Civilite: result.data.parent2Civilite || null,
-          parent2Nom: result.data.parent2Nom || null,
-          parent2Prenom: result.data.parent2Prenom || null,
-          parent2Email: result.data.parent2Email
-            ? result.data.parent2Email.toLowerCase().trim()
-            : null,
-          parent2Phone: result.data.parent2Phone || null,
-        },
-      });
-      await patchCurrentOnboardingRecord(tx, talentId, {
-        parentsValidatedAt: new Date(),
-      });
-    });
-
     // Welcome carries the passwordless magic link into the parent space; it's
     // fire-and-forget (the only slow step) so a mail hiccup never blocks the
-    // talent's onboarding. A re-submit / back-and-forth doesn't re-send: the
-    // address is skipped when it was already stored on the talent before this
-    // submit. Parent 2 is persisted above as onboarding-collected data only: no
-    // account, no email, no portal access (the whole parent flow is parent-1).
-    const alreadyWelcomed =
-      (locals.talent.parentEmail ?? '').toLowerCase().trim() === parentEmail;
-    if (!alreadyWelcomed) {
+    // talent's onboarding. Only a new address is welcomed: a re-submit /
+    // back-and-forth that keeps it doesn't re-send. Parent 2 is persisted above
+    // as onboarding-collected data only: no account, no email, no portal access
+    // (the whole parent flow is parent-1).
+    if (login.changed) {
       void sendParentWelcomeEmail(
         parentEmail,
         result.data.parentNom,
         locals.talent.prenom,
-        locals.talent.id,
+        talentId,
       ).catch((err) =>
         console.error(`Failed to send parent welcome for ${parentEmail}:`, err),
       );

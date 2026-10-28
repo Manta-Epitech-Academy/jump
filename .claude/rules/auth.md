@@ -187,7 +187,7 @@ pre-existing local row rather than to the staff rows the refusal was about. Keep
 it at its default. But do not mistake it for a guard over who reaches the staff
 space, which is the reading it invites and which is false: it refuses only a row
 that has **never authenticated**. A guardian's row is written
-`emailVerified: true` at creation (`ensureParentAccount`, `changeParentEmail`),
+`emailVerified: true` at creation (`setParentLogin`),
 and a talent's is promoted to `true` by BetterAuth itself the first time they
 use the OTP door (`sign-in/email-otp` calls `revokeUnprovenAccountAccess` on an
 unverified row). Both link today, and the `bauth_user` rows carrying an

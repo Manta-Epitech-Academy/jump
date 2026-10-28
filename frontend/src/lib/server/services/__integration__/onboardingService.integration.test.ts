@@ -4,7 +4,6 @@ import { assertTestDatabase } from './testDatabase';
 import {
   signOnboardingRules,
   validateTalentInterests,
-  ensureParentAccount,
 } from '../onboardingService';
 import { getOnboardingFunnel } from '../adminStats/onboardingFunnel';
 import { resolveScope, UnknownScopeError } from '$lib/server/adminApi/scope';
@@ -22,7 +21,6 @@ describe('onboardingService (integration)', () => {
   let campusId = '';
   let eventId = '';
   const talentIds: string[] = [];
-  const userIds: string[] = [];
   let techInterestId = '';
   let generalInterestId = '';
 
@@ -88,9 +86,6 @@ describe('onboardingService (integration)', () => {
       });
       if (eventId) {
         await prisma.event.delete({ where: { id: eventId } }).catch(() => {});
-      }
-      if (userIds.length) {
-        await prisma.bauth_user.deleteMany({ where: { id: { in: userIds } } });
       }
       if (campusId) {
         await prisma.campus.delete({ where: { id: campusId } }).catch(() => {});
@@ -196,51 +191,6 @@ describe('onboardingService (integration)', () => {
     expect(
       await prisma.talentInterest.count({ where: { talentId: talent.id } }),
     ).toBe(0);
-  });
-
-  it('provisions a parent login, refreshes its name, and refuses an address held by another role', async () => {
-    const parentEmail = `parent.${stamp}@example.test`;
-
-    expect(
-      await ensureParentAccount({
-        email: parentEmail,
-        prenom: 'Marie',
-        nom: 'Dupont',
-      }),
-    ).toBe('created');
-    const created = await prisma.bauth_user.findUnique({
-      where: { email: parentEmail },
-    });
-    userIds.push(created!.id);
-    expect(created?.role).toBe('parent');
-    expect(created?.emailVerified).toBe(true);
-
-    expect(
-      await ensureParentAccount({
-        email: parentEmail,
-        prenom: 'Marie-Claire',
-        nom: 'Dupont',
-      }),
-    ).toBe('refreshed');
-    expect(
-      (await prisma.bauth_user.findUnique({ where: { email: parentEmail } }))
-        ?.name,
-    ).toBe('Marie-Claire Dupont');
-
-    // A student's (or staff member's) address can never also host a parent login:
-    // one email, one account, one role.
-    const studentEmail = `student.${stamp}@example.test`;
-    const student = await prisma.bauth_user.create({
-      data: { email: studentEmail, role: 'student' },
-    });
-    userIds.push(student.id);
-    expect(
-      await ensureParentAccount({
-        email: studentEmail,
-        prenom: 'Jean',
-        nom: 'Martin',
-      }),
-    ).toBe('refused');
   });
 
   it('counts each talent on exactly one funnel rung, matching the ladder', async () => {
