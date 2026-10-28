@@ -99,18 +99,29 @@
     noAnswer: {
       icon: MessageSquareText,
       title: "Aucune réponse pour l'instant",
-      hint: 'Le QR code à partager est sur la page Feedback.',
+      hint: 'Le lien à partager aux inscrits est sur la page Feedback.',
     },
   } satisfies Record<string, HomeCardEmpty>;
 
+  // Nobody answered the questionnaire, or some did and none of them gave a
+  // recommendation (the question skipped, or « Autre » picked): two different
+  // states, and the second still has a response rate to show.
   const feedbackEmpty = $derived.by((): HomeCardEmpty | null => {
-    switch (figures.feedback.kind) {
+    const feedback = figures.feedback;
+    switch (feedback.kind) {
       case 'no-form':
         return null;
       case 'no-reco':
         return EMPTY.noReco;
       case 'answers':
-        return figures.feedback.answered === 0 ? EMPTY.noAnswer : null;
+        if (feedback.responded === 0) return EMPTY.noAnswer;
+        if (feedback.answered === 0)
+          return {
+            icon: MessageSquareText,
+            title: "Aucune recommandation pour l'instant",
+            hint: `Taux de réponse au questionnaire : ${feedback.rate} des inscrits.`,
+          };
+        return null;
     }
   });
 </script>
