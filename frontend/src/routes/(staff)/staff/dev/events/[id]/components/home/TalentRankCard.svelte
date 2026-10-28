@@ -47,22 +47,25 @@
             talent={{ id: t.talentId, nom: t.nom, prenom: t.prenom }}
             size="sm"
           />
-          <span class="min-w-0 flex-1 truncate text-sm">
-            <span class="font-medium">{formatGivenName(t.prenom)}</span>
-            <span class="font-bold uppercase">{t.nom}</span>
-          </span>
-          {#if xp}
-            <span
-              class="inline-flex shrink-0 items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
-            >
-              <Sparkles class="h-3 w-3" aria-hidden="true" />
-              {t.detail}
+          <!-- The name, then its detail under it, as a contact reads: the
+               name gets the row's whole width, so it holds in a card of the
+               narrowest grid step instead of being cut short. -->
+          <span class="flex min-w-0 flex-1 flex-col items-start gap-1 py-1.5">
+            <span class="max-w-full truncate text-sm leading-snug">
+              <span class="font-medium">{formatGivenName(t.prenom)}</span>
+              <span class="font-bold uppercase">{t.nom}</span>
             </span>
-          {:else}
-            <span class="shrink-0 text-sm text-muted-foreground"
-              >{t.detail}</span
-            >
-          {/if}
+            {#if xp}
+              <span
+                class="inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
+              >
+                <Sparkles class="h-3 w-3" aria-hidden="true" />
+                {t.detail} XP
+              </span>
+            {:else}
+              <span class="text-xs text-muted-foreground">{t.detail}</span>
+            {/if}
+          </span>
           <ChevronRight
             class="size-3.5 shrink-0 text-muted-foreground"
             aria-hidden="true"

@@ -1,3 +1,17 @@
+<script lang="ts" module>
+  /**
+   * The cards' grid: at most three columns, the mockup's 3 × 3. The cards are a
+   * fixed set, not a list of unknown length, so they widen on a wide screen
+   * rather than multiply: an auto-fill grid went to four columns past 1500px
+   * and left the ninth card alone on its row. The steps count the 272px
+   * sidebar, which shows from `md`: one column until `lg`, two until `xl`,
+   * three from about 300px a card. At that width a long name or lycée wraps
+   * onto a second line inside its row rather than being cut.
+   */
+  export const HOME_GRID_CLASS =
+    'grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3';
+</script>
+
 <script lang="ts">
   import { resolve } from '$app/paths';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -118,7 +132,7 @@
     description="Les chiffres de l'événement s'afficheront dès que ses inscriptions seront synchronisées."
   />
 {:else}
-  <div class="grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] gap-5">
+  <div class={HOME_GRID_CLASS}>
     <BreakdownCard
       title="Inscrits par niveau"
       parts={figures.niveau}

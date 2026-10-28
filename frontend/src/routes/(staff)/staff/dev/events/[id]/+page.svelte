@@ -15,7 +15,9 @@
   import EventCountdown from './components/EventCountdown.svelte';
   import EventBadgesAction from './components/EventBadgesAction.svelte';
   import EventCertificatesAction from './components/EventCertificatesAction.svelte';
-  import HomeFigures from './components/home/HomeFigures.svelte';
+  import HomeFigures, {
+    HOME_GRID_CLASS,
+  } from './components/home/HomeFigures.svelte';
 
   // The event's home: where it opens, what it amounts to at a glance, and the
   // actions that act on the whole event. Each figure opens the page it comes
@@ -110,7 +112,7 @@
   {#await data.figures}
     <ResultsSkeleton>
       {#snippet shape()}
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] gap-5">
+        <div class={HOME_GRID_CLASS}>
           {#each Array.from({ length: 9 }, (_, i) => i) as i (i)}
             <Skeleton class="h-80 w-full" />
           {/each}

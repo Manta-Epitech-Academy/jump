@@ -34,7 +34,9 @@
         >
           <span class="flex min-w-0 flex-1 flex-col gap-1.5">
             <span class="flex items-baseline justify-between gap-3 text-sm">
-              <span class="min-w-0 truncate font-medium">{bar.label}</span>
+              <span class="min-w-0 leading-snug font-medium break-words"
+                >{bar.label}</span
+              >
               <span class="shrink-0 text-xs text-muted-foreground">
                 <span class="font-semibold text-foreground">{bar.count}</span>
                 · {bar.share}
