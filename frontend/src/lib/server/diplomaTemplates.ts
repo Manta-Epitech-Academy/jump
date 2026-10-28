@@ -1,7 +1,13 @@
 import { prisma } from '$lib/server/db';
 import type { Prisma } from '@prisma/client';
 import { base } from '$app/paths';
-import { renderCertificatePreviewPng } from '$lib/server/services/diplomaGenerator';
+import {
+  renderCertificatePreviewPng,
+  type CertificateData,
+} from '$lib/server/services/diplomaGenerator';
+import { getStorage, isObjectNotFound } from '$lib/server/infra/storage';
+import { eventWindowEnd } from '$lib/domain/event';
+import { formatDateFr } from '$lib/utils';
 import { UnknownScopeError } from '$lib/server/adminApi/scope';
 
 /**
@@ -181,5 +187,69 @@ export function diplomaTemplatePreviewLink(template: {
   return {
     url,
     apercu: `Aperçu de « ${template.label} » : ${url} (nom, dates, ville et signataire sont des exemples, aucune donnée de jeune n'y figure). Ouvrez ce lien pour voir le certificat.`,
+  };
+}
+
+/**
+ * What an event's certificate prints besides its recipients: the campus city,
+ * the event's dates, today's date and who signs. Read once for the export and
+ * for the event's preview, so the page previewed is the page printed, but for
+ * the name.
+ *
+ * Signatories are the global ones plus this campus's local ones; their
+ * signature images are fetched from S3 and inlined as base64 data URIs, which
+ * is also what lets the renderer print with the network blocked.
+ */
+export async function loadEventCertificateContext(
+  event: { date: Date; endDate: Date | null },
+  campusId: string,
+): Promise<Omit<CertificateData, 'students'>> {
+  const [campus, signatoryRows] = await Promise.all([
+    prisma.campus.findUnique({
+      where: { id: campusId },
+      select: { name: true, timezone: true },
+    }),
+    prisma.signatory.findMany({
+      where: { OR: [{ campusId: null }, { campusId }] },
+      // `position` is the single ordering knob the admin sets ("plus petit =
+      // affiché en premier"). Order by it alone so a global signatory and a
+      // campus-local one interleave by position; sorting by `campusId` first
+      // would pin globals after locals (NULLS LAST) and make `position`
+      // unable to move a signatory across that boundary.
+      orderBy: [{ position: 'asc' }, { name: 'asc' }],
+      select: { name: true, role: true, signatureKey: true, contentType: true },
+    }),
+  ]);
+
+  const storage = getStorage();
+  const signatories = await Promise.all(
+    signatoryRows.map(async (s) => {
+      // A missing signature image must not 500 the whole sheet: render the block
+      // with the name and role over a blank signature line. This is the normal
+      // case for a DB restored without its S3 objects, and guards against a real
+      // signatory whose image was deleted. A genuine storage incident (timeout,
+      // 5xx) still throws, so we never silently ship a diploma missing a present
+      // signature.
+      let imageDataUri: string | null = null;
+      try {
+        const bytes = await storage.get(s.signatureKey);
+        imageDataUri = `data:${s.contentType};base64,${bytes.toString('base64')}`;
+      } catch (err) {
+        if (!isObjectNotFound(err)) throw err;
+        console.warn(
+          `Diploma: signature image absent for "${s.name}" (${s.signatureKey}); rendering without it.`,
+        );
+      }
+      return { name: s.name, role: s.role, imageDataUri };
+    }),
+  );
+
+  const timezone = campus?.timezone;
+  return {
+    city: campus?.name ?? '',
+    startDate: formatDateFr(event.date, timezone),
+    endDate: formatDateFr(eventWindowEnd(event.date, event.endDate), timezone),
+    todayDate: formatDateFr(new Date(), timezone),
+    signatories,
   };
 }
