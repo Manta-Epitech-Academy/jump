@@ -79,16 +79,44 @@ export function tallyClosings(
   return { counts, recoCounts };
 }
 
+/** « Mené par » of a closing nobody has begun. */
+export const NOT_CONDUCTED_LABEL = 'Pas encore mené';
+
+/**
+ * « Mené par » of a closing whose conductor's account has been deleted since:
+ * the record keeps the closing and loses who held it (`Closing_Record.staff`
+ * is `onDelete: SetNull`), so it reads as held by someone who left, never as a
+ * closing still to conduct.
+ */
+const CONDUCTOR_GONE = 'ancien';
+const CONDUCTOR_GONE_LABEL = "Ancien membre de l'équipe";
+
+/** A row's « Mené par » value: its conductor, else whether one ever was. */
+function conductorValue(row: Pick<ClosingRow, 'staffId' | 'status'>): string {
+  if (row.staffId) return row.staffId;
+  return row.status === 'todo' ? FACET_NONE : CONDUCTOR_GONE;
+}
+
+/** Who held a closing, as the list and the sheet write it: their name, or
+ *  that they left; null for a closing nobody has begun. */
+export function conductorLabel(
+  row: Pick<ClosingRow, 'staffId' | 'staffName' | 'status'>,
+): string | null {
+  if (row.staffName) return row.staffName;
+  return conductorValue(row) === CONDUCTOR_GONE ? CONDUCTOR_GONE_LABEL : null;
+}
+
 /** The Closings table's column filters, the mockup's header filters. */
 const FACETS: Record<ClosingsFacet, FacetDef<ClosingRow>> = {
   mene: {
     title: 'Mené par',
-    valuesOf: (r) => [r.staffId ?? FACET_NONE],
+    valuesOf: (r) => [conductorValue(r)],
     vocabulary: (rows) => [
       ...byCount(rows, (r) =>
         r.staffId && r.staffName ? [[r.staffId, r.staffName]] : [],
       ),
-      [FACET_NONE, 'Pas encore mené'],
+      [CONDUCTOR_GONE, CONDUCTOR_GONE_LABEL],
+      [FACET_NONE, NOT_CONDUCTED_LABEL],
     ],
   },
   statut: {

@@ -37,8 +37,10 @@
     type ClosingsSortKey,
   } from '$lib/domain/closingsView';
   import {
+    NOT_CONDUCTED_LABEL,
     closingVerdict,
     closingsFacets,
+    conductorLabel,
     matchesClosingsFacets,
     type ClosingsFacetState,
   } from '$lib/domain/closingsRoster';
@@ -320,7 +322,9 @@
                 </span>
               </span>
             {:else}
-              <span class="text-muted-foreground">-</span>
+              <span class="text-muted-foreground"
+                >{conductorLabel(r) ?? '-'}</span
+              >
             {/if}
           </Table.Cell>
           <Table.Cell class="text-sm text-muted-foreground">
@@ -362,7 +366,7 @@
                   {@render staffAvatar(r.staffName, r.staffImage)}
                 {/if}
                 <span class="min-w-0 flex-1 truncate">
-                  {r.staffName ?? 'Pas encore mené'}
+                  {conductorLabel(r) ?? NOT_CONDUCTED_LABEL}
                 </span>
                 {#if r.conductedAt}
                   <span class="shrink-0">{dateFmt(r.conductedAt)}</span>

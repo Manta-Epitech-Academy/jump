@@ -55,8 +55,16 @@ const rows = [
   }),
   row({ talentId: 'b', status: 'done', staffId: 's1', staffName: 'Camille' }),
   // A verdict picked mid-closing is not the team's conclusion yet.
-  row({ talentId: 'c', status: 'in_progress', recommendation: 'bon_profil' }),
+  row({
+    talentId: 'c',
+    status: 'in_progress',
+    recommendation: 'bon_profil',
+    staffId: 's2',
+    staffName: 'Sam',
+  }),
   row({ talentId: 'd' }),
+  // Finalised by a member whose account was deleted since (`staffId` nulled).
+  row({ talentId: 'e', status: 'done' }),
 ];
 
 const kept = (params: URLSearchParams) => {
@@ -108,7 +116,6 @@ describe('the closings filters', () => {
 
   it('read `aucun` as a closing nobody conducted, or one without a verdict', () => {
     expect(kept(written(closingsFacetParams('mene', ['aucun'])))).toEqual([
-      'c',
       'd',
     ]);
     expect(
@@ -118,7 +125,13 @@ describe('the closings filters', () => {
           closingsFacetParams('avis', ['aucun']),
         ),
       ),
-    ).toEqual(['b']);
+    ).toEqual(['b', 'e']);
+  });
+
+  it('file a closing whose conductor has left under them, never as not conducted', () => {
+    expect(kept(written(closingsFacetParams('mene', ['ancien'])))).toEqual([
+      'e',
+    ]);
   });
 
   it('ignore a value the roster does not carry', () => {
@@ -127,6 +140,7 @@ describe('the closings filters', () => {
       'b',
       'c',
       'd',
+      'e',
     ]);
   });
 });

@@ -42,7 +42,7 @@ import {
   CLOSING_RECOMMENDATIONS,
   CLOSING_STATUS_LABELS,
 } from '$lib/domain/closing';
-import { closingVerdict } from '$lib/domain/closingsRoster';
+import { closingVerdict, conductorLabel } from '$lib/domain/closingsRoster';
 
 /**
  * The sheets an event's exports are made of, one builder per section. Each
@@ -329,7 +329,7 @@ export async function closingsSheet(
         r.prenom,
         r.nom,
         CLOSING_STATUS_LABELS[r.status],
-        r.staffName ?? '',
+        conductorLabel(r) ?? '',
         r.conductedAt ? dateFmt.format(new Date(r.conductedAt)) : '',
         verdict ? CLOSING_RECOMMENDATIONS[verdict].label : '',
       ];
