@@ -374,6 +374,7 @@ export const edgeTalents: Scenario = {
         'un talent avec deux dossiers annuels et deux PDF distincts',
         "une correction de droit à l'image saisie par l'équipe",
         'un responsable légal qui doit encore la co-signature et la décision, avec un second responsable déclaré',
+        'un talent ayant déclaré la civilité « Autre » (nom de famille « Civiliteautre »)',
         'un talent sans compte de connexion, un lycée sans UAI',
         'quatre divergences CRM pour /staff/admin/sf-conflicts',
         'un talent inscrit sur deux campus',
