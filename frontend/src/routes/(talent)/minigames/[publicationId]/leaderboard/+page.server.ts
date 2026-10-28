@@ -36,6 +36,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const { rows, scoringType } = await getCampusLeaderboard(
     params.publicationId,
     campusId,
+    locals.talent.id,
   );
 
   // If the player just earned a rank bonus and hasn't seen its float yet, it
@@ -49,7 +50,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     publication,
     rows,
     scoringType,
-    currentTalentId: locals.talent.id,
     campusName: campus?.name ?? null,
     viewerOutcome,
     minigameRankReward,

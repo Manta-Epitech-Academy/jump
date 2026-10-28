@@ -1,6 +1,7 @@
 import { prisma } from '$lib/server/db';
 import { mintGameJwt } from '$lib/server/jwt';
 import { MINIGAME_XP_REWARD, minigameRankBonus } from '$lib/domain/xp';
+import { formatPeerName } from '$lib/domain/profile';
 import { grantXp } from '$lib/server/services/xpService';
 import {
   getGameCatalog,
@@ -430,11 +431,15 @@ export async function forcePublication(input: {
   return published;
 }
 
+/**
+ * One row of a talent-facing board. Other talents read it, so it carries the
+ * peer name and no identity: no surname, no talent id (`isViewer` marks the
+ * reader's own row instead).
+ */
 export interface LeaderboardRow {
   rank: number;
-  talentId: string;
-  prenom: string;
-  nom: string;
+  displayName: string;
+  isViewer: boolean;
   score: number | null;
   chrono: number | null;
   finishedAt: Date | null;
@@ -500,6 +505,7 @@ async function rankOnCampusBoard(
 async function buildLeaderboard(
   publicationId: string,
   scopeWhere: Prisma.MinigameAttemptWhereInput,
+  viewerTalentId: string,
 ): Promise<{ rows: LeaderboardRow[]; scoringType: 'score' | 'chrono' }> {
   const publication = await prisma.minigamePublication.findUnique({
     where: { id: publicationId },
@@ -514,7 +520,7 @@ async function buildLeaderboard(
       ...scopeWhere,
     },
     include: {
-      talent: { select: { id: true, prenom: true, nom: true } },
+      talent: { select: { prenom: true, nom: true } },
     },
   });
 
@@ -524,9 +530,8 @@ async function buildLeaderboard(
 
   const rows: LeaderboardRow[] = sorted.map((a, i) => ({
     rank: i + 1,
-    talentId: a.talentId,
-    prenom: a.talent.prenom,
-    nom: a.talent.nom,
+    displayName: formatPeerName(a.talent.prenom, a.talent.nom),
+    isViewer: a.talentId === viewerTalentId,
     score: a.score,
     chrono: a.chrono,
     finishedAt: a.finishedAt,
@@ -580,13 +585,18 @@ export async function resolveLeaderboardScope(
  * Talent-facing leaderboard: scoped to the talent's campus when known, or
  * global (everyone who played today's publication) when `campusId` is null.
  * Pass the `campusId` from {@link resolveLeaderboardScope} so the rows match the
- * board the viewer was ranked on.
+ * board the viewer was ranked on, and the viewer so their own row is marked.
  */
 export async function getCampusLeaderboard(
   publicationId: string,
   campusId: string | null,
+  viewerTalentId: string,
 ): Promise<{ rows: LeaderboardRow[]; scoringType: 'score' | 'chrono' }> {
-  return buildLeaderboard(publicationId, campusId ? { campusId } : {});
+  return buildLeaderboard(
+    publicationId,
+    campusId ? { campusId } : {},
+    viewerTalentId,
+  );
 }
 
 function weightedPick(candidates: RotationCandidate[]): RotationCandidate {
