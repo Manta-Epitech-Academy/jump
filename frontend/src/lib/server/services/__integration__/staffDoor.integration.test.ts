@@ -20,7 +20,6 @@ import { discardStaffSignIn } from '$lib/server/auth/staffDoor';
 import { assertTestDatabase } from './testDatabase';
 
 const stamp = Date.now();
-const ISSUER = 'https://login.microsoftonline.com/staff-door-test/v2.0';
 
 const userIds: string[] = [];
 const talentIds: string[] = [];
@@ -43,7 +42,6 @@ async function signedInThroughTheStaffDoor(
       emailVerified: data.emailVerified,
       accounts: {
         create: {
-          issuer: ISSUER,
           accountId: `staff-door-${slug}-${stamp}`,
           providerId: 'microsoft',
         },
