@@ -25,6 +25,7 @@
   import * as Select from '$lib/components/ui/select';
   import InfoTooltip from '$lib/components/ui/info-tooltip/InfoTooltip.svelte';
   import EventModuleIcon from '$lib/components/events/EventModuleIcon.svelte';
+  import EventCategoryChip from '$lib/components/events/EventCategoryChip.svelte';
   import AdminSfStatusInspectorDialog from '$lib/components/events/AdminSfStatusInspectorDialog.svelte';
   import {
     EVENT_MODULE_DEFS,
@@ -37,6 +38,7 @@
     activationBlockerKeys,
     type ActivationBlocker,
   } from '$lib/domain/eventReadiness';
+  import type { EventCategoryView } from '$lib/domain/eventCategory';
   import type { AdminEventForm } from '$lib/validation/events';
   import { enhance as kitEnhance, deserialize } from '$app/forms';
   import { toast } from 'svelte-sonner';
@@ -48,6 +50,7 @@
     titre: string;
     publicName: string;
     cohortNoun: string | null;
+    category: EventCategoryView | null;
     campusName: string;
     dateLabel: string;
     startTime: string;
@@ -67,6 +70,7 @@
     description: string | null;
     publicName: string | null;
     cohortNoun: string | null;
+    categoryKey: string | null;
     startTime: string | null;
     feedbackFormId: string | null;
     diplomaTemplateId: string | null;
@@ -86,6 +90,7 @@
     formPreviews,
     templates,
     sfStatuses,
+    categories,
     onSfStatusAdded,
   }: {
     open: boolean;
@@ -100,6 +105,8 @@
     templates: TemplateVM[];
     /** The Salesforce statuses Jump knows, which an event may show. */
     sfStatuses: string[];
+    /** Every event category, archived ones included. */
+    categories: EventCategoryView[];
     /** A word « Membres Salesforce » just added to the catalogue. */
     onSfStatusAdded: (status: string) => void;
   } = $props();
@@ -114,6 +121,17 @@
         if (result.type === 'success') {
           open = false;
           toast.success(result.data?.form?.message || 'Événement mis à jour.');
+        } else if (result.type === 'failure') {
+          // The service words its refusals for this screen (an archived
+          // category, an activation the rule forbids, a status Jump does not
+          // know). Unshown, a refused save left the dialog open with nothing
+          // saying why, which reads as a button that does nothing.
+          toast.error(
+            (result.data?.form?.message as string | undefined) ??
+              'Enregistrement refusé : vérifiez les champs signalés.',
+          );
+        } else if (result.type === 'error') {
+          toast.error('Erreur lors de la mise à jour.');
         }
       },
     },
@@ -163,6 +181,7 @@
       // default rides the config template the admin starts from (the stage
       // template carries "stagiaire"), and an event keeps whatever staff last set.
       cohortNoun: e.cohortNoun ?? '',
+      categoryKey: e.category?.key ?? '',
       startTime: e.startTime,
       modules: [...e.modules],
       moduleSettings: withDefaults(e.moduleSettings),
@@ -218,6 +237,14 @@
     // startTime → no arrival time).
     $form.publicName = t.publicName ?? '';
     $form.cohortNoun = t.cohortNoun ?? '';
+    // Unless the preset names a category archived since: it is no longer
+    // offered, so the event keeps the one it has.
+    if (
+      !t.categoryKey ||
+      offeredCategories.some((c) => c.key === t.categoryKey)
+    ) {
+      $form.categoryKey = t.categoryKey ?? '';
+    }
     $form.startTime = t.startTime ?? '';
     selectedTemplateId = t.id;
     step = 2;
@@ -264,8 +291,8 @@
   // "Visible dans l'espace dev" only takes effect once the event is actually
   // showable: the dev space is nothing but per-module surfaces, so a
   // section-less event made visible shows nothing (it would never get the
-  // "Espace dev" badge nor land in the switcher), and one with no public name
-  // would sit in the switcher under its raw Salesforce title. We gate the
+  // "Espace dev" badge nor land on the campus calendar), and one with no public
+  // name would sit on the calendar under its raw Salesforce title. We gate the
   // toggle on that rather than let an admin tick a promise that silently does
   // nothing. The displayed state is the EFFECTIVE visibility, so toggling the
   // last module off reads as not-visible immediately, matching what the dev
@@ -326,6 +353,21 @@
   // No feedback form picked yet: the event's Feedback surface stays hidden until
   // an admin selects one. There is no per-kind default anymore.
   const NO_FORM_LABEL = 'Aucun formulaire';
+
+  // ─── Category picker ─────────────────────────────────────────────────────
+  // The active categories, plus the one the event already carries if it has
+  // been archived since: an archived category is no longer given to an event,
+  // but one that carries it keeps it and shows it. The "none" value has an
+  // underscore, which `CATALOGUE_KEY_PATTERN` refuses: a key is authored, so
+  // a plain word like `none` could one day name a real category.
+  const NO_CATEGORY = '_none';
+  const NO_CATEGORY_LABEL = 'Aucune catégorie';
+  const offeredCategories = $derived(
+    categories.filter((c) => !c.archived || c.key === editing?.category?.key),
+  );
+  const selectedCategory = $derived(
+    categories.find((c) => c.key === $form.categoryKey) ?? null,
+  );
 
   // ─── Certificate picker (inscrits sub-option) ────────────────────────────
   // Same shape as the feedback form above: a nullable typed choice on the event,
@@ -451,6 +493,7 @@
       diplomaTemplateId: $form.diplomaTemplateId,
       publicName: $form.publicName,
       cohortNoun: $form.cohortNoun,
+      categoryKey: $form.categoryKey,
       startTime: $form.startTime,
       shownStatuses: $form.shownStatuses,
     }),
@@ -728,6 +771,42 @@
               />
               {#if $errors.cohortNoun}<span class="text-xs text-destructive"
                   >{$errors.cohortNoun}</span
+                >{/if}
+            </div>
+
+            <div class="space-y-2">
+              <Label for="categoryKey" class="flex items-center gap-1.5">
+                Catégorie
+                <InfoTooltip
+                  text="Le genre d'événement, qui donne sa couleur au calendrier du campus et compte pour les badges des jeunes. Elle ne change rien d'autre : ce sont les sections qui décident des pages de l'événement."
+                />
+              </Label>
+              <Select.Root
+                type="single"
+                value={$form.categoryKey || NO_CATEGORY}
+                onValueChange={(v) =>
+                  ($form.categoryKey = v === NO_CATEGORY ? '' : v)}
+              >
+                <Select.Trigger id="categoryKey" class="w-full">
+                  {#if selectedCategory}
+                    <EventCategoryChip category={selectedCategory} />
+                  {:else}
+                    {NO_CATEGORY_LABEL}
+                  {/if}
+                </Select.Trigger>
+                <Select.Content>
+                  <Select.Item value={NO_CATEGORY}>
+                    {NO_CATEGORY_LABEL}
+                  </Select.Item>
+                  {#each offeredCategories as category (category.key)}
+                    <Select.Item value={category.key} label={category.label}>
+                      <EventCategoryChip {category} />
+                    </Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+              {#if $errors.categoryKey}<span class="text-xs text-destructive"
+                  >{$errors.categoryKey}</span
                 >{/if}
             </div>
 

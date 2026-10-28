@@ -1,5 +1,5 @@
 import { resolve } from '$app/paths';
-import type { Icon as IconType } from '@lucide/svelte';
+import type { LucideIcon } from '@lucide/svelte';
 import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 import GitCompareArrows from '@lucide/svelte/icons/git-compare-arrows';
@@ -40,7 +40,7 @@ export type AdminNavItem = {
   label: string;
   /** Already-resolved href (base path applied). */
   href: string;
-  icon: typeof IconType;
+  icon: LucideIcon;
   /** Accent-free synonyms so palette search resolves "salesforce", "rgpd", … */
   keywords?: string[];
   /** Sidebar live-count slot; the palette ignores it (no badges by design). */

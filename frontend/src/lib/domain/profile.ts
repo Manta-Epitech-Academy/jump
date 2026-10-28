@@ -114,6 +114,19 @@ export const civiliteCourtesyTitle = (
   return '';
 };
 
+/**
+ * The abbreviated courtesy title a dense roster shows in its Genre column:
+ * "Mme" / "M.", the French typographic abbreviations (never the English "Mr").
+ * Same rule as `civiliteCourtesyTitle`: `autre` and null have none.
+ */
+export const civiliteShortTitle = (
+  value: string | null | undefined,
+): string => {
+  if (value === 'homme') return 'M.';
+  if (value === 'femme') return 'Mme';
+  return '';
+};
+
 export const parentTypeLabel = (value: string | null | undefined): string =>
   labelFrom(PARENT_TYPE_OPTIONS, value);
 

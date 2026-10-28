@@ -172,9 +172,10 @@
       <div>
         <p class="font-bold">Catalogue des jeux indisponible</p>
         <p class="text-muted-foreground">
-          Impossible de joindre <code>jump-games</code> (vérifie
-          <code>JUMP_GAMES_URL</code>). La rotation et les publications sont en
-          pause tant que le catalogue n'est pas accessible.
+          Impossible de joindre <code>jump-games</code> (vérifiez
+          <code>JUMP_GAMES_INTERNAL_URL</code>, ou <code>JUMP_GAMES_URL</code>
+          en son absence). La rotation et les publications sont en pause tant que
+          le catalogue n'est pas accessible.
         </p>
       </div>
     </div>

@@ -10,6 +10,7 @@
   import X from '@lucide/svelte/icons/x';
   import Search from '@lucide/svelte/icons/search';
   import BrandMark from '$lib/components/layout/BrandMark.svelte';
+  import AppRevision from '$lib/components/layout/AppRevision.svelte';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -125,6 +126,15 @@
       {/each}
     </nav>
   {/each}
+{/snippet}
+
+{#snippet sidebarFooter()}
+  <div class="border-t border-chrome-border px-6 py-3">
+    <AppRevision
+      link
+      class="text-chrome-foreground-muted hover:text-chrome-foreground"
+    />
+  </div>
 {/snippet}
 
 <div
@@ -276,6 +286,7 @@
       <div class="flex-1 overflow-y-auto py-6 pr-4">
         {@render navMenu()}
       </div>
+      {@render sidebarFooter()}
     </aside>
 
     <!-- Mobile Admin Sidebar Overlay -->
@@ -295,6 +306,7 @@
         <div class="flex-1 overflow-y-auto py-6 pr-2">
           {@render navMenu()}
         </div>
+        {@render sidebarFooter()}
       </aside>
     {/if}
 

@@ -3,7 +3,7 @@
  *
  * Deliberately NOT the seed generator (`scripts/seed/`): that builds a dataset
  * shaped like production, and a spec anchored to it breaks the next time
- * somebody adjusts a scenario. This seeds the seven accounts and the two events
+ * somebody adjusts a scenario. This seeds the accounts and the three events
  * the specs actually assert on. Who those accounts are is declared in
  * `./identities.ts`, which the config and the specs share.
  *
@@ -56,13 +56,21 @@ export async function purgeE2eData(): Promise<void> {
   // The event first: EventConfig_Module, Participation, EventPresence and the
   // closures all cascade off it.
   await prisma.event.deleteMany({
-    where: { id: { in: [E2E.eventId, E2E.upcomingEventId] } },
+    where: {
+      id: { in: [E2E.eventId, E2E.upcomingEventId, E2E.rosterEventId] },
+    },
   });
   // Then the talents. Talent -> bauth_user is SetNull, not Cascade, so deleting
   // the accounts first would leave orphan Talent rows behind (the same order the
   // load-test cleanup documents).
   await prisma.talent.deleteMany({
-    where: { user: { email: { endsWith: E2E_DOMAIN } } },
+    where: {
+      OR: [
+        { user: { email: { endsWith: E2E_DOMAIN } } },
+        // The roster's talents have no account to find them by.
+        { id: { in: E2E.rosterTalents.map((t) => t.id) } },
+      ],
+    },
   });
   await prisma.bauth_user.deleteMany({
     where: { email: { endsWith: E2E_DOMAIN } },
@@ -174,6 +182,41 @@ export async function seedE2eData(): Promise<void> {
       },
     },
   });
+
+  // ── The roster the Inscrits filters run on ───────────────────────────────
+  // Ten days out: off today's calendar cell, which the calendar spec reads.
+  const rosterDay = toDateKey(
+    new Date(Date.now() + 10 * 86_400_000),
+    CAMPUS_TIMEZONE,
+  );
+  await prisma.event.create({
+    data: {
+      id: E2E.rosterEventId,
+      titre: 'E2E-Inscrits',
+      publicName: 'Inscrits E2E',
+      cohortNoun: 'participant',
+      date: eventStartInstant(rosterDay, CAMPUS_TIMEZONE),
+      endDate: eventEndInstant(rosterDay, CAMPUS_TIMEZONE),
+      campusId: E2E.campusId,
+      devActivatedAt: now,
+      modules: { create: { moduleKey: EVENT_MODULES.INSCRITS } },
+      shownStatuses: { create: [{ status: 'READY' }] },
+    },
+  });
+  for (const talent of E2E.rosterTalents) {
+    await prisma.talent.create({
+      data: {
+        ...talent,
+        participations: {
+          create: {
+            eventId: E2E.rosterEventId,
+            campusId: E2E.campusId,
+            sfMemberStatus: 'READY',
+          },
+        },
+      },
+    });
+  }
 
   // ── Talents ──────────────────────────────────────────────────────────────
   /** Every rung of the ladder, plus the charte and the welcome splash. */

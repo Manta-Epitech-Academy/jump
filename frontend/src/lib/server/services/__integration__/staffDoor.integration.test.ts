@@ -18,7 +18,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
-import { MICROSOFT_TEST_ISSUER, signInWithMicrosoft } from './microsoftSignIn';
+import { signInWithMicrosoft } from './microsoftSignIn';
 
 const stamp = Date.now();
 
@@ -54,7 +54,6 @@ async function existingUser(
         staffProfile: { create: { staffRole: null } },
         accounts: {
           create: {
-            issuer: MICROSOFT_TEST_ISSUER,
             accountId: oidFor(slug),
             providerId: 'microsoft',
           },

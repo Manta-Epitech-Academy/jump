@@ -52,6 +52,10 @@ catalogue both read.
   `parent` value, because measuring a data subject on legitimate interest owes them
   an operable art. 21 objection and there is nowhere to store one for a guardian
   today (no Parent entity, `/parent/settings` holds no preferences).
+  A talent's run of consecutive days (`Talent.streakDays`, #447) is the
+  identified counterpart and stays outside this system: a badge has to know who
+  the talent is, this pseudonym must not, so neither is ever read to answer the
+  other (the reasoning is on the column).
 - **Nothing is recorded by client code, and no view is recorded from a `load`.**
   Instructing a browser to post a result back is an access to the terminal under
   art. 5(3) ePD, which would drag the whole thing into art. 82 consent; a pure

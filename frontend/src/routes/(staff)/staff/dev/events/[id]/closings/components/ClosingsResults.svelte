@@ -23,13 +23,16 @@
   import { cohortNounForms } from '$lib/domain/event';
   import {
     CLOSING_STATUS_LABELS,
-    CLOSING_STATUS_CHIP_CLASS,
     type ClosingListStatus,
   } from '$lib/domain/closing';
   import type { ClosingRow, SortKey, ClosingsCohort } from './types';
   import SynthesisCard from './SynthesisCard.svelte';
   import StaffTallyCard from './StaffTallyCard.svelte';
   import GuideCard from '$lib/components/dev/closings/GuideCard.svelte';
+  import {
+    statusBadgeClass,
+    type StatusTone,
+  } from '$lib/components/staff/statusBadge';
   import {
     buildHaystack,
     matchesAllTokens,
@@ -68,6 +71,13 @@
     todo: Circle,
     in_progress: Clock,
     done: Check,
+  };
+  // The same reading as the inscrits' statut: nothing begun is neutral, work
+  // under way is a warning, a closing done is settled.
+  const STATUS_TONE: Record<ClosingListStatus, StatusTone> = {
+    todo: 'neutral',
+    in_progress: 'warning',
+    done: 'success',
   };
   // Least-advanced first in ascending sort, so the talents still to call float up.
   const STATUS_ORDER: Record<ClosingListStatus, number> = {
@@ -178,13 +188,7 @@
 
 {#snippet statusBadge(status: ClosingListStatus, full: boolean)}
   {@const Icon = STATUS_ICON[status]}
-  <span
-    class={cn(
-      'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',
-      full && 'shrink-0',
-      CLOSING_STATUS_CHIP_CLASS[status],
-    )}
-  >
+  <span class={cn(statusBadgeClass(STATUS_TONE[status]), full && 'shrink-0')}>
     <Icon class="h-3 w-3" />
     {CLOSING_STATUS_LABELS[status]}
   </span>

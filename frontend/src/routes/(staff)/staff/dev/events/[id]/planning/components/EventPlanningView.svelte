@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { eventDisplayName } from '$lib/domain/event';
+  import { eventDaysLabel, eventDisplayName } from '$lib/domain/event';
   import CalendarViewer from '$lib/components/planning/CalendarViewer.svelte';
   import WeekNavigator from '$lib/components/planning/WeekNavigator.svelte';
   import WeekViewToggle from '$lib/components/planning/WeekViewToggle.svelte';
@@ -65,20 +65,11 @@
         <p
           class="text-sm font-bold tracking-wider text-muted-foreground uppercase"
         >
-          {eventDisplayName(event)} • {new Date(event.date).toLocaleDateString(
-            'fr-FR',
-            {
-              day: 'numeric',
-              month: 'short',
-              timeZone: timezone,
-            },
-          )}{#if event.endDate}
-            - {new Date(event.endDate).toLocaleDateString('fr-FR', {
-              day: 'numeric',
-              month: 'short',
-              timeZone: timezone,
-            })}
-          {/if}
+          {eventDisplayName(event)} • {eventDaysLabel(
+            event.date,
+            event.endDate,
+            timezone,
+          )}
         </p>
       </div>
       <div

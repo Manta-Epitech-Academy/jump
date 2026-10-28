@@ -5,6 +5,9 @@ build/
 dist/
 .output/
 
+# `bun run test:coverage` (vitest's default reportsDirectory)
+coverage/
+
 # Node
 node_modules/
 package-lock.json

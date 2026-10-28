@@ -1,19 +1,15 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { ScopedPrismaClient } from '$lib/server/db/scoped';
 import { prisma } from '$lib/server/db';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 
 /**
- * Origin breakdowns for a stage cohort: "where do these inscrits come from"
- * (top lycées) and "what are they into" (top centres d'intérêt). Shared by the
- * event dashboard (prep/ongoing views) and the Inscrits page sidebar so the two
- * surfaces can never drift on how the cohort is ranked or summarised.
- *
- * Everything here is whole-event: rankings ignore any in-page filter so the
- * breakdown stays a stable picture of the cohort the user can drill into.
+ * Origin breakdowns for a cohort: "where do these talents come from" (top
+ * lycées) and "what are they into" (top centres d'intérêt). Shared by the admin
+ * API's figures (schools reach and churn, interests breakdown) so they can
+ * never drift on how a cohort is ranked or summarised.
  */
 
-/** Default cap for the dashboard's side-by-side breakdown cards. */
+/** Default cap on a breakdown's head; the rest folds into its tail. */
 const BREAKDOWN_TOP_N = 10;
 
 export type LyceeStat = { schoolId: string; name: string; count: number };
@@ -68,21 +64,6 @@ export function toBreakdown<T extends { count: number }>(
           categories: tail.length,
         };
   return { rows, others };
-}
-
-/**
- * The talents of one event, as a `Talent` filter: enrolled, and visible in Jump.
- *
- * Exported so a caller states which cohort it wants without restating the
- * status rule. The rankings below take an arbitrary filter rather than an event
- * id, because the admin API ranks over a campus or a whole school year using
- * the same two groupBys; keeping one ranking and varying the cohort is what
- * stops the two surfaces drifting on how a lycée is counted.
- */
-export function eventCohortWhere(eventId: string): Prisma.TalentWhereInput {
-  return {
-    participations: { some: { eventId, ...visibleParticipationWhere } },
-  };
 }
 
 /**

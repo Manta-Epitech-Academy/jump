@@ -1,7 +1,11 @@
 import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { hhmmToMinutes, minutesToHHMM } from '$lib/domain/event';
+import {
+  eventDaysLabel,
+  hhmmToMinutes,
+  minutesToHHMM,
+} from '$lib/domain/event';
 import {
   eventRunsClosings,
   isEventModuleKey,
@@ -22,7 +26,15 @@ import {
 } from '$lib/domain/eventReadiness';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import {
+  archivedCategoryRefusal,
+  type EventCategoryView,
+} from '$lib/domain/eventCategory';
 import { setEventShownStatuses } from '$lib/server/services/devSpaceVisibility';
+import {
+  EVENT_CATEGORY_SELECT,
+  eventCategoryView,
+} from '$lib/server/services/eventCategories';
 
 /**
  * The per-event view model the admin surfaces consume: the events cockpit
@@ -39,6 +51,8 @@ export type AdminEventVM = {
   displayName: string;
   /** Jump-owned cohort noun ("stagiaire", ...), or null when unnamed; set in the wizard. */
   cohortNoun: string | null;
+  /** The kind of event it is, or null when uncategorised; set in the wizard. */
+  category: EventCategoryView | null;
   campusId: string;
   campusName: string;
   /** "12 fév. 2026 → 26 fév. 2026" (campus tz), endDate omitted when absent. */
@@ -155,6 +169,7 @@ const ADMIN_EVENT_SELECT = {
   titre: true,
   publicName: true,
   cohortNoun: true,
+  category: { select: EVENT_CATEGORY_SELECT },
   date: true,
   endDate: true,
   startMinutes: true,
@@ -178,23 +193,6 @@ const ADMIN_EVENT_SELECT = {
 type AdminEventRow = Prisma.EventGetPayload<{
   select: typeof ADMIN_EVENT_SELECT;
 }>;
-
-function dateRangeLabel(
-  date: Date,
-  endDate: Date | null,
-  timezone: string,
-): string {
-  const fmt = new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: timezone,
-  });
-  const start = fmt.format(date);
-  if (!endDate) return start;
-  const end = fmt.format(endDate);
-  return start === end ? start : `${start} → ${end}`;
-}
 
 function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
   // Lifecycle bounds are timezone-dependent and the list is cross-campus, so
@@ -230,9 +228,10 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
       publicName: e.publicName ?? '',
       displayName: e.publicName?.trim() || e.titre,
       cohortNoun: e.cohortNoun,
+      category: e.category && eventCategoryView(e.category),
       campusId: e.campusId,
       campusName: e.campus.name,
-      dateLabel: dateRangeLabel(e.date, e.endDate, tz),
+      dateLabel: eventDaysLabel(e.date, e.endDate, tz),
       dateTs: e.date.getTime(),
       createdTs: e.createdAt.getTime(),
       schoolYearLabel: sy.label,
@@ -462,6 +461,24 @@ export async function setActivationForEvents(
   };
 }
 
+/**
+ * Gives many events one category, or none, inside an open transaction. The bulk
+ * write's counterpart of the field `updateEventConfig` saves; the caller has
+ * already refused an archived target, since none of these events is asked to
+ * keep one it carries.
+ */
+export async function setCategoryForEvents(
+  tx: Prisma.TransactionClient,
+  eventIds: readonly string[],
+  categoryKey: string | null,
+) {
+  if (eventIds.length === 0) return;
+  await tx.event.updateMany({
+    where: { id: { in: [...eventIds] } },
+    data: { categoryKey },
+  });
+}
+
 export const EventService = {
   /**
    * Every event as an `AdminEventVM`, newest start date first, cross-campus.
@@ -495,6 +512,7 @@ export const EventService = {
     data: {
       publicName: string;
       cohortNoun: string;
+      categoryKey: string;
       startTime: string;
       modules: string[];
       moduleSettings: Record<string, unknown>;
@@ -511,7 +529,7 @@ export const EventService = {
     // preserve the original activation instant across edits that keep it on.
     const event = await prisma.event.findUniqueOrThrow({
       where: { id: eventId },
-      select: { devActivatedAt: true },
+      select: { devActivatedAt: true, categoryKey: true },
     });
     // The activation rule, judged on the configuration being saved rather than
     // the one stored. `bulkSetActivation` refuses through `activatableEventWhere`;
@@ -570,6 +588,21 @@ export const EventService = {
       });
       if (!grid) throw error(400, 'Grille de closing introuvable.');
     }
+    // Which kind of event it is. Empty = uncategorised. An archived category is
+    // no longer offered, so it is refused as a new choice, but an event that
+    // already carries one keeps it: saving its configuration unchanged, or
+    // sending back what the admin API read, must not fail on it.
+    const categoryKey = data.categoryKey.trim() || null;
+    if (categoryKey && categoryKey !== event.categoryKey) {
+      const category = await prisma.eventConfig_Category.findUnique({
+        where: { key: categoryKey },
+        select: { label: true, archivedAt: true },
+      });
+      if (!category) throw error(400, 'Catégorie introuvable.');
+      if (category.archivedAt) {
+        throw error(400, archivedCategoryRefusal(category.label));
+      }
+    }
 
     await prisma.$transaction(async (tx) => {
       await applyModuleDiff(tx, eventId, data.modules, data.moduleSettings);
@@ -586,6 +619,7 @@ export const EventService = {
           // Blank → NULL ("not named yet"); the UI falls back to the neutral
           // default, so the column never asserts an unmade choice.
           cohortNoun: data.cohortNoun.trim() || null,
+          categoryKey,
           startMinutes: hhmmToMinutes(data.startTime),
           devActivatedAt,
           feedbackFormId,

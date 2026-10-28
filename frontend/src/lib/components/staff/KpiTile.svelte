@@ -4,7 +4,7 @@
 
 <script lang="ts">
   import type { Component, Snippet } from 'svelte';
-  import type { Icon as IconType } from '@lucide/svelte';
+  import type { LucideIcon } from '@lucide/svelte';
   import * as Card from '$lib/components/ui/card';
   import { InfoTooltip } from '$lib/components/ui/info-tooltip';
   import { cn } from '$lib/utils';
@@ -23,7 +23,7 @@
     /** Optional companion line under the value. */
     sub?: string;
     /** Lucide icon component for the right-side badge. Optional. */
-    icon?: typeof IconType | Component;
+    icon?: LucideIcon | Component;
     /** Progress bar value (0-100). Omit to hide the bar. */
     progress?: number;
     tone?: KpiTone;

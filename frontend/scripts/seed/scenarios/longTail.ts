@@ -27,6 +27,7 @@ import {
   codingClubPublicName,
   codingClubTitre,
 } from '../catalog/events';
+import { clubCategoryOf } from '../catalog/eventCategories';
 import { id } from '../ids';
 import { WORKSHOPS } from '../catalog/workshops';
 import {
@@ -74,6 +75,8 @@ export const longTail: Scenario = {
     let created = 0;
     let empty = 0;
     let unconfigured = 0;
+    // How many of each campus's events the dev space shows, so far.
+    const visibleOn = new Map<string, number>();
 
     for (let index = 0; index < target; index += 1) {
       // One guaranteed per campus first (index < campuses.length visits each
@@ -85,8 +88,19 @@ export const longTail: Scenario = {
 
       // 14% of events have nobody on them, and 80% were never configured. Both
       // are the ordinary case, not a defect to seed around.
+      //
+      // Except that a campus's first two configured events are placed, not
+      // drawn. With one configured event in five counted across every campus,
+      // which campus got one was luck: Lyon, a campus with seven events here,
+      // came out with its stage alone in the dev space, and a campus whose dev
+      // space holds one event is a place where no list, no calendar and no
+      // event switch can be tried. Placing two per campus lifts the activated
+      // share above PROFILE.md's 50 in 292, which is the coverage departure
+      // this generator makes on purpose (`.claude/rules/seed.md`: a state worth
+      // having is placed). It draws nothing, so the world around it does not
+      // move.
       const noEnrolment = index % 7 === 0;
-      const configured = index % 5 === 0;
+      const configured = index % 5 === 0 || (visibleOn.get(campus.id) ?? 0) < 2;
 
       // The one event standing between « à configurer » and « visible »:
       // sections enabled and no public name typed yet - so `eventConfigState`
@@ -98,6 +112,8 @@ export const longTail: Scenario = {
       // `configured` index the smallest profile reaches besides index 5 - and
       // index 5 has to stay visible for the school-year switcher.
       const beingPrepared = index === 0;
+      if (configured && !beingPrepared)
+        visibleOn.set(campus.id, (visibleOn.get(campus.id) ?? 0) + 1);
 
       // Half the configured ones also run closings, which is roughly the share
       // production shows: the module is on for 33 events out of 292, and 25
@@ -166,6 +182,9 @@ export const longTail: Scenario = {
         publicName:
           configured && !beingPrepared ? codingClubPublicName(firstDay) : null,
         cohortNoun: configured ? COHORT_NOUNS.PARTICIPANT : null,
+        // Given with the rest of the configuration, so the long tail nobody
+        // configured is where an uncategorised event comes from.
+        categoryKey: configured ? clubCategoryOf(firstDay) : null,
         campus,
         days,
         devActivated: configured && !beingPrepared,
@@ -318,6 +337,7 @@ export const longTail: Scenario = {
       }),
       publicName: codingClubPublicName(zeroClosingDays[0]!),
       cohortNoun: COHORT_NOUNS.PARTICIPANT,
+      categoryKey: clubCategoryOf(zeroClosingDays[0]!),
       campus: zeroClosingCampus,
       days: zeroClosingDays,
       devActivated: true,

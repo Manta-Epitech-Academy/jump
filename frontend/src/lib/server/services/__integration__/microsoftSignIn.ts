@@ -33,7 +33,7 @@ import { betterAuth } from 'better-auth';
 import { createAuthOptions } from '$lib/server/auth';
 import { env } from '$env/dynamic/private';
 
-export const MICROSOFT_TEST_ISSUER = `https://login.microsoftonline.com/${env.MICROSOFT_TENANT_ID}/v2.0`;
+const MICROSOFT_TEST_ISSUER = `https://login.microsoftonline.com/${env.MICROSOFT_TENANT_ID}/v2.0`;
 
 function base64url(input: string): string {
   return Buffer.from(input)

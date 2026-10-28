@@ -1,33 +1,40 @@
 import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
-import { resolve as resolvePath } from '$app/paths';
-import { landingSurface, surfaceSegment } from '$lib/domain/eventModules';
+import { resolve } from '$app/paths';
+import {
+  getCampusId,
+  getCampusTimezone,
+  scopedPrisma,
+} from '$lib/server/db/scoped';
+import { loadCampusCalendar } from '$lib/server/services/campusCalendar';
+import { calendarYearOf } from '$lib/domain/campusCalendar';
+import { toDateKey } from '$lib/domain/planningTime';
+import { isSchoolYearLabel } from '$lib/domain/schoolYear';
 
 /**
- * The dev space has no standalone dashboard: it drops straight onto the current
- * event's first enabled surface. When the campus has no configured event yet,
- * it shows a short empty state.
+ * The dev space opens on its campus's calendar: every event of a school year,
+ * the days without school greyed. The year is the page's address
+ * (`?year=2026-2027`), the one whose grid holds today when there is none,
+ * because it is what this page is about, as an event is what an event page is
+ * about.
  */
-export const load: PageServerLoad = async ({ locals, parent }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.user) {
     throw error(401, 'Authentification requise');
   }
 
-  const { workspace } = await parent();
-  const current = workspace.current;
-  // Land on the event's first reachable surface. "Reachable" folds the module set
-  // with the data gates (planning needs a schedule, bilan needs a live form), so
-  // this never redirects to a surface that would 404 the way routing off the raw
-  // module set did. Null (no reachable surface) falls through to the empty state.
-  const first = current ? landingSurface(current) : null;
-  if (current && first) {
-    throw redirect(
-      303,
-      resolvePath(`/staff/dev/events/${current.id}/${surfaceSegment(first)}`),
-    );
+  const timezone = getCampusTimezone(locals);
+  const asked = url.searchParams.get('year');
+  if (asked !== null && !isSchoolYearLabel(asked)) {
+    throw redirect(303, resolve('/staff/dev'));
   }
+  const schoolYear = asked ?? calendarYearOf(toDateKey(new Date(), timezone));
 
   return {
-    campusName: locals.staffProfile?.campus?.name || 'votre campus',
+    calendar: await loadCampusCalendar(scopedPrisma(getCampusId(locals)), {
+      timezone,
+      departement: locals.staffProfile?.campus?.departement ?? null,
+      schoolYear,
+    }),
   };
 };

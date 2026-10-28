@@ -201,6 +201,12 @@ is looking at it, and `livedev` follows the tip of a branch. Remarks come back a
 are re-promoted; the draft release targets the `staging` branch and its tag is only created on publish,
 so a retouch costs no re-tag.
 
+**Which commit an environment runs** is stamped at build time and read in four places: the footer of
+every login page, the bottom of the admin sidebar (a link to the commit, whose GitHub page names the
+release tag that contains it), `curl <origin>/_app/version.json` without a session, and the image's
+`org.opencontainers.image.revision` label. It is a commit and not a `vX`, because the tag only exists
+once the draft release is published, after the build of `main` has run.
+
 Each rung answers one question, and only one:
 
 | Rung | The question it answers | Who |

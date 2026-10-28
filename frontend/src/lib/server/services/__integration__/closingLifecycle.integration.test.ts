@@ -691,8 +691,8 @@ describe("the talent's journey", () => {
     // only a link where it leads somewhere.
     //
     // `notActivated` is the case that does NOT 404: `loadEventOr404` gates on
-    // campus, never on activation, so the page opens - under the sidebar and
-    // switcher of whatever event the workspace defaults to, since the URL names
+    // campus, never on activation, so the page opens - under the menu of
+    // whatever event the workspace defaults to, since the URL names
     // one the workspace has no member for. Hence the link is withheld on dev
     // visibility too, not only on the module.
     const past = new Date('2026-03-02T09:00:00Z');

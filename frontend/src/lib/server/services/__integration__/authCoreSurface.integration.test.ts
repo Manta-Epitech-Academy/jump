@@ -39,7 +39,6 @@ describe('BetterAuth core HTTP surface (integration)', () => {
         userId: devId,
         providerId: 'microsoft',
         accountId: `core-surface-oid-${stamp}`,
-        issuer: 'https://login.microsoftonline.com/test-tenant/v2.0',
         accessToken: 'access-token-of-the-dev',
         refreshToken: 'refresh-token-of-the-dev',
         idToken: 'id-token-of-the-dev',
@@ -59,7 +58,7 @@ describe('BetterAuth core HTTP surface (integration)', () => {
   });
 
   it('mounts none of the core routes but the staff door, even for a session', async () => {
-    // Every other path better-auth 1.7.2 mounts, written out rather than read
+    // Every other path better-auth 1.7.14 mounts, written out rather than read
     // off the library, so a release that adds one fails here only if it is
     // let through, never because this list went stale. The routes that end the
     // session come last, so that every other one meets a live session.

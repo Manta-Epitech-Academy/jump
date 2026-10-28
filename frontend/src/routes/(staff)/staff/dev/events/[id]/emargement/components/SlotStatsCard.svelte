@@ -4,6 +4,7 @@
   import Lock from '@lucide/svelte/icons/lock';
   import * as Card from '$lib/components/ui/card';
   import { cn } from '$lib/utils';
+  import { statusBadgeClass } from '$lib/components/staff/statusBadge';
   import type { SlotStats } from '$lib/domain/eventPresence';
 
   let {
@@ -71,9 +72,7 @@
     <ClipboardCheck class="h-5 w-5 text-epi-blue" />
     <h3 class="font-heading text-display-m text-foreground">Synthèse</h3>
     {#if closed}
-      <span
-        class="ml-auto inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 epi-chip text-warning"
-      >
+      <span class={cn('ml-auto', statusBadgeClass('warning'))}>
         <Lock class="h-3 w-3" /> Clôturé
       </span>
     {/if}

@@ -279,8 +279,14 @@ describe('the standing instructions', () => {
  */
 const TOOL_LIST_BUDGET = [
   ['leadership', leadership, 23_200],
-  ['core, read-only', { ...coreWriter, writeEnabled: false }, 42_400],
-  ['core, write-enabled', coreWriter, 89_500],
+  // Raised for the event categories (#438): a new entity, so one read and one
+  // write of its own, plus the category as a field of the two event writes.
+  ['core, read-only', { ...coreWriter, writeEnabled: false }, 43_400],
+  // Raised for the subject catalogue (#439): the domains are a new entity, so
+  // one write of their own (their read is config_workshops, which already
+  // answered for the activities' sibling entities), plus the level, notions and
+  // domains as fields of write_workshop.
+  ['core, write-enabled', coreWriter, 93_300],
 ] as const;
 
 describe('what a client loads up front', () => {

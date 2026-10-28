@@ -1,0 +1,30 @@
+# Read by osv-scanner from beside the lockfile it scans (`Dependency Audit` in
+# .github/workflows/security.yml).
+#
+# An entry is an advisory that does not reach Jump and has no fix on the line
+# in use, never a way to quiet one that does. Each one names why it does not
+# apply, so the reason can be re-checked, and expires, so the audit goes red
+# again if the fix has not landed by then rather than staying silent for good.
+
+# SvelteKit fixes both only in 3.0.0, a major release; the upgrade is its own
+# change, not a patch bump.
+
+[[IgnoredVulns]]
+id = "GHSA-27mw-82g8-phjj"
+ignoreUntil = 2026-12-07
+reason = "XSS through a cache-control header set with setHeaders on a prerendered page. Jump prerenders no page: no `prerender` option anywhere under src/ or in svelte.config.js."
+
+[[IgnoredVulns]]
+id = "GHSA-pfhg-q3qv-9q6r"
+ignoreUntil = 2026-12-07
+reason = "Open redirect from use:enhance on a route that matches a path starting with //. The only catch-all is src/routes/api/auth/[...all], an endpoint under /api/auth/ with no form actions, so no page route can match such a path."
+
+# deepmerge has no fixed release at all. It is a build-time dependency only:
+# `bun pm why deepmerge` lists @sveltejs/vite-plugin-svelte and
+# @rollup/plugin-node-resolve (under adapter-node), and neither ships in the
+# build output.
+
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2026-12-09
+reason = "Prototype poisoning of objects returned by mergeObject(). deepmerge 4.3.1 runs only at build time, where vite-plugin-svelte merges the Svelte config and plugin-node-resolve merges its own options; no request data is ever merged. The merge in the built server and client chunks is ts-deepmerge (sveltekit-superforms), a different package."

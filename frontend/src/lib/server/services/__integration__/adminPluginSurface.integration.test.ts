@@ -70,7 +70,7 @@ describe('admin plugin HTTP surface (integration)', () => {
   });
 
   it('mounts none of the plugin routes over HTTP, even for an admin', async () => {
-    // Every path better-auth 1.7.2 mounts for the plugin, written out rather
+    // Every path better-auth 1.7.14 mounts for the plugin, written out rather
     // than derived the way `auth.ts` derives them, so a derivation that went
     // wrong cannot also agree with itself here.
     const pluginPaths = [

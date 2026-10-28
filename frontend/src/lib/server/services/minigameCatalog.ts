@@ -33,15 +33,25 @@ export function scoringTypeFor(game: CatalogGame): MinigameScoring {
   return game.hasScore ? 'score' : 'chrono';
 }
 
+/**
+ * Where THIS server reaches jump-games, which is not always where a talent's
+ * browser does. `JUMP_GAMES_URL` stays the public address: the iframe, the CSP
+ * `frame-src` and the `postMessage` origin check all read it. The catalogue
+ * fetch is server to server, and on a domain behind Cloudflare's bot challenge
+ * the public address answers a pod with a 403 page, which is how prod lost its
+ * catalogue. `JUMP_GAMES_INTERNAL_URL` names the in-cluster Service instead;
+ * unset, the public address is used, as before.
+ */
 function gamesUrl(): string | null {
-  const url = env.JUMP_GAMES_URL;
+  const url = env.JUMP_GAMES_INTERNAL_URL || env.JUMP_GAMES_URL;
   return url ? url.replace(/\/$/, '') : null;
 }
 
 /**
- * Resolve the catalogue. Returns `[]` when JUMP_GAMES_URL is unset or the
- * service is unreachable and nothing was ever cached: callers must treat an
- * empty catalogue as "no games available", never as an error.
+ * Resolve the catalogue. Returns `[]` when no address is configured (see
+ * `gamesUrl`) or the service is unreachable and nothing was ever cached:
+ * callers must treat an empty catalogue as "no games available", never as an
+ * error.
  */
 export async function getGameCatalog(
   opts: { force?: boolean } = {},

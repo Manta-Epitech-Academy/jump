@@ -86,6 +86,8 @@ export type EventDirectoryRow = EventIdentity;
 export type EventConfigRow = EventIdentity & {
   /** Salesforce campaign name, the internal identifier. */
   salesforceName: string;
+  /** The kind of event it is, or null when uncategorised. */
+  category: { key: string; label: string } | null;
   configState: EventConfigState;
   configStateLabel: string;
   modules: EventModuleKey[];
@@ -194,6 +196,10 @@ export async function getEventsConfigList(
         return {
           ...identityOf(event),
           salesforceName: event.titre,
+          category: event.category && {
+            key: event.category.key,
+            label: event.category.label,
+          },
           configState: event.configState,
           configStateLabel: EVENT_CONFIG_STATE_LABELS[event.configState],
           modules: event.modules,
@@ -205,7 +211,7 @@ export async function getEventsConfigList(
           syncedEnrolments: event.participations + masked,
         };
       }),
-      `${IDENTITY_DEFINITION} « configState » est l'état affiché par la page Événements de l'espace admin : unconfigured (aucune section activée), ready (configuré mais masqué) ou shown (visible dans l'espace dev). « missing » liste ce qui n'est pas renseigné, y compris ce qui n'empêche rien ; « activationBlockers » liste ce qui empêche vraiment de le rendre visible, et une liste vide veut dire qu'un simple basculement suffit. « shownStatuses » liste les statuts Salesforce dont l'espace dev affiche les inscriptions sur cet événement. « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION}. « hiddenFromDevSpace » compte les ${HIDDEN_PARTICIPATION_DEFINITION} « syncedEnrolments » compte les ${SYNCED_PARTICIPATION_DEFINITION} Limité à ${EVENTS_LIST_LIMIT} lignes.`,
+      `${IDENTITY_DEFINITION} « configState » est l'état affiché par la page Événements de l'espace admin : unconfigured (aucune section activée), ready (configuré mais masqué) ou shown (visible dans l'espace dev). « missing » liste ce qui n'est pas renseigné, y compris ce qui n'empêche rien ; « activationBlockers » liste ce qui empêche vraiment de le rendre visible, et une liste vide veut dire qu'un simple basculement suffit. « category » est sa catégorie (« key », la clé que prend write_event_config, et « label », son libellé), ou null s'il n'en a pas. « shownStatuses » liste les statuts Salesforce dont l'espace dev affiche les inscriptions sur cet événement. « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION}. « hiddenFromDevSpace » compte les ${HIDDEN_PARTICIPATION_DEFINITION} « syncedEnrolments » compte les ${SYNCED_PARTICIPATION_DEFINITION} Limité à ${EVENTS_LIST_LIMIT} lignes.`,
     ),
     truncated: matching.length > EVENTS_LIST_LIMIT,
   };

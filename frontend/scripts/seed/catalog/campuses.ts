@@ -19,6 +19,13 @@
 export type CampusSpec = {
   readonly name: string;
   readonly timezone: string;
+  /**
+   * INSEE code of the département, which gives the calendar its school holiday
+   * zone and public holiday regime. Placed, not drawn: the set below spans the
+   * three zones, Alsace-Moselle (Strasbourg, Mulhouse) and an overseas
+   * département (La Réunion), and Marseille carries none.
+   */
+  readonly departement: string | null;
   /** Relative share of the platform's enrolments, from PROFILE.md. */
   readonly weight: number;
   /**
@@ -32,32 +39,65 @@ export type CampusSpec = {
 };
 
 export const CAMPUSES: readonly CampusSpec[] = [
-  { name: 'Paris', timezone: 'Europe/Paris', weight: 1372 },
+  { name: 'Paris', timezone: 'Europe/Paris', departement: '75', weight: 1372 },
   // No contact address published. Every screen offering « contacter le campus »
   // has to cope with that, and it is the second campus of every profile, so the
-  // case is present even in CI.
+  // case is present even in CI. No département either, for the same reason: its
+  // calendar shows no holidays, the state of every production campus until an
+  // admin fills it in.
   {
     name: 'Marseille',
     timezone: 'Europe/Paris',
+    departement: null,
     weight: 944,
     withContactEmail: false,
   },
-  { name: 'Lyon', timezone: 'Europe/Paris', weight: 679 },
-  { name: 'Lille', timezone: 'Europe/Paris', weight: 556 },
-  { name: 'Nantes', timezone: 'Europe/Paris', weight: 506 },
-  { name: 'Strasbourg', timezone: 'Europe/Paris', weight: 480 },
-  { name: 'Rennes', timezone: 'Europe/Paris', weight: 475 },
-  { name: 'Montpellier', timezone: 'Europe/Paris', weight: 464 },
-  { name: 'Nice', timezone: 'Europe/Paris', weight: 433 },
+  { name: 'Lyon', timezone: 'Europe/Paris', departement: '69', weight: 679 },
+  { name: 'Lille', timezone: 'Europe/Paris', departement: '59', weight: 556 },
+  { name: 'Nantes', timezone: 'Europe/Paris', departement: '44', weight: 506 },
+  {
+    name: 'Strasbourg',
+    timezone: 'Europe/Paris',
+    departement: '67',
+    weight: 480,
+  },
+  { name: 'Rennes', timezone: 'Europe/Paris', departement: '35', weight: 475 },
+  {
+    name: 'Montpellier',
+    timezone: 'Europe/Paris',
+    departement: '34',
+    weight: 464,
+  },
+  { name: 'Nice', timezone: 'Europe/Paris', departement: '06', weight: 433 },
   // The one campus that is not on metropolitan time. It is in the list on
   // purpose: a wall-clock bug in the planning or the émargement only shows up
   // against a campus four hours off the others.
-  { name: 'La Réunion', timezone: 'Indian/Reunion', weight: 407 },
-  { name: 'Toulouse', timezone: 'Europe/Paris', weight: 404 },
-  { name: 'Bordeaux', timezone: 'Europe/Paris', weight: 354 },
-  { name: 'Mulhouse', timezone: 'Europe/Paris', weight: 291 },
-  { name: 'Nancy', timezone: 'Europe/Paris', weight: 223 },
+  {
+    name: 'La Réunion',
+    timezone: 'Indian/Reunion',
+    departement: '974',
+    weight: 407,
+  },
+  {
+    name: 'Toulouse',
+    timezone: 'Europe/Paris',
+    departement: '31',
+    weight: 404,
+  },
+  {
+    name: 'Bordeaux',
+    timezone: 'Europe/Paris',
+    departement: '33',
+    weight: 354,
+  },
+  {
+    name: 'Mulhouse',
+    timezone: 'Europe/Paris',
+    departement: '68',
+    weight: 291,
+  },
+  { name: 'Nancy', timezone: 'Europe/Paris', departement: '54', weight: 223 },
   // Smallest by an order of magnitude: 6 events, 50 enrolments, one staff
   // member. The campus that makes a per-campus screen prove it degrades.
-  { name: 'Moulins', timezone: 'Europe/Paris', weight: 50 },
+  { name: 'Moulins', timezone: 'Europe/Paris', departement: '03', weight: 50 },
 ];

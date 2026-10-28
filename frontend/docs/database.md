@@ -6,15 +6,15 @@
 
 ## Vue d'ensemble
 
-- **80** modèles · **31** enums · **112** relations
+- **83** modèles · **32** enums · **116** relations
 
 | Domaine | Modèles |
 | --- | ---: |
 | Authentification & Profils | 12 |
 | Cycle de vie talent & RGPD | 6 |
-| Événements & Participations | 8 |
+| Événements & Participations | 9 |
 | Closings | 9 |
-| Planning & Activités | 6 |
+| Planning & Activités | 8 |
 | Progression, Portfolio & XP | 2 |
 | Minijeux | 3 |
 | Feedback | 7 |
@@ -55,8 +55,7 @@ erDiagram
   bauth_account {
     String id PK
     String userId FK
-    String issuer UK
-    String accountId UK
+    String accountId
     String providerId
     String accessToken
     String refreshToken
@@ -103,6 +102,7 @@ erDiagram
     DateTime onboardingDocsExportedAt
     DateTime closingDocsExportedAt
     DateTime sfExportedAt
+    Boolean receivesAdminDigest
     DateTime lastActiveAt
     DateTime firstLoginAt
     DateTime createdAt
@@ -169,6 +169,8 @@ erDiagram
     String externalId UK
     DateTime lastActiveAt
     DateTime firstLoginAt
+    Int streakDays
+    DateTime streakLastDay
     DateTime usageAnalyticsOptOutAt
     DateTime welcomeSeenAt
     DateTime anonymizedAt
@@ -202,6 +204,7 @@ erDiagram
     String name UK
     String externalName UK
     String timezone
+    String departement
     String contactEmail
     DateTime createdAt
     DateTime updatedAt
@@ -340,6 +343,7 @@ erDiagram
     String titre
     String publicName
     String cohortNoun
+    String categoryKey FK
     DateTime date
     Int startMinutes
     DateTime endDate
@@ -349,6 +353,14 @@ erDiagram
     String closingTemplateId FK
     String externalId UK
     DateTime devActivatedAt
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  EventConfig_Category {
+    String key PK
+    String label UK
+    String color
+    DateTime archivedAt
     DateTime createdAt
     DateTime updatedAt
   }
@@ -364,6 +376,7 @@ erDiagram
     String description
     String publicName
     String cohortNoun
+    String categoryKey FK
     Int startMinutes
     String feedbackFormId FK
     String diplomaTemplateId FK
@@ -436,6 +449,7 @@ erDiagram
   Talent ||--o{ EventPresence : "eventPresences"
   Campus ||--o{ Event : "events"
   Campus ||--o{ Participation : "participations"
+  EventConfig_Category |o--o{ Event : "events"
   Feedback_Form |o--o{ Event : "events"
   Diploma_Template |o--o{ Event : "events"
   Closing_Template |o--o{ Event : "events"
@@ -443,6 +457,7 @@ erDiagram
   Event ||--o{ EventPresenceClosure : "presenceClosures"
   Event ||--o{ EventPresence : "eventPresences"
   Event ||--o{ EventConfig_Module : "modules"
+  EventConfig_Category |o--o{ EventConfig_Template : "templates"
   Feedback_Form |o--o{ EventConfig_Template : "configTemplates"
   Diploma_Template |o--o{ EventConfig_Template : "configTemplates"
   Closing_Template |o--o{ EventConfig_Template : "configTemplates"
@@ -590,6 +605,8 @@ erDiagram
     String instanceId FK
     String label
     String tagline
+    WorkshopLevel level
+    String[] notions
     Boolean enabled
     DateTime createdAt
     DateTime updatedAt
@@ -622,6 +639,17 @@ erDiagram
     Int width
     Int height
   }
+  Workshop_Domain {
+    String key PK
+    String label UK
+    DateTime archivedAt
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Workshop_ActivityDomain {
+    String activityId PK,FK
+    String domainKey PK,FK
+  }
   Talent {
   }
   Campus {
@@ -637,6 +665,8 @@ erDiagram
   Workshop_Activity ||--o{ EventConfig_Workshop : "events"
   Workshop_Activity ||--o{ Workshop_Participation : "participations"
   Workshop_Activity ||--o{ Workshop_CoverImage : "coverImages"
+  Workshop_Activity ||--o{ Workshop_ActivityDomain : "domains"
+  Workshop_Domain ||--o{ Workshop_ActivityDomain : "activities"
 ```
 
 ## 6 · Progression, Portfolio & XP

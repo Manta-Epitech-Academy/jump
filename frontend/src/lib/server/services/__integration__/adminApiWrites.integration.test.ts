@@ -19,6 +19,7 @@ import { planDigest } from '$lib/server/adminApi/plan';
 import {
   getEventDetail,
   getEventTemplates,
+  getWorkshops,
   type EventDetail,
 } from '$lib/server/services/adminStats/configuration';
 import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
@@ -29,6 +30,9 @@ const postTemplate = adminApiWrite('write_event_template');
 const postRequestSync = adminApiWrite('ops_request_sync');
 const postReleasePruneHold = adminApiWrite('ops_release_prune_hold');
 const postWorkshopInstance = adminApiWrite('write_workshop_instance');
+const postCategory = adminApiWrite('write_event_category');
+const postWorkshop = adminApiWrite('write_workshop');
+const postDomain = adminApiWrite('write_workshop_domain');
 
 /** Calls a handler the way SvelteKit would, with a bearer and a JSON body. */
 async function call(
@@ -209,7 +213,7 @@ describe('admin API writes (integration)', () => {
   // The activation rule reaching the path that writes the name and the gate in
   // one call. Patch semantics carry the STORED activation into a call that only
   // meant to edit a name, so without the rule this could take a live event down
-  // to no public name and leave it live, in the dev switcher under its raw
+  // to no public name and leave it live, on the campus calendar under its raw
   // Salesforce title.
   it('refuses to clear the public name of an event that stays visible', async () => {
     const live = await prisma.event.create({
@@ -707,6 +711,7 @@ describe('admin API writes (integration)', () => {
       publicName: (d) => d.event.value.publicName,
       cohortNoun: (d) => d.event.value.cohortNoun,
       startTime: (d) => d.event.value.startTime,
+      categoryKey: (d) => d.category.value?.key ?? null,
       // A set on both sides: the write takes any order, the read lists the
       // catalogue's. Sorted so the comparison is about membership only.
       modules: (d) =>
@@ -770,6 +775,13 @@ describe('admin API writes (integration)', () => {
     const grid = await prisma.closing_Template.create({
       data: { key: `readback_grid_${stamp}`, label: 'Grille relue' },
     });
+    const category = await prisma.eventConfig_Category.create({
+      data: {
+        key: `readback-camp-${stamp}`,
+        label: `Camp relu ${stamp}`,
+        color: '#ff5f3a',
+      },
+    });
     const host = await prisma.workshop_Instance.create({
       data: {
         slug: `readback-host-${stamp}`,
@@ -803,6 +815,7 @@ describe('admin API writes (integration)', () => {
       publicName: 'Camp relu',
       cohortNoun: 'campeur',
       startTime: '09:30',
+      categoryKey: category.key,
       modules: ['bilan', 'closings', 'inscrits'],
       moduleSettings: { inscrits: { showStatutColumn: true } },
       shownStatuses: ['MET', 'READY'],
@@ -834,6 +847,7 @@ describe('admin API writes (integration)', () => {
       cohortNoun: null,
       startTime: null,
     });
+    expect(blankDetail.category.value).toBeNull();
 
     await prisma.eventConfig_Workshop.deleteMany({
       where: { eventId: event.id },
@@ -848,6 +862,7 @@ describe('admin API writes (integration)', () => {
       where: { id: { in: [pacman.id, snake.id] } },
     });
     await prisma.workshop_Instance.delete({ where: { id: host.id } });
+    await prisma.eventConfig_Category.delete({ where: { key: category.key } });
     await prisma.closing_Template.delete({ where: { id: grid.id } });
     await prisma.diploma_Template.delete({ where: { id: certificate.id } });
     await prisma.feedback_Form.delete({ where: { id: form.id } });
@@ -1274,6 +1289,470 @@ describe('admin API writes (integration)', () => {
       expect(payload.after).toMatchObject({
         instance: second,
         baseUrl: address,
+      });
+    });
+  });
+
+  describe('event categories', () => {
+    const club = `write-club-${stamp}`;
+    const stage = `write-stage-${stamp}`;
+    const preset = `Preset catégorie ${stamp}`;
+    const keptPreset = `Preset catégorie archivée ${stamp}`;
+    const eventIds: string[] = [];
+
+    async function newEvent(categoryKey: string | null = null) {
+      const event = await prisma.event.create({
+        data: {
+          titre: `WriteCategory-${stamp}-${eventIds.length}`,
+          date: new Date(Date.now() + 30 * 86_400_000),
+          campusId,
+          categoryKey,
+        },
+      });
+      eventIds.push(event.id);
+      return event.id;
+    }
+
+    afterAll(async () => {
+      await prisma.eventConfig_Template.deleteMany({
+        where: { name: { in: [preset, keptPreset] } },
+      });
+      await prisma.event.deleteMany({ where: { id: { in: eventIds } } });
+      // The bulk case reaches every event of the campus, the shared ones too,
+      // and a category still carried cannot be deleted.
+      await prisma.event.updateMany({
+        where: { campusId },
+        data: { categoryKey: null },
+      });
+      await prisma.eventConfig_Category.deleteMany({
+        where: { key: { in: [club, stage] } },
+      });
+    });
+
+    it('creates a category, then renames, recolours, archives and unarchives it', async () => {
+      // Any case is taken, one is stored: the colour reads back as the write
+      // takes it again.
+      const created = await call(postCategory, writeSecret, {
+        categoryKey: club,
+        label: 'Coding Club',
+        color: '#013AFB',
+      });
+      expect(created.status).toBe(200);
+      expect(created.payload.before).toBeNull();
+      expect(created.payload.after).toEqual({
+        categoryKey: club,
+        label: 'Coding Club',
+        color: '#013afb',
+        archived: false,
+      });
+
+      const renamed = await call(postCategory, writeSecret, {
+        categoryKey: club,
+        label: 'Club du mercredi',
+        color: '#7a5cff',
+      });
+      expect(renamed.payload.after).toMatchObject({
+        label: 'Club du mercredi',
+        color: '#7a5cff',
+        archived: false,
+      });
+
+      const archived = await call(postCategory, writeSecret, {
+        categoryKey: club,
+        archived: true,
+      });
+      expect(archived.payload.after).toMatchObject({
+        label: 'Club du mercredi',
+        archived: true,
+      });
+      // Archiving again keeps the first instant: nothing moves.
+      const before = await prisma.eventConfig_Category.findUniqueOrThrow({
+        where: { key: club },
+      });
+      await call(postCategory, writeSecret, {
+        categoryKey: club,
+        archived: true,
+      });
+      expect(
+        (
+          await prisma.eventConfig_Category.findUniqueOrThrow({
+            where: { key: club },
+          })
+        ).archivedAt,
+      ).toEqual(before.archivedAt);
+
+      const back = await call(postCategory, writeSecret, {
+        categoryKey: club,
+        archived: false,
+      });
+      expect(back.payload.after).toMatchObject({ archived: false });
+    });
+
+    it('refuses to create a category without a colour, and a label another one holds', async () => {
+      const incomplete = await call(postCategory, writeSecret, {
+        categoryKey: stage,
+        label: 'Stage',
+      });
+      expect(incomplete.status).toBe(400);
+      expect(String(incomplete.payload.error)).toContain('color');
+
+      // Case does not tell two categories apart in a legend.
+      const taken = await call(postCategory, writeSecret, {
+        categoryKey: stage,
+        label: 'CLUB DU MERCREDI',
+        color: '#ff1ef7',
+      });
+      expect(taken.status).toBe(400);
+      expect(String(taken.payload.error)).toContain(`« ${club} »`);
+
+      // A colour name is not a colour the calendar can paint.
+      const named = await call(postCategory, writeSecret, {
+        categoryKey: stage,
+        label: 'Stage',
+        color: 'rose',
+      });
+      expect(named.status).toBe(400);
+      expect(
+        await prisma.eventConfig_Category.count({ where: { key: stage } }),
+      ).toBe(0);
+    });
+
+    it('gives an event a category, and refuses an archived one as a new choice', async () => {
+      await call(postCategory, writeSecret, {
+        categoryKey: stage,
+        label: `Stage ${stamp}`,
+        color: '#ff1ef7',
+      });
+      const id = await newEvent();
+
+      const given = await call(postConfig, writeSecret, {
+        eventId: id,
+        categoryKey: stage,
+      });
+      expect(given.status).toBe(200);
+      expect(given.payload.after).toMatchObject({ categoryKey: stage });
+
+      await call(postCategory, writeSecret, {
+        categoryKey: club,
+        archived: true,
+      });
+      const refused = await call(postConfig, writeSecret, {
+        eventId: id,
+        categoryKey: club,
+      });
+      expect(refused.status).toBe(400);
+      expect(String(refused.payload.error)).toContain('archivée');
+
+      const unknown = await call(postConfig, writeSecret, {
+        eventId: id,
+        categoryKey: `nowhere-${stamp}`,
+      });
+      expect(unknown.status).toBe(400);
+      expect(String(unknown.payload.error)).toContain(
+        'config_event_categories',
+      );
+
+      const cleared = await call(postConfig, writeSecret, {
+        eventId: id,
+        categoryKey: null,
+      });
+      expect(cleared.payload.after).toMatchObject({ categoryKey: null });
+    });
+
+    // AC3: archiving takes a category off the list, never off the events that
+    // carry it, so sending such an event's configuration back unchanged works.
+    it('lets an event keep a category archived since', async () => {
+      const id = await newEvent(club);
+
+      const detail = await getEventDetail(id);
+      expect(detail.category.value).toMatchObject({
+        key: club,
+        archived: true,
+      });
+      const echoed = await call(postConfig, writeSecret, {
+        eventId: id,
+        categoryKey: detail.category.value?.key ?? null,
+        publicName: 'Club gardé',
+      });
+      expect(echoed.status).toBe(200);
+      expect(echoed.payload.after).toMatchObject({ categoryKey: club });
+
+      // A preset is a copy of the configuration, archived category included:
+      // it is an event, not a preset, that may not newly receive one.
+      const saved = await call(postTemplate, writeSecret, {
+        eventId: id,
+        name: keptPreset,
+      });
+      expect(saved.status).toBe(200);
+      expect(saved.payload.after).toMatchObject({ categoryKey: club });
+    });
+
+    // AC2: a preset is a copy, so retargeting it later reaches no event it was
+    // applied to.
+    it("leaves configured events alone when a preset's category changes", async () => {
+      const source = await newEvent(stage);
+      expect(
+        (
+          await call(postTemplate, writeSecret, {
+            eventId: source,
+            name: preset,
+          })
+        ).payload.after,
+      ).toMatchObject({ categoryKey: stage });
+
+      const applied = await newEvent();
+      const template = (await getEventTemplates()).templates.value.find(
+        (t) => t.name === preset,
+      );
+      await call(postConfig, writeSecret, {
+        eventId: applied,
+        categoryKey: template?.categoryKey,
+      });
+
+      await prisma.event.update({
+        where: { id: source },
+        data: { categoryKey: null },
+      });
+      await call(postTemplate, writeSecret, { eventId: source, name: preset });
+
+      expect(
+        (await prisma.event.findUniqueOrThrow({ where: { id: applied } }))
+          .categoryKey,
+      ).toBe(stage);
+    });
+
+    it('plans a category across events, and refuses an archived one before planning', async () => {
+      const id = await newEvent();
+      const filter = {
+        campus: `WriteCampus-${stamp}`,
+        categoryKey: stage,
+      };
+
+      const dry = await call(postBulk, writeSecret, filter);
+      expect(dry.status).toBe(200);
+      const plan = dry.payload.plan as {
+        changes: { eventId: string; category?: unknown }[];
+      };
+      expect(plan.changes.find((c) => c.eventId === id)?.category).toEqual({
+        from: null,
+        to: stage,
+      });
+
+      const applied = await call(postBulk, writeSecret, {
+        ...filter,
+        planDigest: dry.payload.planDigest,
+      });
+      expect(applied.status).toBe(200);
+      expect(
+        (await prisma.event.findUniqueOrThrow({ where: { id } })).categoryKey,
+      ).toBe(stage);
+
+      const archived = await call(postBulk, writeSecret, {
+        campus: `WriteCampus-${stamp}`,
+        categoryKey: club,
+      });
+      expect(archived.status).toBe(400);
+      expect(String(archived.payload.error)).toContain('archivée');
+    });
+  });
+
+  describe('the subject catalogue', () => {
+    const host = `catalogue-${stamp}`;
+    const subject = `catalogue-sujet-${stamp}`;
+    const cyber = `cyber-${stamp}`;
+    const ai = `ia-${stamp}`;
+    const retired = `electronique-${stamp}`;
+
+    beforeAll(async () => {
+      await call(postWorkshopInstance, writeSecret, {
+        instance: host,
+        baseUrl: `https://${host}.ctfd.test`,
+      });
+      await call(postWorkshop, writeSecret, {
+        slug: subject,
+        label: 'Sujet de catalogue',
+        instance: host,
+      });
+    });
+
+    afterAll(async () => {
+      await prisma.workshop_Activity.deleteMany({ where: { slug: subject } });
+      await prisma.workshop_Instance.deleteMany({ where: { slug: host } });
+      await prisma.workshop_Domain.deleteMany({
+        where: { key: { in: [cyber, ai, retired] } },
+      });
+    });
+
+    const activityRead = async () =>
+      (await getWorkshops()).activities.value.find((a) => a.slug === subject)!;
+
+    it('creates a domain, then renames, archives and unarchives it', async () => {
+      const created = await call(postDomain, writeSecret, {
+        domainKey: cyber,
+        label: `Cyber ${stamp}`,
+      });
+      expect(created.status).toBe(200);
+      expect(created.payload.before).toBeNull();
+      expect(created.payload.after).toEqual({
+        domainKey: cyber,
+        label: `Cyber ${stamp}`,
+        archived: false,
+      });
+
+      const renamed = await call(postDomain, writeSecret, {
+        domainKey: cyber,
+        label: `Cybersécurité ${stamp}`,
+      });
+      expect(renamed.payload.after).toMatchObject({
+        label: `Cybersécurité ${stamp}`,
+      });
+
+      await call(postDomain, writeSecret, { domainKey: cyber, archived: true });
+      // Archiving again keeps the first instant: nothing moves.
+      const first = await prisma.workshop_Domain.findUniqueOrThrow({
+        where: { key: cyber },
+      });
+      await call(postDomain, writeSecret, { domainKey: cyber, archived: true });
+      expect(
+        (
+          await prisma.workshop_Domain.findUniqueOrThrow({
+            where: { key: cyber },
+          })
+        ).archivedAt,
+      ).toEqual(first.archivedAt);
+
+      const back = await call(postDomain, writeSecret, {
+        domainKey: cyber,
+        archived: false,
+      });
+      expect(back.payload.after).toMatchObject({ archived: false });
+    });
+
+    it('refuses to create a domain without a label, and a label another one holds', async () => {
+      const incomplete = await call(postDomain, writeSecret, { domainKey: ai });
+      expect(incomplete.status).toBe(400);
+      expect(String(incomplete.payload.error)).toContain('label');
+
+      // Case does not tell two domains apart in the filter.
+      const taken = await call(postDomain, writeSecret, {
+        domainKey: ai,
+        label: `CYBERSÉCURITÉ ${stamp}`,
+      });
+      expect(taken.status).toBe(400);
+      expect(String(taken.payload.error)).toContain(`« ${cyber} »`);
+      expect(await prisma.workshop_Domain.count({ where: { key: ai } })).toBe(
+        0,
+      );
+    });
+
+    it('files a subject, leaves its filing alone when a call does not name it, and clears it', async () => {
+      await call(postDomain, writeSecret, {
+        domainKey: ai,
+        label: `IA ${stamp}`,
+      });
+
+      const filed = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        level: 'expert',
+        notions: [' FSM ', 'Arbres de décision', 'fsm', '  '],
+        domains: [cyber, ai],
+      });
+      expect(filed.status).toBe(200);
+      expect(filed.payload.after).toMatchObject({
+        level: 'expert',
+        // Trimmed, the blank and the repeat dropped whatever its case.
+        notions: ['FSM', 'Arbres de décision'],
+        domains: [ai, cyber].sort(),
+      });
+
+      const relabelled = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        label: 'Sujet renommé',
+      });
+      expect(relabelled.payload.after).toMatchObject({
+        level: 'expert',
+        notions: ['FSM', 'Arbres de décision'],
+        domains: [ai, cyber].sort(),
+      });
+
+      const cleared = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        level: null,
+        notions: [],
+        domains: [],
+      });
+      expect(cleared.payload.after).toMatchObject({
+        level: null,
+        notions: [],
+        domains: [],
+      });
+    });
+
+    it('refuses an unknown domain, and an archived one unless the subject already carries it', async () => {
+      const unknown = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        domains: [`inconnu-${stamp}`],
+      });
+      expect(unknown.status).toBe(400);
+      expect(String(unknown.payload.error)).toContain('config_workshops');
+
+      await call(postDomain, writeSecret, {
+        domainKey: retired,
+        label: `Électronique ${stamp}`,
+      });
+      await call(postWorkshop, writeSecret, {
+        slug: subject,
+        domains: [retired],
+      });
+      await call(postDomain, writeSecret, {
+        domainKey: retired,
+        archived: true,
+      });
+
+      // Carried before it was archived: kept, so the read sent back is taken.
+      const kept = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        domains: [retired, cyber],
+      });
+      expect(kept.status).toBe(200);
+
+      await call(postWorkshop, writeSecret, { slug: subject, domains: [] });
+      const fresh = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        domains: [retired],
+      });
+      expect(fresh.status).toBe(400);
+      expect(String(fresh.payload.error)).toContain('archivé');
+    });
+
+    it('reads back its filing in the shape the write takes, with what it lacks for the catalogue', async () => {
+      await call(postWorkshop, writeSecret, {
+        slug: subject,
+        level: 'beginner',
+        notions: ['Encodage'],
+        domains: [cyber],
+      });
+      const read = await activityRead();
+      // No tagline and no picture yet: the catalogue does not show it.
+      expect(read.missingForCatalogue).toEqual(['tagline', 'picture']);
+
+      const echoed = await call(postWorkshop, writeSecret, {
+        slug: subject,
+        level: read.level,
+        notions: read.notions,
+        domains: read.domains,
+      });
+      expect(echoed.status).toBe(200);
+      expect(echoed.payload.after).toEqual(echoed.payload.before);
+
+      const domains = (await getWorkshops()).domains.value;
+      expect(domains.find((d) => d.key === cyber)).toMatchObject({
+        archived: false,
+        subjects: 1,
+      });
+      expect(domains.find((d) => d.key === retired)).toMatchObject({
+        archived: true,
+        subjects: 0,
       });
     });
   });

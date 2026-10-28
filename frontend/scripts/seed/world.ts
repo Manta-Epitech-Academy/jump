@@ -496,6 +496,7 @@ export class World {
       // these a real external name and real minors' data starts landing on it.
       externalName: null,
       timezone: spec.timezone,
+      departement: spec.departement,
       contactEmail:
         spec.withContactEmail === false
           ? null
@@ -1086,6 +1087,8 @@ export class World {
     titre: string;
     publicName?: string | null;
     cohortNoun?: string | null;
+    /** Its category's key, from `catalog/eventCategories.ts`. */
+    categoryKey?: string | null;
     campus: CampusRef;
     /** The weekdays it runs, from {@link eventWindow}. */
     days: readonly Date[];
@@ -1166,6 +1169,7 @@ export class World {
       titre: opts.titre,
       publicName: opts.publicName ?? null,
       cohortNoun: opts.cohortNoun ?? null,
+      categoryKey: opts.categoryKey ?? null,
       date: start,
       endDate,
       startMinutes: opts.startMinutes ?? null,

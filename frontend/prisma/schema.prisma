@@ -119,11 +119,6 @@ model Audit_ImpersonationEvent {
 model bauth_account {
   id                    String    @id @default(cuid())
   userId                String
-  /// The account's stable namespace (e.g. the Microsoft tenant's OIDC issuer
-  /// URL). BetterAuth 1.7 keys an OAuth account on (issuer, accountId) rather
-  /// than (providerId, accountId), because a bare provider id is not unique
-  /// across multi-tenant issuers.
-  issuer                String
   accountId             String
   providerId            String
   accessToken           String?
@@ -137,8 +132,6 @@ model bauth_account {
   updatedAt             DateTime  @updatedAt
 
   user bauth_user @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([issuer, accountId])
 }
 
 model bauth_verification {
@@ -367,6 +360,21 @@ model Talent {
   // "Jamais" once its session row is gone. Paired with lastActiveAt (MAX
   // activity); this is the MIN.
   firstLoginAt                DateTime?
+  /// The talent's run of consecutive days in Jump, the one fact the series
+  /// badges need (#447). `streakDays` is the length of the MOST RECENT run,
+  /// which ended on `streakLastDay`, a day read in the campus timezone. A missed
+  /// day does not lower it: nothing writes without a visit, so the run restarts
+  /// at 1 on the next one. The best run is not kept.
+  ///
+  /// Two values and no history, on purpose. "Facts are rows" does not apply
+  /// here: a row per day would be the connection log of a minor, which no
+  /// figure needs. Nor is it usage tracking: that one runs without consent
+  /// because it cannot tell who the talent is, and a badge has to, so the two
+  /// never read each other. Written only by `services/signInStreak.ts` from
+  /// `hooks.server.ts`, never under impersonation, and cleared by the erasure
+  /// and the reset to import.
+  streakDays                  Int                  @default(0)
+  streakLastDay               DateTime?            @db.Date
   /// When this talent objected to usage measurement (RGPD art. 21). Set, and the
   /// recorder writes nothing for them. Null means no objection, which is the
   /// default: the basis is legitimate interest, not consent, so measurement runs
@@ -742,6 +750,10 @@ model Campus {
   name         String   @unique
   externalName String?  @unique
   timezone     String   @default("Europe/Paris")
+  /// INSEE code of the campus's département ("75", "67", "974", Corsica "20"),
+  /// the vocabulary of `domain/school.ts`. The calendar derives the school
+  /// holiday zone and the public holiday regime from it. Null shows neither.
+  departement  String?
   contactEmail String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -917,6 +929,12 @@ model Event {
   // the column never asserts an unmade choice. Past stages were backfilled to
   // "stagiaire" (a real historical value).
   cohortNoun        String?
+  // Which kind of event this is, for display and badge rules only, from the
+  // `EventConfig_Category` catalogue. Nothing changes behaviour on it: the
+  // modules stay the one switch of an event's pages, which is what tells it
+  // apart from the retired `eventType`. NULL = uncategorised, a full citizen
+  // everywhere. Restrict: a category is archived, never deleted.
+  categoryKey       String?
   date              DateTime
   // Salesforce gives us the calendar days (`date`/`endDate`) but never a
   // start time, so the time-of-day is Jump-owned: wall-clock minutes from
@@ -959,6 +977,7 @@ model Event {
   updatedAt         DateTime  @updatedAt
 
   campus              Campus                 @relation(fields: [campusId], references: [id])
+  category            EventConfig_Category?  @relation(fields: [categoryKey], references: [key], onDelete: Restrict)
   feedbackForm        Feedback_Form?         @relation("EventFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
   diplomaTemplate     Diploma_Template?      @relation("EventDiplomaTemplate", fields: [diplomaTemplateId], references: [id], onDelete: Restrict)
   closingTemplate     Closing_Template?      @relation("EventClosingTemplate", fields: [closingTemplateId], references: [id], onDelete: Restrict)
@@ -987,6 +1006,7 @@ model Event {
   /// so the old campus kept seeing the cohort and the new one never did.
   @@unique([id, campusId])
   @@index([campusId])
+  @@index([categoryKey])
   @@index([feedbackFormId])
   @@index([diplomaTemplateId])
   @@index([closingTemplateId])
@@ -1039,6 +1059,32 @@ model EventConfig_ShownStatus {
   @@index([status])
 }
 
+/// A kind of event ("Coding Club", "Stage", "Camp"), shown on the campus
+/// calendar and named by badge rules. Data, not code: an admin creates, renames,
+/// recolours and archives one over the API (`write_event_category`), so a new
+/// kind needs no migration, and none ships with this table.
+///
+/// It is the open list `Event.eventType` never was, and it is display only.
+/// Nothing branches on it: the modules stay the one switch of an event's pages.
+///
+/// `key` is the identity every operation names, and it never changes; `label` is
+/// what a person reads and may be renamed. `color` is a `#rrggbb` the team picks,
+/// outside the `DESIGN.md` palette on purpose: the calendar needs one colour per
+/// kind, more than the four brand accents. Archived (`archivedAt` set) rather
+/// than deleted: it is no longer given to an event, and what already carries it
+/// keeps it.
+model EventConfig_Category {
+  key        String    @id
+  label      String    @unique
+  color      String
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  events    Event[]
+  templates EventConfig_Template[]
+}
+
 // A reusable, named event-configuration preset (global), created by staff from
 // the config wizard ("Enregistrer comme modèle"). Applying
 // one is a point-in-time SEED: the wizard copies its modules + settings + default
@@ -1059,6 +1105,11 @@ model EventConfig_Template {
   // apply like the other config fields. Mirrors `Event.cohortNoun`; `null` = the
   // preset names no cohort (the applied event falls back to the neutral default).
   cohortNoun        String?
+  // The category the preset carries, copied onto the event on apply like the
+  // other config fields. Mirrors `Event.categoryKey`; `null` = the preset names
+  // none. An archived one stays here as saved: it is the event, not the preset,
+  // that may not newly receive it.
+  categoryKey       String?
   // Jump-owned arrival time-of-day the preset carries, in wall-clock minutes from
   // local midnight (0-1439), `null` = none (the event falls back to the single
   // default). Mirrors `Event.startMinutes`; copied onto the event on apply.
@@ -1076,6 +1127,7 @@ model EventConfig_Template {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  category        EventConfig_Category?        @relation(fields: [categoryKey], references: [key], onDelete: Restrict)
   feedbackForm    Feedback_Form?               @relation("EventConfigTemplateFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
   diplomaTemplate Diploma_Template?            @relation("EventConfigTemplateDiploma", fields: [diplomaTemplateId], references: [id], onDelete: Restrict)
   closingTemplate Closing_Template?            @relation("EventConfigTemplateClosingTemplate", fields: [closingTemplateId], references: [id], onDelete: Restrict)
@@ -1083,6 +1135,7 @@ model EventConfig_Template {
   modules         EventConfig_TemplateModule[]
   shownStatuses   EventConfig_TemplateShownStatus[]
 
+  @@index([categoryKey])
   @@index([feedbackFormId])
   @@index([diplomaTemplateId])
   @@index([closingTemplateId])
@@ -2501,6 +2554,11 @@ model Workshop_Instance {
 /// configure an activity's look are not the ones who deploy its CTFd, so one
 /// source of truth had to be chosen, and it is the one they hold.
 ///
+/// So is what the staff read of it in the dev space's catalogue, where an
+/// activity is called a subject: its domains, its level and its notions, written
+/// by `write_workshop` too. The catalogue shows only a complete subject, and
+/// what makes one complete is decided in one place (`catalogueGaps`).
+///
 /// It names the host that serves it, many activities to one host: an activity
 /// is on one host at a time, so every event offering it reaches the same place
 /// without restating where. That host is fixed once a talent has entered it,
@@ -2527,17 +2585,36 @@ model Workshop_Activity {
   /// label. Written only through `write_workshop`'s `cover`, so a call that
   /// curates what an activity is and names no cover cannot wipe it.
   tagline        String?
+  /// How demanding the subject is, shown on its catalogue card. Display only:
+  /// nothing gates on it. Null until an admin says.
+  level          WorkshopLevel?
+  /// What a talent practises on it, short French labels in the order they are
+  /// shown ("Arbres de décision", "FSM"). A list rather than a table, because
+  /// nothing filters or counts by a notion: renaming one is rewriting the list
+  /// of each subject that carries it.
+  notions        String[]                 @default([])
   enabled        Boolean                  @default(true)
   createdAt      DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
 
   /// Restrict: a host still serving an activity is not one to delete.
-  instance       Workshop_Instance        @relation(fields: [instanceId], references: [id], onDelete: Restrict)
+  instance       Workshop_Instance         @relation(fields: [instanceId], references: [id], onDelete: Restrict)
   events         EventConfig_Workshop[]
   participations Workshop_Participation[]
   coverImages    Workshop_CoverImage[]
+  domains        Workshop_ActivityDomain[]
 
   @@index([instanceId])
+}
+
+/// How demanding a subject is, a closed list the catalogue card shows. Display
+/// only; the French labels are `WORKSHOP_LEVEL_LABELS`.
+enum WorkshopLevel {
+  beginner
+  intermediate
+  expert
+  /// Open to anybody, beginner or not ("Tous niveaux").
+  all_levels
 }
 
 /// Which picture of a cover an image is.
@@ -2583,6 +2660,41 @@ model Workshop_CoverImage {
   activity Workshop_Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
   @@id([activityId, kind])
+}
+
+/// A field a subject belongs to ("Cybersécurité", "IA/DATA"), what the
+/// catalogue filters by and what a badge rule will count finished activities
+/// by (#448). Data, not code: an admin creates, renames and archives one over
+/// the API (`write_workshop_domain`), so a new field needs no migration, and
+/// none ships with this table.
+///
+/// `key` is the identity every operation names, and it never changes; `label` is
+/// what a person reads and may be renamed. Archived (`archivedAt` set) rather
+/// than deleted: it is no longer given to a subject, and a subject that carries
+/// it keeps it, as an event keeps an archived `EventConfig_Category`.
+model Workshop_Domain {
+  key        String    @id
+  label      String    @unique
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  activities Workshop_ActivityDomain[]
+}
+
+/// A subject in a domain. A pure junction: a subject has several domains and a
+/// domain many subjects, and the link carries nothing of its own.
+model Workshop_ActivityDomain {
+  activityId String
+  domainKey  String
+
+  /// Cascade: the link is the subject's, and goes with it.
+  activity Workshop_Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  /// Restrict: a domain is archived, never deleted out from under a subject.
+  domain   Workshop_Domain   @relation(fields: [domainKey], references: [key], onDelete: Restrict)
+
+  @@id([activityId, domainKey])
+  @@index([domainKey])
 }
 
 /// An event offering an activity: the link, carrying attributes of its own.
