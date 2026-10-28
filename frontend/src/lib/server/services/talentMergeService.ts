@@ -106,11 +106,7 @@ export async function mergeTalents(
   for (const absorbedId of absorbedIds) {
     const absorbed = await tx.talent.findUniqueOrThrow({
       where: { id: absorbedId },
-      select: {
-        externalId: true,
-        userId: true,
-        user: { select: { email: true } },
-      },
+      select: { externalId: true, userId: true },
     });
 
     for (const moved of MOVED)
@@ -118,18 +114,15 @@ export async function mergeTalents(
     await moveTalentGrants(tx, absorbedId, survivorId);
 
     // Re-derived for the survivor by the pass that merges: the mirror from
-    // Salesforce's claim, the errors from what that pass meets. A nameless
-    // contact carrying the address is met again on its own next pass.
+    // Salesforce's claim, the errors from what that pass meets. Only the
+    // errors naming this talent go, never one found by its address: siblings
+    // and a guardian share one, and their errors are theirs.
     await tx.talentSfImport.deleteMany({ where: { talentId: absorbedId } });
-    const email = absorbed.user?.email;
     await tx.sync_Error.deleteMany({
       where: {
         OR: [
           { talentId: absorbedId },
           ...(absorbed.externalId ? [{ externalId: absorbed.externalId }] : []),
-          ...(email
-            ? [{ email: { equals: email, mode: 'insensitive' as const } }]
-            : []),
         ],
       },
     });

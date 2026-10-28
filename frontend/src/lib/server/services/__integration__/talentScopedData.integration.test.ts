@@ -92,6 +92,12 @@ const BY_OTHER_IDENTITY: Record<string, readonly TalentColumn[]> = {
 type Policy = {
   tables: Partial<Record<Prisma.ModelName, TableFate>>;
   talent: readonly ColumnGroup[];
+  /**
+   * The identities by which the operation takes a row to be the talent's, when
+   * not all of them. A row that only the others name is someone else's for
+   * this operation, and comes out unchanged whatever its table's fate.
+   */
+  owns?: { identities: readonly Identity[]; why: string };
 };
 
 /** The onboarding timeline, every step the talent took. */
@@ -493,8 +499,12 @@ const MERGE: Policy = {
     },
     Sync_Error: {
       fate: 'delete',
-      why: "What the sync met for the absorbed record: the pass that merges settles the survivor's, and any other is met again.",
+      why: "What the sync met for the absorbed record: the pass that merges settles the survivor's.",
     },
+  },
+  owns: {
+    identities: ['talentId', 'externalId'],
+    why: "Siblings and a guardian share an address, so a contact error carrying the absorbed record's address may be another person's, and only a pass that meets that person can settle it.",
   },
   // The survivor's columns: the absorbed talent's go with its row, which is the
   // point, since only an unused record is ever absorbed.
@@ -896,6 +906,7 @@ describe('what erasure, reset and merge do to every talent table (integration)',
   /** What an operation did, against what its policy says it does. */
   function tableProblems(
     policy: Policy,
+    talent: Record<Identity, string>,
     before: Map<string, Map<string, Row>>,
     after: Map<string, Map<string, Row>>,
     /** Merge only: the survivor's rows after the merge. */
@@ -910,6 +921,20 @@ describe('what erasure, reset and merge do to every talent table (integration)',
       const is = after.get(model) ?? new Map();
       for (const [key, row] of was) {
         const now = is.get(key);
+        const owned =
+          !policy.owns ||
+          (scoped.get(model) ?? []).some(
+            ({ column, holds }) =>
+              policy.owns!.identities.includes(holds) &&
+              row[column] === talent[holds],
+          );
+        if (!owned) {
+          if (!same(now, row))
+            problems.push(
+              `${model} ${key}: not the talent's for this operation, ${now ? 'changed' : 'gone'}.`,
+            );
+          continue;
+        }
         if (fate.fate === 'delete' && now) {
           problems.push(`${model} ${key}: declared delete, still there.`);
         }
@@ -1295,7 +1320,9 @@ describe('what erasure, reset and merge do to every talent table (integration)',
     });
 
     it('does to each table what its classification says', () => {
-      expect(tableProblems(ERASURE, erasure.before, erasure.after)).toEqual([]);
+      expect(
+        tableProblems(ERASURE, erasure.seeded, erasure.before, erasure.after),
+      ).toEqual([]);
     });
 
     it('does to each Talent column what its classification says', () => {
@@ -1352,7 +1379,9 @@ describe('what erasure, reset and merge do to every talent table (integration)',
     });
 
     it('does to each table what its classification says', () => {
-      expect(tableProblems(RESET, reset.before, reset.after)).toEqual([]);
+      expect(
+        tableProblems(RESET, reset.seeded, reset.before, reset.after),
+      ).toEqual([]);
     });
 
     it('does to each Talent column what its classification says', () => {
@@ -1403,7 +1432,13 @@ describe('what erasure, reset and merge do to every talent table (integration)',
 
     it('does to each table what its classification says', () => {
       expect(
-        tableProblems(MERGE, merge.before, merge.after, merge.survivorAfter),
+        tableProblems(
+          MERGE,
+          merge.seeded,
+          merge.before,
+          merge.after,
+          merge.survivorAfter,
+        ),
       ).toEqual([]);
     });
 
