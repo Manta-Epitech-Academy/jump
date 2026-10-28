@@ -575,6 +575,8 @@ export type WorkshopActivityRow = {
 export type WorkshopInstanceRow = {
   slug: string;
   baseUrl: string;
+  /** In the shape `write_workshop_instance` takes: null when it has none. */
+  supervisorCode: string | null;
   /** The slugs of every activity declared on it, retired ones included. */
   activities: string[];
 };
@@ -608,7 +610,7 @@ export async function getWorkshops(): Promise<Workshops> {
         slug: true,
         label: true,
         enabled: true,
-        instance: { select: { slug: true } },
+        instance: { select: { slug: true, supervisorCode: true } },
         _count: { select: { events: true, participations: true } },
         tagline: true,
         coverImages: {
@@ -628,6 +630,7 @@ export async function getWorkshops(): Promise<Workshops> {
       select: {
         slug: true,
         baseUrl: true,
+        supervisorCode: true,
         activities: { select: { slug: true }, orderBy: { slug: 'asc' } },
       },
     }),
@@ -656,17 +659,19 @@ export async function getWorkshops(): Promise<Workshops> {
           level: activity.level,
           domainCount: activity.domains.length,
           pictureCount: activity.coverImages.length,
+          supervisorCode: activity.instance.supervisorCode,
         }),
       })),
-      "Les activités en ligne que Jump sait proposer. Une activité est un contenu servi par une instance. « slug » est la clé stable que prennent les opérations d'écriture sur les activités, et le nom que l'instance donne à ce contenu, « label » le nom que lit un talent, « instance » l'instance qui le sert, « enabled » si l'activité est proposée aujourd'hui, « attachedEvents » le nombre d'événements qui la proposent et « talentsEntered » le nombre de talents qui y sont entrés au moins une fois. « cover » est la façon dont l'activité se présente sur l'accueil des talents, saisie par write_workshop (« cover ») : son accroche (null si elle n'en a pas, l'accueil affiche alors « label ») et ses images, chacune avec l'adresse d'où Jump l'a copiée (« media » le visuel, « poster » l'image fixe, « mascot » la mascotte). « level », « notions » et « domains » sont la façon dont le catalogue des sujets de l'espace dev la présente, saisie par write_workshop : son niveau (« beginner » débutant, « intermediate » intermédiaire, « expert », « all_levels » tous niveaux, null s'il n'est pas renseigné), les notions qu'un talent y travaille, dans l'ordre affiché, et les clés des domaines où elle est rangée. « missingForCatalogue » liste ce qui l'empêche encore d'apparaître dans ce catalogue, vide si elle y apparaît : « enabled » si elle n'est pas proposée, « tagline » sans accroche, « level » sans niveau, « domains » sans domaine, « picture » sans aucune image. Le sujet lui-même (étapes, énoncé) n'est pas ici : il vit dans l'instance.",
+      "Les activités en ligne que Jump sait proposer. Une activité est un contenu servi par une instance. « slug » est la clé stable que prennent les opérations d'écriture sur les activités, et le nom que l'instance donne à ce contenu, « label » le nom que lit un talent, « instance » l'instance qui le sert, « enabled » si l'activité est proposée aujourd'hui, « attachedEvents » le nombre d'événements qui la proposent et « talentsEntered » le nombre de talents qui y sont entrés au moins une fois. « cover » est la façon dont l'activité se présente sur l'accueil des talents, saisie par write_workshop (« cover ») : son accroche (null si elle n'en a pas, l'accueil affiche alors « label ») et ses images, chacune avec l'adresse d'où Jump l'a copiée (« media » le visuel, « poster » l'image fixe, « mascot » la mascotte). « level », « notions » et « domains » sont la façon dont le catalogue des sujets de l'espace dev la présente, saisie par write_workshop : son niveau (« beginner » débutant, « intermediate » intermédiaire, « expert », « all_levels » tous niveaux, null s'il n'est pas renseigné), les notions qu'un talent y travaille, dans l'ordre affiché, et les clés des domaines où elle est rangée. « missingForCatalogue » liste ce qui l'empêche encore d'apparaître dans ce catalogue, vide si elle y apparaît : « enabled » si elle n'est pas proposée, « tagline » sans accroche, « level » sans niveau, « domains » sans domaine, « picture » sans aucune image, « supervisorCode » quand son instance n'a pas de code superviseur (il s'écrit sur l'instance, par write_workshop_instance). Le sujet lui-même (étapes, énoncé) n'est pas ici : il vit dans l'instance.",
     ),
     instances: metric(
       instances.map((instance) => ({
         slug: instance.slug,
         baseUrl: instance.baseUrl,
+        supervisorCode: instance.supervisorCode,
         activities: instance.activities.map((a) => a.slug),
       })),
-      "Les instances qui servent ces activités. « slug » est la clé de l'instance, celle que son administration affiche et que prend write_workshop_instance, « baseUrl » l'adresse vers laquelle un talent est envoyé, « activities » les activités qu'elle sert, y compris celles qui ne sont plus proposées. Une instance passe d'un contenu à l'autre au fil des demandes : chaque contenu reste une activité à part, et les XP d'un talent restent rangés sous celle qu'il a faite.",
+      "Les instances qui servent ces activités. « slug » est la clé de l'instance, celle que son administration affiche et que prend write_workshop_instance, « baseUrl » l'adresse vers laquelle un talent est envoyé, « supervisorCode » le code que l'instance demande sur sa page d'inscription superviseur, montré au staff sur chacun de ses sujets dans le catalogue (null si Jump n'en a pas, et alors le catalogue n'en montre aucun), « activities » les activités qu'elle sert, y compris celles qui ne sont plus proposées. Une instance passe d'un contenu à l'autre au fil des demandes : chaque contenu reste une activité à part, et les XP d'un talent restent rangés sous celle qu'il a faite.",
     ),
     domains: metric(
       domains,

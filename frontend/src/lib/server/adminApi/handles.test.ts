@@ -56,8 +56,10 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'description',
   'reason',
   'label',
-  // The address of a CTFd instance, typed once when it is deployed.
+  // The address of a CTFd instance, typed once when it is deployed, and its
+  // supervisor code, copied from the instance.
   'baseUrl',
+  'supervisorCode',
   // How an activity presents itself: a line and the addresses of pictures Jump
   // downloads. Authored, not picked from anything Jump holds.
   'cover',

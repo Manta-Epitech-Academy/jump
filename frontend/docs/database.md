@@ -596,6 +596,7 @@ erDiagram
     String id PK
     String slug UK
     String baseUrl
+    String supervisorCode
     DateTime createdAt
     DateTime updatedAt
   }
