@@ -16,39 +16,64 @@
 import type { Prisma, Sync_ErrorKind } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 
+/** The kinds that name a contact Jump could not take in, not a talent it has. */
+export type ContactErrorKind = Extract<
+  Sync_ErrorKind,
+  'MISSING_NAME' | 'MERGE_REFUSED'
+>;
+
 /** Why a talent's login could not be reconciled with Salesforce's address. */
 export type LoginFailure = {
-  kind: Exclude<Sync_ErrorKind, 'MISSING_NAME'>;
+  kind: Exclude<Sync_ErrorKind, ContactErrorKind>;
   /** The technical cause, for a developer: English, never an explanation. */
   detail: string | null;
 };
 
 /**
- * A contact Salesforce sent without a first or a last name. Keyed by its
- * Salesforce id, the one half of the contact that is always there.
+ * A contact Jump could not take in: sent without a first or a last name, or
+ * tied to several talents Jump will not merge. Keyed by its Salesforce id, the
+ * one half of the contact that is always there, so a contact holds one such
+ * error at a time, its latest cause; a cause that changes restarts
+ * `firstOccurredAt`, as a login error's does.
  */
-export async function recordMissingName(contact: {
-  externalId: string;
-  contactName: string | null;
-  email: string | null;
-}): Promise<void> {
+export async function recordContactError(
+  kind: ContactErrorKind,
+  contact: {
+    externalId: string;
+    contactName: string | null;
+    email: string | null;
+    /** The Leads converted into the contact, on a refused merge only. */
+    convertedLeadIds?: readonly string[];
+  },
+): Promise<void> {
   const now = new Date();
-  const fields = { contactName: contact.contactName, email: contact.email };
+  const fields = {
+    kind,
+    contactName: contact.contactName,
+    email: contact.email,
+    convertedLeadIds: [...(contact.convertedLeadIds ?? [])],
+  };
+  const stored = await prisma.sync_Error.findUnique({
+    where: { externalId: contact.externalId },
+    select: { kind: true },
+  });
   await prisma.sync_Error.upsert({
     where: { externalId: contact.externalId },
     create: {
-      kind: 'MISSING_NAME',
-      externalId: contact.externalId,
       ...fields,
+      externalId: contact.externalId,
       firstOccurredAt: now,
       lastOccurredAt: now,
     },
-    update: { ...fields, lastOccurredAt: now },
+    update:
+      stored?.kind === kind
+        ? { ...fields, lastOccurredAt: now }
+        : { ...fields, firstOccurredAt: now, lastOccurredAt: now },
   });
 }
 
-/** Forget the nameless-contact errors of contacts that now arrive named. */
-export async function clearMissingNames(externalIds: string[]): Promise<void> {
+/** Forget the errors of contacts this pass took in. */
+export async function clearContactErrors(externalIds: string[]): Promise<void> {
   if (externalIds.length === 0) return;
   await prisma.sync_Error.deleteMany({
     where: { externalId: { in: externalIds } },

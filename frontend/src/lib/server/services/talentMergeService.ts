@@ -15,15 +15,16 @@
  * the staff have been reading. The absorbed talents' own Salesforce mirror and
  * sync errors go, since the pass that merges re-derives the survivor's, and so
  * do their logins, which nobody ever used: deciding which talent survives, and
- * refusing a merge when more than one of them was used, is the caller's job
- * (`claimSalesforcePerson`), because a used login or a dossier is something
- * only a person can choose between.
+ * refusing a merge when more than one of them was used, is
+ * `claimSalesforcePerson`'s job below, because a used login or a dossier is
+ * something only a person can choose between.
  *
  * Every table holding a talent's rows has its fate here, and
  * `talentScopedData.integration.test.ts` fails on a new one until it does.
  */
 
 import { Prisma } from '@prisma/client';
+import { prisma } from '$lib/server/db';
 import { dropLogin } from '$lib/server/authIdentityRepairCore';
 import {
   moveTalentGrants,
@@ -137,4 +138,56 @@ export async function mergeTalents(
   }
 
   await recomputeEventsCount(tx, survivorId);
+}
+
+/**
+ * Make the talent of one Salesforce person, if Jump has one, the talent keyed
+ * on its `externalId`, so the rest of the talents push finds it there.
+ *
+ * `convertedLeadIds` are the Leads Salesforce converted into the contact. A
+ * talent Jump made of one of them is the same person: when several talents
+ * answer, they are merged into one, and the one kept is rekeyed to the
+ * contact. Keyed on Salesforce's own conversion link and never on an address,
+ * since siblings share one.
+ *
+ * The talent kept is the one a person used (logged in, or started a dossier),
+ * otherwise the one already keyed on the contact, otherwise the oldest. When
+ * more than one was used, nothing is merged and the answer is `refused`: which
+ * login and which dossier the person keeps is not Jump's to guess, and the
+ * caller records it for an admin. A refusal changes nothing, so the next pass
+ * meets it again until someone settles it.
+ */
+export async function claimSalesforcePerson(
+  externalId: string,
+  convertedLeadIds: readonly string[],
+): Promise<'ready' | 'refused'> {
+  const formerIds = convertedLeadIds.filter((id) => id !== externalId);
+  if (formerIds.length === 0) return 'ready';
+
+  const talents = await prisma.talent.findMany({
+    where: { externalId: { in: [externalId, ...formerIds] } },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      externalId: true,
+      firstLoginAt: true,
+      _count: { select: { onboardingRecords: true } },
+    },
+  });
+  const used = talents.filter(
+    (t) => t.firstLoginAt !== null || t._count.onboardingRecords > 0,
+  );
+  if (used.length > 1) return 'refused';
+  const kept =
+    used[0] ?? talents.find((t) => t.externalId === externalId) ?? talents[0];
+  if (!kept) return 'ready';
+
+  const absorbed = talents.filter((t) => t.id !== kept.id).map((t) => t.id);
+  if (absorbed.length === 0 && kept.externalId === externalId) return 'ready';
+  await prisma.$transaction(async (tx) => {
+    await mergeTalents(tx, kept.id, absorbed);
+    if (kept.externalId !== externalId)
+      await tx.talent.update({ where: { id: kept.id }, data: { externalId } });
+  });
+  return 'ready';
 }

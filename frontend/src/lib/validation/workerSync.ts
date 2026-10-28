@@ -44,7 +44,16 @@ export const workerEventsPayloadSchema = z.object({
 });
 
 export const workerTalentSchema = z.object({
+  /** The member's Salesforce `ContactId`, or its `LeadId` when it never became a Contact. */
   external_id: z.string().min(1),
+  /**
+   * Every Lead Salesforce converted into that Contact, by `ConvertedContactId`,
+   * empty for a Lead. `syncTalents` folds the talents those Leads became into
+   * the contact's (`claimSalesforcePerson`). Absent from a worker that predates
+   * it, which keyed a converted member on one of these Leads instead, and then
+   * nothing is merged.
+   */
+  converted_lead_ids: z.array(z.string().min(1)).optional(),
   /**
    * Deliberately not `.min(1)`, unlike `external_id` beside it, and the
    * asymmetry is the point. `Contact.FirstName` is optional in Salesforce, so an

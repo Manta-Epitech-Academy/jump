@@ -155,6 +155,7 @@
           r.subject.sfEmail,
           r.subject.externalId,
           holderName(r),
+          ...r.records.map((t) => `${t.prenom} ${t.nom}`),
         ]),
         tokens,
       );
@@ -257,7 +258,29 @@
 
 {#snippet holder(r: Row)}
   {@const href = holderHref(r)}
-  {#if r.holder}
+  {#if r.records.length > 0}
+    <!-- A refused merge: every fiche Jump holds for the person, to compare. -->
+    <ul class="space-y-0.5">
+      {#each r.records as t (t.talentId)}
+        <li>
+          <a
+            href={adminTalentHref({
+              email: t.loginEmail,
+              prenom: t.prenom,
+              nom: t.nom,
+            })}
+            class="cursor-pointer text-sm hover:underline">{t.prenom} {t.nom}</a
+          >
+          {#if t.loginEmail}
+            <span
+              class="block font-mono text-xs break-all text-muted-foreground"
+              >{t.loginEmail}</span
+            >
+          {/if}
+        </li>
+      {/each}
+    </ul>
+  {:else if r.holder}
     {#if href}
       <a {href} class="cursor-pointer text-sm hover:underline"
         >{natureLabel(r.holder)}</a
@@ -369,7 +392,7 @@
             </span>
           </div>
           {@render problem(r)}
-          {#if r.holder}
+          {#if r.holder || r.records.length > 0}
             <div class="flex items-baseline gap-2">
               <span class="epi-overline text-muted-foreground">En cause</span>
               {@render holder(r)}

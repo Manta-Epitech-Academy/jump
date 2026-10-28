@@ -29,6 +29,7 @@ const repairs: (AuthVerdictRepair | null)[] = [null, 'repointDrop', 'swap'];
 
 const situations: SyncErrorSituation[] = [
   { kind: 'MISSING_NAME' },
+  { kind: 'MERGE_REFUSED' },
   { kind: 'LOGIN_FAILURE', hasAccount: true },
   { kind: 'LOGIN_FAILURE', hasAccount: false },
   ...[true, false].flatMap((hasAccount) =>
@@ -76,7 +77,11 @@ describe('explainSyncError', () => {
     expect(withAccount.consequence).toMatch(/ancienne adresse/);
   });
 
-  it('admits there is no fix for one person recorded twice', () => {
+  // Jump merges the talents of the Leads converted into one contact, so one
+  // person still recorded twice is a Lead Salesforce never converted, and
+  // converting it is what lets the next pass merge them. Never a login swap:
+  // two records with swapped logins are still two records.
+  it('sends one person recorded twice to the conversion of the lone Lead', () => {
     for (const hasAccount of [true, false])
       for (const repair of repairs)
         expect(
@@ -85,8 +90,11 @@ describe('explainSyncError', () => {
             hasAccount,
             holder: { kind: 'talent', sameName: true },
             repair,
-          }).remedy.who,
-        ).toBe('none');
+          }).remedy,
+        ).toMatchObject({
+          who: 'salesforce',
+          text: expect.stringMatching(/convertir/),
+        });
   });
 
   it('sends to the Connexion tab exactly when the tab has a repair', () => {

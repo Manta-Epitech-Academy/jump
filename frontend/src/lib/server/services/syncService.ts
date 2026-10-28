@@ -15,9 +15,10 @@ import { isNiveau, type Niveau } from '$lib/domain/niveau';
 import { normalizePhoneToE164 } from '$lib/domain/phone';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 import { autoResolveAuthIdentity } from '$lib/server/services/authIdentityRepairService';
+import { claimSalesforcePerson } from '$lib/server/services/talentMergeService';
 import {
-  clearMissingNames,
-  recordMissingName,
+  clearContactErrors,
+  recordContactError,
   settleLoginError,
   type LoginFailure,
 } from '$lib/server/services/syncErrorService';
@@ -316,10 +317,18 @@ export async function syncTalents(talents: WorkerTalent[]) {
 
   // Canonical School per distinct UAI, resolved once for the whole batch.
   const schoolIdByUai = await resolveSchools(talents);
-  // Contacts that arrive named, whose nameless-contact error is now gone.
-  const named: string[] = [];
+  // Contacts this pass took in, whose contact error is now gone.
+  const takenIn: string[] = [];
 
   for (const t of talents) {
+    const email = t.email?.toLowerCase().trim() || null;
+    // What a contact error names when Jump cannot take this one in.
+    const contact = {
+      externalId: t.external_id,
+      contactName: `${t.first_name ?? ''} ${t.last_name ?? ''}`.trim() || null,
+      email,
+    };
+
     // A contact with no name is SKIPPED and logged, never a refusal for the
     // batch, which is the rule `syncEvents` above states about an unresolved
     // campus. It matters more here, and this used to return.
@@ -345,17 +354,26 @@ export async function syncTalents(talents: WorkerTalent[]) {
       // absence is the failure mode this whole surface is written against.
       // `Sync_Error` is where a person the sync could not reconcile goes, and
       // the fix is upstream: somebody completes the contact in Salesforce.
-      await recordMissingName({
-        externalId: t.external_id,
-        contactName:
-          `${t.first_name ?? ''} ${t.last_name ?? ''}`.trim() || null,
-        email: t.email?.toLowerCase().trim() || null,
+      await recordContactError('MISSING_NAME', contact);
+      continue;
+    }
+
+    // One Salesforce person, one talent: fold the talents Jump made of the
+    // Leads converted into this contact into the one it keeps, keyed on the
+    // contact, before anything below looks it up by `external_id`. Skipped
+    // and recorded like a nameless contact when more than one of them was
+    // used, since only a person can say which one the student keeps.
+    const converted = t.converted_lead_ids ?? [];
+    if ((await claimSalesforcePerson(t.external_id, converted)) === 'refused') {
+      invalid++;
+      await recordContactError('MERGE_REFUSED', {
+        ...contact,
+        convertedLeadIds: converted,
       });
       continue;
     }
-    named.push(t.external_id);
+    takenIn.push(t.external_id);
 
-    const email = t.email?.toLowerCase().trim() || null;
     // Store SF's phone in canonical E.164 so a bare "765719823" and a full
     // "+33765719823" land identically on both Talent and the mirror; keep the
     // raw value when it doesn't parse rather than drop it.
@@ -598,7 +616,7 @@ export async function syncTalents(talents: WorkerTalent[]) {
     }
   }
 
-  await clearMissingNames(named);
+  await clearContactErrors(takenIn);
   return { created, updated, skipped, invalid };
 }
 
@@ -622,8 +640,9 @@ export async function syncTalents(talents: WorkerTalent[]) {
  *
  * An `external_id` Jump does not know is counted and skipped: the worker pushes
  * talents before enrolments and fails the run if that push fails, so an unknown
- * one is a contact the talents push skipped for having no name, which is
- * already its own `Sync_Error` (`MISSING_NAME`). A talent whose login failed is
+ * one is a contact the talents push skipped, for having no name or for a merge
+ * it refused, which is already its own `Sync_Error` (`MISSING_NAME`,
+ * `MERGE_REFUSED`). A talent whose login failed is
  * still created, so its enrolments resolve.
  *
  * **Nothing here refuses, and that is the rule this function was rebuilt on.**
