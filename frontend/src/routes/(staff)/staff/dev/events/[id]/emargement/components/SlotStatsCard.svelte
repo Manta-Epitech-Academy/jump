@@ -65,14 +65,14 @@
   const handled = $derived(stats.total - stats.pending);
 </script>
 
-<Card.Root class="rounded-sm shadow-raised">
+<Card.Root class="rounded-sm">
   <div
     class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
   >
     <ClipboardCheck class="h-5 w-5 text-epi-blue" />
     <h3 class="font-heading text-display-m text-foreground">Synthèse</h3>
     {#if closed}
-      <span class={cn('ml-auto', statusBadgeClass('warning'))}>
+      <span class={cn('ml-auto', statusBadgeClass('neutral'))}>
         <Lock class="h-3 w-3" /> Clôturé
       </span>
     {/if}

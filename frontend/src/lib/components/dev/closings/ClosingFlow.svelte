@@ -49,6 +49,7 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import PullQuote from '$lib/components/staff/PullQuote.svelte';
   import { getInitials } from '$lib/avatar';
+  import { closingsFacetParams } from '$lib/domain/closingsView';
   import { cn } from '$lib/utils';
   import {
     VERDICT_SECTION,
@@ -80,6 +81,7 @@
     conductedLabel = null,
     conductedBy = null,
     conductedByImage = null,
+    closingsHref,
     actionState = $bindable(),
   }: {
     form: SuperValidated<ClosingConductForm>;
@@ -109,6 +111,9 @@
     conductedLabel?: string | null;
     conductedBy?: string | null;
     conductedByImage?: string | null;
+    /** The event's Closings list: the finalised banner leads back to the
+     *  closings still to conduct there. */
+    closingsHref: string;
     // Autosave + in-flight state, surfaced so the page can mirror it if needed.
     actionState?: ClosingActionState;
   } = $props();
@@ -183,6 +188,14 @@
   // at the moment clôture lands, which tested as ambiguous, without polluting
   // later visits to the finished record.
   let justFinalised = $state(false);
+  // How many of the event's closings remain once this one is finalised, as the
+  // close action counts them; null until then, or if the answer carries none.
+  let remaining = $state<number | null>(null);
+  const remainingHref = $derived(
+    `${closingsHref}?${new URLSearchParams(
+      closingsFacetParams('statut', ['todo', 'in_progress']),
+    )}`,
+  );
 
   let formEl: HTMLFormElement;
   let startBtn: HTMLButtonElement;
@@ -231,6 +244,8 @@
             status = 'done';
             saveState = 'idle';
             justFinalised = true;
+            const left = result.data?.remaining;
+            remaining = typeof left === 'number' ? left : null;
             toast.success('Closing finalisé.');
           }
         } else if (result.type === 'failure') {
@@ -762,17 +777,42 @@
                  the record stays uncluttered. Teal = gate cleared, the "done"
                  status-chip language. -->
             <div
-              class="flex items-center gap-3 rounded-md border border-epi-tech-ink/30 bg-epi-tech-ink/10 p-4"
+              class="flex flex-wrap items-center gap-3 rounded-md border border-epi-tech-ink/30 bg-epi-tech-ink/10 p-4"
             >
               <span
                 class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-epi-tech-ink/15"
               >
                 <CheckCheck class="h-5 w-5 text-epi-tech-ink" />
               </span>
-              <p class="text-sm font-medium text-foreground">
-                <span class="font-bold">Closing finalisé.</span> Il est clôturé et
-                n'est plus modifiable.
-              </p>
+              <div class="min-w-0 flex-1 space-y-0.5 text-sm">
+                <p class="font-medium text-foreground">
+                  <span class="font-bold">Closing finalisé.</span> Il est clôturé
+                  et n'est plus modifiable.
+                </p>
+                <!-- The end of one closing is where a series goes on: say what is
+                     left on the event, or that this was the last one. -->
+                {#if remaining === 0}
+                  <p class="text-muted-foreground">
+                    C'était le dernier closing de l'événement.
+                  </p>
+                {:else if remaining !== null}
+                  <p class="text-muted-foreground">
+                    Encore {remaining}
+                    {remaining > 1 ? 'closings' : 'closing'} à mener sur l'événement.
+                  </p>
+                {/if}
+              </div>
+              {#if remaining}
+                <Button
+                  href={remainingHref}
+                  variant="outline"
+                  size="sm"
+                  class="shrink-0"
+                >
+                  Voir les closings à mener
+                  <ArrowRight />
+                </Button>
+              {/if}
             </div>
           {/if}
 

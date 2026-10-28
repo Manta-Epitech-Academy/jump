@@ -324,9 +324,12 @@ export const actions: Actions = {
       eventId: event.id,
     });
 
+    const noun = cohortNounForms(event.cohortNoun);
     return message(
       form,
-      `${cohortNounForms(event.cohortNoun).Plural} sans présence enregistrée marqués présents.`,
+      result.marked === 0
+        ? 'Tout le monde avait déjà une présence sur ce créneau.'
+        : `${result.marked} ${result.marked > 1 ? noun.plural : noun.singular} marqué${result.marked > 1 ? 's' : ''} présent${result.marked > 1 ? 's' : ''}.`,
     );
   },
 
@@ -347,7 +350,7 @@ export const actions: Actions = {
       form.data.day,
       form.data.slot,
     );
-    await closePresenceSlot(
+    const { absent } = await closePresenceSlot(
       campusId,
       event.id,
       dateKeyToDbDate(form.data.day),
@@ -360,7 +363,12 @@ export const actions: Actions = {
       eventId: event.id,
     });
 
-    return message(form, 'Créneau clôturé.');
+    return message(
+      form,
+      absent === 0
+        ? 'Créneau clôturé : tout le monde y avait une présence.'
+        : `Créneau clôturé : ${absent} absent${absent > 1 ? 's' : ''} noté${absent > 1 ? 's' : ''}.`,
+    );
   },
 
   reopenSlot: async ({ request, locals, params }) => {

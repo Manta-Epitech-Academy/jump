@@ -22,6 +22,11 @@ import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
  * absent (a projection, computed on read) and stops QR self-check-in. Idempotent
  * (upsert). `closedById` is the acting staff member. Scoped by `campusId` so
  * the closure can only ever touch an event on the acting staff's campus.
+ *
+ * Returns how many of the roster now read absent because of it: the members the
+ * sheet lists who carry no mark on this créneau. Nothing is written for them,
+ * so the number is counted here, at the moment it becomes true, for the person
+ * who closed the créneau to read back.
  */
 export async function closePresenceSlot(
   campusId: string,
@@ -29,12 +34,25 @@ export async function closePresenceSlot(
   day: Date,
   slot: PresenceSlot,
   closedById: string | null,
-): Promise<void> {
-  await scopedPrisma(campusId).eventPresenceClosure.upsert({
-    where: { eventId_day_slot: { eventId, day, slot } },
-    create: { eventId, day, slot, closedById },
-    update: { closedById, closedAt: new Date() },
-  });
+): Promise<{ absent: number }> {
+  const db = scopedPrisma(campusId);
+  const [roster, marked] = await Promise.all([
+    db.participation.findMany({
+      where: { eventId, ...visibleParticipationWhere },
+      select: { talentId: true },
+    }),
+    db.eventPresence.findMany({
+      where: { eventId, day, slot },
+      select: { talentId: true },
+    }),
+    db.eventPresenceClosure.upsert({
+      where: { eventId_day_slot: { eventId, day, slot } },
+      create: { eventId, day, slot, closedById },
+      update: { closedById, closedAt: new Date() },
+    }),
+  ]);
+  const hasMark = new Set(marked.map((m) => m.talentId));
+  return { absent: roster.filter((p) => !hasMark.has(p.talentId)).length };
 }
 
 /**

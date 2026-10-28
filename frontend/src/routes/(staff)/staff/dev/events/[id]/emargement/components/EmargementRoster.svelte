@@ -258,6 +258,12 @@
     );
   }
 
+  // A superform action's `message`, which the slot actions word for the person
+  // who acted (with the counts the server alone knows).
+  function formMessage(data: unknown): string | undefined {
+    return (data as { form?: { message?: string } } | undefined)?.form?.message;
+  }
+
   // Mark one cell straight from the inline switch. Optimistic: paint the choice
   // at once, POST it to the `setPresence` action, then reload to reconcile.
   // `pending` clears the cell (the action deletes the row).
@@ -659,17 +665,17 @@
         use:formEnhance={() =>
           async ({ result, update }) => {
             await update();
+            // The server counts what changed; its message is the toast.
             if (result.type === 'success')
               toast.success(
-                `${noun.Plural} sans présence enregistrée marqués présents.`,
+                formMessage(result.data) ?? 'Présences enregistrées.',
               );
             // The bulk mark only fails now if a staff member manually closed the
             // créneau between render and submit; the 11h/15h cutoff no longer
             // refuses it. Surface the server message, which points at Rouvrir.
             else if (result.type === 'failure')
               toast.error(
-                (result.data?.form as { message?: string } | undefined)
-                  ?.message ?? 'Ce créneau a été clôturé.',
+                formMessage(result.data) ?? 'Ce créneau a été clôturé.',
               );
             presentConfirmOpen = false;
           }}
@@ -709,7 +715,8 @@
         use:formEnhance={() =>
           async ({ result, update }) => {
             await update();
-            if (result.type === 'success') toast.success('Créneau clôturé.');
+            if (result.type === 'success')
+              toast.success(formMessage(result.data) ?? 'Créneau clôturé.');
             closeConfirmOpen = false;
           }}
         class="flex justify-end gap-2 pt-2"

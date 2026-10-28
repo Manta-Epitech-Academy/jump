@@ -38,6 +38,7 @@
     conductedLabel={data.conductedLabel}
     conductedBy={data.conductedBy}
     conductedByImage={data.conductedByImage}
+    closingsHref={resolve(`/staff/dev/events/${data.event.id}/closings`)}
     bind:status
     bind:step
   />
