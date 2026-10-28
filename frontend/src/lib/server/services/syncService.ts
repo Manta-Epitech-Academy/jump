@@ -9,7 +9,7 @@
  * `.claude/rules/salesforce.md`.
  */
 import { prisma } from '$lib/server/db';
-import { Prisma } from '@prisma/client';
+import { Prisma, type Sync_ErrorKind } from '@prisma/client';
 import { defaultEventModules } from '$lib/domain/eventModules';
 import { isNiveau, type Niveau } from '$lib/domain/niveau';
 import { normalizePhoneToE164 } from '$lib/domain/phone';
@@ -423,6 +423,9 @@ export async function syncTalents(talents: WorkerTalent[]) {
     let talentId: string;
 
     if (!existing) {
+      // The login error already stored: none for a talent seen for the first
+      // time, the winner's when a concurrent pass created it first.
+      let storedError: Sync_ErrorKind | null = null;
       // First sight: seed the Talent (Jump truth starts equal to SF) and create
       // its SF mirror in one shot. Before any onboarding confirmation, SF is the
       // only source, so seed and mirror are identical.
@@ -469,10 +472,11 @@ export async function syncTalents(talents: WorkerTalent[]) {
           // `syncParticipations` against this same external id either way.
           const winner = await prisma.talent.findUnique({
             where: { externalId: t.external_id },
-            select: { id: true },
+            select: { id: true, syncError: { select: { kind: true } } },
           });
           if (!winner) throw err;
           talentId = winner.id;
+          storedError = winner.syncError?.kind ?? null;
           skipped++;
         } else {
           throw err;
@@ -484,11 +488,10 @@ export async function syncTalents(talents: WorkerTalent[]) {
       // where a Talent exists without an account. An address that is already
       // somebody else's can't be forced into a student login: the talent is
       // still imported, accountless, and the error says who holds it.
-      // Emailless SF rows stay accountless. A talent seen for the first time
-      // has no login error stored yet.
+      // Emailless SF rows stay accountless.
       await settleLoginError(
         talentId,
-        null,
+        storedError,
         await reconcileLoginIdentity(
           { id: talentId, userId: null, linkedEmail: null },
           email,
