@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
   import * as Table from '$lib/components/ui/table';
@@ -12,11 +13,19 @@
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import { talentFicheHref } from '$lib/components/dev/talentFiche';
-  import type {
-    ColumnDef,
-    SortDir,
-  } from '$lib/components/staff/datatable/types';
-  import type { BilanRow } from '../+page.server';
+  import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  import { setListParams } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import {
+    BILAN_NO_RECO,
+    bilanFilterParams,
+    bilanSortParams,
+    matchesBilanView,
+    parseBilanView,
+    type BilanResponseFilter,
+    type BilanSortKey,
+  } from '$lib/domain/bilanView';
+  import type { BilanRow, RecoOption } from '../+page.server';
   import {
     buildHaystack,
     matchesAllTokens,
@@ -34,7 +43,7 @@
     cohortNoun,
   }: {
     rows: BilanRow[];
-    recoOptions: string[];
+    recoOptions: RecoOption[];
     eventId: string;
     cohortNoun: string | null;
   } = $props();
@@ -42,15 +51,17 @@
   // Event's Jump-owned cohort noun ("stagiaire" / "participant").
   const noun = $derived(cohortNounForms(cohortNoun));
 
-  // Sentinel for the "no recommendation answer" filter bucket (kept distinct from
-  // any real option label).
-  const RECO_NONE = '__none';
+  // Filters, sort and search live in the address (`$lib/domain/bilanView`), so
+  // the event home's recommendation card can open this list already filtered.
+  const view = $derived(parseBilanView(page.url.searchParams));
+  const search = createUrlSearch();
 
-  let searchQuery = $state('');
-  let statut = $state<'all' | 'responded' | 'pending'>('all');
-  let reco = $state<string>('all');
-  let sortKey = $state<string>('nom');
-  let sortDir = $state<SortDir>('asc');
+  // Best→worst rank and label of each option, by id.
+  const recoRank = $derived(new Map(recoOptions.map((o, i) => [o.id, i])));
+  const recoLabel = $derived(
+    new Map(recoOptions.map((o) => [o.id, o.label] as const)),
+  );
+  const knownReco = $derived(new Set(recoRank.keys()));
 
   const columns: ColumnDef[] = [
     { key: 'avatar', label: '', class: 'w-10' },
@@ -76,10 +87,9 @@
   // The thresholds live in the domain, shared with the figure the curated API
   // computes from the same ordering: two places deciding what "good" means is two
   // places that drift.
-  function recoTier(label: string | null): AnswerPolarity | null {
-    if (!label) return null;
-    const idx = recoOptions.indexOf(label);
-    if (idx < 0) return null;
+  function recoTier(optionId: string | null): AnswerPolarity | null {
+    const idx = optionId ? recoRank.get(optionId) : undefined;
+    if (idx === undefined) return null;
     return optionPolarity(idx, recoOptions.length);
   }
 
@@ -90,9 +100,12 @@
   };
 
   function toggleSort(key: string) {
-    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
-    sortKey = next.key;
-    sortDir = next.dir;
+    const next = nextSort<BilanSortKey>(
+      columns,
+      { key: view.sort, dir: view.dir },
+      key,
+    );
+    setListParams(bilanSortParams(next.key, next.dir));
   }
 
   // A talent who has not answered has no recommendation and no date. Those rows
@@ -100,18 +113,18 @@
   // claimed in a comment and what its reco column did not do: the missing case
   // lived inside the asc/desc flip, so reversing the sort led with the
   // unanswered half of the cohort instead of burying it.
-  function sortsLast(r: BilanRow, key: string): boolean {
-    if (key === 'reco') return !r.recoLabel;
+  function sortsLast(r: BilanRow, key: BilanSortKey): boolean {
+    if (key === 'reco') return !r.recoOptionId;
     if (key === 'date') return !r.respondedAt;
     return false;
   }
 
-  function compareRows(a: BilanRow, b: BilanRow, key: string): number {
+  function compareRows(a: BilanRow, b: BilanRow, key: BilanSortKey): number {
     // Reco sorts by best→worst rank, off the canonical option order.
     if (key === 'reco') {
       return (
-        recoOptions.indexOf(a.recoLabel ?? '') -
-        recoOptions.indexOf(b.recoLabel ?? '')
+        (recoRank.get(a.recoOptionId ?? '') ?? -1) -
+        (recoRank.get(b.recoOptionId ?? '') ?? -1)
       );
     }
     // ISO instants compare lexicographically, i.e. chronologically.
@@ -121,30 +134,22 @@
     if (key === 'statut') {
       return Number(Boolean(a.respondedAt)) - Number(Boolean(b.respondedAt));
     }
-    const av = (a[key as 'nom' | 'prenom'] as string) ?? '';
-    const bv = (b[key as 'nom' | 'prenom'] as string) ?? '';
+    const av = a[key] ?? '';
+    const bv = b[key] ?? '';
     return av.localeCompare(bv, 'fr');
   }
 
   const filtered = $derived.by(() => {
-    const tokens = searchTokens(searchQuery);
+    const tokens = searchTokens(search.value);
     let out = rows.filter((r) => {
-      if (statut === 'responded' && !r.respondedAt) return false;
-      if (statut === 'pending' && r.respondedAt) return false;
-      if (reco !== 'all') {
-        if (reco === RECO_NONE) {
-          if (r.recoLabel) return false;
-        } else if (r.recoLabel !== reco) {
-          return false;
-        }
-      }
+      if (!matchesBilanView(r, view, knownReco)) return false;
       return matchesAllTokens(buildHaystack([r.prenom, r.nom]), tokens);
     });
     out = [...out].sort(
       rowComparator({
-        compare: (a, b) => compareRows(a, b, sortKey),
-        dir: sortDir,
-        isMissing: (r) => sortsLast(r, sortKey),
+        compare: (a, b) => compareRows(a, b, view.sort),
+        dir: view.dir,
+        isMissing: (r) => sortsLast(r, view.sort),
       }),
     );
     return out;
@@ -158,25 +163,36 @@
 
   const recoFilterOptions = $derived([
     { value: 'all', label: 'Toutes' },
-    ...recoOptions.map((l) => ({ value: l, label: l })),
-    { value: RECO_NONE, label: 'Sans réponse' },
+    ...recoOptions.map((o) => ({ value: o.id, label: o.label })),
+    { value: BILAN_NO_RECO, label: 'Sans réponse' },
   ]);
 
-  const anyFiltersApplied = $derived(
-    searchQuery.trim() !== '' || statut !== 'all' || reco !== 'all',
+  // An option id the form no longer carries filters nothing, so it does not
+  // count as a filter in force either.
+  const recoFilter = $derived(
+    view.reco === BILAN_NO_RECO || (view.reco && knownReco.has(view.reco))
+      ? view.reco
+      : null,
   );
 
+  const anyFiltersApplied = $derived(
+    search.value.trim() !== '' || view.reponse !== null || recoFilter !== null,
+  );
+
+  // Clears the filters and the search, keeps the sort, as on Inscrits.
   function resetFilters() {
-    searchQuery = '';
-    statut = 'all';
-    reco = 'all';
+    search.clear();
+    setListParams({
+      ...bilanFilterParams({ reponse: null, reco: null }),
+      q: '',
+    });
   }
 </script>
 
 <div class="space-y-4">
   <DataTableToolbar
-    searchValue={searchQuery}
-    onSearchInput={(v) => (searchQuery = v)}
+    searchValue={search.value}
+    onSearchInput={(v) => (search.value = v)}
     searchPlaceholder={`Rechercher un ${noun.singular}…`}
     searchWidthClass="w-full max-w-[230px]"
     filtersAlign="end"
@@ -192,9 +208,14 @@
         </span>
         <FilterSelect
           ariaLabel="Filtrer par réponse"
-          value={statut}
+          value={view.reponse ?? 'all'}
           options={statutOptions}
-          onChange={(v) => (statut = v as typeof statut)}
+          onChange={(v) =>
+            setListParams(
+              bilanFilterParams({
+                reponse: v === 'all' ? null : (v as BilanResponseFilter),
+              }),
+            )}
         />
       </div>
       {#if recoOptions.length > 0}
@@ -204,9 +225,12 @@
           </span>
           <FilterSelect
             ariaLabel="Filtrer par recommandation"
-            value={reco}
+            value={recoFilter ?? 'all'}
             options={recoFilterOptions}
-            onChange={(v) => (reco = v)}
+            onChange={(v) =>
+              setListParams(
+                bilanFilterParams({ reco: v === 'all' ? null : v }),
+              )}
           />
         </div>
       {/if}
@@ -216,8 +240,8 @@
   <SortableTable
     {columns}
     rows={filtered}
-    {sortKey}
-    {sortDir}
+    sortKey={view.sort}
+    sortDir={view.dir}
     onSort={toggleSort}
     rowKey={(r) => r.talentId}
     row={rowSnippet}
@@ -245,15 +269,16 @@
 {/snippet}
 
 {#snippet recoBadge(r: BilanRow)}
-  {@const tier = recoTier(r.recoLabel)}
-  {#if r.recoLabel && tier}
+  {@const tier = recoTier(r.recoOptionId)}
+  {@const label = r.recoOptionId ? recoLabel.get(r.recoOptionId) : undefined}
+  {#if label && tier}
     <span
       class={cn(
         'inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium',
         recoBadgeClass[tier],
       )}
     >
-      {r.recoLabel}
+      {label}
     </span>
   {:else}
     <span class="text-xs text-muted-foreground">-</span>

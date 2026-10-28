@@ -20,10 +20,17 @@ export interface BilanRow {
   prenom: string | null;
   respondedAt: string | null;
   /**
-   * Label of the recommendation verdict picked, null when there is none: not
-   * answered (yet), or an `extra` option, which is no verdict (`recoQuestionOf`).
+   * The recommendation option picked, null when there is none: not answered
+   * (yet), or an `extra` option, which is no verdict (`recoQuestionOf`).
    */
-  recoLabel: string | null;
+  recoOptionId: string | null;
+}
+
+/** A recommendation option: its id is what the address filters on, its label
+ *  what the roster shows. */
+export interface RecoOption {
+  id: string;
+  label: string;
 }
 
 interface BilanCohort {
@@ -31,7 +38,7 @@ interface BilanCohort {
   respondedCount: number;
   total: number;
   /** Recommendation options in canonical best→worst order (filter + badge tier). */
-  recoOptions: string[];
+  recoOptions: RecoOption[];
   /** Aggregated answers; null when the form has no submissions yet. */
   stats: FormStats | null;
 }
@@ -59,7 +66,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   }
 
   const reco = recoQuestionOf(form);
-  const recoLabelOf = new Map(reco?.options.map((o) => [o.id, o.label]));
 
   const cohort: Promise<BilanCohort> = (async () => {
     const [roster, stats] = await Promise.all([
@@ -72,16 +78,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       nom: r.nom,
       prenom: r.prenom,
       respondedAt: r.respondedAt?.toISOString() ?? null,
-      recoLabel: r.recoOptionId
-        ? (recoLabelOf.get(r.recoOptionId) ?? null)
-        : null,
+      recoOptionId: r.recoOptionId,
     }));
 
     return {
       rows,
       respondedCount: roster.respondedCount,
       total: roster.total,
-      recoOptions: reco?.options.map((o) => o.label) ?? [],
+      recoOptions:
+        reco?.options.map((o) => ({ id: o.id, label: o.label })) ?? [],
       stats,
     };
   })();
