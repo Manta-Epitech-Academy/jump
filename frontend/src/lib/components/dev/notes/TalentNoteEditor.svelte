@@ -76,14 +76,24 @@
         conflict = (await res.json()).current as SerializedNote;
         return;
       }
-      if (!res.ok) throw new Error(String(res.status));
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+        throw new Error(body?.message ?? '');
+      }
       const saved = (await res.json()).note as SerializedNote;
       conflict = null;
       onSaved?.(saved);
       toast.success('Note enregistrée.');
     } catch (e) {
       console.error('save talent note', e);
-      toast.error("Échec de l'enregistrement de la note.");
+      // The text stays in the editor, which is the one thing the person needs
+      // to know before trying again.
+      toast.error(
+        (e instanceof Error && e.message) || "La note n'a pas été enregistrée.",
+        { description: 'Votre texte est conservé : réessayez.' },
+      );
     } finally {
       saving = false;
     }

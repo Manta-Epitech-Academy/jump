@@ -287,7 +287,7 @@
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error('export xlsx', e);
-      toast.error("Échec de l'export.");
+      toast.error("L'export n'a pas pu être généré. Réessayez.");
     } finally {
       exporting = false;
     }

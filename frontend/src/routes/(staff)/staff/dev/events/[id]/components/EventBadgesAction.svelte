@@ -60,7 +60,9 @@
       toast.success('Badges générés.', { id: toastId });
     } catch (e) {
       console.error('generate badges', e);
-      toast.error('Échec de la génération des badges.', { id: toastId });
+      toast.error("Les badges n'ont pas pu être générés. Réessayez.", {
+        id: toastId,
+      });
     } finally {
       generating = false;
     }

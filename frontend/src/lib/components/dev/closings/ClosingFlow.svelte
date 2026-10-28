@@ -1,7 +1,7 @@
 <script lang="ts" module>
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   export type ClosingAction = 'start' | 'autosave' | 'close';
-  export type ClosingSaveState = 'idle' | 'saving' | 'saved';
+  export type ClosingSaveState = 'idle' | 'saving' | 'saved' | 'failed';
   // Surfaced to the page so it can mirror the lifecycle status and the
   // in-flight state if it needs to.
   export type ClosingActionState = {
@@ -27,6 +27,7 @@
   import Clock from '@lucide/svelte/icons/clock';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import CheckCheck from '@lucide/svelte/icons/check-check';
+  import CircleAlert from '@lucide/svelte/icons/circle-alert';
   // Domain-identity glyphs for the tech-domain chips (techProjection). Keyed by
   // the catalogue's ChoiceIconToken via CHIP_ICONS.
   import Code from '@lucide/svelte/icons/code';
@@ -220,11 +221,18 @@
       onResult: ({ result, cancel }) => {
         // Autosave: keep the client form authoritative (don't let the echoed
         // server data clobber keystrokes made during the round-trip), and stay
-        // quiet, just flip the inline indicator.
+        // quiet, just flip the inline indicator. A failed save stays on screen
+        // until one succeeds: it used to toast and fall back to the neutral
+        // hint, so nothing left in view said the last answers were not saved.
         if (lastAction === 'autosave') {
-          saveState = result.type === 'success' ? 'saved' : 'idle';
-          if (result.type !== 'success') {
-            toast.error("Échec de l'enregistrement automatique.");
+          if (result.type === 'success') {
+            saveState = 'saved';
+          } else {
+            saveState = 'failed';
+            toast.error(
+              failureMessage(result) ??
+                "L'enregistrement automatique a échoué. Réessayez depuis le bas du formulaire.",
+            );
           }
           cancel();
           return;
@@ -248,12 +256,28 @@
             remaining = typeof left === 'number' ? left : null;
             toast.success('Closing finalisé.');
           }
-        } else if (result.type === 'failure') {
-          toast.error(result.data?.form?.message ?? 'Une erreur est survenue.');
+        } else if (result.type === 'failure' || result.type === 'error') {
+          // A refusal carries the server's reason; a crash or a lost
+          // connection does not, and must not replace the page with an error
+          // screen mid-closing: the answers on screen are still there.
+          toast.error(
+            failureMessage(result) ??
+              (lastAction === 'close'
+                ? "Le closing n'a pas pu être clôturé. Réessayez."
+                : "Le closing n'a pas pu démarrer. Réessayez."),
+          );
+          if (result.type === 'error') cancel();
         }
       },
     },
   );
+
+  /** The server's own reason for refusing an action, when it gave one. */
+  function failureMessage(result: { type: string; data?: unknown }) {
+    if (result.type !== 'failure') return null;
+    const data = result.data as { form?: { message?: string } } | undefined;
+    return data?.form?.message ?? null;
+  }
 
   // ── Debounced autosave (only while in progress) ──
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -265,6 +289,14 @@
       lastAction = 'autosave';
       formEl?.requestSubmit();
     }, 900);
+  }
+
+  // The failed indicator's « Réessayer »: the same save, without the debounce.
+  function retrySave() {
+    clearTimeout(saveTimer);
+    saveState = 'saving';
+    lastAction = 'autosave';
+    formEl?.requestSubmit();
   }
 
   // An explicit lifecycle action cancels the *scheduled* autosave (the debounce
@@ -625,6 +657,17 @@
       <Loader2 class="h-3.5 w-3.5 animate-spin" /> Enregistrement…
     {:else if saveState === 'saved'}
       <Check class="h-3.5 w-3.5 text-epi-tech-ink" /> Enregistré
+    {:else if saveState === 'failed'}
+      <span class="flex items-center gap-1.5 font-medium text-destructive">
+        <CircleAlert class="h-3.5 w-3.5" /> Non enregistré
+      </span>
+      <button
+        type="button"
+        onclick={retrySave}
+        class="cursor-pointer font-medium text-foreground underline underline-offset-2"
+      >
+        Réessayer
+      </button>
     {:else}
       <!-- A hint, not a status: it says what the form will do, and it is the
            longest of the three labels. On a phone the two controls either side

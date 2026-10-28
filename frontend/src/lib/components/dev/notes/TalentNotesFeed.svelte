@@ -119,7 +119,7 @@
       deleteOpen = false;
     } catch (e) {
       console.error('delete talent note', e);
-      toast.error('Échec de la suppression de la note.');
+      toast.error("La note n'a pas été supprimée. Réessayez.");
     } finally {
       deleting = false;
     }
