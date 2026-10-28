@@ -95,10 +95,13 @@ type ErrorSituationRow = {
   share: number | null;
 };
 
-function errorSituations(open: OpenSyncError[]): ErrorSituationRow[] {
+export function errorSituations(open: OpenSyncError[]): ErrorSituationRow[] {
   const bySituation = new Map<string, ErrorSituationRow>();
   for (const e of open) {
-    const key = JSON.stringify(e.situation);
+    // Keyed on what the reader is told, not on the situation behind it: two
+    // situations can read the same, and as two rows they would split one
+    // answer into partial counts nobody may add up.
+    const key = JSON.stringify(e.explanation);
     const row = bySituation.get(key);
     if (row) {
       row.count++;

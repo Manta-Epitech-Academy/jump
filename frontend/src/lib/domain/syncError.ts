@@ -45,8 +45,9 @@ export type AddressHolder =
   | { kind: 'orphan' };
 
 /**
- * Everything an explanation depends on. Two errors in the same situation read
- * identically, which is what the API groups on.
+ * Everything an explanation depends on: two errors in the same situation read
+ * identically. The converse does not hold, so the API groups on the
+ * explanation itself.
  */
 export type SyncErrorSituation =
   | { kind: 'MISSING_NAME' }
