@@ -1,7 +1,13 @@
 name: Build and Push Docker Images
 
+# Branches only: `github.ref_name` below picks the deploy target, and a tag
+# shares that namespace, so a tag named `main` pushed from any commit used to
+# build `:latest` and restart jump-prod outside the `main` ruleset, which covers
+# branches only (security audit run-1). Release tags are cut from a `main`
+# that has already built.
 on:
   push:
+    branches: ["**"]
 
 env:
   REGISTRY: ghcr.io
