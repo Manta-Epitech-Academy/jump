@@ -54,41 +54,62 @@ ALTER TABLE "Sync_Error"
 -- Backfill the open rows, so the age of the oldest error survives. The cause
 -- was only ever spelled in `message`, so the current sync's three templates are
 -- read back from it; anything else is a retired template and is dropped.
+--
+-- The old key (`email`, `attemptedExtId`) could split one contact over several
+-- rows. The latest row gives the values, and the start is the earliest
+-- occurrence of that cause, which is what `firstOccurredAt` means.
 INSERT INTO "Sync_Error" ("id", "kind", "externalId", "contactName", "email", "firstOccurredAt", "lastOccurredAt")
 SELECT DISTINCT ON (e."attemptedExtId")
-  e."id", 'MISSING_NAME', e."attemptedExtId", NULLIF(btrim(e."talentName"), ''), NULLIF(e."email", ''), e."createdAt", e."lastOccurredAt"
+  e."id",
+  'MISSING_NAME',
+  e."attemptedExtId",
+  NULLIF(btrim(e."talentName"), ''),
+  NULLIF(e."email", ''),
+  min(e."createdAt") OVER (PARTITION BY e."attemptedExtId"),
+  e."lastOccurredAt"
 FROM "SyncError" e
 WHERE NOT e."resolved" AND e."errorType" = 'MISSING_NAME'
 ORDER BY e."attemptedExtId", e."lastOccurredAt" DESC;
 
 -- One login error per talent: when the old key split a talent over several
--- rows, the latest cause is the one that still holds.
+-- rows, the latest cause is the one that still holds, and it starts at its own
+-- earliest occurrence.
+WITH "login" AS (
+  SELECT
+    e."id",
+    t."id" AS "talentId",
+    CASE
+      WHEN e."message" LIKE 'Compte de connexion non créé%' AND e."message" LIKE '%Corrigez l''adresse dans Salesforce%' THEN 'ADDRESS_TAKEN'
+      WHEN e."message" LIKE 'Divergence d''identité de connexion non auto-résoluble%' THEN 'ADDRESS_TAKEN'
+      ELSE 'LOGIN_FAILURE'
+    END::"Sync_ErrorKind" AS "kind",
+    CASE
+      WHEN e."message" LIKE 'Compte de connexion non créé%' AND e."message" LIKE '%Corrigez l''adresse dans Salesforce%' THEN NULL
+      WHEN e."message" LIKE 'Divergence d''identité de connexion non auto-résoluble%' THEN NULL
+      ELSE e."message"
+    END AS "detail",
+    e."createdAt",
+    e."lastOccurredAt"
+  FROM "SyncError" e
+  JOIN "Talent" t ON t."externalId" = e."attemptedExtId"
+  WHERE NOT e."resolved"
+    AND e."errorType" = 'DUPLICATE_EMAIL'
+    AND (
+      e."message" LIKE 'Compte de connexion non créé%' OR
+      e."message" LIKE 'Réconciliation de l''identité de connexion échouée%' OR
+      e."message" LIKE 'Divergence d''identité de connexion non auto-résoluble%'
+    )
+)
 INSERT INTO "Sync_Error" ("id", "talentId", "kind", "detail", "firstOccurredAt", "lastOccurredAt")
-SELECT DISTINCT ON (t."id")
-  e."id",
-  t."id",
-  CASE
-    WHEN e."message" LIKE 'Compte de connexion non créé%' AND e."message" LIKE '%Corrigez l''adresse dans Salesforce%' THEN 'ADDRESS_TAKEN'
-    WHEN e."message" LIKE 'Divergence d''identité de connexion non auto-résoluble%' THEN 'ADDRESS_TAKEN'
-    ELSE 'LOGIN_FAILURE'
-  END::"Sync_ErrorKind",
-  CASE
-    WHEN e."message" LIKE 'Compte de connexion non créé%' AND e."message" LIKE '%Corrigez l''adresse dans Salesforce%' THEN NULL
-    WHEN e."message" LIKE 'Divergence d''identité de connexion non auto-résoluble%' THEN NULL
-    ELSE e."message"
-  END,
-  e."createdAt",
-  e."lastOccurredAt"
-FROM "SyncError" e
-JOIN "Talent" t ON t."externalId" = e."attemptedExtId"
-WHERE NOT e."resolved"
-  AND e."errorType" = 'DUPLICATE_EMAIL'
-  AND (
-    e."message" LIKE 'Compte de connexion non créé%' OR
-    e."message" LIKE 'Réconciliation de l''identité de connexion échouée%' OR
-    e."message" LIKE 'Divergence d''identité de connexion non auto-résoluble%'
-  )
-ORDER BY t."id", e."lastOccurredAt" DESC;
+SELECT DISTINCT ON (l."talentId")
+  l."id",
+  l."talentId",
+  l."kind",
+  l."detail",
+  min(l."createdAt") OVER (PARTITION BY l."talentId", l."kind"),
+  l."lastOccurredAt"
+FROM "login" l
+ORDER BY l."talentId", l."lastOccurredAt" DESC;
 
 -- DropTable
 DROP TABLE "SyncError";
