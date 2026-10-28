@@ -12,6 +12,15 @@ import {
   parcoursBucket,
 } from '$lib/domain/enrolmentHistory';
 import {
+  byCount,
+  countFacet,
+  listFacets,
+  matchesListFacets,
+  type FacetCount,
+  type FacetDef,
+  type ListFacet,
+} from '$lib/domain/listFacets';
+import {
   INSCRITS_FACETS,
   INSCRITS_NONE,
   type InscritsFacet,
@@ -66,30 +75,17 @@ export type InscritsCohort = {
   rows: InscritRow[];
 };
 
-/** One value of a facet with how many inscrits carry it. The shape a column's
- *  filter menu lists, and the one a card of the event home draws. */
-export type FacetCount = { value: string; label: string; count: number };
-
 /**
  * What the Inscrits table filters and sorts on, kept out of the component so
- * the rules can be read, and tested, on their own:
+ * the rules can be read, and tested, on their own. The filter rules are every
+ * roster list's (`$lib/domain/listFacets`); what is the Inscrits page's own:
  *
- * - **A facet's values are the cohort's.** A value shows in a filter only when
- *   some inscrit carries it, with how many do. The count is over the whole
- *   cohort, not over what the other filters left, so it reads the same however
- *   the list is narrowed: it describes the event.
- * - **Several values of one facet widen, several facets narrow.** An inscrit is
- *   kept when, for every active facet, it carries one of the values ticked.
- * - **A value the cohort does not carry is ignored**, so a stale or hand-edited
- *   address filters on what still exists instead of emptying the list.
  * - **A facet the campus does not use is not offered**, and its param, if an
  *   address carries one, is ignored: no Statut where the campus does not
- *   onboard. A facet whose cohort carries a single value keeps its column,
- *   with no filter, since it could not narrow the list.
- *
- * Every facet is a column of the table. What a roster row does not show is
- * filtered on the page it belongs to: a closing's state on Closings, a
- * recommendation on Feedback.
+ *   onboard.
+ * - Every facet is a column of the table. What a roster row does not show is
+ *   filtered on the page it belongs to: a closing's state on Closings, a
+ *   recommendation on Feedback.
  */
 
 /** The statut filter's order: the rows still needing a chase first (never
@@ -108,49 +104,15 @@ export type RosterContext = {
 };
 
 /** One facet as the table offers it, with the values the view ticks in it. */
-export type RosterFacet = {
-  facet: InscritsFacet;
-  /** The column's label, and the chip's "Clé :". */
-  title: string;
-  /** Empty when the facet cannot narrow the list (one value or none). */
-  options: FacetCount[];
-  /** The ticked values the cohort carries (see "ignored" above). */
-  selected: string[];
-};
+export type RosterFacet = ListFacet<InscritsFacet>;
 
-type FacetDef = {
-  title: string;
+type InscritsFacetDef = FacetDef<InscritRow> & {
   available: (ctx: RosterContext) => boolean;
-  /** The values one row carries; several for the interests. */
-  valuesOf: (row: InscritRow) => string[];
-  /** The facet's values with their labels, in the order the menu lists them,
-   *  before the ones no inscrit carries are dropped. */
-  vocabulary: (rows: InscritRow[]) => [string, string][];
 };
-
-/** "Most carried first, then by name", for the open vocabularies. */
-function byCount(
-  rows: InscritRow[],
-  valuesOf: (row: InscritRow) => [string, string][],
-): [string, string][] {
-  const tally = new Map<string, { label: string; count: number }>();
-  for (const row of rows)
-    for (const [value, label] of valuesOf(row)) {
-      const entry = tally.get(value) ?? { label, count: 0 };
-      entry.count += 1;
-      tally.set(value, entry);
-    }
-  return [...tally.entries()]
-    .sort(
-      ([, a], [, b]) =>
-        b.count - a.count || a.label.localeCompare(b.label, 'fr'),
-    )
-    .map(([value, { label }]) => [value, label]);
-}
 
 const NOT_FILLED: [string, string] = [INSCRITS_NONE, 'Non renseigné'];
 
-const FACETS: Record<InscritsFacet, FacetDef> = {
+const FACETS: Record<InscritsFacet, InscritsFacetDef> = {
   genre: {
     title: 'Genre',
     available: () => true,
@@ -216,56 +178,34 @@ const FACETS: Record<InscritsFacet, FacetDef> = {
  * Every value of a facet the cohort carries, with how many inscrits carry it,
  * in the order its menu lists them. The one count the Inscrits filters and the
  * event home's cards share, so a card's part always names a value the filter it
- * opens recognises. Unlike a filter, it keeps a facet whose cohort carries a
- * single value: a card still has that one part to show.
+ * opens recognises.
  */
 export function facetTally(
-  rows: InscritRow[],
+  rows: readonly InscritRow[],
   facet: InscritsFacet,
 ): FacetCount[] {
-  const def = FACETS[facet];
-  const counts = new Map<string, number>();
-  for (const row of rows)
-    for (const value of def.valuesOf(row))
-      counts.set(value, (counts.get(value) ?? 0) + 1);
-  return def
-    .vocabulary(rows)
-    .filter(([value]) => (counts.get(value) ?? 0) > 0)
-    .map(([value, label]) => ({ value, label, count: counts.get(value) ?? 0 }));
+  return countFacet(rows, FACETS[facet]);
 }
 
 /** The facets the campus offers, each with its counted values and what the
  *  view ticks in it. */
 export function rosterFacets(
-  rows: InscritRow[],
+  rows: readonly InscritRow[],
   ctx: RosterContext,
   view: InscritsView,
 ): RosterFacet[] {
-  return INSCRITS_FACETS.filter((facet) => FACETS[facet].available(ctx)).map(
-    (facet) => {
-      const options = facetTally(rows, facet);
-      // One value cannot narrow anything (every inscrit has it), so such a
-      // facet is not offered as a filter and its param is ignored.
-      const offered = new Set(
-        options.length > 1 ? options.map((o) => o.value) : [],
-      );
-      return {
-        facet,
-        title: FACETS[facet].title,
-        options: options.length > 1 ? options : [],
-        selected: view.facets[facet].filter((v) => offered.has(v)),
-      };
-    },
+  const offered = INSCRITS_FACETS.filter((facet) =>
+    FACETS[facet].available(ctx),
   );
+  return listFacets(rows, FACETS, offered, view.facets);
 }
 
 /** Whether a row survives every active facet. */
-export function matchesFacets(row: InscritRow, facets: RosterFacet[]): boolean {
-  return facets.every(
-    ({ facet, selected }) =>
-      selected.length === 0 ||
-      FACETS[facet].valuesOf(row).some((v) => selected.includes(v)),
-  );
+export function matchesFacets(
+  row: InscritRow,
+  facets: readonly RosterFacet[],
+): boolean {
+  return matchesListFacets(row, facets, FACETS);
 }
 
 export function compareRows(

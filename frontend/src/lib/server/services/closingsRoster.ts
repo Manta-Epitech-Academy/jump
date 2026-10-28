@@ -61,6 +61,7 @@ export async function loadClosingsRoster(
       nom: p.talent.nom,
       prenom: p.talent.prenom,
       status: closingListStatus(closing),
+      staffId: closing?.staff?.id ?? null,
       staffName: closing?.staff?.user?.name ?? null,
       staffImage: closing?.staff?.user?.image ?? null,
       conductedAt: closing?.conductedAt ?? null,

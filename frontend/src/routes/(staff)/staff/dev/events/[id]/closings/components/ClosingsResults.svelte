@@ -13,8 +13,10 @@
   import type { ColumnDef } from '$lib/components/staff/datatable/types';
   import { setListParams } from '$lib/components/staff/datatable/urlList';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import { type SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
-  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
+  import ActiveFilterChips, {
+    type ActiveFilterChip,
+  } from '$lib/components/staff/ActiveFilterChips.svelte';
+  import ClosingVerdictChip from '$lib/components/dev/closings/ClosingVerdictChip.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import { resolve } from '$app/paths';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -22,20 +24,23 @@
   import { formatGivenName } from '$lib/domain/profile';
   import { cohortNounForms } from '$lib/domain/event';
   import {
-    CLOSING_RECOMMENDATIONS,
-    CLOSING_RECOMMENDATION_DISPLAY_ORDER,
     CLOSING_STATUS_LABELS,
     type ClosingListStatus,
   } from '$lib/domain/closing';
   import {
-    CLOSINGS_NO_VERDICT,
-    closingsFilterParams,
+    CLOSINGS_SORT_DEFAULT_DIR,
+    closingsClearedFacetParams,
+    closingsFacetParams,
     closingsSortParams,
-    matchesClosingsView,
     parseClosingsView,
+    type ClosingsFacet,
     type ClosingsSortKey,
-    type ClosingsVerdictFilter,
   } from '$lib/domain/closingsView';
+  import {
+    closingsFacets,
+    matchesClosingsFacets,
+    type ClosingsFacetState,
+  } from '$lib/domain/closingsRoster';
   import type { ClosingRow, ClosingsCohort } from './types';
   import SynthesisCard from './SynthesisCard.svelte';
   import StaffTallyCard from './StaffTallyCard.svelte';
@@ -90,49 +95,57 @@
     in_progress: 'warning',
     done: 'success',
   };
-  // Least-advanced first in ascending sort, so the talents still to call float up.
-  const STATUS_ORDER: Record<ClosingListStatus, number> = {
-    todo: 0,
-    in_progress: 1,
-    done: 2,
-  };
-
   // Filters, sort and search live in the address (`$lib/domain/closingsView`),
   // so the event home's cards can open this list already filtered.
   const view = $derived(parseClosingsView(page.url.searchParams));
   const search = createUrlSearch();
 
-  const columns: ColumnDef[] = [
-    { key: 'avatar', label: '', class: 'w-12' },
-    { key: 'prenom', label: 'Prénom', sortable: true, class: 'w-28' },
-    { key: 'nom', label: 'Nom', sortable: true, class: 'w-36' },
-    {
-      key: 'staff',
-      label: 'Mené par',
+  const facets = $derived(closingsFacets(rows, view));
+  const facetOf = $derived(
+    new Map<ClosingsFacet, ClosingsFacetState>(facets.map((f) => [f.facet, f])),
+  );
+
+  function setFacet(facet: ClosingsFacet, values: string[]) {
+    setListParams(closingsFacetParams(facet, values));
+  }
+
+  // The header filter of a facet, or none when it has a single value to offer.
+  function filterOf(facet: ClosingsFacet): ColumnDef['filter'] {
+    const f = facetOf.get(facet);
+    return f && f.options.length > 0
+      ? {
+          options: f.options,
+          selected: f.selected,
+          onChange: (values) => setFacet(facet, values),
+        }
+      : undefined;
+  }
+
+  // The mockup's columns, and like the Inscrits page one control each: the
+  // names and the date sort, who conducted it, its state and the team's
+  // verdict filter from their header.
+  const columns = $derived.by<ColumnDef[]>(() => {
+    const sortable = (key: ClosingsSortKey) => ({
+      key,
       sortable: true,
-      class: 'w-full',
-    },
-    { key: 'date', label: 'Date', sortable: true, class: 'w-28' },
-    { key: 'status', label: 'Statut', sortable: true, class: 'w-28' },
-  ];
-
-  const statutOptions: SegmentOption[] = [
-    { value: 'all', label: 'Tous' },
-    { value: 'todo', label: CLOSING_STATUS_LABELS.todo },
-    { value: 'in_progress', label: CLOSING_STATUS_LABELS.in_progress },
-    { value: 'done', label: CLOSING_STATUS_LABELS.done },
-  ];
-
-  // The team's verdict: filtered here rather than shown as a column, the page
-  // that owns it (`ui.md`).
-  const avisOptions: SegmentOption[] = [
-    { value: 'all', label: 'Tous' },
-    ...CLOSING_RECOMMENDATION_DISPLAY_ORDER.map((r) => ({
-      value: r,
-      label: CLOSING_RECOMMENDATIONS[r].label,
-    })),
-    { value: CLOSINGS_NO_VERDICT, label: 'Sans avis' },
-  ];
+      defaultSortDir: CLOSINGS_SORT_DEFAULT_DIR[key],
+    });
+    const filtered = (facet: ClosingsFacet, label: string, width: string) => ({
+      key: facet,
+      label,
+      class: width,
+      filter: filterOf(facet),
+    });
+    return [
+      { key: 'avatar', label: '', class: 'w-12' },
+      { ...sortable('prenom'), label: 'Prénom', class: 'w-28' },
+      { ...sortable('nom'), label: 'Nom', class: 'w-36' },
+      filtered('mene', 'Mené par', 'w-full'),
+      { ...sortable('date'), label: 'Date', class: 'w-28' },
+      filtered('statut', 'Statut', 'w-32'),
+      filtered('avis', 'Avis', 'w-44'),
+    ];
+  });
 
   function toggleSort(key: string) {
     const next = nextSort<ClosingsSortKey>(
@@ -141,6 +154,27 @@
       key,
     );
     setListParams(closingsSortParams(next.key, next.dir));
+  }
+
+  const chips = $derived<ActiveFilterChip[]>(
+    facets.flatMap((f) =>
+      f.selected.map((value) => ({
+        id: `${f.facet}:${value}`,
+        facet: f.title,
+        label: f.options.find((o) => o.value === value)?.label ?? value,
+        onRemove: () =>
+          setFacet(
+            f.facet,
+            f.selected.filter((v) => v !== value),
+          ),
+      })),
+    ),
+  );
+
+  // Clears the filters and the search, keeps the sort, as on Inscrits.
+  function resetFilters() {
+    search.clear();
+    setListParams({ ...closingsClearedFacetParams(), q: '' });
   }
 
   const dateFmt = (d: Date | string | null) =>
@@ -158,9 +192,7 @@
   // roster. It used to lead with them: the null cases lived inside the asc/desc
   // flip, which inverted the intent along with the order.
   function sortsLast(r: ClosingRow, key: ClosingsSortKey): boolean {
-    if (key === 'staff') return !r.staffName;
-    if (key === 'date') return !r.conductedAt;
-    return false;
+    return key === 'date' && !r.conductedAt;
   }
 
   function compareRows(
@@ -173,22 +205,18 @@
         return a.prenom.localeCompare(b.prenom, 'fr');
       case 'nom':
         return a.nom.localeCompare(b.nom, 'fr');
-      case 'staff':
-        return (a.staffName ?? '').localeCompare(b.staffName ?? '', 'fr');
       case 'date':
         return (
           new Date(a.conductedAt ?? 0).getTime() -
           new Date(b.conductedAt ?? 0).getTime()
         );
-      case 'status':
-        return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
     }
   }
 
   const filtered = $derived.by(() => {
     const tokens = searchTokens(search.value);
     const out = rows.filter((r) => {
-      if (!matchesClosingsView(r, view)) return false;
+      if (!matchesClosingsFacets(r, facets)) return false;
       return matchesAllTokens(
         buildHaystack([r.prenom, r.nom, r.staffName]),
         tokens,
@@ -205,9 +233,7 @@
   });
 
   const anyFiltersApplied = $derived(
-    search.value.trim().length > 0 ||
-      view.statut !== null ||
-      view.avis !== null,
+    chips.length > 0 || search.value.trim().length > 0,
   );
   // A closing is an event-scoped act, so it is conducted on its own page under
   // the event rather than on the talent fiche: this roster is the way in
@@ -250,46 +276,12 @@
         onSearchInput={(v) => (search.value = v)}
         searchPlaceholder={`Rechercher un ${noun.singular}…`}
         searchWidthClass="w-full max-w-[230px]"
-        filtersAlign="end"
         count={filtered.length}
         countNoun="closing"
         filtersApplied={anyFiltersApplied}
-      >
-        {#snippet filters()}
-          <div class="flex items-center gap-2">
-            <span class="hidden epi-overline text-muted-foreground sm:inline">
-              Statut
-            </span>
-            <FilterSelect
-              ariaLabel="Filtrer par statut de closing"
-              options={statutOptions}
-              value={view.statut ?? 'all'}
-              onChange={(v) =>
-                setListParams(
-                  closingsFilterParams({
-                    statut: v === 'all' ? null : (v as ClosingListStatus),
-                  }),
-                )}
-            />
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="hidden epi-overline text-muted-foreground sm:inline">
-              Avis
-            </span>
-            <FilterSelect
-              ariaLabel="Filtrer par avis de l'équipe"
-              options={avisOptions}
-              value={view.avis ?? 'all'}
-              onChange={(v) =>
-                setListParams(
-                  closingsFilterParams({
-                    avis: v === 'all' ? null : (v as ClosingsVerdictFilter),
-                  }),
-                )}
-            />
-          </div>
-        {/snippet}
-      </DataTableToolbar>
+      />
+
+      <ActiveFilterChips {chips} onReset={resetFilters} />
 
       <SortableTable
         {columns}
@@ -302,6 +294,7 @@
         rowLabel={(r) => `Mener le closing de ${r.prenom} ${r.nom}`}
         stickyHeader
         layout="fixed"
+        cardsBelow="xl"
       >
         {#snippet row(r: ClosingRow)}
           <Table.Cell>
@@ -335,6 +328,13 @@
           <Table.Cell>
             {@render statusBadge(r.status, false)}
           </Table.Cell>
+          <Table.Cell>
+            {#if r.recommendation}
+              <ClosingVerdictChip recommendation={r.recommendation} short />
+            {:else}
+              <span class="text-muted-foreground">-</span>
+            {/if}
+          </Table.Cell>
         {/snippet}
 
         {#snippet mobileRow(r: ClosingRow)}
@@ -365,6 +365,9 @@
                   <span class="shrink-0">{dateFmt(r.conductedAt)}</span>
                 {/if}
               </div>
+              {#if r.recommendation}
+                <ClosingVerdictChip recommendation={r.recommendation} short />
+              {/if}
             </div>
           </div>
         {/snippet}

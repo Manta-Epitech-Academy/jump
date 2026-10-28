@@ -1,122 +1,92 @@
-import type { ClosingRecommendation } from '@prisma/client';
 import {
-  isClosingRecommendation,
-  type ClosingListStatus,
-} from '$lib/domain/closing';
-import type { ClosingRow } from '$lib/domain/closingsRoster';
+  clearedFacetParams,
+  facetParam,
+  parseFacetValues,
+} from '$lib/domain/listFacets';
 
 /**
- * The Closings page's view, carried in its address, in the format the Inscrits
- * page set (`$lib/domain/inscritsView`): a reload, a shared link, the browser's
- * Back button and the event home's cards all land on the same list. Search
- * lives in `?q`, through `createUrlSearch`.
+ * The Closings page's view, carried in its address, in the format every roster
+ * list shares (`$lib/domain/listFacets`, `inscritsView` its first user): a
+ * reload, a shared link, the browser's Back button and the event home's cards
+ * all land on the same list. Search lives in `?q`, through `createUrlSearch`.
  *
- * - **`statut`**: the closing's state (`todo`, `in_progress`, `done`).
- * - **`avis`**: the team's verdict, a `ClosingRecommendation` or `aucun` for a
- *   closing that carries none. The home counts a verdict only once its closing
- *   is finalised, so its links write `statut=done` beside it and the list shows
- *   exactly the closings the card counted.
- *
- * Each filter holds one value, the one its `FilterSelect` picks. The default
- * view writes nothing, so the bare address is the whole roster by nom.
+ * The facets are the mockup's header filters: who conducted the closing
+ * (`mene`, a staff id or `aucun`), its state (`statut`), the team's verdict
+ * (`avis`, a `ClosingRecommendation` or `aucun`). The home counts a verdict
+ * only once its closing is finalised, so its links write `statut=done` beside
+ * it and the list shows exactly the closings the card counted.
  */
 
-/** The verdict filter's value for a closing without one. */
-export const CLOSINGS_NO_VERDICT = 'aucun';
+/** The facets, in the order the table shows their columns. */
+export const CLOSINGS_FACETS = ['mene', 'statut', 'avis'] as const;
 
-export type ClosingsVerdictFilter =
-  ClosingRecommendation | typeof CLOSINGS_NO_VERDICT;
+export type ClosingsFacet = (typeof CLOSINGS_FACETS)[number];
 
 export type ClosingsSortDir = 'asc' | 'desc';
 
-/** The sortable columns. Each opens ascending, which floats the talents still
- *  to call up on Statut. */
-export const CLOSINGS_SORT_KEYS = [
-  'prenom',
-  'nom',
-  'staff',
-  'date',
-  'status',
-] as const;
+/**
+ * The sortable columns and the direction a first click sorts them in: names
+ * alphabetically, the date most recent first. As on Inscrits, a column offers
+ * one control: the others filter.
+ */
+export const CLOSINGS_SORT_DEFAULT_DIR = {
+  prenom: 'asc',
+  nom: 'asc',
+  date: 'desc',
+} as const satisfies Record<string, ClosingsSortDir>;
 
-export type ClosingsSortKey = (typeof CLOSINGS_SORT_KEYS)[number];
+export type ClosingsSortKey = keyof typeof CLOSINGS_SORT_DEFAULT_DIR;
 
 /** The order the server already returns rows in, so it writes no param. */
 export const CLOSINGS_DEFAULT_SORT: ClosingsSortKey = 'nom';
 
 export type ClosingsView = {
-  statut: ClosingListStatus | null;
-  avis: ClosingsVerdictFilter | null;
+  facets: Record<ClosingsFacet, string[]>;
   sort: ClosingsSortKey;
   dir: ClosingsSortDir;
 };
 
-const STATUSES: readonly ClosingListStatus[] = ['todo', 'in_progress', 'done'];
-
-function isStatus(value: string | null): value is ClosingListStatus {
-  return value !== null && (STATUSES as readonly string[]).includes(value);
-}
-
-function isVerdictFilter(value: string | null): value is ClosingsVerdictFilter {
-  return (
-    value !== null &&
-    (value === CLOSINGS_NO_VERDICT || isClosingRecommendation(value))
-  );
-}
-
 function isSortKey(value: string | null): value is ClosingsSortKey {
-  return (
-    value !== null && (CLOSINGS_SORT_KEYS as readonly string[]).includes(value)
-  );
+  return value !== null && Object.hasOwn(CLOSINGS_SORT_DEFAULT_DIR, value);
 }
 
 /** Read the view off a querystring. Unknown params and values are ignored. */
 export function parseClosingsView(params: URLSearchParams): ClosingsView {
-  const statut = params.get('statut');
-  const avis = params.get('avis');
-  const sort = params.get('sort');
-  return {
-    statut: isStatus(statut) ? statut : null,
-    avis: isVerdictFilter(avis) ? avis : null,
-    sort: isSortKey(sort) ? sort : CLOSINGS_DEFAULT_SORT,
-    dir: params.get('dir') === 'desc' ? 'desc' : 'asc',
-  };
+  const facets = Object.fromEntries(
+    CLOSINGS_FACETS.map((f) => [f, parseFacetValues(params.get(f))]),
+  ) as Record<ClosingsFacet, string[]>;
+  const rawSort = params.get('sort');
+  const sort = isSortKey(rawSort) ? rawSort : CLOSINGS_DEFAULT_SORT;
+  const rawDir = params.get('dir');
+  const dir =
+    rawDir === 'asc' || rawDir === 'desc'
+      ? rawDir
+      : CLOSINGS_SORT_DEFAULT_DIR[sort];
+  return { facets, sort, dir };
 }
 
-/**
- * The params a filter change writes, in the shape `setListParams` takes: a
- * filter set back to "all" is `''`, which drops the param.
- */
-export function closingsFilterParams(filters: {
-  statut?: ClosingListStatus | null;
-  avis?: ClosingsVerdictFilter | null;
-}): Record<string, string> {
-  const params: Record<string, string> = {};
-  if (filters.statut !== undefined) params.statut = filters.statut ?? '';
-  if (filters.avis !== undefined) params.avis = filters.avis ?? '';
-  return params;
+/** The params one facet change writes; an empty selection drops the param. */
+export function closingsFacetParams(
+  facet: ClosingsFacet,
+  values: readonly string[],
+): Record<string, string> {
+  return { [facet]: facetParam(values) };
 }
 
-/** The params a sort writes. The default sort writes none, and ascending, every
- *  column's first click, is never written. */
+/** The params that clear every facet, leaving the sort and the search. */
+export function closingsClearedFacetParams(): Record<string, string> {
+  return clearedFacetParams(CLOSINGS_FACETS);
+}
+
+/** The params a sort writes. The default sort writes none, and a direction is
+ *  written only when it is not the column's first-click one. */
 export function closingsSortParams(
   sort: ClosingsSortKey,
   dir: ClosingsSortDir,
 ): Record<string, string> {
+  const isDefaultDir = dir === CLOSINGS_SORT_DEFAULT_DIR[sort];
   return {
-    sort: sort === CLOSINGS_DEFAULT_SORT && dir === 'asc' ? '' : sort,
-    dir: dir === 'asc' ? '' : dir,
+    sort: sort === CLOSINGS_DEFAULT_SORT && isDefaultDir ? '' : sort,
+    dir: isDefaultDir ? '' : dir,
   };
-}
-
-/** Whether a row survives the view's filters. */
-export function matchesClosingsView(
-  row: Pick<ClosingRow, 'status' | 'recommendation'>,
-  view: Pick<ClosingsView, 'statut' | 'avis'>,
-): boolean {
-  if (view.statut && row.status !== view.statut) return false;
-  if (view.avis === null) return true;
-  return view.avis === CLOSINGS_NO_VERDICT
-    ? row.recommendation === null
-    : row.recommendation === view.avis;
 }

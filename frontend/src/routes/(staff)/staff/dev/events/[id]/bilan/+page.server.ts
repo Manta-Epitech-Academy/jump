@@ -13,25 +13,7 @@ import {
 import { loadFeedbackRoster } from '$lib/server/services/feedbackRoster';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
 import { feedbackFormPath } from '$lib/domain/feedback';
-
-export interface BilanRow {
-  talentId: string;
-  nom: string | null;
-  prenom: string | null;
-  respondedAt: string | null;
-  /**
-   * The recommendation option picked, null when there is none: not answered
-   * (yet), or an `extra` option, which is no verdict (`recoQuestionOf`).
-   */
-  recoOptionId: string | null;
-}
-
-/** A recommendation option: its id is what the address filters on, its label
- *  what the roster shows. */
-export interface RecoOption {
-  id: string;
-  label: string;
-}
+import type { BilanRow, RecoOption } from '$lib/domain/bilanRoster';
 
 interface BilanCohort {
   rows: BilanRow[];

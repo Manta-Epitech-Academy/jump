@@ -130,6 +130,7 @@ describe('the closings cards', () => {
       nom: over.talentId,
       prenom: 'Lou',
       status: 'todo',
+      staffId: null,
       staffName: null,
       staffImage: null,
       conductedAt: null,

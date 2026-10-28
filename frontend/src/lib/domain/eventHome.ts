@@ -5,11 +5,12 @@ import {
   type ClosingListStatus,
   type RecommendationToneToken,
 } from './closing';
-import { CLOSINGS_NO_VERDICT, closingsFilterParams } from './closingsView';
+import { closingsFacetParams } from './closingsView';
 import type { ClosingsRoster } from './closingsRoster';
-import { bilanFilterParams } from './bilanView';
+import { bilanFacetParams } from './bilanView';
 import { PARCOURS_BUCKETS, parcoursLabel } from './enrolmentHistory';
-import { facetTally, type FacetCount, type InscritRow } from './inscritsRoster';
+import { facetTally, type InscritRow } from './inscritsRoster';
+import { FACET_NONE, type FacetCount } from './listFacets';
 import {
   INSCRITS_NONE,
   inscritsFacetParams,
@@ -260,6 +261,13 @@ const VERDICT_TONE: Record<RecommendationToneToken, ChartTone> = {
   'epi-drift': 'drift',
 };
 
+/** The finalised closings carrying one verdict: the list a verdict's part
+ *  counted, since a verdict counts once its closing is finalised. */
+const finalisedWith = (avis: string): Record<string, string> => ({
+  ...closingsFacetParams('statut', ['done']),
+  ...closingsFacetParams('avis', [avis]),
+});
+
 function closingsFigures(roster: ClosingsRoster): HomeClosings {
   const progress = (['done', 'in_progress', 'todo'] as const)
     .filter((status) => roster.counts[status] > 0)
@@ -271,7 +279,7 @@ function closingsFigures(roster: ClosingsRoster): HomeClosings {
       tone: STATUS_TONE[status],
       link: {
         surface: 'closings',
-        params: closingsFilterParams({ statut: status }),
+        params: closingsFacetParams('statut', [status]),
       },
     }));
 
@@ -286,7 +294,7 @@ function closingsFigures(roster: ClosingsRoster): HomeClosings {
     tone: VERDICT_TONE[CLOSING_RECOMMENDATIONS[r].tone],
     link: {
       surface: 'closings',
-      params: closingsFilterParams({ statut: 'done', avis: r }),
+      params: finalisedWith(r),
     },
   }));
   // A closing finalised without a verdict still belongs to the whole the ring
@@ -294,17 +302,14 @@ function closingsFigures(roster: ClosingsRoster): HomeClosings {
   const withVerdict = verdicts.reduce((n, p) => n + p.count, 0);
   if (finalised > withVerdict)
     verdicts.push({
-      key: CLOSINGS_NO_VERDICT,
+      key: FACET_NONE,
       label: 'Sans avis',
       count: finalised - withVerdict,
       share: shareOf(finalised - withVerdict, finalised),
       tone: 'muted',
       link: {
         surface: 'closings',
-        params: closingsFilterParams({
-          statut: 'done',
-          avis: CLOSINGS_NO_VERDICT,
-        }),
+        params: finalisedWith(FACET_NONE),
       },
     });
 
@@ -338,7 +343,7 @@ function feedbackFigures(feedback: EventHomeInput['feedback']): HomeFeedback {
       tone: ACCENTS[rank] ?? 'lavender',
       link: {
         surface: 'bilan',
-        params: bilanFilterParams({ reco: option.id }),
+        params: bilanFacetParams('reco', [option.id]),
       },
     }));
 

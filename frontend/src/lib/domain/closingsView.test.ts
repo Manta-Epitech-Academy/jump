@@ -1,17 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import {
-  closingsFilterParams,
+  closingsClearedFacetParams,
+  closingsFacetParams,
   closingsSortParams,
-  matchesClosingsView,
   parseClosingsView,
 } from './closingsView';
+import {
+  closingsFacets,
+  matchesClosingsFacets,
+  type ClosingRow,
+} from './closingsRoster';
 
 /**
- * The Closings address is written by the page's own filters and by the event
- * home's cards, which send a finalised verdict as `statut=done&avis=…`. What has
- * to hold: a written view reads back as itself, the bare address is the whole
- * roster by nom, a hand-edited address cannot break the read, and the filter
- * keeps exactly the closings the home counted.
+ * The Closings address is written by the page's header filters and by the
+ * event home's cards, which send a finalised verdict as `statut=done&avis=…`.
+ * What has to hold: a written view reads back as itself, the bare address is
+ * the whole roster by nom, and the list keeps exactly the closings the home
+ * counted.
  */
 
 /** What `setListParams` would leave in the querystring. */
@@ -25,67 +30,103 @@ function written(...changes: Record<string, string>[]): URLSearchParams {
   return params;
 }
 
+function row(over: Partial<ClosingRow> & { talentId: string }): ClosingRow {
+  return {
+    nom: over.talentId,
+    prenom: 'Lou',
+    status: 'todo',
+    staffId: null,
+    staffName: null,
+    staffImage: null,
+    conductedAt: null,
+    recommendation: null,
+    ...over,
+  };
+}
+
+const rows = [
+  row({
+    talentId: 'a',
+    status: 'done',
+    recommendation: 'bon_profil',
+    staffId: 's1',
+    staffName: 'Camille',
+  }),
+  row({ talentId: 'b', status: 'done', staffId: 's1', staffName: 'Camille' }),
+  // A verdict picked mid-closing is not the team's conclusion yet.
+  row({ talentId: 'c', status: 'in_progress', recommendation: 'bon_profil' }),
+  row({ talentId: 'd' }),
+];
+
+const kept = (params: URLSearchParams) => {
+  const facets = closingsFacets(rows, parseClosingsView(params));
+  return rows
+    .filter((r) => matchesClosingsFacets(r, facets))
+    .map((r) => r.talentId);
+};
+
 describe('the closings view address', () => {
   it('reads the bare address as the whole roster, by nom', () => {
-    expect(parseClosingsView(new URLSearchParams())).toEqual({
-      statut: null,
-      avis: null,
-      sort: 'nom',
-      dir: 'asc',
-    });
+    const view = parseClosingsView(new URLSearchParams());
+    expect(view.sort).toBe('nom');
+    expect(view.dir).toBe('asc');
+    expect(view.facets).toEqual({ mene: [], statut: [], avis: [] });
   });
 
-  it('reads back a status, a verdict and a sort as written', () => {
+  it('reads back several values of several facets and a sort as written', () => {
     const view = parseClosingsView(
       written(
-        closingsFilterParams({ statut: 'done', avis: 'bon_profil' }),
-        closingsSortParams('date', 'desc'),
+        closingsFacetParams('statut', ['done', 'in_progress']),
+        closingsFacetParams('avis', ['bon_profil']),
+        closingsSortParams('date', 'asc'),
       ),
     );
-    expect(view).toEqual({
-      statut: 'done',
-      avis: 'bon_profil',
-      sort: 'date',
-      dir: 'desc',
-    });
+    expect(view.facets.statut).toEqual(['done', 'in_progress']);
+    expect(view.facets.avis).toEqual(['bon_profil']);
+    expect([view.sort, view.dir]).toEqual(['date', 'asc']);
   });
 
-  it('writes nothing for the default view', () => {
+  it('writes nothing once its filters are cleared and its sort is the default', () => {
     expect(
       written(
-        closingsFilterParams({ statut: null, avis: null }),
+        closingsFacetParams('mene', ['s1']),
+        closingsClearedFacetParams(),
         closingsSortParams('nom', 'asc'),
       ).toString(),
     ).toBe('');
   });
-
-  it('ignores values it does not know', () => {
-    const view = parseClosingsView(
-      new URLSearchParams('statut=abandoned&avis=maybe&sort=xp&dir=up'),
-    );
-    expect(view).toEqual({
-      statut: null,
-      avis: null,
-      sort: 'nom',
-      dir: 'asc',
-    });
-  });
 });
 
-describe('a row against the view', () => {
-  const done = { status: 'done', recommendation: 'bon_profil' } as const;
-  const doneNoVerdict = { status: 'done', recommendation: null } as const;
-  const todo = { status: 'todo', recommendation: null } as const;
-
-  it('keeps the closings of the status asked', () => {
-    const view = { statut: 'done', avis: null } as const;
-    expect(matchesClosingsView(done, view)).toBe(true);
-    expect(matchesClosingsView(todo, view)).toBe(false);
+describe('the closings filters', () => {
+  it('keep the finalised closings of one verdict, as the home counts them', () => {
+    const params = written(
+      closingsFacetParams('statut', ['done']),
+      closingsFacetParams('avis', ['bon_profil']),
+    );
+    expect(kept(params)).toEqual(['a']);
   });
 
-  it('reads `aucun` as a closing carrying no verdict', () => {
-    const view = { statut: 'done', avis: 'aucun' } as const;
-    expect(matchesClosingsView(doneNoVerdict, view)).toBe(true);
-    expect(matchesClosingsView(done, view)).toBe(false);
+  it('read `aucun` as a closing nobody conducted, or one without a verdict', () => {
+    expect(kept(written(closingsFacetParams('mene', ['aucun'])))).toEqual([
+      'c',
+      'd',
+    ]);
+    expect(
+      kept(
+        written(
+          closingsFacetParams('statut', ['done']),
+          closingsFacetParams('avis', ['aucun']),
+        ),
+      ),
+    ).toEqual(['b']);
+  });
+
+  it('ignore a value the roster does not carry', () => {
+    expect(kept(written(closingsFacetParams('mene', ['gone'])))).toEqual([
+      'a',
+      'b',
+      'c',
+      'd',
+    ]);
   });
 });

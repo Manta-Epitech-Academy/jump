@@ -1,17 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
-  bilanFilterParams,
+  bilanClearedFacetParams,
+  bilanFacetParams,
   bilanSortParams,
-  matchesBilanView,
   parseBilanView,
 } from './bilanView';
+import { bilanFacets, matchesBilanFacets, type BilanRow } from './bilanRoster';
 
 /**
- * The Feedback address is written by the page's own filters and by the event
- * home's recommendation card, which sends an option by its id. What has to hold:
- * a written view reads back as itself, the bare address is the whole roster by
- * nom, and an id the form no longer carries filters nothing rather than
- * emptying the list.
+ * The Feedback address is written by the page's header filters and by the
+ * event home's recommendation card, which sends an option by its id. What has
+ * to hold: a written view reads back as itself, the bare address is the whole
+ * roster by nom, and an option the form no longer carries filters nothing
+ * rather than emptying the list.
  */
 
 /** What `setListParams` would leave in the querystring. */
@@ -25,61 +26,75 @@ function written(...changes: Record<string, string>[]): URLSearchParams {
   return params;
 }
 
+const options = [
+  { id: 'yes', label: 'Oui' },
+  { id: 'no', label: 'Non' },
+];
+
+const row = (talentId: string, recoOptionId: string | null): BilanRow => ({
+  talentId,
+  nom: talentId,
+  prenom: 'Lou',
+  respondedAt: recoOptionId ? '2026-10-01T10:00:00.000Z' : null,
+  recoOptionId,
+});
+
+const rows = [row('a', 'yes'), row('b', 'no'), row('c', null)];
+
+const kept = (params: URLSearchParams) => {
+  const facets = bilanFacets(rows, options, parseBilanView(params));
+  return rows
+    .filter((r) => matchesBilanFacets(r, facets))
+    .map((r) => r.talentId);
+};
+
 describe('the feedback view address', () => {
   it('reads the bare address as the whole roster, by nom', () => {
-    expect(parseBilanView(new URLSearchParams())).toEqual({
-      reponse: null,
-      reco: null,
-      sort: 'nom',
-      dir: 'asc',
-    });
+    const view = parseBilanView(new URLSearchParams());
+    expect([view.sort, view.dir]).toEqual(['nom', 'asc']);
+    expect(view.facets).toEqual({ reco: [], reponse: [] });
   });
 
-  it('reads back a response state, an option and a sort as written', () => {
+  it('reads back an option, a response state and a sort as written', () => {
     const view = parseBilanView(
       written(
-        bilanFilterParams({ reponse: 'responded', reco: 'opt-yes' }),
-        bilanSortParams('date', 'desc'),
+        bilanFacetParams('reco', ['yes', 'aucun']),
+        bilanFacetParams('reponse', ['responded']),
+        bilanSortParams('date', 'asc'),
       ),
     );
-    expect(view).toEqual({
-      reponse: 'responded',
-      reco: 'opt-yes',
-      sort: 'date',
-      dir: 'desc',
+    expect(view.facets).toEqual({
+      reco: ['yes', 'aucun'],
+      reponse: ['responded'],
     });
+    expect([view.sort, view.dir]).toEqual(['date', 'asc']);
   });
 
-  it('writes nothing for the default view', () => {
+  it('writes nothing once its filters are cleared and its sort is the default', () => {
     expect(
       written(
-        bilanFilterParams({ reponse: null, reco: null }),
+        bilanFacetParams('reco', ['yes']),
+        bilanClearedFacetParams(),
         bilanSortParams('nom', 'asc'),
       ).toString(),
     ).toBe('');
   });
 });
 
-describe('a row against the view', () => {
-  const known = new Set(['opt-yes', 'opt-no']);
-  const yes = { respondedAt: '2026-10-01T10:00:00Z', recoOptionId: 'opt-yes' };
-  const pending = { respondedAt: null, recoOptionId: null };
-
-  it('keeps the talents who picked the option asked', () => {
-    const view = { reponse: null, reco: 'opt-yes' };
-    expect(matchesBilanView(yes, view, known)).toBe(true);
-    expect(matchesBilanView(pending, view, known)).toBe(false);
+describe('the feedback filters', () => {
+  it('keep the talents who picked the option asked', () => {
+    expect(kept(written(bilanFacetParams('reco', ['yes'])))).toEqual(['a']);
   });
 
-  it('reads `aucun` as no recommendation answer', () => {
-    const view = { reponse: null, reco: 'aucun' };
-    expect(matchesBilanView(pending, view, known)).toBe(true);
-    expect(matchesBilanView(yes, view, known)).toBe(false);
+  it('read `aucun` as no recommendation answer', () => {
+    expect(kept(written(bilanFacetParams('reco', ['aucun'])))).toEqual(['c']);
   });
 
-  it('ignores an option the form does not carry', () => {
-    const view = { reponse: null, reco: 'opt-deleted' };
-    expect(matchesBilanView(yes, view, known)).toBe(true);
-    expect(matchesBilanView(pending, view, known)).toBe(true);
+  it('ignore an option the form does not carry', () => {
+    expect(kept(written(bilanFacetParams('reco', ['deleted'])))).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
   });
 });
