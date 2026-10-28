@@ -6,8 +6,9 @@ import type { WorkshopCoverKind } from './workshops';
 // The dev space's catalogue presents the online activities (`Workshop_Activity`)
 // to the staff as subjects to offer an event: a card each, filed under domains,
 // with a level and the notions it practises. All of it is authored over the
-// admin API, with the activity (`write_workshop`) and, for the domains
-// themselves, `write_workshop_domain`.
+// admin API, with the activity (`write_workshop`), for the domains themselves
+// `write_workshop_domain`, and for the supervisor code of the instance serving
+// it `write_workshop_instance`.
 //
 // A subject is shown only once it is complete. A card with no tagline or no
 // picture tells a team nothing to choose on, and one with no supervisor code
