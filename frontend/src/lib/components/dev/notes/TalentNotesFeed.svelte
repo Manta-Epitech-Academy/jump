@@ -1,5 +1,6 @@
 <script lang="ts">
   import Plus from '@lucide/svelte/icons/plus';
+  import StickyNote from '@lucide/svelte/icons/sticky-note';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -10,6 +11,7 @@
   import { slotKey } from '$lib/domain/eventPresence';
   import type { PresenceSlot } from '@prisma/client';
   import type { SerializedNote } from '$lib/domain/talentNotes';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import TalentNoteEditor from './TalentNoteEditor.svelte';
   import TalentNoteCard from './TalentNoteCard.svelte';
 
@@ -187,9 +189,12 @@
     {/if}
 
     {#if items.length === 0 && !composing}
-      <p class="text-sm text-muted-foreground italic">
-        Aucune note pour le moment.
-      </p>
+      <ResultsNotice
+        compact
+        icon={StickyNote}
+        title="Aucune note"
+        description="Ce que vous notez ici aide le prochain membre de l'équipe à reprendre la conversation avec ce talent."
+      />
     {:else}
       <!-- Every note shows (no count cap), but the list scrolls past a screenful so
          a talent with many notes never blows out the dialog or the fiche rail. The

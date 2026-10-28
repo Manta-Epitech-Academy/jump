@@ -101,7 +101,7 @@
   {:catch}
     <ResultsNotice
       title="Chargement impossible"
-      description="La liste n'a pas pu être chargée. Rechargez la page pour réessayer."
+      description="La liste des réponses n'a pas pu être chargée. Rechargez la page pour réessayer."
     />
   {/await}
 </div>

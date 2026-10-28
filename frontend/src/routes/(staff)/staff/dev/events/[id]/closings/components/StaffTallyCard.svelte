@@ -2,6 +2,7 @@
   import Trophy from '@lucide/svelte/icons/trophy';
   import * as Card from '$lib/components/ui/card';
   import * as Avatar from '$lib/components/ui/avatar';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import { getInitials } from '$lib/avatar';
   import { cn } from '$lib/utils';
   import type { StaffTally } from './types';
@@ -23,7 +24,7 @@
           : '';
 </script>
 
-<Card.Root class="rounded-sm shadow-raised">
+<Card.Root class="rounded-sm">
   <div
     class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
   >
@@ -33,9 +34,10 @@
 
   <Card.Content class="p-4">
     {#if staff.length === 0}
-      <p class="text-xs text-muted-foreground">
-        Aucun closing mené pour le moment.
-      </p>
+      <ResultsNotice
+        compact
+        description="Chaque membre de l'équipe y apparaît dès son premier closing mené."
+      />
     {:else}
       <ol class="space-y-2.5">
         {#each staff as person, i (person.id)}

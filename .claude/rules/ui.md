@@ -29,6 +29,15 @@ Read [`DESIGN.md`](../../DESIGN.md) at the repo root before any visual work: it 
 
   This is the most-repeated review finding on staff dialogs and admin pages: prose accumulates one well-meant clarification at a time, and nobody deletes any of it. The `/staff/admin/api-tokens` page is the worked example (header, tier cards, write toggle, conditions, list).
 
+- **An empty state says what will be there, not only that nothing is.** It is the moment someone decides whether they have something to do or only have to wait, so each of its four kinds has its own sentence:
+
+  1. **Nothing yet** (no note, no inscrit): what will appear and where it comes from, plus why it matters for the talent when that is not obvious. The control that fills the space is already on the screen: name it rather than drawing a second one.
+  2. **A filter matched nothing:** `SortableTable` says it and offers the reset (`onResetFilters`).
+  3. **Not applicable** (no phone, no recommendation question): the fact, short.
+  4. **Failed to load:** what failed and what to do next.
+
+  A list, or the whole body of a card or a dialog, gets `ResultsNotice` (`compact` inside a card or a dialog), never a bare italic sentence. The event home's cards are the one exception: `HomeCard` draws its own, as the 2027 mockup does. A missing value on one line among others (a field, a table cell, one entry of a rail) stays a muted line or `-`. The same state reads the same everywhere: an event with no one shown is `EmptyCohortNotice`, on every one of its pages.
+
 - **A list whose length comes from data scrolls in its own box.** Any `{#each}` over rows the database decides the count of gets a bounded, scrollable region: `max-h-[40svh] overflow-y-auto` on the list, and the dialog or card keeps its own `max-h-[90svh] overflow-y-auto` as the floor for short viewports. Viewport-relative, not a pixel cap, so the box grows with the screen instead of leaving a letterbox on a laptop.
 
   The tell is not "is it long today", it is **who decides how many rows there are**. A fixed catalogue rendered from a constant is bounded by the code and needs nothing. A ledger, an append-only log, an inventory, a feed or anything with a revoked/archived tail is bounded by nothing and only ever grows, so it is already wrong the day it ships even while it looks fine.

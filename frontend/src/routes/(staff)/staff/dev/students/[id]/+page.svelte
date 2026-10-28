@@ -5,6 +5,7 @@
 
   import { Button } from '$lib/components/ui/button';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
 
   import TalentProfileHero from './components/TalentProfileHero.svelte';
   import TalentInterestChips from './components/TalentInterestChips.svelte';
@@ -14,7 +15,7 @@
   import RightRailCard from './components/RightRailCard.svelte';
   import TalentNotesFeed from '$lib/components/dev/notes/TalentNotesFeed.svelte';
 
-  import { formatPersonName } from '$lib/domain/profile';
+  import { formatGivenName, formatPersonName } from '$lib/domain/profile';
   import { cn } from '$lib/utils';
 
   let { data }: { data: PageData } = $props();
@@ -54,9 +55,11 @@
             />
           </div>
         {:else}
-          <p class="text-sm text-muted-foreground italic">
-            Aucun centre d'intérêt renseigné.
-          </p>
+          <ResultsNotice
+            compact
+            title="Aucun centre d'intérêt"
+            description={`${formatGivenName(data.student.prenom)} les choisit en complétant son dossier.`}
+          />
         {/if}
       </EpiSection>
 
@@ -66,14 +69,18 @@
              counts live in the header's meta slot so the body stays human. -->
       <EpiSection title="Son parcours" accent="tech">
         {#snippet meta()}
-          <p class="text-xs text-muted-foreground">
-            {data.journey.eventCount}
-            {data.journey.eventCount > 1 ? 'événements' : 'événement'}
-            {#if data.journey.closingCount > 0}
-              · {data.journey.closingCount}
-              {data.journey.closingCount > 1 ? 'closings' : 'closing'}
-            {/if}
-          </p>
+          <!-- At zero the journey's own notice says it: a « 0 événement » above it
+               would say it twice. -->
+          {#if data.journey.eventCount > 0}
+            <p class="text-xs text-muted-foreground">
+              {data.journey.eventCount}
+              {data.journey.eventCount > 1 ? 'événements' : 'événement'}
+              {#if data.journey.closingCount > 0}
+                · {data.journey.closingCount}
+                {data.journey.closingCount > 1 ? 'closings' : 'closing'}
+              {/if}
+            </p>
+          {/if}
         {/snippet}
         <TalentJourney journey={data.journey} firstName={data.student.prenom} />
       </EpiSection>

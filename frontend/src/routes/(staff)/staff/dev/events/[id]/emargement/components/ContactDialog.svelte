@@ -2,6 +2,7 @@
   import { resolve } from '$app/paths';
   import * as Dialog from '$lib/components/ui/dialog';
   import StudentContactDetails from '$lib/components/students/StudentContactDetails.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import type { ContactPerson } from '$lib/domain/contact';
   import { cohortNounForms } from '$lib/domain/event';
   import type { PresenceRow } from './types';
@@ -74,9 +75,11 @@
       {#if loading}
         <p class="text-sm text-muted-foreground italic">Chargement…</p>
       {:else if loadError}
-        <p class="text-sm text-destructive">
-          Impossible de charger les coordonnées.
-        </p>
+        <ResultsNotice
+          compact
+          title="Chargement impossible"
+          description="Les coordonnées n'ont pas pu être chargées. Fermez cette fenêtre puis rouvrez-la pour réessayer."
+        />
       {:else if details}
         <StudentContactDetails
           student={details.student}

@@ -3,6 +3,7 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { base } from '$app/paths';
   import TalentNotesFeed from '$lib/components/dev/notes/TalentNotesFeed.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import type { SerializedNote } from '$lib/domain/talentNotes';
   import { slotLabelLong, type EventSlot } from '$lib/domain/eventPresence';
   import type { PresenceRow } from './types';
@@ -72,9 +73,11 @@
         </Dialog.Description>
       </Dialog.Header>
       {#if loadError}
-        <p class="py-6 text-center text-sm text-muted-foreground">
-          Impossible de charger les notes.
-        </p>
+        <ResultsNotice
+          compact
+          title="Chargement impossible"
+          description="Les notes n'ont pas pu être chargées. Fermez cette fenêtre puis rouvrez-la pour réessayer."
+        />
       {:else if notes === null}
         <div
           class="flex items-center justify-center py-8 text-muted-foreground"

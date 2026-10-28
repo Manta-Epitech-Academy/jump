@@ -101,6 +101,7 @@
       icon: MessageSquareText,
       title: "Aucune réponse pour l'instant",
       hint: 'Le lien à partager aux inscrits est sur la page Feedback.',
+      action: openFeedback,
     },
   } satisfies Record<string, HomeCardEmpty>;
 
@@ -126,6 +127,10 @@
     }
   });
 </script>
+
+{#snippet openFeedback()}
+  {@render seeMore({ surface: 'bilan', params: {} }, 'Ouvrir la page Feedback')}
+{/snippet}
 
 {#snippet seeMore(link: HomeLink, label: string)}
   {@const href = hrefOf(link)}
