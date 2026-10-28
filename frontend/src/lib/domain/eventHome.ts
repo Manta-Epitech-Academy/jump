@@ -45,7 +45,8 @@ export type HomeLink = {
  * A chart colour. The four brand accents carry the first parts, as the mockup
  * draws them; `lavender` gathers the rest under « Autres », `drift` is the
  * verdict « Indécis » as every closing screen tones it, and `muted` is what is
- * not filled in. No palette of its own (`DESIGN.md`).
+ * missing (« Non renseigné », « Sans avis »), left unpainted. No palette of its
+ * own (`DESIGN.md`).
  */
 export type ChartTone =
   'blue' | 'tomorrow' | 'tech' | 'together' | 'lavender' | 'drift' | 'muted';

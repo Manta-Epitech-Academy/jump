@@ -70,7 +70,7 @@
               aria-hidden="true"
               class={cn(
                 'size-2.5 shrink-0 rounded-sm',
-                CHART_TONE_CLASS[part.tone].fill,
+                CHART_TONE_CLASS[part.tone].swatch,
               )}
             ></span>
             <span class="min-w-0 flex-1 truncate font-medium">{part.label}</span
