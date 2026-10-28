@@ -228,7 +228,6 @@
       {/if}
       <SalesforceIconLink
         externalId={r.subject.externalId}
-        kind="lead"
         label="Ouvrir le contact dans Salesforce"
         class="shrink-0"
       />
@@ -263,14 +262,22 @@
     <ul class="space-y-0.5">
       {#each r.records as t (t.talentId)}
         <li>
-          <a
-            href={adminTalentHref({
-              email: t.loginEmail,
-              prenom: t.prenom,
-              nom: t.nom,
-            })}
-            class="cursor-pointer text-sm hover:underline">{t.prenom} {t.nom}</a
-          >
+          <span class="flex items-center gap-1.5">
+            <a
+              href={adminTalentHref({
+                email: t.loginEmail,
+                prenom: t.prenom,
+                nom: t.nom,
+              })}
+              class="cursor-pointer text-sm hover:underline"
+              >{t.prenom} {t.nom}</a
+            >
+            <SalesforceIconLink
+              externalId={t.externalId}
+              label="Ouvrir cette fiche dans Salesforce"
+              class="shrink-0"
+            />
+          </span>
           {#if t.loginEmail}
             <span
               class="block font-mono text-xs break-all text-muted-foreground"

@@ -17,7 +17,6 @@
           <SalesforceLinkButton
             {...props}
             {externalId}
-            kind="campaign"
             label="Campagne Salesforce"
             class="shadow-raised"
           />
