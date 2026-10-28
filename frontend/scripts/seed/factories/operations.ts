@@ -29,7 +29,8 @@ import {
  * met on every pass for months: an open error has to read as old, so these
  * start four months back and were met again yesterday. A third are nameless
  * contacts, which carry what Salesforce sent and no talent; the rest belong to
- * a talent, as an address already taken or a technical failure.
+ * a talent, as an address already taken or a technical failure; and one is a
+ * contact whose talents Jump would not merge.
  *
  * The address conflicts read as settled on the page ("libre aujourd'hui"):
  * nothing here holds the talent's address, because a seeded talent's login
@@ -69,6 +70,22 @@ export function addSyncErrors(
             : 'Timed out fetching a new connection from the connection pool.',
       });
     }
+  }
+  // A contact Salesforce ties to several talents, more than one of them used,
+  // which Jump would not merge. No seeded talent carries a Salesforce id, so
+  // the page finds no fiche behind its ids; the integration tests place them.
+  const first = talents[0];
+  if (first) {
+    world.buffer.sync_Error.push({
+      id: id('sye', seq(talents.length, 3)),
+      firstOccurredAt: clock.days(-30),
+      lastOccurredAt: clock.days(-1),
+      kind: 'MERGE_REFUSED',
+      externalId: 'sf_split_000001',
+      contactName: `${first.prenom} ${first.nom}`,
+      email: first.email,
+      convertedLeadIds: ['sf_lead_000001', 'sf_lead_000002'],
+    });
   }
 }
 

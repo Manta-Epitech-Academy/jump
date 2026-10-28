@@ -1970,8 +1970,8 @@ model Sync_Cadence {
 /// A full pass deletes every enrolment its roster does not mention, so the
 /// roster has to be COMPLETE for that absence to mean anything: non-empty, and
 /// every member resolved to a talent Jump knows. A member the talents push
-/// skipped (a `Sync_Error` of kind `MISSING_NAME`) may be the very person whose
-/// enrolment the prune would take. When the roster is not complete, the
+/// skipped (a `Sync_Error` of kind `MISSING_NAME` or `MERGE_REFUSED`) may be
+/// the very person whose enrolment the prune would take. When the roster is not complete, the
 /// enrolments it does carry are still written and the removals are held here
 /// instead of applied.
 ///
@@ -2023,6 +2023,10 @@ enum Sync_ErrorKind {
   /// Creating or renaming the talent's login account failed for a technical
   /// reason, retried on every pass.
   LOGIN_FAILURE
+  /// Salesforce ties several Jump talents to one contact (the Leads converted
+  /// into it), and more than one of them was used, so Jump will not choose
+  /// which one the person keeps.
+  MERGE_REFUSED
 }
 
 /// One thing the sync could not do, and only for as long as it keeps failing.
@@ -2040,24 +2044,30 @@ enum Sync_ErrorKind {
 ///
 /// Two shapes, held by a CHECK in the migration. A login error belongs to a
 /// talent Jump has (`talentId`, one per talent: its address and name are read
-/// off the talent and its Salesforce mirror). A nameless contact has no talent
-/// row to point at, so it carries what Salesforce sent (`externalId`,
-/// `contactName`, `email`).
+/// off the talent and its Salesforce mirror). A contact Jump could not take in,
+/// nameless or split over talents it will not merge, has no one talent row to
+/// point at, so it carries what Salesforce sent (`externalId`, `contactName`,
+/// `email`), and for a refused merge the Leads converted into it, which with
+/// `externalId` find the talents in cause when read.
 model Sync_Error {
-  id              String         @id @default(cuid())
-  kind            Sync_ErrorKind
-  talentId        String?        @unique
-  /// The Salesforce id of a nameless contact. Null on a talent's row.
-  externalId      String?        @unique
+  id               String         @id @default(cuid())
+  kind             Sync_ErrorKind
+  talentId         String?        @unique
+  /// The Salesforce id of a contact Jump could not take in. Null on a talent's
+  /// row.
+  externalId       String?        @unique
   /// What Salesforce sent as the name: one half at most, or nothing.
-  contactName     String?
+  contactName      String?
   /// The contact's Salesforce address, null when it has none.
-  email           String?
+  email            String?
   /// The technical cause of a login failure, for a developer. English, never
   /// shown as an explanation.
-  detail          String?
-  firstOccurredAt DateTime       @default(now())
-  lastOccurredAt  DateTime       @default(now())
+  detail           String?
+  /// On a refused merge, the Leads Salesforce converted into the contact.
+  /// Empty on every other kind.
+  convertedLeadIds String[]       @default([])
+  firstOccurredAt  DateTime       @default(now())
+  lastOccurredAt   DateTime       @default(now())
 
   talent Talent? @relation(fields: [talentId], references: [id], onDelete: Cascade)
 

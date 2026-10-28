@@ -47,6 +47,11 @@ export type OpenSyncError = {
   };
   /** Who holds the address in the way, named: the other record in cause. */
   holder: AccountNature | null;
+  /**
+   * On a refused merge, every talent Jump holds for the contact, oldest first,
+   * for an admin to open and compare. Empty on every other kind.
+   */
+  records: SyncErrorPerson[];
 };
 
 const norm = (email: string | null | undefined): string | null =>
@@ -98,6 +103,7 @@ export async function loadOpenSyncErrors(): Promise<OpenSyncError[]> {
       contactName: true,
       email: true,
       detail: true,
+      convertedLeadIds: true,
       firstOccurredAt: true,
       lastOccurredAt: true,
       talent: {
@@ -113,12 +119,17 @@ export async function loadOpenSyncErrors(): Promise<OpenSyncError[]> {
     },
   });
 
-  // A nameless contact may still be a talent Jump has (its name was blanked in
-  // Salesforce after it was taken in), and then there is a fiche to open.
-  const contactIds = rows.flatMap((r) => (r.externalId ? [r.externalId] : []));
+  // A contact Jump could not take in may still be a talent Jump has: its name
+  // was blanked in Salesforce after it was taken in, or, on a refused merge,
+  // the talents Jump made of it and of the Leads converted into it. Then there
+  // are fiches to open.
+  const contactIds = rows.flatMap((r) =>
+    r.externalId ? [r.externalId, ...r.convertedLeadIds] : [],
+  );
   const knownContacts = contactIds.length
     ? await prisma.talent.findMany({
         where: { externalId: { in: contactIds } },
+        orderBy: { createdAt: 'asc' },
         select: {
           id: true,
           prenom: true,
@@ -150,7 +161,13 @@ export async function loadOpenSyncErrors(): Promise<OpenSyncError[]> {
 
     if (!r.talent) {
       const known = r.externalId ? talentByExternalId.get(r.externalId) : null;
-      const situation: SyncErrorSituation = { kind: 'MISSING_NAME' };
+      const situation: SyncErrorSituation =
+        r.kind === 'MERGE_REFUSED'
+          ? { kind: 'MERGE_REFUSED' }
+          : { kind: 'MISSING_NAME' };
+      const recordIds = new Set(
+        r.kind === 'MERGE_REFUSED' ? [r.externalId, ...r.convertedLeadIds] : [],
+      );
       return {
         ...base,
         situation,
@@ -164,6 +181,15 @@ export async function loadOpenSyncErrors(): Promise<OpenSyncError[]> {
           sfEmail: r.email,
         },
         holder: null,
+        records: knownContacts
+          .filter((t) => recordIds.has(t.externalId))
+          .map((t) => ({
+            talentId: t.id,
+            prenom: t.prenom,
+            nom: t.nom,
+            loginEmail: norm(t.user?.email),
+            externalId: t.externalId,
+          })),
       };
     }
 
@@ -190,6 +216,7 @@ export async function loadOpenSyncErrors(): Promise<OpenSyncError[]> {
         explanation: explainSyncError(situation),
         subject,
         holder: null,
+        records: [],
       };
     }
 
@@ -214,6 +241,7 @@ export async function loadOpenSyncErrors(): Promise<OpenSyncError[]> {
       explanation: explainSyncError(situation),
       subject,
       holder: holder?.kind === 'this_talent' ? null : holder,
+      records: [],
     };
   });
 }
