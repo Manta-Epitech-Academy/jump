@@ -1,6 +1,7 @@
 /**
- * Postgres-backed rate limiter for OTP login (talent + parent). Keyed on the
- * *email* under attack, not on the requester's IP: the credential is what an
+ * Postgres-backed rate limiter for OTP login (talent + parent), and for the one
+ * other mail a visitor's own action sends to an address they choose: the parent
+ * welcome. Keyed on an *email*, never on the requester's IP: the credential is what an
  * attacker brute-forces or mail-bombs, and per-IP keying punishes 199 innocent
  * neighbours when a stage_seconde cohort shares a school's NAT. Email keying
  * naturally tolerates cohorts (200 students = 200 separate buckets) AND catches
@@ -8,15 +9,22 @@
  *
  * CWE-307 / CWE-799 mitigation; users include minors (RGPD).
  *
- * Two buckets per email, distinct threat models:
+ * Three buckets, distinct threat models:
  *
  *   - `request`: caps OTP **send** calls (mailbomb + Resend cost). 3 per 10min
  *     means the worst case for one mailbox is 18 messages per hour.
  *   - `verify`: caps **failed** OTP verifies (code brute-force). 5 per 10min
  *     keeps the 10^6 keyspace at ~380 years to exhaust for one email.
+ *   - `parent_welcome`: caps how often a talent changes parent 1's address in
+ *     the onboarding wizard, each change mailing a welcome link to whatever
+ *     address was typed. Keyed on the **talent's** login address, the actor,
+ *     because the recipient is theirs to choose: a recipient key leaves a talent
+ *     free to mail every address on a list once, and alternating two addresses
+ *     re-sends to both. 3 per 24h leaves room for the first address and two
+ *     typo fixes (security audit run-1).
  *
  * A combined bucket would have to pick a wonky shared cap that punishes neither
- * threat well; the two are kept separate for that reason.
+ * threat well; they are kept separate for that reason.
  *
  * Storage shape follows `.claude/rules/data-model.md`'s "facts as rows, state as projection"
  * pattern (cf. `XpGrant`, `MinigameAttempt`): the `OtpAttempt` table holds one
@@ -24,14 +32,16 @@
  * projection computed fresh on every claim. No mutable counter, no in-process
  * state.
  *
- * Call pattern (both endpoints, both routes): `await claimAttempt(bucket,
- * email)` BEFORE the work, and bail with 429 if it is refused. An allowed claim
- * already counts; `release()` it when the attempt turns out not to:
+ * Call pattern: `await claimAttempt(bucket, email)` BEFORE the work, and bail
+ * with 429 if it is refused. An allowed claim already counts; `release()` it
+ * when the attempt turns out not to:
  *
  *   - `request`: when no code was sent (lookup-404 or an error before the
  *     send); only a sent code costs real money and fills a mailbox.
  *   - `verify`: when the sign-in succeeded; clean sign-ins don't consume
  *     budget, only failures do.
+ *   - `parent_welcome`: when the address was not saved (refused, or an error),
+ *     since no welcome is sent then.
  *
  * Deploy notes:
  *
@@ -48,8 +58,9 @@
  *     counters (the in-memory predecessor did, which was a soft hole an
  *     attacker could exploit by triggering restarts).
  *   - **Cluster cleanup** is the cron sweep at `POST /api/jobs/sweep-otp-attempts`
- *     (hourly is plenty: at ~1k attempts/day with 10-min windows, the table
- *     peaks at ~50 stale rows between sweeps). Module-level timers would
+ *     (hourly is plenty: at ~1k attempts/day the table holds about a day of
+ *     rows, the `parent_welcome` window, and the index on `createdAt` keeps the
+ *     sweep cheap). Module-level timers would
  *     race across pods, so cleanup is centralised in the cron, not in-process.
  *   - **Write first, count second.** A claim commits its row and only then
  *     counts the window, so of two concurrent claims the later count sees
@@ -60,7 +71,7 @@
  *     this replaced, let ten parallel requests all read a count under 3.
  *   - **A refused claim takes its row back**, so hammering a locked address
  *     does not extend the lock: it lifts when the oldest attempt in the window
- *     ages out, 10 minutes at most.
+ *     ages out: one window at most.
  *   - **DB unavailable** → `await` rejects → the form action returns 500. The
  *     login flow already cannot proceed without Postgres (BetterAuth needs it),
  *     so failing closed here is consistent with the rest of the path.
@@ -68,16 +79,17 @@
 
 import { prisma } from '$lib/server/db';
 
-export type OtpAttemptBucket = 'request' | 'verify';
+export type AttemptBucket = 'request' | 'verify' | 'parent_welcome';
 
 interface BucketConfig {
   max: number;
   windowMs: number;
 }
 
-const BUCKETS: Record<OtpAttemptBucket, BucketConfig> = {
+const BUCKETS: Record<AttemptBucket, BucketConfig> = {
   request: { max: 3, windowMs: 10 * 60 * 1000 },
   verify: { max: 5, windowMs: 10 * 60 * 1000 },
+  parent_welcome: { max: 3, windowMs: 24 * 60 * 60 * 1000 },
 };
 
 /**
@@ -103,7 +115,7 @@ export type AttemptClaim =
  * for why that order, and for when to call `release`.
  */
 export async function claimAttempt(
-  bucket: OtpAttemptBucket,
+  bucket: AttemptBucket,
   email: string,
 ): Promise<AttemptClaim> {
   const { max, windowMs } = BUCKETS[bucket];

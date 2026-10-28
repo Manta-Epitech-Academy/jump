@@ -24,6 +24,7 @@ import {
   type OnboardingRecordPatch,
 } from '$lib/server/services/onboardingYearService';
 import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
+import { claimAttempt } from '$lib/server/auth/rateLimiter';
 import {
   isParentLoginRace,
   setParentLogin,
@@ -306,6 +307,26 @@ export const actions: Actions = {
     const parentEmail = result.data.parentEmail.toLowerCase().trim();
     const talentId = locals.talent.id;
 
+    // A new address mails a welcome link to whatever was typed, so changing it
+    // is capped per talent (`parent_welcome` in `rateLimiter.ts`); keeping it
+    // costs nothing. The claim is given back below unless a welcome goes out.
+    const changesAddress =
+      (locals.talent.parentEmail ?? '').toLowerCase().trim() !== parentEmail;
+    const claim = changesAddress
+      ? await claimAttempt('parent_welcome', locals.user!.email)
+      : null;
+    if (claim && !claim.allowed) {
+      return fail(429, {
+        step: 'parents' as const,
+        errors: {
+          parentEmail: [
+            `Tu as déjà changé l'adresse de ton responsable plusieurs fois aujourd'hui. Réessaie dans ${Math.ceil(claim.retryAfterSeconds / 3600)} h.`,
+          ],
+        },
+        values: raw as Record<string, string>,
+      });
+    }
+
     // Parent 1's address and login move together (`setParentLogin`), in the
     // same transaction as the rest of the step: a validated address always has
     // a working parent account, since the welcome link and the co-signature are
@@ -346,9 +367,13 @@ export const actions: Actions = {
         return set;
       });
     } catch (err) {
-      if (!isParentLoginRace(err)) throw err;
+      if (!isParentLoginRace(err)) {
+        await claim?.release();
+        throw err;
+      }
       login = { ok: false, reason: 'email_taken' };
     }
+    if (!login.ok || !login.changed) await claim?.release();
     if (!login.ok) {
       return fail(400, {
         step: 'parents' as const,

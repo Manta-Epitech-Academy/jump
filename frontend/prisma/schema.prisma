@@ -2671,14 +2671,15 @@ model Workshop_Participation {
   @@index([campusId])
 }
 
-/// Append-only ledger of OTP login attempts, consumed by
-/// `$lib/server/auth/rateLimiter` to cap brute-force on `verify` and mailbomb
-/// on `request`. One row per attempt; the limiter counts rows inside the
-/// bucket's window for its check. Lives in Postgres (not in-process memory)
-/// so horizontally-scaled SvelteKit pods share one ledger and a pod restart
-/// cannot reset an attacker's budget. `bucket` is kept as a `String` rather
+/// Append-only ledger of OTP login attempts, and of parent-welcome sends from
+/// the onboarding wizard, consumed by `$lib/server/auth/rateLimiter` to cap
+/// brute-force on `verify` and mailbomb on `request` and `parent_welcome`.
+/// One row per attempt; the limiter counts rows inside the bucket's window for
+/// its check. Lives in Postgres (not in-process memory) so horizontally-scaled
+/// SvelteKit pods share one ledger and a pod restart cannot reset an attacker's
+/// budget. `bucket` is kept as a `String` rather
 /// than a Prisma enum because the vocabulary lives in code
-/// (`OtpAttemptBucket` in `rateLimiter.ts`); adding a new bucket should not
+/// (`AttemptBucket` in `rateLimiter.ts`); adding a new bucket should not
 /// require a schema migration.
 model OtpAttempt {
   id        String   @id @default(cuid())
