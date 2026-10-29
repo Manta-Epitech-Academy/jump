@@ -1,10 +1,11 @@
 ---
 paths:
   - "frontend/src/routes/api/worker/**"
-  - "frontend/src/lib/server/services/{syncService,syncConfigService,syncRunService,devSpaceVisibility,reconciliationService,schoolService}.ts"
+  - "frontend/src/lib/server/services/{syncService,syncConfigService,syncRunService,devSpaceVisibility,reconciliationService,schoolService,talentDeletionService}.ts"
   - "frontend/src/lib/server/annuaire.ts"
   - "frontend/src/lib/domain/{syncSchedule,reconciliation,sfMemberStatus}.ts"
-  - "frontend/src/lib/validation/{workerSync,workerConfigContract.test}.ts"
+  - "frontend/src/lib/validation/{workerSync,workerConfigContract.test,accountDeletions}.ts"
+  - "frontend/src/routes/**/account-deletions/**"
   - "frontend/src/routes/**/sf-conflicts/**"
 ---
 

@@ -1969,7 +1969,9 @@ model Sync_Cadence {
 ///
 /// A full pass deletes every enrolment its roster does not mention, so the
 /// roster has to be COMPLETE for that absence to mean anything: non-empty, and
-/// every member resolved to a talent Jump knows. A member the talents push
+/// every member resolved to a talent Jump knows, or to a contact erased at
+/// their request (`Sync_ErasedContact`), whose enrolments no roster can name
+/// again. A member the talents push
 /// skipped (a `Sync_Error` of kind `MISSING_NAME` or `MERGE_REFUSED`) may be
 /// the very person whose enrolment the prune would take. When the roster is not complete, the
 /// enrolments it does carry are still written and the removals are held here
