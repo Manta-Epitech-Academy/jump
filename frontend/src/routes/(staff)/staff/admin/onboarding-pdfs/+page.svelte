@@ -315,7 +315,7 @@
           />
         </div>
       </div>
-      <ActiveFilterChips {chips} onReset={clearFilters} />
+      <ActiveFilterChips {chips} {search} onReset={clearFilters} />
     </Card.Header>
     <Card.Content>
       <SortableTable {columns} rows={data.jobs} rowKey={(job: Job) => job.id}>
@@ -408,14 +408,6 @@
               <p class="font-mono text-xs text-muted-foreground">
                 <CodeTag>Aucune tâche pour ce filtre</CodeTag>
               </p>
-              <Button
-                variant="link"
-                size="sm"
-                class="mt-1 text-epi-blue"
-                onclick={clearFilters}
-              >
-                Réinitialiser les filtres
-              </Button>
             {:else}
               <p class="font-mono text-xs text-muted-foreground">
                 <CodeTag>Aucune tâche enregistrée</CodeTag>

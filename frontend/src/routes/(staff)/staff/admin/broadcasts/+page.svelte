@@ -156,7 +156,7 @@
       filtersApplied={anyFiltersApplied}
     />
 
-    <ActiveFilterChips chips={controls.chips} onReset={resetFilters} />
+    <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
     <SortableTable {columns} rows={filtered} rowKey={(b: Row) => b.id}>
       {#snippet row(b: Row)}
@@ -207,14 +207,6 @@
           >
             Aucun envoi ne correspond à ces filtres
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onclick={resetFilters}
-            class="rounded-sm"
-          >
-            Réinitialiser les filtres
-          </Button>
         </div>
       {/snippet}
     </SortableTable>

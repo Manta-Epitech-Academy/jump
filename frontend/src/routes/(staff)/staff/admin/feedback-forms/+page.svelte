@@ -259,7 +259,7 @@
       filtersApplied={anyFiltersApplied}
     />
 
-    <ActiveFilterChips chips={controls.chips} onReset={resetFilters} />
+    <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
     <Tooltip.Provider delayDuration={300}>
       <SortableTable
@@ -425,16 +425,6 @@
             >
               Aucun formulaire ne correspond
             </span>
-            {#if anyFiltersApplied}
-              <Button
-                variant="outline"
-                size="sm"
-                onclick={resetFilters}
-                class="rounded-sm"
-              >
-                Réinitialiser les filtres
-              </Button>
-            {/if}
           </div>
         {/snippet}
       </SortableTable>

@@ -4,7 +4,6 @@
   import Clock from '@lucide/svelte/icons/clock';
   import * as Table from '$lib/components/ui/table';
   import { cn } from '$lib/utils';
-  import { Button } from '$lib/components/ui/button';
   import { formatGivenName } from '$lib/domain/profile';
   import { cohortNounForms } from '$lib/domain/event';
   import { optionPolarity, type AnswerPolarity } from '$lib/domain/polarity';
@@ -190,7 +189,7 @@
     filtersApplied={anyFiltersApplied}
   />
 
-  <ActiveFilterChips chips={controls.chips} onReset={resetFilters} />
+  <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
   <SortableTable
     {columns}
@@ -299,15 +298,5 @@
     >
       Aucun résultat
     </span>
-    {#if anyFiltersApplied}
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={resetFilters}
-        class="rounded-sm"
-      >
-        Réinitialiser les filtres
-      </Button>
-    {/if}
   </div>
 {/snippet}

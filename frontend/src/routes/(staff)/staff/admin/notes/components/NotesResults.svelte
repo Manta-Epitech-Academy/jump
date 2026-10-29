@@ -168,7 +168,7 @@
     {/snippet}
   </DataTableToolbar>
 
-  <ActiveFilterChips {chips} onReset={resetFilters} />
+  <ActiveFilterChips {chips} {search} onReset={resetFilters} />
 
   <SortableTable
     {columns}

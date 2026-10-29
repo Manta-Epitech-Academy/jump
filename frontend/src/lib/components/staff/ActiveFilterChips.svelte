@@ -5,20 +5,25 @@
   import type { ActiveFilterChip } from './datatable/types';
 
   // Every filter value in force, each one removable, and one control that
-  // clears them all. It sits between a list's toolbar and its table, so what
-  // narrows the list is read in one line wherever the filters were set (a
-  // header funnel, the mobile drawer, a link that arrived filtered). Renders
-  // nothing while no filter is active.
+  // clears them all with the search. It sits between a list's toolbar and its
+  // table, so what narrows the list is read in one line wherever the filters
+  // were set (a header funnel, the mobile drawer, a link that arrived
+  // filtered). The search box shows its own query, so it gets no chip, but it
+  // narrows the list too: the reset shows for it alone. Renders nothing while
+  // nothing narrows the list.
   let {
     chips,
+    search,
     onReset,
   }: {
     chips: ActiveFilterChip[];
+    /** The list's search (`createUrlSearch`). */
+    search: { readonly value: string };
     onReset: () => void;
   } = $props();
 </script>
 
-{#if chips.length > 0}
+{#if chips.length > 0 || search.value.trim() !== ''}
   <div class="flex flex-wrap items-center gap-2">
     {#each chips as chip (chip.id)}
       <span

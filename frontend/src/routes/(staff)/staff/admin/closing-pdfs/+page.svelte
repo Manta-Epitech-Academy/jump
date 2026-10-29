@@ -226,7 +226,7 @@
             />
           </div>
         </div>
-        <ActiveFilterChips {chips} onReset={clearFilters} />
+        <ActiveFilterChips {chips} {search} onReset={clearFilters} />
       </Card.Header>
       <Card.Content>
         <Table.Root>
@@ -311,14 +311,6 @@
                     <p class="font-mono text-xs text-muted-foreground">
                       <CodeTag>Aucun closing pour ce filtre</CodeTag>
                     </p>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      class="mt-1 text-epi-blue"
-                      onclick={clearFilters}
-                    >
-                      Réinitialiser les filtres
-                    </Button>
                   {:else}
                     <p class="font-mono text-xs text-muted-foreground">
                       <CodeTag>Aucun closing finalisé</CodeTag>

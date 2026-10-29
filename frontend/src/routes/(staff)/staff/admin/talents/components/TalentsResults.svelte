@@ -345,7 +345,7 @@
     {/snippet}
   </DataTableToolbar>
 
-  <ActiveFilterChips chips={controls.chips} onReset={resetFilters} />
+  <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
   <SortableTable
     {columns}

@@ -506,7 +506,7 @@
     {/snippet}
   </DataTableToolbar>
 
-  <ActiveFilterChips {chips} onReset={resetFilters} />
+  <ActiveFilterChips {chips} {search} onReset={resetFilters} />
 
   {#if selected.size > 0}
     <div
@@ -719,16 +719,6 @@
         >
           Aucun événement
         </span>
-        {#if anyFiltersApplied}
-          <Button
-            variant="outline"
-            size="sm"
-            onclick={resetFilters}
-            class="rounded-sm"
-          >
-            Réinitialiser les filtres
-          </Button>
-        {/if}
       </div>
     {/snippet}
   </SortableTable>

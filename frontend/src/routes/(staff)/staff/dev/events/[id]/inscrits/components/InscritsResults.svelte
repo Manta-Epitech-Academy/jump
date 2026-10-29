@@ -427,7 +427,7 @@
       {/snippet}
     </DataTableToolbar>
 
-    <ActiveFilterChips chips={controls.chips} onReset={resetFilters} />
+    <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
     <!-- One provider for the whole table: it only carries the hover-delay
          config, so the per-row badge tooltips share a single instance rather
@@ -623,16 +623,6 @@
             >
               Aucun résultat
             </span>
-            {#if anyFiltersApplied}
-              <Button
-                variant="outline"
-                size="sm"
-                onclick={resetFilters}
-                class="rounded-sm"
-              >
-                Réinitialiser les filtres
-              </Button>
-            {/if}
           </div>
         {/snippet}
       </SortableTable>
