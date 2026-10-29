@@ -432,9 +432,9 @@ export async function forcePublication(input: {
 }
 
 /**
- * One row of a talent-facing board. Other talents read it, so it carries the
- * peer name and no identity: no surname, no talent id (`isViewer` marks the
- * reader's own row instead).
+ * One row of a talent-facing board. Other talents read it, so it carries what
+ * the board shows of a peer and nothing more: the peer name, no surname, no
+ * talent id (`isViewer` marks the reader's own row instead), no finish time.
  */
 export interface LeaderboardRow {
   rank: number;
@@ -442,10 +442,10 @@ export interface LeaderboardRow {
   isViewer: boolean;
   score: number | null;
   chrono: number | null;
-  finishedAt: Date | null;
-  // The rank bonus this talent actually locked in at finish (null = none). Their
-  // displayed `rank` can drift below it as others play (no clawback), so this is
-  // the truthful per-talent figure, not `minigameRankBonus(rank, fieldSize)`.
+  // The rank bonus the viewer actually locked in at finish, on their own row
+  // only (null = none, or a peer's row). Their displayed `rank` can drift below
+  // it as others play (no clawback), so this is the truthful figure, not
+  // `minigameRankBonus(rank, fieldSize)`.
   rankXpAwarded: number | null;
 }
 
@@ -528,15 +528,17 @@ async function buildLeaderboard(
     compareAttempts(a, b, publication.scoringType),
   );
 
-  const rows: LeaderboardRow[] = sorted.map((a, i) => ({
-    rank: i + 1,
-    displayName: formatPeerName(a.talent.prenom, a.talent.nom),
-    isViewer: a.talentId === viewerTalentId,
-    score: a.score,
-    chrono: a.chrono,
-    finishedAt: a.finishedAt,
-    rankXpAwarded: a.rankXpAwarded,
-  }));
+  const rows: LeaderboardRow[] = sorted.map((a, i) => {
+    const isViewer = a.talentId === viewerTalentId;
+    return {
+      rank: i + 1,
+      displayName: formatPeerName(a.talent.prenom, a.talent.nom),
+      isViewer,
+      score: a.score,
+      chrono: a.chrono,
+      rankXpAwarded: isViewer ? a.rankXpAwarded : null,
+    };
+  });
 
   return { rows, scoringType: publication.scoringType };
 }

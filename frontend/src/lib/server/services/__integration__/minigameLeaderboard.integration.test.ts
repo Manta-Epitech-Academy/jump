@@ -36,9 +36,9 @@ describe('minigame leaderboard (integration)', () => {
     });
     viewerId = viewer.id;
     peerId = peer.id;
-    for (const [talentId, score] of [
-      [viewerId, 10],
-      [peerId, 20],
+    for (const [talentId, score, rankXpAwarded] of [
+      [viewerId, 10, 3],
+      [peerId, 20, 5],
     ] as const) {
       await prisma.minigameAttempt.create({
         data: {
@@ -47,6 +47,7 @@ describe('minigame leaderboard (integration)', () => {
           status: 'done',
           valid: true,
           score,
+          rankXpAwarded,
           jti: randomUUID(),
           finishedAt: new Date(),
         },
@@ -71,9 +72,25 @@ describe('minigame leaderboard (integration)', () => {
   it('sends a peer name and no surname or talent id', async () => {
     const { rows } = await getCampusLeaderboard(publicationId, null, viewerId);
 
-    expect(rows.map((r) => [r.rank, r.displayName, r.isViewer])).toEqual([
-      [1, 'Inès B.', false],
-      [2, 'Camille D.', true],
+    // The whole row, so a field added to it is a decision this test asks for:
+    // a peer's bonus and finish time are per-person data the board never shows.
+    expect(rows).toEqual([
+      {
+        rank: 1,
+        displayName: 'Inès B.',
+        isViewer: false,
+        score: 20,
+        chrono: null,
+        rankXpAwarded: null,
+      },
+      {
+        rank: 2,
+        displayName: 'Camille D.',
+        isViewer: true,
+        score: 10,
+        chrono: null,
+        rankXpAwarded: 3,
+      },
     ]);
     const shipped = JSON.stringify(rows);
     expect(shipped).not.toContain('Benali');

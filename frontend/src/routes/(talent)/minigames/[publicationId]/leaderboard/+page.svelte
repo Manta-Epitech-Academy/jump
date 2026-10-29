@@ -156,10 +156,10 @@
                 <td class="py-2 font-bold {rankColor(row.rank)}">
                   <span class="inline-flex items-center gap-1.5">
                     {row.rank}
-                    {#if row.isViewer && row.rankXpAwarded}
-                      <!-- Only the connected talent's row shows an amount, and it's
-                           the bonus they actually locked in (rankXpAwarded), not a
-                           guess from the current rank. -->
+                    {#if row.rankXpAwarded}
+                      <!-- Only the connected talent's row carries an amount, and
+                           it's the bonus they actually locked in (rankXpAwarded),
+                           not a guess from the current rank. -->
                       <span
                         class="inline-flex items-center gap-0.5 rounded-full bg-epi-together/10 px-1.5 py-0.5 text-xs font-semibold text-epi-together"
                         title="Bonus XP que tu as gagné en jouant"
