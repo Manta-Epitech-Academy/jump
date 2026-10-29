@@ -40,6 +40,8 @@ describe('substituteVariables into a mail body', () => {
     ['a link', '[Cliquez ici](https://evil.example/pay)'],
     ['an autolink', '<https://evil.example/pay>'],
     ['a protocol URL', 'https://evil.example/pay'],
+    ['a bare www. host', 'Payez sur www.evil.example/pay'],
+    ['a www. host on a line of its own', 'Léa\n\nwww.evil.example'],
     [
       'a button on its own line',
       'Léa\n\n:button[Confirmer mon compte](https://evil.example/login)\n\nmerci',
@@ -67,6 +69,63 @@ describe('substituteVariables into a mail body', () => {
       expect(hrefs(html)[0]).toBe(PARENT_LINK);
     },
   );
+});
+
+/**
+ * The refusal of an erasure request carries the reason an admin typed, which
+ * can run over several paragraphs. Folded onto one line they ran together; kept,
+ * a line must still not open a block of its own.
+ */
+describe('substituteVariables with a value over several lines', () => {
+  const REASON = [
+    'Votre compte est lié à un événement en cours.',
+    '',
+    '- il se termine le 12 novembre',
+    '1. nous reviendrons vers vous',
+    '    après la clôture',
+    '---',
+    '=== merci',
+  ].join('\n');
+
+  function refusal() {
+    const ctx = { ...EMPTY_VARIABLE_CONTEXT, deletion_reason: REASON };
+    return renderBroadcastEmail(
+      substituteVariables('Motif :\n\n{{deletion_reason}}', ctx, 'markdown'),
+    );
+  }
+
+  it('keeps its lines, a reason being the one value that does', () => {
+    const { html, text } = refusal();
+
+    expect(html).toContain('<br>');
+    expect(text).toContain('Votre compte est lié à un événement en cours.\n');
+    expect(text).toContain('- il se termine le 12 novembre');
+    expect(text).toContain('1. nous reviendrons vers vous');
+  });
+
+  it('opens no list, rule, heading or code block', () => {
+    const { html } = refusal();
+
+    expect(html).not.toMatch(/<(ul|ol|li|hr|h\d|pre|code)\b/);
+  });
+});
+
+describe('substituteVariables into an address', () => {
+  it('leaves an address whose host starts with www. linked', () => {
+    const ctx = {
+      ...EMPTY_VARIABLE_CONTEXT,
+      email_contact_campus: 'contact@www.epitech.example',
+    };
+    const { html } = renderBroadcastEmail(
+      substituteVariables(
+        'Écrivez à {{email_contact_campus}}.',
+        ctx,
+        'markdown',
+      ),
+    );
+
+    expect(hrefs(html)).toEqual(['mailto:contact@www.epitech.example']);
+  });
 });
 
 describe('substituteVariables into a subject or an SMS', () => {

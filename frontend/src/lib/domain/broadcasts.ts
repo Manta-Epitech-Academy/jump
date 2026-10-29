@@ -194,6 +194,13 @@ export interface BroadcastVariable {
    * staff, and `substituteVariables` keeps it from becoming Markdown syntax.
    */
   link?: true;
+  /**
+   * Text an admin types and may run over several paragraphs. A mail body keeps
+   * its lines, so a template gives it lines of its own, never a button or a
+   * link label; every other text value is folded onto one line, since a name
+   * holds no line break on purpose and one would split the label it sits in.
+   */
+  multiline?: true;
 }
 
 export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
@@ -318,6 +325,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: "Motif du refus d'une demande de suppression de compte",
     demo: 'Ton compte reste nécessaire pour le stage de seconde en cours.',
     contextual: true,
+    multiline: true,
   },
 ] as const;
 

@@ -64,21 +64,63 @@ const LINK_KEYS: ReadonlySet<string> = new Set(
   BROADCAST_VARIABLES.filter((v) => v.link).map((v) => v.key),
 );
 
+const MULTILINE_KEYS: ReadonlySet<string> = new Set(
+  BROADCAST_VARIABLES.filter((v) => v.multiline).map((v) => v.key),
+);
+
 // Every character that can open a Markdown construct able to add a link or a
 // button (link, image, `:button`, autolink, raw HTML, a protocol URL) or to
 // restyle the mail (emphasis, code, heading, quote, table). `. @ _ + -` are
 // left alone: they make up email addresses, and escaping them would stop gfm
 // linking `{{email_contact_campus}}` to itself, or for `_` and `+` link only
-// the part after it. Unescaped, they can only restyle, never add a target.
+// the part after it. What they can still open is taken apart below: a bare
+// `www.` host, which gfm links with no `:` to escape, and a block a line
+// starts.
 const MARKDOWN_SPECIAL_RE = /[\\`*~[\]()<>!#|:]/g;
+
+// gfm's extended autolink, the one target a value could still add: `www.`
+// where gfm starts one, at the start of a line or after a space or an `_`
+// (`*`, `~` and `(` are escaped already). Not inside an address, which would
+// cut `x@www.example.org` out of its own link.
+const WWW_AUTOLINK_RE = /(^|[\s_])(www)\./gi;
+
+// What a line can open at its start once the characters above are escaped: a
+// list item or a rule (`-`, `+`, `_`), a setext heading (`=`), an ordered item
+// (`1.`). Leading whitespace is dropped rather than escaped, since four spaces
+// open a code block.
+const LINE_START_RE = /^[-+=_]|^(\d+)(\.)/;
+
+/**
+ * A text value as Markdown that renders as the characters it is: escaped
+ * inline, each line kept, and nothing a line starts with opening a block. A
+ * `multiline` value reaches it as typed, so a reason keeps its paragraphs,
+ * where folding every value onto one line ran them together; any other one
+ * reaches it folded.
+ */
+function escapeMarkdownText(value: string): string {
+  return value
+    .split(/\r\n?|\n/)
+    .map((line) =>
+      line
+        .replace(/[^\S\n]+/g, ' ')
+        .trim()
+        .replace(MARKDOWN_SPECIAL_RE, '\\$&')
+        .replace(WWW_AUTOLINK_RE, '$1$2\\.')
+        .replace(LINE_START_RE, (start, digits?: string, dot?: string) =>
+          digits ? `${digits}\\${dot}` : `\\${start}`,
+        ),
+    )
+    .join('\n');
+}
 
 /**
  * `markdown` is for a mail body, which `renderBroadcastEmail` parses after
  * substitution: a text value is backslash-escaped there, so a name such as
  * `[Cliquez ici](https://…)` renders as the characters it is instead of a link
  * in a mail sent under Epitech's name. `plain` is for a subject or an SMS.
- * Either way a text value is folded onto one line: no name or reason holds a
- * line break on purpose, and one would start a new Markdown block.
+ * Either way a text value is folded onto one line, except a `multiline` one in
+ * a mail body: a line break would split the label a name sits in, end a
+ * header, or split a message.
  */
 export type VariableFormat = 'markdown' | 'plain';
 
@@ -92,10 +134,9 @@ export function substituteVariables(
     if (!(key in ctx)) return '';
     const value = ctx[key] ?? '';
     if (LINK_KEYS.has(key)) return value;
-    const line = value.replace(/\s+/g, ' ');
-    return format === 'markdown'
-      ? line.replace(MARKDOWN_SPECIAL_RE, '\\$&')
-      : line;
+    const folded = value.replace(/\s+/g, ' ');
+    if (format === 'plain') return folded;
+    return escapeMarkdownText(MULTILINE_KEYS.has(key) ? value : folded);
   });
 }
 
