@@ -364,8 +364,9 @@ export type AdminApiOperation = {
    */
   leadership: boolean;
   /**
-   * The answer carries text typed by someone with less authority than an admin
-   * (a closing testimonial), returned verbatim. Such a read is never served to
+   * The answer carries text typed by someone with less authority than an admin,
+   * returned verbatim: a closing testimonial, or a school's name as a talent
+   * typed it when the annuaire did not know the UAI (`resolveSchoolByUai`). Such a read is never served to
    * a credential that can write: in one MCP session, a sentence written as an
    * instruction would otherwise sit next to the write tools it could ask a
    * model to call, with only prose telling the model not to (security audit
@@ -794,6 +795,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_schools_churn: defineOperation({
     leadership: true,
+    untrustedText: true,
     description: `Which high schools are new, which came back and which sent nobody this year, between two school years. Names the schools, most-represented first, capped at ${CHURN_SCHOOLS_LIMIT} per list. Both school years are required; there is no implicit previous year.`,
     shape: {
       schoolYear: requiredSchoolYear.describe(
@@ -1776,6 +1778,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_schools_reach: defineOperation({
     leadership: true,
+    untrustedText: true,
     description: `Which high schools the platform reaches: how many distinct ones, how many départements they cover, the ${SCHOOLS_TOP_N} most represented with their share of the cohort, and how much of the cohort is attached to no identified school at all - split into the ones who named a school Jump could not match and the ones who named none, because those two are chased differently.`,
     shape: { schoolYear, campus, eventId },
     run: async (params) => getSchoolsReach(await resolveScope(params)),

@@ -153,16 +153,20 @@ describe('what a credential is offered as tools', () => {
     expect(offered).toContain('bulk_event_config');
   });
 
-  // Verbatim text an admin did not write never shares a session with the writes.
-  it('keeps the verbatim testimonials away from a token that can write', () => {
+  // Verbatim text an admin did not write never shares a session with the
+  // writes: the testimonials, and the school names a talent typed for a lycée
+  // the annuaire does not know.
+  it.each([
+    'stats_closing_testimonials',
+    'stats_schools_reach',
+    'stats_schools_churn',
+  ])('keeps %s away from a token that can write', (operation) => {
     expect(names({ tier: 'core', writeEnabled: true })).not.toContain(
-      'stats_closing_testimonials',
+      operation,
     );
-    expect(names({ tier: 'core', writeEnabled: false })).toContain(
-      'stats_closing_testimonials',
-    );
+    expect(names({ tier: 'core', writeEnabled: false })).toContain(operation);
     expect(names({ tier: 'leadership', writeEnabled: false })).toContain(
-      'stats_closing_testimonials',
+      operation,
     );
   });
 
