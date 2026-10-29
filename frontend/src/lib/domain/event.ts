@@ -112,14 +112,19 @@ export function eventWindowEnd(date: Date, endDate: Date | null): Date {
 const NBSP = ' ';
 
 /**
- * The days an event runs, as a person reads them: "12 nov. 2026 → 14 nov. 2026",
- * or a single day when it starts and ends on the same one. Read on the campus
- * clock, since the days are stored as campus-local instants: formatted on the
- * pod's or the browser's clock instead, a Réunion event reads one day early.
+ * The days an event runs, as a person reads them: "du 27 au 30 oct. 2026",
+ * naming a month or a year once when both days share it, or a single day when
+ * the event starts and ends on the same one. Read on the campus clock, since
+ * the days are stored as campus-local instants: formatted on the pod's or the
+ * browser's clock instead, a Réunion event reads one day early.
  *
- * No-break spaces hold each day together and keep the arrow on the first one,
- * so a narrow column wraps only after "→": left to break anywhere, a 360px
- * planning header stranded the year on a line of its own.
+ * Sharing the month keeps the common range on one line of the 272px dev
+ * sidebar, where "14 août 2026 → 27 août 2026" always wrapped. The mockup
+ * spells the month out ("du 27 au 30 octobre 2026"); abbreviated, no label is
+ * longer than the arrow form it replaced, and the median event, a single day,
+ * keeps "12 nov. 2026". A longer range can still wrap, so no-break spaces hold
+ * each end together and a narrow column wraps only before "au": left to break
+ * anywhere, a 360px planning header stranded the year on a line of its own.
  */
 export function eventDaysLabel(
   date: Date,
@@ -132,11 +137,31 @@ export function eventDaysLabel(
     year: 'numeric',
     timeZone: timezone,
   });
-  const day = (d: Date) => fmt.format(d).replaceAll(' ', NBSP);
-  const start = day(date);
-  if (!endDate) return start;
-  const end = day(endDate);
-  return start === end ? start : `${start}${NBSP}→ ${end}`;
+  const partsOf = (d: Date) => {
+    const parts = fmt.formatToParts(d);
+    const part = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((p) => p.type === type)?.value ?? '';
+    const day = part('day');
+    // French writes the first of a month as an ordinal: "du 1er au 3 mars".
+    return {
+      day: day === '1' ? '1er' : day,
+      month: part('month'),
+      year: part('year'),
+    };
+  };
+  const join = (...words: string[]) => words.join(NBSP);
+  const start = partsOf(date);
+  const end = endDate ? partsOf(endDate) : start;
+  if (start.year !== end.year) {
+    return `${join('du', start.day, start.month, start.year)} ${join('au', end.day, end.month, end.year)}`;
+  }
+  if (start.month !== end.month) {
+    return `${join('du', start.day, start.month)} ${join('au', end.day, end.month, end.year)}`;
+  }
+  if (start.day !== end.day) {
+    return `${join('du', start.day)} ${join('au', end.day, end.month, end.year)}`;
+  }
+  return join(start.day, start.month, start.year);
 }
 
 // ─── Start time-of-day (`Event.startMinutes`) ──────────────────────────────
