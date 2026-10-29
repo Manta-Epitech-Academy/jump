@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
 import { isStaffEmailAddress } from '$lib/domain/staff';
+import { lockTalent } from './onboardingYearService';
 
 const norm = (v: string | null | undefined): string =>
   (v ?? '').trim().toLowerCase();
@@ -52,6 +53,11 @@ export type SetParentLoginResult =
  * decision) are not voided by an address change: they live in the dossier and
  * the decision ledger, and staff correct them there.
  *
+ * The talent's row is locked before the current address is read
+ * ({@link lockTalent}), so two changes of one talent's address serialize: the
+ * second reads the address the first committed, and deletes the login the
+ * first minted rather than leaving it unreferenced.
+ *
  * Creating can lose a race on the unique email to a concurrent provision of the
  * same address (two siblings submitting at once), which aborts the caller's
  * transaction: map it with {@link isParentLoginRace} once the transaction has
@@ -65,6 +71,7 @@ export async function setParentLogin(
   const newEmail = norm(next.email);
   if (isStaffEmailAddress(newEmail))
     return { ok: false, reason: 'staff_address' };
+  await lockTalent(tx, talentId);
   const { parentEmail } = await tx.talent.findUniqueOrThrow({
     where: { id: talentId },
     select: { parentEmail: true },

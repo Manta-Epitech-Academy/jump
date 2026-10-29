@@ -28,6 +28,7 @@ import { CURRENT_REGLEMENT_VERSION } from '$lib/content/reglement';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { getOnboardingStep } from '$lib/domain/talentOnboarding';
 import {
+  lockTalent,
   patchCurrentOnboardingRecord,
   upsertOnboardingYearRecord,
 } from './onboardingYearService';
@@ -124,12 +125,11 @@ export async function signOnboardingRules(input: {
     // Lock the talent's row before reading the step, so two submits of the
     // form serialize: the second one waits, then reads the signature the first
     // one committed and is refused. The talent's row and not the dossier's,
-    // because every other wizard step writes `Talent` first and its dossier
-    // second: taking the dossier first here, a signature racing another step's
-    // submit deadlocked. Taken before the per-campus lock below, so those two
-    // are always acquired in the same order too.
-    await tx.$executeRaw`
-      SELECT 1 FROM "Talent" WHERE "id" = ${talentId} FOR UPDATE`;
+    // because every onboarding write takes it first (`lockTalent`): taking the
+    // dossier first here, a signature racing another step's submit
+    // deadlocked. Taken before the per-campus lock below, so those two are
+    // always acquired in the same order too.
+    await lockTalent(tx, talentId);
     const dossier = await tx.onboarding_Record.findUnique({
       where: { talentId_schoolYear: { talentId, schoolYear } },
     });

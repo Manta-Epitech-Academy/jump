@@ -12,7 +12,7 @@ paths:
 
 # Onboarding: one dossier per school year
 
-Platform onboarding is walked once per school year. `Onboarding_Record` is the fact (one row per `(talentId, schoolYear)`); the flat onboarding columns on `Talent` are its cached projection, stamped with `Talent.onboardingSchoolYear` so a reader can tell which year they describe. Writes go through `onboardingYearService`, in the caller's transaction, never straight to the columns.
+Platform onboarding is walked once per school year. `Onboarding_Record` is the fact (one row per `(talentId, schoolYear)`); the flat onboarding columns on `Talent` are its cached projection, stamped with `Talent.onboardingSchoolYear` so a reader can tell which year they describe. Writes go through `onboardingYearService`, in the caller's transaction, never straight to the columns, and take the talent's row lock before the dossier's (`lockTalent`, which `upsertOnboardingYearRecord` takes itself): writing a dossier writes `Talent` too, so a writer that locked the dossier first deadlocked with one that locked the talent first.
 
 Three rules, each of which a reasonable-looking change breaks silently rather than loudly:
 

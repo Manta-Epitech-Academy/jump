@@ -9,6 +9,7 @@ import {
 import { getOnboardingFunnel } from '../adminStats/onboardingFunnel';
 import { resolveScope, UnknownScopeError } from '$lib/server/adminApi/scope';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
+import { patchCurrentOnboardingRecord } from '../onboardingYearService';
 
 /**
  * The rules signature is the transaction that closes onboarding: timestamps, the
@@ -185,6 +186,34 @@ describe('onboardingService (integration)', () => {
     });
 
     expect(await signature).toMatchObject({ ok: true });
+  });
+
+  it("takes the talent's row before the dossier's whenever a dossier is written", async () => {
+    // Writing a dossier writes `Talent` too (the projection), so a writer that
+    // took the dossier first and the signature, which takes the talent first,
+    // each held what the other waited for: a guardian's co-signature during
+    // their child's signature, a step going back in another tab. Probed with
+    // NOWAIT, refused at once if the waiting writer already holds the dossier.
+    const talent = await makeTalent();
+    await reachRulesStep(talent.id);
+
+    let writer: Promise<unknown> = Promise.resolve();
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`
+        SELECT 1 FROM "Talent" WHERE "id" = ${talent.id} FOR UPDATE`;
+      writer = prisma.$transaction((wtx) =>
+        patchCurrentOnboardingRecord(wtx, talent.id, {
+          equipmentValidatedAt: new Date(),
+        }),
+      );
+      // Long enough for the writer to take whatever it locks first.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await tx.$executeRaw`
+        SELECT 1 FROM "Onboarding_Record"
+        WHERE "talentId" = ${talent.id} FOR UPDATE NOWAIT`;
+    });
+
+    await writer;
   });
 
   it('swaps the whole interest selection and stamps both interest steps', async () => {
