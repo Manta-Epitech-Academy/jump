@@ -1,12 +1,8 @@
-import {
-  clearedFacetParams,
-  facetParam,
-  parseFacetValues,
-} from '$lib/domain/listFacets';
+import { defineListView, type SortedListView } from '$lib/domain/listView';
 
 /**
- * The Closings page's view, carried in its address, in the format every roster
- * list shares (`$lib/domain/listFacets`, `inscritsView` its first user): a
+ * The Closings page's view, carried in its address, in the format every staff
+ * list shares (`$lib/domain/listView`): a
  * reload, a shared link, the browser's Back button and the event home's cards
  * all land on the same list. Search lives in `?q`, through `createUrlSearch`.
  *
@@ -23,8 +19,6 @@ export const CLOSINGS_FACETS = ['mene', 'statut', 'avis'] as const;
 
 export type ClosingsFacet = (typeof CLOSINGS_FACETS)[number];
 
-export type ClosingsSortDir = 'asc' | 'desc';
-
 /**
  * The sortable columns and the direction a first click sorts them in: names
  * alphabetically, the date most recent first. As on Inscrits, a column offers
@@ -34,60 +28,14 @@ export const CLOSINGS_SORT_DEFAULT_DIR = {
   prenom: 'asc',
   nom: 'asc',
   date: 'desc',
-} as const satisfies Record<string, ClosingsSortDir>;
+} as const;
 
 export type ClosingsSortKey = keyof typeof CLOSINGS_SORT_DEFAULT_DIR;
 
-/** The order the server already returns rows in, so it writes no param. */
-export const CLOSINGS_DEFAULT_SORT: ClosingsSortKey = 'nom';
+export const CLOSINGS_VIEW = defineListView({
+  facets: CLOSINGS_FACETS,
+  // `nom` is the order the server already returns rows in.
+  sort: { firstDir: CLOSINGS_SORT_DEFAULT_DIR, defaultKey: 'nom' },
+});
 
-export type ClosingsView = {
-  facets: Record<ClosingsFacet, string[]>;
-  sort: ClosingsSortKey;
-  dir: ClosingsSortDir;
-};
-
-function isSortKey(value: string | null): value is ClosingsSortKey {
-  return value !== null && Object.hasOwn(CLOSINGS_SORT_DEFAULT_DIR, value);
-}
-
-/** Read the view off a querystring. Unknown params and values are ignored. */
-export function parseClosingsView(params: URLSearchParams): ClosingsView {
-  const facets = Object.fromEntries(
-    CLOSINGS_FACETS.map((f) => [f, parseFacetValues(params.get(f))]),
-  ) as Record<ClosingsFacet, string[]>;
-  const rawSort = params.get('sort');
-  const sort = isSortKey(rawSort) ? rawSort : CLOSINGS_DEFAULT_SORT;
-  const rawDir = params.get('dir');
-  const dir =
-    rawDir === 'asc' || rawDir === 'desc'
-      ? rawDir
-      : CLOSINGS_SORT_DEFAULT_DIR[sort];
-  return { facets, sort, dir };
-}
-
-/** The params one facet change writes; an empty selection drops the param. */
-export function closingsFacetParams(
-  facet: ClosingsFacet,
-  values: readonly string[],
-): Record<string, string> {
-  return { [facet]: facetParam(values) };
-}
-
-/** The params that clear every facet, leaving the sort and the search. */
-export function closingsClearedFacetParams(): Record<string, string> {
-  return clearedFacetParams(CLOSINGS_FACETS);
-}
-
-/** The params a sort writes. The default sort writes none, and a direction is
- *  written only when it is not the column's first-click one. */
-export function closingsSortParams(
-  sort: ClosingsSortKey,
-  dir: ClosingsSortDir,
-): Record<string, string> {
-  const isDefaultDir = dir === CLOSINGS_SORT_DEFAULT_DIR[sort];
-  return {
-    sort: sort === CLOSINGS_DEFAULT_SORT && isDefaultDir ? '' : sort,
-    dir: isDefaultDir ? '' : dir,
-  };
-}
+export type ClosingsView = SortedListView<ClosingsFacet, ClosingsSortKey>;

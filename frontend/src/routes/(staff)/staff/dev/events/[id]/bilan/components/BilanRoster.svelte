@@ -20,12 +20,9 @@
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import {
     BILAN_SORT_DEFAULT_DIR,
-    bilanClearedFacetParams,
-    bilanFacetParams,
-    bilanSortParams,
-    parseBilanView,
     type BilanFacet,
     type BilanSortKey,
+    BILAN_VIEW,
   } from '$lib/domain/bilanView';
   import {
     bilanFacets,
@@ -61,7 +58,7 @@
 
   // Filters, sort and search live in the address (`$lib/domain/bilanView`), so
   // the event home's recommendation card can open this list already filtered.
-  const view = $derived(parseBilanView(page.url.searchParams));
+  const view = $derived(BILAN_VIEW.parse(page.url.searchParams));
   const search = createUrlSearch();
 
   // Best→worst rank and label of each option, by id.
@@ -76,7 +73,7 @@
   );
 
   function setFacet(facet: BilanFacet, values: string[]) {
-    setListParams(bilanFacetParams(facet, values));
+    setListParams(BILAN_VIEW.facetParams(facet, values));
   }
 
   // The header filter of a facet, or none when it has a single value to offer.
@@ -152,7 +149,7 @@
       { key: view.sort, dir: view.dir },
       key,
     );
-    setListParams(bilanSortParams(next.key, next.dir));
+    setListParams(BILAN_VIEW.sortParams(next.key, next.dir));
   }
 
   // A talent who has not answered has no date. Those rows sink in either
@@ -207,7 +204,7 @@
   // Clears the filters and the search, keeps the sort, as on Inscrits.
   function resetFilters() {
     search.clear();
-    setListParams({ ...bilanClearedFacetParams(), q: '' });
+    setListParams({ ...BILAN_VIEW.clearedFacetParams(), q: '' });
   }
 </script>
 

@@ -5,17 +5,13 @@ import {
   type ClosingListStatus,
   type RecommendationToneToken,
 } from './closing';
-import { closingsFacetParams } from './closingsView';
+import { CLOSINGS_VIEW } from './closingsView';
 import type { ClosingsRoster } from './closingsRoster';
-import { bilanFacetParams } from './bilanView';
+import { BILAN_VIEW } from './bilanView';
 import { PARCOURS_BUCKETS, parcoursLabel } from './enrolmentHistory';
 import { facetTally, type InscritRow } from './inscritsRoster';
 import { FACET_NONE, type FacetCount } from './listFacets';
-import {
-  INSCRITS_NONE,
-  inscritsFacetParams,
-  inscritsSortParams,
-} from './inscritsView';
+import { INSCRITS_NONE, INSCRITS_VIEW } from './inscritsView';
 
 /**
  * The event home's figures (#443): nine cards over the rosters the event's own
@@ -181,7 +177,7 @@ function facetRing(
     count,
     share: shareOf(count, total),
     tone,
-    link: inscrits(inscritsFacetParams(facet, values)),
+    link: inscrits(INSCRITS_VIEW.facetParams(facet, values)),
   });
 
   // The fold only when it spares two parts or more: « Autres » standing for a
@@ -231,7 +227,7 @@ function facetBars(
     count: v.count,
     share: shareOf(v.count, rows.length),
     widthPct: longest > 0 ? Math.round((v.count / longest) * 100) : 0,
-    link: inscrits(inscritsFacetParams(facet, [v.value])),
+    link: inscrits(INSCRITS_VIEW.facetParams(facet, [v.value])),
   }));
 }
 
@@ -273,7 +269,7 @@ function closingsFigures(roster: ClosingsRoster): HomeClosings {
       tone: STATUS_TONE[status],
       link: {
         surface: 'closings',
-        params: closingsFacetParams('statut', [status]),
+        params: CLOSINGS_VIEW.facetParams('statut', [status]),
       },
     }));
 
@@ -288,7 +284,7 @@ function closingsFigures(roster: ClosingsRoster): HomeClosings {
     tone: VERDICT_TONE[CLOSING_RECOMMENDATIONS[r].tone],
     link: {
       surface: 'closings',
-      params: closingsFacetParams('avis', [r]),
+      params: CLOSINGS_VIEW.facetParams('avis', [r]),
     },
   }));
   // A closing finalised without a verdict still belongs to the whole the ring
@@ -306,8 +302,8 @@ function closingsFigures(roster: ClosingsRoster): HomeClosings {
       link: {
         surface: 'closings',
         params: {
-          ...closingsFacetParams('statut', ['done']),
-          ...closingsFacetParams('avis', [FACET_NONE]),
+          ...CLOSINGS_VIEW.facetParams('statut', ['done']),
+          ...CLOSINGS_VIEW.facetParams('avis', [FACET_NONE]),
         },
       },
     });
@@ -342,7 +338,7 @@ function feedbackFigures(feedback: EventHomeInput['feedback']): HomeFeedback {
       tone: ACCENTS[rank] ?? 'lavender',
       link: {
         surface: 'bilan',
-        params: bilanFacetParams('reco', [option.id]),
+        params: BILAN_VIEW.facetParams('reco', [option.id]),
       },
     }));
 
@@ -391,6 +387,8 @@ export function eventHomeFigures(input: EventHomeInput): EventHomeFigures {
 /** Where the cards' « Voir… » buttons go. */
 export const HOME_LINKS = {
   allInscrits: inscrits({}),
-  returning: inscrits(inscritsFacetParams('parcours', RETURNING_PARCOURS)),
-  byXp: inscrits(inscritsSortParams('xp', 'desc')),
+  returning: inscrits(
+    INSCRITS_VIEW.facetParams('parcours', RETURNING_PARCOURS),
+  ),
+  byXp: inscrits(INSCRITS_VIEW.sortParams('xp', 'desc')),
 } satisfies Record<string, HomeLink>;

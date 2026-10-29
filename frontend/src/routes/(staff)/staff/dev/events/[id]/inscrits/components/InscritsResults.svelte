@@ -40,12 +40,9 @@
   import { parcoursLabel } from '$lib/domain/enrolmentHistory';
   import {
     INSCRITS_SORT_DEFAULT_DIR,
-    inscritsClearedFacetParams,
-    inscritsFacetParams,
-    inscritsSortParams,
-    parseInscritsView,
     type InscritsFacet,
     type InscritsSortKey,
+    INSCRITS_VIEW,
   } from '$lib/domain/inscritsView';
   import {
     RULES_STATUS_LABELS,
@@ -141,7 +138,7 @@
     ready: { icon: Check, tone: 'success' },
   };
 
-  const view = $derived(parseInscritsView(page.url.searchParams));
+  const view = $derived(INSCRITS_VIEW.parse(page.url.searchParams));
   const search = createUrlSearch();
 
   const facets = $derived(
@@ -152,7 +149,7 @@
   );
 
   function setFacet(facet: InscritsFacet, values: string[]) {
-    setListParams(inscritsFacetParams(facet, values));
+    setListParams(INSCRITS_VIEW.facetParams(facet, values));
   }
 
   // The header filter of a facet, or none when the event does not offer it or
@@ -208,7 +205,7 @@
       { key: view.sort, dir: view.dir },
       key,
     );
-    setListParams(inscritsSortParams(next.key, next.dir));
+    setListParams(INSCRITS_VIEW.sortParams(next.key, next.dir));
   }
 
   const chips = $derived<ActiveFilterChip[]>(
@@ -230,7 +227,7 @@
   // narrowed the list, not how it is ordered.
   function resetFilters() {
     search.clear();
-    setListParams({ ...inscritsClearedFacetParams(), q: '' });
+    setListParams({ ...INSCRITS_VIEW.clearedFacetParams(), q: '' });
   }
 
   function makeHaystack(r: InscritRow): string {

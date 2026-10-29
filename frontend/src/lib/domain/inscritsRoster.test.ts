@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseInscritsView } from '$lib/domain/inscritsView';
+import { INSCRITS_VIEW } from '$lib/domain/inscritsView';
 import { niveauLabel } from '$lib/domain/niveau';
 import {
   matchesFacets,
@@ -68,7 +68,7 @@ function kept(query: string, ctx: RosterContext = full): string[] {
   const facets = rosterFacets(
     cohort,
     ctx,
-    parseInscritsView(new URLSearchParams(query)),
+    INSCRITS_VIEW.parse(new URLSearchParams(query)),
   );
   return cohort.filter((r) => matchesFacets(r, facets)).map((r) => r.id);
 }
@@ -94,7 +94,7 @@ describe('the inscrits filters', () => {
   });
 
   it('counts each value over the whole cohort, whatever else is ticked', () => {
-    const view = parseInscritsView(new URLSearchParams('genre=homme'));
+    const view = INSCRITS_VIEW.parse(new URLSearchParams('genre=homme'));
     const niveau = facet(rosterFacets(cohort, full, view), 'niveau');
     expect(niveau?.options).toEqual([
       { value: '2nde', label: niveauLabel('2nde'), count: 2 },
@@ -107,7 +107,7 @@ describe('the inscrits filters', () => {
     const facets = rosterFacets(
       cohort,
       full,
-      parseInscritsView(new URLSearchParams()),
+      INSCRITS_VIEW.parse(new URLSearchParams()),
     );
     expect(facet(facets, 'genre')?.options.map((o) => o.value)).toEqual(
       ['homme', 'femme', 'aucun'].filter((v) => v !== 'aucun'),
@@ -129,7 +129,7 @@ describe('the inscrits filters', () => {
       row({ id: 'p', niveau: '2nde' }),
       row({ id: 'q', niveau: '2nde' }),
     ];
-    const view = parseInscritsView(new URLSearchParams('niveau=2nde'));
+    const view = INSCRITS_VIEW.parse(new URLSearchParams('niveau=2nde'));
     const niveau = facet(rosterFacets(sameLevel, full, view), 'niveau');
     expect(niveau?.options).toEqual([]);
     expect(niveau?.selected).toEqual([]);
@@ -140,7 +140,7 @@ describe('the inscrits filters', () => {
     const facets = rosterFacets(
       cohort,
       ctx,
-      parseInscritsView(new URLSearchParams()),
+      INSCRITS_VIEW.parse(new URLSearchParams()),
     );
     expect(facet(facets, 'statut')).toBeUndefined();
     expect(kept('statut=never_connected', ctx)).toEqual(['a', 'b', 'c', 'd']);

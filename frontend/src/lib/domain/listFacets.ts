@@ -151,25 +151,3 @@ export function byCount<R>(
     )
     .map(([value, { label }]) => [value, label]);
 }
-
-/** A facet's values off its param: comma-split, trimmed, deduplicated. */
-export function parseFacetValues(raw: string | null): string[] {
-  if (!raw) return [];
-  const values = raw
-    .split(',')
-    .map((v) => v.trim())
-    .filter(Boolean);
-  return [...new Set(values)];
-}
-
-/** The param a facet's selection writes; `''` drops it (`setListParams`). */
-export function facetParam(values: readonly string[]): string {
-  return [...new Set(values)].join(',');
-}
-
-/** The params that clear every listed facet, leaving sort and search. */
-export function clearedFacetParams(
-  facets: readonly string[],
-): Record<string, string> {
-  return Object.fromEntries(facets.map((facet) => [facet, '']));
-}

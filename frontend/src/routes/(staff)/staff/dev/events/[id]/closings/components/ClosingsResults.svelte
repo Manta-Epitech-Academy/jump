@@ -29,12 +29,9 @@
   } from '$lib/domain/closing';
   import {
     CLOSINGS_SORT_DEFAULT_DIR,
-    closingsClearedFacetParams,
-    closingsFacetParams,
-    closingsSortParams,
-    parseClosingsView,
     type ClosingsFacet,
     type ClosingsSortKey,
+    CLOSINGS_VIEW,
   } from '$lib/domain/closingsView';
   import {
     NOT_CONDUCTED_LABEL,
@@ -100,7 +97,7 @@
   };
   // Filters, sort and search live in the address (`$lib/domain/closingsView`),
   // so the event home's cards can open this list already filtered.
-  const view = $derived(parseClosingsView(page.url.searchParams));
+  const view = $derived(CLOSINGS_VIEW.parse(page.url.searchParams));
   const search = createUrlSearch();
 
   const facets = $derived(closingsFacets(rows, view));
@@ -109,7 +106,7 @@
   );
 
   function setFacet(facet: ClosingsFacet, values: string[]) {
-    setListParams(closingsFacetParams(facet, values));
+    setListParams(CLOSINGS_VIEW.facetParams(facet, values));
   }
 
   // The header filter of a facet, or none when it has a single value to offer.
@@ -156,7 +153,7 @@
       { key: view.sort, dir: view.dir },
       key,
     );
-    setListParams(closingsSortParams(next.key, next.dir));
+    setListParams(CLOSINGS_VIEW.sortParams(next.key, next.dir));
   }
 
   const chips = $derived<ActiveFilterChip[]>(
@@ -177,7 +174,7 @@
   // Clears the filters and the search, keeps the sort, as on Inscrits.
   function resetFilters() {
     search.clear();
-    setListParams({ ...closingsClearedFacetParams(), q: '' });
+    setListParams({ ...CLOSINGS_VIEW.clearedFacetParams(), q: '' });
   }
 
   const dateFmt = (d: Date | string | null) =>
