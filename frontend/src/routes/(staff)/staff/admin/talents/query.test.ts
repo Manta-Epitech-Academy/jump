@@ -47,7 +47,7 @@ describe('buildTalentWhere', () => {
       'niveau=2nde,1ere&statut=never&parent=pending',
     );
     expect(scopeWhere).toEqual({
-      AND: [{ niveau: { in: ['2nde', '1ere'] } }],
+      AND: [{ OR: [{ niveau: { in: ['2nde', '1ere'] } }] }],
     });
   });
 });

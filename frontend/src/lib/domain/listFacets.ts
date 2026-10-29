@@ -33,6 +33,9 @@ export type FacetCount = { value: string; label: string; count: number };
 /** The value of a row that has none (no lycée, no verdict, no answer...). */
 export const FACET_NONE = 'aucun';
 
+/** How a filter names `FACET_NONE` when nothing more specific fits. */
+export const FACET_NONE_LABEL = 'Non renseigné';
+
 /** A facet as a list declares it. */
 export type FacetDef<R> = {
   /** The column's label, and the chip's "Clé :". */

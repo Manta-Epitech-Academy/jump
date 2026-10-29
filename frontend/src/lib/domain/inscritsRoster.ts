@@ -14,6 +14,7 @@ import {
 import {
   byCount,
   countFacet,
+  FACET_NONE_LABEL,
   listFacets,
   matchesListFacets,
   type FacetCount,
@@ -110,7 +111,7 @@ type InscritsFacetDef = FacetDef<InscritRow> & {
   available: (ctx: RosterContext) => boolean;
 };
 
-const NOT_FILLED: [string, string] = [INSCRITS_NONE, 'Non renseigné'];
+const NOT_FILLED: [string, string] = [INSCRITS_NONE, FACET_NONE_LABEL];
 
 const FACETS: Record<InscritsFacet, InscritsFacetDef> = {
   genre: {

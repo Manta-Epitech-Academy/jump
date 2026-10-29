@@ -1,6 +1,8 @@
 import { prisma } from '$lib/server/db';
-import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
+import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
 import {
+  FACET_NONE,
+  FACET_NONE_LABEL,
   offerFacets,
   type CountedFacet,
   type FacetCount,
@@ -64,11 +66,23 @@ export async function talentFacetCounts(): Promise<
     {
       facet: 'niveau',
       title: 'Niveau',
-      counts: NIVEAUX.map((n) => ({
-        value: n,
-        label: niveauLabel(n),
-        count: byNiveau.get(n) ?? 0,
-      })),
+      // Every niveau the directory holds, in school order, a value not yet
+      // normalised to the catalogue included, as on Inscrits.
+      counts: [
+        ...[...byNiveau.keys()]
+          .flatMap((n) => (n === null ? [] : [n]))
+          .sort(compareNiveaux)
+          .map((n) => ({
+            value: n,
+            label: niveauLabel(n),
+            count: byNiveau.get(n) ?? 0,
+          })),
+        {
+          value: FACET_NONE,
+          label: FACET_NONE_LABEL,
+          count: byNiveau.get(null) ?? 0,
+        },
+      ],
     },
     {
       facet: 'campus',

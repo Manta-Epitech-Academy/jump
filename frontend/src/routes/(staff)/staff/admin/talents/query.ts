@@ -22,7 +22,7 @@ import { isParentDossierComplete } from '$lib/domain/dossierCompliance';
 import type { TalentAccountStatus, ParentCompletionStatus } from './labels';
 import type { TalentFilters, TalentsFacet, TalentsSortKey } from './view';
 import type { SortDir } from '$lib/domain/listView';
-import type { ListFacet } from '$lib/domain/listFacets';
+import { FACET_NONE, type ListFacet } from '$lib/domain/listFacets';
 import { guardiansOf } from '$lib/domain/contact';
 import {
   everyTokenMatches,
@@ -130,7 +130,16 @@ export function buildTalentWhere(f: TalentFilters): {
   const scope: Prisma.TalentWhereInput[] = [];
 
   scope.push(...everyTokenMatches(f.q, talentIdentityMatches));
-  if (niveau.length) scope.push({ niveau: { in: niveau } });
+  // `aucun` keeps the talents whose niveau is not filled in.
+  if (niveau.length) {
+    const known = niveau.filter((n) => n !== FACET_NONE);
+    scope.push({
+      OR: [
+        ...(known.length ? [{ niveau: { in: known } }] : []),
+        ...(niveau.includes(FACET_NONE) ? [{ niveau: null }] : []),
+      ],
+    });
+  }
 
   // A talent's campus isn't a column: `some` matches any campus they've
   // attended, the useful net for "anyone tied to campus X".
