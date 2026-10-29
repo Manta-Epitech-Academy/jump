@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { defineListView } from './listView';
+import { defineListChoice, defineListView } from './listView';
 
 /**
  * A list's address is a contract with whoever writes it: the page's own
@@ -109,5 +109,23 @@ describe('a list view without a sort', () => {
       written(UNSORTED.facetParams('canal', ['mail']), { sort: 'nom' }),
     );
     expect(view).toEqual({ facets: { canal: ['mail'], statut: [] } });
+  });
+});
+
+describe('a choice the page owns outside its columns', () => {
+  const PERIOD = defineListChoice(
+    'periode',
+    ['upcoming', 'ongoing', 'all'] as const,
+    'upcoming',
+  );
+
+  it('reads the bare address, and an unknown value, as its default', () => {
+    expect(PERIOD.parse(new URLSearchParams())).toBe('upcoming');
+    expect(PERIOD.parse(new URLSearchParams('periode=hier'))).toBe('upcoming');
+  });
+
+  it('writes nothing for its default and reads back what it wrote', () => {
+    expect(written(PERIOD.params('upcoming')).toString()).toBe('');
+    expect(PERIOD.parse(written(PERIOD.params('ongoing')))).toBe('ongoing');
   });
 });

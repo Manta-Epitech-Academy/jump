@@ -122,6 +122,39 @@ export function defineListView<F extends string, S extends string>(spec: {
   };
 }
 
+/**
+ * One choice a page owns outside its columns, a KPI tile pressed for instance:
+ * one param, one value of a known set, read back as the default when absent or
+ * unknown, and written as nothing when it is the default, like the rest of the
+ * view.
+ */
+export type ListChoice<V extends string> = {
+  param: string;
+  values: readonly V[];
+  defaultValue: V;
+  parse: (params: URLSearchParams) => V;
+  params: (value: V) => Record<string, string>;
+};
+
+export function defineListChoice<V extends string>(
+  param: string,
+  values: readonly V[],
+  defaultValue: NoInfer<V>,
+): ListChoice<V> {
+  const isValue = (raw: string | null): raw is V =>
+    raw !== null && (values as readonly string[]).includes(raw);
+  return {
+    param,
+    values,
+    defaultValue,
+    parse: (params) => {
+      const raw = params.get(param);
+      return isValue(raw) ? raw : defaultValue;
+    },
+    params: (value) => ({ [param]: value === defaultValue ? '' : value }),
+  };
+}
+
 /** A facet's values off its param: comma-split, trimmed, deduplicated. */
 function parseFacetValues(raw: string | null): string[] {
   if (!raw) return [];
