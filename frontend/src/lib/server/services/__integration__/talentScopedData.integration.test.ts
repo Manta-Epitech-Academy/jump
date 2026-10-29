@@ -201,7 +201,7 @@ const ERASURE: Policy = {
     },
     Participation: {
       fate: 'keep',
-      why: 'De-identified enrolment once the name is gone; it backs eventsCount and every cohort figure.',
+      why: 'De-identified enrolment once the name is gone; it backs eventsCount and every cohort figure. Kept on an event that has started, as this one has; one on an event yet to start is a plan and goes (erasedContact.integration.test.ts).',
     },
     EventPresence: {
       fate: 'keep',

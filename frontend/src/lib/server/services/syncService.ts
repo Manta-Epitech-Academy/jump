@@ -821,9 +821,13 @@ export async function syncParticipations(
  * only while Salesforce still reports the campaign empty.
  *
  * The enrolments of a talent erased at their request are never pruned. The
- * erasure keeps them as de-identified activity, and the person can never be
- * imported again (`Sync_ErasedContact`), so their absence from a roster
- * proves nothing. An erasure by the inactivity sweep is not one of them: it
+ * erasure keeps them as de-identified activity, only on events that had
+ * started (it deletes the others), and the person is not imported again
+ * (`Sync_ErasedContact`), so their absence from a roster proves nothing.
+ * Unless an admin readmits them: the new talent is then enrolled beside the
+ * de-identified one on those events, and both stay, since nothing ties the
+ * two together any more. Accepted, being one row per started event for a
+ * person who asked to be erased and then to come back. An erasure by the inactivity sweep is not one of them: it
  * bars nothing, since a talent who enrols again is the return Jump exists for,
  * and the sweep also takes a talent who simply never logged in, often while
  * still enrolled. Re-imported as a new talent with a new enrolment, the person

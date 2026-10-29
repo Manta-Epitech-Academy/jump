@@ -10,6 +10,8 @@
  * What each test pins:
  *  - a fulfilled request bars the contact from the talents push, and nothing of
  *    it is written, not even a `Sync_Error`;
+ *  - the erasure keeps the enrolment on an event that has started and deletes
+ *    the one on an event yet to start;
  *  - a full roster carrying the erased contact still proves its deletions, and
  *    the erased talent's kept enrolment is not pruned;
  *  - readmitting the contact lets the next push import them from scratch, and
@@ -43,6 +45,7 @@ describe('a talent erased at their request (integration)', () => {
   const stamp = Date.now();
   const campusExternalName = `TEST_ERASED_${stamp}`;
   const eventExternalId = `test_erased_event_${stamp}`;
+  const upcomingEventExternalId = `test_erased_upcoming_${stamp}`;
 
   const erasedContact = {
     external_id: `test_erased_${stamp}`,
@@ -96,6 +99,13 @@ describe('a talent erased at their request (integration)', () => {
         end_date: null,
         campus_ext_name: campusExternalName,
       },
+      {
+        external_id: upcomingEventExternalId,
+        title: `Stage à venir ${stamp}`,
+        start_date: `${new Date().getFullYear() + 1}-07-08`,
+        end_date: null,
+        campus_ext_name: campusExternalName,
+      },
     ]);
     await syncTalents(contacts);
     await syncParticipations(
@@ -105,6 +115,11 @@ describe('a talent erased at their request (integration)', () => {
         [stayingContact.external_id]: 'Met',
       },
       'full',
+    );
+    await syncParticipations(
+      upcomingEventExternalId,
+      { [erasedContact.external_id]: 'Met' },
+      'incremental',
     );
 
     erasedTalentId = (
@@ -150,7 +165,11 @@ describe('a talent erased at their request (integration)', () => {
           },
         },
       });
-      await prisma.event.deleteMany({ where: { externalId: eventExternalId } });
+      await prisma.event.deleteMany({
+        where: {
+          externalId: { in: [eventExternalId, upcomingEventExternalId] },
+        },
+      });
       await prisma.campus.deleteMany({ where: { id: campusId } });
     } catch {
       // ignore: the test database is disposable
@@ -192,6 +211,17 @@ describe('a talent erased at their request (integration)', () => {
         where: { externalId: erasedContact.external_id },
       }),
     ).toBe(0);
+  });
+
+  it('deletes the enrolment on an event yet to start, not on one that has', async () => {
+    // An enrolment on an event to come is a plan: kept, it would sit on that
+    // roster and its émargement list as an « Anonymisé » nobody will be.
+    const enrolled = (externalId: string) =>
+      prisma.participation.count({
+        where: { talentId: erasedTalentId, event: { externalId } },
+      });
+    expect(await enrolled(upcomingEventExternalId)).toBe(0);
+    expect(await enrolled(eventExternalId)).toBe(1);
   });
 
   it('counts the erased member as resolved, so a full roster still prunes', async () => {

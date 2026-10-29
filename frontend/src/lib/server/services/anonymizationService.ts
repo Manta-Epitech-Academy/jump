@@ -26,8 +26,9 @@ import { clearSignInStreak } from '$lib/server/services/signInStreak';
  * règlement parent / droit à l'image, each embeds the student's and guardian's
  * names and a signature) are deleted from object storage, not merely
  * dereferenced. We deliberately keep the de-identified behavioural telemetry
- * (participation, EventPresence, minigame attempts, the xp ledger, the CTFd
- * activity mirrors) so `xp`, `eventsCount` and aggregate stats survive the
+ * (participation on an event that has started, EventPresence, minigame
+ * attempts, the xp ledger, the CTFd activity mirrors) so `xp`, `eventsCount`
+ * and aggregate stats survive the
  * erasure, and with them the talent's `firstLoginAt` / `lastActiveAt`: the
  * retention figures read them (the "connected" count of the cohort profile, the
  * population of feature usage), and with the name gone they identify nobody.
@@ -154,6 +155,10 @@ export async function anonymizeTalent(
   //    eventPresence, minigameAttempt, xpGrant, workshop_Participation): once
   //    the name is gone those are de-identified activity backing xp /
   //    eventsCount and aggregate stats.
+  //      - participation, on an event that has not started: an enrolment there
+  //        is a plan, not activity, and kept it would sit on the roster and
+  //        the émargement list as an « Anonymisé » nobody will be. The ones on
+  //        an event that has started are the activity kept above.
   //      - talentSfImport / talentInterest / imageRightsDecisionRecord: the SF
   //        mirror, interest selections, and the image-rights ledger (the ledger
   //        embeds the guardian's typed signer name).
@@ -179,6 +184,9 @@ export async function anonymizeTalent(
   //      - broadcastRecipient: the talent's and the parent's email / phone per
   //        send, matched on both slots (SetNull relations, so deleted here, not
   //        left orphaned). The parent is a data subject too.
+  await tx.participation.deleteMany({
+    where: { talentId, event: { date: { gt: new Date() } } },
+  });
   await tx.talentSfImport.deleteMany({ where: { talentId } });
   await tx.talentInterest.deleteMany({ where: { talentId } });
   await tx.schooling_YearRecord.deleteMany({ where: { talentId } });
