@@ -20,7 +20,7 @@
  */
 
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { SEED_ID_PREFIX } from './ids';
+import { SEED_ID_PREFIX, SEED_SALESFORCE_ID_PREFIX } from './ids';
 import { loadDatamodel } from './schema';
 
 /**
@@ -353,7 +353,9 @@ export async function wipe(
     prisma.adminFile.deleteMany({ where: { id: seeded } }),
   );
   await drop('sync_ErasedContact', () =>
-    prisma.sync_ErasedContact.deleteMany({ where: { externalId: seeded } }),
+    prisma.sync_ErasedContact.deleteMany({
+      where: { externalId: { startsWith: SEED_SALESFORCE_ID_PREFIX } },
+    }),
   );
   await drop('sync_Run', () =>
     prisma.sync_Run.deleteMany({ where: { id: seeded } }),
