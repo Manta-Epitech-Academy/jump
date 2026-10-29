@@ -79,3 +79,35 @@ export function emptyCohortLine(plural: string): string {
 
 /** The closings tally of an event before anyone has led one. */
 export const FIRST_PLACE_LINE = 'La première place est à prendre.';
+
+/**
+ * The banner of an event's last closing, read once by whoever finalises it: the
+ * end of a series is worth more than « done ». `total` is the number of
+ * closings the event had, when the close action counted it.
+ */
+export function lastClosingLine(total: number | null): string {
+  if (total === 1)
+    return "C'était le seul closing de l'événement. Belle session !";
+  if (total)
+    return `C'était le dernier : les ${total} closings de l'événement sont finalisés. Belle session !`;
+  return "C'était le dernier closing de l'événement. Belle session !";
+}
+
+/** The closings synthesis once every closing of the event is finalised. */
+export const ALL_CLOSINGS_DONE_LINE =
+  "Tous les closings de l'événement sont finalisés. Belle session !";
+
+const ALL_PRESENT_LINES = [
+  'Au complet. Ça fait plaisir.',
+  "Tout le monde est là, personne n'a séché.",
+  'Salle comble sur ce créneau.',
+] as const;
+
+/**
+ * A créneau where every listed talent is marked present or late. Keyed by the
+ * créneau, so its line holds while the appel goes on and the next créneau gets
+ * another.
+ */
+export function allPresentLine(slotKey: string): string {
+  return pickLine(ALL_PRESENT_LINES, slotKey);
+}

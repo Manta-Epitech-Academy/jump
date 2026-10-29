@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { ALL_CLOSINGS_DONE_LINE } from '$lib/domain/devVoice';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import CheckCheck from '@lucide/svelte/icons/check-check';
   import * as Card from '$lib/components/ui/card';
@@ -98,7 +99,7 @@
     {#if allDone}
       <p class="flex items-center gap-1.5 text-xs font-medium text-foreground">
         <CheckCheck class="h-4 w-4 shrink-0 text-epi-tech-ink" />
-        Tous les closings de l'événement sont finalisés.
+        {ALL_CLOSINGS_DONE_LINE}
       </p>
     {/if}
 

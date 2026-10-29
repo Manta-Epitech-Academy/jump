@@ -662,6 +662,7 @@
              full width there), folding to a sticky single column at xl. -->
           <SlotStatsCard
             slotLabel={slotLabelFr(activeSlot.slot)}
+            slotKey={`${activeSlot.day}:${activeSlot.slot}`}
             stats={activeStats}
             closed={isActiveClosed}
             stageRate={attendanceRate}

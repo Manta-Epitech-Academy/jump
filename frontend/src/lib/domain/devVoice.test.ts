@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { greetingFor, pickLine } from './devVoice';
+import { greetingFor, lastClosingLine, pickLine } from './devVoice';
 import { campusClock } from './planningTime';
 import { firstNameOf } from './profile';
 
@@ -102,5 +102,22 @@ describe('pickLine', () => {
       ),
     );
     expect(picked).toEqual(new Set(lines));
+  });
+});
+
+describe('lastClosingLine', () => {
+  it('says how many closings the event had, or that it had only one', () => {
+    expect(lastClosingLine(14)).toBe(
+      "C'était le dernier : les 14 closings de l'événement sont finalisés. Belle session !",
+    );
+    expect(lastClosingLine(1)).toBe(
+      "C'était le seul closing de l'événement. Belle session !",
+    );
+  });
+
+  it('still closes the series when the count did not come back', () => {
+    expect(lastClosingLine(null)).toBe(
+      "C'était le dernier closing de l'événement. Belle session !",
+    );
   });
 });

@@ -46,6 +46,7 @@
   import Laugh from '@lucide/svelte/icons/laugh';
   import type { ClosingStatus } from '@prisma/client';
   import { Button } from '$lib/components/ui/button';
+  import { lastClosingLine } from '$lib/domain/devVoice';
   import { Textarea } from '$lib/components/ui/textarea';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -196,6 +197,9 @@
   // How many of the event's closings remain once this one is finalised, as the
   // close action counts them; null until then, or if the answer carries none.
   let remaining = $state<number | null>(null);
+  // How many closings the event has, from the same count: the last one's
+  // banner says it.
+  let total = $state<number | null>(null);
   const remainingHref = $derived(
     `${closingsHref}?${new URLSearchParams(
       closingsFacetParams('statut', ['todo', 'in_progress']),
@@ -258,6 +262,8 @@
             justFinalised = true;
             const left = result.data?.remaining;
             remaining = typeof left === 'number' ? left : null;
+            const all = result.data?.total;
+            total = typeof all === 'number' ? all : null;
             toast.success('Closing finalisé.');
           }
         } else if (result.type === 'failure' || result.type === 'error') {
@@ -840,7 +846,7 @@
                      left on the event, or that this was the last one. -->
                 {#if remaining === 0}
                   <p class="text-muted-foreground">
-                    C'était le dernier closing de l'événement.
+                    {lastClosingLine(total)}
                   </p>
                 {:else if remaining !== null}
                   <p class="text-muted-foreground">
@@ -857,6 +863,18 @@
                   class="shrink-0"
                 >
                   Voir les closings à mener
+                  <ArrowRight />
+                </Button>
+              {:else if remaining === 0}
+                <!-- The list is where the series ends: its tally says who led
+                     how many. -->
+                <Button
+                  href={closingsHref}
+                  variant="outline"
+                  size="sm"
+                  class="shrink-0"
+                >
+                  Voir les closings
                   <ArrowRight />
                 </Button>
               {/if}

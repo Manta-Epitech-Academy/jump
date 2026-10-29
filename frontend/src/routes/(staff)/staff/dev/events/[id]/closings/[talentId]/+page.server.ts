@@ -324,10 +324,11 @@ async function persist(
   // through its view transition (cover ⇆ questions ⇆ synthèse). A clôture also
   // says how many of the event's closings remain, counted over the roster the
   // Closings page lists, so whoever is running a series goes on to the next one
-  // without going back to the list to count.
+  // without going back to the list to count. The total is how many there were,
+  // which the last one's banner says.
   if (mode === 'close') {
-    const { counts } = await loadClosingsRoster(db, event.id);
-    return { form, remaining: counts.todo + counts.in_progress };
+    const { counts, total } = await loadClosingsRoster(db, event.id);
+    return { form, remaining: counts.todo + counts.in_progress, total };
   }
   return { form };
 }
