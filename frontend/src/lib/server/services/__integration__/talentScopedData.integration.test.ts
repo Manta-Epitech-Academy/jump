@@ -81,6 +81,7 @@ type TalentColumn = { column: string; holds: Identity };
  * with. Added to whatever foreign key the walk found on the same table.
  * `Sync_Error` points at a talent for a login error, and names a nameless
  * contact by both, the second when that contact carries the talent's address.
+ * `OtpAttempt`, the rate limiter's ledger, names one by the address alone.
  *
  * `Sync_ErasedContact` names one by Salesforce id too, and is absent on
  * purpose: a row exists only once the talent is erased, never for the live
@@ -93,6 +94,7 @@ const BY_OTHER_IDENTITY: Record<string, readonly TalentColumn[]> = {
     { column: 'externalId', holds: 'externalId' },
     { column: 'email', holds: 'email' },
   ],
+  OtpAttempt: [{ column: 'email', holds: 'email' }],
 };
 
 type Policy = {
@@ -230,6 +232,10 @@ const ERASURE: Policy = {
     Sync_Error: {
       fate: 'delete',
       why: 'What the sync could not do for this person: a login error on the talent, or a nameless contact logged with its name and address.',
+    },
+    OtpAttempt: {
+      fate: 'delete',
+      why: "The rate limiter's ledger holds the login address, for a day after a change of parent 1's address.",
     },
   },
   talent: [
@@ -374,6 +380,10 @@ const RESET: Policy = {
       fate: 'keep',
       why: 'An operations record about the Salesforce contact, which the reset keeps and the next pass settles.',
     },
+    OtpAttempt: {
+      fate: 'keep',
+      why: 'The reset keeps the login, and the limiter budget spent on it runs out with its own window.',
+    },
   },
   talent: [
     {
@@ -506,6 +516,10 @@ const MERGE: Policy = {
     Sync_Error: {
       fate: 'delete',
       why: "What the sync met for the absorbed record: the pass that merges settles the survivor's.",
+    },
+    OtpAttempt: {
+      fate: 'keep',
+      why: 'Keyed by an address, not a talent: the budget spent on it runs out with its own window, whichever record the address ends on.',
     },
   },
   owns: {
@@ -866,6 +880,9 @@ describe('what erasure, reset and merge do to every talent table (integration)',
           email,
         },
       ],
+    });
+    await prisma.otpAttempt.create({
+      data: { bucket: 'parent_welcome', email },
     });
     await prisma.authIdentityRepair.create({
       data: {
@@ -1277,6 +1294,9 @@ describe('what erasure, reset and merge do to every talent table (integration)',
     const seededRuns = [erasure?.seeded, reset?.seeded, merge?.seeded].filter(
       (seeded) => seeded !== undefined,
     );
+    await prisma.otpAttempt.deleteMany({
+      where: { email: { in: seededRuns.map((r) => r.email) } },
+    });
     // Login errors go with the talents (cascade); the contacts' do not.
     await prisma.sync_Error.deleteMany({
       where: {

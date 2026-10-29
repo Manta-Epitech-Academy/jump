@@ -241,6 +241,15 @@ export async function anonymizeTalent(
     },
   });
 
+  // OtpAttempt: the rate limiter's ledger, keyed by address. The talent's own
+  // login address sits there for a day after they change parent 1's address
+  // (`parent_welcome`), and for minutes after a code request.
+  if (talent.user?.email) {
+    await tx.otpAttempt.deleteMany({
+      where: { email: { equals: talent.user.email, mode: 'insensitive' } },
+    });
+  }
+
   // Scrub residual PII fields in operational audit logs for this talent:
   //   - AuthIdentityRepair: retains fromEmail/toEmail; replace with anonymized placeholders.
   //   - TalentDeletionRequest: retains reason and resolutionNote; set both to null.
@@ -293,6 +302,9 @@ export async function anonymizeTalent(
     });
     await tx.bauth_session.deleteMany({ where: { userId: orphan.id } });
     await tx.bauth_account.deleteMany({ where: { userId: orphan.id } });
+    await tx.otpAttempt.deleteMany({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
   }
 
   // The column scrub above only removes the app's *path* to the generated PDFs;
