@@ -28,8 +28,13 @@ function expireSessionCache(redirectUrl: string): Response {
 
 // BetterAuth handles the OAuth exchange via /api/auth/callback/microsoft, and
 // asks the staff door (`auth/staffDoor.ts`, wired as `validateUserInfo`) before
-// it writes anything. So whoever lands here was admitted already. This route
-// does not admit, it provisions:
+// it writes anything. So a user holding a Microsoft account was admitted
+// already, and only such a user is provisioned here. Not every session that
+// lands here is one: the route is public to the guards, so a talent or a
+// guardian signed in on the OTP door reaches it with a GET, a cross-site link
+// included, and would be made staff on an invitation naming their address,
+// which is the clash the door refuses (security audit run-1). This route does
+// not admit, it provisions:
 // 1. Consumes a StaffInvitation matching the email (if any) to provision
 //    campus + role on the StaffProfile.
 // 2. Brings `bauth_user.role` back in line with a provisioned profile.
@@ -42,6 +47,13 @@ function expireSessionCache(redirectUrl: string): Response {
 export const GET: RequestHandler = async ({ locals, cookies }) => {
   if (!locals.user) {
     throw redirect(303, `${resolve('/staff/login')}?error=OAuthFailed`);
+  }
+
+  const linked = await prisma.bauth_account.count({
+    where: { userId: locals.user.id, providerId: 'microsoft' },
+  });
+  if (linked === 0) {
+    throw redirect(303, `${resolve('/staff/login')}?error=NotStaffAccount`);
   }
 
   const email = locals.user.email.toLowerCase();

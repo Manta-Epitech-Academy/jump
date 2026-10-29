@@ -225,7 +225,11 @@ created or linked the row and set the session cookie, and only because the
 client names it as `callbackURL`. A `sign-in/social` naming `/` kept the session
 and the link (security audit run-1). Deciding first also means a refusal leaves
 nothing to undo, which retired the release-or-delete logic the callback once
-needed. Do not move a refusal back into the callback. The suites sign in with
+needed. Do not move a refusal back into the callback. What it does check is
+that the session's user holds a Microsoft account, the proof the door ran:
+the route is public to the guards, so an OTP session reaches it with a GET
+and was provisioned from an invitation naming its address, the very clash
+the door refuses (`staffOAuthCallback.integration.test.ts`). The suites sign in with
 `callbackURL: '/'` on purpose, through `services/__integration__/microsoftSignIn.ts`:
 `staffDoor.integration.test.ts` asserts that a refusal leaves no session, no
 link and no new row, and the `Talent` row intact;
