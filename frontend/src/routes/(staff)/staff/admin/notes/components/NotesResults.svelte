@@ -141,7 +141,10 @@
     {/snippet}
   </DataTableToolbar>
 
-  {#if notes.length === 0 && !hasFilters}
+  <!-- The total, not this page's rows: a page past the last one (deleting the
+       only note on it lands there) is empty while notes exist, and must keep
+       its pagination rather than say there are none. -->
+  {#if totalItems === 0 && !hasFilters}
     <ResultsNotice
       icon={StickyNote}
       title="Aucune note"
