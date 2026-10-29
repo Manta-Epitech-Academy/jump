@@ -4,48 +4,45 @@
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import Search from '@lucide/svelte/icons/search';
-  import X from '@lucide/svelte/icons/x';
   import Layers from '@lucide/svelte/icons/layers';
   import Clock from '@lucide/svelte/icons/clock';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { enhance } from '$app/forms';
-  import { goto, invalidate } from '$app/navigation';
-  import { page } from '$app/state';
+  import { invalidate } from '$app/navigation';
   import {
-    resetListParams,
+    clearListFilters,
     setListParams,
   } from '$lib/components/staff/datatable/urlList';
+  import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  import type {
+    ActiveFilterChip,
+    ColumnDef,
+  } from '$lib/components/staff/datatable/types';
+  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
   import { Input } from '$lib/components/ui/input';
-  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import * as Table from '$lib/components/ui/table';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
-  import { cn, formatDateTimeFr } from '$lib/utils';
+  import { formatDateTimeFr } from '$lib/utils';
   import { toast } from 'svelte-sonner';
   import ExportMenu from './components/ExportMenu.svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import CodeTag from '$lib/components/layout/CodeTag.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import {
+    JOB_STATUS_FILTER,
+    ONBOARDING_DOCUMENT_LABELS,
+    ONBOARDING_PDFS_VIEW,
+  } from './view';
 
   let { data } = $props();
 
-  const documentTypeLabels: Record<string, string> = {
-    rules: 'Règlement intérieur',
-    charter: 'Charte',
-    'image-rights': "Droit à l'image",
-  };
-
-  const documentTypeFilterOptions = [
-    { value: 'all', label: 'Tous les documents' },
-    ...Object.entries(documentTypeLabels).map(([value, label]) => ({
-      value,
-      label,
-    })),
-  ];
+  type Job = (typeof data.jobs)[number];
 
   const statusLabels: Record<string, string> = {
     pending: 'En attente',
@@ -71,11 +68,6 @@
       data.countByStatus.processing +
       data.countByStatus.success +
       data.countByStatus.error,
-  );
-  const hasFilters = $derived(
-    data.filters.status !== 'all' ||
-      data.filters.type !== 'all' ||
-      data.filters.q !== '',
   );
 
   // Status tiles double as the primary filter: the summary you read and the
@@ -121,15 +113,64 @@
 
   const search = createUrlSearch();
 
+  // The Document filter sits in its column's header; its menu and what it
+  // keeps come from the load, counted over every job.
+  const controls = $derived(
+    facetControls(data.facets, (facet, values) =>
+      setListParams(ONBOARDING_PDFS_VIEW.facetParams(facet, values)),
+    ),
+  );
+
+  const columns = $derived<ColumnDef[]>([
+    { key: 'statut', label: 'Statut' },
+    { key: 'talent', label: 'Talent' },
+    {
+      key: 'document',
+      label: 'Document',
+      filter: controls.filterOf('document'),
+    },
+    { key: 'created', label: 'Créée' },
+    { key: 'processed', label: 'Traitée' },
+    { key: 'details', label: 'Détails' },
+    { key: 'action', label: 'Action', align: 'right' },
+  ]);
+
+  // The tile pressed, then the documents: what narrows the feed, in one line.
+  const chips = $derived<ActiveFilterChip[]>([
+    ...(data.status === JOB_STATUS_FILTER.defaultValue
+      ? []
+      : [
+          {
+            id: `statut:${data.status}`,
+            facet: 'Statut',
+            label: cards.find((c) => c.key === data.status)?.label ?? '',
+            onRemove: () =>
+              setListParams(
+                JOB_STATUS_FILTER.params(JOB_STATUS_FILTER.defaultValue),
+              ),
+          },
+        ]),
+    ...controls.chips,
+  ]);
+
+  const hasFilters = $derived(
+    chips.length > 0 || search.value.trim().length > 0,
+  );
+
+  // Clears the filters, the tile and the search.
   function clearFilters() {
-    search.clear();
-    resetListParams();
+    clearListFilters(
+      {
+        ...ONBOARDING_PDFS_VIEW.clearedFacetParams(),
+        ...JOB_STATUS_FILTER.params(JOB_STATUS_FILTER.defaultValue),
+      },
+      search,
+    );
   }
 
   // Live feed: jobs move pending → processing → success within seconds, so poll
   // this load's data (not the whole layout) while the tab is visible. Cheap
   // query; 5s keeps the queue feeling live without hammering the DB.
-  const th = 'font-mono text-xs font-normal uppercase tracking-wider';
   // Poll only while jobs are in flight: once the queue settles (inFlight === 0)
   // there is nothing to refresh, so an idle page stops hitting the DB every 5s.
   // The effect re-reads inFlight, so it re-arms automatically if a reload brings
@@ -235,8 +276,8 @@
         sub={card.caption}
         icon={card.Icon}
         tone={card.tone}
-        onclick={() => setListParams({ status: card.key })}
-        pressed={data.filters.status === card.key}
+        onclick={() => setListParams(JOB_STATUS_FILTER.params(card.key))}
+        pressed={data.status === card.key}
       />
     {/each}
   </div>
@@ -252,170 +293,129 @@
           </span>
         </Card.Title>
 
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="relative">
-            <Search
-              class="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-              type="search"
-              placeholder="Rechercher un talent…"
-              value={search.value}
-              oninput={(e) =>
-                (search.value = (e.currentTarget as HTMLInputElement).value)}
-              class="h-9 w-56 rounded-sm pl-8"
-            />
-          </div>
-
-          <FilterSelect
-            options={documentTypeFilterOptions}
-            value={data.filters.type}
-            onChange={(v) => setListParams({ type: v })}
-            ariaLabel="Filtrer par document"
-            triggerClass="text-xs"
+        <div class="relative">
+          <Search
+            class="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground"
           />
-
-          {#if hasFilters}
-            <Button
-              variant="ghost"
-              size="sm"
-              class="gap-1.5 text-muted-foreground"
-              onclick={clearFilters}
-            >
-              <X class="h-3.5 w-3.5" />
-              Réinitialiser
-            </Button>
-          {/if}
+          <Input
+            type="search"
+            placeholder="Rechercher un talent…"
+            value={search.value}
+            oninput={(e) =>
+              (search.value = (e.currentTarget as HTMLInputElement).value)}
+            class="h-9 w-56 rounded-sm pl-8"
+          />
         </div>
       </div>
+      <ActiveFilterChips {chips} onReset={clearFilters} />
     </Card.Header>
     <Card.Content>
-      <Table.Root>
-        <Table.Header>
-          <Table.Row>
-            <Table.Head class={th}>Statut</Table.Head>
-            <Table.Head class={th}>Talent</Table.Head>
-            <Table.Head class={th}>Document</Table.Head>
-            <Table.Head class={th}>Créée</Table.Head>
-            <Table.Head class={th}>Traitée</Table.Head>
-            <Table.Head class={th}>Détails</Table.Head>
-            <Table.Head class={cn(th, 'text-right')}>Action</Table.Head>
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {#each data.jobs as job (job.id)}
-            <Table.Row>
-              <Table.Cell>
-                <Badge
-                  variant={statusVariant(job.status)}
-                  class="gap-1 rounded-sm font-mono text-[0.7rem] tracking-wide uppercase"
+      <SortableTable {columns} rows={data.jobs} rowKey={(job: Job) => job.id}>
+        {#snippet row(job: Job)}
+          <Table.Cell>
+            <Badge
+              variant={statusVariant(job.status)}
+              class="gap-1 rounded-sm font-mono text-[0.7rem] tracking-wide uppercase"
+            >
+              {#if job.status === 'processing' && !job.retryable}
+                <LoaderCircle class="h-3 w-3 animate-spin" />
+              {/if}
+              {statusLabels[job.status] ?? job.status}
+            </Badge>
+          </Table.Cell>
+          <Table.Cell class="font-medium">
+            {job.talent?.name ?? '-'}
+          </Table.Cell>
+          <Table.Cell>
+            {ONBOARDING_DOCUMENT_LABELS[job.documentType] ?? job.documentType}
+          </Table.Cell>
+          <Table.Cell>{@render timeCell(job.createdAt)}</Table.Cell>
+          <Table.Cell>{@render timeCell(job.processedAt)}</Table.Cell>
+          <Table.Cell class="max-w-md">
+            {#if job.status === 'error' && job.errorMessage}
+              <span class="font-mono text-xs text-destructive">
+                {job.errorMessage}
+              </span>
+            {:else if job.status === 'success' && job.filePath}
+              <form
+                method="POST"
+                action="?/view"
+                class="inline"
+                use:enhance={() =>
+                  async ({ result }) => {
+                    if (result.type === 'success' && result.data?.url) {
+                      window.open(
+                        result.data.url as string,
+                        '_blank',
+                        'noopener',
+                      );
+                    } else {
+                      toast.error("Impossible d'ouvrir le PDF");
+                    }
+                  }}
+              >
+                <input type="hidden" name="id" value={job.id} />
+                <Button
+                  type="submit"
+                  variant="link"
+                  size="sm"
+                  class="h-auto gap-1.5 p-0 text-xs text-epi-blue"
                 >
-                  {#if job.status === 'processing' && !job.retryable}
-                    <LoaderCircle class="h-3 w-3 animate-spin" />
-                  {/if}
-                  {statusLabels[job.status] ?? job.status}
-                </Badge>
-              </Table.Cell>
-              <Table.Cell class="font-medium">
-                {job.talent?.name ?? '-'}
-              </Table.Cell>
-              <Table.Cell>
-                {documentTypeLabels[job.documentType] ?? job.documentType}
-              </Table.Cell>
-              <Table.Cell>{@render timeCell(job.createdAt)}</Table.Cell>
-              <Table.Cell>{@render timeCell(job.processedAt)}</Table.Cell>
-              <Table.Cell class="max-w-md">
-                {#if job.status === 'error' && job.errorMessage}
-                  <span class="font-mono text-xs text-destructive">
-                    {job.errorMessage}
-                  </span>
-                {:else if job.status === 'success' && job.filePath}
-                  <form
-                    method="POST"
-                    action="?/view"
-                    class="inline"
-                    use:enhance={() =>
-                      async ({ result }) => {
-                        if (result.type === 'success' && result.data?.url) {
-                          window.open(
-                            result.data.url as string,
-                            '_blank',
-                            'noopener',
-                          );
-                        } else {
-                          toast.error("Impossible d'ouvrir le PDF");
-                        }
-                      }}
-                  >
-                    <input type="hidden" name="id" value={job.id} />
-                    <Button
-                      type="submit"
-                      variant="link"
-                      size="sm"
-                      class="h-auto gap-1.5 p-0 text-xs text-epi-blue"
-                    >
-                      <ExternalLink class="h-3.5 w-3.5" />
-                      Voir le PDF
-                    </Button>
-                  </form>
-                {:else}
-                  <span class="text-xs text-muted-foreground">-</span>
-                {/if}
-              </Table.Cell>
-              <Table.Cell class="text-right">
-                {#if job.retryable}
-                  <form
-                    method="POST"
-                    action="?/retry"
-                    use:enhance={() =>
-                      async ({ result, update }) => {
-                        if (result.type === 'success') {
-                          toast.success('Génération relancée');
-                          await update();
-                        } else {
-                          toast.error('Une erreur est survenue');
-                        }
-                      }}
-                  >
-                    <input type="hidden" name="id" value={job.id} />
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="sm"
-                      class="gap-1.5"
-                    >
-                      <RotateCcw class="h-3.5 w-3.5" />
-                      Relancer
-                    </Button>
-                  </form>
-                {/if}
-              </Table.Cell>
-            </Table.Row>
-          {:else}
-            <Table.Row>
-              <Table.Cell colspan={7} class="py-12 text-center">
-                {#if hasFilters}
-                  <p class="font-mono text-xs text-muted-foreground">
-                    <CodeTag>Aucune tâche pour ce filtre</CodeTag>
-                  </p>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    class="mt-1 text-epi-blue"
-                    onclick={clearFilters}
-                  >
-                    Réinitialiser les filtres
-                  </Button>
-                {:else}
-                  <p class="font-mono text-xs text-muted-foreground">
-                    <CodeTag>Aucune tâche enregistrée</CodeTag>
-                  </p>
-                {/if}
-              </Table.Cell>
-            </Table.Row>
-          {/each}
-        </Table.Body>
-      </Table.Root>
+                  <ExternalLink class="h-3.5 w-3.5" />
+                  Voir le PDF
+                </Button>
+              </form>
+            {:else}
+              <span class="text-xs text-muted-foreground">-</span>
+            {/if}
+          </Table.Cell>
+          <Table.Cell class="text-right">
+            {#if job.retryable}
+              <form
+                method="POST"
+                action="?/retry"
+                use:enhance={() =>
+                  async ({ result, update }) => {
+                    if (result.type === 'success') {
+                      toast.success('Génération relancée');
+                      await update();
+                    } else {
+                      toast.error('Une erreur est survenue');
+                    }
+                  }}
+              >
+                <input type="hidden" name="id" value={job.id} />
+                <Button type="submit" variant="ghost" size="sm" class="gap-1.5">
+                  <RotateCcw class="h-3.5 w-3.5" />
+                  Relancer
+                </Button>
+              </form>
+            {/if}
+          </Table.Cell>
+        {/snippet}
+
+        {#snippet empty()}
+          <div class="py-12 text-center">
+            {#if hasFilters}
+              <p class="font-mono text-xs text-muted-foreground">
+                <CodeTag>Aucune tâche pour ce filtre</CodeTag>
+              </p>
+              <Button
+                variant="link"
+                size="sm"
+                class="mt-1 text-epi-blue"
+                onclick={clearFilters}
+              >
+                Réinitialiser les filtres
+              </Button>
+            {:else}
+              <p class="font-mono text-xs text-muted-foreground">
+                <CodeTag>Aucune tâche enregistrée</CodeTag>
+              </p>
+            {/if}
+          </div>
+        {/snippet}
+      </SortableTable>
     </Card.Content>
   </Card.Root>
 </div>

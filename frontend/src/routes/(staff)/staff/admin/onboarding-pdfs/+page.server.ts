@@ -14,18 +14,22 @@ import {
   onboardingDownloadFilename,
   isOnboardingDocumentType,
 } from '$lib/server/services/onboardingDocuments';
+import { offerFacets } from '$lib/domain/listFacets';
+import {
+  JOB_STATUS_FILTER,
+  ONBOARDING_DOCUMENT_LABELS,
+  ONBOARDING_PDFS_VIEW,
+  type JobStatusFilter,
+} from './view';
 
 type JobStatus = 'pending' | 'processing' | 'success' | 'error';
 
 const PAGE_SIZE = 100;
-const STATUS_FILTERS = ['all', 'active', 'success', 'error'] as const;
-type StatusFilter = (typeof STATUS_FILTERS)[number];
-const DOCUMENT_TYPES = ['rules', 'charter', 'image-rights'] as const;
 
 // `active` collapses the two transient states into the one the admin thinks of
 // as "in flight"; the others map 1:1 to a status.
 const STATUS_FILTER_WHERE: Record<
-  Exclude<StatusFilter, 'all'>,
+  Exclude<JobStatusFilter, 'all'>,
   Prisma.OnboardingPdfJobWhereInput['status']
 > = {
   active: { in: ['pending', 'processing'] },
@@ -38,20 +42,41 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
   // without re-running every load on the layout.
   depends('admin:onboarding-pdfs');
 
-  const status: StatusFilter = STATUS_FILTERS.includes(
-    url.searchParams.get('status') as StatusFilter,
-  )
-    ? (url.searchParams.get('status') as StatusFilter)
-    : 'all';
-  const typeParam = url.searchParams.get('type') ?? 'all';
-  const type = (DOCUMENT_TYPES as readonly string[]).includes(typeParam)
-    ? typeParam
-    : 'all';
+  const status = JOB_STATUS_FILTER.parse(url.searchParams);
+  const view = ONBOARDING_PDFS_VIEW.parse(url.searchParams);
   const q = (url.searchParams.get('q') ?? '').trim();
+
+  // The Document column's filter, counted over every job like every list
+  // counts its own, and offered through the rules every staff list follows: a
+  // document no job carries is neither listed nor kept.
+  const byDocument = await prisma.onboardingPdfJob.groupBy({
+    by: ['documentType'],
+    _count: { _all: true },
+  });
+  const counted = new Map(
+    byDocument.map((d) => [d.documentType, d._count._all]),
+  );
+  const facets = offerFacets(
+    [
+      {
+        facet: 'document' as const,
+        title: 'Document',
+        counts: Object.entries(ONBOARDING_DOCUMENT_LABELS).map(
+          ([value, label]) => ({
+            value,
+            label,
+            count: counted.get(value) ?? 0,
+          }),
+        ),
+      },
+    ],
+    view.facets,
+  );
+  const documents = facets[0].selected;
 
   const where: Prisma.OnboardingPdfJobWhereInput = {};
   if (status !== 'all') where.status = STATUS_FILTER_WHERE[status];
-  if (type !== 'all') where.documentType = type;
+  if (documents.length) where.documentType = { in: documents };
   if (q) where.talent = talentSearchWhere(q);
 
   const [jobs, counts, matchCount] = await Promise.all([
@@ -83,7 +108,8 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
   }
 
   return {
-    filters: { status, type, q },
+    status,
+    facets,
     errorCount: countByStatus.error,
     matchCount,
     // This admin's high-water mark, so the menu can offer "depuis le dernier
