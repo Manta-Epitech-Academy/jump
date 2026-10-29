@@ -10,6 +10,7 @@ type PathItem = Record<
   string,
   {
     operationId: string;
+    description: string;
     parameters?: { name: string; in: string }[];
     requestBody?: unknown;
   }
@@ -64,6 +65,33 @@ describe('the HTTP reference', () => {
     expect(kinds.length).toBeGreaterThan(0);
     expect(documented(document).map(({ name }) => name)).toContain(
       'stats_closing_testimonials',
+    );
+  });
+
+  // The admin reference page: somebody looks a call up there before minting
+  // the token for it, so it shows both kinds of core token's operations, and
+  // says on each one that only one kind is offered which kind it needs.
+  it('documents both kinds of core token at once, saying which one each operation needs', async () => {
+    const document = await buildOpenApiDocument({
+      tier: 'core',
+      writeEnabled: 'either',
+      origin,
+    });
+    const ops = documented(document);
+
+    expect(ops.map(({ name }) => name).sort()).toEqual(
+      (await httpOperations()).map((r) => r.name).sort(),
+    );
+    const description = (name: keyof typeof ADMIN_API_OPERATIONS) =>
+      ops.find((o) => o.name === name)?.op.description;
+    expect(description('stats_closing_testimonials')).toMatch(
+      /Not offered to a token allowed to write/,
+    );
+    expect(description('write_event_config')).toMatch(
+      /Needs a token allowed to write/,
+    );
+    expect(description('stats_events')).toBe(
+      ADMIN_API_OPERATIONS.stats_events.description,
     );
   });
 

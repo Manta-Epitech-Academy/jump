@@ -22,6 +22,8 @@ import { authenticateOrRefuse } from './guard';
 import { recordAdminApiCall, TRANSPORT_OPERATIONS } from './audit';
 import { httpOperations } from './httpCatalogue';
 import {
+  isOperationAllowedForCapability,
+  operationsForTier,
   operationsOfferedTo,
   type AdminApiOperation,
   type AdminApiTier,
@@ -139,16 +141,41 @@ function queryParameters(schema: JsonSchema) {
 }
 
 /**
+ * Why a token of the tier, with or without the write capability, may be
+ * refused an operation: the sentence the reference adds when it documents
+ * both kinds of token at once. Null when either kind is offered it.
+ */
+function capabilityNote(operation: AdminApiOperation): string | null {
+  if (!isOperationAllowedForCapability(operation, false))
+    return 'Needs a token allowed to write.';
+  if (!isOperationAllowedForCapability(operation, true))
+    return 'Not offered to a token allowed to write, since the answer carries text a talent typed, verbatim: call it with a read-only token.';
+  return null;
+}
+
+/**
  * The reference for one credential: only what it is offered, the rule MCP's
  * tool list follows, so a read-only token is never shown a write it would only
  * ever be refused.
+ *
+ * `writeEnabled: 'either'` documents the tier's tokens with and without the
+ * write capability together, each operation saying which of the two it needs
+ * when only one is offered it. That is the admin reference page: somebody
+ * looks a call up there before minting the token for it, so it has to show the
+ * writes a read-only token is not offered and the verbatim reads a token that
+ * writes is not.
  */
 export async function buildOpenApiDocument(credential: {
   tier: AdminApiTier;
-  writeEnabled: boolean;
+  writeEnabled: boolean | 'either';
   origin: string;
 }) {
-  const offered = new Map(operationsOfferedTo(credential));
+  const { tier, writeEnabled } = credential;
+  const offered = new Map(
+    writeEnabled === 'either'
+      ? operationsForTier(tier)
+      : operationsOfferedTo({ tier, writeEnabled }),
+  );
   const components: Record<string, JsonSchema> = {};
   const paths: Record<string, Record<string, unknown>> = {};
 
@@ -175,7 +202,12 @@ export async function buildOpenApiDocument(credential: {
       [route.method.toLowerCase()]: {
         operationId: route.name,
         summary: route.name,
-        description: operation.description,
+        description: [
+          operation.description,
+          writeEnabled === 'either' ? capabilityNote(operation) : null,
+        ]
+          .filter(Boolean)
+          .join(' '),
         tags: [TAGS[group] ?? group],
         ...(route.method === 'GET'
           ? { parameters: queryParameters(schema) }
