@@ -10,24 +10,24 @@
   import { optionPolarity, type AnswerPolarity } from '$lib/domain/polarity';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import ActiveFilterChips, {
-    type ActiveFilterChip,
-  } from '$lib/components/staff/ActiveFilterChips.svelte';
+  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import { talentFicheHref } from '$lib/components/dev/talentFiche';
   import type { ColumnDef } from '$lib/components/staff/datatable/types';
-  import { setListParams } from '$lib/components/staff/datatable/urlList';
+  import {
+    clearListFilters,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { facetControls } from '$lib/components/staff/datatable/facetControls';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import {
     BILAN_SORT_DEFAULT_DIR,
-    type BilanFacet,
     type BilanSortKey,
     BILAN_VIEW,
   } from '$lib/domain/bilanView';
   import {
     bilanFacets,
     matchesBilanFacets,
-    type BilanFacetState,
     type BilanRow,
     type RecoOption,
   } from '$lib/domain/bilanRoster';
@@ -68,25 +68,11 @@
   );
 
   const facets = $derived(bilanFacets(rows, recoOptions, view));
-  const facetOf = $derived(
-    new Map<BilanFacet, BilanFacetState>(facets.map((f) => [f.facet, f])),
+  const controls = $derived(
+    facetControls(facets, (facet, values) =>
+      setListParams(BILAN_VIEW.facetParams(facet, values)),
+    ),
   );
-
-  function setFacet(facet: BilanFacet, values: string[]) {
-    setListParams(BILAN_VIEW.facetParams(facet, values));
-  }
-
-  // The header filter of a facet, or none when it has a single value to offer.
-  function filterOf(facet: BilanFacet): ColumnDef['filter'] {
-    const f = facetOf.get(facet);
-    return f && f.options.length > 0
-      ? {
-          options: f.options,
-          selected: f.selected,
-          onChange: (values) => setFacet(facet, values),
-        }
-      : undefined;
-  }
 
   // One control per column, as on Inscrits: the names and the date sort, the
   // recommendation and the response filter from their header.
@@ -104,13 +90,13 @@
         key: 'reco',
         label: 'Recommandation',
         class: 'w-48',
-        filter: filterOf('reco'),
+        filter: controls.filterOf('reco'),
       },
       {
         key: 'reponse',
         label: 'Réponse',
         class: 'w-36',
-        filter: filterOf('reponse'),
+        filter: controls.filterOf('reponse'),
       },
       { ...sortable('date'), label: 'Date', class: 'w-32' },
     ];
@@ -182,29 +168,13 @@
     return out;
   });
 
-  const chips = $derived<ActiveFilterChip[]>(
-    facets.flatMap((f) =>
-      f.selected.map((value) => ({
-        id: `${f.facet}:${value}`,
-        facet: f.title,
-        label: f.options.find((o) => o.value === value)?.label ?? value,
-        onRemove: () =>
-          setFacet(
-            f.facet,
-            f.selected.filter((v) => v !== value),
-          ),
-      })),
-    ),
-  );
-
   const anyFiltersApplied = $derived(
-    chips.length > 0 || search.value.trim() !== '',
+    controls.chips.length > 0 || search.value.trim() !== '',
   );
 
   // Clears the filters and the search, keeps the sort, as on Inscrits.
   function resetFilters() {
-    search.clear();
-    setListParams({ ...BILAN_VIEW.clearedFacetParams(), q: '' });
+    clearListFilters(BILAN_VIEW.clearedFacetParams(), search);
   }
 </script>
 
@@ -220,7 +190,7 @@
     filtersApplied={anyFiltersApplied}
   />
 
-  <ActiveFilterChips {chips} onReset={resetFilters} />
+  <ActiveFilterChips chips={controls.chips} onReset={resetFilters} />
 
   <SortableTable
     {columns}

@@ -1,20 +1,8 @@
-<script lang="ts" module>
-  /** One active filter value, as the row of chips above a list shows it. */
-  export type ActiveFilterChip = {
-    /** Unique across the row, e.g. `lycee:<id>`. */
-    id: string;
-    /** What is filtered, "Lycée". */
-    facet: string;
-    /** The value kept, "Lycée Pasteur". */
-    label: string;
-    onRemove: () => void;
-  };
-</script>
-
 <script lang="ts">
   import X from '@lucide/svelte/icons/x';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import { Button } from '$lib/components/ui/button';
+  import type { ActiveFilterChip } from './datatable/types';
 
   // Every filter value in force, each one removable, and one control that
   // clears them all. It sits between a list's toolbar and its table, so what

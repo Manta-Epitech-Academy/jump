@@ -9,10 +9,9 @@
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import ActiveFilterChips, {
-    type ActiveFilterChip,
-  } from '$lib/components/staff/ActiveFilterChips.svelte';
+  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
   import type {
+    ActiveFilterChip,
     ColumnDef,
     SortDir,
   } from '$lib/components/staff/datatable/types';

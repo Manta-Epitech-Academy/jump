@@ -14,6 +14,18 @@ export type ColumnFilter = {
   onChange: (values: string[]) => void;
 };
 
+/** One active filter value, as the row of chips above a list shows it
+ *  (`ActiveFilterChips`). */
+export type ActiveFilterChip = {
+  /** Unique across the row, e.g. `lycee:<id>`. */
+  id: string;
+  /** What is filtered, "Lycée". */
+  facet: string;
+  /** The value kept, "Lycée Pasteur". */
+  label: string;
+  onRemove: () => void;
+};
+
 /** A filter with the name it is listed under, for the menus that gather
  *  several (the mobile drawer, a toolbar's "Filtres"). */
 export type NamedFilter = { key: string; label: string; filter: ColumnFilter };
