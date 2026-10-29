@@ -26,7 +26,7 @@
 </svelte:head>
 
 <div class="space-y-7 pb-10">
-  <PageHeader title="Calendrier">
+  <PageHeader title={data.greeting} typeTitle subtitle="Calendrier">
     {#snippet actions()}
       {#if !data.calendar.empty}
         <div class="flex flex-wrap items-center gap-x-6 gap-y-3">

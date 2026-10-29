@@ -21,7 +21,6 @@
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { track, secondsBetween } from '$lib/analytics';
   import { fly, fade } from 'svelte/transition';
-  import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
@@ -41,6 +40,7 @@
   } from '$lib/domain/devWorkspace';
   import { eventDaysLabel, eventDisplayName } from '$lib/domain/event';
   import { schoolYearOf } from '$lib/domain/schoolYear';
+  import { getStaffRoleLabel } from '$lib/domain/staff';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import { provideSelectedEvent } from '$lib/components/dev/selectedEvent';
 
@@ -183,26 +183,6 @@
   }
 
   let mobileMenuOpen = $state(false);
-
-  const hour = new Date().getHours();
-  let baseGreeting = 'Bonjour';
-  if (hour >= 18) baseGreeting = 'Bonsoir';
-  if (hour < 5) baseGreeting = 'Bonne nuit';
-
-  let displayedGreeting = $state('');
-
-  onMount(() => {
-    let i = 0;
-    const speed = 75;
-    function typeWriter() {
-      if (i < baseGreeting.length) {
-        displayedGreeting += baseGreeting.charAt(i);
-        i++;
-        setTimeout(typeWriter, speed);
-      }
-    }
-    setTimeout(typeWriter, 500);
-  });
 
   $effect(() => {
     if (page.url.pathname) {
@@ -370,7 +350,7 @@
             <span
               class="epi-overline leading-tight text-chrome-foreground-muted"
             >
-              {displayedGreeting}<TitleCursor blink />
+              {getStaffRoleLabel(data.staffProfile?.staffRole)}
             </span>
           </div>
           <ChevronDown class="h-4 w-4 shrink-0 opacity-50" />
