@@ -18,7 +18,7 @@ import { syncTalents } from '$lib/server/services/syncService';
  *
  * The ENVELOPE is what is refused, never a row. A contact Salesforce sent with
  * no name is ordinary data, so it comes back counted in `invalid` and logged as
- * a `SyncError` for an admin, and the rest of the page is still reconciled. A
+ * a `Sync_Error` for an admin, and the rest of the page is still reconciled. A
  * 400 here closes the run in error and the watermark does not move, so refusing
  * the batch over one row means replaying it, identically, at every tick.
  */

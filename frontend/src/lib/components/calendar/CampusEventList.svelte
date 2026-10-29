@@ -20,7 +20,8 @@
     selectedId,
   }: {
     calendar: CampusCalendar;
-    hrefOf: (id: string) => string | null;
+    /** Where an event opens: its home. */
+    hrefOf: (id: string) => string;
     /** The event the menu names as selected, highlighted here too. */
     selectedId: string | null;
   } = $props();
@@ -44,8 +45,7 @@
           {@const href = hrefOf(event.id)}
           <div
             class={cn(
-              'relative grid min-h-17 w-full grid-cols-[4.5rem_minmax(0,1fr)_9.5rem_7rem_7rem_1.75rem] items-center gap-4 border-b px-5',
-              href && 'transition-colors hover:bg-accent',
+              'relative grid min-h-17 w-full grid-cols-[4.5rem_minmax(0,1fr)_9.5rem_7rem_7rem_1.75rem] items-center gap-4 border-b px-5 transition-colors hover:bg-accent',
               event.id === selectedId && 'bg-accent',
             )}
           >
@@ -61,17 +61,13 @@
             </span>
             <span class="flex min-w-0 flex-col gap-0.5">
               <span class="flex min-w-0 items-center gap-2">
-                <svelte:element
-                  this={href ? 'a' : 'span'}
+                <a
                   {href}
                   aria-current={event.id === selectedId ? 'true' : undefined}
-                  class={cn(
-                    'truncate text-base font-semibold',
-                    href && 'cursor-pointer after:absolute after:inset-0',
-                  )}
+                  class="cursor-pointer truncate text-base font-semibold after:absolute after:inset-0"
                 >
                   {event.name}
-                </svelte:element>
+                </a>
                 {#if event.campaign}
                   <Tooltip.Root>
                     <Tooltip.Trigger
@@ -100,9 +96,7 @@
               {enrolmentsLabel(event.shownEnrolments)}
             </span>
             <CalendarEventStatus {event} />
-            {#if href}
-              <ChevronRight class="size-4.5 text-muted-foreground" />
-            {/if}
+            <ChevronRight class="size-4.5 text-muted-foreground" />
           </div>
         {/each}
       {/each}

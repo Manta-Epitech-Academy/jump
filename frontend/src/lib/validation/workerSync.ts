@@ -44,14 +44,23 @@ export const workerEventsPayloadSchema = z.object({
 });
 
 export const workerTalentSchema = z.object({
+  /** The member's Salesforce `ContactId`, or its `LeadId` when it never became a Contact. */
   external_id: z.string().min(1),
+  /**
+   * Every Lead Salesforce converted into that Contact, by `ConvertedContactId`,
+   * empty for a Lead. `syncTalents` folds the talents those Leads became into
+   * the contact's (`claimSalesforcePerson`). Absent from a worker that predates
+   * it, which keyed a converted member on one of these Leads instead, and then
+   * nothing is merged.
+   */
+  converted_lead_ids: z.array(z.string().min(1)).optional(),
   /**
    * Deliberately not `.min(1)`, unlike `external_id` beside it, and the
    * asymmetry is the point. `Contact.FirstName` is optional in Salesforce, so an
    * empty one is ordinary data; refusing it here would refuse the whole page of
    * 50 that carried it, the run would close in error, the watermark would not
    * move and the next tick would replay the identical page. `syncTalents` skips
-   * the row and logs a `SyncError` instead. `external_id` is different: with no
+   * the row and logs a `Sync_Error` instead. `external_id` is different: with no
    * id there is nothing to key the row on and nothing to tell an admin to go
    * look at, so the envelope is the right place to refuse it.
    */

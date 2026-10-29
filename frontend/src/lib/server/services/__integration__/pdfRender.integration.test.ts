@@ -20,6 +20,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { renderPdf, renderPng } from '$lib/server/infra/documentRenderer';
 import { generateDiplomasPDF } from '../diplomaGenerator';
+import { renderBadgePreviewPng } from '../badgeGenerator';
 import { assertTestDatabase } from './testDatabase';
 
 /**
@@ -126,5 +127,25 @@ describe('the PDF renderer', () => {
 
     expect(Buffer.from(scripted).equals(Buffer.from(plain))).toBe(true);
     expect(Buffer.from(red).equals(Buffer.from(plain))).toBe(false);
+  }, 60_000);
+
+  it('cuts one badge out of the printed sheet, at the size it reports', async () => {
+    // The event home shows this before the sheet is printed, so it has to be
+    // the printed badge: the clip lands on the first cell of the A4 page, not
+    // its corner. Reported and actual dimensions must agree, the same scale
+    // trap the certificate preview fell into.
+    const { png, widthPx, heightPx } = await renderBadgePreviewPng({
+      prenom: 'Prénom',
+      nom: 'Nom',
+      imageRefused: false,
+    });
+    const bytes = Buffer.from(png);
+    expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+    expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([
+      widthPx,
+      heightPx,
+    ]);
+    // A badge is landscape (99 x 63.25 mm), a page is not.
+    expect(widthPx).toBeGreaterThan(heightPx);
   }, 60_000);
 });

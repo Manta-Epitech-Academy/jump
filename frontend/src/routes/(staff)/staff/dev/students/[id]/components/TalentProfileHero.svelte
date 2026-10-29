@@ -2,7 +2,6 @@
   import SalesforceLinkButton from '$lib/components/salesforce/SalesforceLinkButton.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
-  import { cn } from '$lib/utils';
   import { formatGivenName } from '$lib/domain/profile';
   import { niveauLabel } from '$lib/domain/niveau';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -113,17 +112,13 @@
 
     {#if externalId}
       <!-- Salesforce: a utility shortcut to the CRM, pushed to the far right of
-           the band, away from the XP. Solid white pill so it reads as clickable
-           against the saturated blue. -->
+           the band, away from the XP. The inverse button, so it reads as
+           clickable against the saturated blue. -->
       <SalesforceLinkButton
         {externalId}
-        kind="lead"
         label="Fiche Salesforce"
-        variant="default"
-        class={cn(
-          'w-full shrink-0 justify-center bg-card font-semibold text-epi-blue shadow-raised sm:order-4 sm:ml-auto sm:w-auto sm:self-start',
-          'hover:bg-white/90 hover:text-epi-blue hover:shadow-raised',
-        )}
+        variant="inverse"
+        class="w-full shrink-0 justify-center font-semibold sm:order-4 sm:ml-auto sm:w-auto sm:self-start"
       />
     {/if}
   </div>

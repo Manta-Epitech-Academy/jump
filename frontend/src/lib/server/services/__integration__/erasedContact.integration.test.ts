@@ -9,7 +9,7 @@
  *
  * What each test pins:
  *  - a fulfilled request bars the contact from the talents push, and nothing of
- *    it is written, not even a `SyncError`;
+ *    it is written, not even a `Sync_Error`;
  *  - a full roster carrying the erased contact still proves its deletions, and
  *    the erased talent's kept enrolment is not pruned;
  *  - readmitting the contact lets the next push import them from scratch;
@@ -160,10 +160,10 @@ describe('a talent erased at their request (integration)', () => {
         where: { sfEmail: erasedContact.email },
       }),
     ).toBe(0);
-    // A SyncError would store the id and the name the erasure removed.
+    // A `Sync_Error` would store the id and the name the erasure removed.
     expect(
-      await prisma.syncError.count({
-        where: { attemptedExtId: erasedContact.external_id },
+      await prisma.sync_Error.count({
+        where: { externalId: erasedContact.external_id },
       }),
     ).toBe(0);
   });
@@ -172,8 +172,8 @@ describe('a talent erased at their request (integration)', () => {
     const result = await syncTalents([{ ...erasedContact, first_name: '' }]);
     expect(result).toMatchObject({ invalid: 0, erased: 1 });
     expect(
-      await prisma.syncError.count({
-        where: { attemptedExtId: erasedContact.external_id },
+      await prisma.sync_Error.count({
+        where: { externalId: erasedContact.external_id },
       }),
     ).toBe(0);
   });
@@ -181,7 +181,7 @@ describe('a talent erased at their request (integration)', () => {
   it('counts the erased member as resolved, so a full roster still prunes', async () => {
     // The staying talent left the campaign: a complete roster proves it. Were
     // the erased member counted unresolved, the removal would be held forever,
-    // since there is no SyncError to fix for them.
+    // since there is no `Sync_Error` to fix for them.
     const result = await syncParticipations(
       eventExternalId,
       { [erasedContact.external_id]: 'Met' },

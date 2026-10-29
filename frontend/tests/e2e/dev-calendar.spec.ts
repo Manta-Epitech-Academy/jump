@@ -5,8 +5,8 @@
  * The year view is the default, and the seeded event runs today, so its day is
  * on the grid, named after the event, and opens a card with a button to the
  * event. Following it crosses the calendar's load (campus scoping, the
- * dev-visibility gate) and the event's own landing rule (`landingSurface`),
- * which is the seam no unit test reaches.
+ * dev-visibility gate) and lands on the event's home (#443), which every event
+ * opens on.
  */
 import { test, expect } from '@playwright/test';
 import { E2E, storageStatePath } from './fixtures/identities';
@@ -25,7 +25,7 @@ test.describe('le calendrier du campus', () => {
     await page.getByRole('link', { name: "Ouvrir l'événement" }).click();
 
     await expect(page).toHaveURL(
-      (url) => url.pathname === `/staff/dev/events/${E2E.eventId}/emargement`,
+      (url) => url.pathname === `/staff/dev/events/${E2E.eventId}`,
     );
   });
 });

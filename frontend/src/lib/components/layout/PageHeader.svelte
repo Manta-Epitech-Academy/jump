@@ -36,6 +36,12 @@
      * push the controls that matter further down.
      */
     accroche?: string;
+    /**
+     * The sub-line as markup, for a page whose context is more than words: an
+     * event's home names its category, its days and its countdown. The third
+     * form of the one sub-line, never a fourth line.
+     */
+    meta?: Snippet;
     /** Page controls, right-aligned. */
     actions?: Snippet;
     /** Opt into a view transition on the title. */
@@ -48,6 +54,7 @@
     accent,
     subtitle,
     accroche,
+    meta,
     actions,
     titleViewTransitionName,
     class: className,
@@ -79,6 +86,8 @@
       <p class="mt-1 font-mono text-xs tracking-wide text-muted-foreground">
         <CodeTag>{accroche}</CodeTag>
       </p>
+    {:else if meta}
+      <div class="mt-2">{@render meta()}</div>
     {/if}
   </div>
   {#if actions}

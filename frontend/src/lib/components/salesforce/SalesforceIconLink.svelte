@@ -5,27 +5,23 @@
   // no room for a label or a second external-link icon, so `title` / `aria-label`
   // carry the "opens in Salesforce" meaning instead.
   import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
-  import {
-    salesforceUrl,
-    type SalesforceRecordKind,
-  } from '$lib/domain/salesforce';
+  import { salesforceUrl } from '$lib/domain/salesforce';
   import { cn } from '$lib/utils';
 
   type Props = {
     /** Salesforce 18-char id; renders nothing when absent. */
     externalId: string | null | undefined;
-    kind: SalesforceRecordKind;
     /** Accessible label, e.g. "Ouvrir le contact dans Salesforce". */
     label: string;
     class?: string;
   };
 
-  let { externalId, kind, label, class: className }: Props = $props();
+  let { externalId, label, class: className }: Props = $props();
 </script>
 
 {#if externalId}
   <a
-    href={salesforceUrl(kind, externalId)}
+    href={salesforceUrl(externalId)}
     target="_blank"
     rel="noopener noreferrer"
     title="Ouvrir dans Salesforce"

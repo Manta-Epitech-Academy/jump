@@ -120,7 +120,9 @@
     </p>
   </LoginBrandPanel>
 
-  <main class="flex items-center justify-center bg-background p-6 sm:p-12">
+  <main
+    class="relative flex items-center justify-center bg-background p-6 sm:p-12"
+  >
     <div class="w-full max-w-sm space-y-8">
       <header class="space-y-5">
         <EpitechLogo class="h-7 w-auto lg:hidden" />

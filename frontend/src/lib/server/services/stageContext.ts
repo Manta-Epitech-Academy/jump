@@ -20,7 +20,9 @@ import type { Prisma } from '@prisma/client';
 
 /**
  * An event is "visible dans l'espace dev" iff an admin activated it
- * (`devActivatedAt`) and it carries at least one module. Single source for the
+ * (`devActivatedAt`) and it carries at least one module: the admin space counts
+ * an event with no section as not configured yet (`eventReadiness`), and
+ * refuses to activate one. Single source for the
  * dev workspace event list and for any surface that must mirror that
  * visibility: the talent's own attended-events history, and every link INTO the
  * workspace (see `isDevVisibleEvent` below).
@@ -244,17 +246,8 @@ export type WorkspaceEvents = {
 
 /**
  * Every event that belongs to the dev cohort workspace for this (already
- * campus-scoped) client. Membership is two gates, both required:
- *  - `devActivatedAt`: an admin has validated the event for the dev cohort (an
- *    event is configured at creation but stays hidden until then), AND
- *  - at least one enabled module: the dev space is nothing but per-module
- *    surfaces, so an event exposing zero of them has nowhere to land. Including
- *    it would put it on the calendar and let it become `current`, with no page
- *    to open (`landingSurface` -> null). Excluding it keeps the
- *    landing's happy path: a `current` with a reachable surface lands on it.
- *    (A member whose only surfaces are gated off by data, e.g. bilan without a
- *    form, still resolves to null and shows the empty state rather than a 404.)
- * Modules then decide WHICH surfaces a member event exposes. The workspace hosts
+ * campus-scoped) client: `devVisibleEventWhere`. Each one opens on its home,
+ * which every event has; modules then decide WHICH other surfaces it exposes. The workspace hosts
  * as many events as a campus activates, across school years, each opened from
  * the campus calendar.
  */

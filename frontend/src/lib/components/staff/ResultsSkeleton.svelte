@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import ResultsLayout from './ResultsLayout.svelte';
 
@@ -7,8 +7,13 @@
   // shape the real content will, through the same `ResultsLayout`, so the shell
   // does not reflow when the cohort lands: it used to redraw that two-column
   // grid itself, which made the match a promise rather than a fact. Shared by
-  // the streamed staff pages; pass `rail={false}` for a single-column list.
-  let { rows = 10, rail = true }: { rows?: number; rail?: boolean } = $props();
+  // the streamed staff pages; pass `rail={false}` for a single-column list, or
+  // `shape` for a region that is no list at all (the event home's cards).
+  let {
+    rows = 10,
+    rail = true,
+    shape,
+  }: { rows?: number; rail?: boolean; shape?: Snippet } = $props();
 
   // Hold the skeleton invisible for a beat before fading it in. The cohort query
   // is a few ms warm, so most navigations resolve well under this threshold: the
@@ -52,7 +57,9 @@
   class:opacity-0={!visible}
   aria-hidden="true"
 >
-  {#if rail}
+  {#if shape}
+    {@render shape()}
+  {:else if rail}
     <ResultsLayout
       main={table}
       rail={railCards}

@@ -80,6 +80,7 @@ import {
   WORKSHOP_DOMAIN_LABEL_MAX,
   WORKSHOP_LEVELS,
 } from '$lib/domain/workshopCatalogue';
+import { SUPERVISOR_CODE_MAX } from '$lib/domain/workshops';
 import {
   SYNC_CADENCE_MAX_MINUTES,
   SYNC_CADENCE_MIN_MINUTES,
@@ -183,8 +184,6 @@ import { writeEventConfig, writeEventTemplate } from './writes/events';
 import { writeEventCategory } from './writes/eventCategories';
 import {
   retryPdfJob,
-  resolveSyncErrorRows,
-  resolveAllSyncErrorRows,
   resolveSchools,
   resetClosingById,
   SCHOOL_RESOLVE_LIMIT,
@@ -613,7 +612,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_sync_health: defineOperation({
     description:
-      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are waiting, their breakdown by kind, and the age of the oldest, and every Salesforce member status Jump holds with what the dev workspace does with it, naming the events that carry a status Jump does not know. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
+      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are open and the age of the oldest, grouped by situation with the same explanation the admin page gives (what happened, what it prevents, who can fix it or that nobody can), and every Salesforce member status Jump holds with what the dev workspace does with it, naming the events that carry a status Jump does not know. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
     shape: {},
     run: () => getSyncHealth(),
   }),
@@ -721,7 +720,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_workshops: defineOperation({
     description:
-      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover), how the subject catalogue of the dev space files it (level, notions, domains, in the shape write_workshop takes) and what still keeps it out of that catalogue. An instance is a host: its slug, its address and the activities declared on it, retired ones included. A domain is a field the catalogue files activities under: its key, its label, whether it is archived and how many activities carry it, archived ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP: exactly the points CTFd pays for the steps a talent validated. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take, and the domain keys of write_workshop and write_workshop_domain.',
+      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover), how the subject catalogue of the dev space files it (level, notions, domains, in the shape write_workshop takes) and what still keeps it out of that catalogue. An instance is a host: its slug, its address, its supervisor code and the activities declared on it, retired ones included. A domain is a field the catalogue files activities under: its key, its label, whether it is archived and how many activities carry it, archived ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP: exactly the points CTFd pays for the steps a talent validated. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take, and the domain keys of write_workshop and write_workshop_domain.',
     shape: {},
     run: () => getWorkshops(),
   }),
@@ -1080,7 +1079,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_workshop_instance: defineWrite({
     description:
-      'Declare or update one CTFd instance, the host online activities run on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and nothing else; what the instance serves is write_workshop. Safe to repeat: the same slug and the same address leave one instance. Answers with the instance before and after.',
+      "Declare or update one CTFd instance, the host online activities run on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and which supervisor code the catalogue shows; what the instance serves is write_workshop. The instance's /admin/workshop/jump page prints this call filled in: run that rather than typing values. Safe to repeat: the same call leaves the same instance. Answers with the instance before and after.",
     shape: {
       instance: z
         .string()
@@ -1098,12 +1097,20 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           'Address of the CTFd instance, origin only with no path, e.g. "https://pacman.epiboost.fr". Jump appends the entry path itself.',
         ),
+      supervisorCode: z
+        .string()
+        .max(SUPERVISOR_CODE_MAX)
+        .nullable()
+        .optional()
+        .describe(
+          "The code the instance asks for on /supervisor/join, as its /admin/workshop/settings page holds it, shown on each of its subjects in the staff's catalogue. Omit to leave it; null or empty clears it.",
+        ),
     },
     run: (params) => writeWorkshopInstance(params),
   }),
 
   write_workshop: defineWrite({
-    description: `Declare or update one online activity, the content a CTFd instance serves, identified by its slug: what a talent reads (its French name), the instance serving it, whether it is offered, how it presents itself on the talent dashboard (its cover) and how the subject catalogue of the dev space files it (level, notions, domains). The catalogue shows an activity once it is offered and has a tagline, a level, a domain and a picture; config_workshops says what each one still lacks. A slug that does not exist yet creates one; on an existing one only the fields you pass change. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content. The cover is a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host: media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same activity. Answers with the activity before and after.`,
+    description: `Declare or update one online activity, the content a CTFd instance serves, identified by its slug: what a talent reads (its French name), the instance serving it, whether it is offered, how it presents itself on the talent dashboard (its cover) and how the subject catalogue of the dev space files it (level, notions, domains). The catalogue shows an activity once it is offered and has a tagline, a level, a domain and a picture, and its instance a supervisor code (write_workshop_instance); config_workshops says what each one still lacks. A slug that does not exist yet creates one; on an existing one only the fields you pass change. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content. The cover is a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host: media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same activity. Answers with the activity before and after.`,
     shape: {
       slug: z
         .string()
@@ -1503,20 +1510,6 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => retryPdfJob(params),
   }),
 
-  ops_resolve_sync_errors: defineWrite({
-    description:
-      'Mark every unresolved Salesforce sync error of one kind as handled. Resolving is a flag, nothing is deleted. Safe to repeat: a second call finds nothing left to resolve and reports zero. The kind is required: emptying the whole queue is ops_resolve_all_sync_errors, deliberately a separate act.',
-    shape: {
-      errorType: z
-        .string()
-        .min(1)
-        .describe(
-          `Resolve every unresolved error of this kind. Required: emptying the whole queue without naming a kind is ops_resolve_all_sync_errors, deliberately a separate act. ${handleDescribe('syncErrorType')}`,
-        ),
-    },
-    run: (params) => resolveSyncErrorRows(params),
-  }),
-
   write_sync_source: defineWrite({
     description: `Add a Salesforce campaign to the synchronised perimeter, move it to another campus, rename it, or switch it off. Switching off sets a flag, it deletes nothing, so it can be switched back on. Safe to repeat: this is an upsert on the campaign id, so the same call twice leaves the same row. Adding one requires both campus and kind; changing an existing one only sends what changes. Takes effect at ${NEXT_WORKER_WAKE_UP}.`,
     shape: {
@@ -1608,18 +1601,11 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_release_prune_hold: defineWrite({
-    description: `Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted by fixing their sync errors, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to ${NEXT_WORKER_WAKE_UP}. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.`,
+    description: `Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted once those contacts are completed in Salesforce, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to ${NEXT_WORKER_WAKE_UP}. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.`,
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },
     run: (params) => releasePruneHold(params),
-  }),
-
-  ops_resolve_all_sync_errors: defineWrite({
-    description:
-      'Mark every unresolved Salesforce sync error as handled, with no filter at all. Separate from the filtered operation on purpose: emptying the whole queue is its own decision. Safe to repeat.',
-    shape: {},
-    run: () => resolveAllSyncErrorRows(),
   }),
 
   ops_resolve_schools: defineWrite({

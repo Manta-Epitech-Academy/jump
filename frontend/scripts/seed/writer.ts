@@ -89,7 +89,7 @@ export type Buffered = {
   feedback_AnswerOption: Prisma.Feedback_AnswerOptionCreateManyInput[];
   broadcast: Prisma.BroadcastCreateManyInput[];
   broadcastRecipient: Prisma.BroadcastRecipientCreateManyInput[];
-  syncError: Prisma.SyncErrorCreateManyInput[];
+  sync_Error: Prisma.Sync_ErrorCreateManyInput[];
   sync_Run: Prisma.Sync_RunCreateManyInput[];
   sync_ErasedContact: Prisma.Sync_ErasedContactCreateManyInput[];
   adminFile: Prisma.AdminFileCreateManyInput[];
@@ -154,7 +154,7 @@ const MODEL_ORDER = [
   'feedback_AnswerOption',
   'broadcast',
   'broadcastRecipient',
-  'syncError',
+  'sync_Error',
   'sync_Run',
   'sync_ErasedContact',
   'adminFile',
@@ -358,8 +358,8 @@ export async function wipe(
   await drop('sync_Run', () =>
     prisma.sync_Run.deleteMany({ where: { id: seeded } }),
   );
-  await drop('syncError', () =>
-    prisma.syncError.deleteMany({ where: { id: seeded } }),
+  await drop('sync_Error', () =>
+    prisma.sync_Error.deleteMany({ where: { id: seeded } }),
   );
   await drop('broadcastRecipient', () =>
     prisma.broadcastRecipient.deleteMany({ where: { id: seeded } }),

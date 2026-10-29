@@ -13,6 +13,7 @@
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import School from '@lucide/svelte/icons/school';
   import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -26,10 +27,10 @@
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import SchoolYearMenu from '$lib/components/dev/SchoolYearMenu.svelte';
   import {
+    eventSurfacePath,
     landingSurface,
     reachableSurfaces,
     surfaceFromPath,
-    surfaceSegment,
     surfaceLabel,
     type EventSurfaceKey,
   } from '$lib/domain/eventModules';
@@ -45,7 +46,9 @@
 
   // Icons live with the component (Svelte components can't sit in the domain
   // layer); order/label/reachability are single-sourced in `eventModules`.
-  const SURFACE_ICONS: Record<EventSurfaceKey, typeof Users> = {
+  // The event's pages under its block; the home is the block itself.
+  type PageSurface = Exclude<EventSurfaceKey, 'home'>;
+  const SURFACE_ICONS: Record<PageSurface, typeof Users> = {
     inscrits: Users,
     emargement: UserCheck,
     // A clock on the calendar: the event's hours, beside the campus's days.
@@ -117,8 +120,8 @@
           schoolYearOf(new Date(), data.timezone).label),
   );
 
-  /** The years you can actually go to: those with an event a dev can open, and
-      on the calendar the year it shows, which may have none. Empty on a campus
+  /** The years you can actually go to: those with an event, and on the
+      calendar the year it shows, which may have none. Empty on a campus
       with no event, which leaves the menu as a readout. */
   const schoolYears = $derived.by(() => {
     const years = navigableSchoolYears(workspace.events);
@@ -126,16 +129,27 @@
     return [...years, selectedSchoolYear].sort((a, b) => b.localeCompare(a));
   });
 
-  /** The event's pages, in the order and under the gates `eventModules` sets. */
+  /** The event's pages, in the order and under the gates `eventModules` sets.
+      The home is not among them: the event's block above them opens it, as
+      the mockup draws it, so the event's name is the way to its home. */
   const eventLinks = $derived.by((): NavLink[] => {
     const ev = currentEvent;
     if (!ev) return [];
-    return reachableSurfaces(ev).map((key) => ({
-      href: resolve(`/staff/dev/events/${ev.id}/${surfaceSegment(key)}`),
-      label: surfaceLabel(key),
-      icon: SURFACE_ICONS[key],
-    }));
+    return reachableSurfaces(ev)
+      .filter((key): key is PageSurface => key !== 'home')
+      .map((key) => ({
+        href: resolve(eventSurfacePath(ev.id, key)),
+        label: surfaceLabel(key),
+        icon: SURFACE_ICONS[key],
+      }));
   });
+
+  const eventHomeHref = $derived(
+    currentEvent ? resolve(eventSurfacePath(currentEvent.id, 'home')) : null,
+  );
+  const onEventHome = $derived(
+    eventHomeHref !== null && page.url.pathname === eventHomeHref,
+  );
 
   /** The surface in view, so a context change keeps you on it. Derived once
       here rather than in each control, for the same reason as the year. */
@@ -144,21 +158,19 @@
   /**
    * Open `e`, keeping the surface in view when the target event exposes it.
    * `openSurface` is null off an event route (a talent fiche), which lands on
-   * the first reachable one.
+   * the event's home.
    */
   function openEvent(e: DevWorkspaceEvent) {
     if (e.id === currentEvent?.id) return;
-    const surface = landingSurface(e, openSurface);
-    if (!surface) return;
-    goto(resolve(`/staff/dev/events/${e.id}/${surfaceSegment(surface)}`));
+    goto(resolve(eventSurfacePath(e.id, landingSurface(e, openSurface))));
   }
 
   /**
    * On the calendar, changing the year shows that year's calendar. Elsewhere it
    * is a context jump: land on the event that year defaults to.
-   * `navigableSchoolYears` and `defaultEventOfYear` share a reachability
-   * filter, so the null below is a type guard, not a year that quietly does
-   * nothing when picked.
+   * `navigableSchoolYears` and `defaultEventOfYear` read the same years, so the
+   * null below is a type guard, not a year that quietly does nothing when
+   * picked.
    */
   function changeSchoolYear(year: string) {
     if (year === selectedSchoolYear) return;
@@ -270,17 +282,40 @@
             Événement sélectionné
           </h2>
           <!-- The event's name, in Anton at a display size: it has to out-rank
-               the 14px entries under it. Another event is opened from the
-               calendar, as the mockup does: no picker here. -->
-          <div
-            class="flex items-baseline font-heading text-display-s text-chrome-foreground"
+               the 14px entries under it. It is the way to the event's home, as
+               the mockup draws it: one entry wearing the event's name rather
+               than an « Accueil » among its pages, lit like any entry when its
+               page is open, with the chevron that says it leads somewhere.
+               Another event is opened from the calendar: no picker here. -->
+          <a
+            href={eventHomeHref}
+            aria-current={onEventHome ? 'page' : undefined}
+            class="group mb-2 flex cursor-pointer items-center gap-2 rounded-sm px-3 py-2.5 transition-colors {onEventHome
+              ? 'bg-epi-blue text-white'
+              : 'text-chrome-foreground hover:bg-chrome-hover'}"
           >
-            <span class="truncate">{eventDisplayName(ev)}</span>
-            <TitleCursor />
-          </div>
-          <p class="mt-1 mb-3 font-mono text-xs text-chrome-foreground-muted">
-            {eventDaysLabel(ev.date, ev.endDate, data.timezone)}
-          </p>
+            <span class="min-w-0 flex-1">
+              <!-- The cursor rides inside the truncated text, so a long name
+                   ends on its ellipsis rather than on a cursor left floating
+                   after it. -->
+              <span class="block truncate font-heading text-display-s"
+                >{eventDisplayName(ev)}<TitleCursor /></span
+              >
+              <span
+                class="mt-1 block font-mono text-xs {onEventHome
+                  ? 'text-white/80'
+                  : 'text-chrome-foreground-muted'}"
+              >
+                {eventDaysLabel(ev.date, ev.endDate, data.timezone)}
+              </span>
+            </span>
+            <ChevronRight
+              aria-hidden="true"
+              class="size-4 shrink-0 transition-transform group-hover:translate-x-0.5 {onEventHome
+                ? 'text-white'
+                : 'text-chrome-foreground-muted'}"
+            />
+          </a>
           {@render navLinks(eventLinks)}
         </section>
       {/if}

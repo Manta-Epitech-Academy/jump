@@ -7,15 +7,9 @@ import {
 } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { resolveEventClosingIdentity } from '$lib/server/closingTemplates';
-import { closingListStatus } from '$lib/domain/closing';
-import type { ClosingRecommendation } from '@prisma/client';
-import type {
-  ClosingRow,
-  StaffTally,
-  ClosingsCohort,
-} from './components/types';
+import { loadClosingsRoster } from '$lib/server/services/closingsRoster';
+import type { StaffTally, ClosingsCohort } from './components/types';
 
 const TOP_STAFF = 5;
 
@@ -47,44 +41,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const timezone = getCampusTimezone(locals);
 
   // Stream the cohort: the page shell (header + rail skeleton) paints immediately
-  // while this resolves, instead of the client navigation blocking on it. The
-  // roster comes from `Participation` (Salesforce owns who is enrolled) and the
-  // closings alongside it, joined by talent id: a closing keys on
-  // (talent, event) rather than hanging off a participation row, so the sync
-  // pruning an enrolment can no longer take a conducted closing with it. Same
-  // shape the émargement screens already use. The status buckets, the
-  // recommendation breakdown and the per-staff tally are all derived from rows
-  // already in memory (a stage cohort is ~200).
+  // while this resolves, instead of the client navigation blocking on it.
   const cohort: Promise<ClosingsCohort> = (async () => {
-    const [participations, closings, byStaff] = await Promise.all([
-      db.participation.findMany({
-        // Same cohort definition as every other dev screen. This was the one
-        // roster built without it, which nothing could show while every
-        // `sfMemberStatus` was null: as soon as the sync writes a status, a
-        // withdrawn member would be listed for a closing here and absent from
-        // the inscrits list of the same event.
-        where: { eventId: event.id, ...visibleParticipationWhere },
-        select: {
-          talentId: true,
-          talent: { select: { nom: true, prenom: true } },
-        },
-        orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-      }),
-      db.closing_Record.findMany({
-        where: { eventId: event.id },
-        select: {
-          talentId: true,
-          status: true,
-          conductedAt: true,
-          recommendation: true,
-          staff: {
-            select: {
-              id: true,
-              user: { select: { name: true, image: true } },
-            },
-          },
-        },
-      }),
+    const [roster, byStaff] = await Promise.all([
+      loadClosingsRoster(db, event.id),
       db.closing_Record.groupBy({
         by: ['staffId'],
         where: { eventId: event.id },
@@ -93,39 +53,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         take: TOP_STAFF,
       }),
     ]);
-
-    const closingOf = new Map(closings.map((c) => [c.talentId, c]));
-
-    const rows: ClosingRow[] = participations.map((p) => {
-      const closing = closingOf.get(p.talentId) ?? null;
-      return {
-        talentId: p.talentId,
-        nom: p.talent.nom,
-        prenom: p.talent.prenom,
-        status: closingListStatus(closing),
-        staffName: closing?.staff?.user?.name ?? null,
-        staffImage: closing?.staff?.user?.image ?? null,
-        conductedAt: closing?.conductedAt ?? null,
-        recommendation: closing?.recommendation ?? null,
-      };
-    });
-
-    // Status buckets (à faire / en cours / finalisé) for the synthesis card.
-    const counts = { todo: 0, in_progress: 0, done: 0 };
-    // Recommendation breakdown over finalised closings, for prospection.
-    const recoCounts: Record<ClosingRecommendation, number> = {
-      tres_compatible: 0,
-      bon_profil: 0,
-      indecis: 0,
-      pas_interesse: 0,
-    };
-    for (const p of participations) {
-      const closing = closingOf.get(p.talentId) ?? null;
-      counts[closingListStatus(closing)]++;
-      if (closing?.status === 'done' && closing.recommendation) {
-        recoCounts[closing.recommendation]++;
-      }
-    }
 
     // Resolve the grouped staff ids to display names (one extra query, only for
     // the handful that actually conducted a closing). The null bucket is dropped
@@ -155,7 +82,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       };
     });
 
-    return { rows, counts, recoCounts, topStaff, total: rows.length };
+    return { ...roster, topStaff };
   })();
 
   return {

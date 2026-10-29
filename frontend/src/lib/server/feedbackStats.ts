@@ -152,17 +152,20 @@ export function recoQuestionOf(
 /** One talent's submission to an event's form, as the dev rosters read it. */
 export interface CohortSubmission {
   submittedAt: Date;
-  /** The recommendation option picked, null when unanswered or not asked. */
+  /** The recommendation option picked, null when unanswered, not asked, or
+   *  answered with an `extra` option, which is no verdict. */
   recoOptionId: string | null;
 }
 
 /**
  * The submissions of an event's cohort as the dev space shows it, keyed by
  * talent: who answered, when, and which recommendation option they picked, in
- * one query. The Bilan roster reads it.
+ * one query. The Bilan roster and the event home read it.
  *
  * The recommendation is a single-choice question: the first picked option is
- * the answer.
+ * the answer, and only one of `reco.options` counts as one. An `extra` box
+ * ("Autre") is left out here, where the answer is read, so every reader gets
+ * the same verdicts the form offers rather than an id none of them can name.
  */
 export async function loadCohortSubmissions(
   formId: string,
@@ -178,7 +181,12 @@ export async function loadCohortSubmissions(
       // nothing when the form asks none, leaving every answer null.
       answers: {
         where: { questionId: reco?.id ?? '' },
-        select: { selectedOptions: { select: { optionId: true } } },
+        select: {
+          selectedOptions: {
+            where: { optionId: { in: reco?.options.map((o) => o.id) ?? [] } },
+            select: { optionId: true },
+          },
+        },
       },
     },
   });

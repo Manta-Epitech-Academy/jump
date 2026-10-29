@@ -1,7 +1,6 @@
 /**
- * The class A writes that unblock something: a stuck document, a pile of sync
- * errors, a lycée the annuaire never resolved, and a closing finalised by
- * mistake.
+ * The class A writes that unblock something: a stuck document, a lycée the
+ * annuaire never resolved, and a closing finalised by mistake.
  *
  * Each delegates to the service the admin pages already use, so a repair made
  * from a chat is the same repair a human would have made from the screen.
@@ -11,10 +10,6 @@
 
 import { prisma } from '$lib/server/db';
 import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
-import {
-  resolveSyncErrors,
-  resolveAllSyncErrors,
-} from '$lib/server/services/syncErrorService';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 import { resetClosing } from '$lib/server/services/closingResetService';
 import { answeredCount } from '$lib/server/services/closingService';
@@ -70,53 +65,6 @@ export async function retryPdfJob(params: {
       hasFile: after?.filePath != null,
       error: after?.errorMessage ?? null,
     },
-  };
-}
-
-// ── Clear sync errors ────────────────────────────────────────────────────────
-
-/**
- * Safe to repeat: resolving is a flag, and the update is scoped to rows still
- * unresolved, so a second call clears nothing and reports zero.
- *
- * By kind, or not at all. The operation used to take a list of row ids as well,
- * and no read in the catalogue has ever returned a `SyncError.id`, so that branch
- * could not be reached by the one consumer this tier has. Between adding a read
- * to feed a parameter and removing a parameter nothing can feed, the second is
- * the honest move: `errorType` and `ops_resolve_all_sync_errors` cover the act.
- *
- * That the kind is mandatory is stated once, by the catalogue's own strict
- * schema, which both transports validate against before this runs. It used to be
- * said twice - an optional param here plus a runtime refusal - and the two
- * disagreed, so the published tool shape accepted a call that always failed.
- */
-export async function resolveSyncErrorRows(params: {
-  errorType: string;
-}): Promise<WriteOutcome> {
-  const before = await prisma.syncError.count({ where: { resolved: false } });
-
-  const rows = await prisma.syncError.findMany({
-    where: { resolved: false, errorType: params.errorType },
-    select: { id: true },
-  });
-  const resolved = (await resolveSyncErrors(rows.map((r) => r.id))).count;
-
-  const after = await prisma.syncError.count({ where: { resolved: false } });
-  return {
-    applied: true,
-    before: { unresolved: before },
-    after: { unresolved: after, resolved },
-  };
-}
-
-/** Kept apart from the filtered path: emptying the whole queue is its own act. */
-export async function resolveAllSyncErrorRows(): Promise<WriteOutcome> {
-  const before = await prisma.syncError.count({ where: { resolved: false } });
-  const { count } = await resolveAllSyncErrors();
-  return {
-    applied: true,
-    before: { unresolved: before },
-    after: { unresolved: 0, resolved: count },
   };
 }
 

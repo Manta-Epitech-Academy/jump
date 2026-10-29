@@ -3,6 +3,7 @@ import { prisma } from '$lib/server/db';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import type { WorkerTalent } from '$lib/validation/workerSync';
 import { syncTalents } from '$lib/server/services/syncService';
+import { loadOpenSyncErrors } from '$lib/server/services/syncErrorQueue';
 import {
   adoptSalesforceField,
   listSalesforceDiffs,
@@ -107,8 +108,10 @@ describe('the Salesforce sync keeps what a talent confirmed (integration)', () =
     await prisma.bauth_user.deleteMany({
       where: { id: { in: [...userIds, parentUserId] } },
     });
-    await prisma.syncError.deleteMany({
-      where: { attemptedExtId: { in: externalIds } },
+    // A talent's login errors went with it (cascade); a nameless contact's
+    // carry its Salesforce id.
+    await prisma.sync_Error.deleteMany({
+      where: { externalId: { in: externalIds } },
     });
     await prisma.school.deleteMany({
       where: { id: { in: [schoolA, schoolB] } },
@@ -224,12 +227,11 @@ describe('the Salesforce sync keeps what a talent confirmed (integration)', () =
     const renamed = `renamed-${stamp}@noclobber.test`;
     await syncTalents([sf('mail', { email: renamed })]);
 
-    expect((await talentOf(sf('mail').external_id)).user?.email).toBe(renamed);
-    expect(
-      await prisma.syncError.count({
-        where: { attemptedExtId: sf('mail').external_id },
-      }),
-    ).toBe(0);
+    const t = await talentOf(sf('mail').external_id);
+    expect(t.user?.email).toBe(renamed);
+    expect(await prisma.sync_Error.count({ where: { talentId: t.id } })).toBe(
+      0,
+    );
   });
 
   it("leaves the login alone on a parent's address, and logs the collision", async () => {
@@ -241,25 +243,44 @@ describe('the Salesforce sync keeps what a talent confirmed (integration)', () =
     expect(t.user?.email).toBe(before);
     expect(t.sfImport?.sfEmail).toBe(parentEmail);
     expect(
-      await prisma.syncError.findFirst({
-        where: { attemptedExtId: sf('parent').external_id, email: parentEmail },
-        select: { errorType: true, resolved: true },
+      await prisma.sync_Error.findUnique({
+        where: { talentId: t.id },
+        select: { kind: true },
       }),
-    ).toEqual({ errorType: 'DUPLICATE_EMAIL', resolved: false });
+    ).toEqual({ kind: 'ADDRESS_TAKEN' });
   });
 
   // A talent the sync sees for the first time with a parent's address gets no
   // login, and the error tells the admin where the fix is: in Salesforce, since
-  // the Connexion tab only lists talents that already have one.
+  // the Connexion tab only lists talents that already have one. Read through
+  // the queue the admin page and the API share, which names the holder now.
   it("sends a new talent's address a parent holds back to Salesforce", async () => {
     const fresh = sf('newparent', { email: parentEmail });
     await syncTalents([fresh]);
 
-    expect((await talentOf(fresh.external_id)).user).toBeNull();
-    const logged = await prisma.syncError.findFirst({
-      where: { attemptedExtId: fresh.external_id, email: parentEmail },
-      select: { message: true },
+    const t = await talentOf(fresh.external_id);
+    expect(t.user).toBeNull();
+    const open = (await loadOpenSyncErrors()).find(
+      (e) => e.subject.talentId === t.id,
+    );
+    expect(open?.situation).toEqual({
+      kind: 'ADDRESS_TAKEN',
+      hasAccount: false,
+      holder: { kind: 'parent' },
+      repair: null,
     });
-    expect(logged?.message).toContain("Corrigez l'adresse dans Salesforce");
+    expect(open?.explanation.consequence).toMatch(/ne peut pas se connecter/);
+    expect(open?.explanation.remedy.who).toBe('salesforce');
+  });
+
+  it('closes the error once Salesforce gives the talent its own address', async () => {
+    const own = `own-${stamp}@noclobber.test`;
+    await syncTalents([sf('newparent', { email: own })]);
+
+    const t = await talentOf(sf('newparent').external_id);
+    expect(t.user?.email).toBe(own);
+    expect(await prisma.sync_Error.count({ where: { talentId: t.id } })).toBe(
+      0,
+    );
   });
 });

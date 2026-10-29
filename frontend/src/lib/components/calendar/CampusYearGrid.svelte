@@ -32,8 +32,8 @@
     hrefOf,
   }: {
     calendar: CampusCalendar;
-    /** Where an event opens, or null when it has no page to open on. */
-    hrefOf: (id: string) => string | null;
+    /** Where an event opens: its home. */
+    hrefOf: (id: string) => string;
   } = $props();
 
   const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -104,12 +104,10 @@
           </span>
           <CalendarEventStatus {event} />
         </span>
-        {#if href}
-          <Button {href} size="sm" class="mt-2 w-full">
-            Ouvrir l'événement
-            <ArrowRight />
-          </Button>
-        {/if}
+        <Button {href} size="sm" class="mt-2 w-full">
+          Ouvrir l'événement
+          <ArrowRight />
+        </Button>
       </li>
     {/each}
   </ul>

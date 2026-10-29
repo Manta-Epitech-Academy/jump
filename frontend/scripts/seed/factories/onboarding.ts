@@ -35,7 +35,6 @@ import {
   versionForYear,
 } from '../catalog/documentVersions';
 import type { World, TalentRef } from '../world';
-import { CIVILITE_OPTIONS } from '../../../src/lib/domain/profile';
 import { dateKeyToDbDate } from '../../../src/lib/domain/eventPresence';
 import { toDateKey } from '../../../src/lib/domain/planningTime';
 import { id } from '../ids';
@@ -145,14 +144,22 @@ export function addDossier(
   // wizard cannot produce and every reader of that relation reads as empty.
   if (reached.includes('interests')) world.pickInterests(opts.talent);
 
-  // The two remaining optional answers, each written by the step that asks it.
-  // Optional means BOTH branches have to exist: filling them on every talent
-  // renders the block on every fiche and never its absence, which is the same
-  // defect as never filling them, only harder to notice.
+  // The civility, which the identity step requires (`identitySchema`): a
+  // dossier past that step without one is a state the wizard cannot produce.
+  // Written over whatever Salesforce seeded, as the step does, and the mirror
+  // keeps Salesforce's claim, so a talent who corrects it is a divergence.
   const talentRow = world.talentRow(opts.talent.id) as Record<string, unknown>;
-  if (reached.includes('identity') && world.wizardRng.chance(0.7)) {
-    talentRow.civilite = world.wizardRng.pick(CIVILITE_OPTIONS).value;
+  if (reached.includes('identity')) {
+    if (opts.talent.declaredCivilite === null)
+      throw new Error(
+        `addDossier(${opts.talent.id}): an anonymised talent has nobody left to declare a civility.`,
+      );
+    talentRow.civilite = opts.talent.declaredCivilite;
   }
+  // The remaining optional answer, written by the step that asks it. Optional
+  // means BOTH branches have to exist: filling it on every talent renders the
+  // block on every fiche and never its absence, which is the same defect as
+  // never filling it, only harder to notice.
   if (reached.includes('equipment') && world.wizardRng.chance(0.4)) {
     talentRow.setupDescription =
       'Un portable de 2019, 8 Go de RAM, et un écran externe à la maison.';

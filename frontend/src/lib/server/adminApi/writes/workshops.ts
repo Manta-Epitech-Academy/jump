@@ -1,5 +1,5 @@
-// The class A writes for the CTFd activities, one per entity: a host and its
-// address (`write_workshop_instance`), and an activity, the content a host
+// The class A writes for the CTFd activities, one per entity: a host, its
+// address and its supervisor code (`write_workshop_instance`), and an activity, the content a host
 // serves, curated and presented in one call (`write_workshop`). Which ones an
 // event offers is part of the event's configuration (`write_event_config`).
 // Bounded to named rows and reversible.
@@ -9,8 +9,8 @@
 // notions and the domains the staff's subject catalogue shows) are facets of
 // one activity, so they are fields of one write rather than three tools, and a
 // new activity can be declared with its cover in one call. The host is not a facet
-// of it: several activities name one host, so its address is written once, on
-// the host.
+// of it: several activities name one host, so its address and its supervisor
+// code are written once, on the host.
 //
 // Presenting one downloads the pictures it is given and does not already hold,
 // from addresses an admin chose, before anything is stored. That read sends
@@ -74,6 +74,7 @@ async function instanceState(slug: string) {
     select: {
       slug: true,
       baseUrl: true,
+      supervisorCode: true,
       activities: { select: { slug: true }, orderBy: { slug: 'asc' } },
     },
   });
@@ -81,15 +82,31 @@ async function instanceState(slug: string) {
     ? {
         instance: row.slug,
         baseUrl: row.baseUrl,
+        supervisorCode: row.supervisorCode,
         activities: row.activities.map((a) => a.slug),
       }
     : null;
 }
 
-/** Declare a CTFd host, or move it to another address. */
+/**
+ * The code as stored: trimmed, and a blank one is none, as on the instance,
+ * where an empty code closes `/supervisor/join`. Case is kept: the instance
+ * compares it without case, but a manta copies it as it was written.
+ */
+function normaliseSupervisorCode(raw: string | null): string | null {
+  const code = raw?.trim() ?? '';
+  return code === '' ? null : code;
+}
+
+/**
+ * Declare a CTFd host, move it to another address, or bring over its
+ * supervisor code. The code is a patch field: omitted it stays as it is, so a
+ * call written before it existed changes nothing of it.
+ */
 export async function writeWorkshopInstance(params: {
   instance: string;
   baseUrl: string;
+  supervisorCode?: string | null;
 }): Promise<WriteOutcome> {
   const slug = params.instance.trim();
   if (!slug) {
@@ -117,10 +134,14 @@ export async function writeWorkshopInstance(params: {
     );
   }
 
+  const supervisorCode =
+    params.supervisorCode === undefined
+      ? undefined
+      : normaliseSupervisorCode(params.supervisorCode);
   await prisma.workshop_Instance.upsert({
     where: { slug },
-    create: { slug, baseUrl },
-    update: { baseUrl },
+    create: { slug, baseUrl, supervisorCode },
+    update: { baseUrl, supervisorCode },
   });
 
   return { applied: true, before, after: await instanceState(slug) };

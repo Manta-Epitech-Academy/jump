@@ -35,22 +35,6 @@ export type PresenceRow = {
   noteSlotKeys: string[];
 };
 
-// Export-specific select kept separate from the streamed roster payload: the
-// XLSX includes contact columns, so those fields are loaded only in the export
-// route (not in the UI stream).
-export const PRESENCE_EXPORT_SELECT = {
-  talentId: true,
-  talent: {
-    select: {
-      nom: true,
-      prenom: true,
-      niveau: true,
-      phone: true,
-      parentPhone: true,
-    },
-  },
-} satisfies Prisma.ParticipationSelect;
-
 export type PresenceSortKey = 'prenom' | 'nom';
 
 /** The cohort payload streamed behind the page shell: the heavy roster join and

@@ -6,15 +6,16 @@ import {
   type CatalogueDomain,
   type CatalogueSubject,
 } from '$lib/domain/workshopCatalogue';
-import { workshopCoverUrl } from '$lib/domain/workshops';
+import { supervisorJoinUrl, workshopCoverUrl } from '$lib/domain/workshops';
 
 /**
  * The subject catalogue as its readers see it: the dev space's page lists the
  * complete subjects, the admin API reads every domain. Both are global, like
  * the activities themselves (`db/scoped.ts` gives the workshop models no scoped
  * delegate), so this reads `prisma` directly. Its writers are `write_workshop`
- * (a subject's domains, level and notions) and `write_workshop_domain` (the
- * domains).
+ * (a subject's domains, level and notions), `write_workshop_domain` (the
+ * domains) and `write_workshop_instance` (the supervisor code of the instance
+ * serving a subject).
  */
 
 /** The columns a domain is shown with, for an `include` or a `select`. */
@@ -62,6 +63,7 @@ export const WorkshopCatalogueService = {
         tagline: true,
         level: true,
         notions: true,
+        instance: { select: { baseUrl: true, supervisorCode: true } },
         domains: {
           select: { domain: { select: { key: true, label: true } } },
           orderBy: { domain: { label: 'asc' } },
@@ -84,11 +86,13 @@ export const WorkshopCatalogueService = {
         level: row.level,
         domainCount: row.domains.length,
         pictureCount: row.coverImages.length,
+        supervisorCode: row.instance.supervisorCode,
       });
       if (gaps.length > 0) return [];
       const picture = thumbnailOf(row.coverImages);
+      const { supervisorCode } = row.instance;
       // Narrowing only: `catalogueGaps` has already required each of them.
-      if (!row.tagline || !row.level || !picture) return [];
+      if (!row.tagline || !row.level || !picture || !supervisorCode) return [];
       return [
         {
           slug: row.slug,
@@ -101,6 +105,10 @@ export const WorkshopCatalogueService = {
             url: workshopCoverUrl(picture.stillKey ?? picture.key),
             width: picture.width,
             height: picture.height,
+          },
+          supervisor: {
+            code: supervisorCode,
+            joinUrl: supervisorJoinUrl(row.instance.baseUrl),
           },
         },
       ];

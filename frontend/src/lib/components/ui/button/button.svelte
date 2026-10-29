@@ -25,6 +25,12 @@
         // surface, never in a staff toolbar. Its text is `epiBlue`, which is
         // what makes this the one accent fill a button may carry.
         neon: 'bg-epi-tech text-epi-blue hover:bg-epi-tech/90 shadow-raised active:translate-y-px',
+        // `buttonInverse` (DESIGN.md): the primary pair swapped, white with
+        // `epiBlue` text, for THE action of a brand-blue surface (a catalogue
+        // card's way into its subject, a talent hero's way to the CRM). White
+        // stays white in either theme, as the surface stays blue.
+        inverse:
+          'bg-white text-epi-blue hover:bg-white/90 shadow-raised active:translate-y-px',
         // Any other action on a brand-blue surface: the translucent white panel
         // DESIGN.md names as the one fill a dark surface takes. `outline` there
         // paints `bg-background` under the surface's inherited white text.

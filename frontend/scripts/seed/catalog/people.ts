@@ -12,50 +12,66 @@
  * once a decade.
  */
 
-export const PRENOMS = [
-  'Léa',
-  'Hugo',
-  'Emma',
-  'Lucas',
-  'Chloé',
-  'Nathan',
-  'Manon',
-  'Enzo',
-  'Inès',
-  'Maxime',
-  'Camille',
-  'Théo',
-  'Sarah',
-  'Adam',
-  'Louise',
-  'Mathis',
-  'Jade',
-  'Ethan',
-  'Anna',
-  'Liam',
-  'Alice',
-  'Noah',
-  'Lola',
-  'Tom',
-  'Zoé',
-  'Léo',
-  'Lina',
-  'Gabriel',
-  'Romane',
-  'Arthur',
-  'Eva',
-  'Raphaël',
-  'Maëlle',
-  'Sacha',
-  'Lou',
-  'Aaron',
-  'Mila',
-  'Naël',
-  'Capucine',
-  'Soan',
-  'Margaux',
-  'Maël',
-] as const;
+import type { Civilite } from '../../../src/lib/domain/profile';
+
+/**
+ * Given names by the civility a person carries, so a name and a civility can
+ * never disagree on a generated talent. `addTalent` draws the civility first,
+ * from production's split, then a name from its list: a single mixed pool would
+ * make the split 50/50 whatever production says, and a « Léa » recorded as a
+ * man.
+ *
+ * The epicene names are filed on one side each, where they are most common;
+ * nothing reads a name back to infer anything.
+ */
+export const PRENOMS = {
+  femme: [
+    'Léa',
+    'Emma',
+    'Chloé',
+    'Manon',
+    'Inès',
+    'Camille',
+    'Sarah',
+    'Louise',
+    'Jade',
+    'Anna',
+    'Alice',
+    'Lola',
+    'Zoé',
+    'Lina',
+    'Romane',
+    'Eva',
+    'Maëlle',
+    'Lou',
+    'Mila',
+    'Capucine',
+    'Margaux',
+  ],
+  homme: [
+    'Hugo',
+    'Lucas',
+    'Nathan',
+    'Enzo',
+    'Maxime',
+    'Théo',
+    'Adam',
+    'Mathis',
+    'Ethan',
+    'Liam',
+    'Noah',
+    'Tom',
+    'Léo',
+    'Gabriel',
+    'Arthur',
+    'Raphaël',
+    'Sacha',
+    'Aaron',
+    'Naël',
+    'Soan',
+    'Maël',
+  ],
+} as const satisfies Record<Exclude<Civilite, 'autre'>, readonly string[]>;
 
 export const NOMS = [
   'Martin',

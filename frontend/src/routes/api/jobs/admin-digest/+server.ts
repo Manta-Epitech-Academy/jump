@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ request }) => {
       summary
         ? `[Job] Admin digest: ${result.sent} sent, ${result.failed} failed ` +
             `(${summary.eventsToPrepare} events to prepare, ` +
-            `${summary.unresolvedSyncErrors} sync errors).`
+            `${summary.openSyncErrors} sync errors).`
         : '[Job] Admin digest: no recipient chosen (write_admin_digest_recipient), nothing sent.',
     );
     return json({ success: true, ...result });

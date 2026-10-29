@@ -6,7 +6,7 @@
  * plausible everywhere and matching nothing.
  */
 
-import { NOMS, PRENOMS } from '../catalog/people';
+import { NOMS } from '../catalog/people';
 import { MANUAL_SCHOOL_NAMES } from '../catalog/schools';
 import type { World, CampusRef, TalentRef } from '../world';
 
@@ -166,7 +166,6 @@ export function makeCohort(
       : null;
 
     const talent = world.addTalent({
-      prenom: rng.pick(PRENOMS),
       nom: rng.pick(NOMS),
       niveau: rng.weighted(NIVEAU_MIX),
       campus: opts.campus,

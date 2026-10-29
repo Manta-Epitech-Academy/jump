@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onImageBroken } from '$lib/actions/onImageBroken';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import { Button } from '$lib/components/ui/button';
+  import CopyButton from '$lib/components/ui/CopyButton.svelte';
+  import Play from '@lucide/svelte/icons/play';
   import Terminal from '@lucide/svelte/icons/terminal';
   import {
     WORKSHOP_LEVEL_LABELS,
@@ -9,14 +12,17 @@
 
   // One subject of the dev space's catalogue, as the 2027 mockup draws it: a
   // brand card with the blueprint grid, its picture, its name, its domains and
-  // level, its tagline and its notions. Square like every staff card, and blue
+  // level, its tagline, its notions, and how a manta supervises it: the code
+  // of the instance serving it, and the page of that instance that takes it.
+  // Square like every staff card, and blue
   // whatever the level: DESIGN.md keeps magenta for the admin space, and white
   // text on it fails contrast.
   //
   // Only a complete subject reaches it (`catalogueGaps`), so every field but the
-  // notions is there. The picture can still fail to load (its stored object gone,
-  // or a database seeded with no bucket to put the bytes in), and then a brand
-  // tile takes its place so the cards stay aligned.
+  // notions is there, its instance's supervisor code included. The picture can
+  // still fail to load (its stored object gone, or a database seeded with no
+  // bucket to put the bytes in), and then a brand tile takes its place so the
+  // cards stay aligned.
   let { subject }: { subject: CatalogueSubject } = $props();
 
   let broken = $state(false);
@@ -77,4 +83,33 @@
       {subject.notions.join(', ')}
     </p>
   {/if}
+
+  <div class="relative flex flex-col gap-1.5 border-t border-white/20 pt-3">
+    <span class="epi-overline text-white/80">Code superviseur</span>
+    <!-- One line, as the mockup draws it: the code is copied, not read, so it
+         may be cut, and the whole field is the copy control, its tooltip the
+         whole code. -->
+    <div class="flex items-stretch gap-2">
+      <CopyButton
+        value={subject.supervisor.code}
+        label={`Copier ${subject.supervisor.code}`}
+        class="min-h-9 min-w-0 flex-1 rounded-sm bg-epi-dark px-2.5 text-white/70 hover:bg-epi-dark/80 hover:text-white"
+      >
+        <span class="truncate font-mono text-xs font-bold text-epi-tech">
+          {subject.supervisor.code}
+        </span>
+      </CopyButton>
+      <Button
+        href={subject.supervisor.joinUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        variant="inverse"
+        size="sm"
+        class="min-h-9 shrink-0"
+      >
+        <Play class="size-3 fill-current" aria-hidden="true" />
+        Accéder au sujet
+      </Button>
+    </div>
+  </div>
 </article>
