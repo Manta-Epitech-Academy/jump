@@ -41,59 +41,52 @@ function seeOther(location: string, base: URL): Response {
 export async function applyRouteGuards(
   event: RequestEvent,
 ): Promise<Response | null> {
-  const currentPath = event.url.pathname;
   const routeId = event.route.id || '';
 
+  // Where to send someone: URLs, resolved against the base path.
   const p = (path: string) =>
     new URL(resolvePath(path as any), event.url).pathname;
 
   const pathStaffLogin = p('/staff/login');
-  const pathStaffOAuth = p('/staff/oauth');
   const pathTalentLogin = p('/login');
   const pathTalentRoot = p('/');
   const pathTalentOnboarding = p('/onboarding');
-  const pathLogout = p('/logout');
-  const pathApi = p('/api/');
-
   const pathTalentWelcome = p('/welcome');
   const pathTalentCharte = p('/charte');
   const pathParentLogin = p('/login');
-  const pathParentFastlogin = p('/parent/fastlogin');
   const pathParentWelcome = p('/parent/welcome');
-  const pathParentReglement = p('/parent/reglement');
-  const pathParentSignature = p('/parent/signature');
   const pathParentMerci = p('/parent/merci');
 
-  const isTalentRoute = routeId.startsWith('/(talent)');
-  const isStaffRoute = routeId.startsWith('/(staff)');
-  const isParentRoute = routeId.startsWith('/(parent)');
-  // Decide the admin and dev sub-areas on the matched route, not on
-  // event.url.pathname. The router matches on the decoded path while
-  // url.pathname keeps its percent-encoding, so a pathname compare lets
-  // `/staff/%61dmin/*` resolve to the admin route while reading as non-admin
-  // and skipping the sub-guard. routeId is the decoded match, like the three
-  // space flags above.
-  const isAdminPath =
-    routeId === '/(staff)/staff/admin' ||
-    routeId.startsWith('/(staff)/staff/admin/');
-  const isDevPath =
-    routeId === '/(staff)/staff/dev' ||
-    routeId.startsWith('/(staff)/staff/dev/');
+  // Where someone is: the matched route, never event.url.pathname. The router
+  // matches on the decoded path while url.pathname keeps its percent-encoding,
+  // so a pathname compare lets `/staff/%61dmin/*` resolve to the admin route
+  // while reading as non-admin, or `/%6Fnboarding` reach the wizard's actions
+  // while reading as off it, and skip the guard that was about that route
+  // (security audit run-1). A request no route matches has no id, and nothing
+  // below concerns it: it is a 404.
+  const on = (id: string) => routeId === id;
+  const within = (id: string) => on(id) || routeId.startsWith(`${id}/`);
 
-  const isPublicPath =
-    currentPath.startsWith(pathLogout) || currentPath.startsWith(pathApi);
+  const isTalentRoute = within('/(talent)');
+  const isStaffRoute = within('/(staff)');
+  const isParentRoute = within('/(parent)');
+  const isAdminPath = within('/(staff)/staff/admin');
+  const isDevPath = within('/(staff)/staff/dev');
+
+  const onTalentLogin = on('/(talent)/login');
+  const onTalentWelcome = on('/(talent)/welcome');
+  const onTalentCharte = on('/(talent)/charte');
+  const onTalentOnboarding = within('/(talent)/onboarding');
 
   // --- Talent Guards ---
   if (isTalentRoute) {
-    const isTalentPublic = currentPath === pathTalentLogin;
-
-    if (!event.locals.talent && !isTalentPublic) {
+    if (!event.locals.talent && !onTalentLogin) {
       return seeOther(
         loginUrlWithRedirect(pathTalentLogin, event.url),
         event.url,
       );
     }
-    if (event.locals.talent && currentPath === pathTalentLogin) {
+    if (event.locals.talent && onTalentLogin) {
       return seeOther(pathTalentRoot, event.url);
     }
 
@@ -116,9 +109,9 @@ export async function applyRouteGuards(
       getOnboardingStep(
         onboardingFieldsForYear(event.locals.talent, currentYear),
       ) !== null &&
-      currentPath !== pathTalentWelcome &&
-      !currentPath.startsWith(pathTalentOnboarding) &&
-      currentPath !== pathTalentLogin
+      !onTalentWelcome &&
+      !onTalentOnboarding &&
+      !onTalentLogin
     ) {
       return seeOther(
         onboardingFunnelUrl(pathTalentWelcome, event.url),
@@ -147,9 +140,9 @@ export async function applyRouteGuards(
 
       if (
         needsOnboarding &&
-        !currentPath.startsWith(pathTalentOnboarding) &&
-        currentPath !== pathTalentWelcome &&
-        currentPath !== pathTalentLogin
+        !onTalentOnboarding &&
+        !onTalentWelcome &&
+        !onTalentLogin
       ) {
         return seeOther(
           onboardingFunnelUrl(pathTalentOnboarding, event.url),
@@ -158,7 +151,7 @@ export async function applyRouteGuards(
       }
 
       // Already completed: prevent going back to onboarding
-      if (!needsOnboarding && currentPath.startsWith(pathTalentOnboarding)) {
+      if (!needsOnboarding && onTalentOnboarding) {
         return seeOther(pathTalentRoot, event.url);
       }
     }
@@ -166,11 +159,7 @@ export async function applyRouteGuards(
     // A talent with no dossier has no business in the wizard, whatever their
     // timestamps say. Without this they would sit on step 1 forever, since the
     // guard above no longer advances them.
-    if (
-      event.locals.talent &&
-      !walksOnboarding &&
-      currentPath.startsWith(pathTalentOnboarding)
-    ) {
+    if (event.locals.talent && !walksOnboarding && onTalentOnboarding) {
       return seeOther(pathTalentRoot, event.url);
     }
 
@@ -186,10 +175,10 @@ export async function applyRouteGuards(
     if (
       event.locals.talent &&
       !event.locals.talent.charterAcceptedAt &&
-      !currentPath.startsWith(pathTalentOnboarding) &&
-      currentPath !== pathTalentCharte &&
-      currentPath !== pathTalentWelcome &&
-      currentPath !== pathTalentLogin
+      !onTalentOnboarding &&
+      !onTalentCharte &&
+      !onTalentWelcome &&
+      !onTalentLogin
     ) {
       return seeOther(
         walksOnboarding ? pathTalentOnboarding : pathTalentCharte,
@@ -201,7 +190,7 @@ export async function applyRouteGuards(
     if (
       event.locals.talent &&
       event.locals.talent.charterAcceptedAt &&
-      currentPath === pathTalentCharte
+      onTalentCharte
     ) {
       return seeOther(pathTalentRoot, event.url);
     }
@@ -210,7 +199,7 @@ export async function applyRouteGuards(
   // --- Staff Guards ---
   if (isStaffRoute) {
     const isStaffPublic =
-      currentPath === pathStaffLogin || currentPath.startsWith(pathStaffOAuth);
+      on('/(staff)/staff/login') || within('/(staff)/staff/oauth');
 
     if (!isStaffPublic && !event.locals.user) {
       return seeOther(
@@ -257,7 +246,7 @@ export async function applyRouteGuards(
     // Without this the guard bounces the unauthenticated clicker to login and
     // the endpoint never runs.
     const isParentPublic =
-      currentPath === pathParentLogin || currentPath === pathParentFastlogin;
+      on('/(parent)/parent/login') || on('/(parent)/parent/fastlogin');
 
     if (
       !isParentPublic &&
@@ -265,10 +254,7 @@ export async function applyRouteGuards(
     ) {
       return seeOther(pathParentLogin, event.url);
     }
-    if (
-      event.locals.user?.role === 'parent' &&
-      currentPath === pathParentLogin
-    ) {
+    if (event.locals.user?.role === 'parent' && on('/(parent)/parent/login')) {
       return seeOther(pathParentWelcome, event.url);
     }
 
@@ -294,15 +280,15 @@ export async function applyRouteGuards(
 
       if (pendingCount > 0) {
         if (
-          currentPath !== pathParentWelcome &&
-          currentPath !== pathParentReglement &&
-          currentPath !== pathParentSignature
+          !on('/(parent)/parent/welcome') &&
+          !on('/(parent)/parent/reglement') &&
+          !on('/(parent)/parent/signature')
         ) {
           return seeOther(pathParentWelcome, event.url);
         }
       } else {
         // All signed: always land on merci (no dashboard in this release)
-        if (currentPath !== pathParentMerci) {
+        if (!on('/(parent)/parent/merci')) {
           return seeOther(pathParentMerci, event.url);
         }
       }

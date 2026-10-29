@@ -10,15 +10,17 @@ import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
  * path this phase creates from nothing and nothing else covers.
  *
  * The guard reads three things off the event, so a literal is enough here: no
- * database, no session, just the routing decision.
+ * database, no session, just the routing decision. The route id is the one the
+ * router would match for `path`, unless a test spells the path otherwise.
  */
 function eventFor(
   talent: Record<string, unknown> | null,
   path: string,
+  routeId = path === '/' ? '/(talent)' : `/(talent)${path}`,
 ): RequestEvent {
   return {
     url: new URL(`http://localhost${path}`),
-    route: { id: '/(talent)/whatever' },
+    route: { id: routeId },
     locals: { talent, user: talent ? { id: 'u1', role: 'student' } : null },
   } as unknown as RequestEvent;
 }
@@ -181,5 +183,46 @@ describe('talent route guards: no public /oauth prefix', () => {
   it('sends an anonymous visitor on /oauth/* to the login page', async () => {
     const res = await applyRouteGuards(eventFor(null, '/oauth/callback'));
     expect(locationOf(res)).toBe('/login');
+  });
+});
+
+/**
+ * SvelteKit routes on the decoded path while `url.pathname` keeps its
+ * percent-encoding, so `/%6Fnboarding` reaches the wizard and its actions.
+ * Read off the pathname, the two guards that keep a talent out of the wizard
+ * saw a page that was not the wizard and let the request through: a talent
+ * whose dossier was closed could post the parents step again and repoint
+ * parent 1 after the co-signature.
+ */
+describe('talent route guards: an encoded path is still the wizard', () => {
+  const finished = {
+    charterAcceptedAt: new Date(),
+    onboardingSchoolYear: currentSchoolYearLabel(),
+    infoValidatedAt: new Date(),
+    highSchoolValidatedAt: new Date(),
+    parentsValidatedAt: new Date(),
+    techInterestsValidatedAt: new Date(),
+    generalInterestsValidatedAt: new Date(),
+    equipmentValidatedAt: new Date(),
+    processingCompletedAt: new Date(),
+    rulesSignedAt: new Date(),
+  };
+
+  it('keeps a talent who finished out of the wizard', async () => {
+    const res = await applyRouteGuards(
+      eventFor(talent(finished), '/%6Fnboarding', '/(talent)/onboarding'),
+    );
+    expect(locationOf(res)).toBe('/');
+  });
+
+  it('keeps a collégien out of the wizard', async () => {
+    const res = await applyRouteGuards(
+      eventFor(
+        talent({ niveau: '4eme', charterAcceptedAt: new Date() }),
+        '/%6Fnboarding',
+        '/(talent)/onboarding',
+      ),
+    );
+    expect(locationOf(res)).toBe('/');
   });
 });
