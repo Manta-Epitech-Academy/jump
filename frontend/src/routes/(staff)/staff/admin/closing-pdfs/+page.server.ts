@@ -1,34 +1,25 @@
 import type { PageServerLoad, Actions } from './$types';
-import type { Prisma, ClosingRecommendation } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { talentSearchWhere } from '$lib/server/db/textSearch';
 import { resetClosing } from '$lib/server/services/closingResetService';
-import { CLOSING_RECOMMENDATIONS } from '$lib/domain/closing';
 import { fail } from '@sveltejs/kit';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 import { FORMER_STAFF_LABEL } from '$lib/domain/staff';
+import { CLOSING_VERDICT_FILTER } from './view';
 
 const RESET_REASON_MAX = 500;
-
-// The reco filter feeds a Prisma enum query, which throws on an unknown value.
-// Validate against the catalogue's keys so a hand-edited `?reco=` degrades to
-// "all" rather than 500-ing the page.
-const VALID_RECOS = new Set<string>(Object.keys(CLOSING_RECOMMENDATIONS));
 
 export const load: PageServerLoad = async ({ url, locals, depends }) => {
   depends('admin:closing-pdfs');
 
-  const recoParam = url.searchParams.get('reco') ?? 'all';
-  const statusFilter = VALID_RECOS.has(recoParam) ? recoParam : 'all';
+  const verdict = CLOSING_VERDICT_FILTER.parse(url.searchParams);
   const q = url.searchParams.get('q') ?? '';
 
   const where: Prisma.Closing_RecordWhereInput = { status: 'done' };
 
-  if (statusFilter !== 'all') {
-    // Validated against the catalogue keys above, so the cast is safe.
-    where.recommendation = statusFilter as ClosingRecommendation;
-  }
+  if (verdict !== 'all') where.recommendation = verdict;
 
   if (q) where.talent = talentSearchWhere(q);
 
@@ -88,7 +79,7 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
   })();
 
   return {
-    filters: { reco: statusFilter, q },
+    verdict,
     // Un-awaited on purpose: SvelteKit streams it so the chrome paints first.
     cohort,
     lastExportAt:

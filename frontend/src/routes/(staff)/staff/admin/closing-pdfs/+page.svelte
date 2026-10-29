@@ -4,7 +4,6 @@
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import Search from '@lucide/svelte/icons/search';
-  import X from '@lucide/svelte/icons/x';
   import Layers from '@lucide/svelte/icons/layers';
   import Laugh from '@lucide/svelte/icons/laugh';
   import Smile from '@lucide/svelte/icons/smile';
@@ -14,9 +13,12 @@
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
   import {
-    resetListParams,
+    clearListFilters,
     setListParams,
   } from '$lib/components/staff/datatable/urlList';
+  import type { ActiveFilterChip } from '$lib/components/staff/datatable/types';
+  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
+  import { CLOSING_VERDICT_FILTER } from './view';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
@@ -74,10 +76,6 @@
     return 'outline';
   }
 
-  const hasFilters = $derived(
-    data.filters.reco !== 'all' || data.filters.q !== '',
-  );
-
   // The KPI tiles mirror the recommendation catalogue (label, icon, accent) so
   // they can't drift from the verdict surfaces (the dev synthesis card and the
   // exported PDF). Only the two view-local vocabularies are mapped here: the
@@ -104,7 +102,7 @@
   };
 
   type KpiCard = {
-    key: string;
+    key: (typeof CLOSING_VERDICT_FILTER.values)[number];
     label: string;
     caption: string;
     tone: KpiTone;
@@ -138,9 +136,36 @@
 
   const search = createUrlSearch();
 
+  // The tile pressed, as a chip: the verdict has no column filter, its tiles
+  // are the filter.
+  const chips = $derived<ActiveFilterChip[]>(
+    data.verdict === CLOSING_VERDICT_FILTER.defaultValue
+      ? []
+      : [
+          {
+            id: `avis:${data.verdict}`,
+            facet: 'Avis',
+            label: cards.find((c) => c.key === data.verdict)?.label ?? '',
+            onRemove: () =>
+              setListParams(
+                CLOSING_VERDICT_FILTER.params(
+                  CLOSING_VERDICT_FILTER.defaultValue,
+                ),
+              ),
+          },
+        ],
+  );
+
+  const hasFilters = $derived(
+    chips.length > 0 || search.value.trim().length > 0,
+  );
+
+  // Clears the verdict and the search.
   function clearFilters() {
-    search.clear();
-    resetListParams();
+    clearListFilters(
+      CLOSING_VERDICT_FILTER.params(CLOSING_VERDICT_FILTER.defaultValue),
+      search,
+    );
   }
 
   const th = 'font-mono text-xs font-normal uppercase tracking-wider';
@@ -170,8 +195,8 @@
           sub={card.caption}
           icon={card.Icon}
           tone={card.tone}
-          onclick={() => setListParams({ reco: card.key })}
-          pressed={data.filters.reco === card.key}
+          onclick={() => setListParams(CLOSING_VERDICT_FILTER.params(card.key))}
+          pressed={data.verdict === card.key}
         />
       {/each}
     </div>
@@ -187,34 +212,21 @@
             </span>
           </Card.Title>
 
-          <div class="flex flex-wrap items-center gap-2">
-            <div class="relative">
-              <Search
-                class="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              />
-              <Input
-                type="search"
-                placeholder="Rechercher un talent..."
-                value={search.value}
-                oninput={(e) =>
-                  (search.value = (e.currentTarget as HTMLInputElement).value)}
-                class="h-9 w-56 rounded-sm pl-8"
-              />
-            </div>
-
-            {#if hasFilters}
-              <Button
-                variant="ghost"
-                size="sm"
-                class="gap-1.5 text-muted-foreground"
-                onclick={clearFilters}
-              >
-                <X class="h-3.5 w-3.5" />
-                Réinitialiser
-              </Button>
-            {/if}
+          <div class="relative">
+            <Search
+              class="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              type="search"
+              placeholder="Rechercher un talent..."
+              value={search.value}
+              oninput={(e) =>
+                (search.value = (e.currentTarget as HTMLInputElement).value)}
+              class="h-9 w-56 rounded-sm pl-8"
+            />
           </div>
         </div>
+        <ActiveFilterChips {chips} onReset={clearFilters} />
       </Card.Header>
       <Card.Content>
         <Table.Root>
