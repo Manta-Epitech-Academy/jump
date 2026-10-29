@@ -50,12 +50,6 @@
     return `${(ms / 1000).toFixed(1)}s`;
   }
 
-  // Minors are involved, show first name + last initial only.
-  function displayName(prenom: string, nom: string): string {
-    const initial = nom.trim().charAt(0).toUpperCase();
-    return initial ? `${prenom} ${initial}.` : prenom;
-  }
-
   // Gold / silver / bronze tint for the three podium positions; everyone else
   // stays neutral. A cue to the current standing only, never a bonus claim.
   function rankColor(rank: number): string {
@@ -156,16 +150,16 @@
                   'border-b border-border',
                   // "This is you" is not a warning, so it takes the space's own
                   // accent rather than the amber it used to borrow.
-                  row.talentId === data.currentTalentId && 'bg-accent-space/10',
+                  row.isViewer && 'bg-accent-space/10',
                 )}
               >
                 <td class="py-2 font-bold {rankColor(row.rank)}">
                   <span class="inline-flex items-center gap-1.5">
                     {row.rank}
-                    {#if row.talentId === data.currentTalentId && row.rankXpAwarded}
-                      <!-- Only the connected talent's row shows an amount, and it's
-                           the bonus they actually locked in (rankXpAwarded), not a
-                           guess from the current rank. -->
+                    {#if row.rankXpAwarded}
+                      <!-- Only the connected talent's row carries an amount, and
+                           it's the bonus they actually locked in (rankXpAwarded),
+                           not a guess from the current rank. -->
                       <span
                         class="inline-flex items-center gap-0.5 rounded-full bg-epi-together/10 px-1.5 py-0.5 text-xs font-semibold text-epi-together"
                         title="Bonus XP que tu as gagné en jouant"
@@ -177,8 +171,8 @@
                   </span>
                 </td>
                 <td class="py-2 text-foreground-secondary">
-                  {displayName(row.prenom, row.nom)}
-                  {#if row.talentId === data.currentTalentId}
+                  {row.displayName}
+                  {#if row.isViewer}
                     <span class="ml-1 text-xs text-epi-together">(toi)</span>
                   {/if}
                 </td>

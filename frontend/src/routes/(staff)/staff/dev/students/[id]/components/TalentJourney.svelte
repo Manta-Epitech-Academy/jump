@@ -5,6 +5,7 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import { getInitials } from '$lib/avatar';
   import PullQuote from '$lib/components/staff/PullQuote.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import ClosingVerdictChip from '$lib/components/dev/closings/ClosingVerdictChip.svelte';
   import type { TalentJourney } from '$lib/domain/talentJourney';
   import { formatGivenName } from '$lib/domain/profile';
@@ -56,16 +57,12 @@
 </script>
 
 {#if journey.entries.length === 0}
-  <div
-    class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-6 text-center"
-  >
-    <CalendarDays class="h-8 w-8 text-muted-foreground opacity-30" />
-    <h3 class="mt-3 epi-overline text-muted-foreground">Aucun événement</h3>
-    <p class="mt-1 max-w-[250px] text-xs text-muted-foreground">
-      Ce talent n'a encore participé à aucun événement passé. Son parcours
-      s'écrira au premier.
-    </p>
-  </div>
+  <ResultsNotice
+    compact
+    icon={CalendarDays}
+    title="Aucun événement"
+    description="Ce talent n'a encore participé à aucun événement passé. Son parcours s'écrira au premier."
+  />
 {:else}
   <!-- A regular attends eight to ten events a year, so the length of this list
          is decided by the data: it scrolls in its own box, sized against the
@@ -93,9 +90,7 @@
                  The dotted underline is worn at rest, not on hover, which is
                  what tells the two apart: half a list linking and half not,
                  with both drawn identically until the pointer lands, reads as
-                 rows that are broken rather than as rows that lead nowhere.
-                 Same affordance `OriginBreakdownCard` gives its clickable
-                 rows. -->
+                 rows that are broken rather than as rows that lead nowhere. -->
             {#if entry.eventHref}
               <a
                 href={entry.eventHref}

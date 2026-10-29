@@ -6,11 +6,20 @@ import { z } from 'zod';
 import { prisma } from '$lib/server/db';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
+import { academieOf } from '$lib/domain/school';
 
 const campusSchema = z.object({
   name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').trim(),
   externalName: z.string().trim().nullable().default(null),
   timezone: z.string().min(1).default('Europe/Paris'),
+  departement: z
+    .string()
+    .trim()
+    .refine((code) => code === '' || academieOf(code) !== null, {
+      message: 'Département inconnu',
+    })
+    .nullable()
+    .default(null),
   contactEmail: z
     .string()
     .trim()
@@ -30,6 +39,7 @@ export const load: PageServerLoad = async () => {
     name: c.name,
     externalName: c.externalName,
     timezone: c.timezone,
+    departement: c.departement,
     contactEmail: c.contactEmail,
   }));
 
@@ -50,6 +60,7 @@ export const actions: Actions = {
           name: form.data.name,
           externalName: form.data.externalName || null,
           timezone: form.data.timezone,
+          departement: form.data.departement || null,
           contactEmail: form.data.contactEmail || null,
         },
       });
@@ -77,6 +88,7 @@ export const actions: Actions = {
           name: form.data.name,
           externalName: form.data.externalName || null,
           timezone: form.data.timezone,
+          departement: form.data.departement || null,
           contactEmail: form.data.contactEmail || null,
         },
       });

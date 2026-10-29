@@ -5,6 +5,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { EventService } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
+import { EventCategoryService } from '$lib/server/services/eventCategories';
 import { listDiplomaTemplates } from '$lib/server/diplomaTemplates';
 import { listClosingTemplates } from '$lib/server/closingTemplates';
 import {
@@ -41,6 +42,7 @@ export const load: PageServerLoad = async () => {
     diplomaTemplates,
     closingTemplates,
     statusCatalogue,
+    categories,
   ] = await Promise.all([
     prisma.feedback_Form.findMany({
       // Any published, talent-answerable form is pickable for an event (forms are
@@ -58,6 +60,9 @@ export const load: PageServerLoad = async () => {
     // The Salesforce statuses an event can show: the catalogue, a handful of
     // words.
     memberStatusCatalogue(),
+    // The category picker, archived ones included: the wizard offers the active
+    // ones and still shows the one an event already carries.
+    EventCategoryService.list(),
   ]);
   const feedbackForms = publishedForms.map((f) => ({
     value: f.id,
@@ -103,6 +108,7 @@ export const load: PageServerLoad = async () => {
     templates,
     formPreviews,
     sfStatuses: statusCatalogue.map((row) => row.status),
+    categories,
   };
 };
 
@@ -112,22 +118,12 @@ export const actions: Actions = {
     const form = await superValidate(request, zod4(adminEventSchema));
     if (!form.valid) return fail(400, { form });
 
-    if (form.data.devActivated) {
-      if (!form.data.publicName.trim() || !form.data.endDate) {
-        return message(
-          form,
-          "L'activation nécessite un nom public et une date de fin.",
-          { status: 400 },
-        );
-      }
-    }
-
     try {
       await EventService.updateEventConfig(form.data.id, {
         publicName: form.data.publicName,
         cohortNoun: form.data.cohortNoun,
+        categoryKey: form.data.categoryKey,
         startTime: form.data.startTime,
-        endDate: form.data.endDate,
         modules: form.data.modules,
         moduleSettings: form.data.moduleSettings,
         devActivated: form.data.devActivated,

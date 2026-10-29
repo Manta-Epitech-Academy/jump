@@ -71,8 +71,8 @@ interface FormSpec {
   omitIntro?: boolean;
   personaName: string | null;
   /**
-   * The persona's icon, as a key with no bytes behind it, like every stored
-   * file the generator writes: `PersonaAvatar` shows the default mascot when
+   * The persona's icon, as a key with no bytes behind it, since the generator
+   * stores the bytes of the activities' pictures only: `PersonaAvatar` shows the default mascot when
    * the object cannot be fetched, which is the state this puts on screen.
    * `sourceUrl` is where the builder says it was copied from, on a `.invalid`
    * host so a validation environment never points anybody at a live address.

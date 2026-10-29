@@ -68,6 +68,20 @@ import {
 } from '$lib/domain/eventModules';
 import { isCalendarDay, isWallClock } from '$lib/domain/planningTime';
 import {
+  EVENT_CATEGORY_COLOR_PATTERN,
+  EVENT_CATEGORY_KEY_MAX,
+  EVENT_CATEGORY_LABEL_MAX,
+} from '$lib/domain/eventCategory';
+import { CATALOGUE_KEY_PATTERN } from '$lib/domain/catalogueKey';
+import {
+  NOTIONS_MAX,
+  NOTION_LABEL_MAX,
+  WORKSHOP_DOMAIN_KEY_MAX,
+  WORKSHOP_DOMAIN_LABEL_MAX,
+  WORKSHOP_LEVELS,
+} from '$lib/domain/workshopCatalogue';
+import { SUPERVISOR_CODE_MAX } from '$lib/domain/workshops';
+import {
   SYNC_CADENCE_MAX_MINUTES,
   SYNC_CADENCE_MIN_MINUTES,
   SYNC_WORKER_TICK_MINUTES,
@@ -152,6 +166,7 @@ import {
   getCampusOverview,
   getFeedbackForms,
   getEventTemplates,
+  getEventCategories,
   getWorkshops,
   getTalentHomeContent,
 } from '$lib/server/services/adminStats/configuration';
@@ -160,15 +175,15 @@ import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearR
 import { getAdminDigestRecipients } from '$lib/server/services/adminStats/adminDigestRecipients';
 import { writeDiplomaTemplate } from './writes/diplomas';
 import { writeWorkshop, writeWorkshopInstance } from './writes/workshops';
+import { writeWorkshopDomain } from './writes/workshopDomains';
 import {
   writeTalentHomeHighlight,
   writeTalentHomeNote,
 } from './writes/talentHome';
 import { writeEventConfig, writeEventTemplate } from './writes/events';
+import { writeEventCategory } from './writes/eventCategories';
 import {
   retryPdfJob,
-  resolveSyncErrorRows,
-  resolveAllSyncErrorRows,
   resolveSchools,
   resetClosingById,
   SCHOOL_RESOLVE_LIMIT,
@@ -348,6 +363,16 @@ export type AdminApiOperation = {
    * somebody has to remember.
    */
   leadership: boolean;
+  /**
+   * The answer carries text typed outside the staff, by a talent or a parent,
+   * returned verbatim: a closing testimonial, or a school's name as a talent
+   * typed it when the annuaire did not know the UAI (`resolveSchoolByUai`). Such a read is never served to
+   * a credential that can write: in one MCP session, a sentence written as an
+   * instruction would otherwise sit next to the write tools it could ask a
+   * model to call, with only prose telling the model not to (security audit
+   * run-1). An admin reads it with a read-only or leadership token.
+   */
+  untrustedText: boolean;
   /** Bulk: a dry run first, then an apply echoing that plan's digest. */
   twoStep: boolean;
   run: (
@@ -381,6 +406,8 @@ function defineOperation<Shape extends z.ZodRawShape>(op: {
   shape: Shape;
   /** Grant this read to leadership tokens too. Absent = core team only. */
   leadership?: true;
+  /** Returns text an admin did not write, verbatim (see the field). */
+  untrustedText?: true;
   run: (
     params: z.output<z.ZodObject<Shape>>,
     ctx: OperationContext,
@@ -392,6 +419,7 @@ function defineOperation<Shape extends z.ZodRawShape>(op: {
     schema: z.strictObject(op.shape),
     kind: 'read',
     leadership,
+    untrustedText: op.untrustedText ?? false,
     twoStep: false,
     run: async (params, ctx) => {
       const answer = await op.run(params as z.output<z.ZodObject<Shape>>, ctx);
@@ -450,6 +478,7 @@ function defineWrite<Shape extends z.ZodRawShape>(op: {
     schema: z.strictObject(op.shape),
     kind: 'write',
     leadership: false,
+    untrustedText: false,
     twoStep: op.twoStep ?? false,
     run: (params, ctx) => op.run(params as z.output<z.ZodObject<Shape>>, ctx),
   };
@@ -566,7 +595,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   config_events: defineOperation({
-    description: `Every event of a périmètre, one row each: its id, its public and Salesforce names, its campus, its dates, how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks, which dev-workspace sections are on, the feedback form attached to it, its configuration state, and both what is still unset and what actually stops it from being made visible. This is where an event id comes from. Filter by campus, school year, point of life or configuration state. Capped at ${EVENTS_LIST_LIMIT} rows; "truncated" tells you whether the cap was reached.`,
+    description: `Every event of a périmètre, one row each: its id, its public and Salesforce names, its category, its campus, its dates, how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks, which dev-workspace sections are on, the feedback form attached to it, its configuration state, and both what is still unset and what actually stops it from being made visible. This is where an event id comes from. Filter by campus, school year, point of life or configuration state. Capped at ${EVENTS_LIST_LIMIT} rows; "truncated" tells you whether the cap was reached.`,
     shape: {
       schoolYear,
       campus,
@@ -584,7 +613,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_sync_health: defineOperation({
     description:
-      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are waiting, their breakdown by kind, and the age of the oldest, and every Salesforce member status Jump holds with what the dev workspace does with it, naming the events that carry a status Jump does not know. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
+      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are open and the age of the oldest, grouped by situation with the same explanation the admin page gives (what happened, what it prevents, who can fix it or that nobody can), and every Salesforce member status Jump holds with what the dev workspace does with it, naming the events that carry a status Jump does not know. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
     shape: {},
     run: () => getSyncHealth(),
   }),
@@ -614,7 +643,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_detail: defineOperation({
     description:
-      'Everything configured on one event: its Salesforce and public names, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form, certificate and closing grid it uses, the online activities it offers, and how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks.',
+      'Everything configured on one event: its Salesforce and public names, category, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form, certificate and closing grid it uses, the online activities it offers, and how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks.',
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },
@@ -692,7 +721,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_workshops: defineOperation({
     description:
-      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, and how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover). An instance is a host: its slug, its address and the activities declared on it, retired ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP: exactly the points CTFd pays for the steps a talent validated. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take.',
+      'The online activities Jump can send a talent to, and the CTFd instances that serve them. An activity is one content an instance serves: its slug (the name the instance gives that content), the French name a talent reads, the instance serving it, whether it is offered today, how many events offer it, how many talents have entered it, how it presents itself on the talent dashboard (tagline, and each picture with the address it was copied from, which write_workshop takes back as its cover), how the subject catalogue of the dev space files it (level, notions, domains, in the shape write_workshop takes) and what still keeps it out of that catalogue. An instance is a host: its slug, its address, its supervisor code and the activities declared on it, retired ones included. A domain is a field the catalogue files activities under: its key, its label, whether it is archived and how many activities carry it, archived ones included. The subject itself (steps, wording) lives in the instance. Also returns how an activity turns into XP: exactly the points CTFd pays for the steps a talent validated. Returns the slugs write_workshop, write_workshop_instance and the workshops of write_event_config take, and the domain keys of write_workshop and write_workshop_domain.',
     shape: {},
     run: () => getWorkshops(),
   }),
@@ -711,9 +740,16 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_templates: defineOperation({
     description:
-      'Saved event-configuration presets and exactly what each one holds: sections and their sub-options, shown Salesforce statuses, public name, cohort noun, arrival time, and the feedback form, certificate and closing grid it points at. A preset is applied by copying its values: to write_event_config for one event, or its modules and shownStatuses to bulk_event_config for many.',
+      'Saved event-configuration presets and exactly what each one holds: sections and their sub-options, shown Salesforce statuses, public name, cohort noun, category, arrival time, and the feedback form, certificate and closing grid it points at. A preset is applied by copying its values: to write_event_config for one event, or its modules, shownStatuses and categoryKey to bulk_event_config for many.',
     shape: {},
     run: () => getEventTemplates(),
+  }),
+
+  config_event_categories: defineOperation({
+    description:
+      'The event categories (Coding Club, Stage, Camp...), archived ones included, with their colour and how many events carry each. A category colours the campus calendar and counts for badges, nothing else. Takes no parameter.',
+    shape: {},
+    run: () => getEventCategories(),
   }),
 
   config_admin_digest: defineOperation({
@@ -725,6 +761,9 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_school_year_review: defineOperation({
     leadership: true,
+    // Its high-school reach is `stats_schools_reach`'s `topSchools`, names
+    // included.
+    untrustedText: true,
     description:
       'One school year summarised for a steering review: events run, cohort size and make-up, high-school and territorial reach, whether talents came back, and what they said in their closings. Pass compareTo to also get every headline figure as a movement against another year, already computed. Also returns "limites", stating in French what these figures cannot be read as. The school year is required.',
     shape: {
@@ -759,6 +798,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_schools_churn: defineOperation({
     leadership: true,
+    untrustedText: true,
     description: `Which high schools are new, which came back and which sent nobody this year, between two school years. Names the schools, most-represented first, capped at ${CHURN_SCHOOLS_LIMIT} per list. Both school years are required; there is no implicit previous year.`,
     shape: {
       schoolYear: requiredSchoolYear.describe(
@@ -787,7 +827,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_event_config: defineWrite({
     description:
-      "Change anything about one event's configuration in one call: names, dates, dev-workspace sections and their options, shown Salesforce statuses, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
+      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
       // Unset is spelled one way, on both sides: null, as config_event_detail
@@ -807,24 +847,21 @@ export const ADMIN_API_OPERATIONS = {
         .nullable()
         .optional()
         .describe('What one participant is called, e.g. "stagiaire".'),
-      // Both go through the domain predicates rather than a regex copied to
-      // here: `isCalendarDay` also rules out a day that does not exist, which a
-      // shape check accepts and the date parser downstream would only throw on.
+      categoryKey: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('eventCategoryKey')} What kind of event it is, for the calendar and badges only. Null so it has none. An archived one is refused unless the event already carries it.`,
+        ),
+      // Through the domain predicate rather than a regex copied to here.
       startTime: z
         .string()
         .refine(isWallClock, 'Use HH:MM on a 24h clock, e.g. "09:30".')
         .nullable()
         .optional()
         .describe('Arrival time of day, HH:MM. Salesforce never sends one.'),
-      endDate: z
-        .string()
-        .refine(
-          isCalendarDay,
-          'Use a real calendar day as YYYY-MM-DD (there is no 2026-06-31).',
-        )
-        .nullable()
-        .optional()
-        .describe('Last day of the event, YYYY-MM-DD.'),
       modules: z
         .array(z.string())
         .optional()
@@ -864,7 +901,7 @@ export const ADMIN_API_OPERATIONS = {
         .boolean()
         .optional()
         .describe(
-          'True to show it in the dev workspace, false to hide it. Showing needs a public name, an end date and at least one section, as saved by this call.',
+          'True to show it in the dev workspace, false to hide it. Showing needs a public name and at least one section, as saved by this call.',
         ),
       feedbackFormId: z
         .string()
@@ -1047,7 +1084,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_workshop_instance: defineWrite({
     description:
-      'Declare or update one CTFd instance, the host online activities run on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and nothing else; what the instance serves is write_workshop. Safe to repeat: the same slug and the same address leave one instance. Answers with the instance before and after.',
+      "Declare or update one CTFd instance, the host online activities run on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and which supervisor code the catalogue shows; what the instance serves is write_workshop. The instance's /admin/workshop/jump page prints this call filled in: run that rather than typing values. Safe to repeat: the same call leaves the same instance. Answers with the instance before and after.",
     shape: {
       instance: z
         .string()
@@ -1065,12 +1102,20 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           'Address of the CTFd instance, origin only with no path, e.g. "https://pacman.epiboost.fr". Jump appends the entry path itself.',
         ),
+      supervisorCode: z
+        .string()
+        .max(SUPERVISOR_CODE_MAX)
+        .nullable()
+        .optional()
+        .describe(
+          "The code the instance asks for on /supervisor/join, as its /admin/workshop/settings page holds it, shown on each of its subjects in the staff's catalogue. Omit to leave it; null or empty clears it.",
+        ),
     },
     run: (params) => writeWorkshopInstance(params),
   }),
 
   write_workshop: defineWrite({
-    description: `Declare or update one online activity, the content a CTFd instance serves, identified by its slug: what a talent reads (its French name), the instance serving it, whether it is offered, and how it presents itself on the talent dashboard (its cover). A slug that does not exist yet creates one; on an existing one only the fields you pass change. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content. The cover is a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host: media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same activity. Answers with the activity before and after.`,
+    description: `Declare or update one online activity, the content a CTFd instance serves, identified by its slug: what a talent reads (its French name), the instance serving it, whether it is offered, how it presents itself on the talent dashboard (its cover) and how the subject catalogue of the dev space files it (level, notions, domains). The catalogue shows an activity once it is offered and has a tagline, a level, a domain and a picture, and its instance a supervisor code (write_workshop_instance); config_workshops says what each one still lacks. A slug that does not exist yet creates one; on an existing one only the fields you pass change. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content. The cover is a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host: media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same activity. Answers with the activity before and after.`,
     shape: {
       slug: z
         .string()
@@ -1104,6 +1149,26 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           'Whether it is offered today. Omit to leave it as it stands, which is what keeps a label fix from putting a retired activity back in front of a cohort.',
         ),
+      level: z
+        .enum(WORKSHOP_LEVELS)
+        .nullable()
+        .optional()
+        .describe(
+          'How demanding the subject is, shown on its catalogue card; all_levels means open to anybody. Null clears it; omit to leave it.',
+        ),
+      notions: z
+        .array(z.string().trim().max(NOTION_LABEL_MAX))
+        .max(NOTIONS_MAX)
+        .optional()
+        .describe(
+          'What a talent practises on it, short French labels in the order the catalogue shows them, e.g. ["Arbres de décision", "FSM"]. The complete list: [] clears it, a blank or a repeat is dropped. Omit to leave it.',
+        ),
+      domains: z
+        .array(z.string().min(1))
+        .optional()
+        .describe(
+          `${handleDescribe('workshopDomainKey')} The complete set of domains it is filed under: [] clears it. An archived domain is refused unless the activity already carries it. Omit to leave it.`,
+        ),
       cover: z
         .strictObject({
           tagline: z
@@ -1132,6 +1197,39 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeWorkshop(params),
+  }),
+
+  write_workshop_domain: defineWrite({
+    description:
+      'Create or update one domain of the subject catalogue by its key: a new key creates one (label required), on an existing one only the fields you pass change. To remove one, archive it: no activity is filed under it any more, those that carry it keep it. There is no delete. An activity gets its domains from write_workshop. Safe to repeat. Answers with the domain before and after.',
+    shape: {
+      domainKey: z
+        .string()
+        .max(WORKSHOP_DOMAIN_KEY_MAX)
+        .regex(
+          CATALOGUE_KEY_PATTERN,
+          'Lowercase letters, digits and hyphens only, e.g. "cybersecurite".',
+        )
+        .describe(
+          `${handleDescribe('workshopDomainKey')} Creates or updates by it. Chosen once and never changed: rename the label instead.`,
+        ),
+      label: z
+        .string()
+        .trim()
+        .min(1)
+        .max(WORKSHOP_DOMAIN_LABEL_MAX)
+        .optional()
+        .describe(
+          'French name the staff read on the catalogue, e.g. "Cybersécurité". Required to create one.',
+        ),
+      archived: z
+        .boolean()
+        .optional()
+        .describe(
+          'True to archive it, false to unarchive it. Omit to leave it as it stands.',
+        ),
+    },
+    run: (params) => writeWorkshopDomain(params),
   }),
 
   write_talent_home_note: defineWrite({
@@ -1356,6 +1454,46 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => writeEventTemplate(params),
   }),
 
+  write_event_category: defineWrite({
+    description:
+      'Create or update one event category by its key: a new key creates one (label and color required), on an existing one only the fields you pass change. To remove one, archive it: no event is given it any more, those that carry it keep it. There is no delete. An event gets its category from write_event_config or bulk_event_config. Safe to repeat. Answers with the category before and after.',
+    shape: {
+      categoryKey: z
+        .string()
+        .max(EVENT_CATEGORY_KEY_MAX)
+        .regex(
+          CATALOGUE_KEY_PATTERN,
+          'Lowercase letters, digits and hyphens only, e.g. "coding-club".',
+        )
+        .describe(
+          `${handleDescribe('eventCategoryKey')} Creates or updates by it. Chosen once and never changed: rename the label instead.`,
+        ),
+      label: z
+        .string()
+        .trim()
+        .min(1)
+        .max(EVENT_CATEGORY_LABEL_MAX)
+        .optional()
+        .describe(
+          'French name teams and talents read, e.g. "Coding Club". Required to create one.',
+        ),
+      color: z
+        .string()
+        .regex(EVENT_CATEGORY_COLOR_PATTERN, 'Use #rrggbb, e.g. "#013afb".')
+        .optional()
+        .describe(
+          'Its colour on the calendar, #rrggbb. Pick one the other categories do not use, so the two stay apart at a glance. Required to create one.',
+        ),
+      archived: z
+        .boolean()
+        .optional()
+        .describe(
+          'True to archive it, false to unarchive it. Omit to leave it as it stands.',
+        ),
+    },
+    run: (params) => writeEventCategory(params),
+  }),
+
   write_admin_digest_recipient: defineWrite({
     description:
       'Choose whether one admin receives the weekly admin digest, from the next Monday on. Only an admin account can, since its links need a staff session; one who loses the role stops receiving it with nothing to undo. Safe to repeat.',
@@ -1375,20 +1513,6 @@ export const ADMIN_API_OPERATIONS = {
       jobId: z.string().min(1).describe(handleDescribe('pdfJobId')),
     },
     run: (params) => retryPdfJob(params),
-  }),
-
-  ops_resolve_sync_errors: defineWrite({
-    description:
-      'Mark every unresolved Salesforce sync error of one kind as handled. Resolving is a flag, nothing is deleted. Safe to repeat: a second call finds nothing left to resolve and reports zero. The kind is required: emptying the whole queue is ops_resolve_all_sync_errors, deliberately a separate act.',
-    shape: {
-      errorType: z
-        .string()
-        .min(1)
-        .describe(
-          `Resolve every unresolved error of this kind. Required: emptying the whole queue without naming a kind is ops_resolve_all_sync_errors, deliberately a separate act. ${handleDescribe('syncErrorType')}`,
-        ),
-    },
-    run: (params) => resolveSyncErrorRows(params),
   }),
 
   write_sync_source: defineWrite({
@@ -1482,18 +1606,11 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_release_prune_hold: defineWrite({
-    description: `Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted by fixing their sync errors, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to ${NEXT_WORKER_WAKE_UP}. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.`,
+    description: `Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted once those contacts are completed in Salesforce, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to ${NEXT_WORKER_WAKE_UP}. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.`,
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },
     run: (params) => releasePruneHold(params),
-  }),
-
-  ops_resolve_all_sync_errors: defineWrite({
-    description:
-      'Mark every unresolved Salesforce sync error as handled, with no filter at all. Separate from the filtered operation on purpose: emptying the whole queue is its own decision. Safe to repeat.',
-    shape: {},
-    run: () => resolveAllSyncErrorRows(),
   }),
 
   ops_resolve_schools: defineWrite({
@@ -1526,7 +1643,7 @@ export const ADMIN_API_OPERATIONS = {
 
   bulk_event_config: defineWrite({
     twoStep: true,
-    description: `Change the configuration of every event matching a filter, in one plan: their dev-workspace sections, the Salesforce statuses they show, and whether the dev workspace shows them. Patch semantics: only the fields you pass change. Call it without planDigest for the list of events that would change and how (events that cannot be shown are listed with what they lack, judged after the sections this call sets), then with the planDigest to apply it all in one transaction. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
+    description: `Change the configuration of every event matching a filter, in one plan: their dev-workspace sections, the Salesforce statuses they show, their category, and whether the dev workspace shows them. Patch semantics: only the fields you pass change. Call it without planDigest for the list of events that would change and how (events that cannot be shown are listed with what they lack, judged after the sections this call sets), then with the planDigest to apply it all in one transaction. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
     shape: {
       campus,
       schoolYear,
@@ -1559,6 +1676,14 @@ export const ADMIN_API_OPERATIONS = {
         .optional()
         .describe(
           `${handleDescribe('sfStatus')} Statuses every matching event will stop showing. Their enrolments stay synced and in Jump.`,
+        ),
+      categoryKey: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('eventCategoryKey')} The category every matching event will carry, e.g. a preset's from config_event_templates. Null removes it. An archived one is refused.`,
         ),
       visible: z
         .boolean()
@@ -1656,6 +1781,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_schools_reach: defineOperation({
     leadership: true,
+    untrustedText: true,
     description: `Which high schools the platform reaches: how many distinct ones, how many départements they cover, the ${SCHOOLS_TOP_N} most represented with their share of the cohort, and how much of the cohort is attached to no identified school at all - split into the ones who named a school Jump could not match and the ones who named none, because those two are chased differently.`,
     shape: { schoolYear, campus, eventId },
     run: async (params) => getSchoolsReach(await resolveScope(params)),
@@ -1789,6 +1915,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_closing_testimonials: defineOperation({
     leadership: true,
+    untrustedText: true,
     description: `Sentences students wrote about the event, word for word, from the one question each closing grid marks as quotable. Most recent first, no student identified. Default ${TESTIMONIALS_DEFAULT_LIMIT}, ${TESTIMONIALS_MAX_LIMIT} maximum.`,
     shape: {
       schoolYear,
@@ -1877,6 +2004,21 @@ export function isOperationAllowedForTier(
   return tier === 'core' || operation.leadership;
 }
 
+/**
+ * Whether a credential's write capability admits an operation. The single
+ * expression of that rule, read by the guard and by the MCP server like
+ * {@link isOperationAllowedForTier}: a write needs the capability, and a read
+ * that returns untrusted text needs its absence.
+ */
+export function isOperationAllowedForCapability(
+  operation: AdminApiOperation,
+  writeEnabled: boolean,
+): boolean {
+  return operation.kind === 'write'
+    ? writeEnabled
+    : !(operation.untrustedText && writeEnabled);
+}
+
 /** The operations a tier can call, in catalogue order. */
 export function operationsForTier(
   tier: AdminApiTier,
@@ -1897,7 +2039,7 @@ export function operationsOfferedTo(credential: {
   tier: AdminApiTier;
   writeEnabled: boolean;
 }): [AdminApiOperationName, AdminApiOperation][] {
-  return operationsForTier(credential.tier).filter(
-    ([, op]) => op.kind !== 'write' || credential.writeEnabled,
+  return operationsForTier(credential.tier).filter(([, op]) =>
+    isOperationAllowedForCapability(op, credential.writeEnabled),
   );
 }

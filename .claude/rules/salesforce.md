@@ -1,10 +1,11 @@
 ---
 paths:
   - "frontend/src/routes/api/worker/**"
-  - "frontend/src/lib/server/services/{syncService,syncConfigService,syncRunService,devSpaceVisibility,reconciliationService,schoolService}.ts"
+  - "frontend/src/lib/server/services/{syncService,syncConfigService,syncRunService,devSpaceVisibility,reconciliationService,schoolService,talentDeletionService}.ts"
   - "frontend/src/lib/server/annuaire.ts"
   - "frontend/src/lib/domain/{syncSchedule,reconciliation,sfMemberStatus}.ts"
-  - "frontend/src/lib/validation/{workerSync,workerConfigContract.test}.ts"
+  - "frontend/src/lib/validation/{workerSync,workerConfigContract.test,accountDeletions}.ts"
+  - "frontend/src/routes/**/account-deletions/**"
   - "frontend/src/routes/**/sf-conflicts/**"
 ---
 
@@ -51,10 +52,13 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   horizontally-scaled pods. This is also why deletions are caught by the spaced
   full reconcile and by nothing else, and why spacing that pass out has a cost.
 - **A full pass prunes only from a complete roster, and holds what it cannot
-  prove.** Complete means non-empty with every member resolved to a known talent.
+  prove.** Complete means non-empty with every member resolved to a known talent,
+  or to a contact erased at their request, whose enrolments no roster can name
+  again and the prune therefore never touches.
   An empty roster looks exactly like a truncated fetch, and a member the talents
-  push skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`) may be the very person whose
-  enrolment the prune would take, so in either case the enrolments that did
+  push skipped (a nameless contact, `MISSING_NAME`, or a person whose talents
+  Jump would not merge, `MERGE_REFUSED`) may be the very person whose enrolment
+  the prune would take, so in either case the enrolments that did
   resolve are written, the removals are recorded on `Sync_PruneHold`, and the
   call succeeds. A later complete roster lifts the hold by pruning normally; an
   admin who knows the campaign really was emptied releases it
@@ -63,7 +67,36 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   `stats_sync_health.prunesHeld` lists them. **Only an empty roster can be
   released**, and a CHECK holds it: over unresolved members a release would
   hand a person exactly the deletion the hold refused, so that hold lifts by
-  fixing the member's SyncError and nothing else.
+  settling the member's sync error and nothing else.
+- **A sync error lives exactly as long as the sync reproduces it, and nobody
+  resolves one.** `Sync_Error` holds what a pass could not do, one closed cause
+  per row (`Sync_ErrorKind`): a nameless contact, an address already taken, a
+  technical login failure, a person split over talents Jump will not merge. A pass that finds the problem gone deletes the row,
+  and an `ok` full run deletes every row it did not meet, as it does the holds.
+  A « Résoudre » button used to hide a row that the next pass reopened in
+  silence, so 217 errors sat open with « résolu » meaning nothing (#462); a
+  manual resolve brought back is that queue again. Only the cause is stored:
+  what it prevents, who holds the address and who can fix it are derived when
+  read (`domain/syncError.ts`, through `syncErrorQueue.ts`), and the admin page
+  and `stats_sync_health` read that one derivation.
+- **A talent is one Salesforce person: its Contact once it has one, its Lead
+  only while it never became a Contact.** The worker keys a member on its
+  `ContactId` and sends `converted_lead_ids`, every Lead whose
+  `ConvertedContactId` is that contact. Jump used to get a Lead id even for a
+  Contact, and a Contact absorbs one Lead per salon the student was met at: one
+  person became a talent per Lead, the first took the login address, and the
+  current enrolment could never log in (October 2026, four talents for one
+  student). `claimSalesforcePerson` folds the talents of those Leads into one
+  (`mergeTalents`), rekeyed to the contact, before `syncTalents` looks it up.
+  The link is Salesforce's own conversion, **never an address**: siblings share
+  one. The one kept is the record a person used, otherwise the one already on
+  the contact, otherwise the oldest; when more than one was used (a login, a
+  dossier) nothing merges and the contact is recorded as `MERGE_REFUSED`,
+  because which login and which dossier a student keeps is not Jump's to guess.
+  A Lead never converted stays its own talent: Salesforce does not link it, and
+  converting it into the contact is the fix. **Jump ships before the worker**:
+  a Jump that ignores `converted_lead_ids` takes each `ContactId` for a new
+  talent and doubles every converted person.
 - **A refusal that replays identically must never fail a run.** A refusal fails
   the call, the worker closes the run in error, and a failed run is replayed at
   the next tick with the same input, so a refusal that depends only on that input
@@ -74,6 +107,18 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   (`syncEvents` for an unknown campus, `syncTalents` for a nameless contact,
   `syncParticipations` for an unknown event or an unprovable prune), and keep
   refusals for a malformed payload, which is a worker bug and not data.
+- **A contact erased at their request is never imported again.** The erasure
+  nulls `Talent.externalId`, so without `Sync_ErasedContact` the next push
+  re-creates the talent and its login as a first sight. Both pushes skip it
+  before anything else, counted in `erased`, never a `Sync_Error` (which would
+  store the id and the name again). The bar is on the person: a Lead erased
+  before Salesforce converted it bars the Contact that carries it in
+  `converted_lead_ids`, and the row moves onto that Contact. A readmission
+  stamps the row rather than deleting it, so who lifted an erasure stays on
+  record. The model says why it holds the id and that stamp alone and why the
+  inactivity sweep bars nothing; a
+  swept talent's enrolments are therefore pruned like any other, or the
+  person, re-imported, would sit on the event twice.
 - **A failed run moves nothing.** The watermarks are no column anywhere: each is
   read off the latest run of its mode with `status = 'ok'` (`lastOkRun`), and
   which of that run's dates counts is the `startedAt` rule below. So a run
@@ -122,6 +167,19 @@ memory, because `since: undefined` is present in an object and gone from its JSO
 - **`syncEvents` skips what it cannot resolve, it does not refuse the batch.** It
   used to return on the first bad row, leaving everything before it applied and
   everything after it not, with one string to explain the state.
+- **An event's days are Salesforce's, and only the sync writes them.** `date` is
+  the campaign's `StartDate` at 00:00 campus-local, `endDate` its `EndDate` at
+  23:59, both through `eventStartInstant` / `eventEndInstant`, so the campus
+  timezone decides the day and the server's never does. Jump owns the hour
+  (`startMinutes`) and nothing else: the start day was once regex-parsed out of
+  the campaign name, which dated a campaign named any other way on the day the
+  worker ran, and the end day was typed by hand in the config wizard, where the
+  next pass would have overwritten it. A wrong day is fixed in Salesforce and
+  lands on the next pass (`ops_request_sync` for one now). And no end day is a
+  single-day event, never a missing field: the activation rule asked for one
+  while Jump typed it, and kept asking once the sync wrote it, which refused
+  every single-day campaign and every later save of a visible event whose
+  campaign had no `EndDate`.
 
 ## Shapes that look like errors and are not
 
@@ -130,12 +188,17 @@ memory, because `since: undefined` is present in an object and gone from its JSO
 - A participation value can be `""`: the worker maps a null `CampaignMember.Status`
   to the empty string rather than dropping the member.
 - `first_name` can be `""`, because `Contact.FirstName` is optional in Salesforce.
-  The row is skipped, counted in `invalid` and logged as a `SyncError` of kind
+  The row is skipped, counted in `invalid` and logged as a `Sync_Error` of kind
   `MISSING_NAME`; the page of 50 that carried it is still reconciled. Refusing it
   at the envelope closes the run in error, and since the watermark only moves on
   success, the next tick replays the identical page onto the identical row.
-- `date` is **absent**, never `null`, when the campaign name carries none, and it
-  is written `YYYY/MM/DD`.
+- `converted_lead_ids` is absent from a worker that predates it, which keyed a
+  converted member on one of those Leads; nothing is merged then.
+- `start_date` and `end_date` are `YYYY-MM-DD` or `null`. `null` is Salesforce
+  having none: no end day makes a single-day event, and a new campaign with no
+  usable start day is skipped and listed in `undated`. An ABSENT key, a value
+  that is no calendar day, or an end day before the start day is "not sent" and
+  leaves the stored day alone.
 - `campus_ext_name` can be `""`, which resolves to no campus and is skipped.
 - Jump's error body ends up quoted into `Sync_Run.error`, truncated by the worker
   at 300 characters. Keep refusals short and specific.

@@ -1,3 +1,5 @@
+import { fromWallClock, type DateKey } from './planningTime';
+
 // ─── Cohort noun (`Event.cohortNoun`) ──────────────────────────────────────
 // What a single member of an event's cohort is called across the dev workspace
 // ("stagiaire" for a stage de seconde, "participant" for a coding club,
@@ -64,7 +66,7 @@ export function cohortNounForms(
 /**
  * The event's display name: the admin-set `publicName` if any, else the raw
  * Salesforce `titre`. The single name used everywhere a human reads the event -
- * staff chrome (page titles, breadcrumbs, switcher) and talent surfaces
+ * staff chrome (page titles, breadcrumbs, the campus calendar) and talent surfaces
  * (dashboard, history, QR sheets) alike. An event configured for talents already
  * carries its own `publicName`; when it doesn't, the SF `titre` is an acceptable
  * fallback - the staff-chosen name is shown ~most of the time anyway.
@@ -76,15 +78,90 @@ export function eventDisplayName(e: {
   return e.publicName?.trim() || e.titre;
 }
 
+// ─── Event days (`Event.date` / `Event.endDate`) ───────────────────────────
+// Salesforce owns both days: the sync copies the campaign's `StartDate` and
+// `EndDate`, which are calendar days with no time and no zone. They are stored
+// as instants read in the campus timezone, so `toDateKey(instant, tz)` gives
+// the day back whatever timezone the server runs in.
+
+/** First instant of an event's start day: 00:00 campus-local. */
+export function eventStartInstant(day: DateKey, tz: string): Date {
+  return fromWallClock(day, '00:00', tz);
+}
+
+/**
+ * Last day of an event, stored at 23:59 campus-local rather than midnight, so
+ * the whole last day still reads as "ongoing" and `toDateKey` resolves it to
+ * that day for the émargement créneaux.
+ */
+export function eventEndInstant(day: DateKey, tz: string): Date {
+  return fromWallClock(day, '23:59', tz);
+}
+
 /**
  * Effective end of an event's active window: its explicit `endDate`, or the
  * start `date` when none is set (a single-day event). Single source of truth so
  * the talent welcome/feedback surfaces and the admin picker's ongoing/past badge
- * stay in lockstep. A multi-day event carries an explicit `endDate` (set in the
- * config wizard or a planning template); nothing is synthesised from a type.
+ * stay in lockstep. A multi-day event carries an explicit `endDate`, the
+ * campaign's `EndDate` in Salesforce; nothing is synthesised from a type.
  */
 export function eventWindowEnd(date: Date, endDate: Date | null): Date {
   return endDate ?? date;
+}
+
+const NBSP = ' ';
+
+/**
+ * The days an event runs, as a person reads them: "du 27 au 30 oct. 2026",
+ * naming a month or a year once when both days share it, or a single day when
+ * the event starts and ends on the same one. Read on the campus clock, since
+ * the days are stored as campus-local instants: formatted on the pod's or the
+ * browser's clock instead, a Réunion event reads one day early.
+ *
+ * Sharing the month keeps the common range on one line of the 272px dev
+ * sidebar, where "14 août 2026 → 27 août 2026" always wrapped. The mockup
+ * spells the month out ("du 27 au 30 octobre 2026"); abbreviated, no label is
+ * longer than the arrow form it replaced, and the median event, a single day,
+ * keeps "12 nov. 2026". A longer range can still wrap, so no-break spaces hold
+ * each end together and a narrow column wraps only before "au": left to break
+ * anywhere, a 360px planning header stranded the year on a line of its own.
+ */
+export function eventDaysLabel(
+  date: Date,
+  endDate: Date | null,
+  timezone: string,
+): string {
+  const fmt = new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: timezone,
+  });
+  const partsOf = (d: Date) => {
+    const parts = fmt.formatToParts(d);
+    const part = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((p) => p.type === type)?.value ?? '';
+    const day = part('day');
+    // French writes the first of a month as an ordinal: "du 1er au 3 mars".
+    return {
+      day: day === '1' ? '1er' : day,
+      month: part('month'),
+      year: part('year'),
+    };
+  };
+  const join = (...words: string[]) => words.join(NBSP);
+  const start = partsOf(date);
+  const end = endDate ? partsOf(endDate) : start;
+  if (start.year !== end.year) {
+    return `${join('du', start.day, start.month, start.year)} ${join('au', end.day, end.month, end.year)}`;
+  }
+  if (start.month !== end.month) {
+    return `${join('du', start.day, start.month)} ${join('au', end.day, end.month, end.year)}`;
+  }
+  if (start.day !== end.day) {
+    return `${join('du', start.day)} ${join('au', end.day, end.month, end.year)}`;
+  }
+  return join(start.day, start.month, start.year);
 }
 
 // ─── Start time-of-day (`Event.startMinutes`) ──────────────────────────────

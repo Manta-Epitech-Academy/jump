@@ -1,14 +1,18 @@
 import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { hhmmToMinutes, minutesToHHMM } from '$lib/domain/event';
+import {
+  eventDaysLabel,
+  hhmmToMinutes,
+  minutesToHHMM,
+} from '$lib/domain/event';
 import {
   eventRunsClosings,
   isEventModuleKey,
   parseModuleSettings,
   type EventModuleKey,
 } from '$lib/domain/eventModules';
-import { fromWallClock, toDateKey } from '$lib/domain/planningTime';
+import { toDateKey } from '$lib/domain/planningTime';
 import {
   getEventStatus,
   getLifecycleBounds,
@@ -22,7 +26,15 @@ import {
 } from '$lib/domain/eventReadiness';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import {
+  archivedCategoryRefusal,
+  type EventCategoryView,
+} from '$lib/domain/eventCategory';
 import { setEventShownStatuses } from '$lib/server/services/devSpaceVisibility';
+import {
+  EVENT_CATEGORY_SELECT,
+  eventCategoryView,
+} from '$lib/server/services/eventCategories';
 
 /**
  * The per-event view model the admin surfaces consume: the events cockpit
@@ -39,6 +51,8 @@ export type AdminEventVM = {
   displayName: string;
   /** Jump-owned cohort noun ("stagiaire", ...), or null when unnamed; set in the wizard. */
   cohortNoun: string | null;
+  /** The kind of event it is, or null when uncategorised; set in the wizard. */
+  category: EventCategoryView | null;
   campusId: string;
   campusName: string;
   /** "12 fév. 2026 → 26 fév. 2026" (campus tz), endDate omitted when absent. */
@@ -47,8 +61,6 @@ export type AdminEventVM = {
   dateTs: number;
   /** Epoch ms of row creation, for the dashboard's "recently created" order. */
   createdTs: number;
-  /** Start day `YYYY-MM-DD` (campus tz): the end-date input's `min`. */
-  startDateKey: string;
   schoolYearLabel: string;
   schoolYearStart: number;
   /** "HH:MM" Jump-owned start, or "" when unset (shows the type default). */
@@ -72,7 +84,7 @@ export type AdminEventVM = {
    * agree on what "in the dev space" means.
    */
   configState: EventConfigState;
-  /** End day `YYYY-MM-DD` (campus tz) for the form, or "" when unset. */
+  /** Salesforce end day `YYYY-MM-DD` (campus tz), or "" for a single-day event. */
   endDate: string;
   modules: EventModuleKey[];
   /** Per-module sub-options keyed by module key (only enabled modules carry one). */
@@ -110,7 +122,7 @@ export function adminEventRunsClosings(
 }
 
 /**
- * The four values Jump owns on an event, `null` where unset.
+ * The three values Jump owns on an event, `null` where unset.
  *
  * The VM spells "unset" as `""` because forms bind to it; the admin API spells
  * it `null`, the value `write_event_config` clears a field with, so a read sent
@@ -118,21 +130,16 @@ export function adminEventRunsClosings(
  * event read and the write's before and after cannot disagree on the spelling.
  */
 export function jumpOwnedFields(
-  event: Pick<
-    AdminEventVM,
-    'publicName' | 'cohortNoun' | 'startTime' | 'endDate'
-  >,
+  event: Pick<AdminEventVM, 'publicName' | 'cohortNoun' | 'startTime'>,
 ): {
   publicName: string | null;
   cohortNoun: string | null;
   startTime: string | null;
-  endDate: string | null;
 } {
   return {
     publicName: event.publicName || null,
     cohortNoun: event.cohortNoun || null,
     startTime: event.startTime || null,
-    endDate: event.endDate || null,
   };
 }
 
@@ -140,9 +147,9 @@ export function jumpOwnedFields(
  * The rows `bulkSetActivation` is allowed to activate: the SQL twin of
  * `activationBlockers` in `domain/eventReadiness`.
  *
- * Two spellings of one rule is the shape this replaces - the same three
+ * Two spellings of one rule is the shape this replaces - the same
  * conditions sat here as a `where`, in `adminApi/writes/bulk.ts` as a hand-copied
- * predicate, and in a refusal sentence that listed all three with "or" because it
+ * predicate, and in a refusal sentence that listed them all with "or" because it
  * could not tell which one applied. A `where` cannot call a predicate, so the
  * honest arrangement is one rule with two spellings that name each other, and a
  * unit test asserting they read the same fields.
@@ -152,7 +159,6 @@ export function jumpOwnedFields(
  */
 export const activatableEventWhere = {
   modules: { some: {} },
-  endDate: { not: null },
   NOT: [{ publicName: null }, { publicName: '' }],
 } satisfies Prisma.EventWhereInput;
 
@@ -163,6 +169,7 @@ const ADMIN_EVENT_SELECT = {
   titre: true,
   publicName: true,
   cohortNoun: true,
+  category: { select: EVENT_CATEGORY_SELECT },
   date: true,
   endDate: true,
   startMinutes: true,
@@ -187,23 +194,6 @@ type AdminEventRow = Prisma.EventGetPayload<{
   select: typeof ADMIN_EVENT_SELECT;
 }>;
 
-function dateRangeLabel(
-  date: Date,
-  endDate: Date | null,
-  timezone: string,
-): string {
-  const fmt = new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: timezone,
-  });
-  const start = fmt.format(date);
-  if (!endDate) return start;
-  const end = fmt.format(endDate);
-  return start === end ? start : `${start} → ${end}`;
-}
-
 function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
   // Lifecycle bounds are timezone-dependent and the list is cross-campus, so
   // memoize one bounds object per distinct campus tz instead of recomputing it
@@ -221,7 +211,6 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
   return rows.map((e) => {
     const tz = e.campus.timezone;
     const sy = schoolYearOf(e.date, tz);
-    const startDateKey = toDateKey(e.date, tz);
     // Same window rule as the dev workspace (both call `getEventStatus`): the
     // raw endDate (null = single-day, a whole-day window) decides the bucket, so
     // the cockpit and the dev space agree.
@@ -239,12 +228,12 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
       publicName: e.publicName ?? '',
       displayName: e.publicName?.trim() || e.titre,
       cohortNoun: e.cohortNoun,
+      category: e.category && eventCategoryView(e.category),
       campusId: e.campusId,
       campusName: e.campus.name,
-      dateLabel: dateRangeLabel(e.date, e.endDate, tz),
+      dateLabel: eventDaysLabel(e.date, e.endDate, tz),
       dateTs: e.date.getTime(),
       createdTs: e.createdAt.getTime(),
-      startDateKey,
       schoolYearLabel: sy.label,
       schoolYearStart: sy.startYear,
       startTime: minutesToHHMM(e.startMinutes),
@@ -472,6 +461,24 @@ export async function setActivationForEvents(
   };
 }
 
+/**
+ * Gives many events one category, or none, inside an open transaction. The bulk
+ * write's counterpart of the field `updateEventConfig` saves; the caller has
+ * already refused an archived target, since none of these events is asked to
+ * keep one it carries.
+ */
+export async function setCategoryForEvents(
+  tx: Prisma.TransactionClient,
+  eventIds: readonly string[],
+  categoryKey: string | null,
+) {
+  if (eventIds.length === 0) return;
+  await tx.event.updateMany({
+    where: { id: { in: [...eventIds] } },
+    data: { categoryKey },
+  });
+}
+
 export const EventService = {
   /**
    * Every event as an `AdminEventVM`, newest start date first, cross-campus.
@@ -489,15 +496,11 @@ export const EventService = {
 
   /**
    * Admin event configuration: the friendly `publicName`, the Jump-owned start
-   * time-of-day and end date, and the dev-workspace surfaces the event exposes,
-   * all in one transaction. Admin-only (the
-   * `/staff/admin/events` page is admin-gated and admins are cross-campus, so
-   * there is no campus check here; the event id is the authority). The start
-   * `date` and `titre` stay Salesforce-owned. `endDate` is NOT sent by
-   * Salesforce, so Jump owns it here (like the start time): a `YYYY-MM-DD`
-   * campus-tz day, stored at end-of-day so the last day still reads as
-   * "ongoing"; empty clears it back to a single-day event. Note an applied
-   * planning template also rewrites `endDate` (its last day wins).
+   * time-of-day, and the dev-workspace surfaces the event exposes, all in one
+   * transaction. Admin-only (the `/staff/admin/events` page is admin-gated and
+   * admins are cross-campus, so there is no campus check here; the event id is
+   * the authority). `titre` and both days (`date`, `endDate`) are Salesforce's
+   * and only the sync writes them.
    *
    * `workshops` is the one part that is optional: the config dialog has no
    * activity field, so it leaves the event's activities as they are, and only
@@ -509,8 +512,8 @@ export const EventService = {
     data: {
       publicName: string;
       cohortNoun: string;
+      categoryKey: string;
       startTime: string;
-      endDate: string;
       modules: string[];
       moduleSettings: Record<string, unknown>;
       devActivated: boolean;
@@ -522,15 +525,11 @@ export const EventService = {
     },
   ) {
     // Surfaces a clean 404 (rather than a transaction-level throw) if the event
-    // vanished between the page load and the save. The campus tz turns the
-    // bare end-date day into a correct instant; `devActivatedAt` is read to
+    // vanished between the page load and the save. `devActivatedAt` is read to
     // preserve the original activation instant across edits that keep it on.
     const event = await prisma.event.findUniqueOrThrow({
       where: { id: eventId },
-      select: {
-        devActivatedAt: true,
-        campus: { select: { timezone: true } },
-      },
+      select: { devActivatedAt: true, categoryKey: true },
     });
     // The activation rule, judged on the configuration being saved rather than
     // the one stored. `bulkSetActivation` refuses through `activatableEventWhere`;
@@ -546,17 +545,11 @@ export const EventService = {
       ? activationRefusal({
           publicName: data.publicName.trim() || null,
           cohortNoun: data.cohortNoun.trim() || null,
-          endDate: data.endDate || null,
           modules: data.modules,
           devActivated: data.devActivated,
         })
       : null;
     if (refusal) throw error(400, refusal);
-    // 23:59 campus-local on the chosen day, so `toDateKey` resolves it to that
-    // day for the émargement créneaux whatever the campus timezone.
-    const endDate = data.endDate
-      ? fromWallClock(data.endDate, '23:59', event.campus.timezone)
-      : null;
     // Keep the existing instant while it stays activated; stamp now on a fresh
     // activation; clear it when deactivated.
     const devActivatedAt = data.devActivated
@@ -595,6 +588,21 @@ export const EventService = {
       });
       if (!grid) throw error(400, 'Grille de closing introuvable.');
     }
+    // Which kind of event it is. Empty = uncategorised. An archived category is
+    // no longer offered, so it is refused as a new choice, but an event that
+    // already carries one keeps it: saving its configuration unchanged, or
+    // sending back what the admin API read, must not fail on it.
+    const categoryKey = data.categoryKey.trim() || null;
+    if (categoryKey && categoryKey !== event.categoryKey) {
+      const category = await prisma.eventConfig_Category.findUnique({
+        where: { key: categoryKey },
+        select: { label: true, archivedAt: true },
+      });
+      if (!category) throw error(400, 'Catégorie introuvable.');
+      if (category.archivedAt) {
+        throw error(400, archivedCategoryRefusal(category.label));
+      }
+    }
 
     await prisma.$transaction(async (tx) => {
       await applyModuleDiff(tx, eventId, data.modules, data.moduleSettings);
@@ -611,8 +619,8 @@ export const EventService = {
           // Blank → NULL ("not named yet"); the UI falls back to the neutral
           // default, so the column never asserts an unmade choice.
           cohortNoun: data.cohortNoun.trim() || null,
+          categoryKey,
           startMinutes: hhmmToMinutes(data.startTime),
-          endDate,
           devActivatedAt,
           feedbackFormId,
           diplomaTemplateId,

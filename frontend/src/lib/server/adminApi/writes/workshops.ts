@@ -1,15 +1,16 @@
-// The class A writes for the CTFd activities, one per entity: a host and its
-// address (`write_workshop_instance`), and an activity, the content a host
+// The class A writes for the CTFd activities, one per entity: a host, its
+// address and its supervisor code (`write_workshop_instance`), and an activity, the content a host
 // serves, curated and presented in one call (`write_workshop`). Which ones an
 // event offers is part of the event's configuration (`write_event_config`).
 // Bounded to named rows and reversible.
 //
-// Curation (the name a talent reads, the host serving it, whether it is offered)
-// and presentation (the cover on the talent dashboard) are facets of one
-// activity, so they are fields of one write rather than two tools, and a new
-// activity can be declared with its cover in one call. The host is not a facet
-// of it: several activities name one host, so its address is written once, on
-// the host.
+// Curation (the name a talent reads, the host serving it, whether it is offered),
+// presentation (the cover on the talent dashboard) and filing (the level, the
+// notions and the domains the staff's subject catalogue shows) are facets of
+// one activity, so they are fields of one write rather than three tools, and a
+// new activity can be declared with its cover in one call. The host is not a facet
+// of it: several activities name one host, so its address and its supervisor
+// code are written once, on the host.
 //
 // Presenting one downloads the pictures it is given and does not already hold,
 // from addresses an admin chose, before anything is stored. That read sends
@@ -23,16 +24,21 @@
 // C. An activity is retired with `enabled: false`, and every FK onto it and onto
 // its host is `Restrict` so a hand-deletion of one still in use fails loudly.
 import { randomUUID } from 'node:crypto';
-import { Prisma } from '@prisma/client';
+import { Prisma, type WorkshopLevel } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';
 import { replacePictures, type StoredPicture } from '$lib/server/images/remote';
 import {
+  WORKSHOP_COVER_MAX_EDGE,
   workshopCoverKey,
   type WorkshopCoverKind,
 } from '$lib/domain/workshops';
+import {
+  archivedDomainRefusal,
+  cleanNotions,
+} from '$lib/domain/workshopCatalogue';
 
 /**
  * An origin and nothing else: no path, no query, no trailing slash, because the
@@ -68,6 +74,7 @@ async function instanceState(slug: string) {
     select: {
       slug: true,
       baseUrl: true,
+      supervisorCode: true,
       activities: { select: { slug: true }, orderBy: { slug: 'asc' } },
     },
   });
@@ -75,15 +82,31 @@ async function instanceState(slug: string) {
     ? {
         instance: row.slug,
         baseUrl: row.baseUrl,
+        supervisorCode: row.supervisorCode,
         activities: row.activities.map((a) => a.slug),
       }
     : null;
 }
 
-/** Declare a CTFd host, or move it to another address. */
+/**
+ * The code as stored: trimmed, and a blank one is none, as on the instance,
+ * where an empty code closes `/supervisor/join`. Case is kept: the instance
+ * compares it without case, but a manta copies it as it was written.
+ */
+function normaliseSupervisorCode(raw: string | null): string | null {
+  const code = raw?.trim() ?? '';
+  return code === '' ? null : code;
+}
+
+/**
+ * Declare a CTFd host, move it to another address, or bring over its
+ * supervisor code. The code is a patch field: omitted it stays as it is, so a
+ * call written before it existed changes nothing of it.
+ */
 export async function writeWorkshopInstance(params: {
   instance: string;
   baseUrl: string;
+  supervisorCode?: string | null;
 }): Promise<WriteOutcome> {
   const slug = params.instance.trim();
   if (!slug) {
@@ -111,10 +134,14 @@ export async function writeWorkshopInstance(params: {
     );
   }
 
+  const supervisorCode =
+    params.supervisorCode === undefined
+      ? undefined
+      : normaliseSupervisorCode(params.supervisorCode);
   await prisma.workshop_Instance.upsert({
     where: { slug },
-    create: { slug, baseUrl },
-    update: { baseUrl },
+    create: { slug, baseUrl, supervisorCode },
+    update: { baseUrl, supervisorCode },
   });
 
   return { applied: true, before, after: await instanceState(slug) };
@@ -137,18 +164,6 @@ const COVER_LABEL_FR: Record<WorkshopCoverKind, string> = {
   mascot: 'La mascotte',
 };
 
-/**
- * Longest stored edge of each picture: the hero's picture slot for the visual
- * and its still, a small sprite for the mascot. Any proportion and any format
- * Jump can show are taken, an animation included (`copyRemoteImage`); the hero
- * lays out whatever it is given.
- */
-const COVER_MAX_EDGE: Record<WorkshopCoverKind, number> = {
-  media: 1280,
-  poster: 1280,
-  mascot: 512,
-};
-
 const COVER_IMAGE_SELECT = {
   kind: true,
   sourceUrl: true,
@@ -168,6 +183,9 @@ async function workshopState(db: Prisma.TransactionClient, slug: string) {
       label: true,
       enabled: true,
       instance: { select: { slug: true } },
+      level: true,
+      notions: true,
+      domains: { select: { domainKey: true }, orderBy: { domainKey: 'asc' } },
       tagline: true,
       coverImages: {
         select: { kind: true, sourceUrl: true },
@@ -176,13 +194,71 @@ async function workshopState(db: Prisma.TransactionClient, slug: string) {
     },
   });
   if (!activity) return null;
-  const { instance, tagline, coverImages, ...curation } = activity;
+  const { instance, domains, tagline, coverImages, ...curation } = activity;
   // The address each picture was copied from, by kind.
   return {
     ...curation,
     instance: instance.slug,
+    domains: domains.map((d) => d.domainKey),
     cover: { tagline, images: coverImages },
   };
+}
+
+/**
+ * The domains a subject is to be filed under, as keys, or undefined when the
+ * call does not say. Each must exist, which holds once checked: a domain is
+ * archived, never deleted, so this runs before anything is downloaded.
+ */
+async function knownDomains(
+  requested: readonly string[] | undefined,
+): Promise<string[] | undefined> {
+  if (requested === undefined) return undefined;
+  const keys = [...new Set(requested.map((key) => key.trim()))];
+  const rows = await prisma.workshop_Domain.findMany({
+    where: { key: { in: keys } },
+    select: { key: true },
+  });
+  const unknown = keys.filter((key) => !rows.some((row) => row.key === key));
+  if (unknown.length > 0) {
+    throw new OperationRefusedError(
+      `Domaine${unknown.length > 1 ? 's' : ''} ${unknown.map((key) => `« ${key} »`).join(', ')} introuvable${unknown.length > 1 ? 's' : ''}. ${handleProvenanceFr('workshopDomainKey')}`,
+    );
+  }
+  return keys;
+}
+
+/**
+ * An archived domain only stays: it is no longer given to a subject, but one
+ * already carried is kept, so sending back what `config_workshops` returned is
+ * always accepted. What the subject carries is read under its lock, so a write
+ * that has just taken the domain off cannot be undone by one that read it
+ * still there.
+ */
+async function refuseNewlyArchived(
+  tx: Prisma.TransactionClient,
+  activityId: string,
+  keys: readonly string[],
+): Promise<void> {
+  const newlyArchived = await tx.workshop_Domain.findFirst({
+    where: {
+      key: { in: [...keys] },
+      archivedAt: { not: null },
+      activities: { none: { activityId } },
+    },
+    select: { label: true },
+  });
+  if (newlyArchived) {
+    throw new OperationRefusedError(archivedDomainRefusal(newlyArchived.label));
+  }
+}
+
+/**
+ * Taken before an activity's state is read, so a second write on it waits here
+ * and then reads what this one wrote, and what the audit row calls "before" is
+ * the state this write actually replaced.
+ */
+async function lockActivity(tx: Prisma.TransactionClient, id: string) {
+  await tx.$executeRaw`SELECT 1 FROM "Workshop_Activity" WHERE id = ${id} FOR UPDATE`;
 }
 
 /**
@@ -220,13 +296,18 @@ async function refuseMoveOnceEntered(
  * (anything it omits is removed), `null` removes it, and an omitted `cover`
  * leaves it alone. A picture whose address has not changed keeps the copy
  * already stored (`replacePictures`), so restating the cover to change its
- * tagline downloads nothing.
+ * tagline downloads nothing. What files it in the catalogue follows the same
+ * patch rule: `level` is set or cleared with `null`, `notions` and `domains`
+ * are each a complete list, and an omitted one is left alone.
  */
 export async function writeWorkshop(params: {
   slug: string;
   instance?: string;
   label?: string;
   enabled?: boolean;
+  level?: WorkshopLevel | null;
+  notions?: string[];
+  domains?: string[];
   cover?: WorkshopCoverInput | null;
 }): Promise<WriteOutcome> {
   const slug = params.slug.trim();
@@ -258,6 +339,10 @@ export async function writeWorkshop(params: {
     }
   }
 
+  const domains = await knownDomains(params.domains);
+  const notions =
+    params.notions === undefined ? undefined : cleanNotions(params.notions);
+
   // A new activity's id is minted here rather than by the database, because its
   // cover's storage keys are named after it before the row exists.
   const id = existing?.id ?? randomUUID();
@@ -272,46 +357,58 @@ export async function writeWorkshop(params: {
   }
   // On an existing activity, only what the call names changes: an omitted
   // `enabled` in particular stays as it stands, so editing a label cannot
-  // silently put a retired activity back in front of a cohort.
+  // silently put a retired activity back in front of a cohort. Several
+  // statements, so it always runs inside the caller's transaction, under the
+  // activity's lock.
   const saveActivity = async (
     tx: Prisma.TransactionClient,
     tagline?: string | null,
   ) => {
-    if (!creation) {
-      return tx.workshop_Activity.update({
+    if (domains !== undefined) await refuseNewlyArchived(tx, id, domains);
+    const filing = { level: params.level, notions, tagline };
+    if (creation) {
+      try {
+        await tx.workshop_Activity.create({ data: { ...creation, ...filing } });
+      } catch (err) {
+        // Another call created this slug since it was looked up: a retry after
+        // a timeout, overlapping the call it retries. Its id is not the one this
+        // call minted and named its pictures after, so the honest answer is to
+        // stop here, and a retry now finds the activity and updates it.
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2002'
+        ) {
+          throw new OperationRefusedError(
+            `L'activité « ${slug} » vient d'être créée par un autre appel. Relancez celui-ci : il la mettra à jour.`,
+          );
+        }
+        throw err;
+      }
+    } else {
+      await tx.workshop_Activity.update({
         where: { id },
-        data: { label, instanceId, enabled: params.enabled, tagline },
+        data: { label, instanceId, enabled: params.enabled, ...filing },
       });
     }
-    try {
-      return await tx.workshop_Activity.create({
-        data: { ...creation, tagline },
+    // A complete set: the links it does not name go.
+    if (domains !== undefined) {
+      await tx.workshop_ActivityDomain.deleteMany({
+        where: { activityId: id },
       });
-    } catch (err) {
-      // Another call created this slug since it was looked up: a retry after a
-      // timeout, overlapping the call it retries. Its id is not the one this
-      // call minted and named its pictures after, so the honest answer is to
-      // stop here, and a retry now finds the activity and updates it.
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2002'
-      ) {
-        throw new OperationRefusedError(
-          `L'activité « ${slug} » vient d'être créée par un autre appel. Relancez celui-ci : il la mettra à jour.`,
-        );
-      }
-      throw err;
+      await tx.workshop_ActivityDomain.createMany({
+        data: domains.map((domainKey) => ({ activityId: id, domainKey })),
+      });
     }
   };
 
   if (params.cover === undefined) {
-    const before = await workshopState(prisma, slug);
-    await saveActivity(prisma);
-    return {
-      applied: true,
-      before,
-      after: await workshopState(prisma, slug),
-    };
+    const { before, after } = await prisma.$transaction(async (tx) => {
+      await lockActivity(tx, id);
+      const before = await workshopState(tx, slug);
+      await saveActivity(tx);
+      return { before, after: await workshopState(tx, slug) };
+    });
+    return { applied: true, before, after };
   }
 
   const cover = params.cover ?? {};
@@ -325,7 +422,7 @@ export async function writeWorkshop(params: {
     requests: COVER_KINDS.filter((kind) => urls[kind]).map((kind) => ({
       slot: kind,
       sourceUrl: urls[kind]!,
-      maxEdge: COVER_MAX_EDGE[kind],
+      maxEdge: WORKSHOP_COVER_MAX_EDGE[kind],
     })),
     keyFor: (request, writeId, extension) =>
       workshopCoverKey(
@@ -345,14 +442,9 @@ export async function writeWorkshop(params: {
           select: COVER_IMAGE_SELECT,
         })
       ).map(({ kind, ...picture }) => ({ slot: kind, ...picture })),
-    // Taken before the cover is read, so a second write on this activity
-    // waits here and then reads what this one wrote.
-    lock: async (tx) => {
-      await tx.$executeRaw`SELECT 1 FROM "Workshop_Activity" WHERE id = ${id} FOR UPDATE`;
-    },
+    // Taken before the cover is read, like the state below.
+    lock: (tx) => lockActivity(tx, id),
     commit: async (tx, pictures) => {
-      // Read under the lock, so what the audit row calls "before" is the state
-      // this write actually replaced, not one a concurrent write has moved on.
       const before = await workshopState(tx, slug);
       await saveActivity(tx, tagline);
       await tx.workshop_CoverImage.deleteMany({ where: { activityId: id } });

@@ -51,6 +51,19 @@ export function workshopSlugFromSourceId(
  */
 export type WorkshopCoverKind = 'media' | 'poster' | 'mascot';
 
+/**
+ * Longest stored edge of each picture: the hero's picture slot for the visual
+ * and its still, a small sprite for the mascot. Any proportion and any format
+ * Jump can show are taken, an animation included (`copyRemoteImage`); the hero
+ * lays out whatever it is given. Read by `write_workshop` and by the seed, which
+ * stores its pictures the way the write would have.
+ */
+export const WORKSHOP_COVER_MAX_EDGE: Record<WorkshopCoverKind, number> = {
+  media: 1280,
+  poster: 1280,
+  mascot: 512,
+};
+
 const COVER_PREFIX = 'workshops';
 
 export function workshopCoverKey(
@@ -73,6 +86,25 @@ export function workshopCoverKeyFromPath(
 export function workshopCoverUrl(key: string): string {
   return `/api/workshops/covers/${key.slice(COVER_PREFIX.length + 1)}`;
 }
+
+/**
+ * Where the staff become supervisors of an instance: the plugin's page that
+ * takes the instance's supervisor code (`plugins/workshop/staff.py`, `join`).
+ * Its path is the plugin's, quoted here, so moving it there breaks the
+ * catalogue's « Accéder au sujet ». It is the one address that fits every
+ * visitor: someone signed in is sent on to the subject, a newcomer finds the
+ * form, and someone whose session is gone is told there where to sign in.
+ */
+export function supervisorJoinUrl(baseUrl: string): string {
+  return `${baseUrl}/supervisor/join`;
+}
+
+/**
+ * Ceiling on an instance's supervisor code, there to bound what one call can
+ * store, not to shape the code: the plugin sets none, and a code a person
+ * types on `/supervisor/join` sits far below it.
+ */
+export const SUPERVISOR_CODE_MAX = 128;
 
 /**
  * Which activities a talent is offered, through which enrolment, and which of

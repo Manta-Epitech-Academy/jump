@@ -10,7 +10,7 @@ import { fromDate } from '@internationalized/date';
  * The answer is decided by CALENDAR DAY, never by instant. An event is ongoing
  * on every campus day its window touches, from the first minute of its first
  * day to the last minute of its last one. Comparing instants instead got both
- * ends wrong: Salesforce stores `date` at UTC midnight, so a Paris event read
+ * ends wrong: a `date` stored at UTC midnight made a Paris event read
  * « à venir » until 02:00 on its own day, and an `endDate` written at UTC
  * midnight read « passé » from the first minute of its last day.
  *

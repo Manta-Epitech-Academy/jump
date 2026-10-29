@@ -6,16 +6,18 @@ import {
   resetTalentToImport,
   TalentAlreadyErased,
 } from '$lib/server/services/talentAccount';
+import { mergeTalents } from '$lib/server/services/talentMergeService';
 import { loadDatamodel } from '../../../../../scripts/seed/schema';
 import { assertTestDatabase } from './testDatabase';
 
 /**
- * What the RGPD erasure (`anonymizeTalent`) and the admin reset to import
- * (`resetTalentToImport`) do to every row and every column that belongs to a
- * talent, checked on a real database against a classification each table and
- * each `Talent` column must carry.
+ * What the RGPD erasure (`anonymizeTalent`), the admin reset to import
+ * (`resetTalentToImport`) and the merge of one Salesforce person's talents
+ * (`mergeTalents`) do to every row and every column that belongs to a talent,
+ * checked on a real database against a classification each table and each
+ * `Talent` column must carry.
  *
- * Both functions enumerate the talent's tables by hand, which is the only thing
+ * All three functions enumerate the talent's tables by hand, which is the only thing
  * they can do and the reason a new table gets forgotten: the interview free
  * text and three sibling tables survived erasure until a review caught them,
  * `Workshop_Participation` survived a reset, and the legacy `rulesFilePath`
@@ -24,16 +26,16 @@ import { assertTestDatabase } from './testDatabase';
  * every model holding a talent's rows (a relation to `Talent`, or a scalar
  * `*talentId`) and every `Talent` column must be classified below, for each
  * operation, with the reason. A new table or column fails here until somebody
- * decides what an erasure and a reset do to it, and the fixture then proves the
- * code does it.
+ * decides what an erasure, a reset and a merge do to it, and the fixture then
+ * proves the code does it.
  *
  * Its blind spot: a table that names a talent by anything else than a `Talent`
  * foreign key or a `*talentId` column is invisible to the walk, so those are
  * listed by hand in `BY_OTHER_IDENTITY`.
  *
- * The two records are separate on purpose. Erasure and reset are different
- * operations that classify tables differently (staff notes survive a reset, not
- * an erasure), and nothing here makes one follow the other.
+ * The three records are separate on purpose. They are different operations
+ * that classify tables differently (staff notes survive a reset, not an
+ * erasure, and move in a merge), and nothing here makes one follow another.
  */
 
 const deletedObjects = vi.hoisted(() => [] as string[]);
@@ -52,7 +54,12 @@ type TableFate =
   /** Every row the talent had survives unchanged (new rows are allowed). */
   | { fate: 'keep'; why: string }
   /** The rows survive with the listed columns changed and the others equal. */
-  | { fate: 'scrub'; columns: readonly string[]; why: string };
+  | { fate: 'scrub'; columns: readonly string[]; why: string }
+  /**
+   * Merge only: every row the absorbed talent had now names the survivor
+   * instead, and is otherwise unchanged.
+   */
+  | { fate: 'move'; why: string };
 
 /** What an operation does to a group of `Talent` columns. */
 type ColumnGroup = {
@@ -69,22 +76,36 @@ type Identity = 'talentId' | 'externalId' | 'email';
 type TalentColumn = { column: string; holds: Identity };
 
 /**
- * Tables that name a talent by anything else than a foreign key, which the
+ * Columns that name a talent by anything else than a foreign key, which the
  * schema walk cannot see: by their Salesforce id, or by the address they log in
- * with. `SyncError` does both, the second when another contact claimed the
- * talent's address.
+ * with. Added to whatever foreign key the walk found on the same table.
+ * `Sync_Error` points at a talent for a login error, and names a nameless
+ * contact by both, the second when that contact carries the talent's address.
+ * `OtpAttempt`, the rate limiter's ledger, names one by the address alone.
+ *
+ * `Sync_ErasedContact` names one by Salesforce id too, and is absent on
+ * purpose: a row exists only once the talent is erased, never for the live
+ * talent this suite seeds, and it holds the id, the one thing the erasure
+ * keeps to honour itself, plus who lifted the bar once somebody does. `erasedContact.integration.test.ts`
+ * covers it.
  */
 const BY_OTHER_IDENTITY: Record<string, readonly TalentColumn[]> = {
-  SyncError: [
-    { column: 'attemptedExtId', holds: 'externalId' },
-    { column: 'existingExtId', holds: 'externalId' },
+  Sync_Error: [
+    { column: 'externalId', holds: 'externalId' },
     { column: 'email', holds: 'email' },
   ],
+  OtpAttempt: [{ column: 'email', holds: 'email' }],
 };
 
 type Policy = {
   tables: Partial<Record<Prisma.ModelName, TableFate>>;
   talent: readonly ColumnGroup[];
+  /**
+   * The identities by which the operation takes a row to be the talent's, when
+   * not all of them. A row that only the others name is someone else's for
+   * this operation, and comes out unchanged whatever its table's fate.
+   */
+  owns?: { identities: readonly Identity[]; why: string };
 };
 
 /** The onboarding timeline, every step the talent took. */
@@ -180,7 +201,7 @@ const ERASURE: Policy = {
     },
     Participation: {
       fate: 'keep',
-      why: 'De-identified enrolment once the name is gone; it backs eventsCount and every cohort figure.',
+      why: 'De-identified enrolment once the name is gone; it backs eventsCount and every cohort figure. Kept on an event that has started, as this one has; one on an event yet to start is a plan and goes (erasedContact.integration.test.ts).',
     },
     EventPresence: {
       fate: 'keep',
@@ -208,9 +229,13 @@ const ERASURE: Policy = {
       columns: ['reason', 'resolutionNote'],
       why: 'Fulfilled, it is the proof of erasure, so it stays without its free text.',
     },
-    SyncError: {
+    Sync_Error: {
       fate: 'delete',
-      why: "What the sync could not reconcile, logged with the contact's name and address.",
+      why: 'What the sync could not do for this person: a login error on the talent, or a nameless contact logged with its name and address.',
+    },
+    OtpAttempt: {
+      fate: 'delete',
+      why: "The rate limiter's ledger holds the login address, for a day after a change of parent 1's address.",
     },
   },
   talent: [
@@ -288,6 +313,16 @@ const ERASURE: Policy = {
       why: 'The guardians are data subjects too.',
       columns: GUARDIAN_CONTACTS,
     },
+    {
+      fate: 'rewrite',
+      why: 'The run of consecutive days feeds only their own badges: back to no run.',
+      columns: ['streakDays'],
+    },
+    {
+      fate: 'null',
+      why: 'The day that run last grew, with it.',
+      columns: ['streakLastDay'],
+    },
   ],
 };
 
@@ -341,9 +376,13 @@ const RESET: Policy = {
     ImageRightsDecisionRecord: { fate: 'delete', why: 'Decided after import.' },
     BroadcastRecipient: { fate: 'delete', why: 'Sent after import.' },
     Feedback_Submission: { fate: 'delete', why: 'Answered after import.' },
-    SyncError: {
+    Sync_Error: {
       fate: 'keep',
-      why: 'An operations record about the Salesforce contact, which the reset keeps.',
+      why: 'An operations record about the Salesforce contact, which the reset keeps and the next pass settles.',
+    },
+    OtpAttempt: {
+      fate: 'keep',
+      why: 'The reset keeps the login, and the limiter budget spent on it runs out with its own window.',
     },
   },
   talent: [
@@ -411,6 +450,136 @@ const RESET: Policy = {
       why: 'Guardians entered during onboarding.',
       columns: GUARDIAN_CONTACTS,
     },
+    {
+      fate: 'rewrite',
+      why: 'A fresh import has never logged in, so it has no run of days: back to 0.',
+      columns: ['streakDays'],
+    },
+    {
+      fate: 'null',
+      why: 'The day that run last grew, with it.',
+      columns: ['streakLastDay'],
+    },
+  ],
+};
+
+const MERGE: Policy = {
+  tables: {
+    Participation: {
+      fate: 'move',
+      why: "The person's enrolments, read again by the next roster under the survivor.",
+    },
+    EventPresence: {
+      fate: 'move',
+      why: 'The attendance staff took for the person, whichever record it was taken on.',
+    },
+    Closing_Record: { fate: 'move', why: "The person's closings." },
+    Closing_ResetEvent: { fate: 'move', why: 'The trace of those closings.' },
+    Feedback_Submission: { fate: 'move', why: "The person's answers." },
+    MinigameAttempt: { fate: 'move', why: 'Played by the person.' },
+    Workshop_Participation: {
+      fate: 'move',
+      why: 'Taken part in by the person.',
+    },
+    XpGrant: {
+      fate: 'move',
+      why: 'Earned by the person, its talent-keyed sourceIds rewritten so the same fact is not granted twice.',
+    },
+    Schooling_YearRecord: {
+      fate: 'move',
+      why: "The person's schooling history.",
+    },
+    Onboarding_Record: { fate: 'move', why: "The person's dossiers." },
+    OnboardingPdfJob: { fate: 'move', why: 'Rendered for those dossiers.' },
+    ImageRightsDecisionRecord: { fate: 'move', why: 'Decided for the person.' },
+    Note_TalentNote: {
+      fate: 'move',
+      why: 'Staff observations about the person.',
+    },
+    TalentDeletionRequest: {
+      fate: 'move',
+      why: 'A request the person made, which still has to be answered.',
+    },
+    TalentInterest: { fate: 'move', why: 'What the person said they like.' },
+    BroadcastRecipient: {
+      fate: 'move',
+      why: 'What was sent to the person and to their guardian.',
+    },
+    AuthIdentityRepair: {
+      fate: 'move',
+      why: "An audit of repairs to the person's login, kept with it.",
+    },
+    TalentSfImport: {
+      fate: 'delete',
+      why: "The absorbed record's mirror: the survivor's is refreshed by the pass that merges.",
+    },
+    Sync_Error: {
+      fate: 'delete',
+      why: "What the sync met for the absorbed record: the pass that merges settles the survivor's.",
+    },
+    OtpAttempt: {
+      fate: 'keep',
+      why: 'Keyed by an address, not a talent: the budget spent on it runs out with its own window, whichever record the address ends on.',
+    },
+  },
+  owns: {
+    identities: ['talentId', 'externalId'],
+    why: "Siblings and a guardian share an address, so a contact error carrying the absorbed record's address may be another person's, and only a pass that meets that person can settle it.",
+  },
+  // The survivor's columns: the absorbed talent's go with its row, which is the
+  // point, since only an unused record is ever absorbed.
+  talent: [
+    {
+      fate: 'keep',
+      why: 'The survivor is the record the person and the staff have been reading: its identity, login and activity stay.',
+      columns: [
+        'id',
+        'externalId',
+        'userId',
+        'createdAt',
+        'usageAnalyticsOptOutAt',
+        'anonymizedAt',
+        'nom',
+        'prenom',
+        'phone',
+        'civilite',
+        'lastActiveAt',
+        'firstLoginAt',
+        'streakDays',
+        'streakLastDay',
+      ],
+    },
+    {
+      fate: 'keep',
+      why: "The projection of the current school year's record, re-derived after the move: the fixture's record is a past year's, which moves nothing, and talentMerge.integration.test.ts proves a current one taken from an absorbed talent does.",
+      columns: ['niveau', 'schoolId'],
+    },
+    {
+      fate: 'keep',
+      why: "The onboarding and its signed acts are the survivor's own: an absorbed record never used its login, so it brings none.",
+      columns: [
+        ...ONBOARDING_TIMELINE,
+        'rulesSignedCity',
+        'reglementVersion',
+        'onboardingSchoolYear',
+        'highSchoolNameManual',
+        'interestsFreeText',
+        'setupDescription',
+        ...GUARDIAN_ACTS,
+        'rulesFilePath',
+        ...GUARDIAN_CONTACTS,
+      ],
+    },
+    {
+      fate: 'rewrite',
+      why: 'Recomputed over the ledger and the marks the survivor now holds.',
+      columns: ['xp', 'eventsCount'],
+    },
+    {
+      fate: 'rewrite',
+      why: 'Prisma stamps every update.',
+      columns: ['updatedAt'],
+    },
   ],
 };
 
@@ -436,13 +605,18 @@ function talentScopedModels(
       }
     }
   }
-  return new Map([
-    ...[...scoped].map(([model, columns]): [string, TalentColumn[]] => [
+  const byKey = new Map<string, TalentColumn[]>(
+    [...scoped].map(([model, columns]) => [
       model,
-      [...columns].map((column) => ({ column, holds: 'talentId' })),
+      [...columns].map((column): TalentColumn => ({
+        column,
+        holds: 'talentId',
+      })),
     ]),
-    ...Object.entries(BY_OTHER_IDENTITY),
-  ]);
+  );
+  for (const [model, columns] of Object.entries(BY_OTHER_IDENTITY))
+    byKey.set(model, [...(byKey.get(model) ?? []), ...columns]);
+  return byKey;
 }
 
 /** The Prisma delegate of a model, read generically. */
@@ -467,7 +641,7 @@ function keyOf(datamodel: Datamodel, model: string, row: Row): string {
 const same = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
 
-describe('what erasure and reset do to every talent table (integration)', () => {
+describe('what erasure, reset and merge do to every talent table (integration)', () => {
   const stamp = Date.now();
   let datamodel: Datamodel;
   let scoped: Map<string, readonly TalentColumn[]>;
@@ -507,7 +681,6 @@ describe('what erasure and reset do to every talent table (integration)', () => 
         },
         accounts: {
           create: {
-            issuer: 'test',
             accountId: `${label}-${stamp}`,
             providerId: 'test',
           },
@@ -689,33 +862,27 @@ describe('what erasure and reset do to every talent table (integration)', () => 
         xpCelebrated: 480,
       },
     });
-    await prisma.syncError.createMany({
+    await prisma.sync_Error.createMany({
       data: [
+        { kind: 'ADDRESS_TAKEN', talentId },
+        // The talent's own Salesforce contact, arrived nameless after it was
+        // taken in: named by its Salesforce id.
         {
-          errorType: 'DUPLICATE_EMAIL',
-          email,
-          attemptedExtId: externalId,
-          talentName: `Talent ${label}`,
-          message: 'Adresse déjà prise.',
+          kind: 'MISSING_NAME',
+          externalId,
+          contactName: `Talent ${label}`,
         },
+        // Another nameless contact carrying this talent's address: named by
+        // the address.
         {
-          errorType: 'DUPLICATE_EMAIL',
-          email: `${label}-other-${stamp}@scoped.test`,
-          attemptedExtId: `other-${label}-${stamp}`,
-          existingExtId: externalId,
-          talentName: 'Autre talent',
-          message: 'Adresse déjà prise.',
-        },
-        // Another contact claiming this talent's address: the row names them by
-        // the address, and its message by their Salesforce id.
-        {
-          errorType: 'DUPLICATE_EMAIL',
+          kind: 'MISSING_NAME',
+          externalId: `claimant-${label}-${stamp}`,
           email,
-          attemptedExtId: `claimant-${label}-${stamp}`,
-          talentName: 'Autre contact',
-          message: `L'adresse du talent est déjà utilisée par le talent externalId="${externalId}".`,
         },
       ],
+    });
+    await prisma.otpAttempt.create({
+      data: { bucket: 'parent_welcome', email },
     });
     await prisma.authIdentityRepair.create({
       data: {
@@ -762,8 +929,11 @@ describe('what erasure and reset do to every talent table (integration)', () => 
   /** What an operation did, against what its policy says it does. */
   function tableProblems(
     policy: Policy,
+    talent: Record<Identity, string>,
     before: Map<string, Map<string, Row>>,
     after: Map<string, Map<string, Row>>,
+    /** Merge only: the survivor's rows after the merge. */
+    survivorAfter?: Map<string, Map<string, Row>>,
   ): string[] {
     const problems: string[] = [];
     for (const [model, fate] of Object.entries(policy.tables) as [
@@ -774,8 +944,40 @@ describe('what erasure and reset do to every talent table (integration)', () => 
       const is = after.get(model) ?? new Map();
       for (const [key, row] of was) {
         const now = is.get(key);
+        const owned =
+          !policy.owns ||
+          (scoped.get(model) ?? []).some(
+            ({ column, holds }) =>
+              policy.owns!.identities.includes(holds) &&
+              row[column] === talent[holds],
+          );
+        if (!owned) {
+          if (!same(now, row))
+            problems.push(
+              `${model} ${key}: not the talent's for this operation, ${now ? 'changed' : 'gone'}.`,
+            );
+          continue;
+        }
         if (fate.fate === 'delete' && now) {
           problems.push(`${model} ${key}: declared delete, still there.`);
+        }
+        if (fate.fate === 'move') {
+          if (now)
+            problems.push(`${model} ${key}: declared move, still there.`);
+          const talentColumns = new Set(
+            (scoped.get(model) ?? []).map((c) => c.column),
+          );
+          const rest = (r: Row) =>
+            Object.fromEntries(
+              Object.entries(r).filter(([c]) => !talentColumns.has(c)),
+            );
+          const moved = [...(survivorAfter?.get(model)?.values() ?? [])].some(
+            (r) => same(rest(r), rest(row)),
+          );
+          if (!moved)
+            problems.push(
+              `${model} ${key}: declared move, not on the survivor.`,
+            );
         }
         if (fate.fate === 'keep' && !same(now, row)) {
           problems.push(
@@ -829,7 +1031,7 @@ describe('what erasure and reset do to every talent table (integration)', () => 
     for (const [model, columns] of scoped) {
       if (!policy.tables[model as Prisma.ModelName]) {
         problems.push(
-          `${model} holds talent rows through ${columns.map((c) => c.column).join(', ')}: say in ${name}.tables what ${name.toLowerCase()} does to them (delete, keep or scrub) and why.`,
+          `${model} holds talent rows through ${columns.map((c) => c.column).join(', ')}: say in ${name}.tables what ${name.toLowerCase()} does to them (delete, keep, scrub or, for a merge, move) and why.`,
         );
       }
     }
@@ -895,6 +1097,10 @@ describe('what erasure and reset do to every talent table (integration)', () => 
   };
   let erasure: Run;
   let reset: Run;
+  let merge: Run & {
+    survivor: Record<Identity, string>;
+    survivorAfter: Map<string, Map<string, Row>>;
+  };
   let erasureKeys: string[] = [];
   let publicBilanId = '';
 
@@ -1036,23 +1242,66 @@ describe('what erasure and reset do to every talent table (integration)', () => 
         }),
       };
     }
+
+    // The merge, as the sync runs it: an absorbed record holding a row in
+    // every table, folded into a survivor holding none, so each row's move is
+    // visible rather than lost to the survivor's own row winning a collision.
+    {
+      const seeded = await seedTalentWithEveryRow('merge');
+      const survivorRow = await prisma.talent.create({
+        data: {
+          prenom: 'Survivant',
+          nom: 'Fusion',
+          externalId: `scoped-survivor-${stamp}`,
+        },
+      });
+      const survivor = {
+        talentId: survivorRow.id,
+        externalId: `scoped-survivor-${stamp}`,
+        email: `survivor-${stamp}@scoped.test`,
+      };
+      const before = await rowsOf(seeded);
+      const talentBefore = await prisma.talent.findUniqueOrThrow({
+        where: { id: survivor.talentId },
+      });
+      await prisma.$transaction((tx) =>
+        mergeTalents(tx, survivor.talentId, [seeded.talentId]),
+      );
+      merge = {
+        seeded,
+        survivor,
+        before,
+        after: await rowsOf(seeded),
+        survivorAfter: await rowsOf(survivor),
+        talentBefore,
+        talentAfter: await prisma.talent.findUniqueOrThrow({
+          where: { id: survivor.talentId },
+        }),
+      };
+    }
   });
 
   afterAll(async () => {
-    const talents = [erasure?.seeded.talentId, reset?.seeded.talentId].filter(
-      Boolean,
-    ) as string[];
+    const talents = [
+      erasure?.seeded.talentId,
+      reset?.seeded.talentId,
+      merge?.seeded.talentId,
+      merge?.survivor.talentId,
+    ].filter(Boolean) as string[];
     await prisma.authIdentityRepair.deleteMany({
       where: { talentId: { in: talents } },
     });
-    const seededRuns = [erasure?.seeded, reset?.seeded].filter(
+    const seededRuns = [erasure?.seeded, reset?.seeded, merge?.seeded].filter(
       (seeded) => seeded !== undefined,
     );
-    await prisma.syncError.deleteMany({
+    await prisma.otpAttempt.deleteMany({
+      where: { email: { in: seededRuns.map((r) => r.email) } },
+    });
+    // Login errors go with the talents (cascade); the contacts' do not.
+    await prisma.sync_Error.deleteMany({
       where: {
         OR: [
-          { attemptedExtId: { in: seededRuns.map((r) => r.externalId) } },
-          { existingExtId: { in: seededRuns.map((r) => r.externalId) } },
+          { externalId: { in: seededRuns.map((r) => r.externalId) } },
           { email: { in: seededRuns.map((r) => r.email) } },
         ],
       },
@@ -1097,7 +1346,9 @@ describe('what erasure and reset do to every talent table (integration)', () => 
     });
 
     it('does to each table what its classification says', () => {
-      expect(tableProblems(ERASURE, erasure.before, erasure.after)).toEqual([]);
+      expect(
+        tableProblems(ERASURE, erasure.seeded, erasure.before, erasure.after),
+      ).toEqual([]);
     });
 
     it('does to each Talent column what its classification says', () => {
@@ -1154,7 +1405,9 @@ describe('what erasure and reset do to every talent table (integration)', () => 
     });
 
     it('does to each table what its classification says', () => {
-      expect(tableProblems(RESET, reset.before, reset.after)).toEqual([]);
+      expect(
+        tableProblems(RESET, reset.seeded, reset.before, reset.after),
+      ).toEqual([]);
     });
 
     it('does to each Talent column what its classification says', () => {
@@ -1194,6 +1447,41 @@ describe('what erasure and reset do to every talent table (integration)', () => 
       expect(
         await prisma.talent.findUniqueOrThrow({ where: { id: talentId } }),
       ).toEqual(erasure.talentAfter);
+    });
+  });
+
+  describe('the merge of one Salesforce person', () => {
+    it('classifies every talent-scoped table and every Talent column', () => {
+      expect(classificationProblems('MERGE', MERGE)).toEqual([]);
+      expect(fixtureProblems(merge.before, merge.seeded)).toEqual([]);
+    });
+
+    it('does to each table what its classification says', () => {
+      expect(
+        tableProblems(
+          MERGE,
+          merge.seeded,
+          merge.before,
+          merge.after,
+          merge.survivorAfter,
+        ),
+      ).toEqual([]);
+    });
+
+    it("does to each of the survivor's columns what its classification says", () => {
+      expect(
+        columnProblems(MERGE, merge.talentBefore, merge.talentAfter),
+      ).toEqual([]);
+    });
+
+    it('deletes the absorbed talent and its unused login', async () => {
+      const { talentId, userId } = merge.seeded;
+      expect(
+        await prisma.talent.findUnique({ where: { id: talentId } }),
+      ).toBeNull();
+      expect(
+        await prisma.bauth_user.findUnique({ where: { id: userId } }),
+      ).toBeNull();
     });
   });
 });

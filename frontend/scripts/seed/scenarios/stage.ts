@@ -41,6 +41,7 @@ import {
 } from '../catalog/closings';
 import { STAGE_FORM_SLUG } from '../catalog/feedbackForms';
 import { STAGE_PUBLIC_NAME, stageTitre } from '../catalog/events';
+import { EVENT_CATEGORY } from '../catalog/eventCategories';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
 import {
@@ -326,6 +327,7 @@ function addStageAt(
     titre: stageTitre({ campus: campus.name, date: days[0]! }),
     publicName: STAGE_PUBLIC_NAME,
     cohortNoun: COHORT_NOUNS.STAGIAIRE,
+    categoryKey: EVENT_CATEGORY.STAGE,
     campus,
     days,
     // A roster-only stage was never opened on the day, so nobody typed the hour

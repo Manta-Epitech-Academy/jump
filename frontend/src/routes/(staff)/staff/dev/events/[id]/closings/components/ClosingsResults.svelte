@@ -1,20 +1,24 @@
 <script lang="ts">
+  import { noMatchLine } from '$lib/domain/devVoice';
+  import { page } from '$app/state';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
   import Circle from '@lucide/svelte/icons/circle';
-  import MessageSquare from '@lucide/svelte/icons/message-square';
   import * as Table from '$lib/components/ui/table';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import type {
-    ColumnDef,
-    SortDir,
-  } from '$lib/components/staff/datatable/types';
-  import { type SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
-  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
+  import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  import {
+    clearListFilters,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
+  import ClosingVerdictChip from '$lib/components/dev/closings/ClosingVerdictChip.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import { resolve } from '$app/paths';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -23,13 +27,29 @@
   import { cohortNounForms } from '$lib/domain/event';
   import {
     CLOSING_STATUS_LABELS,
-    CLOSING_STATUS_CHIP_CLASS,
     type ClosingListStatus,
   } from '$lib/domain/closing';
-  import type { ClosingRow, SortKey, ClosingsCohort } from './types';
+  import {
+    CLOSINGS_SORT_DEFAULT_DIR,
+    type ClosingsFacet,
+    type ClosingsSortKey,
+    CLOSINGS_VIEW,
+  } from '$lib/domain/closingsView';
+  import {
+    NOT_CONDUCTED_LABEL,
+    closingVerdict,
+    closingsFacets,
+    conductorLabel,
+    matchesClosingsFacets,
+  } from '$lib/domain/closingsRoster';
+  import type { ClosingRow, ClosingsCohort } from './types';
   import SynthesisCard from './SynthesisCard.svelte';
   import StaffTallyCard from './StaffTallyCard.svelte';
   import GuideCard from '$lib/components/dev/closings/GuideCard.svelte';
+  import {
+    statusBadgeClass,
+    type StatusTone,
+  } from '$lib/components/staff/statusBadge';
   import {
     buildHaystack,
     matchesAllTokens,
@@ -69,43 +89,63 @@
     in_progress: Clock,
     done: Check,
   };
-  // Least-advanced first in ascending sort, so the talents still to call float up.
-  const STATUS_ORDER: Record<ClosingListStatus, number> = {
-    todo: 0,
-    in_progress: 1,
-    done: 2,
+  // The same reading as the inscrits' statut: nothing begun is neutral, work
+  // under way is a warning, a closing done is settled.
+  const STATUS_TONE: Record<ClosingListStatus, StatusTone> = {
+    todo: 'neutral',
+    in_progress: 'warning',
+    done: 'success',
   };
+  // Filters, sort and search live in the address (`$lib/domain/closingsView`),
+  // so the event home's cards can open this list already filtered.
+  const view = $derived(CLOSINGS_VIEW.parse(page.url.searchParams));
+  const search = createUrlSearch();
 
-  let searchQuery = $state('');
-  let statutFilter = $state<'all' | ClosingListStatus>('all');
-  let sortKey = $state<SortKey>('nom');
-  let sortDir = $state<SortDir>('asc');
+  const facets = $derived(closingsFacets(rows, view));
+  const controls = $derived(
+    facetControls(facets, (facet, values) =>
+      setListParams(CLOSINGS_VIEW.facetParams(facet, values)),
+    ),
+  );
 
-  const columns: ColumnDef[] = [
-    { key: 'avatar', label: '', class: 'w-12' },
-    { key: 'prenom', label: 'Prénom', sortable: true, class: 'w-28' },
-    { key: 'nom', label: 'Nom', sortable: true, class: 'w-36' },
-    {
-      key: 'staff',
-      label: 'Mené par',
+  // The mockup's columns, and like the Inscrits page one control each: the
+  // names and the date sort, who conducted it, its state and the team's
+  // verdict filter from their header.
+  const columns = $derived.by<ColumnDef[]>(() => {
+    const sortable = (key: ClosingsSortKey) => ({
+      key,
       sortable: true,
-      class: 'w-full',
-    },
-    { key: 'date', label: 'Date', sortable: true, class: 'w-28' },
-    { key: 'status', label: 'Statut', sortable: true, class: 'w-28' },
-  ];
-
-  const statutOptions: SegmentOption[] = [
-    { value: 'all', label: 'Tous' },
-    { value: 'todo', label: CLOSING_STATUS_LABELS.todo },
-    { value: 'in_progress', label: CLOSING_STATUS_LABELS.in_progress },
-    { value: 'done', label: CLOSING_STATUS_LABELS.done },
-  ];
+      defaultSortDir: CLOSINGS_SORT_DEFAULT_DIR[key],
+    });
+    const filtered = (facet: ClosingsFacet, label: string, width: string) => ({
+      key: facet,
+      label,
+      class: width,
+      filter: controls.filterOf(facet),
+    });
+    return [
+      { key: 'avatar', label: '', class: 'w-12' },
+      { ...sortable('prenom'), label: 'Prénom', class: 'w-28' },
+      { ...sortable('nom'), label: 'Nom', class: 'w-36' },
+      filtered('mene', 'Mené par', 'w-full'),
+      { ...sortable('date'), label: 'Date', class: 'w-28' },
+      filtered('statut', 'Statut', 'w-32'),
+      filtered('avis', 'Avis', 'w-44'),
+    ];
+  });
 
   function toggleSort(key: string) {
-    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
-    sortKey = next.key;
-    sortDir = next.dir;
+    const next = nextSort<ClosingsSortKey>(
+      columns,
+      { key: view.sort, dir: view.dir },
+      key,
+    );
+    setListParams(CLOSINGS_VIEW.sortParams(next.key, next.dir));
+  }
+
+  // Clears the filters and the search, keeps the sort, as on Inscrits.
+  function resetFilters() {
+    clearListFilters(CLOSINGS_VIEW.clearedFacetParams(), search);
   }
 
   const dateFmt = (d: Date | string | null) =>
@@ -122,34 +162,32 @@
   // that HAVE been conducted rather than leading with the empty half of the
   // roster. It used to lead with them: the null cases lived inside the asc/desc
   // flip, which inverted the intent along with the order.
-  function sortsLast(r: ClosingRow, key: SortKey): boolean {
-    if (key === 'staff') return !r.staffName;
-    if (key === 'date') return !r.conductedAt;
-    return false;
+  function sortsLast(r: ClosingRow, key: ClosingsSortKey): boolean {
+    return key === 'date' && !r.conductedAt;
   }
 
-  function compareRows(a: ClosingRow, b: ClosingRow, key: SortKey): number {
+  function compareRows(
+    a: ClosingRow,
+    b: ClosingRow,
+    key: ClosingsSortKey,
+  ): number {
     switch (key) {
       case 'prenom':
         return a.prenom.localeCompare(b.prenom, 'fr');
       case 'nom':
         return a.nom.localeCompare(b.nom, 'fr');
-      case 'staff':
-        return (a.staffName ?? '').localeCompare(b.staffName ?? '', 'fr');
       case 'date':
         return (
           new Date(a.conductedAt ?? 0).getTime() -
           new Date(b.conductedAt ?? 0).getTime()
         );
-      case 'status':
-        return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
     }
   }
 
   const filtered = $derived.by(() => {
-    const tokens = searchTokens(searchQuery);
+    const tokens = searchTokens(search.value);
     const out = rows.filter((r) => {
-      if (statutFilter !== 'all' && r.status !== statutFilter) return false;
+      if (!matchesClosingsFacets(r, facets)) return false;
       return matchesAllTokens(
         buildHaystack([r.prenom, r.nom, r.staffName]),
         tokens,
@@ -157,16 +195,16 @@
     });
     out.sort(
       rowComparator({
-        compare: (a, b) => compareRows(a, b, sortKey),
-        dir: sortDir,
-        isMissing: (r) => sortsLast(r, sortKey),
+        compare: (a, b) => compareRows(a, b, view.sort),
+        dir: view.dir,
+        isMissing: (r) => sortsLast(r, view.sort),
       }),
     );
     return out;
   });
 
   const anyFiltersApplied = $derived(
-    searchQuery.trim().length > 0 || statutFilter !== 'all',
+    controls.chips.length > 0 || search.value.trim().length > 0,
   );
   // A closing is an event-scoped act, so it is conducted on its own page under
   // the event rather than on the talent fiche: this roster is the way in
@@ -178,13 +216,7 @@
 
 {#snippet statusBadge(status: ClosingListStatus, full: boolean)}
   {@const Icon = STATUS_ICON[status]}
-  <span
-    class={cn(
-      'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 epi-chip',
-      full && 'shrink-0',
-      CLOSING_STATUS_CHIP_CLASS[status],
-    )}
-  >
+  <span class={cn(statusBadgeClass(STATUS_TONE[status]), full && 'shrink-0')}>
     <Icon class="h-3 w-3" />
     {CLOSING_STATUS_LABELS[status]}
   </span>
@@ -200,52 +232,42 @@
 {/snippet}
 
 {#if total === 0}
-  <ResultsNotice
-    icon={MessageSquare}
-    title={`Aucun ${noun.singular} inscrit`}
-    description="Les closings apparaîtront ici dès que la cohorte de l'événement sera synchronisée."
-  />
+  <EmptyCohortNotice {cohortNoun} />
 {:else}
   <ResultsLayout
     railClass="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1"
   >
     {#snippet main()}
       <DataTableToolbar
-        searchValue={searchQuery}
-        onSearchInput={(v) => (searchQuery = v)}
+        searchValue={search.value}
+        onSearchInput={(v) => (search.value = v)}
         searchPlaceholder={`Rechercher un ${noun.singular}…`}
         searchWidthClass="w-full max-w-[230px]"
-        filtersAlign="end"
         count={filtered.length}
         countNoun="closing"
         filtersApplied={anyFiltersApplied}
-      >
-        {#snippet filters()}
-          <div class="flex items-center gap-2">
-            <span class="hidden epi-overline text-muted-foreground sm:inline">
-              Statut
-            </span>
-            <FilterSelect
-              ariaLabel="Filtrer par statut de closing"
-              options={statutOptions}
-              value={statutFilter}
-              onChange={(v) => (statutFilter = v as typeof statutFilter)}
-            />
-          </div>
-        {/snippet}
-      </DataTableToolbar>
+      />
+
+      <ActiveFilterChips
+        chips={controls.chips}
+        {search}
+        onReset={resetFilters}
+      />
 
       <SortableTable
+        onResetFilters={anyFiltersApplied ? resetFilters : undefined}
+        noMatchHint={noMatchLine(page.url.pathname)}
         {columns}
         rows={filtered}
-        {sortKey}
-        {sortDir}
+        sortKey={view.sort}
+        sortDir={view.dir}
         onSort={toggleSort}
         rowKey={(r) => r.talentId}
         rowHref={conductHref}
         rowLabel={(r) => `Mener le closing de ${r.prenom} ${r.nom}`}
         stickyHeader
         layout="fixed"
+        cardsBelow="xl"
       >
         {#snippet row(r: ClosingRow)}
           <Table.Cell>
@@ -270,7 +292,14 @@
                 </span>
               </span>
             {:else}
-              <span class="text-muted-foreground">-</span>
+              <!-- « Ancien membre de l'équipe » is wider than the column: it
+                   truncates like a name does, rather than running under the
+                   date beside it. -->
+              <span
+                class="block truncate text-muted-foreground"
+                title={conductorLabel(r) ?? undefined}
+                >{conductorLabel(r) ?? '-'}</span
+              >
             {/if}
           </Table.Cell>
           <Table.Cell class="text-sm text-muted-foreground">
@@ -279,10 +308,19 @@
           <Table.Cell>
             {@render statusBadge(r.status, false)}
           </Table.Cell>
+          <Table.Cell>
+            {@const verdict = closingVerdict(r)}
+            {#if verdict}
+              <ClosingVerdictChip recommendation={verdict} short />
+            {:else}
+              <span class="text-muted-foreground">-</span>
+            {/if}
+          </Table.Cell>
         {/snippet}
 
         {#snippet mobileRow(r: ClosingRow)}
           {@const prenom = formatGivenName(r.prenom)}
+          {@const verdict = closingVerdict(r)}
           <div class="flex items-start gap-3">
             <TalentAvatar
               talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
@@ -303,23 +341,16 @@
                   {@render staffAvatar(r.staffName, r.staffImage)}
                 {/if}
                 <span class="min-w-0 flex-1 truncate">
-                  {r.staffName ?? 'Pas encore mené'}
+                  {conductorLabel(r) ?? NOT_CONDUCTED_LABEL}
                 </span>
                 {#if r.conductedAt}
                   <span class="shrink-0">{dateFmt(r.conductedAt)}</span>
                 {/if}
               </div>
+              {#if verdict}
+                <ClosingVerdictChip recommendation={verdict} short />
+              {/if}
             </div>
-          </div>
-        {/snippet}
-
-        {#snippet empty()}
-          <div class="flex flex-col items-center gap-3 py-6">
-            <span
-              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-            >
-              Aucun résultat
-            </span>
           </div>
         {/snippet}
       </SortableTable>

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
+import { reachRulesStep } from './onboardingLadder';
 import {
   CURRENT_REGLEMENT_VERSION,
   LEGACY_REGLEMENT_VERSION,
@@ -77,11 +78,13 @@ describe('règlement version pinning (integration)', () => {
 
   it('pins the current version when the talent signs', async () => {
     const talent = await makeTalent();
+    await reachRulesStep(talent.id);
 
-    await signOnboardingRules({
+    const signed = await signOnboardingRules({
       talentId: talent.id,
       city: 'Paris',
     });
+    expect(signed.ok).toBe(true);
 
     const after = await prisma.talent.findUniqueOrThrow({
       where: { id: talent.id },

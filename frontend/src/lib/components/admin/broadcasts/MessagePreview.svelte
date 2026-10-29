@@ -20,9 +20,15 @@
 
   const demoCtx = $derived(buildDemoContext(eventName));
   const previewSubject = $derived(
-    subject ? substituteVariables(subject, demoCtx) : '',
+    subject ? substituteVariables(subject, demoCtx, 'plain') : '',
   );
-  const previewBody = $derived(substituteVariables(body ?? '', demoCtx));
+  const previewBody = $derived(
+    substituteVariables(
+      body ?? '',
+      demoCtx,
+      channel === 'mail' ? 'markdown' : 'plain',
+    ),
+  );
   const previewMailHtml = $derived(
     channel === 'mail' ? renderBroadcastMail(previewBody) : '',
   );

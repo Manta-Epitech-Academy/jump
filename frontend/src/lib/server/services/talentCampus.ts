@@ -11,21 +11,30 @@ type Db = PrismaClient | Prisma.TransactionClient;
  * A talent's effective campus, derived from their MOST RECENT participation.
  * Talents have no direct Campus FK; their campus is wherever they last
  * participated. Single source of truth for that rule, shared by `hooks.server`
- * (feature-flag scope + analytics name) and onboarding (early-bird campus +
- * cohort position) so the two can't drift.
+ * (feature-flag scope, analytics name, the timezone their sign-in day is read
+ * in) and onboarding (early-bird campus + cohort position) so the two can't
+ * drift.
  */
 export async function resolveTalentCampus(
   client: Db,
   talentId: string,
-): Promise<{ campusId: string | null; campusName: string | null }> {
+): Promise<{
+  campusId: string | null;
+  campusName: string | null;
+  campusTimezone: string | null;
+}> {
   const participation = await client.participation.findFirst({
     where: { talentId },
     orderBy: { event: { date: 'desc' } },
-    select: { campusId: true, campus: { select: { name: true } } },
+    select: {
+      campusId: true,
+      campus: { select: { name: true, timezone: true } },
+    },
   });
   return {
     campusId: participation?.campusId ?? null,
     campusName: participation?.campus?.name ?? null,
+    campusTimezone: participation?.campus?.timezone ?? null,
   };
 }
 
@@ -39,6 +48,9 @@ export async function resolveTalentCampus(
  * MUST be called inside the transaction that stamps this talent's own
  * `rulesSignedAt`, and BEFORE that stamp, so the talent never counts itself
  * (its `rulesSignedAt` is still null at count time).
+ *
+ * A completer is a talent whose `rulesSignedAt` is set, and that stands for the
+ * whole ladder because `signOnboardingRules` stamps it only at the `rules` step.
  *
  * Takes a per-campus advisory lock, released when the caller's transaction
  * commits, so concurrent completions in the same campus serialize. Without it

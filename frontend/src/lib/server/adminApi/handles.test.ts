@@ -5,8 +5,9 @@
  * screen. So a parameter no answer produces is not awkward, it is unusable - and
  * the failure is silent, because the operation is right there in the tool list and
  * refuses only when called with a value nobody could have. Two of those had
- * shipped: `ops_resolve_sync_errors.ids`, which no read has ever fed, and an event
- * id that for a leadership token existed only for events already over.
+ * shipped: `ops_resolve_sync_errors.ids` (the operation is retired since),
+ * which no read had ever fed, and an event id that for a leadership token
+ * existed only for events already over.
  *
  * The per-tier clause is the whole point. A handle produced by a core-only answer
  * is not reachable from a leadership token, and that exact hole had already
@@ -53,15 +54,20 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'publicName',
   'cohortNoun',
   'startTime',
-  'endDate',
   'description',
   'reason',
   'label',
-  // The address of a CTFd instance, typed once when it is deployed.
+  // The address of a CTFd instance, typed once when it is deployed, and its
+  // supervisor code, copied from the instance.
   'baseUrl',
+  'supervisorCode',
   // How an activity presents itself: a line and the addresses of pictures Jump
   // downloads. Authored, not picked from anything Jump holds.
   'cover',
+  // How the subject catalogue files an activity: a level its own schema spells
+  // out, and notions an admin writes. The domains it names are a handle.
+  'level',
+  'notions',
   // What a campus puts on its talents' home: its note, and the event it puts
   // forward with the address of that event's outside sign-up form.
   'markdown',
@@ -100,9 +106,12 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'allowsPublicAccess',
   'dashboardNudge',
   'questions',
+  // An event category's colour, a #rrggbb an admin picks.
+  'color',
   // Flags, windows and sizes.
   'intervalMinutes',
   'enabled',
+  'archived',
   'visible',
   'receivesDigest',
   // A section's sub-options, keyed by the section, whose keys the schema itself

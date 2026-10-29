@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
-  import { authClient } from '$lib/auth-client';
+  import { stopImpersonating } from '$lib/impersonation';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import LogOut from '@lucide/svelte/icons/log-out';
   import { toast } from 'svelte-sonner';
@@ -16,8 +16,8 @@
   // DS) to read as a transient system overlay, not part of the talent UI.
   // Tucked into the corner and dimmed at rest so it stops competing with the
   // content; brightens to full opacity on hover when the admin reaches for it.
-  // Shares BetterAuth's `session.impersonatedBy` signal and stop-impersonating
-  // call.
+  // Shares BetterAuth's `session.impersonatedBy` signal and Jump's
+  // `stopImpersonating`.
 
   let busy = $state(false);
 
@@ -39,13 +39,13 @@
     (page.data.planningPreview ?? null) as PlanningPreview | null,
   );
 
-  async function stopImpersonating() {
+  async function returnToAdmin() {
     if (busy) return;
     busy = true;
     try {
-      await authClient.admin.stopImpersonating();
+      await stopImpersonating();
       // Full-page nav, mirroring the impersonate-start path
-      // (admin/talents/+page.svelte): the BetterAuth stop call swaps the
+      // (admin/talents/+page.svelte): the stop call swaps the
       // session cookie back to the admin, so we want the next request
       // evaluated fresh rather than reusing the impersonated client state.
       // A full reload also tears down talent-space globals that an SPA nav
@@ -84,7 +84,7 @@
         </div>
         <button
           type="button"
-          onclick={stopImpersonating}
+          onclick={returnToAdmin}
           disabled={busy}
           class="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-epi-together px-3 py-1.5 text-xs font-bold text-epi-dark transition-colors hover:bg-epi-together/90 disabled:cursor-not-allowed disabled:opacity-60"
         >

@@ -240,8 +240,8 @@ export async function requestSync(params: {
  * this a tool. A hold over unresolved members is the case the hold exists for:
  * one of them may be the very talent whose enrolment would go, so releasing it
  * would hand a person the deletion the full pass refused to make. Its way out
- * is fixing the member's SyncError, after which the next complete roster prunes
- * by itself. The database refuses the other shape too (`Sync_PruneHold_counts_check`).
+ * is completing the member's contact in Salesforce, which closes its
+ * `Sync_Error`, after which the next complete roster prunes by itself. The database refuses the other shape too (`Sync_PruneHold_counts_check`).
  *
  * Reversible until that pass runs, by the pass itself: a roster that arrives
  * with members renews the hold and withdraws the release. Safe to repeat:
@@ -259,7 +259,7 @@ export async function releasePruneHold(params: {
     );
   if (before.sentCount > 0)
     throw new OperationRefusedError(
-      `Les suppressions retenues sur « ${event!.label} » ne viennent pas d'une campagne vide : ${before.resolvedCount} membre(s) sur ${before.sentCount} ont pu être rattachés à un talent, et un membre non rattaché peut être l'inscrit qu'elles supprimeraient. Elles s'appliqueront d'elles-mêmes à la reprise complète suivante une fois les erreurs de ces membres traitées sur /staff/admin/sync-errors.`,
+      `Les suppressions retenues sur « ${event!.label} » ne viennent pas d'une campagne vide : ${before.resolvedCount} membre(s) sur ${before.sentCount} ont pu être rattachés à un talent, et un membre non rattaché peut être l'inscrit qu'elles supprimeraient. Ce sont des contacts Salesforce sans nom, listés sur /staff/admin/sync-errors : une fois complétés dans Salesforce, la reprise complète suivante appliquera les suppressions d'elle-même.`,
     );
   if (before.releasedAt) return { applied: true, before, after: before };
 

@@ -36,6 +36,37 @@ export const E2E = {
   upcomingEventId: 'e2e-event-upcoming',
   upcomingEventName: 'Coding Club E2E',
 
+  /**
+   * An event whose only section is Inscrits, ten days out, with three talents
+   * who differ on exactly what the roster filters on (niveau, civilité). Its
+   * own event so the émargement one keeps landing on émargement, and its
+   * talents have no account: nobody logs in as them.
+   */
+  rosterEventId: 'e2e-event-inscrits',
+  rosterTalents: [
+    {
+      id: 'e2e-talent-roster-1',
+      nom: 'ROSTERUN',
+      prenom: 'Inès',
+      civilite: 'femme',
+      niveau: 'Seconde',
+    },
+    {
+      id: 'e2e-talent-roster-2',
+      nom: 'ROSTERDEUX',
+      prenom: 'Hugo',
+      civilite: 'homme',
+      niveau: 'Seconde',
+    },
+    {
+      id: 'e2e-talent-roster-3',
+      nom: 'ROSTERTROIS',
+      prenom: 'Lina',
+      civilite: 'femme',
+      niveau: 'Première',
+    },
+  ],
+
   /** Dev-workspace member: `can('devMember')`, campus-scoped. */
   dev: { userId: 'e2e-user-dev', email: `dev${E2E_DOMAIN}` },
   /** Admin: the other staff space, used to assert the cross-space bounce. */

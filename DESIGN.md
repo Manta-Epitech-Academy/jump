@@ -154,6 +154,11 @@ components:
     textColor: '{colors.epiBlue}'
     rounded: '{rounded.sm}'
     height: 36px
+  buttonInverse:
+    backgroundColor: '{colors.primaryForeground}'
+    textColor: '{colors.primary}'
+    rounded: '{rounded.sm}'
+    height: 36px
   buttonDestructive:
     backgroundColor: '{colors.destructive}'
     textColor: '{colors.statusForeground}'
@@ -389,6 +394,19 @@ defines four status colors, all traced back to a brand hue:
 There is **no fifth status color and no separate palette for charts**. A hue that
 is not in this list does not appear in the product.
 
+One hue comes from data rather than from this file, and it is the exception
+this rule allows: an **event category's colour**, which the team authors over the
+admin API like a certificate design. The calendar needs one colour per kind of
+event, more than the four accents, so the colour is the team's choice and
+outside this contract on purpose. What a component owes it is legibility: a
+swatch carries a border, a calendar band an edge shaded from its own fill toward
+`foreground` (so a white category still shows on a white card, a near-black one
+on a dark one), and text on a category fill takes its colour from the
+fill (`inkOn` in `lib/design/color.ts`: white or `epiDark`, whichever contrasts
+more). Everything else stays on the tokens: on the campus calendar an event
+without a category is a `mutedForeground` fill, and a day without school is a
+`muted` ground, so neither can pass for a category.
+
 ### Neutrals: one ramp, and it is blue-tinted
 
 The charte neutrals are lavender-tinted, not grey: `#f6f7fb`, `#eceef5`,
@@ -435,8 +453,9 @@ dark is arguably more Epitech than light. Five rules make it cheap:
    dark green panel with white on it becomes a neon one with white on it at
    1.3:1. That is not a hypothetical: it took out the XP medallion on the talent
    fiche and every avatar ground on the same hero. A fill on a dark surface is a
-   translucent white panel (`bg-white/10`, the charte's overlay language) or a
-   raw brand accent carrying `epiBlue` or `epiDark` text.
+   translucent white panel (`bg-white/10`, the charte's overlay language), a
+   raw brand accent carrying `epiBlue` or `epiDark` text, or, on a brand-blue
+   surface only, plain white carrying `epiBlue` (`buttonInverse`, below).
 
    The status roles are the one place a fill legitimately names an ink, because
    an error bar has to be red in both themes. They get away with it only in
@@ -606,7 +625,15 @@ instead, which is where it costs nothing.
 
 Primary is `primary` filled. `buttonNeon` (`epiTech` fill, `epiBlue` text) is the
 charte's celebration CTA: use it for the one hopeful action on a talent or login
-surface, never in a staff toolbar. Destructive is `destructive` filled. Press
+surface, never in a staff toolbar. `buttonInverse` is the primary pair swapped,
+white with `epiBlue` text (7.0:1), and it is THE action of a brand-blue surface,
+staff or talent: the catalogue card's « Accéder au sujet », the talent hero's
+« Fiche Salesforce ». The charte is blue and white, so this is the brand's own
+pair, not an accent pressed into service; it stays white in either theme because
+the surface stays blue. Any other action on that surface takes the translucent
+`overlay`, which reads as secondary next to it, and which is what made the
+catalogue's main action look disabled until the 2027 mockup's white button was
+restored (#459). Destructive is `destructive` filled. Press
 translates 1px down, no scale change.
 
 **A raw accent is never a button fill.** `epiTomorrow` with white text is 3.10:1
@@ -615,6 +642,14 @@ label. Magenta is the admin space's identity (page titles, active nav, tile
 accents), and identity is not the same thing as a call to action: the action is
 `primary`. The single exception is `buttonNeon`, and it is one because its text is
 `epiBlue` rather than white.
+
+**Segmented control** (`SegmentedFilter`). The 2027 mockup's: a `card` ground
+with a 1px `border`, 36px tall like a button so it sits level with a toolbar's
+fields, and the chosen segment an inverse fill (`foreground` ground, `background`
+ink). Not the lifted white tab on a grey track it replaced: that state needed a
+second look to tell which segment was on, and it spent a `raised` shadow on a
+staff control. The labels are the button's (IBM Plex Sans bold, uppercase), not
+the mockup's Space Mono, for the button's reason.
 
 **Card.** `card` surface, 1px `border`, `sm` radius, 24px padding, no shadow.
 `cardBrand` is the inverse: `epiBlue` fill, white text, optionally one pixel-square
@@ -714,6 +749,7 @@ two different cell sizes.
 | `/` | Slash | Separates keywords in a list. |
 | Blueprint grid | Texture | 48px cells, `epiBlue` at 6% on light, white at 4.5% on dark. |
 | Pixel squares | Texture | Half-opacity `epiBlue`, white, or `epiLavender` rectangles, offset and overlapping. |
+| Seasonal pixels | A wink | The dev talent fiche's band only, in place of its squares: a jack-o'-lantern in `epiTogether` with an `epiTech` stem (15 to 31 October), a white snowflake (December). 8px cells on a nine-cell grid, still. A season the charte has no colour for gets nothing. |
 
 Titles are uppercase. Taglines are sentence case inside `< />`. Body copy is
 sentence case with French typography.

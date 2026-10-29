@@ -94,13 +94,15 @@ describe('per-event dev-space visibility (integration)', () => {
         external_id: stageExternalId,
         title: 'Stage visibilité',
         campus_ext_name: campusExternalName,
-        date: '2026/03/02',
+        start_date: '2026-03-02',
+        end_date: null,
       },
       {
         external_id: clubExternalId,
         title: 'Coding Club visibilité',
         campus_ext_name: campusExternalName,
-        date: '2026/03/04',
+        start_date: '2026-03-04',
+        end_date: null,
       },
     ]);
     for (const [key, externalId] of [

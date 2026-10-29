@@ -20,14 +20,16 @@ import {
   clearTalentOnboardingArtifacts,
 } from '$lib/domain/talentOnboarding';
 import { clearGuardianContacts, guardianEmailsOf } from '$lib/domain/contact';
+import { clearSignInStreak } from '$lib/server/services/signInStreak';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
 
 /**
  * Why `ensureTalentUser` could not give a talent a login: no Salesforce address
  * to create one from, or an address that is already somebody else's (a parent,
- * a staff member, another talent). The message is the French sentence the sync
- * writes into its `SyncError`; `kind` is what a caller branches on.
+ * a staff member, another talent). `kind` is what a caller branches on: the
+ * sync records an `identity_conflict` as an `ADDRESS_TAKEN` sync error, and
+ * says who holds the address when the error is read, not here.
  */
 export class TalentAccountError extends Error {
   constructor(
@@ -349,11 +351,12 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         setupDescription: null,
         interestsFreeText: null,
         // Activity projections: a fresh-import talent has never logged in, so
-        // both the first-login and last-active facts are dropped. The login
-        // identity itself is kept (step 3 clears only its history), so `userId`
-        // stays linked.
+        // the first-login and last-active facts and the run of consecutive days
+        // are dropped. The login identity itself is kept (step 3 clears only
+        // its history), so `userId` stays linked.
         lastActiveAt: null,
         firstLoginAt: null,
+        ...clearSignInStreak(),
       },
     });
 

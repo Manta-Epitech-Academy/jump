@@ -42,8 +42,10 @@ export const USAGE_FEATURES = {
   // ── Dev space (staff) ─────────────────────────────────────────────
   DEV_CONNECTION: 'dev_connection',
   DEV_DASHBOARD_VIEW: 'dev_dashboard_view',
+  DEV_EVENT_HOME_VIEW: 'dev_event_home_view',
   DEV_INSCRITS_VIEW: 'dev_inscrits_view',
   DEV_INSCRITS_EXPORT: 'dev_inscrits_export',
+  DEV_EVENT_EXPORT: 'dev_event_export',
   DEV_BADGES_RENDER: 'dev_badges_render',
   DEV_DIPLOMAS_RENDER: 'dev_diplomas_render',
   DEV_EMARGEMENT_VIEW: 'dev_emargement_view',
@@ -62,6 +64,7 @@ export const USAGE_FEATURES = {
   DEV_CLOSING_CONDUCT_VIEW: 'dev_closing_conduct_view',
   DEV_PLANNING_VIEW: 'dev_planning_view',
   DEV_TALENT_FICHE_VIEW: 'dev_talent_fiche_view',
+  DEV_CATALOGUE_VIEW: 'dev_catalogue_view',
   DEV_TALENT_NOTE_CREATE: 'dev_talent_note_create',
   DEV_TALENT_NOTE_EDIT: 'dev_talent_note_edit',
   DEV_TALENT_NOTE_DELETE: 'dev_talent_note_delete',
@@ -99,8 +102,6 @@ export const USAGE_FEATURES = {
   ADMIN_SF_STATUS_ADD: 'admin_sf_status_add',
   ADMIN_TALENTS_EXPORT: 'admin_talents_export',
   ADMIN_TALENT_RESET_TO_IMPORT: 'admin_talent_reset_to_import',
-  ADMIN_SYNC_ERROR_RESOLVE: 'admin_sync_error_resolve',
-  ADMIN_SYNC_ERROR_REBIND: 'admin_sync_error_rebind',
   ADMIN_SF_CONFLICT_ADOPT: 'admin_sf_conflict_adopt',
   ADMIN_SF_AUTH_REPAIR: 'admin_sf_auth_repair',
   ADMIN_SF_CONFLICTS_EXPORT: 'admin_sf_conflicts_export',
@@ -321,12 +322,24 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   }),
   [USAGE_FEATURES.DEV_DASHBOARD_VIEW]: def({
     key: USAGE_FEATURES.DEV_DASHBOARD_VIEW,
-    label: 'Tableau de bord dev',
-    definition: `Consultations de l’accueil de l’espace dev. ${BUCKET_NOTE}`,
+    // The same series since the dev space opened: its landing page, which is
+    // the campus calendar since #440.
+    label: 'Calendrier du campus',
+    definition: `Consultations du calendrier du campus, la page d’arrivée de l’espace dev. ${BUCKET_NOTE}`,
     audience: 'staff',
     space: 'dev',
     kind: 'view',
     scope: 'campus',
+    dedupe: 'bucket',
+  }),
+  [USAGE_FEATURES.DEV_EVENT_HOME_VIEW]: def({
+    key: USAGE_FEATURES.DEV_EVENT_HOME_VIEW,
+    label: 'Accueil d’un événement',
+    definition: `Consultations de l’accueil d’un événement, ses chiffres et ses actions. ${BUCKET_NOTE}`,
+    audience: 'staff',
+    space: 'dev',
+    kind: 'view',
+    scope: 'event',
     dedupe: 'bucket',
   }),
   [USAGE_FEATURES.DEV_INSCRITS_VIEW]: def({
@@ -344,6 +357,17 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     label: 'Export xlsx des inscrits',
     definition:
       'Exports xlsx de la liste des inscrits. Un par téléchargement demandé, quel que soit le filtre appliqué au moment de l’export.',
+    audience: 'staff',
+    space: 'dev',
+    kind: 'export',
+    scope: 'event',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.DEV_EVENT_EXPORT]: def({
+    key: USAGE_FEATURES.DEV_EVENT_EXPORT,
+    label: 'Export xlsx de l’événement',
+    definition:
+      'Exports xlsx de l’événement entier depuis son accueil, une feuille par section de l’événement. Un par téléchargement demandé.',
     audience: 'staff',
     space: 'dev',
     kind: 'export',
@@ -532,6 +556,18 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     key: USAGE_FEATURES.DEV_TALENT_FICHE_VIEW,
     label: 'Fiche d’un jeune',
     definition: `Consultations de la fiche individuelle d’un jeune. ${BUCKET_NOTE}`,
+    audience: 'staff',
+    space: 'dev',
+    kind: 'view',
+    scope: 'campus',
+    dedupe: 'bucket',
+  }),
+  // Whether the teams open it decides whether a subject's detailed page, left
+  // out of #439, is worth building.
+  [USAGE_FEATURES.DEV_CATALOGUE_VIEW]: def({
+    key: USAGE_FEATURES.DEV_CATALOGUE_VIEW,
+    label: 'Catalogue des sujets',
+    definition: `Consultations du catalogue des sujets, le même pour tous les campus. ${BUCKET_NOTE}`,
     audience: 'staff',
     space: 'dev',
     kind: 'view',
@@ -872,26 +908,6 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     key: USAGE_FEATURES.ADMIN_TALENT_RESET_TO_IMPORT,
     label: 'Remise à l’import d’un talent',
     definition: 'Remises d’un talent à son état d’import Salesforce.',
-    audience: 'staff',
-    space: 'admin',
-    kind: 'action',
-    scope: 'global',
-    dedupe: 'each',
-  }),
-  [USAGE_FEATURES.ADMIN_SYNC_ERROR_RESOLVE]: def({
-    key: USAGE_FEATURES.ADMIN_SYNC_ERROR_RESOLVE,
-    label: 'Erreur de synchronisation traitée',
-    definition: 'Résolutions d’une erreur de synchronisation.',
-    audience: 'staff',
-    space: 'admin',
-    kind: 'action',
-    scope: 'global',
-    dedupe: 'each',
-  }),
-  [USAGE_FEATURES.ADMIN_SYNC_ERROR_REBIND]: def({
-    key: USAGE_FEATURES.ADMIN_SYNC_ERROR_REBIND,
-    label: 'Réassociation d’un identifiant externe',
-    definition: 'Réassociations manuelles d’un identifiant Salesforce.',
     audience: 'staff',
     space: 'admin',
     kind: 'action',
@@ -1428,6 +1444,7 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
 export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
   // Dev space
   '/(staff)/staff/dev': USAGE_FEATURES.DEV_DASHBOARD_VIEW,
+  '/(staff)/staff/dev/events/[id]': USAGE_FEATURES.DEV_EVENT_HOME_VIEW,
   '/(staff)/staff/dev/events/[id]/inscrits': USAGE_FEATURES.DEV_INSCRITS_VIEW,
   '/(staff)/staff/dev/events/[id]/emargement':
     USAGE_FEATURES.DEV_EMARGEMENT_VIEW,
@@ -1438,6 +1455,7 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
     USAGE_FEATURES.DEV_CLOSING_CONDUCT_VIEW,
   '/(staff)/staff/dev/events/[id]/planning': USAGE_FEATURES.DEV_PLANNING_VIEW,
   '/(staff)/staff/dev/students/[id]': USAGE_FEATURES.DEV_TALENT_FICHE_VIEW,
+  '/(staff)/staff/dev/catalogue': USAGE_FEATURES.DEV_CATALOGUE_VIEW,
 
   // Admin space
   '/(staff)/staff/admin': USAGE_FEATURES.ADMIN_DASHBOARD_VIEW,
@@ -1478,7 +1496,7 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
 
 /**
  * The connection key for a space, from the route being visited. It matches by
- * PREFIX, so every request into a space carries one, not only the 36 routes
+ * PREFIX, so every request into a space carries one, not only the routes
  * `USAGE_VIEW_ROUTES` names: a day spent on an uncatalogued page is still a day
  * this person came.
  *

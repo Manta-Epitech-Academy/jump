@@ -1,6 +1,7 @@
 <script lang="ts">
   import Copy from '@lucide/svelte/icons/copy';
   import Check from '@lucide/svelte/icons/check';
+  import type { Snippet } from 'svelte';
   import { toast } from 'svelte-sonner';
   import { cn } from '$lib/utils';
   import * as Tooltip from '$lib/components/ui/tooltip';
@@ -9,9 +10,17 @@
     value: string | null | undefined;
     label?: string;
     class?: string;
+    /**
+     * What the button shows before its icon, which makes the whole field the
+     * copy control rather than a square beside it: a value read in place and
+     * copied from where it is read, like the catalogue's supervisor code. The
+     * `label` then names the value too, since it replaces the content for a
+     * screen reader and is what the tooltip shows.
+     */
+    children?: Snippet;
   };
 
-  let { value, label = 'Copier', class: className }: Props = $props();
+  let { value, label = 'Copier', class: className, children }: Props = $props();
 
   let copied = $state(false);
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -45,14 +54,16 @@
           disabled={!value}
           aria-label={label}
           class={cn(
-            'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40',
+            'inline-flex cursor-pointer items-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40',
+            children ? 'justify-between gap-2' : 'h-6 w-6 justify-center',
             className,
           )}
         >
+          {@render children?.()}
           {#if copied}
-            <Check class="h-3.5 w-3.5 text-success" />
+            <Check class="h-3.5 w-3.5 shrink-0 text-success" />
           {:else}
-            <Copy class="h-3.5 w-3.5" />
+            <Copy class="h-3.5 w-3.5 shrink-0" />
           {/if}
         </button>
       {/snippet}

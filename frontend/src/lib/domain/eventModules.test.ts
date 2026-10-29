@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  eventSurfacePath,
   landingSurface,
+  reachableSurfaces,
   surfaceFromPath,
   type EventSurfaceGates,
 } from './eventModules';
@@ -18,7 +20,11 @@ describe('landingSurface', () => {
     expect(landingSurface(gates(), 'emargement')).toBe('emargement');
   });
 
-  it('should fall back to the first reachable surface when the preferred one is gated off by data', () => {
+  it('should open on the home when nothing is preferred', () => {
+    expect(landingSurface(gates({ modules: ['closings'] }))).toBe('home');
+  });
+
+  it('should fall back to the home when the preferred surface is gated off by data', () => {
     // Arrange: bilan is enabled as a module but resolves no live form, and the
     // event has no schedule, so neither bilan nor planning is reachable.
     const event = gates({
@@ -30,18 +36,21 @@ describe('landingSurface', () => {
     const bilan = landingSurface(event, 'bilan');
     const planning = landingSurface(event, 'planning');
     // Assert
-    expect(bilan).toBe('inscrits');
-    expect(planning).toBe('inscrits');
+    expect(bilan).toBe('home');
+    expect(planning).toBe('home');
   });
 
-  it('should fall back to the first reachable surface when nothing is preferred', () => {
-    expect(landingSurface(gates({ modules: ['closings'] }))).toBe('closings');
-  });
-
-  it('should return null when the event exposes nothing reachable', () => {
+  it('should still open an event whose every section is gated off', () => {
     expect(
       landingSurface(gates({ modules: ['bilan'], hasFeedbackForm: false })),
-    ).toBeNull();
+    ).toBe('home');
+  });
+});
+
+describe('reachableSurfaces', () => {
+  it('should lead with the home, whatever the event turns on', () => {
+    expect(reachableSurfaces(gates({ modules: [] }))).toEqual(['home']);
+    expect(reachableSurfaces(gates())[0]).toBe('home');
   });
 
   // The closings surface is gated on its module AND on the event naming a grid,
@@ -49,10 +58,29 @@ describe('landingSurface', () => {
   // 404s, since a grid-less closing has no questions to ask.
   it('should not reach closings when the event names no grid', () => {
     expect(
-      landingSurface(
+      reachableSurfaces(
         gates({ modules: ['closings'], hasClosingTemplate: false }),
       ),
-    ).toBeNull();
+    ).not.toContain('closings');
+  });
+});
+
+describe('eventSurfacePath', () => {
+  it('should put the home at the event address and the rest below it', () => {
+    expect(eventSurfacePath('abc', 'home')).toBe('/staff/dev/events/abc');
+    expect(eventSurfacePath('abc', 'bilan')).toBe(
+      '/staff/dev/events/abc/bilan',
+    );
+  });
+
+  it('should read back every surface it writes', () => {
+    for (const key of reachableSurfaces(
+      gates({
+        hasPlanning: true,
+        modules: ['inscrits', 'emargement', 'bilan', 'closings'],
+      }),
+    ))
+      expect(surfaceFromPath(eventSurfacePath('abc', key))).toBe(key);
   });
 });
 
@@ -60,6 +88,11 @@ describe('surfaceFromPath', () => {
   it('should read the surface out of an event pathname', () => {
     expect(surfaceFromPath('/staff/dev/events/abc/inscrits')).toBe('inscrits');
     expect(surfaceFromPath('/staff/dev/events/abc/planning')).toBe('planning');
+  });
+
+  it("should read the event's own address as its home", () => {
+    expect(surfaceFromPath('/staff/dev/events/abc')).toBe('home');
+    expect(surfaceFromPath('/staff/dev/events/abc/')).toBe('home');
   });
 
   it('should read the surface out of a page nested under one', () => {
@@ -76,7 +109,7 @@ describe('surfaceFromPath', () => {
 
   it('should return null off an event route', () => {
     // Arrange: the talent fiche is the load-bearing case, it is where a context
-    // jump has no surface to preserve and must land on the first reachable one.
+    // jump has no surface to preserve and must land on the event's home.
     const paths = [
       '/staff/dev/students/abc',
       '/staff/dev',

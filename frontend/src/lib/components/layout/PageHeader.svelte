@@ -3,6 +3,7 @@
   import { cn } from '$lib/utils';
   import CodeTag from './CodeTag.svelte';
   import TitleCursor from './TitleCursor.svelte';
+  import TypedText from './TypedText.svelte';
 
   /**
    * The page header for every staff page: Anton display title ending in the `_`
@@ -36,8 +37,20 @@
      * push the controls that matter further down.
      */
     accroche?: string;
+    /**
+     * The sub-line as markup, for a page whose context is more than words: an
+     * event's home names its category, its days and its countdown. The third
+     * form of the one sub-line, never a fourth line.
+     */
+    meta?: Snippet;
     /** Page controls, right-aligned. */
     actions?: Snippet;
+    /**
+     * Types the title in once on arrival, the cursor blinking after it, as
+     * after a line a terminal just printed. For a title that is a line said to
+     * the person (the calendar's greeting), never for a page's name.
+     */
+    typeTitle?: boolean;
     /** Opt into a view transition on the title. */
     titleViewTransitionName?: string;
     class?: string;
@@ -48,7 +61,9 @@
     accent,
     subtitle,
     accroche,
+    meta,
     actions,
+    typeTitle = false,
     titleViewTransitionName,
     class: className,
   }: Props = $props();
@@ -65,9 +80,11 @@
       class="font-heading text-display-l"
       style:view-transition-name={titleViewTransitionName}
     >
-      {#if title}{title}{/if}{#if accent}{#if title}{' '}{/if}<span
+      {#if title}{#if typeTitle}<TypedText
+            text={title}
+          />{:else}{title}{/if}{/if}{#if accent}{#if title}{' '}{/if}<span
           class="text-accent-space">{accent}</span
-        >{/if}<TitleCursor />
+        >{/if}<TitleCursor blink={typeTitle} />
     </h1>
     {#if subtitle}
       <p
@@ -79,6 +96,8 @@
       <p class="mt-1 font-mono text-xs tracking-wide text-muted-foreground">
         <CodeTag>{accroche}</CodeTag>
       </p>
+    {:else if meta}
+      <div class="mt-2">{@render meta()}</div>
     {/if}
   </div>
   {#if actions}

@@ -5,31 +5,23 @@ import { env } from '$env/dynamic/private';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { prisma } from '$lib/server/db';
 import {
-  buildSubmissionWhere,
   computeFormStats,
+  recoQuestionOf,
   type FormStats,
 } from '$lib/server/feedbackStats';
+import { loadFeedbackRoster } from '$lib/server/services/feedbackRoster';
+import { countShownCohort } from '$lib/server/services/inscritsCohort';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
-import { RECO_QUESTION_KEY, feedbackFormPath } from '$lib/domain/feedback';
-
-export interface BilanRow {
-  talentId: string;
-  nom: string | null;
-  prenom: string | null;
-  respondedAt: string | null;
-  /** Label of the chosen recommendation option, null if not (yet) answered. */
-  recoLabel: string | null;
-}
+import { feedbackFormPath } from '$lib/domain/feedback';
+import type { BilanRow, RecoOption } from '$lib/domain/bilanRoster';
 
 interface BilanCohort {
   rows: BilanRow[];
   respondedCount: number;
   total: number;
   /** Recommendation options in canonical best→worst order (filter + badge tier). */
-  recoOptions: string[];
+  recoOptions: RecoOption[];
   /** Aggregated answers; null when the form has no submissions yet. */
   stats: FormStats | null;
 }
@@ -45,7 +37,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // form whose QR would 404. The full graph is loaded (not just id/title) so we
   // can read the recommendation question and its options. Dev never shows the
   // public link.
-  const form = await resolvePublishedEventForm(event);
+  const [form, rosterSize] = await Promise.all([
+    resolvePublishedEventForm(event),
+    countShownCohort(db, event.id),
+  ]);
   if (!form) {
     // No resolvable live form: the bilan module is on but nothing answers it. The
     // nav entry hides on the same condition (`hasFeedbackForm`); a direct URL then
@@ -56,74 +51,28 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     );
   }
 
-  const recoQ = form.questions.find((q) => q.key === RECO_QUESTION_KEY) ?? null;
-  const recoOptions = recoQ
-    ? recoQ.options.filter((o) => o.kind === 'choice').map((o) => o.label)
-    : [];
+  const reco = recoQuestionOf(form);
 
   const cohort: Promise<BilanCohort> = (async () => {
-    const [participations, submissions, stats] = await Promise.all([
-      // The roster the dev space shows, so `total` counts the same cohort as
-      // the admin response rate's `invitedCount`, and the submissions and
-      // figures beside it are that cohort's (`shownCohortOf`).
-      db.participation.findMany({
-        where: { eventId: event.id, ...visibleParticipationWhere },
-        select: {
-          talentId: true,
-          talent: { select: { nom: true, prenom: true } },
-        },
-        orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-      }),
-      (async () => {
-        const subs = await prisma.feedback_Submission.findMany({
-          where: buildSubmissionWhere(form.id, { shownCohortOf: event.id }),
-          select: {
-            talentId: true,
-            submittedAt: true,
-            // Only the recommendation answer is pulled per talent for the roster
-            // column; the empty-string id matches nothing when there is no reco
-            // question, leaving every recoLabel null.
-            answers: {
-              where: { questionId: recoQ?.id ?? '' },
-              select: {
-                selectedOptions: {
-                  select: { option: { select: { label: true } } },
-                },
-              },
-            },
-          },
-        });
-        return subs.map((s) => ({
-          talentId: s.talentId,
-          submittedAt: s.submittedAt,
-          recoLabel: s.answers[0]?.selectedOptions[0]?.option.label ?? null,
-        }));
-      })(),
+    const [roster, stats] = await Promise.all([
+      loadFeedbackRoster(db, event.id, form.id, reco),
       computeFormStats(form.id, { shownCohortOf: event.id }),
     ]);
 
-    const byTalent = new Map(
-      submissions
-        .filter((s) => s.talentId)
-        .map((s) => [s.talentId as string, s]),
-    );
-
-    const rows: BilanRow[] = participations.map((p) => {
-      const sub = byTalent.get(p.talentId);
-      return {
-        talentId: p.talentId,
-        nom: p.talent.nom,
-        prenom: p.talent.prenom,
-        respondedAt: sub ? sub.submittedAt.toISOString() : null,
-        recoLabel: sub?.recoLabel ?? null,
-      };
-    });
+    const rows: BilanRow[] = roster.rows.map((r) => ({
+      talentId: r.talentId,
+      nom: r.nom,
+      prenom: r.prenom,
+      respondedAt: r.respondedAt?.toISOString() ?? null,
+      recoOptionId: r.recoOptionId,
+    }));
 
     return {
       rows,
-      respondedCount: rows.filter((r) => r.respondedAt).length,
-      total: rows.length,
-      recoOptions,
+      respondedCount: roster.respondedCount,
+      total: roster.total,
+      recoOptions:
+        reco?.options.map((o) => ({ id: o.id, label: o.label })) ?? [],
       stats,
     };
   })();
@@ -142,6 +91,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       cohortNoun: event.cohortNoun,
     },
     form: { title: form.title, url: feedbackUrl },
+    // The header offers its export only when someone is there to export.
+    rosterSize,
     cohort,
   };
 };

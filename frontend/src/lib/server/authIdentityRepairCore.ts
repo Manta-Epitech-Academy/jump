@@ -168,6 +168,21 @@ export async function planRepointAndDrop(
   };
 }
 
+/**
+ * Hard-delete a login account no talent points at any more. Sessions and
+ * accounts cascade but are cleared explicitly first (same shape as
+ * talentAccount.ts:resetTalentToImport). A stray staff-authored FK raises P2003
+ * and rolls the caller's whole transaction back, untouched.
+ */
+export async function dropLogin(
+  db: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  await db.bauth_session.deleteMany({ where: { userId } });
+  await db.bauth_account.deleteMany({ where: { userId } });
+  await db.bauth_user.delete({ where: { id: userId } });
+}
+
 export async function applyRepointAndDrop(
   db: Prisma.TransactionClient,
   talentId: string,
@@ -185,13 +200,8 @@ export async function applyRepointAndDrop(
     where: { id: plan.orphanUserId },
     data: { role: 'student', name: plan.talentName },
   });
-  // 3. Hard-delete the dereferenced stale account. Sessions/accounts cascade
-  //    but are cleared explicitly first (same shape as
-  //    talentAccount.ts:resetTalentToImport). A stray staff-authored FK raises
-  //    P2003 and rolls the whole transaction back, untouched.
-  await db.bauth_session.deleteMany({ where: { userId: plan.staleUserId } });
-  await db.bauth_account.deleteMany({ where: { userId: plan.staleUserId } });
-  await db.bauth_user.delete({ where: { id: plan.staleUserId } });
+  // 3. Hard-delete the dereferenced stale account.
+  await dropLogin(db, plan.staleUserId);
 
   await db.authIdentityRepair.create({
     data: {

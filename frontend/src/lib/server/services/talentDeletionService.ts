@@ -99,6 +99,11 @@ export async function cancelTalentDeletion(talentId: string): Promise<void> {
  * request to `fulfilled` in the same transaction. The status guard makes it
  * safe against a double-submit: only a still-`pending` row is processed.
  *
+ * The talent's Salesforce id is recorded as erased in that same transaction
+ * (`Sync_ErasedContact`), because the erasure nulls it on the talent and the
+ * sync would otherwise import the contact again at its next push. Only here:
+ * the inactivity sweep erases without barring, see the model.
+ *
  * @returns true if it was fulfilled, false if the request was already resolved.
  */
 export async function fulfillTalentDeletion(
@@ -124,9 +129,24 @@ export async function fulfillTalentDeletion(
       where: { id: requestId },
       select: {
         talentId: true,
-        talent: { select: { prenom: true, user: { select: { email: true } } } },
+        talent: {
+          select: {
+            prenom: true,
+            externalId: true,
+            user: { select: { email: true } },
+          },
+        },
       },
     });
+    const { externalId } = request.talent;
+    if (externalId) {
+      await tx.sync_ErasedContact.upsert({
+        where: { externalId },
+        create: { externalId },
+        // Erased again after a readmission: barred again.
+        update: { readmittedAt: null, readmittedBy: null },
+      });
+    }
     const documentKeys = await anonymizeTalent(tx, request.talentId);
     return { contact: request.talent, documentKeys };
   });
@@ -144,6 +164,30 @@ export async function fulfillTalentDeletion(
     });
   }
   return true;
+}
+
+/**
+ * Let a Salesforce contact erased at their request be imported again, when the
+ * person asks to come back. The next push that carries the contact creates a
+ * new talent from scratch: the erased one stays anonymised, since nothing ties
+ * it to the contact any more. The bar is stamped rather than deleted, so the
+ * row keeps who lifted it and when.
+ *
+ * Takes the id somebody copies out of Salesforce, because Jump keeps no way to
+ * find an erased person by name (`Sync_ErasedContact` says why).
+ *
+ * @returns false if the id is not barred, never was or already readmitted, so
+ * a mistyped one is told apart from a readmission.
+ */
+export async function readmitSalesforceContact(
+  externalId: string,
+  adminUserId: string,
+): Promise<boolean> {
+  const { count } = await prisma.sync_ErasedContact.updateMany({
+    where: { externalId, readmittedAt: null },
+    data: { readmittedAt: new Date(), readmittedBy: adminUserId },
+  });
+  return count > 0;
 }
 
 /**

@@ -48,13 +48,13 @@
         body: fd,
       });
       if (!res.ok) {
-        toast.error("Impossible de modifier l'aperçu phase.");
+        toast.error("L'aperçu de phase n'a pas pu être modifié. Réessayez.");
         return;
       }
       await invalidateAll();
     } catch (err) {
       console.error(err);
-      toast.error("Impossible de modifier l'aperçu phase.");
+      toast.error("L'aperçu de phase n'a pas pu être modifié. Réessayez.");
     } finally {
       busy = false;
     }

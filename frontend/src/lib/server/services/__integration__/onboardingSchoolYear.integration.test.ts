@@ -12,6 +12,7 @@ import {
 } from '../onboardingYearService';
 import { getOnboardingFunnel } from '../adminStats/onboardingFunnel';
 import { signOnboardingRules } from '../onboardingService';
+import { reachRulesStep } from './onboardingLadder';
 import { CURRENT_REGLEMENT_VERSION } from '$lib/content/reglement';
 import { resolveScope } from '$lib/server/adminApi/scope';
 
@@ -280,10 +281,12 @@ describe('onboarding dossier per school year (integration)', () => {
     // only record of when consent was actually given, for every talent who comes
     // back - and the wizard, which stops asking for it, would be claiming a
     // consent it just overwrote.
-    await signOnboardingRules({
+    await reachRulesStep(talentId);
+    const signed = await signOnboardingRules({
       talentId,
       city: 'Lyon',
     });
+    expect(signed.ok).toBe(true);
 
     const talent = await readTalent();
     expect(talent.charterAcceptedAt?.toISOString()).toBe(

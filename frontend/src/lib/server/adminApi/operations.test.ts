@@ -98,17 +98,12 @@ describe('the operation catalogue', () => {
   // over to March, which would save a day nobody asked for. The regression the
   // caller has to see is a refusal naming the problem.
   it('refuses a date that does not exist on the calendar', () => {
-    const config = ADMIN_API_OPERATIONS.write_event_config.schema;
+    const day =
+      ADMIN_API_OPERATIONS.write_talent_home_highlight.schema.shape.date;
 
-    expect(
-      config.safeParse({ eventId: 'e', endDate: '2026-06-31' }).success,
-    ).toBe(false);
-    expect(
-      config.safeParse({ eventId: 'e', endDate: '2026-02-30' }).success,
-    ).toBe(false);
-    expect(
-      config.safeParse({ eventId: 'e', endDate: '2026-06-30' }).success,
-    ).toBe(true);
+    expect(day.safeParse('2026-06-31').success).toBe(false);
+    expect(day.safeParse('2026-02-30').success).toBe(false);
+    expect(day.safeParse('2026-06-30').success).toBe(true);
   });
 
   // Unset has one spelling on the admin API, the one the event read returns
@@ -117,7 +112,12 @@ describe('the operation catalogue', () => {
   it('clears a field Jump owns on null, and on null only', () => {
     const config = ADMIN_API_OPERATIONS.write_event_config.schema;
 
-    for (const field of ['publicName', 'cohortNoun', 'startTime', 'endDate']) {
+    for (const field of [
+      'publicName',
+      'cohortNoun',
+      'startTime',
+      'categoryKey',
+    ]) {
       expect(config.safeParse({ eventId: 'e', [field]: null }).success).toBe(
         true,
       );
@@ -153,6 +153,24 @@ describe('what a credential is offered as tools', () => {
     expect(offered).toContain('bulk_event_config');
   });
 
+  // Verbatim text typed outside the staff never shares a session with the
+  // writes: the testimonials, and the school names a talent typed for a lycée
+  // the annuaire does not know, wherever a read carries them.
+  it.each([
+    'stats_closing_testimonials',
+    'stats_schools_reach',
+    'stats_schools_churn',
+    'stats_school_year_review',
+  ])('keeps %s away from a token that can write', (operation) => {
+    expect(names({ tier: 'core', writeEnabled: true })).not.toContain(
+      operation,
+    );
+    expect(names({ tier: 'core', writeEnabled: false })).toContain(operation);
+    expect(names({ tier: 'leadership', writeEnabled: false })).toContain(
+      operation,
+    );
+  });
+
   // Belt and braces with the catalogue rule: even a leadership token that
   // somehow carried the write capability is offered nothing that mutates.
   //
@@ -183,8 +201,8 @@ const EVENT_FIELD_WRITES: Record<string, string> = {
   id: 'write_event_config.eventId',
   publicName: 'write_event_config.publicName',
   cohortNoun: 'write_event_config.cohortNoun',
+  categoryKey: 'write_event_config.categoryKey',
   startTime: 'write_event_config.startTime',
-  endDate: 'write_event_config.endDate',
   modules: 'write_event_config.modules',
   moduleSettings: 'write_event_config.moduleSettings',
   devActivated: 'write_event_config.visible',

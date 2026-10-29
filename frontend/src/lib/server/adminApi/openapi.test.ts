@@ -10,6 +10,7 @@ type PathItem = Record<
   string,
   {
     operationId: string;
+    description: string;
     parameters?: { name: string; in: string }[];
     requestBody?: unknown;
   }
@@ -28,13 +29,17 @@ function documented(document: Document) {
 }
 
 describe('the HTTP reference', () => {
-  it('documents every mounted operation at its own path for a write-enabled core token', async () => {
+  // Every mounted operation but the verbatim-text reads, which a token that can
+  // write is never served (`untrustedText`); the read-only case shows them.
+  it('documents every mounted operation it may call at its own path for a write-enabled core token', async () => {
     const document = await buildOpenApiDocument({
       tier: 'core',
       writeEnabled: true,
       origin,
     });
-    const mounted = await httpOperations();
+    const mounted = (await httpOperations()).filter(
+      (r) => !ADMIN_API_OPERATIONS[r.name].untrustedText,
+    );
 
     expect(
       Object.entries(document.paths).flatMap(([path, item]) =>
@@ -58,6 +63,36 @@ describe('the HTTP reference', () => {
 
     expect(kinds).not.toContain('write');
     expect(kinds.length).toBeGreaterThan(0);
+    expect(documented(document).map(({ name }) => name)).toContain(
+      'stats_closing_testimonials',
+    );
+  });
+
+  // The admin reference page: somebody looks a call up there before minting
+  // the token for it, so it shows both kinds of core token's operations, and
+  // says on each one that only one kind is offered which kind it needs.
+  it('documents both kinds of core token at once, saying which one each operation needs', async () => {
+    const document = await buildOpenApiDocument({
+      tier: 'core',
+      writeEnabled: 'either',
+      origin,
+    });
+    const ops = documented(document);
+
+    expect(ops.map(({ name }) => name).sort()).toEqual(
+      (await httpOperations()).map((r) => r.name).sort(),
+    );
+    const description = (name: keyof typeof ADMIN_API_OPERATIONS) =>
+      ops.find((o) => o.name === name)?.op.description;
+    expect(description('stats_closing_testimonials')).toMatch(
+      /Not offered to a token allowed to write/,
+    );
+    expect(description('write_event_config')).toMatch(
+      /Needs a token allowed to write/,
+    );
+    expect(description('stats_events')).toBe(
+      ADMIN_API_OPERATIONS.stats_events.description,
+    );
   });
 
   it('shows a leadership token the steering figures only', async () => {

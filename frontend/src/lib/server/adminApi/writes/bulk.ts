@@ -2,9 +2,10 @@
  * The class B write on events: one configuration change across a filtered set.
  *
  * One write, a patch, like its single-event twin `write_event_config`: the
- * sections, the shown Salesforce statuses and the visibility are fields of one
- * call rather than four tools, so giving a series of events their sections and
- * showing them is one plan and one validation, and lands in one transaction.
+ * sections, the shown Salesforce statuses, the category and the visibility are
+ * fields of one call rather than five tools, so giving a series of events their
+ * sections and showing them is one plan and one validation, and lands in one
+ * transaction.
  * Visibility is judged on each event as the call leaves it, so the sections the
  * same call adds count.
  *
@@ -25,6 +26,7 @@
 
 import {
   setActivationForEvents,
+  setCategoryForEvents,
   setModulesForEvents,
   type AdminEventVM,
 } from '$lib/server/services/events';
@@ -40,7 +42,9 @@ import {
   canBeMadeVisible,
   eventConfigState,
 } from '$lib/domain/eventReadiness';
+import { archivedCategoryRefusal } from '$lib/domain/eventCategory';
 import { OperationRefusedError } from '../errors';
+import { handleProvenanceFr } from '../handles';
 import { runTwoStep, type WriteOutcome } from '../plan';
 import { resolveScope, type ScopeParams } from '../scope';
 import { scopedEvents } from '$lib/server/services/adminStats/cohort';
@@ -87,6 +91,7 @@ const identify = (event: AdminEventVM) => ({
 type PlanRow = ReturnType<typeof identify> & {
   modules?: { from: string[]; to: string[]; removed: string[] };
   shownStatuses?: { from: string[]; to: string[] };
+  category?: { from: string | null; to: string | null };
   visible?: { from: boolean; to: boolean };
 };
 
@@ -95,6 +100,7 @@ export type BulkEventConfigParams = BulkFilter & {
   shownStatuses?: string[];
   showStatuses?: string[];
   hideStatuses?: string[];
+  categoryKey?: string | null;
   visible?: boolean;
   planDigest?: string;
 };
@@ -141,6 +147,26 @@ async function statusChangeOf(
   return show.length + hide.length > 0 ? { kind: 'delta', show, hide } : null;
 }
 
+/**
+ * The category the call gives, checked before any plan is built. An archived one
+ * is refused for the whole call rather than per event: the events that already
+ * carry it would not move, and the others may not receive it.
+ */
+async function refuseUnusableCategory(categoryKey: string) {
+  const category = await prisma.eventConfig_Category.findUnique({
+    where: { key: categoryKey },
+    select: { label: true, archivedAt: true },
+  });
+  if (!category) {
+    throw new OperationRefusedError(
+      `Catégorie « ${categoryKey} » introuvable. ${handleProvenanceFr('eventCategoryKey')}`,
+    );
+  }
+  if (category.archivedAt) {
+    throw new OperationRefusedError(archivedCategoryRefusal(category.label));
+  }
+}
+
 function statusesAfter(event: AdminEventVM, change: StatusChange): string[] {
   if (change.kind === 'set') return change.statuses;
   return [...new Set([...event.shownStatuses, ...change.show])]
@@ -161,10 +187,16 @@ export async function bulkEventConfig(
   }
   const modules = params.modules && [...new Set(params.modules)].sort();
   const statusChange = await statusChangeOf(params);
-  const { visible } = params;
-  if (!modules && !statusChange && visible === undefined) {
+  const { visible, categoryKey } = params;
+  if (categoryKey) await refuseUnusableCategory(categoryKey);
+  if (
+    !modules &&
+    !statusChange &&
+    categoryKey === undefined &&
+    visible === undefined
+  ) {
     throw new OperationRefusedError(
-      'Rien à changer : indiquez au moins modules, shownStatuses, showStatuses, hideStatuses ou visible.',
+      'Rien à changer : indiquez au moins modules, shownStatuses, showStatuses, hideStatuses, categoryKey ou visible.',
     );
   }
 
@@ -181,9 +213,9 @@ export async function bulkEventConfig(
           ? statusesAfter(event, statusChange)
           : event.shownStatuses;
         // Judged on the event as this call leaves it, so a section the same
-        // call adds counts. An event missing a public name, an end date or a
-        // section cannot be activated, so its gate is left off rather than
-        // armed for a later section to trip.
+        // call adds counts. An event missing a public name or a section cannot
+        // be activated, so its gate is left off rather than armed for a later
+        // section to trip.
         const leftAs = { ...event, modules: modulesTo };
         const visibleTo =
           visible && !event.devActivated && !canBeMadeVisible(leftAs)
@@ -218,16 +250,23 @@ export async function bulkEventConfig(
         if (!sameList(event.shownStatuses, statusesTo)) {
           row.shownStatuses = { from: event.shownStatuses, to: statusesTo };
         }
+        const categoryFrom = event.category?.key ?? null;
+        if (categoryKey !== undefined && categoryKey !== categoryFrom) {
+          row.category = { from: categoryFrom, to: categoryKey };
+        }
         if (visibleTo !== event.devActivated) {
           row.visible = { from: event.devActivated, to: visibleTo };
         }
-        if (row.modules || row.shownStatuses || row.visible) changes.push(row);
+        if (row.modules || row.shownStatuses || row.category || row.visible) {
+          changes.push(row);
+        }
       }
       return { targeted: events.length, changes, skipped };
     },
     apply: async (plan) => {
-      const idsWith = (field: 'modules' | 'shownStatuses' | 'visible') =>
-        plan.changes.filter((row) => row[field]).map((row) => row.eventId);
+      const idsWith = (
+        field: 'modules' | 'shownStatuses' | 'category' | 'visible',
+      ) => plan.changes.filter((row) => row[field]).map((row) => row.eventId);
       await prisma.$transaction(async (tx) => {
         if (modules) {
           await setModulesForEvents(tx, idsWith('modules'), modules);
@@ -240,6 +279,9 @@ export async function bulkEventConfig(
           );
         } else if (statusChange) {
           await changeShownStatuses(tx, idsWith('shownStatuses'), statusChange);
+        }
+        if (categoryKey !== undefined) {
+          await setCategoryForEvents(tx, idsWith('category'), categoryKey);
         }
         if (visible !== undefined) {
           // After the sections, so the activation rule the service re-checks
@@ -254,6 +296,7 @@ export async function bulkEventConfig(
           ...(row.shownStatuses
             ? { shownStatuses: row.shownStatuses[end] }
             : {}),
+          ...(row.category ? { categoryKey: row.category[end] } : {}),
           ...(row.visible ? { visible: row.visible[end] } : {}),
         }));
       return { before: side('from'), after: side('to') };

@@ -15,6 +15,7 @@
 import { prisma } from '$lib/server/db';
 import type { SyncMode, SyncRunStatus } from '@prisma/client';
 import type { SyncRunMark } from '$lib/domain/syncSchedule';
+import { dropErrorsNotSeenSince } from '$lib/server/services/syncErrorService';
 
 /**
  * How long a run report is kept.
@@ -87,8 +88,10 @@ export async function closeRun(
           },
   });
 
-  if (outcome.status === 'ok' && existing.mode === 'full')
+  if (outcome.status === 'ok' && existing.mode === 'full') {
     await dropHoldsNotCarriedSince(existing.startedAt);
+    await dropErrorsNotSeenSince(existing.startedAt);
+  }
   await trimOldRuns();
   return { ok: true };
 }

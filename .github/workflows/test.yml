@@ -20,7 +20,7 @@ env:
   BETTER_AUTH_URL: http://localhost:3030
   MICROSOFT_CLIENT_ID: ci-dummy
   MICROSOFT_CLIENT_SECRET: ci-dummy
-  MICROSOFT_TENANT_ID: ci-dummy
+  MICROSOFT_TENANT_ID: 00000000-0000-0000-0000-000000000000
   RESEND_API_KEY: ci-dummy
   RESEND_FROM_EMAIL: noreply@example.com
 
@@ -38,6 +38,8 @@ jobs:
       - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: frontend/package.json
 
       # Whatever this job runs must be runnable locally, or it is a required check
       # that only CI can fail - the gap `bun run verify` exists to close. The
@@ -45,6 +47,11 @@ jobs:
       # copy. No `bun install` needed: it is git, awk and sh.
       - name: Executable bit on hooks and entrypoints
         run: bun run lint:scripts
+
+      # Same shape: `scripts/check-bun-pin.sh`, sed and awk, no install. It is
+      # what keeps the Bun installed above equal to the one the image ships.
+      - name: One Bun version for CI and the image
+        run: bun run lint:bun-pin
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -119,6 +126,8 @@ jobs:
       - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: frontend/package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -204,6 +213,8 @@ jobs:
       - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: frontend/package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

@@ -37,7 +37,16 @@ export function goToListPage(target: number): void {
   void goto(url.toString(), { keepFocus: true });
 }
 
-/** Drop every filter: navigate to the bare pathname. */
-export function resetListParams(): void {
-  void goto(page.url.pathname, { keepFocus: true, noScroll: true });
+/**
+ * Clear what narrows the list, its filters and its search, and keep how it is
+ * sorted: the one reset every filtered list offers (`ActiveFilterChips`).
+ * `cleared` is the list's own (`clearedFacetParams()`, plus any filter the page
+ * owns outside its columns).
+ */
+export function clearListFilters(
+  cleared: Record<string, string>,
+  search: { clear(): void },
+): void {
+  search.clear();
+  setListParams({ ...cleared, q: '' });
 }

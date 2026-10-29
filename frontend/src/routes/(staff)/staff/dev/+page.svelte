@@ -1,23 +1,56 @@
 <script lang="ts">
-  import Inbox from '@lucide/svelte/icons/inbox';
+  import CalendarX from '@lucide/svelte/icons/calendar-x';
+  import { resolve } from '$app/paths';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import CampusYearGrid from '$lib/components/calendar/CampusYearGrid.svelte';
+  import CampusEventList from '$lib/components/calendar/CampusEventList.svelte';
+  import CampusCalendarLegend from '$lib/components/calendar/CampusCalendarLegend.svelte';
+  import CalendarViewToggle, {
+    type CampusCalendarView,
+  } from '$lib/components/calendar/CalendarViewToggle.svelte';
+  import { selectedEvent } from '$lib/components/dev/selectedEvent';
+  import { eventSurfacePath } from '$lib/domain/eventModules';
 
   let { data } = $props();
+
+  let view = $state<CampusCalendarView>('year');
+  const selected = selectedEvent();
+
+  /** An event opens on its home, the page a pick in the menu lands on. */
+  const hrefOf = (id: string) => resolve(eventSurfacePath(id, 'home'));
 </script>
 
 <svelte:head>
-  <title>Espace dev</title>
+  <title>Calendrier</title>
 </svelte:head>
 
-<div
-  class="mx-auto mt-12 max-w-xl rounded-sm border border-dashed bg-card px-8 py-12 text-center shadow-raised"
->
-  <Inbox class="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
-  <h1 class="mb-2 font-heading text-display-m">
-    Aucun événement pour l'instant
-  </h1>
-  <p class="text-sm leading-relaxed text-muted-foreground">
-    Dès qu'un événement est importé et configuré pour {data.campusName}, il
-    s'affichera ici et vous y atterrirez directement. En attendant, rien à faire
-    de ce côté.
-  </p>
+<div class="space-y-7 pb-10">
+  <PageHeader title={data.greeting} typeTitle subtitle="Calendrier">
+    {#snippet actions()}
+      {#if !data.calendar.empty}
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <CampusCalendarLegend legend={data.calendar.legend} />
+          <CalendarViewToggle bind:value={view} />
+        </div>
+      {/if}
+    {/snippet}
+  </PageHeader>
+
+  {#if data.calendar.empty}
+    <ResultsNotice
+      icon={CalendarX}
+      title="Aucun événement"
+      description="Aucun événement de votre campus sur l'année {data.calendar
+        .schoolYear}."
+    />
+  {:else if view === 'year'}
+    <CampusYearGrid calendar={data.calendar} {hrefOf} />
+  {:else}
+    <CampusEventList
+      calendar={data.calendar}
+      {hrefOf}
+      selectedId={selected.id}
+    />
+  {/if}
 </div>

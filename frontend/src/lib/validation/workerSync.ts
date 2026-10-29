@@ -24,11 +24,15 @@ export const workerEventSchema = z.object({
   external_id: z.string().min(1),
   title: z.string().min(1),
   /**
-   * `YYYY/MM/DD`, parsed by the worker out of the campaign name. Absent, never
-   * null, when the name carries no date: the worker builds the key as
-   * `undefined` and `JSON.stringify` drops it.
+   * The campaign's `StartDate` and `EndDate`, `YYYY-MM-DD` as Salesforce writes
+   * a Date field, and `null` when the campaign has none. Absent from a worker
+   * that predates them, which the service reads as "not sent" and so leaves
+   * the stored day alone. Loose like the member fields: a value that is not a
+   * real calendar day is also treated as not sent, never refused here, since
+   * a refused envelope fails the run and the next tick replays it.
    */
-  date: z.string().optional(),
+  start_date: z.string().nullable().optional(),
+  end_date: z.string().nullable().optional(),
   /** `Campus.externalName`. Can be the empty string, which resolves to nothing. */
   campus_ext_name: z.string(),
 });
@@ -40,14 +44,23 @@ export const workerEventsPayloadSchema = z.object({
 });
 
 export const workerTalentSchema = z.object({
+  /** The member's Salesforce `ContactId`, or its `LeadId` when it never became a Contact. */
   external_id: z.string().min(1),
+  /**
+   * Every Lead Salesforce converted into that Contact, by `ConvertedContactId`,
+   * empty for a Lead. `syncTalents` folds the talents those Leads became into
+   * the contact's (`claimSalesforcePerson`). Absent from a worker that predates
+   * it, which keyed a converted member on one of these Leads instead, and then
+   * nothing is merged.
+   */
+  converted_lead_ids: z.array(z.string().min(1)).optional(),
   /**
    * Deliberately not `.min(1)`, unlike `external_id` beside it, and the
    * asymmetry is the point. `Contact.FirstName` is optional in Salesforce, so an
    * empty one is ordinary data; refusing it here would refuse the whole page of
    * 50 that carried it, the run would close in error, the watermark would not
    * move and the next tick would replay the identical page. `syncTalents` skips
-   * the row and logs a `SyncError` instead. `external_id` is different: with no
+   * the row and logs a `Sync_Error` instead. `external_id` is different: with no
    * id there is nothing to key the row on and nothing to tell an admin to go
    * look at, so the envelope is the right place to refuse it.
    */

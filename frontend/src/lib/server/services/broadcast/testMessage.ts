@@ -48,7 +48,7 @@ export async function sendTestMessage(
     if (!recipient) return { ok: false, message: 'Numéro de test invalide.' };
     // SMS links are sent verbatim (no tracking suffix); see the SMS path in
     // the orchestrator. Mirror that here so the test matches a real send.
-    const body = substituteVariables(input.body, ctx);
+    const body = substituteVariables(input.body, ctx, 'plain');
     const result = await sendSms(
       { to: recipient, body },
       { devRedirect: 'bypass' },
@@ -61,10 +61,10 @@ export async function sendTestMessage(
     return { ok: false, message: 'Email de test invalide.' };
   }
   const subject = input.subject
-    ? `[TEST] ${substituteVariables(input.subject, ctx)}`
+    ? `[TEST] ${substituteVariables(input.subject, ctx, 'plain')}`
     : '[TEST] Envoi en masse';
   const rendered = renderBroadcastEmail(
-    substituteVariables(input.body, ctx),
+    substituteVariables(input.body, ctx, 'markdown'),
     env.ORIGIN ?? '',
     subject,
   );

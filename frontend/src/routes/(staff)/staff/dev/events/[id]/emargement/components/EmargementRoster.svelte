@@ -1,12 +1,14 @@
 <script lang="ts">
+  import { page } from '$app/state';
+  import { noMatchLine } from '$lib/domain/devVoice';
   import { SvelteMap } from 'svelte/reactivity';
   import { invalidate } from '$app/navigation';
   import { enhance as formEnhance, deserialize } from '$app/forms';
+  import type { ActionResult } from '@sveltejs/kit';
   import { toast } from 'svelte-sonner';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import Phone from '@lucide/svelte/icons/phone';
   import NotebookPen from '@lucide/svelte/icons/notebook-pen';
-  import Users from '@lucide/svelte/icons/users';
   import Lock from '@lucide/svelte/icons/lock';
   import LockOpen from '@lucide/svelte/icons/lock-open';
   import CheckCheck from '@lucide/svelte/icons/check-check';
@@ -15,7 +17,7 @@
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
   import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
@@ -259,6 +261,41 @@
     );
   }
 
+  // One slot action at a time: mark-all, close and reopen each answer only
+  // after a round-trip, and their buttons stayed live meanwhile, so a second
+  // click sent the action twice.
+  let slotBusy = $state(false);
+
+  // A superform action's `message`, which the slot actions word for the person
+  // who acted (with the counts the server alone knows).
+  function formMessage(data: unknown): string | undefined {
+    return (data as { form?: { message?: string } } | undefined)?.form?.message;
+  }
+
+  // How every slot action ends. The server words the outcome (with the counts
+  // it alone knows), so its message is the toast. A crash or a lost connection
+  // is told here rather than through `update()`, which would replace the whole
+  // émargement with an error page in the middle of an appel.
+  async function settleSlotAction(
+    result: ActionResult,
+    update: () => Promise<void>,
+    fallback: { success: string; failure: string },
+  ) {
+    try {
+      if (result.type === 'error') {
+        toast.error(fallback.failure);
+        return;
+      }
+      await update();
+      if (result.type === 'success')
+        toast.success(formMessage(result.data) ?? fallback.success);
+      else if (result.type === 'failure')
+        toast.error(formMessage(result.data) ?? fallback.failure);
+    } finally {
+      slotBusy = false;
+    }
+  }
+
   // Mark one cell straight from the inline switch. Optimistic: paint the choice
   // at once, POST it to the `setPresence` action, then reload to reconcile.
   // `pending` clears the cell (the action deletes the row).
@@ -273,18 +310,27 @@
     body.set('day', day);
     body.set('slot', slot);
     body.set('status', status);
+    // Only a refusal is worded by the server (a créneau the event no longer
+    // has, a talent no longer on the sheet). A lost connection or an answer
+    // that is not an action result carries the browser's own English, which
+    // says nothing to act on, so it gets the generic sentence.
+    let refusal: string | undefined;
     try {
       const res = await fetch('?/setPresence', { method: 'POST', body });
       const result = deserialize(await res.text());
-      if (result.type !== 'success') throw new Error('rejected');
-      await invalidate('staff:event-presence');
-      // The reload now carries the write; drop the override unless a newer click
-      // on the same cell has already replaced it.
-      if (overrides.get(key) === status) overrides.delete(key);
-    } catch {
-      if (overrides.get(key) === status) overrides.delete(key);
-      toast.error("Échec de l'enregistrement. Réessaie.");
+      if (result.type === 'success') {
+        await invalidate('staff:event-presence');
+        // The reload now carries the write; drop the override unless a newer
+        // click on the same cell has already replaced it.
+        if (overrides.get(key) === status) overrides.delete(key);
+        return;
+      }
+      if (result.type === 'failure') refusal = formMessage(result.data);
+    } catch (e) {
+      console.error('set presence', e);
     }
+    if (overrides.get(key) === status) overrides.delete(key);
+    toast.error(refusal ?? "La présence n'a pas été enregistrée. Réessayez.");
   }
 </script>
 
@@ -292,11 +338,7 @@
      slot-lifecycle controls all surface tooltips from here. -->
 <Tooltip.Provider delayDuration={150}>
   {#if rows.length === 0}
-    <ResultsNotice
-      icon={Users}
-      title={`Aucun ${noun.singular} inscrit`}
-      description={`Les ${noun.plural} apparaîtront ici une fois la synchronisation effectuée.`}
-    />
+    <EmptyCohortNotice {cohortNoun} />
   {:else}
     <ResultsLayout
       railClass="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-1"
@@ -345,6 +387,8 @@
         </DataTableToolbar>
 
         <SortableTable
+          onResetFilters={anyFilter ? resetFilters : undefined}
+          noMatchHint={noMatchLine(page.url.pathname)}
           {columns}
           rows={filtered}
           {sortKey}
@@ -503,26 +547,6 @@
               />
             </div>
           {/snippet}
-
-          {#snippet empty()}
-            <div class="flex flex-col items-center gap-3 py-6">
-              <span
-                class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-              >
-                Aucun résultat
-              </span>
-              {#if anyFilter}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={resetFilters}
-                  class="rounded-sm"
-                >
-                  Réinitialiser les filtres
-                </Button>
-              {/if}
-            </div>
-          {/snippet}
         </SortableTable>
       {/snippet}
 
@@ -573,12 +597,16 @@
                 <form
                   method="POST"
                   action="?/reopenSlot"
-                  use:formEnhance={() =>
-                    async ({ result, update }) => {
-                      await update();
-                      if (result.type === 'success')
-                        toast.success('Créneau rouvert.');
-                    }}
+                  use:formEnhance={() => {
+                    slotBusy = true;
+                    return async ({ result, update }) => {
+                      await settleSlotAction(result, update, {
+                        success: 'Créneau rouvert.',
+                        failure:
+                          "Le créneau n'a pas pu être rouvert. Réessayez.",
+                      });
+                    };
+                  }}
                 >
                   <input type="hidden" name="day" value={activeSlot.day} />
                   <input type="hidden" name="slot" value={activeSlot.slot} />
@@ -587,6 +615,7 @@
                     variant="outline"
                     size="sm"
                     class="w-full rounded-sm"
+                    disabled={slotBusy}
                   >
                     <LockOpen class="mr-1.5 h-4 w-4" />
                     Rouvrir le créneau
@@ -636,6 +665,7 @@
              full width there), folding to a sticky single column at xl. -->
           <SlotStatsCard
             slotLabel={slotLabelFr(activeSlot.slot)}
+            slotKey={`${activeSlot.day}:${activeSlot.slot}`}
             stats={activeStats}
             closed={isActiveClosed}
             stageRate={attendanceRate}
@@ -680,23 +710,20 @@
       <form
         method="POST"
         action="?/markAllPresent"
-        use:formEnhance={() =>
-          async ({ result, update }) => {
-            await update();
-            if (result.type === 'success')
-              toast.success(
-                `${noun.Plural} sans présence enregistrée marqués présents.`,
-              );
-            // The bulk mark only fails now if a staff member manually closed the
-            // créneau between render and submit; the 11h/15h cutoff no longer
-            // refuses it. Surface the server message, which points at Rouvrir.
-            else if (result.type === 'failure')
-              toast.error(
-                (result.data?.form as { message?: string } | undefined)
-                  ?.message ?? 'Ce créneau a été clôturé.',
-              );
+        use:formEnhance={() => {
+          slotBusy = true;
+          // The bulk mark only fails now if a staff member manually closed the
+          // créneau between render and submit; the 11h/15h cutoff no longer
+          // refuses it. The server's message points at Rouvrir.
+          return async ({ result, update }) => {
+            await settleSlotAction(result, update, {
+              success: 'Présences enregistrées.',
+              failure:
+                "Les présences n'ont pas pu être enregistrées. Réessayez.",
+            });
             presentConfirmOpen = false;
-          }}
+          };
+        }}
         class="flex justify-end gap-2 pt-2"
       >
         <input type="hidden" name="day" value={activeSlot.day} />
@@ -709,7 +736,9 @@
         >
           Annuler
         </Button>
-        <Button type="submit" size="sm">Tout marquer présent</Button>
+        <Button type="submit" size="sm" disabled={slotBusy}>
+          Tout marquer présent
+        </Button>
       </form>
     {/if}
   </Dialog.Content>
@@ -730,12 +759,16 @@
       <form
         method="POST"
         action="?/closeSlot"
-        use:formEnhance={() =>
-          async ({ result, update }) => {
-            await update();
-            if (result.type === 'success') toast.success('Créneau clôturé.');
+        use:formEnhance={() => {
+          slotBusy = true;
+          return async ({ result, update }) => {
+            await settleSlotAction(result, update, {
+              success: 'Créneau clôturé.',
+              failure: "Le créneau n'a pas pu être clôturé. Réessayez.",
+            });
             closeConfirmOpen = false;
-          }}
+          };
+        }}
         class="flex justify-end gap-2 pt-2"
       >
         <input type="hidden" name="day" value={activeSlot.day} />
@@ -748,7 +781,14 @@
         >
           Annuler
         </Button>
-        <Button type="submit" variant="destructive" size="sm">Clôturer</Button>
+        <Button
+          type="submit"
+          variant="destructive"
+          size="sm"
+          disabled={slotBusy}
+        >
+          Clôturer
+        </Button>
       </form>
     {/if}
   </Dialog.Content>

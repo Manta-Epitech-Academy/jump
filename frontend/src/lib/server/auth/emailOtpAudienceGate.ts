@@ -13,6 +13,10 @@ import { resolveOtpDoor } from './otpAudience';
  * followed by `POST /api/auth/sign-in/email-otp` minted a full staff session
  * for any address in `bauth_user`, tenant restriction and MFA bypassed.
  *
+ * Those routes are no longer mounted over HTTP (`./httpSurface`), so what reaches this hook today is `auth.api.*` alone.
+ * It stays the chokepoint for those calls: one place that refuses, instead of
+ * every server-side caller remembering to.
+ *
  * **A `before` hook, not the `sendVerificationOTP` callback.** The tempting
  * fix is to refuse where the mail is composed, and it does not work: the
  * plugin's send endpoint calls `resolveOTP` (which writes the

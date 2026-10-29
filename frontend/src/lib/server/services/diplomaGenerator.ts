@@ -29,6 +29,17 @@ export type CertificateSignatory = {
   imageDataUri: string | null;
 };
 
+/** Everything a certificate prints besides its design: one page per student,
+ *  the event's city and dates, and who signs. */
+export type CertificateData = {
+  students: readonly { prenom: string; nom: string }[];
+  city: string;
+  startDate: string;
+  endDate: string;
+  todayDate: string;
+  signatories: readonly CertificateSignatory[];
+};
+
 /**
  * The signature blocks, as the markup `{signatures}` is replaced with.
  *
@@ -72,6 +83,12 @@ const SAMPLE_DATA = {
     { name: 'Prénom Nom', role: 'Directeur du campus', imageDataUri: null },
   ],
 } as const;
+
+/** The sample a preview shows: the name with diacritics, for the same reason. */
+const SAMPLE_PREVIEW: CertificateData = {
+  ...SAMPLE_DATA,
+  students: [SAMPLE_DATA.students[1]],
+};
 
 /**
  * Render a design on sample data, to prove it produces a document at all and to
@@ -121,6 +138,9 @@ export async function renderCertificateSample(
 
 /**
  * The first page of a design, as a PNG, for a human or a model to look at.
+ * With no `data`, it is printed for the sample recipient and event; an event's
+ * own preview passes its city, dates and signatories, so the page shown is the
+ * one that event prints, but for a name.
  *
  * This is the answer to "what does this certificate look like". Without it, that
  * question can only be answered from `styleCss` and `bodyHtml`, which do not
@@ -133,6 +153,7 @@ export async function renderCertificateSample(
  */
 export async function renderCertificatePreviewPng(
   design: CertificateDesign,
+  data: CertificateData = SAMPLE_PREVIEW,
 ): Promise<{
   png: Uint8Array<ArrayBuffer>;
   widthPx: number;
@@ -140,8 +161,8 @@ export async function renderCertificatePreviewPng(
 }> {
   // One recipient: a preview shows the page, not the pagination.
   const html = await buildCertificateHtml(design, {
-    ...SAMPLE_DATA,
-    students: [SAMPLE_DATA.students[1]],
+    ...data,
+    students: data.students.slice(0, 1),
   });
   const png = await renderPng({
     html,
@@ -168,14 +189,7 @@ const PREVIEW_SCALE = 0.75;
  */
 export async function generateDiplomasPDF(
   design: CertificateDesign,
-  data: {
-    students: { prenom: string; nom: string }[];
-    city: string;
-    startDate: string;
-    endDate: string;
-    todayDate: string;
-    signatories: CertificateSignatory[];
-  },
+  data: CertificateData,
   options?: {
     /** Print budget. Defaults to the cohort-sized one; a sample render lowers it. */
     timeoutMs?: number;
@@ -200,14 +214,7 @@ export async function generateDiplomasPDF(
  */
 async function buildCertificateHtml(
   design: CertificateDesign,
-  data: {
-    students: readonly { prenom: string; nom: string }[];
-    city: string;
-    startDate: string;
-    endDate: string;
-    todayDate: string;
-    signatories: readonly CertificateSignatory[];
-  },
+  data: CertificateData,
 ): Promise<string> {
   // Every token in one pass per recipient, rather than an event-level pass
   // followed by a per-student one: two passes only work if each leaves the

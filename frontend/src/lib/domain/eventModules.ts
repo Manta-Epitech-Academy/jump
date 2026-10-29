@@ -157,26 +157,31 @@ export function eventHasModule(
 
 /**
  * A dev-workspace "surface" is a sidebar entry / landable page. Most surfaces
- * are modules (a row's presence = enabled), but two carry a second, data-driven
- * gate beyond the module row, so "which page can a dev actually reach" is not the
- * raw module set:
- *  - `planning` is not a module at all (read-only pedago/admin schedule data): it
- *    is reachable only when the event has a real schedule.
+ * are modules (a row's presence = enabled), but some are not, and two carry a
+ * second, data-driven gate beyond the module row, so "which page can a dev
+ * actually reach" is not the raw module set:
+ *  - `home` is not a module at all: it is the event's own page (its figures and
+ *    its actions), at the event's address, so every event has it, first. A
+ *    module would let an admin turn the page an event opens on off.
+ *  - `planning` is not a module either (read-only pedago/admin schedule data):
+ *    it is reachable only when the event has a real schedule.
  *  - `bilan` is a module but also needs a resolvable live feedback form, or its
  *    page 404s.
- * This projection folds those gates in one place so the sidebar nav, the event
- * switcher and the dev landing all agree on the reachable set. Routing off the
- * raw module set instead (the old `firstEnabledModule`) sent the switcher and the
- * landing into a 404 for a bilan-without-form event the nav had already hidden.
+ * This projection folds those gates in one place so the sidebar nav, the campus
+ * calendar and the header's year menu all agree on the reachable set. Routing
+ * off the raw module set instead (the old `firstEnabledModule`) sent the event
+ * switcher of the time and the landing into a 404 for a bilan-without-form
+ * event the nav had already hidden.
  */
-export type EventSurfaceKey = EventModuleKey | 'planning';
+export type EventSurfaceKey = EventModuleKey | 'home' | 'planning';
 
 /**
- * Sidebar / landing order. Modules keep their `EVENT_MODULE_KEYS` order; the
- * `planning` pseudo-surface is interleaved where the nav shows it (between
- * émargement and bilan).
+ * Sidebar / landing order. The home leads, so it is where an event opens;
+ * modules keep their `EVENT_MODULE_KEYS` order; the `planning` pseudo-surface
+ * is interleaved where the nav shows it (between émargement and bilan).
  */
 const EVENT_SURFACE_ORDER: EventSurfaceKey[] = [
+  'home',
   EVENT_MODULES.INSCRITS,
   EVENT_MODULES.EMARGEMENT,
   'planning',
@@ -229,6 +234,7 @@ function isSurfaceReachable(
   key: EventSurfaceKey,
   gates: EventSurfaceGates,
 ): boolean {
+  if (key === 'home') return true;
   if (key === 'planning') return gates.hasPlanning;
   if (key === EVENT_MODULES.CLOSINGS) return eventRunsClosings(gates);
   if (!eventHasModule(gates.modules, key)) return false;
@@ -243,44 +249,64 @@ export function reachableSurfaces(gates: EventSurfaceGates): EventSurfaceKey[] {
 
 /**
  * The surface to open for an event: `preferred` when the event actually reaches
- * it, else its first reachable one in display order, else null (the event
- * exposes nothing).
+ * it, else its home, which every event reaches.
  *
  * One function rather than two, because every caller asks the same question with
- * a different amount of context. The dev landing has no surface open and passes
- * nothing; the event switcher and the header's year menu pass the surface in
- * view, so changing context keeps you on the page you were reading. Splitting
- * the two is how the year menu ended up dropping devs on `inscrits` while the
- * switcher, one click away, preserved their surface.
+ * a different amount of context. The campus calendar has no surface open and
+ * passes nothing; the header's year menu passes the surface in view, so
+ * changing year keeps you on the page you were reading. Splitting the two is
+ * how the year menu once dropped devs on `inscrits` while the event switcher of
+ * the time, one click away, preserved their surface.
  */
 export function landingSurface(
   gates: EventSurfaceGates,
   preferred?: EventSurfaceKey | null,
-): EventSurfaceKey | null {
-  const reachable = reachableSurfaces(gates);
-  if (preferred && reachable.includes(preferred)) return preferred;
-  return reachable[0] ?? null;
+): EventSurfaceKey {
+  return preferred && isSurfaceReachable(preferred, gates) ? preferred : 'home';
 }
 
-/**
- * URL sub-path under `/staff/dev/events/[id]/` for a surface. Returns the literal
- * segment union (not a bare `string`) so `resolve()` at the call sites can verify
- * the built `/staff/dev/events/[id]/<segment>` path against the real route tree.
- */
-export function surfaceSegment(key: EventSurfaceKey): EventSurfaceKey {
+/** A surface that lives under the event's address rather than at it. */
+type SegmentSurface = Exclude<EventSurfaceKey, 'home'>;
+
+/** URL sub-path under `/staff/dev/events/[id]/` for a surface below the home. */
+function surfaceSegment(key: SegmentSurface): SegmentSurface {
   return key === 'planning' ? 'planning' : EVENT_MODULE_DEFS[key].segment;
+}
+
+/** The address of an event's surface, as a literal union rather than a bare
+ *  `string`, so `resolve()` at the call sites can check it against the route
+ *  tree. */
+export type EventSurfacePath =
+  | `/staff/dev/events/${string}`
+  | `/staff/dev/events/${string}/${SegmentSurface}`;
+
+/**
+ * Where a surface of an event lives: the home at the event's own address, every
+ * other surface one segment below it. The one place that address is written, so
+ * the sidebar, the calendar and the year menu cannot build it three ways.
+ */
+export function eventSurfacePath(
+  eventId: string,
+  key: EventSurfaceKey,
+): EventSurfacePath {
+  return key === 'home'
+    ? `/staff/dev/events/${eventId}`
+    : `/staff/dev/events/${eventId}/${surfaceSegment(key)}`;
 }
 
 /**
  * Reverse of `surfaceSegment`, keyed off the same source so the two cannot drift.
  */
 const SURFACE_BY_SEGMENT: ReadonlyMap<string, EventSurfaceKey> = new Map(
-  EVENT_SURFACE_ORDER.map((key) => [surfaceSegment(key) as string, key]),
+  EVENT_SURFACE_ORDER.filter(
+    (key): key is SegmentSurface => key !== 'home',
+  ).map((key) => [surfaceSegment(key) as string, key]),
 );
 
 /**
  * The surface a dev-workspace pathname is on, or null when it is not an event
- * surface (the dev landing, a talent fiche, a PDF endpoint).
+ * surface (the dev landing, a talent fiche, a PDF endpoint). The event's own
+ * address is its home.
  *
  * Validated against the surface union rather than handed back raw, so a caller
  * gets a key it can pass straight to `landingSurface` instead of a string it has
@@ -292,11 +318,15 @@ const SURFACE_BY_SEGMENT: ReadonlyMap<string, EventSurfaceKey> = new Map(
  * silently drop you back onto the first one.
  */
 export function surfaceFromPath(pathname: string): EventSurfaceKey | null {
-  const segment = pathname.match(/\/staff\/dev\/events\/[^/]+\/([^/?]+)/)?.[1];
-  return (segment && SURFACE_BY_SEGMENT.get(segment)) || null;
+  const match = pathname.match(/\/staff\/dev\/events\/[^/?]+(?:\/([^/?]+))?/);
+  if (!match) return null;
+  const segment = match[1];
+  if (!segment) return 'home';
+  return SURFACE_BY_SEGMENT.get(segment) ?? null;
 }
 
 /** Sidebar label for a surface (FR, staff-facing → vous). */
 export function surfaceLabel(key: EventSurfaceKey): string {
+  if (key === 'home') return 'Accueil';
   return key === 'planning' ? 'Planning' : EVENT_MODULE_DEFS[key].label;
 }

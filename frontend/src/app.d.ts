@@ -1,5 +1,5 @@
 import type { User, Session } from '$lib/server/auth';
-import type { StaffProfile, Talent, Campus, StaffRole } from '@prisma/client';
+import type { StaffProfile, Talent, Campus } from '@prisma/client';
 import type { StaffGroup } from '$lib/domain/permissions';
 import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
 import type { PlanningPreview } from '$lib/server/talentPlanningPreview';
@@ -47,16 +47,17 @@ declare global {
       planningPreview: PlanningPreview | null;
       /**
        * The real admin behind an impersonated session. Set only when
-       * `session.impersonatedBy` is present. Lets analytics identify the
-       * actual actor (the admin) rather than the impersonated profile,
-       * so admin debugging/support clicks don't pollute the target
-       * user's funnels.
+       * `session.impersonatedBy` is present and that user is still an admin:
+       * otherwise the hook revokes the session (`loadImpersonator`). Lets
+       * analytics identify the actual actor (the admin) rather than the
+       * impersonated profile, so admin debugging/support clicks don't pollute
+       * the target user's funnels.
        */
       impersonator: {
         userId: string;
         email: string | null;
-        staffProfileId: string | null;
-        staffRole: StaffRole | null;
+        staffProfileId: string;
+        staffRole: 'admin';
         campusName: string | null;
         /** The impersonator's own dev-redirect lists (see StaffProfile). */
         devRedirectEmails: string[];

@@ -6,22 +6,22 @@
 
 ## Vue d'ensemble
 
-- **80** modèles · **31** enums · **112** relations
+- **84** modèles · **33** enums · **117** relations
 
 | Domaine | Modèles |
 | --- | ---: |
 | Authentification & Profils | 12 |
 | Cycle de vie talent & RGPD | 6 |
-| Événements & Participations | 8 |
+| Événements & Participations | 9 |
 | Closings | 9 |
-| Planning & Activités | 6 |
+| Planning & Activités | 8 |
 | Progression, Portfolio & XP | 2 |
 | Minijeux | 3 |
 | Feedback | 7 |
 | Communication & Support | 5 |
 | Contenus & Centres d'intérêt | 5 |
 | Analytique d'usage | 2 |
-| Configuration & Système | 11 |
+| Configuration & Système | 12 |
 | Autres | 4 |
 
 ## 1 · Authentification & Profils
@@ -55,8 +55,7 @@ erDiagram
   bauth_account {
     String id PK
     String userId FK
-    String issuer UK
-    String accountId UK
+    String accountId
     String providerId
     String accessToken
     String refreshToken
@@ -103,6 +102,7 @@ erDiagram
     DateTime onboardingDocsExportedAt
     DateTime closingDocsExportedAt
     DateTime sfExportedAt
+    Boolean receivesAdminDigest
     DateTime lastActiveAt
     DateTime firstLoginAt
     DateTime createdAt
@@ -169,6 +169,8 @@ erDiagram
     String externalId UK
     DateTime lastActiveAt
     DateTime firstLoginAt
+    Int streakDays
+    DateTime streakLastDay
     DateTime usageAnalyticsOptOutAt
     DateTime welcomeSeenAt
     DateTime anonymizedAt
@@ -202,6 +204,7 @@ erDiagram
     String name UK
     String externalName UK
     String timezone
+    String departement
     String contactEmail
     DateTime createdAt
     DateTime updatedAt
@@ -340,6 +343,7 @@ erDiagram
     String titre
     String publicName
     String cohortNoun
+    String categoryKey FK
     DateTime date
     Int startMinutes
     DateTime endDate
@@ -349,6 +353,14 @@ erDiagram
     String closingTemplateId FK
     String externalId UK
     DateTime devActivatedAt
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  EventConfig_Category {
+    String key PK
+    String label UK
+    String color
+    DateTime archivedAt
     DateTime createdAt
     DateTime updatedAt
   }
@@ -364,6 +376,7 @@ erDiagram
     String description
     String publicName
     String cohortNoun
+    String categoryKey FK
     Int startMinutes
     String feedbackFormId FK
     String diplomaTemplateId FK
@@ -436,6 +449,7 @@ erDiagram
   Talent ||--o{ EventPresence : "eventPresences"
   Campus ||--o{ Event : "events"
   Campus ||--o{ Participation : "participations"
+  EventConfig_Category |o--o{ Event : "events"
   Feedback_Form |o--o{ Event : "events"
   Diploma_Template |o--o{ Event : "events"
   Closing_Template |o--o{ Event : "events"
@@ -443,6 +457,7 @@ erDiagram
   Event ||--o{ EventPresenceClosure : "presenceClosures"
   Event ||--o{ EventPresence : "eventPresences"
   Event ||--o{ EventConfig_Module : "modules"
+  EventConfig_Category |o--o{ EventConfig_Template : "templates"
   Feedback_Form |o--o{ EventConfig_Template : "configTemplates"
   Diploma_Template |o--o{ EventConfig_Template : "configTemplates"
   Closing_Template |o--o{ EventConfig_Template : "configTemplates"
@@ -581,6 +596,7 @@ erDiagram
     String id PK
     String slug UK
     String baseUrl
+    String supervisorCode
     DateTime createdAt
     DateTime updatedAt
   }
@@ -590,6 +606,8 @@ erDiagram
     String instanceId FK
     String label
     String tagline
+    WorkshopLevel level
+    String[] notions
     Boolean enabled
     DateTime createdAt
     DateTime updatedAt
@@ -622,6 +640,17 @@ erDiagram
     Int width
     Int height
   }
+  Workshop_Domain {
+    String key PK
+    String label UK
+    DateTime archivedAt
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Workshop_ActivityDomain {
+    String activityId PK,FK
+    String domainKey PK,FK
+  }
   Talent {
   }
   Campus {
@@ -637,6 +666,8 @@ erDiagram
   Workshop_Activity ||--o{ EventConfig_Workshop : "events"
   Workshop_Activity ||--o{ Workshop_Participation : "participations"
   Workshop_Activity ||--o{ Workshop_CoverImage : "coverImages"
+  Workshop_Activity ||--o{ Workshop_ActivityDomain : "domains"
+  Workshop_Domain ||--o{ Workshop_ActivityDomain : "activities"
 ```
 
 ## 6 · Progression, Portfolio & XP
@@ -1020,21 +1051,17 @@ erDiagram
     String uploadedById FK
     DateTime createdAt
   }
-  SyncError {
+  Sync_Error {
     String id PK
-    String errorType
-    String email UK
-    String attemptedExtId UK
-    String existingExtId
-    String talentName
-    String eventExtId
-    String message
-    Boolean resolved
-    DateTime resolvedAt
-    Int occurrenceCount
+    Sync_ErrorKind kind
+    String talentId FK,UK
+    String externalId UK
+    String contactName
+    String email
+    String detail
+    String[] convertedLeadIds
+    DateTime firstOccurredAt
     DateTime lastOccurredAt
-    DateTime createdAt
-    DateTime updatedAt
   }
   Sync_Source {
     String id PK
@@ -1075,6 +1102,11 @@ erDiagram
     SyncMode mode PK
     DateTime requestedAt
   }
+  Sync_ErasedContact {
+    String externalId PK
+    DateTime readmittedAt
+    String readmittedBy
+  }
   AdminApi_Token {
     String id PK
     String staffUserId FK
@@ -1102,12 +1134,15 @@ erDiagram
   }
   StaffProfile {
   }
+  Talent {
+  }
   Campus {
   }
   Event {
   }
   bauth_user ||--o{ AdminApi_Token : "adminApiTokens"
   StaffProfile |o--o{ AdminFile : "adminFiles"
+  Talent ||--o| Sync_Error : "syncError"
   Campus |o--o{ Signatory : "signatories"
   Campus ||--o{ Sync_Source : "syncSources"
   Event ||--|| Sync_PruneHold : "syncPruneHold"

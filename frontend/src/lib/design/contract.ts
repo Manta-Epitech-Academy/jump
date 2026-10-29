@@ -150,29 +150,6 @@ export function readDesignMdColors(markdown: string): Record<string, string> {
   return resolved;
 }
 
-/** WCAG 2.x relative luminance. Accepts `#rgb` and `#rrggbb`. */
-export function relativeLuminance(hex: string): number {
-  const h = hex.replace('#', '');
-  const full =
-    h.length === 3
-      ? h
-          .split('')
-          .map((c) => c + c)
-          .join('')
-      : h;
-  const [r, g, b] = [0, 2, 4].map((i) => {
-    const v = parseInt(full.slice(i, i + 2), 16) / 255;
-    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-/** WCAG 2.x contrast ratio between two opaque colours. */
-export function contrastRatio(a: string, b: string): number {
-  const [l1, l2] = [relativeLuminance(a), relativeLuminance(b)];
-  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
-}
-
 export function loadContract() {
   const css = readFileSync(CSS_PATH, 'utf8');
   return {

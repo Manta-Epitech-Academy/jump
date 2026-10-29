@@ -5,7 +5,7 @@ import { EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
 /**
  * Admin event configuration (the `/staff/admin/events` page): the friendly
  * public name, the Jump-owned start time, and the dev-workspace surfaces the
- * event exposes. One submit writes them all (see
+ * event exposes. The days are not here: Salesforce owns both (see `syncEvents`). One submit writes them all (see
  * `EventService.updateEventConfig`). `publicName` empty clears it (falls back to
  * the SF `titre`); `startTime` empty clears it to none; `modules`
  * empty = the event exposes nothing. Each module is validated against the
@@ -20,17 +20,13 @@ export const adminEventSchema = z.object({
   // back to the neutral default, so an unconfigured event reads "participant"
   // without the column claiming a choice nobody made. Capped so it stays a noun.
   cohortNoun: z.string().trim().max(40).default(''),
+  // Which kind of event it is (`EventConfig_Category.key`), for display and badge
+  // rules only. Empty = uncategorised. Checked server-side: the key must exist,
+  // and an archived one is accepted only on an event that already carries it.
+  categoryKey: z.string().trim().default(''),
   startTime: z
     .string()
     .regex(HHMM_PATTERN, 'Heure invalide (HH:MM).')
-    .or(z.literal(''))
-    .default(''),
-  // End date as a campus-tz calendar day (`YYYY-MM-DD`). Salesforce only sends a
-  // start `date`, never an end, so Jump owns the event's end-of-window here (like
-  // it owns the start time-of-day). Empty = no end date, and the event reads as a single-day window.
-  endDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide (AAAA-MM-JJ).')
     .or(z.literal(''))
     .default(''),
   modules: z
@@ -104,6 +100,9 @@ export const eventConfigTemplateSaveSchema = z.object({
   // Cohort noun the preset carries; copied onto the event on apply (mirrors the
   // event form's free-text `cohortNoun`). Blank → stored NULL, like the event.
   cohortNoun: z.string().trim().max(40).default(''),
+  // The category the preset carries; copied onto the event on apply (mirrors the
+  // event form's `categoryKey`). Empty = the preset names none.
+  categoryKey: z.string().trim().default(''),
   // Jump-owned arrival time-of-day the preset carries (mirrors the event form's
   // `startTime`). Empty = the preset names no arrival time.
   startTime: z

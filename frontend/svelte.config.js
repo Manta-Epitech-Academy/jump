@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import adapter from '@sveltejs/adapter-node';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
@@ -11,6 +12,21 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
 const CRISP_HOST = 'https://client.crisp.chat';
 const CRISP_RELAY = 'wss://client.relay.crisp.chat';
+
+// The commit this build is made from. CI passes `GIT_SHA`, because the image
+// is built from `frontend/` alone and carries no `.git`; a local build reads
+// HEAD. `undefined` when neither exists, which leaves kit its default.
+function revision() {
+  if (process.env.GIT_SHA) return process.env.GIT_SHA;
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -76,7 +92,16 @@ const config = {
     // Without this, a client holding old HTML keeps requesting old hashed
     // chunks the new image no longer serves -> 404 + "Failed to fetch
     // dynamically imported module".
+    //
+    // The version is the commit the build was made from, so the same value
+    // also tells a person which code an environment runs (AppRevision.svelte,
+    // and `_app/version.json` for anyone without a session). Unlike the CSP
+    // values above, this is meant to freeze at build time: it describes the
+    // build, not the environment. Without a commit (a local Docker build has
+    // no `.git`) kit falls back to its timestamp, which still changes on
+    // every build and which AppRevision does not display.
     version: {
+      name: revision(),
       pollInterval: 60_000,
     },
   },

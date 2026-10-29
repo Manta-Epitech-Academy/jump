@@ -31,6 +31,19 @@ export function formatGivenName(value: string | null | undefined): string {
 }
 
 /**
+ * The given name out of a full name held in one field ("julien DAVID" gives
+ * "Julien"), which is how a staff account stores it (`bauth_user.name`). The
+ * first word is taken as the given name, the convention the broadcast
+ * recipients already follow. `null` when there is no name to call someone by.
+ */
+export function firstNameOf(
+  fullName: string | null | undefined,
+): string | null {
+  const first = fullName?.trim().split(/\s+/)[0];
+  return first ? formatGivenName(first) : null;
+}
+
+/**
  * Uppercases a surname for display (French civil convention: "Dupont" → "DUPONT").
  * Locale-aware so accented letters case correctly ("é" → "É"). Like
  * formatGivenName, a pure display projection over the raw stored value, never
@@ -60,11 +73,33 @@ export function formatPersonName(
   return parts.filter(Boolean).join(' ');
 }
 
+/**
+ * First name plus an initial ("Camille D."), never the full name: the name a
+ * talent shows to anyone who is not staff, such as other talents on a minigame
+ * board or a public CTFd scoreboard. Talents are minors, so what reaches a peer
+ * is the least that still lets a student recognise their own row. Build it on
+ * the server: a full surname sent to the browser has already left. Empty when
+ * both parts are.
+ */
+export function formatPeerName(
+  prenom: string | null | undefined,
+  nom: string | null | undefined,
+): string {
+  const first = formatGivenName(prenom?.trim());
+  // The first character, not the first UTF-16 unit, which would split a
+  // letter outside the BMP into half a pair.
+  const [initial = ''] = Array.from((nom ?? '').trim());
+  const shown = initial.toLocaleUpperCase('fr');
+  return (shown ? `${first} ${shown}.` : first).trim();
+}
+
 export const CIVILITE_OPTIONS = [
   { value: 'homme', label: 'Homme' },
   { value: 'femme', label: 'Femme' },
   { value: 'autre', label: 'Autre' },
 ] as const;
+
+export type Civilite = (typeof CIVILITE_OPTIONS)[number]['value'];
 
 export const PARENT_TYPE_OPTIONS = [
   { value: 'pere', label: 'Père' },
@@ -94,6 +129,19 @@ export const civiliteCourtesyTitle = (
 ): string => {
   if (value === 'homme') return 'Monsieur';
   if (value === 'femme') return 'Madame';
+  return '';
+};
+
+/**
+ * The abbreviated courtesy title a dense roster shows in its Genre column:
+ * "Mme" / "M.", the French typographic abbreviations (never the English "Mr").
+ * Same rule as `civiliteCourtesyTitle`: `autre` and null have none.
+ */
+export const civiliteShortTitle = (
+  value: string | null | undefined,
+): string => {
+  if (value === 'homme') return 'M.';
+  if (value === 'femme') return 'Mme';
   return '';
 };
 

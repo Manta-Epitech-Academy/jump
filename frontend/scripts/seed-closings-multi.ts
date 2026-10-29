@@ -291,7 +291,6 @@ async function reset(): Promise<void> {
         restore?: {
           devActivatedAt: string | null;
           closingTemplateId: string | null;
-          endDate: string | null;
         };
       } | null
     )?.restore;
@@ -299,9 +298,6 @@ async function reset(): Promise<void> {
       where: { id: event.id },
       data: {
         closingTemplateId: snapshot?.closingTemplateId ?? null,
-        ...(snapshot
-          ? { endDate: snapshot.endDate ? new Date(snapshot.endDate) : null }
-          : {}),
         // No snapshot means the event predates the marker, so the honest move is
         // to leave its visibility alone rather than invent a previous value.
         ...(snapshot
@@ -421,9 +417,8 @@ async function main() {
         // surface is unreachable while the event is hidden, and activating one
         // with no public name is the exact state `activationBlockerKeys`
         // refuses - it would sit in the dev switcher under its raw Salesforce
-        // title. A missing end date the script fills in (a past single-day club
-        // ends the day it runs); a missing public name it will not invent, so
-        // run `set-<campus>-event-public-names.ts` first.
+        // title. The script will not invent a missing public name, so run
+        // `set-<campus>-event-public-names.ts` first.
         publicName: { not: null },
         OR: [
           { closingTemplateId: null },
@@ -493,7 +488,6 @@ async function main() {
               restore: {
                 devActivatedAt: event.devActivatedAt?.toISOString() ?? null,
                 closingTemplateId: event.closingTemplateId,
-                endDate: event.endDate?.toISOString() ?? null,
               },
             };
       await prisma.eventConfig_Module.upsert({
@@ -507,10 +501,6 @@ async function main() {
         where: { id: event.id },
         data: {
           closingTemplateId: grid.id,
-          // A single-day club carries no end date, which the activation rule
-          // requires. Set it to the day it ran, which is what an admin filling
-          // the wizard would put there.
-          endDate: event.endDate ?? event.date,
           devActivatedAt: event.devActivatedAt ?? new Date(),
         },
       });

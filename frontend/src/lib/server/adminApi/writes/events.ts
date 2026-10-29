@@ -15,8 +15,8 @@
  *
  * The one thing added on top is **patch semantics**. `updateEventConfig` takes a
  * complete configuration and replaces it, which is right for a form (the form
- * holds every field) and wrong for a tool call: a model asked to "set the end
- * date" would have to supply the public name, the cohort noun, the sections and
+ * holds every field) and wrong for a tool call: a model asked to "set the arrival
+ * time" would have to supply the public name, the cohort noun, the sections and
  * the start time as well, and would cheerfully invent them. So the write reads
  * the current state first, applies only the fields it was actually given (`null`
  * clears a field, an omitted field is left alone), and sends the whole thing
@@ -56,7 +56,7 @@ type EventState = {
   publicName: string | null;
   cohortNoun: string | null;
   startTime: string | null;
-  endDate: string | null;
+  categoryKey: string | null;
   modules: string[];
   moduleSettings: Record<string, unknown>;
   shownStatuses: string[];
@@ -74,6 +74,7 @@ async function stateOf(event: AdminEventVM): Promise<EventState> {
   return {
     eventId: event.id,
     ...jumpOwnedFields(event),
+    categoryKey: event.category?.key ?? null,
     modules: [...event.modules].sort(),
     moduleSettings: event.moduleSettings,
     shownStatuses: event.shownStatuses,
@@ -108,7 +109,7 @@ export type EventConfigPatch = {
   publicName?: string | null;
   cohortNoun?: string | null;
   startTime?: string | null;
-  endDate?: string | null;
+  categoryKey?: string | null;
   modules?: string[];
   moduleSettings?: ModuleSettingsPatch;
   shownStatuses?: string[];
@@ -164,6 +165,15 @@ function mergedModuleSettings(
 }
 
 const REFERENCES = {
+  categoryKey: {
+    handle: 'eventCategoryKey',
+    label: 'Catégorie',
+    exists: (key: string) =>
+      prisma.eventConfig_Category.findUnique({
+        where: { key },
+        select: { key: true },
+      }),
+  },
   feedbackFormId: {
     handle: 'formId',
     label: 'Formulaire de feedback',
@@ -198,9 +208,9 @@ const REFERENCES = {
 >;
 
 /**
- * The id to save for one reference: the stored one when the call omits it, none
- * when it sends `null`, and otherwise the id given, refused with where a valid
- * one comes from when nothing has it. The service checks existence too; this is
+ * The id (or, for a category, the key) to save for one reference: the stored one
+ * when the call omits it, none when it sends `null`, and otherwise the value
+ * given, refused with where a valid one comes from when nothing has it. The service checks existence too; this is
  * the check that can name the read a model should have called.
  */
 async function resolvedReference(
@@ -278,7 +288,13 @@ export async function writeEventConfig(
     publicName: patched(params.publicName, event.publicName),
     cohortNoun: patched(params.cohortNoun, event.cohortNoun),
     startTime: patched(params.startTime, event.startTime),
-    endDate: patched(params.endDate, event.endDate),
+    // Whether an archived one may be given is the service's rule, the wizard's
+    // too: refused as a new choice, kept on an event that already carries it.
+    categoryKey: await resolvedReference(
+      'categoryKey',
+      params.categoryKey,
+      event.category?.key ?? '',
+    ),
     modules,
     moduleSettings: mergedModuleSettings(event, modules, params.moduleSettings),
     devActivated: params.visible ?? event.devActivated,
@@ -323,6 +339,7 @@ export async function writeEventTemplate(params: {
     description: params.description ?? '',
     publicName: event.publicName,
     cohortNoun: event.cohortNoun ?? '',
+    categoryKey: event.category?.key ?? '',
     startTime: event.startTime,
     modules: event.modules,
     moduleSettings: event.moduleSettings,

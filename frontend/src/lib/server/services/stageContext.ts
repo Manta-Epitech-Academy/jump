@@ -15,13 +15,14 @@ import {
 } from '$lib/domain/eventLifecycle';
 import { defaultEvent } from '$lib/domain/devWorkspace';
 import { schoolYearOf, type SchoolYear } from '$lib/domain/schoolYear';
-import { toDateKey } from '$lib/domain/planningTime';
 import { prisma } from '$lib/server/db';
 import type { Prisma } from '@prisma/client';
 
 /**
  * An event is "visible dans l'espace dev" iff an admin activated it
- * (`devActivatedAt`) and it carries at least one module. Single source for the
+ * (`devActivatedAt`) and it carries at least one module: the admin space counts
+ * an event with no section as not configured yet (`eventReadiness`), and
+ * refuses to activate one. Single source for the
  * dev workspace event list and for any surface that must mirror that
  * visibility: the talent's own attended-events history, and every link INTO the
  * workspace (see `isDevVisibleEvent` below).
@@ -36,7 +37,7 @@ import type { Prisma } from '@prisma/client';
  *
  * Not the same rule as `activatableEventWhere` in `services/events`: this one is
  * what IS visible, that one is what MAY be made visible (a stricter set, which
- * also needs a public name and an end date).
+ * also needs a public name).
  */
 export const devVisibleEventWhere = {
   devActivatedAt: { not: null },
@@ -52,8 +53,8 @@ export const devVisibleEventWhere = {
  * Withholding a link is not cosmetic here. The dev layout resolves the event in
  * view out of `resolveWorkspaceEvents` and falls back to the workspace default
  * when the URL names an event that is not a member, so a link to a
- * non-activated event opens its page under ANOTHER event's sidebar and
- * switcher: a cohort read under the wrong heading, which is worse than the 404
+ * non-activated event opens its page under ANOTHER event's name in the
+ * menu: a cohort read under the wrong heading, which is worse than the 404
  * `loadEventOr404` does not throw (it gates on campus, never on activation).
  */
 export function isDevVisibleEvent(event: {
@@ -180,8 +181,8 @@ export async function loadEventOr404(
 
 /**
  * Effective end of an event for DISPLAY: its explicit `endDate`, else the start
- * `date` (single-day). A multi-day event carries an explicit `endDate` (config
- * wizard or planning template); nothing is synthesised from a type. Thin
+ * `date` (single-day). A multi-day event carries an explicit `endDate`, the
+ * campaign's `EndDate` in Salesforce; nothing is synthesised from a type. Thin
  * server-side alias of the domain `eventWindowEnd`, kept for the object-shaped
  * call sites here.
  *
@@ -202,8 +203,6 @@ export type WorkspaceEventEntry = {
   titre: string;
   /** Admin-set friendly name; falls back to `titre` for display. */
   publicName: string | null;
-  /** Salesforce Campaign id, for the switcher's deep-link. Null when unlinked. */
-  externalId: string | null;
   date: Date;
   /**
    * Effective end: explicit endDate, else the start date (single-day). See
@@ -212,13 +211,6 @@ export type WorkspaceEventEntry = {
   endDate: Date;
   status: EventLifecycleStatus;
   schoolYear: SchoolYear;
-  /**
-   * The event's year-month `YYYY-MM` in campus tz: the switcher's second
-   * drill-down level. A real year-month (not a bare 1-12) so the two ends of a
-   * school year that fall in the same calendar month (August bookends it) stay
-   * distinct, and a plain string sort is already chronological within the year.
-   */
-  monthKey: string;
   /** Surfaces this event exposes: drive the sidebar nav for the current event. */
   modules: EventModuleKey[];
   /**
@@ -254,19 +246,10 @@ export type WorkspaceEvents = {
 
 /**
  * Every event that belongs to the dev cohort workspace for this (already
- * campus-scoped) client. Membership is two gates, both required:
- *  - `devActivatedAt`: an admin has validated the event for the dev cohort (an
- *    event is configured at creation but stays hidden until then), AND
- *  - at least one enabled module: the dev space is nothing but per-module
- *    surfaces, so an event exposing zero of them has nowhere to land. Including
- *    it would seat it in the switcher and let it become `current`, then drop on
- *    the empty state (`landingSurface` -> null). Excluding it keeps the
- *    landing's happy path: a `current` with a reachable surface lands on it.
- *    (A member whose only surfaces are gated off by data, e.g. bilan without a
- *    form, still resolves to null and shows the empty state rather than a 404.)
- * Modules then decide WHICH surfaces a member event exposes. The workspace hosts
- * as many events as a campus activates, across school years, switchable in the
- * sidebar.
+ * campus-scoped) client: `devVisibleEventWhere`. Each one opens on its home,
+ * which every event has; modules then decide WHICH other surfaces it exposes. The workspace hosts
+ * as many events as a campus activates, across school years, each opened from
+ * the campus calendar.
  */
 export async function resolveWorkspaceEvents(
   db: ScopedPrismaClient,
@@ -284,7 +267,6 @@ export async function resolveWorkspaceEvents(
         id: true,
         titre: true,
         publicName: true,
-        externalId: true,
         date: true,
         endDate: true,
         feedbackFormId: true,
@@ -311,7 +293,6 @@ export async function resolveWorkspaceEvents(
       id: e.id,
       titre: e.titre,
       publicName: e.publicName,
-      externalId: e.externalId,
       date: e.date,
       // Effective end for display: explicit endDate, else the single-day start.
       endDate: eventEndOrDefault(e),
@@ -319,7 +300,6 @@ export async function resolveWorkspaceEvents(
       // "ongoing" for its whole day, a multi-day one until its endDate.
       status: getEventStatus(e, bounds),
       schoolYear: schoolYearOf(e.date, timezone),
-      monthKey: toDateKey(e.date, timezone).slice(0, 7),
       modules: e.modules.map((m) => m.moduleKey).filter(isEventModuleKey),
       hasPlanning: e._count.planningSlots > 0,
       hasFeedbackForm: eventResolvesLiveForm(e),

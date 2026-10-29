@@ -1,20 +1,26 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { enhance } from '$app/forms';
+  import { superForm } from 'sveltekit-superforms';
   import { fly } from 'svelte/transition';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import ShieldOff from '@lucide/svelte/icons/shield-off';
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import UserRoundPlus from '@lucide/svelte/icons/user-round-plus';
   import { Badge } from '$lib/components/ui/badge';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Textarea } from '$lib/components/ui/textarea';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
+  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
   import * as Card from '$lib/components/ui/card';
   import * as Table from '$lib/components/ui/table';
   import * as Alert from '$lib/components/ui/alert';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Dialog from '$lib/components/ui/dialog';
-  import EmptyState from '$lib/components/EmptyState.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import TalentName from '$lib/components/students/TalentName.svelte';
   import { formatDateTimeFr } from '$lib/utils';
@@ -34,6 +40,24 @@
   let fulfilling = $state(false);
   let rejectTarget = $state<Row | null>(null);
   let rejecting = $state(false);
+
+  const {
+    form: readmitForm,
+    errors: readmitErrors,
+    enhance: readmitEnhance,
+    delayed: readmitDelayed,
+  } = superForm(
+    untrack(() => data.readmitForm),
+    {
+      onResult: ({ result }) => {
+        if (result.type === 'success') {
+          toast.success(result.data?.form?.message || 'Retour autorisé.');
+        } else if (result.type === 'failure') {
+          toast.error(result.data?.form?.message || 'Une erreur est survenue.');
+        }
+      },
+    },
+  );
 
   const statusBadge: Record<string, string> = {
     fulfilled: 'border-destructive/30 bg-destructive/10 text-destructive',
@@ -63,7 +87,7 @@
   {#if data.overdueCount > 0}
     <div in:fly={{ y: 12, duration: 300 }}>
       <Alert.Root variant="destructive">
-        <ShieldAlert class="animate-pulse" />
+        <ShieldAlert class="motion-safe:animate-pulse" />
         <Alert.Title class="font-heading">
           {data.overdueCount} demande{data.overdueCount > 1 ? 's' : ''} en retard
         </Alert.Title>
@@ -89,10 +113,11 @@
       <Card.Content class="p-0">
         {#if data.pending.length === 0}
           <div class="p-6">
-            <EmptyState
+            <ResultsNotice
+              compact
               icon={ShieldCheck}
               title="Tout est traité"
-              description="Aucune demande de suppression en attente. Tu es à jour. Le pipeline est serein."
+              description="Aucune demande de suppression en attente."
             />
           </div>
         {:else}
@@ -234,6 +259,61 @@
       </Card.Root>
     </div>
   {/if}
+
+  <!-- The way back: a person erased at their request is never re-imported
+       until an admin lifts the bar on their Salesforce contact. -->
+  <div in:fly={{ y: 12, duration: 300, delay: 180 }}>
+    <Card.Root>
+      <Card.Header>
+        <Card.Title class="flex items-center gap-2 font-heading">
+          Retour d'un talent supprimé
+          <InfoTooltip
+            text="Une suppression traitée empêche la synchronisation de réimporter le contact Salesforce. Jump ne garde que son identifiant, sans lien vers la personne : copiez-le depuis Salesforce. Un nouveau compte est créé, l'historique effacé ne revient pas."
+          />
+        </Card.Title>
+      </Card.Header>
+      <Card.Content>
+        <form
+          method="POST"
+          action="?/readmit"
+          use:readmitEnhance
+          class="flex flex-wrap items-end gap-3"
+        >
+          <div class="space-y-1">
+            <Label for="readmit-external-id"
+              >Identifiant du contact Salesforce</Label
+            >
+            <Input
+              id="readmit-external-id"
+              name="externalId"
+              class="w-72 font-mono"
+              autocomplete="off"
+              bind:value={$readmitForm.externalId}
+              aria-invalid={$readmitErrors.externalId ? 'true' : undefined}
+            />
+          </div>
+          <Button
+            type="submit"
+            variant="outline"
+            class="gap-1"
+            disabled={$readmitDelayed}
+          >
+            {#if $readmitDelayed}
+              <LoaderCircle class="h-4 w-4 animate-spin" />
+            {:else}
+              <UserRoundPlus class="h-4 w-4" />
+            {/if}
+            Autoriser le retour
+          </Button>
+        </form>
+        {#if $readmitErrors.externalId}
+          <p class="mt-1 text-xs text-destructive">
+            {$readmitErrors.externalId[0]}
+          </p>
+        {/if}
+      </Card.Content>
+    </Card.Root>
+  </div>
 </div>
 
 <!-- Fulfil = irreversible erasure: a hard confirm. -->
@@ -253,8 +333,9 @@
             />{/if}</strong
         >
         sera <strong>anonymisé de manière irréversible</strong> : données personnelles
-        effacées, sessions révoquées. Les statistiques agrégées (XP, présence) sont
-        conservées. Cette action honore le droit à l'effacement (RGPD).
+        effacées, sessions révoquées, contact Salesforce exclu de la synchronisation.
+        Les statistiques agrégées (XP, présence) sont conservées. Cette action honore
+        le droit à l'effacement (RGPD).
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>

@@ -71,16 +71,16 @@ function eventStub(i: number): EventStub {
 
 function syncPayload(
   over: {
-    unresolved?: number;
+    openErrors?: number;
     prunesHeld?: number;
     unrecognised?: number;
   } = {},
 ) {
   const unrecognised = over.unrecognised ?? 0;
   return {
-    unresolvedErrors: metric(over.unresolved ?? 0, 'def'),
-    errorsByType: metric([], 'def'),
-    oldestUnresolvedAgeDays: metric(null, 'def'),
+    openErrors: metric(over.openErrors ?? 0, 'def'),
+    errorsBySituation: metric([], 'def'),
+    oldestOpenAgeDays: metric(null, 'def'),
     prunesHeldEvents: metric(over.prunesHeld ?? 0, 'def'),
     unrecognisedStatuses: metric(unrecognised, 'def'),
     unrecognisedStatusEvents: metric(
@@ -119,11 +119,11 @@ function freshnessPayload(ageHours = 0.5) {
 }
 
 /** The sync has never run once: worse than stale, and distinct from it below. */
-function neverSyncedPayload(unresolved = 0) {
+function neverSyncedPayload(openErrors = 0) {
   return {
-    unresolvedErrors: metric(unresolved, 'def'),
-    errorsByType: metric([], 'def'),
-    oldestUnresolvedAgeDays: metric(null, 'def'),
+    openErrors: metric(openErrors, 'def'),
+    errorsBySituation: metric([], 'def'),
+    oldestOpenAgeDays: metric(null, 'def'),
     prunesHeldEvents: metric(0, 'def'),
     unrecognisedStatuses: metric(0, 'def'),
     unrecognisedStatusEvents: metric([], 'def'),
@@ -239,7 +239,7 @@ describe('buildAdminDigest', () => {
 
   it('lists the events to prepare with what each one is missing', async () => {
     getEventsConfigList.mockResolvedValue(eventsPayload([eventStub(1)]));
-    getSyncHealth.mockResolvedValue(syncPayload({ unresolved: 2 }));
+    getSyncHealth.mockResolvedValue(syncPayload({ openErrors: 2 }));
 
     const digest = await buildAdminDigest();
 
@@ -257,7 +257,7 @@ describe('buildAdminDigest', () => {
     expect(digest.text).toContain('Lille-CodingClub-1');
     expect(digest.summary).toEqual({
       eventsToPrepare: 1,
-      unresolvedSyncErrors: 2,
+      openSyncErrors: 2,
       prunesHeldEvents: 0,
       unrecognisedSfStatuses: 0,
       lastSyncAgeHours: 0.5,
@@ -406,7 +406,7 @@ describe('buildAdminDigest', () => {
 
     const digest = await buildAdminDigest();
 
-    expect(digest.html).toContain('Aucune erreur en attente');
+    expect(digest.html).toContain('Aucune erreur de synchronisation ouverte');
     expect(digest.html).not.toContain('à vérifier');
     expect(digest.html).not.toContain('/staff/admin');
   });
@@ -424,7 +424,9 @@ describe('buildAdminDigest', () => {
     // The zero below is true only because zero syncs ran to produce an error;
     // presenting it as reassurance right after the worst possible state is
     // the exact bug this test guards against.
-    expect(digest.html).not.toContain('Aucune erreur en attente');
+    expect(digest.html).not.toContain(
+      'Aucune erreur de synchronisation ouverte',
+    );
     expect(digest.summary.lastSyncAgeHours).toBeNull();
   });
 

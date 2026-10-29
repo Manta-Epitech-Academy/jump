@@ -3,7 +3,7 @@
  *
  * Deliberately NOT the seed generator (`scripts/seed/`): that builds a dataset
  * shaped like production, and a spec anchored to it breaks the next time
- * somebody adjusts a scenario. This seeds the seven accounts and the two events
+ * somebody adjusts a scenario. This seeds the accounts and the three events
  * the specs actually assert on. Who those accounts are is declared in
  * `./identities.ts`, which the config and the specs share.
  *
@@ -23,15 +23,18 @@ import {
   dateKeyToDbDate,
   toDateKey,
 } from '../../../src/lib/domain/eventPresence';
-import { fromWallClock } from '../../../src/lib/domain/planningTime';
+import {
+  eventEndInstant,
+  eventStartInstant,
+} from '../../../src/lib/domain/event';
 
 /** The campus this fixture writes, and the clock its event is read on. */
 const CAMPUS_TIMEZONE = 'Europe/Paris';
 
 /**
- * Today ON THE CAMPUS CLOCK, stored the way production stores it: the day at
- * midnight UTC (what Salesforce sends) and the end at 23:59 campus time (what
- * the configuration screen writes). Every reader of an event's day reads the
+ * Today ON THE CAMPUS CLOCK, stored the way the Salesforce sync stores a
+ * campaign's days: the start at midnight and the end at 23:59, campus time.
+ * Every reader of an event's day reads the
  * campus clock, so a fixture built off the UTC date read « hier » for the last
  * one or two hours of every Paris evening, which is when somebody runs `verify`
  * after work.
@@ -43,8 +46,8 @@ const CAMPUS_TIMEZONE = 'Europe/Paris';
 function campusToday(): { date: Date; endDate: Date } {
   const key = toDateKey(new Date(), CAMPUS_TIMEZONE);
   return {
-    date: dateKeyToDbDate(key),
-    endDate: fromWallClock(key, '23:59', CAMPUS_TIMEZONE),
+    date: eventStartInstant(key, CAMPUS_TIMEZONE),
+    endDate: eventEndInstant(key, CAMPUS_TIMEZONE),
   };
 }
 
@@ -53,13 +56,21 @@ export async function purgeE2eData(): Promise<void> {
   // The event first: EventConfig_Module, Participation, EventPresence and the
   // closures all cascade off it.
   await prisma.event.deleteMany({
-    where: { id: { in: [E2E.eventId, E2E.upcomingEventId] } },
+    where: {
+      id: { in: [E2E.eventId, E2E.upcomingEventId, E2E.rosterEventId] },
+    },
   });
   // Then the talents. Talent -> bauth_user is SetNull, not Cascade, so deleting
   // the accounts first would leave orphan Talent rows behind (the same order the
   // load-test cleanup documents).
   await prisma.talent.deleteMany({
-    where: { user: { email: { endsWith: E2E_DOMAIN } } },
+    where: {
+      OR: [
+        { user: { email: { endsWith: E2E_DOMAIN } } },
+        // The roster's talents have no account to find them by.
+        { id: { in: E2E.rosterTalents.map((t) => t.id) } },
+      ],
+    },
   });
   await prisma.bauth_user.deleteMany({
     where: { email: { endsWith: E2E_DOMAIN } },
@@ -172,6 +183,41 @@ export async function seedE2eData(): Promise<void> {
     },
   });
 
+  // ── The roster the Inscrits filters run on ───────────────────────────────
+  // Ten days out: off today's calendar cell, which the calendar spec reads.
+  const rosterDay = toDateKey(
+    new Date(Date.now() + 10 * 86_400_000),
+    CAMPUS_TIMEZONE,
+  );
+  await prisma.event.create({
+    data: {
+      id: E2E.rosterEventId,
+      titre: 'E2E-Inscrits',
+      publicName: 'Inscrits E2E',
+      cohortNoun: 'participant',
+      date: eventStartInstant(rosterDay, CAMPUS_TIMEZONE),
+      endDate: eventEndInstant(rosterDay, CAMPUS_TIMEZONE),
+      campusId: E2E.campusId,
+      devActivatedAt: now,
+      modules: { create: { moduleKey: EVENT_MODULES.INSCRITS } },
+      shownStatuses: { create: [{ status: 'READY' }] },
+    },
+  });
+  for (const talent of E2E.rosterTalents) {
+    await prisma.talent.create({
+      data: {
+        ...talent,
+        participations: {
+          create: {
+            eventId: E2E.rosterEventId,
+            campusId: E2E.campusId,
+            sfMemberStatus: 'READY',
+          },
+        },
+      },
+    });
+  }
+
   // ── Talents ──────────────────────────────────────────────────────────────
   /** Every rung of the ladder, plus the charte and the welcome splash. */
   const dossierComplete = {
@@ -243,8 +289,9 @@ export async function seedE2eData(): Promise<void> {
       titre: 'E2E-Prochain-Campagne-SF',
       publicName: E2E.upcomingEventName,
       cohortNoun: 'participant',
-      date: dateKeyToDbDate(
+      date: eventStartInstant(
         toDateKey(new Date(Date.now() + 3 * 86_400_000), CAMPUS_TIMEZONE),
+        CAMPUS_TIMEZONE,
       ),
       startMinutes: 14 * 60,
       campusId: E2E.campusId,

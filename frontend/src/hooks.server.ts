@@ -8,9 +8,14 @@ import {
   usageConnectionFeature,
 } from '$lib/domain/usage';
 import { applyRouteGuards } from '$lib/server/auth/guards';
-import { slideImpersonationExpiry } from '$lib/server/auth/impersonation';
+import {
+  loadImpersonator,
+  slideImpersonationExpiry,
+} from '$lib/server/auth/impersonation';
+import { revokeImpersonation } from '$lib/server/auth/impersonate';
 import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { resolveTalentCampus } from '$lib/server/services/talentCampus';
+import { recordSignInDay } from '$lib/server/services/signInStreak';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
 import { readPlanningPreview } from '$lib/server/talentPlanningPreview';
 import { runWithRequestContext } from '$lib/server/requestContext';
@@ -24,6 +29,7 @@ import {
   LOCKED_DOWN_CSP,
 } from '$lib/security/csp';
 import { workshopBaseUrls } from '$lib/server/workshops/origins';
+import { isCrossSiteWrite } from '$lib/security/crossSite';
 import { createInitialModeExpression } from 'mode-watcher';
 
 // Every CSP directive that is a fixed constant (or gone with the recorder, issue
@@ -144,6 +150,17 @@ function recordVisit(event: Parameters<Handle>[0]['event']) {
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
+  // 0. A write a browser sent from another site is refused before anything
+  // runs, for every route: see `security/crossSite.ts` for why kit's own check
+  // is not enough.
+  if (isCrossSiteWrite(event.request, event.url.origin)) {
+    const refused = new Response('Cross-site requests are forbidden', {
+      status: 403,
+    });
+    await setSecurityHeaders(refused);
+    return refused;
+  }
+
   recordOpenIfTracked(event);
 
   // 1. Get session from BetterAuth
@@ -163,6 +180,35 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.armedRealSends = false;
   event.locals.armedRealSendsUntil = null;
   event.locals.devRedirectPin = null;
+
+  // 1.5 An impersonated session acts on the admin's authority, so it holds
+  // only while that admin still is one (see `loadImpersonator`). Checked
+  // before anything is loaded for the target: a revoked session is answered
+  // on this very request, by `revokeImpersonation`. BetterAuth stores the
+  // admin's user id in `session.impersonatedBy`.
+  const impersonatedById =
+    (event.locals.session as { impersonatedBy?: string | null } | null)
+      ?.impersonatedBy ?? null;
+  if (impersonatedById && event.locals.session) {
+    const impersonator = await loadImpersonator(impersonatedById);
+    if (impersonator) {
+      // The real admin, so analytics attribute actions to the actor and not
+      // to the impersonated user.
+      event.locals.impersonator = impersonator;
+      // Keep an actively-used impersonation session from hitting its hard
+      // wall: slide its expiry forward so an admin testing a talent's flow is
+      // never bounced to login (which would drop their own admin session
+      // too). An abandoned session still lapses after the idle window.
+      slideImpersonationExpiry(event.locals.session);
+    } else {
+      const revoked = await revokeImpersonation(
+        event.request,
+        impersonatedById,
+      );
+      await setSecurityHeaders(revoked);
+      return revoked;
+    }
+  }
 
   // 2. Load profiles + refresh role from DB in a single query.
   // BetterAuth caches the session payload (including role) in a cookie for 5
@@ -193,67 +239,26 @@ export const handle: Handle = async ({ event, resolve }) => {
       event.locals.talent = record.talent;
     }
 
-    if (!event.locals.staffProfile?.campusId && event.locals.talent) {
-      // Talents have no direct Campus relation; their effective campus is the
-      // one from their most recent participation. Resolve it here for analytics
-      // (talentCampusName) so the root layout doesn't re-run the same lookup.
-      // Staff carry their campus on the profile, so only talents need this.
-      // Shared with onboarding's early-bird scope via resolveTalentCampus.
-      const talentCampus = await resolveTalentCampus(
-        prisma,
-        event.locals.talent.id,
-      );
+    // Talents have no direct Campus relation; their effective campus is the
+    // one from their most recent participation. Resolve it here for analytics
+    // (talentCampusName) so the root layout doesn't re-run the same lookup, and
+    // for the timezone their sign-in day is read in (2.5).
+    // Staff carry their campus on the profile, so only talents need this.
+    // Shared with onboarding's early-bird scope via resolveTalentCampus.
+    const talentCampus =
+      !event.locals.staffProfile?.campusId && event.locals.talent
+        ? await resolveTalentCampus(prisma, event.locals.talent.id)
+        : null;
+    if (talentCampus) {
       event.locals.talentCampusName = talentCampus.campusName;
       event.locals.talentCampusId = talentCampus.campusId;
-    }
-
-    // Resolve the real admin behind an impersonated session so analytics can
-    // attribute actions to the actor (not the impersonated user). BetterAuth
-    // stores the admin's user id in `session.impersonatedBy`.
-    const impersonatedById =
-      (event.locals.session as { impersonatedBy?: string | null } | null)
-        ?.impersonatedBy ?? null;
-    // Keep an actively-used impersonation session from hitting its hard wall:
-    // slide its expiry forward so an admin testing a talent's flow is never
-    // bounced to login (which would drop their own admin session too). An
-    // abandoned session still lapses after the idle window. See the helper.
-    if (impersonatedById && event.locals.session) {
-      slideImpersonationExpiry(event.locals.session);
-    }
-    if (impersonatedById) {
-      const adminRecord = await prisma.bauth_user.findUnique({
-        where: { id: impersonatedById },
-        select: {
-          email: true,
-          staffProfile: {
-            select: {
-              id: true,
-              staffRole: true,
-              campus: { select: { name: true } },
-              devRedirectEmails: true,
-              devRedirectPhones: true,
-            },
-          },
-        },
-      });
-      if (adminRecord) {
-        event.locals.impersonator = {
-          userId: impersonatedById,
-          email: adminRecord.email ?? null,
-          staffProfileId: adminRecord.staffProfile?.id ?? null,
-          staffRole: adminRecord.staffProfile?.staffRole ?? null,
-          campusName: adminRecord.staffProfile?.campus?.name ?? null,
-          devRedirectEmails: adminRecord.staffProfile?.devRedirectEmails ?? [],
-          devRedirectPhones: adminRecord.staffProfile?.devRedirectPhones ?? [],
-        };
-      }
     }
 
     event.locals.stagePhaseOverride = readDevPhaseOverride(event);
     event.locals.planningPreview = readPlanningPreview(event);
 
-    // 2.5 Stamp the talent's activity projections (fire-and-forget). Two durable
-    // facts derived from this real request:
+    // 2.5 Stamp the talent's activity projections (fire-and-forget). Three
+    // durable facts derived from this real request:
     //   - `firstLoginAt`: set once, on the first real request, and cleared only
     //     by a reset to import.
     //     It is the durable source for "première connexion" / the cohort funnel's
@@ -261,12 +266,26 @@ export const handle: Handle = async ({ event, resolve }) => {
     //     deleted by logout, identity repair and account relinks, so a real
     //     login would read "Jamais" once its session vanished).
     //   - `lastActiveAt`: throttled to once per day.
-    // Skip both while impersonated: the request is an admin testing the talent's
-    // experience, not the talent being active. Counting it would falsely mark a
-    // never-logged-in talent as connected.
+    //   - the run of consecutive days (`streakDays` / `streakLastDay`), counted
+    //     on calendar days in the campus timezone, which the rolling 24 hours
+    //     of `lastActiveAt` cannot tell apart: a visit at 9:00 then one at 8:00
+    //     the next morning is two days, and that throttle skips the second.
+    //     Before the route guards, like the other two: a talent sent on to the
+    //     charte has still opened Jump that day. Not usage tracking, which is
+    //     recorded at 3.5 and never names the talent.
+    // Skip all three while impersonated: the request is an admin testing the
+    // talent's experience, not the talent being active. Counting it would
+    // falsely mark a never-logged-in talent as connected.
     if (event.locals.talent && !impersonatedById) {
       const now = new Date();
       const talent = event.locals.talent;
+      // A talent with no enrolment has no campus; `Europe/Paris` is the
+      // `Campus.timezone` default.
+      recordSignInDay(
+        talent,
+        talentCampus?.campusTimezone ?? 'Europe/Paris',
+        now,
+      ).catch((e) => console.warn('[talent streak] update failed:', e.message));
       const needFirstLogin = talent.firstLoginAt == null;
       const lastActive = talent.lastActiveAt;
       const lastActiveStale =

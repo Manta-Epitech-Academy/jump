@@ -35,7 +35,8 @@ import {
   versionForYear,
 } from '../catalog/documentVersions';
 import type { World, TalentRef } from '../world';
-import { CIVILITE_OPTIONS } from '../../../src/lib/domain/profile';
+import { dateKeyToDbDate } from '../../../src/lib/domain/eventPresence';
+import { toDateKey } from '../../../src/lib/domain/planningTime';
 import { id } from '../ids';
 
 /** Where the talent stopped. `null` means they went all the way through. */
@@ -143,14 +144,22 @@ export function addDossier(
   // wizard cannot produce and every reader of that relation reads as empty.
   if (reached.includes('interests')) world.pickInterests(opts.talent);
 
-  // The two remaining optional answers, each written by the step that asks it.
-  // Optional means BOTH branches have to exist: filling them on every talent
-  // renders the block on every fiche and never its absence, which is the same
-  // defect as never filling them, only harder to notice.
+  // The civility, which the identity step requires (`identitySchema`): a
+  // dossier past that step without one is a state the wizard cannot produce.
+  // Written over whatever Salesforce seeded, as the step does, and the mirror
+  // keeps Salesforce's claim, so a talent who corrects it is a divergence.
   const talentRow = world.talentRow(opts.talent.id) as Record<string, unknown>;
-  if (reached.includes('identity') && world.wizardRng.chance(0.7)) {
-    talentRow.civilite = world.wizardRng.pick(CIVILITE_OPTIONS).value;
+  if (reached.includes('identity')) {
+    if (opts.talent.declaredCivilite === null)
+      throw new Error(
+        `addDossier(${opts.talent.id}): an anonymised talent has nobody left to declare a civility.`,
+      );
+    talentRow.civilite = opts.talent.declaredCivilite;
   }
+  // The remaining optional answer, written by the step that asks it. Optional
+  // means BOTH branches have to exist: filling it on every talent renders the
+  // block on every fiche and never its absence, which is the same defect as
+  // never filling it, only harder to notice.
   if (reached.includes('equipment') && world.wizardRng.chance(0.4)) {
     talentRow.setupDescription =
       'Un portable de 2019, 8 Go de RAM, et un écran externe à la maison.';
@@ -276,8 +285,26 @@ export function addDossier(
       filePath: `documents/${opts.talent.id}/charter.pdf`,
       processedAt: charterAcceptedAt,
     });
-    row.welcomeSeenAt = clock.days(filedOffset - 1);
-    row.firstLoginAt = clock.days(filedOffset - 1);
-    row.lastActiveAt = clock.days(-5);
+    const firstLoginOffset = filedOffset - 1;
+    const lastActiveOffset = -5;
+    row.welcomeSeenAt = clock.days(firstLoginOffset);
+    row.firstLoginAt = clock.days(firstLoginOffset);
+    const lastActiveAt = clock.days(lastActiveOffset);
+    row.lastActiveAt = lastActiveAt;
+    // The run of consecutive days ends on the day of that last visit, read in
+    // the campus timezone as `signInStreak.ts` reads it, so the two columns
+    // cannot tell two stories (La Réunion runs ahead of Paris). It cannot start
+    // before the first login either, which bounds its length: a dossier filed
+    // late in the stage window leaves fewer days than the draw would take. The
+    // length is drawn from the talent's own stream, which takes nothing from the
+    // shared one.
+    const timezone =
+      [...world.campuses.values()].find((c) => c.id === opts.talent.campusId)
+        ?.timezone ?? 'Europe/Paris';
+    const daysSinceFirstLogin = lastActiveOffset - firstLoginOffset + 1;
+    row.streakLastDay = dateKeyToDbDate(toDateKey(lastActiveAt, timezone));
+    row.streakDays = world.ctx.rng
+      .fork(`signInStreak:${opts.talent.id}`)
+      .int(1, Math.min(12, daysSinceFirstLogin));
   }
 }

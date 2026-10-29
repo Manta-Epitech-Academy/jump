@@ -1,0 +1,423 @@
+<script lang="ts">
+  import { page } from '$app/state';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import * as Table from '$lib/components/ui/table';
+  import * as Collapsible from '$lib/components/ui/collapsible';
+  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
+  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
+  import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
+  import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  import {
+    clearListFilters,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import { listFacets, matchesListFacets } from '$lib/domain/listFacets';
+  import {
+    buildHaystack,
+    matchesAllTokens,
+    searchTokens,
+  } from '$lib/components/staff/datatable/search';
+  import {
+    nextSort,
+    rowComparator,
+  } from '$lib/components/staff/datatable/sort';
+  import {
+    pageCount,
+    paginate,
+  } from '$lib/components/staff/datatable/paginate';
+  import {
+    statusBadgeClass,
+    type StatusTone,
+  } from '$lib/components/staff/statusBadge';
+  import SalesforceIconLink from '$lib/components/salesforce/SalesforceIconLink.svelte';
+  import { adminTalentHref } from '$lib/components/admin/adminTalentHref';
+  import { formatDateTimeFr } from '$lib/utils';
+  import { natureLabel } from '$lib/domain/authIdentity';
+  import {
+    REMEDY_WHO_LABELS,
+    type SyncErrorRemedy,
+  } from '$lib/domain/syncError';
+  import {
+    SYNC_ERRORS_FACET_DEFS,
+    SYNC_ERRORS_SORT_DEFAULT_DIR,
+    SYNC_ERRORS_VIEW,
+    type SyncErrorsSortKey,
+  } from '../view';
+  import type { PageData } from '../$types';
+
+  type Row = Awaited<PageData['queue']>[number];
+
+  let { rows }: { rows: Row[] } = $props();
+
+  const PER_PAGE = 25;
+
+  // Filters, sort and search live in the address (`../view`), so a reload or a
+  // link shared with a colleague shows the same queue.
+  const view = $derived(SYNC_ERRORS_VIEW.parse(page.url.searchParams));
+  const search = createUrlSearch();
+
+  const facets = $derived(
+    listFacets(
+      rows,
+      SYNC_ERRORS_FACET_DEFS,
+      SYNC_ERRORS_VIEW.facets,
+      view.facets,
+    ),
+  );
+  const controls = $derived(
+    facetControls(facets, (facet, values) =>
+      setListParams(SYNC_ERRORS_VIEW.facetParams(facet, values)),
+    ),
+  );
+
+  // Who can act decides how loud the remedy reads: nobody can is the one an
+  // admin must not go looking for a fix for.
+  const REMEDY_TONE: Record<SyncErrorRemedy['who'], StatusTone> = {
+    salesforce: 'warning',
+    jump: 'warning',
+    developer: 'warning',
+    automatic: 'neutral',
+    none: 'danger',
+  };
+
+  const columns: ColumnDef[] = $derived([
+    {
+      key: 'talent',
+      label: 'Talent',
+      sortable: true,
+      defaultSortDir: SYNC_ERRORS_SORT_DEFAULT_DIR.talent,
+      class: 'w-48',
+    },
+    {
+      key: 'problem',
+      label: 'Problème',
+      class: 'w-full',
+      filter: controls.filterOf('probleme'),
+    },
+    { key: 'holder', label: 'En cause', class: 'w-48' },
+    { key: 'remedy', label: 'Correction', class: 'w-72' },
+    {
+      key: 'since',
+      label: 'Depuis',
+      sortable: true,
+      defaultSortDir: SYNC_ERRORS_SORT_DEFAULT_DIR.since,
+      class: 'w-32',
+    },
+    {
+      key: 'last',
+      label: 'Dernière fois',
+      sortable: true,
+      defaultSortDir: SYNC_ERRORS_SORT_DEFAULT_DIR.last,
+      class: 'w-32',
+    },
+  ]);
+
+  function toggleSort(key: string) {
+    const next = nextSort<SyncErrorsSortKey>(
+      columns,
+      { key: view.sort, dir: view.dir },
+      key,
+    );
+    setListParams(SYNC_ERRORS_VIEW.sortParams(next.key, next.dir));
+  }
+
+  const subjectName = (r: Row) =>
+    `${r.subject.prenom} ${r.subject.nom}`.trim() || 'Contact sans nom';
+
+  function compareRows(a: Row, b: Row, key: SyncErrorsSortKey): number {
+    switch (key) {
+      case 'talent':
+        return subjectName(a).localeCompare(subjectName(b), 'fr');
+      case 'since':
+        return a.firstOccurredAt.getTime() - b.firstOccurredAt.getTime();
+      case 'last':
+        return a.lastOccurredAt.getTime() - b.lastOccurredAt.getTime();
+    }
+  }
+
+  // The talent a holder leads to: the other talent, or a parent's child.
+  function holderTalent(r: Row): { prenom: string; nom: string } | null {
+    const h = r.holder;
+    if (h?.kind === 'talent') return h;
+    if (h?.kind === 'parent') return h.child;
+    return null;
+  }
+
+  function holderName(r: Row): string | null {
+    const t = holderTalent(r);
+    if (t) return `${t.prenom} ${t.nom}`;
+    return r.holder?.kind === 'staff' ? r.holder.name : null;
+  }
+
+  const filtered = $derived.by(() => {
+    const tokens = searchTokens(search.value);
+    const out = rows.filter((r) => {
+      if (!matchesListFacets(r, facets, SYNC_ERRORS_FACET_DEFS)) return false;
+      return matchesAllTokens(
+        buildHaystack([
+          r.subject.prenom,
+          r.subject.nom,
+          r.subject.loginEmail,
+          r.subject.sfEmail,
+          r.subject.externalId,
+          holderName(r),
+          ...r.records.map((t) => `${t.prenom} ${t.nom}`),
+        ]),
+        tokens,
+      );
+    });
+    out.sort(
+      rowComparator({
+        compare: (a, b) => compareRows(a, b, view.sort),
+        dir: view.dir,
+      }),
+    );
+    return out;
+  });
+
+  // Paging only keeps the DOM small, so it stays on the page (`paginate.ts`),
+  // and goes back to the first page whenever the list it pages changes.
+  let currentPage = $derived.by(() => {
+    void filtered;
+    return 1;
+  });
+  const visible = $derived(paginate(filtered, currentPage, PER_PAGE));
+  const totalPages = $derived(pageCount(filtered.length, PER_PAGE));
+  const filtersApplied = $derived(
+    search.value.trim().length > 0 || controls.chips.length > 0,
+  );
+
+  // Clears the filters and the search, keeps the sort, as on every staff list.
+  function resetFilters() {
+    clearListFilters(SYNC_ERRORS_VIEW.clearedFacetParams(), search);
+  }
+
+  const subjectHref = (r: Row) =>
+    r.subject.talentId
+      ? adminTalentHref({
+          email: r.subject.loginEmail,
+          prenom: r.subject.prenom,
+          nom: r.subject.nom,
+        })
+      : null;
+
+  // A talent whose account holds the address logs in with it, and the address
+  // finds that one talent where its name finds every homonym (the subject
+  // itself, when one person is recorded twice). A guardian's child, or a
+  // talent the address is only the Salesforce address of, is found by name.
+  const holderHref = (r: Row) => {
+    const t = holderTalent(r);
+    if (!t) return null;
+    const login =
+      r.holder?.kind === 'talent' && r.holder.linked ? r.subject.sfEmail : null;
+    return adminTalentHref({ email: login, prenom: t.prenom, nom: t.nom });
+  };
+</script>
+
+{#snippet subject(r: Row)}
+  {@const href = subjectHref(r)}
+  <div class="min-w-0 space-y-0.5">
+    <span class="flex min-w-0 items-center gap-1.5">
+      {#if href}
+        <a {href} class="cursor-pointer font-bold hover:underline"
+          >{subjectName(r)}</a
+        >
+      {:else}
+        <span class="font-bold">{subjectName(r)}</span>
+      {/if}
+      <SalesforceIconLink
+        externalId={r.subject.externalId}
+        label="Ouvrir le contact dans Salesforce"
+        class="shrink-0"
+      />
+    </span>
+    {#if r.subject.sfEmail}
+      <span class="block font-mono text-xs break-all text-muted-foreground"
+        >{r.subject.sfEmail}</span
+      >
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet problem(r: Row)}
+  <div class="space-y-1">
+    <span class="flex items-center gap-1 font-semibold">
+      {r.explanation.label}
+      <InfoTooltip
+        text={r.explanation.whatHappened}
+        label="Ce qui s'est passé"
+      />
+    </span>
+    <p class="text-sm text-foreground-secondary">
+      {r.explanation.consequence}
+    </p>
+  </div>
+{/snippet}
+
+{#snippet holder(r: Row)}
+  {@const href = holderHref(r)}
+  {#if r.records.length > 0}
+    <!-- A refused merge: every fiche Jump holds for the person, to compare. -->
+    <ul class="space-y-0.5">
+      {#each r.records as t (t.talentId)}
+        <li>
+          <span class="flex items-center gap-1.5">
+            <a
+              href={adminTalentHref({
+                email: t.loginEmail,
+                prenom: t.prenom,
+                nom: t.nom,
+              })}
+              class="cursor-pointer text-sm hover:underline"
+              >{t.prenom} {t.nom}</a
+            >
+            <SalesforceIconLink
+              externalId={t.externalId}
+              label="Ouvrir cette fiche dans Salesforce"
+              class="shrink-0"
+            />
+          </span>
+          {#if t.loginEmail}
+            <span
+              class="block font-mono text-xs break-all text-muted-foreground"
+              >{t.loginEmail}</span
+            >
+          {/if}
+        </li>
+      {/each}
+    </ul>
+  {:else if r.holder}
+    {#if href}
+      <a {href} class="cursor-pointer text-sm hover:underline"
+        >{natureLabel(r.holder)}</a
+      >
+    {:else}
+      <span class="text-sm">{natureLabel(r.holder)}</span>
+    {/if}
+  {:else}
+    <span class="text-muted-foreground">-</span>
+  {/if}
+{/snippet}
+
+{#snippet remedy(r: Row)}
+  {@const fix = r.explanation.remedy}
+  <div class="space-y-1">
+    <span class={statusBadgeClass(REMEDY_TONE[fix.who])}>
+      {REMEDY_WHO_LABELS[fix.who]}
+    </span>
+    <p class="text-sm">
+      {fix.text}
+      {#if fix.who === 'jump'}
+        <a
+          href={fix.href}
+          class="inline-flex cursor-pointer items-center gap-0.5 font-semibold text-epi-blue hover:underline"
+          >Ouvrir <ExternalLink class="h-3 w-3" /></a
+        >
+      {/if}
+    </p>
+    {#if r.detail}
+      <Collapsible.Root>
+        <Collapsible.Trigger
+          class="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
+        >
+          Détail technique
+          <ChevronDown class="h-3 w-3" />
+        </Collapsible.Trigger>
+        <Collapsible.Content>
+          <p
+            class="mt-1 font-mono text-xs break-words whitespace-pre-wrap text-muted-foreground"
+          >
+            {r.detail}
+          </p>
+        </Collapsible.Content>
+      </Collapsible.Root>
+    {/if}
+  </div>
+{/snippet}
+
+{#if rows.length === 0}
+  <ResultsNotice
+    icon={CircleCheck}
+    title="Aucune erreur de synchronisation"
+    description="Le dernier passage a repris chaque contact et chaque compte de connexion."
+  />
+{:else}
+  <div class="space-y-4">
+    <DataTableToolbar
+      searchValue={search.value}
+      onSearchInput={(v) => (search.value = v)}
+      searchPlaceholder="Rechercher un talent ou une adresse…"
+      count={filtered.length}
+      countNoun="erreur"
+      {filtersApplied}
+    />
+
+    <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
+
+    <SortableTable
+      onResetFilters={filtersApplied ? resetFilters : undefined}
+      {columns}
+      rows={visible}
+      sortKey={view.sort}
+      sortDir={view.dir}
+      onSort={toggleSort}
+      rowKey={(r) => r.id}
+      layout="fixed"
+      cardsBelow="xl"
+      stickyHeader
+    >
+      {#snippet row(r: Row)}
+        <Table.Cell class="align-top whitespace-normal"
+          >{@render subject(r)}</Table.Cell
+        >
+        <Table.Cell class="align-top whitespace-normal"
+          >{@render problem(r)}</Table.Cell
+        >
+        <Table.Cell class="align-top whitespace-normal"
+          >{@render holder(r)}</Table.Cell
+        >
+        <Table.Cell class="align-top whitespace-normal"
+          >{@render remedy(r)}</Table.Cell
+        >
+        <Table.Cell class="align-top text-sm text-muted-foreground">
+          {formatDateTimeFr(r.firstOccurredAt)}
+        </Table.Cell>
+        <Table.Cell class="align-top text-sm text-muted-foreground">
+          {formatDateTimeFr(r.lastOccurredAt)}
+        </Table.Cell>
+      {/snippet}
+
+      {#snippet mobileRow(r: Row)}
+        <div class="space-y-3">
+          <div class="flex items-start justify-between gap-3">
+            {@render subject(r)}
+            <span class="shrink-0 text-xs text-muted-foreground">
+              depuis {formatDateTimeFr(r.firstOccurredAt)}
+            </span>
+          </div>
+          {@render problem(r)}
+          {#if r.holder || r.records.length > 0}
+            <div class="flex items-baseline gap-2">
+              <span class="epi-overline text-muted-foreground">En cause</span>
+              {@render holder(r)}
+            </div>
+          {/if}
+          {@render remedy(r)}
+        </div>
+      {/snippet}
+    </SortableTable>
+
+    <Pagination
+      page={currentPage}
+      {totalPages}
+      onPageChange={(p) => (currentPage = p)}
+    />
+  </div>
+{/if}

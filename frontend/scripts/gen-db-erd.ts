@@ -71,6 +71,7 @@ const DOMAINS: { title: string; models: string[] }[] = [
     title: 'Événements & Participations',
     models: [
       'Event',
+      'EventConfig_Category',
       'EventConfig_Module',
       'EventConfig_Template',
       'EventConfig_TemplateModule',
@@ -117,12 +118,15 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'PlanningTemplateDay',
       'PlanningTemplateSlot',
       // The CTFd activities: the hosts, the contents they serve, what an event
-      // offers, a talent's mirrored progress on one, and the pictures of its cover.
+      // offers, a talent's mirrored progress on one, the pictures of its cover,
+      // and the domains the subject catalogue files it under.
       'Workshop_Instance',
       'Workshop_Activity',
       'EventConfig_Workshop',
       'Workshop_Participation',
       'Workshop_CoverImage',
+      'Workshop_Domain',
+      'Workshop_ActivityDomain',
     ],
   },
   {
@@ -205,12 +209,13 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'AppSetting',
       'Signatory',
       'AdminFile',
-      'SyncError',
+      'Sync_Error',
       'Sync_Source',
       'Sync_Run',
       'Sync_Cadence',
       'Sync_PruneHold',
       'Sync_Request',
+      'Sync_ErasedContact',
       'AdminApi_Token',
       'AdminApi_Call',
     ],

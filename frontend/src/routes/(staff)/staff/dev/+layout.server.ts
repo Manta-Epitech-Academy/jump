@@ -28,8 +28,8 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
   const db = scopedPrisma(getCampusId(locals));
   const timezone = getCampusTimezone(locals);
   const phaseOverride = locals.stagePhaseOverride;
-  // `workspace` lists the campus's events (those with at least one module) for
-  // the sidebar switcher.
+  // `workspace` lists the campus's events (those with at least one module): the
+  // event the menu names, and the years the header's menu can go to.
   const workspace = await resolveWorkspaceEvents(db, timezone);
 
   return {

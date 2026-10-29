@@ -101,8 +101,28 @@ async function refreshTalentOnboardingProjection(
 }
 
 /**
+ * Lock a talent's row until the transaction ends: the first lock every
+ * onboarding write takes, before the dossier's.
+ *
+ * Two writes of one talent then queue rather than deadlock. Writing a dossier
+ * writes `Talent` too (the projection refresh below), so a writer that took
+ * the dossier first and one that took the talent first each held the row the
+ * other waited for, and Postgres aborted one of them: a guardian's
+ * co-signature landing during their child's signature, say, or a step going
+ * back in another tab. Taking it again in the same transaction is free.
+ */
+export async function lockTalent(
+  tx: Prisma.TransactionClient,
+  talentId: string,
+): Promise<void> {
+  await tx.$executeRaw`
+    SELECT 1 FROM "Talent" WHERE "id" = ${talentId} FOR UPDATE`;
+}
+
+/**
  * Upserts a talent's dossier for a school year and, when that dossier is their
  * most recent, refreshes the flat projection on `Talent` in the same transaction.
+ * The talent's row is locked first ({@link lockTalent}).
  */
 export async function upsertOnboardingYearRecord(
   tx: Prisma.TransactionClient,
@@ -110,6 +130,7 @@ export async function upsertOnboardingYearRecord(
 ): Promise<Onboarding_Record> {
   const { talentId, schoolYear, patch } = input;
 
+  await lockTalent(tx, talentId);
   const record = await tx.onboarding_Record.upsert({
     where: { talentId_schoolYear: { talentId, schoolYear } },
     create: { talentId, schoolYear, ...patch },

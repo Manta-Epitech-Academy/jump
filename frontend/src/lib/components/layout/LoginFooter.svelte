@@ -1,5 +1,6 @@
 <script lang="ts">
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import AppRevision from './AppRevision.svelte';
 
   type Props = {
     /** Prompt that introduces the cross-link, e.g. "Élève ou parent ?". */
@@ -14,7 +15,11 @@
 </script>
 
 <!-- Shared footer for every login surface: the cross-link to the other
-     audience's login, plus the constant Epitech credit. -->
+     audience's login, the constant Epitech credit, and the deployed commit,
+     here because a login still renders when the admin space will not. The
+     commit is for whoever debugs an environment, not for the person signing
+     in, so it sits in the corner of the page's positioned <main> instead of
+     in this stack, at the overline floor. -->
 <div class="space-y-3 text-center">
   <p class="text-sm text-muted-foreground">
     {prompt}
@@ -40,4 +45,8 @@
       Epitech
     </a>
   </p>
+
+  <AppRevision
+    class="absolute right-4 bottom-2 text-overline text-muted-foreground"
+  />
 </div>

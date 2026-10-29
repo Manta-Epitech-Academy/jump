@@ -10,9 +10,10 @@
 
 import type { StaffRole, TalentDeletionRequestStatus } from '@prisma/client';
 import type { World, TalentRef, StaffRef, CampusRef, EventRef } from '../world';
-import { id, seq } from '../ids';
+import { id, seedSalesforceId, seq } from '../ids';
 import { withGuaranteed } from '../rng';
 import { COHORT_NOUNS } from '../../../src/lib/domain/event';
+import { isShownInDevSpace } from '../../../src/lib/domain/sfMemberStatus';
 import {
   USAGE_FEATURES,
   USAGE_FEATURE_DEFS,
@@ -23,13 +24,20 @@ import {
 } from '../../../src/lib/domain/usage';
 
 /**
- * Unresolved sync errors.
+ * Open sync errors, one of each cause.
  *
- * Production carries 142, all of one type, 106 still open, and one of them has
- * recurred 11357 times. That last number is the point: a queue screen that
- * renders an occurrence count has to survive a five-digit one, and a triage
- * screen has to make the difference between a one-off and something that has
- * been failing on every sync for months.
+ * Production held 142 rows of one undifferentiated type, 106 open, one of them
+ * met on every pass for months: an open error has to read as old, so these
+ * start four months back and were met again yesterday. A third are nameless
+ * contacts, which carry what Salesforce sent and no talent; the rest belong to
+ * a talent, as an address already taken or a technical failure; and one is a
+ * contact whose talents Jump would not merge.
+ *
+ * The address conflicts read as settled on the page ("libre aujourd'hui"):
+ * nothing here holds the talent's address, because a seeded talent's login
+ * and Salesforce address always agree (`assert/reachability.ts` says why that
+ * divergence is never placed). The holders are proved by the integration
+ * tests instead.
  */
 export function addSyncErrors(
   world: World,
@@ -37,27 +45,47 @@ export function addSyncErrors(
 ): void {
   const clock = world.ctx.clock;
   for (const [index, talent] of talents.entries()) {
-    const resolved = index % 4 === 0;
-    // An error the rebind can act on names the fiche it collided with; one
-    // raised before any fiche was resolved does not, and `syncErrorService`'s
-    // refusal branch is reachable only through the second. A queue where every
-    // row carries an existing extId can never show that refusal.
-    const collided = index % 3 !== 0;
-    world.buffer.syncError.push({
+    const met = {
       id: id('sye', seq(index, 3)),
-      errorType: 'DUPLICATE_EMAIL',
-      email: talent.email,
-      attemptedExtId: `sf_dup_${seq(index, 6)}`,
-      existingExtId: collided ? `sf_${seq(index, 6)}` : null,
-      // Set on an error raised while syncing a campaign rather than a contact.
-      eventExtId: index % 5 === 0 ? `sfc_${seq(index, 6)}` : null,
-      talentName: `${talent.prenom} ${talent.nom}`,
-      message: 'Une autre fiche porte déjà cette adresse email.',
-      resolved,
-      resolvedAt: resolved ? clock.days(-9) : null,
-      occurrenceCount: index === 0 ? 11357 : 1 + index * 3,
+      firstOccurredAt: clock.days(-120 + index),
       lastOccurredAt: clock.days(-1),
-      createdAt: clock.days(-120),
+    };
+    if (index % 3 === 0) {
+      // Salesforce sends one half of the name, or none, and an address or
+      // none: both halves of each nullable column.
+      world.buffer.sync_Error.push({
+        ...met,
+        kind: 'MISSING_NAME',
+        externalId: `sf_noname_${seq(index, 6)}`,
+        contactName: index % 2 === 0 ? talent.nom : null,
+        email: index % 6 === 0 ? talent.email : null,
+      });
+    } else {
+      world.buffer.sync_Error.push({
+        ...met,
+        kind: index % 3 === 1 ? 'ADDRESS_TAKEN' : 'LOGIN_FAILURE',
+        talentId: talent.id,
+        detail:
+          index % 3 === 1
+            ? null
+            : 'Timed out fetching a new connection from the connection pool.',
+      });
+    }
+  }
+  // A contact Salesforce ties to several talents, more than one of them used,
+  // which Jump would not merge. No seeded talent carries a Salesforce id, so
+  // the page finds no fiche behind its ids; the integration tests place them.
+  const first = talents[0];
+  if (first) {
+    world.buffer.sync_Error.push({
+      id: id('sye', seq(talents.length, 3)),
+      firstOccurredAt: clock.days(-30),
+      lastOccurredAt: clock.days(-1),
+      kind: 'MERGE_REFUSED',
+      externalId: 'sf_split_000001',
+      contactName: `${first.prenom} ${first.nom}`,
+      email: first.email,
+      convertedLeadIds: ['sf_lead_000001', 'sf_lead_000002'],
     });
   }
 }
@@ -144,7 +172,11 @@ export function addSyncRuns(world: World): void {
  * a request is what runs `anonymizeTalent`, so its talent can only be an erased
  * one (`addErasedTalent`), never somebody who still carries a name, a phone and
  * a Salesforce id. Giving it a drawn talent was a state the application cannot
- * reach.
+ * reach. Fulfilling also bars the contact from the sync (`Sync_ErasedContact`),
+ * under an id nothing else names, since the erasure keeps no link to it, and
+ * shaped like a Salesforce one so an admin can readmit it locally. A second
+ * bar stands for an earlier erasure an admin has since lifted: a readmission
+ * stamps the row rather than deleting it.
  */
 export function addDeletionRequests(
   world: World,
@@ -166,6 +198,16 @@ export function addDeletionRequests(
         ? addErasedTalent(world, resolvedAt)
         : drawn.shift();
     if (!talent) break;
+    if (status === 'fulfilled') {
+      world.buffer.sync_ErasedContact.push(
+        { externalId: seedSalesforceId(1) },
+        {
+          externalId: seedSalesforceId(2),
+          readmittedAt: world.ctx.clock.days(-5),
+          readmittedBy: staffUserId,
+        },
+      );
+    }
     world.buffer.talentDeletionRequest.push({
       id: id('tdr', status),
       talentId: talent.id,
@@ -202,7 +244,10 @@ export function addDeletionRequests(
  * about when it asks which of its accounts belong to erased talents.
  *
  * Kept out of `world.talents` on purpose, so no later scenario can draw it and
- * hang an enrolment, a closing or a note on somebody who no longer exists.
+ * hang an enrolment, a closing or a note on somebody who no longer exists. It
+ * carries the one enrolment an erasure keeps, on an event that had started by
+ * then: the « Anonymisé » row a roster shows after an erasure. One on an event
+ * yet to start goes with the erasure, so none is seeded.
  */
 export function addErasedTalent(world: World, erasedAt: Date): TalentRef {
   const talentId = id('tal', 'efface');
@@ -229,6 +274,19 @@ export function addErasedTalent(world: World, erasedAt: Date): TalentRef {
     anonymizedAt: erasedAt,
     createdAt: world.ctx.clock.days(-300),
   });
+  // Pushed rather than `world.enrol`ed, which would put the talent on the
+  // event's roster for later scenarios to draw from.
+  const attended = world.events.find((event) => event.date < erasedAt);
+  if (attended) {
+    world.buffer.participation.push({
+      id: id('prt', attended.id.replace(/^sd_/, ''), 'tal_efface'),
+      talentId,
+      eventId: attended.id,
+      campusId: attended.campusId,
+      sfMemberStatus: null,
+      shownInDevSpace: isShownInDevSpace(null, attended.shownStatuses),
+    });
+  }
   return {
     id: talentId,
     userId,
@@ -238,6 +296,7 @@ export function addErasedTalent(world: World, erasedAt: Date): TalentRef {
     niveau: null,
     campusId: null,
     parentEmail: null,
+    declaredCivilite: null,
   };
 }
 

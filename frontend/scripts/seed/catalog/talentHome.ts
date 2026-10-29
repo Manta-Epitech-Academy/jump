@@ -8,8 +8,9 @@
  *   - Paris writes both, the highlight with an animated picture (stored with
  *     its still), so a talent there sees the note in Actualités and the
  *     invitation leading the home's hero on a day without an activity (the
- *     picture is a key without bytes, like every stored file the generator
- *     writes, so the hero's fallback is what shows);
+ *     picture is a key without bytes, since the generator stores the bytes of
+ *     the activities' pictures only (`storage.ts`), so the hero's fallback is
+ *     what shows);
  *   - Marseille writes a note and put forward an event whose day has passed,
  *     which the home must no longer show and `config_talent_home` must report
  *     as no longer shown. Its picture is a still, the case of a picture with no

@@ -29,6 +29,8 @@ type EventConfigTemplateSummary = {
   publicName: string | null;
   /** Cohort noun the preset prefills ("stagiaire", ...), or null when unnamed. */
   cohortNoun: string | null;
+  /** The category the preset prefills (its key), or null when it names none. */
+  categoryKey: string | null;
   /** Arrival time-of-day the preset prefills as "HH:MM", or null when unset. */
   startTime: string | null;
   /** Optional feedback form (weak FK), prefilled when bilan is enabled. */
@@ -50,6 +52,7 @@ type TemplateRow = {
   description: string | null;
   publicName: string | null;
   cohortNoun: string | null;
+  categoryKey: string | null;
   startMinutes: number | null;
   feedbackFormId: string | null;
   diplomaTemplateId: string | null;
@@ -76,6 +79,7 @@ function toSummary(t: TemplateRow): EventConfigTemplateSummary {
     description: t.description,
     publicName: t.publicName,
     cohortNoun: t.cohortNoun,
+    categoryKey: t.categoryKey,
     startTime: minutesToHHMM(t.startMinutes) || null,
     feedbackFormId: t.feedbackFormId,
     diplomaTemplateId: t.diplomaTemplateId,
@@ -123,6 +127,22 @@ async function resolveClosingTemplateId(raw: string): Promise<string | null> {
   return id;
 }
 
+/**
+ * Same for the category. An archived one is accepted: a preset is a copy of a
+ * configuration, and the event that sees it applied is what may not newly
+ * receive it (`EventService.updateEventConfig`).
+ */
+async function resolveCategoryKey(raw: string): Promise<string | null> {
+  const key = raw.trim();
+  if (!key) return null;
+  const category = await prisma.eventConfig_Category.findUnique({
+    where: { key },
+    select: { key: true },
+  });
+  if (!category) throw error(400, 'Catégorie introuvable.');
+  return key;
+}
+
 /** Build the template's module child rows from a config snapshot (validated per module). */
 function moduleCreateRows(
   modules: string[],
@@ -162,6 +182,7 @@ export const EventConfigTemplateService = {
     description: string;
     publicName: string;
     cohortNoun: string;
+    categoryKey: string;
     startTime: string;
     modules: string[];
     moduleSettings: Record<string, unknown>;
@@ -193,6 +214,7 @@ export const EventConfigTemplateService = {
     const description = input.description.trim() || null;
     const publicName = input.publicName.trim() || null;
     const cohortNoun = input.cohortNoun.trim() || null;
+    const categoryKey = await resolveCategoryKey(input.categoryKey);
     const startMinutes = hhmmToMinutes(input.startTime);
     const shownRows = (await resolveKnownStatuses(input.shownStatuses)).map(
       (status) => ({ status }),
@@ -218,6 +240,7 @@ export const EventConfigTemplateService = {
             description,
             publicName,
             cohortNoun,
+            categoryKey,
             startMinutes,
             feedbackFormId,
             diplomaTemplateId,
@@ -237,6 +260,7 @@ export const EventConfigTemplateService = {
         description,
         publicName,
         cohortNoun,
+        categoryKey,
         startMinutes,
         feedbackFormId,
         diplomaTemplateId,

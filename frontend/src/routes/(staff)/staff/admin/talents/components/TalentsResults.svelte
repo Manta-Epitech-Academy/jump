@@ -1,25 +1,17 @@
 <script lang="ts">
-  import Funnel from '@lucide/svelte/icons/funnel';
   import LogIn from '@lucide/svelte/icons/log-in';
   import Users from '@lucide/svelte/icons/users';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import UsersRound from '@lucide/svelte/icons/users-round';
   import UserX from '@lucide/svelte/icons/user-x';
   import Download from '@lucide/svelte/icons/download';
-  import FilterX from '@lucide/svelte/icons/filter-x';
   import Zap from '@lucide/svelte/icons/zap';
   import Bomb from '@lucide/svelte/icons/bomb';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import Phone from '@lucide/svelte/icons/phone';
   import Pencil from '@lucide/svelte/icons/pencil';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
-  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
-  import SegmentedFilter, {
-    type SegmentOption,
-  } from '$lib/components/staff/SegmentedFilter.svelte';
-  import SearchableSelect, {
-    type SelectOption,
-  } from '$lib/components/staff/SearchableSelect.svelte';
+  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Badge } from '$lib/components/ui/badge';
@@ -28,10 +20,10 @@
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
   import type { ColumnDef } from '$lib/components/staff/datatable/types';
-  import * as Select from '$lib/components/ui/select';
+  import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  import { offerFacets } from '$lib/domain/listFacets';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import EmptyState from '$lib/components/EmptyState.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentContactDialog from '$lib/components/students/StudentContactDialog.svelte';
   import EditParentEmailDialog from '../EditParentEmailDialog.svelte';
@@ -40,7 +32,7 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
-  import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
+  import { niveauLabel } from '$lib/domain/niveau';
   import { formatPersonName, civiliteCourtesyTitle } from '$lib/domain/profile';
   import {
     TALENT_STATUS_LABELS,
@@ -49,33 +41,40 @@
     type TalentAccountStatus,
   } from '../labels';
   import { track } from '$lib/analytics';
-  import type { TalentsCohort, TalentFilters } from '../query';
+  import type { TalentsCohort } from '../query';
+  import {
+    parseTalentFilters,
+    TALENTS_SORT_DEFAULT_DIR,
+    TALENTS_VIEW,
+    type TalentsSortKey,
+  } from '../view';
   import { nextSort } from '$lib/components/staff/datatable/sort';
   import {
+    clearListFilters,
     goToListPage,
-    resetListParams,
     setListParams,
   } from '$lib/components/staff/datatable/urlList';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import { lastActiveLabel } from '$lib/components/staff/lastActive';
 
-  // The streamed cohort payload plus the parsed filters (the cheap shell value
-  // the toolbar needs). This component owns every data-dependent surface (KPI
-  // tiles, toolbar, table, pagination and the row dialogs), so it mounts only
-  // once the cohort resolves behind the page shell.
-  let {
-    talents,
-    campuses,
-    totalItems,
-    totalPages,
-    stats,
-    // Bound as `filterState` because the toolbar's `{#snippet filters()}` already
-    // owns the name `filters` in this scope: the prop and the snippet would
-    // otherwise shadow each other.
-    filters: filterState,
-  }: TalentsCohort & { filters: TalentFilters } = $props();
+  // The streamed cohort payload. This component owns every data-dependent
+  // surface (KPI tiles, toolbar, table, pagination and the row dialogs), so it
+  // mounts only once the cohort resolves behind the page shell.
+  let { talents, facetCounts, totalItems, totalPages, stats }: TalentsCohort =
+    $props();
 
+  // The view lives in the address (`../view`); read here, the sort, the page
+  // and the ticked values answer the click before the server does. The counts
+  // come with the cohort, over the whole directory, and go through the rules
+  // the server applied to them (`offerFacets`).
+  const view = $derived(parseTalentFilters(page.url.searchParams));
   const search = createUrlSearch();
+  const facets = $derived(offerFacets(facetCounts, view.facets));
+  const controls = $derived(
+    facetControls(facets, (facet, values) =>
+      setListParams(TALENTS_VIEW.facetParams(facet, values)),
+    ),
+  );
   let impersonating = $state<string | null>(null);
 
   // Log in as a talent through the shared admin endpoint: the same one the
@@ -220,7 +219,9 @@
 
   // Whether the "jamais connectés" tile's filter is active (it drills into
   // Statut=Jamais connecté), so the tile renders pressed.
-  const neverConnectedActive = $derived(filterState.status === 'never');
+  const neverConnectedActive = $derived(
+    view.facets.statut.length === 1 && view.facets.statut[0] === 'never',
+  );
 
   // Current filter querystring, forwarded to the export endpoint so the
   // download honours exactly what's on screen. `page` is harmless (export
@@ -231,70 +232,45 @@
     `${page.url.pathname}/export?${page.url.searchParams.toString()}`,
   );
 
-  // Mirrors the four states of the table's Statut column, so filtering and the
-  // badge speak the same language: complete onboarding, mid-onboarding, no
-  // account, no dossier at all. Hand-written rather than derived from
-  // TALENT_STATUS_LABELS because the filter wording is plural and the chip
-  // wording is singular; keep them in step by hand when a state is added.
-  const statutOptions: SegmentOption[] = [
-    { value: 'all', label: 'Tous' },
-    { value: 'active', label: 'Onboardés' },
-    { value: 'onboarding', label: 'Onboarding' },
-    { value: 'never', label: 'Jamais connectés' },
-    { value: 'no_dossier', label: 'Sans dossier' },
-  ];
-  // Parent completion status: "En attente" = règlement not co-signed or
-  // image-rights not decided (the blocked parents the SMS relance targets);
-  // "Complet" = both done. Filtering to "En attente" + the toolbar count is the
-  // before/after-relance stat. Only talents with a parent on file land in either
-  // bucket. Mirrors the server `parentStatus` filter.
-  const parentStatusOptions: SegmentOption[] = [
-    { value: 'all', label: 'Tous' },
-    { value: 'pending', label: 'En attente' },
-    { value: 'complete', label: 'Complet' },
-  ];
-
-  // `status`/`parentStatus` default to 'all' server-side; the others are empty
-  // when inactive (campus is a multi-select id list).
   const hasActiveFilters = $derived(
-    Boolean(
-      filterState.q || filterState.niveau || filterState.campusIds.length,
-    ) ||
-      filterState.status !== 'all' ||
-      filterState.parentStatus !== 'all',
+    controls.chips.length > 0 || search.value.trim().length > 0,
   );
 
+  // Clears the filters and the search, keeps the sort.
   function resetFilters() {
-    search.clear();
-    resetListParams();
+    clearListFilters(TALENTS_VIEW.clearedFacetParams(), search);
   }
 
-  const columns: ColumnDef[] = [
-    { key: 'nom', label: 'Talent', sortable: true },
-    { key: 'niveau', label: 'Niveau', sortable: true },
-    { key: 'campus', label: 'Campus' },
-    { key: 'parent', label: 'Parent' },
-    { key: 'xp', label: 'Progression', sortable: true },
-    { key: 'statut', label: 'Statut' },
-    { key: 'activite', label: 'Activité', sortable: true },
-    { key: 'action', label: 'Action', align: 'right' },
-  ];
+  // One control per column: the name, the XP and the last activity sort, the
+  // niveau, the campus, the parent and the account state filter.
+  const columns = $derived.by<ColumnDef[]>(() => {
+    const sortable = (key: TalentsSortKey) => ({
+      key,
+      sortable: true,
+      defaultSortDir: TALENTS_SORT_DEFAULT_DIR[key],
+    });
+    return [
+      { ...sortable('nom'), label: 'Talent' },
+      { key: 'niveau', label: 'Niveau', filter: controls.filterOf('niveau') },
+      { key: 'campus', label: 'Campus', filter: controls.filterOf('campus') },
+      { key: 'parent', label: 'Parent', filter: controls.filterOf('parent') },
+      { ...sortable('xp'), label: 'Progression' },
+      { key: 'statut', label: 'Statut', filter: controls.filterOf('statut') },
+      { ...sortable('activite'), label: 'Activité' },
+      { key: 'action', label: 'Action', align: 'right' },
+    ];
+  });
 
   // Server-side sort: clicking a header swaps `?sort=&dir=` and reloads. The
-  // baseline (no `sort` param) keeps the most-recently-active-first ordering.
+  // baseline (no `sort` param) is the most-recently-active-first ordering.
   function toggleSort(key: string) {
-    const next = nextSort(
+    const next = nextSort<TalentsSortKey>(
       columns,
-      { key: filterState.sort, dir: filterState.dir },
+      { key: view.sort, dir: view.dir },
       key,
     );
-    setListParams({ sort: next.key, dir: next.dir });
+    setListParams(TALENTS_VIEW.sortParams(next.key, next.dir));
   }
-
-  // Campus list can be long, so it gets a searchable select.
-  const campusOptions = $derived<SelectOption[]>(
-    campuses.map((c) => ({ value: c.id, label: c.name })),
-  );
 </script>
 
 <div class="space-y-6">
@@ -335,16 +311,17 @@
       helpText="Talent importé sans compte de connexion : jamais venu sur la plateforme. Cliquez pour filtrer."
       tone="orange"
       icon={UserX}
-      onclick={() => setListParams({ status: 'never', parentStatus: '' })}
+      onclick={() =>
+        setListParams({
+          ...TALENTS_VIEW.facetParams('statut', ['never']),
+          ...TALENTS_VIEW.facetParams('parent', []),
+        })}
       pressed={neverConnectedActive}
     />
   </div>
 
-  <!-- Filter toolbar: search + filtered count on the shared DataTableToolbar,
-       with the admin-specific composing filters dropped into its snippet. Parent
-       stays a segmented radio at three options; Statut, Niveau and Campus are
-       dropdowns, the first for crossing the four-option ceiling and the other two
-       for having far more than that. -->
+  <!-- Search + filtered count on the shared DataTableToolbar; the filters sit
+       in the headers of the columns they filter. -->
   <DataTableToolbar
     searchValue={search.value}
     onSearchInput={(v) => (search.value = v)}
@@ -353,73 +330,6 @@
     countNoun="talent"
     filtersApplied={hasActiveFilters}
   >
-    {#snippet filters()}
-      <!-- Statut is the one filter here past the four-option ceiling (see
-           `SegmentedFilter`): five uppercase labels came to 51 characters, twice
-           the widest segmented group in the app, on a row that also carries the
-           search box, Parent, Niveau and Campus. Parent stays segmented at three:
-           the rule is the ceiling, not the neighbourhood. -->
-      <div class="flex items-center gap-2">
-        <span class="epi-overline text-muted-foreground"> Statut </span>
-        <FilterSelect
-          ariaLabel="Filtrer par statut de compte"
-          options={statutOptions}
-          value={filterState.status}
-          onChange={(v) => setListParams({ status: v === 'all' ? '' : v })}
-        />
-      </div>
-
-      <div class="flex items-center gap-2">
-        <span class="epi-overline text-muted-foreground"> Parent </span>
-        <SegmentedFilter
-          ariaLabel="Filtrer par statut du parent"
-          options={parentStatusOptions}
-          value={filterState.parentStatus || 'all'}
-          onChange={(v) =>
-            setListParams({ parentStatus: v === 'all' ? '' : v })}
-        />
-      </div>
-
-      <div class="w-52">
-        <Select.Root
-          type="single"
-          value={filterState.niveau || 'all'}
-          onValueChange={(v) => setListParams({ niveau: v === 'all' ? '' : v })}
-        >
-          <Select.Trigger class="w-full rounded-sm">
-            <Funnel class="mr-2 h-4 w-4 text-muted-foreground" />
-            {filterState.niveau
-              ? niveauLabel(filterState.niveau)
-              : 'Tous les niveaux'}
-          </Select.Trigger>
-          <Select.Content>
-            <Select.Item value="all">Tous les niveaux</Select.Item>
-            {#each NIVEAUX as n}
-              <Select.Item value={n}>{niveauLabel(n)}</Select.Item>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-      </div>
-
-      <div class="w-52">
-        <SearchableSelect
-          multiple
-          options={campusOptions}
-          values={filterState.campusIds}
-          onChangeMultiple={(ids) => setListParams({ campus: ids.join(',') })}
-          allLabel="Tous les campus"
-          placeholder="Tous les campus"
-          searchPlaceholder="Rechercher un campus…"
-          emptyLabel="Aucun campus."
-          triggerClass="w-full"
-        >
-          {#snippet icon()}
-            <Funnel class="h-4 w-4 text-muted-foreground" />
-          {/snippet}
-        </SearchableSelect>
-      </div>
-    {/snippet}
-
     {#snippet actions()}
       <!-- Re-derives the filter set server-side and exports every matching row
            (the table only holds the current page of 50). -->
@@ -432,29 +342,18 @@
         Exporter (XLSX)
       </a>
     {/snippet}
-
-    {#snippet countActions()}
-      {#if hasActiveFilters}
-        <Button
-          variant="ghost"
-          size="sm"
-          onclick={resetFilters}
-          class="h-7 px-2 text-muted-foreground hover:text-foreground"
-        >
-          <FilterX class="mr-1.5 h-4 w-4" />
-          Réinitialiser
-        </Button>
-      {/if}
-    {/snippet}
   </DataTableToolbar>
+
+  <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
   <SortableTable
     {columns}
     rows={talents}
-    sortKey={filterState.sort || null}
-    sortDir={filterState.dir}
+    sortKey={view.sort}
+    sortDir={view.dir}
     onSort={toggleSort}
     rowKey={(t) => t.id}
+    onResetFilters={hasActiveFilters ? resetFilters : undefined}
   >
     {#snippet row(talent)}
       <Table.Cell>
@@ -655,21 +554,9 @@
         </div>
       </Table.Cell>
     {/snippet}
-
-    {#snippet empty()}
-      <EmptyState
-        icon={Users}
-        title="Aucun talent"
-        description="Aucun talent ne correspond à ces filtres."
-      />
-    {/snippet}
   </SortableTable>
 
-  <Pagination
-    page={filterState.page}
-    {totalPages}
-    onPageChange={goToListPage}
-  />
+  <Pagination page={view.page} {totalPages} onPageChange={goToListPage} />
 </div>
 
 <StudentContactDialog

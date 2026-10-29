@@ -23,7 +23,7 @@ import type { IdentityField } from '../../src/lib/domain/feedbackForms/schema';
 import type { SeedContext } from './context';
 import { createBuffer, type Buffered } from './writer';
 import { id, seq, slug } from './ids';
-import { SEED_MAIL_DOMAIN, STAFF_MAIL_DOMAIN } from './catalog/people';
+import { PRENOMS, SEED_MAIL_DOMAIN, STAFF_MAIL_DOMAIN } from './catalog/people';
 import type { CampusSpec } from './catalog/campuses';
 import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
@@ -36,10 +36,11 @@ import {
   minigameRankBonusLimit,
 } from '../../src/lib/domain/xp';
 import { workshopGrantSourceId } from '../../src/lib/domain/workshops';
-import { fromWallClock } from '../../src/lib/domain/planningTime';
+import { eventEndInstant, eventStartInstant } from '../../src/lib/domain/event';
 import {
   CIVILITE_OPTIONS,
   PARENT_TYPE_OPTIONS,
+  type Civilite,
 } from '../../src/lib/domain/profile';
 import { INTEREST_COUNTS } from '../../src/lib/validation/onboarding';
 
@@ -146,6 +147,13 @@ export type TalentRef = {
   niveau: string | null;
   campusId: string | null;
   parentEmail: string | null;
+  /**
+   * What the talent answers at the identity step. `Talent.civilite` only holds
+   * it once that step is validated: before, it holds whatever Salesforce
+   * claims, which may be nothing. Null only on an anonymised talent, who has
+   * nobody left to declare anything.
+   */
+  declaredCivilite: Civilite | null;
 };
 export type BankQuestion = {
   id: string;
@@ -193,6 +201,8 @@ export type EventRef = {
   publicName: string | null;
   campusId: string;
   campusName: string;
+  /** The first day on the generator's clock (UTC midnight), for the
+   * generator's own arithmetic. The row holds it at campus midnight. */
   date: Date;
   endDate: Date | null;
   /** Weekdays the event actually runs, for émargement and planning. */
@@ -325,6 +335,35 @@ const CAREER_MIX = [
   [10, 0.02],
   [11, 0.04],
 ] as const satisfies readonly (readonly [number, number])[];
+
+/**
+ * A generated person's civility, from PROFILE.md's « Civilité » block: the
+ * talents of the production cohort who carry one, as counts.
+ *
+ * Only the two values Salesforce can send. « Autre » is declared by one talent
+ * in 6 283, so the draw would produce none at any profile: `edgeTalents` places
+ * it instead, as `.claude/rules/seed.md` asks of every rare state.
+ */
+const CIVILITE_MIX = [
+  ['homme', 4401],
+  ['femme', 974],
+] as const satisfies readonly (readonly [Exclude<Civilite, 'autre'>, number])[];
+
+/**
+ * Whether Salesforce holds the person's gender, from the same block: of the
+ * 5 245 production talents who never validated the identity step, and so carry
+ * exactly what the sync wrote, 4 338 have a civility and 907 have none.
+ *
+ * Drawn over every drawn person, though the measure only covers those who
+ * never confirmed: a talent who did confirm overwrote whatever the sync wrote,
+ * so Salesforce's coverage of them could not be read off `Talent.civilite`, and
+ * nothing says it differs. A placed person is not drawn: see
+ * `salesforceCivilite`.
+ */
+const SF_GENDER_COVERAGE = [
+  [true, 4338],
+  [false, 907],
+] as const satisfies readonly (readonly [boolean, number])[];
 
 export class World {
   readonly buffer: Buffered = createBuffer();
@@ -463,11 +502,19 @@ export class World {
    */
   private readonly careerRng: Rng;
 
+  /**
+   * The stream a talent's person is drawn from (civility, then given name) and
+   * whether Salesforce holds that civility. Forked for the same reason as
+   * `careerRng`: `addTalent` runs for every talent in the dataset.
+   */
+  private readonly identityRng: Rng;
+
   constructor(readonly ctx: SeedContext) {
     this.sfRng = ctx.rng.fork('sfMemberStatus');
     this.wizardRng = ctx.rng.fork('wizard');
     this.staffRng = ctx.rng.fork('staffActivity');
     this.careerRng = ctx.rng.fork('career');
+    this.identityRng = ctx.rng.fork('identity');
   }
 
   /** Monotonic, so ids stay unique however scenarios are ordered. */
@@ -494,6 +541,7 @@ export class World {
       // these a real external name and real minors' data starts landing on it.
       externalName: null,
       timezone: spec.timezone,
+      departement: spec.departement,
       contactEmail:
         spec.withContactEmail === false
           ? null
@@ -510,28 +558,6 @@ export class World {
     );
     if (!row) throw new Error(`No buffered talent ${talentId}.`);
     return row;
-  }
-
-  /**
-   * Both sides of a talent's civility, placed: what the talent confirmed, and
-   * what Salesforce claims for the same person.
-   *
-   * The wizard draws the first (`addDossier`), and the mirror is written
-   * before the dossier exists, so neither can be fixed at creation. Placing
-   * them afterwards is what makes the pair deterministic: an agreement and a
-   * disagreement are both states the reconciliation reports differently, and a
-   * draw that happened to land on one would leave the other with no example.
-   */
-  placeCivilite(
-    talent: TalentRef,
-    civilite: { jump: string; salesforce: string },
-  ): void {
-    this.talentRow(talent.id).civilite = civilite.jump;
-    const mirror = this.buffer.talentSfImport.find(
-      (candidate) => candidate.talentId === talent.id,
-    );
-    if (!mirror) throw new Error(`No buffered SF mirror for ${talent.id}.`);
-    mirror.civilite = civilite.salesforce;
   }
 
   campus(name: string): CampusRef {
@@ -777,7 +803,12 @@ export class World {
    * screen.
    */
   addTalent(opts: {
-    prenom: string;
+    /**
+     * The person, when a scenario places one rather than letting it be drawn:
+     * a given name and the civility the talent declares at the identity step.
+     * A placed person consumes no draw, like an explicit `career`.
+     */
+    person?: { prenom: string; civilite: Civilite };
     nom: string;
     niveau: string | null;
     campus: CampusRef | null;
@@ -797,17 +828,22 @@ export class World {
     /**
      * What Salesforce claims, when it differs from what the talent confirmed.
      * A phone number may be an explicit `null`: a contact Salesforce holds no
-     * number for, which the reconciliation reports as « manquant ».
+     * number for, which the reconciliation reports as « manquant ». So may a
+     * civility, which otherwise agrees with a placed person and is drawn for
+     * a drawn one (see `salesforceCivilite`).
      */
     sfClaims?: {
       nom?: string;
       prenom?: string;
       phone?: string | null;
       niveau?: string;
+      civilite?: Exclude<Civilite, 'autre'> | null;
     };
   }): TalentRef {
     const talentId = id('tal', seq(opts.index, 5));
-    const email = `${slug(opts.prenom)}.${slug(opts.nom)}.${seq(opts.index, 5)}@${SEED_MAIL_DOMAIN}`;
+    const { prenom, civilite: declaredCivilite } =
+      opts.person ?? this.drawPerson();
+    const email = `${slug(prenom)}.${slug(opts.nom)}.${seq(opts.index, 5)}@${SEED_MAIL_DOMAIN}`;
     const withAccount = opts.withAccount ?? true;
     const userId = withAccount ? id('usr', 'tal', seq(opts.index, 5)) : null;
 
@@ -815,19 +851,41 @@ export class World {
       this.buffer.bauth_user.push({
         id: userId,
         email,
-        name: `${opts.prenom} ${opts.nom}`,
+        name: `${prenom} ${opts.nom}`,
         emailVerified: false,
         role: 'student',
         createdAt: this.ctx.clock.days(-300),
       });
     }
 
+    // The anti-corruption mirror. Nearly every talent has one in production
+    // (5377 of 5394), because nearly every talent arrives from the CRM. Only
+    // `syncTalents` writes it, so a talent Jump created itself, with no
+    // Salesforce id, has none, and there is nothing Salesforce could claim.
+    const fromSalesforce = opts.externalId !== null;
+    if (!fromSalesforce && opts.sfClaims)
+      throw new Error(
+        `${talentId} n’a pas d’identifiant Salesforce : Salesforce ne peut rien en prétendre.`,
+      );
+    const sfCivilite = fromSalesforce
+      ? this.salesforceCivilite(
+          declaredCivilite,
+          opts.sfClaims?.civilite,
+          opts.person !== undefined,
+        )
+      : null;
+
     this.buffer.talent.push({
       id: talentId,
       userId,
       nom: opts.nom,
-      prenom: opts.prenom,
+      prenom,
       niveau: opts.niveau,
+      // What the sync writes on first sight, Jump starting equal to
+      // Salesforce. The identity step replaces it with what the talent
+      // declares (`addDossier`), and a talent who never came from Salesforce
+      // has nothing until then.
+      civilite: sfCivilite,
       // `?? default` would swallow an explicit null, which is the whole point
       // of passing one: Jump holds no number for this talent.
       phone: opts.phone === null ? null : (opts.phone ?? '+33600000000'),
@@ -840,25 +898,16 @@ export class World {
       createdAt: this.ctx.clock.days(-300),
     });
 
-    // The anti-corruption mirror. Nearly every talent has one in production
-    // (5377 of 5394), because nearly every talent arrives from the CRM. Only
-    // `syncTalents` writes it, so a talent Jump created itself, with no
-    // Salesforce id, has none, and there is nothing Salesforce could claim.
-    const fromSalesforce = opts.externalId !== null;
-    if (!fromSalesforce && opts.sfClaims)
-      throw new Error(
-        `${talentId} n’a pas d’identifiant Salesforce : Salesforce ne peut rien en prétendre.`,
-      );
     if (fromSalesforce) {
       const claims = opts.sfClaims ?? {};
       this.buffer.talentSfImport.push({
         talentId,
         nom: claims.nom ?? opts.nom,
-        prenom: claims.prenom ?? opts.prenom,
+        prenom: claims.prenom ?? prenom,
         // The sync mints a login from this address, so a contact Salesforce
         // holds none for stays accountless with no error to explain it, which
         // is the state this places. The other way to have no account, an
-        // address another account already owns, comes with a `DUPLICATE_EMAIL`
+        // address another account already owns, comes with an `ADDRESS_TAKEN`
         // sync error, and `assert/reachability.ts` says why that one is never
         // seeded.
         sfEmail: withAccount ? email : null,
@@ -869,6 +918,7 @@ export class World {
             ? (opts.phone ?? '+33600000000')
             : claims.phone,
         niveau: claims.niveau ?? opts.niveau,
+        civilite: sfCivilite,
         sfSchoolId: opts.schoolId ?? null,
       });
     }
@@ -877,11 +927,12 @@ export class World {
       id: talentId,
       userId,
       email,
-      prenom: opts.prenom,
+      prenom,
       nom: opts.nom,
       niveau: opts.niveau,
       campusId: opts.campus?.id ?? null,
       parentEmail: null,
+      declaredCivilite,
     };
     this.talents.push(ref);
     this.talentById.set(talentId, ref);
@@ -890,6 +941,38 @@ export class World {
       opts.career ?? this.careerRng.weighted(CAREER_MIX),
     );
     return ref;
+  }
+
+  /**
+   * A person nobody placed: the civility first, from production's split, then
+   * a given name that goes with it.
+   */
+  private drawPerson(): { prenom: string; civilite: Civilite } {
+    const civilite = this.identityRng.weighted(CIVILITE_MIX);
+    return { prenom: this.identityRng.pick(PRENOMS[civilite]), civilite };
+  }
+
+  /**
+   * The gender Salesforce holds for a person, as the sync maps it onto a
+   * civility (`mapGender`): a claim the caller places, otherwise the person's
+   * own. Salesforce has no value for « autre », so it holds nothing for a
+   * person who declares it.
+   *
+   * Whether it holds one at all is drawn only for a drawn person, as often as
+   * production says it does. A placed person is placed whole: Salesforce
+   * agrees with it, as every other field of the mirror defaults to Jump's
+   * value, so a scenario's persona reads the same whatever the seed and
+   * placing one consumes no draw.
+   */
+  private salesforceCivilite(
+    declared: Civilite,
+    claim: Exclude<Civilite, 'autre'> | null | undefined,
+    placed: boolean,
+  ): Exclude<Civilite, 'autre'> | null {
+    if (claim !== undefined) return claim;
+    if (declared === 'autre') return null;
+    if (placed) return declared;
+    return this.identityRng.weighted(SF_GENDER_COVERAGE) ? declared : null;
   }
 
   /**
@@ -906,7 +989,7 @@ export class World {
    *
    * Writing the column is not enough on its own: the app never authenticates
    * against it directly, only against a separate `bauth_user` (role `parent`)
-   * that `ensureParentAccount` (`onboardingService.ts`) mints the moment the
+   * that `setParentLogin` (`parentAccount.ts`) mints the moment the
    * wizard's parents step is submitted. A dataset that writes the column and not
    * the account looks identical everywhere a screen only reads `Talent` - the
    * fiche, the broadcast audience, the compliance figures - and only fails at
@@ -966,7 +1049,7 @@ export class World {
    * parents rung, and (for the one family carrying a second guardian) a scenario
    * calling `setGuardian` again to layer `parent2Email` on. `bauth_user.email` is
    * unique, so a second unconditional push would fail the write rather than
-   * merely duplicate a row - the same reason `ensureParentAccount` itself looks
+   * merely duplicate a row - the same reason `setParentLogin` itself looks
    * an existing row up before creating one, and the one part of it worth
    * mirroring here (that function also refreshes the account's `name` on an
    * existing row; nothing in this dataset ever changes a guardian's declared
@@ -1084,17 +1167,12 @@ export class World {
     titre: string;
     publicName?: string | null;
     cohortNoun?: string | null;
+    /** Its category's key, from `catalog/eventCategories.ts`. */
+    categoryKey?: string | null;
     campus: CampusRef;
     /** The weekdays it runs, from {@link eventWindow}. */
     days: readonly Date[];
     startMinutes?: number | null;
-    /**
-     * Whether the event carries a « date de fin ». Defaults to the two states
-     * the application itself produces - see the comment beside `withEndDate`
-     * below - so a caller only passes this to place the one in between: an
-     * event configured but not activatable because the date is still missing.
-     */
-    withEndDate?: boolean;
     devActivated?: boolean;
     modules?: readonly string[];
     /** Per-module options, keyed by module. Only some modules take any. */
@@ -1122,33 +1200,26 @@ export class World {
     const days = [...opts.days];
     const date = days[0]!;
 
-    // « Date de fin ». The Salesforce sync never sends one - it is typed on the
-    // configuration screen - which is why `activationBlockerKeys` refuses to
-    // make an event visible without it. So the default IS that rule: an
-    // activated event has one, an untouched Salesforce row has none, and 36 of
-    // production's 277 events carry one for exactly that reason.
-    const withEndDate =
-      opts.withEndDate ?? (days.length > 1 || opts.devActivated === true);
+    // « Date de fin », the campaign's `EndDate` as the sync copies it.
     // `endDate` is the ONLY column that says an event runs more than one day:
     // every reader derives its days from `date`..`endDate` (`presenceDays`,
-    // `stageCountdown`, `talentPlanning`, `dateRangeLabel`), so a caller asking
-    // for a window of several days and no end date is asking for a row that
-    // cannot carry the second one. The days would be silently dropped, and the
-    // caller would keep a `days` array nothing it writes agrees with. Refused
-    // here for the same reason the activation gate below is: the generator's
-    // own claims about an event have to hold in the row it writes.
-    if (!withEndDate && days.length > 1) {
-      throw new Error(
-        `addEvent(${opts.key}) demande ${days.length} jours sans date de fin, or c’est la date de fin qui porte la durée : les jours suivants ne seraient lus par personne.`,
-      );
-    }
-    // 23:59 in the CAMPUS's timezone, the way production stores it, not midnight
-    // UTC. `presenceDays` keys the day off the campus clock, so a Réunion event
-    // ending at 23:59 UTC would grow a second émargement day.
+    // `stageCountdown`, `talentPlanning`, `dateRangeLabel`), so a multi-day
+    // event always carries one. A single-day event carries one when it is
+    // activated, which is the share PROFILE.md measured (36 of 277 events)
+    // back when the end day was typed on the configuration screen and the
+    // activation asked for it. Today the share is however many campaigns
+    // carry an `EndDate` in Salesforce, which is not measured yet, so the
+    // measured one stands in for it.
+    const withEndDate = days.length > 1 || opts.devActivated === true;
+    // Both days as the sync stores them, on the CAMPUS's clock rather than UTC.
+    // `presenceDays` keys the day off the campus clock, so a Réunion event
+    // ending at 23:59 UTC would grow a second émargement day, and a reader that
+    // takes the UTC date of a start held at UTC midnight hides the bug that
+    // reports a Paris event one day early.
+    const start = eventStartInstant(clock.dateKey(date), opts.campus.timezone);
     const endDate = withEndDate
-      ? fromWallClock(
+      ? eventEndInstant(
           clock.dateKey(days[days.length - 1]!),
-          '23:59',
           opts.campus.timezone,
         )
       : null;
@@ -1156,16 +1227,13 @@ export class World {
     // The activation gate, enforced where the row is written instead of checked
     // afterwards. `activationBlockerKeys` is what both the configuration dialog
     // and the admin API refuse an activation on, so an activated event missing
-    // any of the three is a state no human could have reached - and a dev space
+    // any of them is a state no human could have reached - and a dev space
     // showing an event its own configuration screen calls impossible is the one
-    // thing a seeded environment must not do. It was reachable: every
-    // single-day event had a null `endDate`, and `longTail` activated a fifth of
-    // them.
+    // thing a seeded environment must not do.
     if (opts.devActivated) {
       const blockers = activationBlockers({
         publicName: opts.publicName ?? null,
         cohortNoun: opts.cohortNoun ?? null,
-        endDate: endDate === null ? null : endDate.toISOString(),
         modules: opts.modules ?? [],
         devActivated: true,
       });
@@ -1181,7 +1249,8 @@ export class World {
       titre: opts.titre,
       publicName: opts.publicName ?? null,
       cohortNoun: opts.cohortNoun ?? null,
-      date,
+      categoryKey: opts.categoryKey ?? null,
+      date: start,
       endDate,
       startMinutes: opts.startMinutes ?? null,
       campusId: opts.campus.id,

@@ -29,13 +29,13 @@ export type AttendedEvent = Prisma.EventGetPayload<{
  *
  * Only events visible in the dev workspace (`devVisibleEventWhere`) are
  * surfaced: an attended event stays out of history until an admin activates it
- * in the dev space, the same gate the dev event switcher uses. Callers render
+ * in the dev space, the same gate the campus calendar uses. Callers render
  * the name via `eventDisplayName` (the admin-set `publicName`, else the SF
  * `titre`).
  *
  * "Past" is decided by `getEventStatus` in `timeZone` (the talent's own
  * zone on the portal, the campus zone on the staff fiche), the same lens the
- * dev switcher and the admin cockpit use, so the three agree on when an event
+ * campus calendar and the admin cockpit use, so the three agree on when an event
  * is over. This matters for a multi-day event: a raw `date < now` check would
  * surface it the day after it starts, while the talent is still mid-event;
  * `getEventStatus` uses its `endDate` window instead. The

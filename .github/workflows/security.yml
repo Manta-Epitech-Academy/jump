@@ -20,7 +20,7 @@ env:
   BETTER_AUTH_URL: http://localhost:3030
   MICROSOFT_CLIENT_ID: ci-dummy
   MICROSOFT_CLIENT_SECRET: ci-dummy
-  MICROSOFT_TENANT_ID: ci-dummy
+  MICROSOFT_TENANT_ID: 00000000-0000-0000-0000-000000000000
   RESEND_API_KEY: ci-dummy
   RESEND_FROM_EMAIL: noreply@example.com
   DISCORD_CLIENT_ID: ci-dummy
@@ -37,6 +37,8 @@ jobs:
       - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: frontend/package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -146,6 +148,8 @@ jobs:
       - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: frontend/package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

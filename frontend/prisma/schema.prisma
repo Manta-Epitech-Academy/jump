@@ -119,11 +119,6 @@ model Audit_ImpersonationEvent {
 model bauth_account {
   id                    String    @id @default(cuid())
   userId                String
-  /// The account's stable namespace (e.g. the Microsoft tenant's OIDC issuer
-  /// URL). BetterAuth 1.7 keys an OAuth account on (issuer, accountId) rather
-  /// than (providerId, accountId), because a bare provider id is not unique
-  /// across multi-tenant issuers.
-  issuer                String
   accountId             String
   providerId            String
   accessToken           String?
@@ -137,8 +132,6 @@ model bauth_account {
   updatedAt             DateTime  @updatedAt
 
   user bauth_user @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([issuer, accountId])
 }
 
 model bauth_verification {
@@ -367,6 +360,21 @@ model Talent {
   // "Jamais" once its session row is gone. Paired with lastActiveAt (MAX
   // activity); this is the MIN.
   firstLoginAt                DateTime?
+  /// The talent's run of consecutive days in Jump, the one fact the series
+  /// badges need (#447). `streakDays` is the length of the MOST RECENT run,
+  /// which ended on `streakLastDay`, a day read in the campus timezone. A missed
+  /// day does not lower it: nothing writes without a visit, so the run restarts
+  /// at 1 on the next one. The best run is not kept.
+  ///
+  /// Two values and no history, on purpose. "Facts are rows" does not apply
+  /// here: a row per day would be the connection log of a minor, which no
+  /// figure needs. Nor is it usage tracking: that one runs without consent
+  /// because it cannot tell who the talent is, and a badge has to, so the two
+  /// never read each other. Written only by `services/signInStreak.ts` from
+  /// `hooks.server.ts`, never under impersonation, and cleared by the erasure
+  /// and the reset to import.
+  streakDays                  Int                  @default(0)
+  streakLastDay               DateTime?            @db.Date
   /// When this talent objected to usage measurement (RGPD art. 21). Set, and the
   /// recorder writes nothing for them. Null means no objection, which is the
   /// default: the basis is legitimate interest, not consent, so measurement runs
@@ -403,6 +411,7 @@ model Talent {
   onboardingRecords   Onboarding_Record[]
   notes               Note_TalentNote[]
   workshopEntries     Workshop_Participation[]
+  syncError           Sync_Error?
 
   @@index([xp])
   @@index([schoolId])
@@ -742,6 +751,10 @@ model Campus {
   name         String   @unique
   externalName String?  @unique
   timezone     String   @default("Europe/Paris")
+  /// INSEE code of the campus's département ("75", "67", "974", Corsica "20"),
+  /// the vocabulary of `domain/school.ts`. The calendar derives the school
+  /// holiday zone and the public holiday regime from it. Null shows neither.
+  departement  String?
   contactEmail String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -917,13 +930,23 @@ model Event {
   // the column never asserts an unmade choice. Past stages were backfilled to
   // "stagiaire" (a real historical value).
   cohortNoun        String?
+  // Which kind of event this is, for display and badge rules only, from the
+  // `EventConfig_Category` catalogue. Nothing changes behaviour on it: the
+  // modules stay the one switch of an event's pages, which is what tells it
+  // apart from the retired `eventType`. NULL = uncategorised, a full citizen
+  // everywhere. Restrict: a category is archived, never deleted.
+  categoryKey       String?
   date              DateTime
-  // Salesforce gives us the calendar day (`date`/`endDate`) but never a
+  // Salesforce gives us the calendar days (`date`/`endDate`) but never a
   // start time, so the time-of-day is Jump-owned: wall-clock minutes from
   // local midnight (0-1439), `null` until staff set it. Kept separate from
   // `date` precisely so the SF sync, which rewrites `date`, can never
   // clobber it. Compose with the campus timezone for a real instant.
   startMinutes      Int?
+  // The campaign's `EndDate`, written by the sync alone and stored at 23:59
+  // campus-local (`eventEndInstant`); `date` is its `StartDate` at 00:00.
+  // `null` = a single-day event. Nothing in Jump edits either day: a wrong one
+  // is corrected in Salesforce.
   endDate           DateTime?
   campusId          String
   // Which feedback form this event uses (the `bilan` module reports against it,
@@ -955,6 +978,7 @@ model Event {
   updatedAt         DateTime  @updatedAt
 
   campus              Campus                 @relation(fields: [campusId], references: [id])
+  category            EventConfig_Category?  @relation(fields: [categoryKey], references: [key], onDelete: Restrict)
   feedbackForm        Feedback_Form?         @relation("EventFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
   diplomaTemplate     Diploma_Template?      @relation("EventDiplomaTemplate", fields: [diplomaTemplateId], references: [id], onDelete: Restrict)
   closingTemplate     Closing_Template?      @relation("EventClosingTemplate", fields: [closingTemplateId], references: [id], onDelete: Restrict)
@@ -983,6 +1007,7 @@ model Event {
   /// so the old campus kept seeing the cohort and the new one never did.
   @@unique([id, campusId])
   @@index([campusId])
+  @@index([categoryKey])
   @@index([feedbackFormId])
   @@index([diplomaTemplateId])
   @@index([closingTemplateId])
@@ -1035,6 +1060,32 @@ model EventConfig_ShownStatus {
   @@index([status])
 }
 
+/// A kind of event ("Coding Club", "Stage", "Camp"), shown on the campus
+/// calendar and named by badge rules. Data, not code: an admin creates, renames,
+/// recolours and archives one over the API (`write_event_category`), so a new
+/// kind needs no migration, and none ships with this table.
+///
+/// It is the open list `Event.eventType` never was, and it is display only.
+/// Nothing branches on it: the modules stay the one switch of an event's pages.
+///
+/// `key` is the identity every operation names, and it never changes; `label` is
+/// what a person reads and may be renamed. `color` is a `#rrggbb` the team picks,
+/// outside the `DESIGN.md` palette on purpose: the calendar needs one colour per
+/// kind, more than the four brand accents. Archived (`archivedAt` set) rather
+/// than deleted: it is no longer given to an event, and what already carries it
+/// keeps it.
+model EventConfig_Category {
+  key        String    @id
+  label      String    @unique
+  color      String
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  events    Event[]
+  templates EventConfig_Template[]
+}
+
 // A reusable, named event-configuration preset (global), created by staff from
 // the config wizard ("Enregistrer comme modèle"). Applying
 // one is a point-in-time SEED: the wizard copies its modules + settings + default
@@ -1055,6 +1106,11 @@ model EventConfig_Template {
   // apply like the other config fields. Mirrors `Event.cohortNoun`; `null` = the
   // preset names no cohort (the applied event falls back to the neutral default).
   cohortNoun        String?
+  // The category the preset carries, copied onto the event on apply like the
+  // other config fields. Mirrors `Event.categoryKey`; `null` = the preset names
+  // none. An archived one stays here as saved: it is the event, not the preset,
+  // that may not newly receive it.
+  categoryKey       String?
   // Jump-owned arrival time-of-day the preset carries, in wall-clock minutes from
   // local midnight (0-1439), `null` = none (the event falls back to the single
   // default). Mirrors `Event.startMinutes`; copied onto the event on apply.
@@ -1072,6 +1128,7 @@ model EventConfig_Template {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  category        EventConfig_Category?        @relation(fields: [categoryKey], references: [key], onDelete: Restrict)
   feedbackForm    Feedback_Form?               @relation("EventConfigTemplateFeedbackForm", fields: [feedbackFormId], references: [id], onDelete: SetNull)
   diplomaTemplate Diploma_Template?            @relation("EventConfigTemplateDiploma", fields: [diplomaTemplateId], references: [id], onDelete: Restrict)
   closingTemplate Closing_Template?            @relation("EventConfigTemplateClosingTemplate", fields: [closingTemplateId], references: [id], onDelete: Restrict)
@@ -1079,6 +1136,7 @@ model EventConfig_Template {
   modules         EventConfig_TemplateModule[]
   shownStatuses   EventConfig_TemplateShownStatus[]
 
+  @@index([categoryKey])
   @@index([feedbackFormId])
   @@index([diplomaTemplateId])
   @@index([closingTemplateId])
@@ -1804,29 +1862,6 @@ model Closing_ResetEvent {
   @@index([talentId, createdAt])
 }
 
-// ── Sync Error Logging ──
-
-model SyncError {
-  id              String    @id @default(cuid())
-  errorType       String
-  email           String
-  attemptedExtId  String
-  existingExtId   String?
-  talentName      String
-  eventExtId      String?
-  message         String
-  resolved        Boolean   @default(false)
-  resolvedAt      DateTime?
-  occurrenceCount Int       @default(1)
-  lastOccurredAt  DateTime  @default(now())
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  @@unique([email, attemptedExtId])
-  @@index([resolved])
-  @@index([lastOccurredAt])
-}
-
 model AppSetting {
   key       String   @id
   value     String
@@ -1934,9 +1969,11 @@ model Sync_Cadence {
 ///
 /// A full pass deletes every enrolment its roster does not mention, so the
 /// roster has to be COMPLETE for that absence to mean anything: non-empty, and
-/// every member resolved to a talent Jump knows. A member the talents push
-/// skipped (`MISSING_NAME`, `DUPLICATE_EMAIL`) may be the very person whose
-/// enrolment the prune would take. When the roster is not complete, the
+/// every member resolved to a talent Jump knows, or to a contact erased at
+/// their request (`Sync_ErasedContact`), whose enrolments no roster can name
+/// again. A member the talents push
+/// skipped (a `Sync_Error` of kind `MISSING_NAME` or `MERGE_REFUSED`) may be
+/// the very person whose enrolment the prune would take. When the roster is not complete, the
 /// enrolments it does carry are still written and the removals are held here
 /// instead of applied.
 ///
@@ -1977,6 +2014,68 @@ model Sync_PruneHold {
   @@index([lastHeldAt])
 }
 
+/// What a Salesforce sync could not do: one closed cause per kind, read by
+/// `/staff/admin/sync-errors` and `stats_sync_health`.
+enum Sync_ErrorKind {
+  /// The contact has no first name or no last name, so Jump cannot take it in.
+  MISSING_NAME
+  /// The talent's Salesforce address is already somebody else's login or
+  /// contact address, so its login account cannot carry it.
+  ADDRESS_TAKEN
+  /// Creating or renaming the talent's login account failed for a technical
+  /// reason, retried on every pass.
+  LOGIN_FAILURE
+  /// Salesforce ties several Jump talents to one contact (the Leads converted
+  /// into it), and more than one of them was used, so Jump will not choose
+  /// which one the person keeps.
+  MERGE_REFUSED
+}
+
+/// One thing the sync could not do, and only for as long as it keeps failing.
+///
+/// The sync owns the state, not an admin: a pass that finds the problem gone
+/// deletes the row, and an `ok` full pass deletes every row it did not
+/// reproduce, since it carried every talent and an error it did not meet
+/// describes nothing (the rule `Sync_PruneHold` follows). There is no
+/// "resolved" flag on purpose: one used to hide a row that the next pass
+/// reopened in silence, so an empty queue did not mean nothing was wrong.
+///
+/// Only the cause is stored. What it means for the talent, who holds the
+/// address, and who can fix it are derived when read (`$lib/domain/syncError`),
+/// so they describe the state now rather than the state at the failure.
+///
+/// Two shapes, held by a CHECK in the migration. A login error belongs to a
+/// talent Jump has (`talentId`, one per talent: its address and name are read
+/// off the talent and its Salesforce mirror). A contact Jump could not take in,
+/// nameless or split over talents it will not merge, has no one talent row to
+/// point at, so it carries what Salesforce sent (`externalId`, `contactName`,
+/// `email`), and for a refused merge the Leads converted into it, which with
+/// `externalId` find the talents in cause when read.
+model Sync_Error {
+  id               String         @id @default(cuid())
+  kind             Sync_ErrorKind
+  talentId         String?        @unique
+  /// The Salesforce id of a contact Jump could not take in. Null on a talent's
+  /// row.
+  externalId       String?        @unique
+  /// What Salesforce sent as the name: one half at most, or nothing.
+  contactName      String?
+  /// The contact's Salesforce address, null when it has none.
+  email            String?
+  /// The technical cause of a login failure, for a developer. English, never
+  /// shown as an explanation.
+  detail           String?
+  /// On a refused merge, the Leads Salesforce converted into the contact.
+  /// Empty on every other kind.
+  convertedLeadIds String[]       @default([])
+  firstOccurredAt  DateTime       @default(now())
+  lastOccurredAt   DateTime       @default(now())
+
+  talent Talent? @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@index([lastOccurredAt])
+}
+
 /// A person asking for a pass of one mode now, rather than when the cadence
 /// says. Written by `ops_request_sync`, read by `/api/worker/config` on every
 /// tick next to `Sync_Cadence`.
@@ -1991,6 +2090,42 @@ model Sync_PruneHold {
 model Sync_Request {
   mode        SyncMode @id
   requestedAt DateTime
+}
+
+/// A Salesforce contact whose talent was erased at their own request, which
+/// the sync must never import again. The erasure nulls `Talent.externalId`, the
+/// one key the sync matches on, so without this row the next push that carries
+/// the contact re-creates the talent, its mirror and its login as if nothing
+/// had happened, and the person's decision is undone within the quarter-hour.
+///
+/// Written by `fulfillTalentDeletion` and nothing else: the inactivity sweep
+/// leaves none, because a talent it erased who enrols again is the return Jump
+/// exists for. Lifted by `readmitSalesforceContact`, when the person asks to
+/// come back: the row stays, stamped with who let the contact back and when,
+/// the bar holds only while `readmittedAt` is null, and the next push imports
+/// the person from scratch. A later erasure of the same contact bars it again
+/// and clears the stamp. Rekeyed by the sync from a Lead to the Contact it was
+/// converted into (`carryErasureBar`), since a talent is that Contact once it
+/// has one.
+///
+/// The Salesforce id and the readmission, on purpose. No foreign key to the
+/// anonymised `Talent` or to its `TalentDeletionRequest`, and no date of the
+/// erasure, since one written in the fulfilment's transaction would equal the
+/// request's `resolvedAt` and join the two: either link would tie a Salesforce
+/// identity back to the activity the erasure keeps (XP, enrolments, attempts),
+/// which is then no longer de-identified. The readmission's date ties to
+/// nothing the erasure kept. That holds for what the model says, not for the
+/// row's storage: the bar is written in the erasure's transaction, so its
+/// system columns (`xmin`) match the request's until either row is rewritten,
+/// and somebody reading the database with SQL can join them. Keeping that
+/// reader out is the database's access control, not this model's.
+///
+/// `readmittedBy` is a bare user id, like `TalentDeletionRequest.resolvedBy`:
+/// the record of who lifted an erasure has to outlive that admin's account.
+model Sync_ErasedContact {
+  externalId   String    @id
+  readmittedAt DateTime?
+  readmittedBy String?
 }
 
 /// A Salesforce `CampaignMember` status Jump knows: the vocabulary, not what any
@@ -2442,11 +2577,11 @@ model XpReward {
 /// this diverges from jump-games: there is a single jump-games backend and there
 /// are eleven CTFd hosts, so the address belongs to the row.
 model Workshop_Instance {
-  id         String              @id @default(cuid())
+  id             String   @id @default(cuid())
   /// Stable natural key, and also the ticket audience (`workshop:<slug>`) the
   /// plugin compares against its own configured instance name. It names the
   /// host only, so a rotation keeps it.
-  slug       String              @unique
+  slug           String   @unique
   /// Origin of the CTFd, no trailing slash: the entry action redirects to
   /// `<baseUrl>/jump/enter?t=...`. A generated database points this at a
   /// NON-ROUTABLE host on purpose, because a dev or preprod row carrying the
@@ -2458,9 +2593,21 @@ model Workshop_Instance {
   /// entry the instance refuses with its own talents sent elsewhere.
   /// `writeWorkshopInstance`, the one writer, refuses it by name rather than an
   /// index refusing it with nothing to say.
-  baseUrl    String
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
+  baseUrl        String
+  /// The code the instance asks for on `<baseUrl>/supervisor/join`, where the
+  /// people running the room make their supervisor account. The plugin holds
+  /// one per instance (`workshop_supervisor_code`), so every activity of the
+  /// host shows the same one on its catalogue card. Copied from the instance,
+  /// never typed: the call its `/admin/workshop/jump` page prints carries it,
+  /// and a code changed there is brought over by running that call again.
+  /// Null when the instance has none, which is a closed door there too.
+  ///
+  /// A shared secret every staff member reading the catalogue sees, which is
+  /// what was decided for supervisor access (#449): any staff account may
+  /// supervise. Never on a talent surface.
+  supervisorCode String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   activities Workshop_Activity[]
 }
@@ -2475,6 +2622,11 @@ model Workshop_Instance {
 /// back from the instance, and that was dropped on purpose: the people who
 /// configure an activity's look are not the ones who deploy its CTFd, so one
 /// source of truth had to be chosen, and it is the one they hold.
+///
+/// So is what the staff read of it in the dev space's catalogue, where an
+/// activity is called a subject: its domains, its level and its notions, written
+/// by `write_workshop` too. The catalogue shows only a complete subject, and
+/// what makes one complete is decided in one place (`catalogueGaps`).
 ///
 /// It names the host that serves it, many activities to one host: an activity
 /// is on one host at a time, so every event offering it reaches the same place
@@ -2502,17 +2654,36 @@ model Workshop_Activity {
   /// label. Written only through `write_workshop`'s `cover`, so a call that
   /// curates what an activity is and names no cover cannot wipe it.
   tagline        String?
+  /// How demanding the subject is, shown on its catalogue card. Display only:
+  /// nothing gates on it. Null until an admin says.
+  level          WorkshopLevel?
+  /// What a talent practises on it, short French labels in the order they are
+  /// shown ("Arbres de décision", "FSM"). A list rather than a table, because
+  /// nothing filters or counts by a notion: renaming one is rewriting the list
+  /// of each subject that carries it.
+  notions        String[]                 @default([])
   enabled        Boolean                  @default(true)
   createdAt      DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
 
   /// Restrict: a host still serving an activity is not one to delete.
-  instance       Workshop_Instance        @relation(fields: [instanceId], references: [id], onDelete: Restrict)
+  instance       Workshop_Instance         @relation(fields: [instanceId], references: [id], onDelete: Restrict)
   events         EventConfig_Workshop[]
   participations Workshop_Participation[]
   coverImages    Workshop_CoverImage[]
+  domains        Workshop_ActivityDomain[]
 
   @@index([instanceId])
+}
+
+/// How demanding a subject is, a closed list the catalogue card shows. Display
+/// only; the French labels are `WORKSHOP_LEVEL_LABELS`.
+enum WorkshopLevel {
+  beginner
+  intermediate
+  expert
+  /// Open to anybody, beginner or not ("Tous niveaux").
+  all_levels
 }
 
 /// Which picture of a cover an image is.
@@ -2558,6 +2729,41 @@ model Workshop_CoverImage {
   activity Workshop_Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
   @@id([activityId, kind])
+}
+
+/// A field a subject belongs to ("Cybersécurité", "IA/DATA"), what the
+/// catalogue filters by and what a badge rule will count finished activities
+/// by (#448). Data, not code: an admin creates, renames and archives one over
+/// the API (`write_workshop_domain`), so a new field needs no migration, and
+/// none ships with this table.
+///
+/// `key` is the identity every operation names, and it never changes; `label` is
+/// what a person reads and may be renamed. Archived (`archivedAt` set) rather
+/// than deleted: it is no longer given to a subject, and a subject that carries
+/// it keeps it, as an event keeps an archived `EventConfig_Category`.
+model Workshop_Domain {
+  key        String    @id
+  label      String    @unique
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  activities Workshop_ActivityDomain[]
+}
+
+/// A subject in a domain. A pure junction: a subject has several domains and a
+/// domain many subjects, and the link carries nothing of its own.
+model Workshop_ActivityDomain {
+  activityId String
+  domainKey  String
+
+  /// Cascade: the link is the subject's, and goes with it.
+  activity Workshop_Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  /// Restrict: a domain is archived, never deleted out from under a subject.
+  domain   Workshop_Domain   @relation(fields: [domainKey], references: [key], onDelete: Restrict)
+
+  @@id([activityId, domainKey])
+  @@index([domainKey])
 }
 
 /// An event offering an activity: the link, carrying attributes of its own.
@@ -2646,14 +2852,15 @@ model Workshop_Participation {
   @@index([campusId])
 }
 
-/// Append-only ledger of OTP login attempts, consumed by
-/// `$lib/server/auth/rateLimiter` to cap brute-force on `verify` and mailbomb
-/// on `request`. One row per attempt; the limiter counts rows inside the
-/// bucket's window for its check. Lives in Postgres (not in-process memory)
-/// so horizontally-scaled SvelteKit pods share one ledger and a pod restart
-/// cannot reset an attacker's budget. `bucket` is kept as a `String` rather
+/// Append-only ledger of OTP login attempts, and of parent-welcome sends from
+/// the onboarding wizard, consumed by `$lib/server/auth/rateLimiter` to cap
+/// brute-force on `verify` and mailbomb on `request` and `parent_welcome`.
+/// One row per attempt; the limiter counts rows inside the bucket's window for
+/// its check. Lives in Postgres (not in-process memory) so horizontally-scaled
+/// SvelteKit pods share one ledger and a pod restart cannot reset an attacker's
+/// budget. `bucket` is kept as a `String` rather
 /// than a Prisma enum because the vocabulary lives in code
-/// (`OtpAttemptBucket` in `rateLimiter.ts`); adding a new bucket should not
+/// (`AttemptBucket` in `rateLimiter.ts`); adding a new bucket should not
 /// require a schema migration.
 model OtpAttempt {
   id        String   @id @default(cuid())

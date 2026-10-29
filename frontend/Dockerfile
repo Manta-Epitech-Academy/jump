@@ -1,8 +1,15 @@
-# Step 1: Build the application
-# Pinned >= 1.3.14: the CMS welcome-image pipeline uses the built-in Bun.Image
+# The Bun every stage runs. A copy of `packageManager` in package.json, which is
+# what CI's setup-bun reads: a Dockerfile cannot read package.json, so
+# `bun run lint:bun-pin` (scripts/check-bun-pin.sh) fails when the two differ,
+# and CI keeps testing the runtime that ships.
+#
+# Never below 1.3.14: the CMS welcome-image pipeline uses the built-in Bun.Image
 # API (added in 1.3.14) instead of a native module like sharp, which avoids the
 # musl/prebuilt-binary friction of native addons on this Alpine base.
-FROM oven/bun:1.3.14-alpine AS builder
+ARG BUN_VERSION=1.4.4
+
+# Step 1: Build the application
+FROM oven/bun:${BUN_VERSION}-alpine AS builder
 
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
@@ -17,6 +24,9 @@ RUN bun install --frozen-lockfile
 # Copy source and build
 COPY . .
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" bunx prisma generate
+# The commit becomes the app's version (svelte.config.js). Declared after the
+# install and generate steps so a new commit does not invalidate their cache.
+ARG GIT_SHA
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" BETTER_AUTH_SECRET="build-placeholder" bun run build
 
 # Step 2: The generator's image, built with `--target seeder`
@@ -42,7 +52,7 @@ RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" BETTER_AUTH_SEC
 # fourth, and it goes stale silently. This is a tool image that runs once and
 # exits, so carrying components it never reads costs less than a list somebody
 # has to keep in step.
-FROM oven/bun:1.3.14-alpine AS seeder
+FROM oven/bun:${BUN_VERSION}-alpine AS seeder
 
 # The same patch posture as the runtime image, so the vulnerability scan over
 # that one is representative of this one too.
@@ -66,7 +76,7 @@ USER bun
 ENTRYPOINT ["bun", "run", "scripts/seed/index.ts"]
 
 # Step 3: Runtime image
-FROM oven/bun:1.3.14-alpine
+FROM oven/bun:${BUN_VERSION}-alpine
 
 WORKDIR /app
 

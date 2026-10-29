@@ -1,7 +1,11 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { getFormGraphById } from '$lib/server/feedbackForms';
+import {
+  getFormGraphById,
+  type FeedbackFormGraph,
+} from '$lib/server/feedbackForms';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { RECO_QUESTION_KEY } from '$lib/domain/feedback';
 
 /**
  * Aggregation for the feedback dashboards (dev "Bilan" page + admin views).
@@ -119,6 +123,83 @@ export function buildSubmissionWhere(
         }
       : {}),
   };
+}
+
+/**
+ * A form's recommendation question (`RECO_QUESTION_KEY`) and its answerable
+ * options, in the form's own best-to-worst order. `extra` options (an "Autre"
+ * box) are not a verdict, so they are left out.
+ */
+export interface RecoQuestion {
+  id: string;
+  options: { id: string; label: string }[];
+}
+
+/** The form's recommendation question, or null when the form asks none. */
+export function recoQuestionOf(
+  form: Pick<FeedbackFormGraph, 'questions'>,
+): RecoQuestion | null {
+  const question = form.questions.find((q) => q.key === RECO_QUESTION_KEY);
+  if (!question) return null;
+  return {
+    id: question.id,
+    options: question.options
+      .filter((o) => o.kind === 'choice')
+      .map((o) => ({ id: o.id, label: o.label })),
+  };
+}
+
+/** One talent's submission to an event's form, as the dev rosters read it. */
+export interface CohortSubmission {
+  submittedAt: Date;
+  /** The recommendation option picked, null when unanswered, not asked, or
+   *  answered with an `extra` option, which is no verdict. */
+  recoOptionId: string | null;
+}
+
+/**
+ * The submissions of an event's cohort as the dev space shows it, keyed by
+ * talent: who answered, when, and which recommendation option they picked, in
+ * one query. The Bilan roster and the event home read it.
+ *
+ * The recommendation is a single-choice question: the first picked option is
+ * the answer, and only one of `reco.options` counts as one. An `extra` box
+ * ("Autre") is left out here, where the answer is read, so every reader gets
+ * the same verdicts the form offers rather than an id none of them can name.
+ */
+export async function loadCohortSubmissions(
+  formId: string,
+  eventId: string,
+  reco: RecoQuestion | null,
+): Promise<Map<string, CohortSubmission>> {
+  const submissions = await prisma.feedback_Submission.findMany({
+    where: buildSubmissionWhere(formId, { shownCohortOf: eventId }),
+    select: {
+      talentId: true,
+      submittedAt: true,
+      // Only the recommendation answer is pulled; the empty-string id matches
+      // nothing when the form asks none, leaving every answer null.
+      answers: {
+        where: { questionId: reco?.id ?? '' },
+        select: {
+          selectedOptions: {
+            where: { optionId: { in: reco?.options.map((o) => o.id) ?? [] } },
+            select: { optionId: true },
+          },
+        },
+      },
+    },
+  });
+  const byTalent = new Map<string, CohortSubmission>();
+  for (const s of submissions) {
+    // `shownCohortOf` already requires a talent; the guard is for the type.
+    if (!s.talentId) continue;
+    byTalent.set(s.talentId, {
+      submittedAt: s.submittedAt,
+      recoOptionId: s.answers[0]?.selectedOptions[0]?.optionId ?? null,
+    });
+  }
+  return byTalent;
 }
 
 /** The answer shape both exports include on a submission. */
