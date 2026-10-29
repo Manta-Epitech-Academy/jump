@@ -23,6 +23,7 @@
   } from '$lib/components/staff/datatable/types';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
@@ -34,7 +35,6 @@
   import { toast } from 'svelte-sonner';
   import ExportMenu from './components/ExportMenu.svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import CodeTag from '$lib/components/layout/CodeTag.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import {
     JOB_STATUS_FILTER,
@@ -235,7 +235,7 @@
           >
             <span class="relative flex h-2 w-2">
               <span
-                class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-blue opacity-75"
+                class="absolute inline-flex h-full w-full rounded-full bg-epi-blue opacity-75 motion-safe:animate-ping"
               ></span>
               <span
                 class="relative inline-flex h-2 w-2 rounded-full bg-epi-blue"
@@ -318,104 +318,111 @@
       <ActiveFilterChips {chips} {search} onReset={clearFilters} />
     </Card.Header>
     <Card.Content>
-      <SortableTable {columns} rows={data.jobs} rowKey={(job: Job) => job.id}>
-        {#snippet row(job: Job)}
-          <Table.Cell>
-            <Badge
-              variant={statusVariant(job.status)}
-              class="gap-1 rounded-sm font-mono text-[0.7rem] tracking-wide uppercase"
-            >
-              {#if job.status === 'processing' && !job.retryable}
-                <LoaderCircle class="h-3 w-3 animate-spin" />
-              {/if}
-              {statusLabels[job.status] ?? job.status}
-            </Badge>
-          </Table.Cell>
-          <Table.Cell class="font-medium">
-            {job.talent?.name ?? '-'}
-          </Table.Cell>
-          <Table.Cell>
-            {ONBOARDING_DOCUMENT_LABELS[job.documentType] ?? job.documentType}
-          </Table.Cell>
-          <Table.Cell>{@render timeCell(job.createdAt)}</Table.Cell>
-          <Table.Cell>{@render timeCell(job.processedAt)}</Table.Cell>
-          <Table.Cell class="max-w-md">
-            {#if job.status === 'error' && job.errorMessage}
-              <span class="font-mono text-xs text-destructive">
-                {job.errorMessage}
-              </span>
-            {:else if job.status === 'success' && job.filePath}
-              <form
-                method="POST"
-                action="?/view"
-                class="inline"
-                use:enhance={() =>
-                  async ({ result }) => {
-                    if (result.type === 'success' && result.data?.url) {
-                      window.open(
-                        result.data.url as string,
-                        '_blank',
-                        'noopener',
-                      );
-                    } else {
-                      toast.error("Impossible d'ouvrir le PDF");
-                    }
-                  }}
+      <!-- Every job, not this view's: a filter that matches none is the
+           table's to say, with its reset; no job at all is a different state. -->
+      {#if total === 0}
+        <ResultsNotice
+          compact
+          icon={FileText}
+          title="Aucune tâche"
+          description="Un PDF se génère ici à chaque signature : règlement, charte, droit à l'image."
+        />
+      {:else}
+        <SortableTable
+          {columns}
+          rows={data.jobs}
+          rowKey={(job: Job) => job.id}
+          onResetFilters={hasFilters ? clearFilters : undefined}
+        >
+          {#snippet row(job: Job)}
+            <Table.Cell>
+              <Badge
+                variant={statusVariant(job.status)}
+                class="gap-1 rounded-sm font-mono text-[0.7rem] tracking-wide uppercase"
               >
-                <input type="hidden" name="id" value={job.id} />
-                <Button
-                  type="submit"
-                  variant="link"
-                  size="sm"
-                  class="h-auto gap-1.5 p-0 text-xs text-epi-blue"
+                {#if job.status === 'processing' && !job.retryable}
+                  <LoaderCircle class="h-3 w-3 animate-spin" />
+                {/if}
+                {statusLabels[job.status] ?? job.status}
+              </Badge>
+            </Table.Cell>
+            <Table.Cell class="font-medium">
+              {job.talent?.name ?? '-'}
+            </Table.Cell>
+            <Table.Cell>
+              {ONBOARDING_DOCUMENT_LABELS[job.documentType] ?? job.documentType}
+            </Table.Cell>
+            <Table.Cell>{@render timeCell(job.createdAt)}</Table.Cell>
+            <Table.Cell>{@render timeCell(job.processedAt)}</Table.Cell>
+            <Table.Cell class="max-w-md">
+              {#if job.status === 'error' && job.errorMessage}
+                <span class="font-mono text-xs text-destructive">
+                  {job.errorMessage}
+                </span>
+              {:else if job.status === 'success' && job.filePath}
+                <form
+                  method="POST"
+                  action="?/view"
+                  class="inline"
+                  use:enhance={() =>
+                    async ({ result }) => {
+                      if (result.type === 'success' && result.data?.url) {
+                        window.open(
+                          result.data.url as string,
+                          '_blank',
+                          'noopener',
+                        );
+                      } else {
+                        toast.error("Impossible d'ouvrir le PDF");
+                      }
+                    }}
                 >
-                  <ExternalLink class="h-3.5 w-3.5" />
-                  Voir le PDF
-                </Button>
-              </form>
-            {:else}
-              <span class="text-xs text-muted-foreground">-</span>
-            {/if}
-          </Table.Cell>
-          <Table.Cell class="text-right">
-            {#if job.retryable}
-              <form
-                method="POST"
-                action="?/retry"
-                use:enhance={() =>
-                  async ({ result, update }) => {
-                    if (result.type === 'success') {
-                      toast.success('Génération relancée');
-                      await update();
-                    } else {
-                      toast.error('Une erreur est survenue');
-                    }
-                  }}
-              >
-                <input type="hidden" name="id" value={job.id} />
-                <Button type="submit" variant="ghost" size="sm" class="gap-1.5">
-                  <RotateCcw class="h-3.5 w-3.5" />
-                  Relancer
-                </Button>
-              </form>
-            {/if}
-          </Table.Cell>
-        {/snippet}
-
-        {#snippet empty()}
-          <div class="py-12 text-center">
-            {#if hasFilters}
-              <p class="font-mono text-xs text-muted-foreground">
-                <CodeTag>Aucune tâche pour ce filtre</CodeTag>
-              </p>
-            {:else}
-              <p class="font-mono text-xs text-muted-foreground">
-                <CodeTag>Aucune tâche enregistrée</CodeTag>
-              </p>
-            {/if}
-          </div>
-        {/snippet}
-      </SortableTable>
+                  <input type="hidden" name="id" value={job.id} />
+                  <Button
+                    type="submit"
+                    variant="link"
+                    size="sm"
+                    class="h-auto gap-1.5 p-0 text-xs text-epi-blue"
+                  >
+                    <ExternalLink class="h-3.5 w-3.5" />
+                    Voir le PDF
+                  </Button>
+                </form>
+              {:else}
+                <span class="text-xs text-muted-foreground">-</span>
+              {/if}
+            </Table.Cell>
+            <Table.Cell class="text-right">
+              {#if job.retryable}
+                <form
+                  method="POST"
+                  action="?/retry"
+                  use:enhance={() =>
+                    async ({ result, update }) => {
+                      if (result.type === 'success') {
+                        toast.success('Génération relancée');
+                        await update();
+                      } else {
+                        toast.error('Une erreur est survenue');
+                      }
+                    }}
+                >
+                  <input type="hidden" name="id" value={job.id} />
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    size="sm"
+                    class="gap-1.5"
+                  >
+                    <RotateCcw class="h-3.5 w-3.5" />
+                    Relancer
+                  </Button>
+                </form>
+              {/if}
+            </Table.Cell>
+          {/snippet}
+        </SortableTable>
+      {/if}
     </Card.Content>
   </Card.Root>
 </div>

@@ -24,6 +24,16 @@ const phoneSchema = z
 // plain required literal rejects an unchecked box with the given message.
 const requiredConsent = (message: string) => z.literal('true', { message });
 
+// A name is checked once trimmed, so blank padding never counts towards its two
+// characters. No character is refused: real names carry apostrophes, hyphens
+// and accents (N’Diaye, Marie-Ève), and the mails that quote a name escape it
+// themselves (`substituteVariables`). The cap only bounds what a form can store.
+// `nameText` is the trim and the cap alone, for a name a form may leave blank.
+const nameText = (label: string) =>
+  z.string().trim().max(100, `${label} ne peut pas dépasser 100 caractères`);
+const personName = (label: string) =>
+  nameText(label).min(2, `${label} doit faire au moins 2 caractères`);
+
 const optionalPhoneSchema = z
   .string()
   .optional()
@@ -34,8 +44,10 @@ const optionalPhoneSchema = z
 const parent2Schema = z.object({
   parent2Type: z.string().optional(),
   parent2Civilite: z.string().optional(),
-  parent2Nom: z.string().optional(),
-  parent2Prenom: z.string().optional(),
+  // Optional as a pair with the rest of parent 2: required, two characters at
+  // least, only once any of it is filled in (the refinements below).
+  parent2Nom: nameText('Le nom du parent').optional(),
+  parent2Prenom: nameText('Le prénom du parent').optional(),
   parent2Email: z.string().optional(),
   parent2Phone: optionalPhoneSchema,
 });
@@ -46,11 +58,8 @@ const parent2Schema = z.object({
 // read-only for trust; it's never submitted or persisted here.
 export const identitySchema = z.object({
   civilite: civiliteEnum,
-  nom: z.string().min(2, 'Le nom doit faire au moins 2 caractères').trim(),
-  prenom: z
-    .string()
-    .min(2, 'Le prénom doit faire au moins 2 caractères')
-    .trim(),
+  nom: personName('Le nom'),
+  prenom: personName('Le prénom'),
   phone: phoneSchema,
 });
 
@@ -60,7 +69,9 @@ export const schoolSchema = z.object({
   // `schoolName`/`schoolCity` carry the display values (and are the only signal
   // for the free-text fallback, when no UAI is available).
   schoolUai: z.string().optional().or(z.literal('')),
-  schoolName: z.string().min(2, 'Le nom du lycée est requis').trim(),
+  // Trimmed first, like a person's name: blank padding counted towards the two
+  // characters and stored an empty name.
+  schoolName: z.string().trim().min(2, 'Le nom du lycée est requis'),
   schoolCity: z.string().optional().or(z.literal('')),
 });
 
@@ -100,14 +111,8 @@ export const parentsSchema = z
     studentPhone: optionalPhoneSchema,
     parentType: parentTypeEnum,
     parentCivilite: civiliteEnum,
-    parentNom: z
-      .string()
-      .min(2, 'Le nom du parent doit faire au moins 2 caractères')
-      .trim(),
-    parentPrenom: z
-      .string()
-      .min(2, 'Le prénom du parent doit faire au moins 2 caractères')
-      .trim(),
+    parentNom: personName('Le nom du parent'),
+    parentPrenom: personName('Le prénom du parent'),
     parentEmail: z.email('Email parent invalide'),
     parentPhone: phoneSchema,
   })
@@ -142,7 +147,7 @@ export const parentsSchema = z
   .refine(
     (data) =>
       !parent2Engaged(data) ||
-      (!!data.parent2Prenom && data.parent2Prenom.trim().length >= 2),
+      (!!data.parent2Prenom && data.parent2Prenom.length >= 2),
     {
       message: 'Le prénom du parent doit faire au moins 2 caractères',
       path: ['parent2Prenom'],
@@ -151,7 +156,7 @@ export const parentsSchema = z
   .refine(
     (data) =>
       !parent2Engaged(data) ||
-      (!!data.parent2Nom && data.parent2Nom.trim().length >= 2),
+      (!!data.parent2Nom && data.parent2Nom.length >= 2),
     {
       message: 'Le nom du parent doit faire au moins 2 caractères',
       path: ['parent2Nom'],

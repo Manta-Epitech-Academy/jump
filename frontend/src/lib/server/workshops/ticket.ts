@@ -27,6 +27,7 @@
  */
 
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { formatPeerName } from '$lib/domain/profile';
 
 /** Every ticket Jump mints lives this long, and the plugin refuses a longer one. */
 export const WORKSHOP_TICKET_TTL_SECONDS = 120;
@@ -144,20 +145,15 @@ export function workshopKeys(secret: string): {
 }
 
 /**
- * First name plus an initial, never the full name.
- *
- * The deployed scoreboards are public and these are minors on a third-party host,
- * so what leaves Jump is the least that still lets a student recognise their own
- * row.
+ * The talent's peer name ({@link formatPeerName}: first name plus an initial),
+ * fitted to what CTFd stores. The deployed scoreboards are public and these are
+ * minors on a third-party host. Never empty, since CTFd needs a name.
  */
 export function workshopDisplayName(
   prenom: string | null | undefined,
   nom: string | null | undefined,
 ): string {
-  const first = (prenom ?? '').trim();
-  const initial = (nom ?? '').trim().charAt(0).toUpperCase();
-  const composed = initial ? `${first} ${initial}.` : first;
-  return fit(composed.trim() || 'Talent', DISPLAY_NAME_MAX);
+  return fit(formatPeerName(prenom, nom) || 'Talent', DISPLAY_NAME_MAX);
 }
 
 /**

@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { ALL_CLOSINGS_DONE_LINE } from '$lib/domain/devVoice';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
   import * as Card from '$lib/components/ui/card';
   import { cn } from '$lib/utils';
   import type { ClosingRecommendation } from '@prisma/client';
@@ -41,6 +43,12 @@
     },
   ]);
 
+  // A status nobody is in gets no legend row, as on the event home's pie: at
+  // the end of an event « En cours 0 0% » and « À faire 0 0% » were the two
+  // loudest lines of a card whose news was that everything was done.
+  const present = $derived(segments.filter((s) => s.value > 0));
+  const allDone = $derived(total > 0 && counts.done === total);
+
   const donePct = $derived(
     total > 0 ? Math.round((counts.done / total) * 100) : 0,
   );
@@ -58,7 +66,7 @@
   };
 </script>
 
-<Card.Root class="rounded-sm shadow-raised">
+<Card.Root class="rounded-sm">
   <div
     class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
   >
@@ -82,19 +90,21 @@
         role="img"
         aria-label="Répartition des closings par statut"
       >
-        {#each segments as s (s.key)}
-          {#if s.value > 0}
-            <div
-              class={s.fill}
-              style={`width:${(s.value / total) * 100}%`}
-            ></div>
-          {/if}
+        {#each present as s (s.key)}
+          <div class={s.fill} style={`width:${(s.value / total) * 100}%`}></div>
         {/each}
       </div>
     {/if}
 
+    {#if allDone}
+      <p class="flex items-center gap-1.5 text-xs font-medium text-foreground">
+        <CheckCheck class="h-4 w-4 shrink-0 text-epi-tech-ink" />
+        {ALL_CLOSINGS_DONE_LINE}
+      </p>
+    {/if}
+
     <dl class="space-y-1.5">
-      {#each segments as s (s.key)}
+      {#each present as s (s.key)}
         <div class="flex items-center justify-between gap-2 text-xs">
           <dt class="flex items-center gap-1.5 text-muted-foreground">
             <span class={cn('inline-block size-2 rounded-full', s.fill)}></span>

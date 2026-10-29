@@ -1969,7 +1969,9 @@ model Sync_Cadence {
 ///
 /// A full pass deletes every enrolment its roster does not mention, so the
 /// roster has to be COMPLETE for that absence to mean anything: non-empty, and
-/// every member resolved to a talent Jump knows. A member the talents push
+/// every member resolved to a talent Jump knows, or to a contact erased at
+/// their request (`Sync_ErasedContact`), whose enrolments no roster can name
+/// again. A member the talents push
 /// skipped (a `Sync_Error` of kind `MISSING_NAME` or `MERGE_REFUSED`) may be
 /// the very person whose enrolment the prune would take. When the roster is not complete, the
 /// enrolments it does carry are still written and the removals are held here
@@ -2088,6 +2090,42 @@ model Sync_Error {
 model Sync_Request {
   mode        SyncMode @id
   requestedAt DateTime
+}
+
+/// A Salesforce contact whose talent was erased at their own request, which
+/// the sync must never import again. The erasure nulls `Talent.externalId`, the
+/// one key the sync matches on, so without this row the next push that carries
+/// the contact re-creates the talent, its mirror and its login as if nothing
+/// had happened, and the person's decision is undone within the quarter-hour.
+///
+/// Written by `fulfillTalentDeletion` and nothing else: the inactivity sweep
+/// leaves none, because a talent it erased who enrols again is the return Jump
+/// exists for. Lifted by `readmitSalesforceContact`, when the person asks to
+/// come back: the row stays, stamped with who let the contact back and when,
+/// the bar holds only while `readmittedAt` is null, and the next push imports
+/// the person from scratch. A later erasure of the same contact bars it again
+/// and clears the stamp. Rekeyed by the sync from a Lead to the Contact it was
+/// converted into (`carryErasureBar`), since a talent is that Contact once it
+/// has one.
+///
+/// The Salesforce id and the readmission, on purpose. No foreign key to the
+/// anonymised `Talent` or to its `TalentDeletionRequest`, and no date of the
+/// erasure, since one written in the fulfilment's transaction would equal the
+/// request's `resolvedAt` and join the two: either link would tie a Salesforce
+/// identity back to the activity the erasure keeps (XP, enrolments, attempts),
+/// which is then no longer de-identified. The readmission's date ties to
+/// nothing the erasure kept. That holds for what the model says, not for the
+/// row's storage: the bar is written in the erasure's transaction, so its
+/// system columns (`xmin`) match the request's until either row is rewritten,
+/// and somebody reading the database with SQL can join them. Keeping that
+/// reader out is the database's access control, not this model's.
+///
+/// `readmittedBy` is a bare user id, like `TalentDeletionRequest.resolvedBy`:
+/// the record of who lifted an erasure has to outlive that admin's account.
+model Sync_ErasedContact {
+  externalId   String    @id
+  readmittedAt DateTime?
+  readmittedBy String?
 }
 
 /// A Salesforce `CampaignMember` status Jump knows: the vocabulary, not what any
@@ -2814,14 +2852,15 @@ model Workshop_Participation {
   @@index([campusId])
 }
 
-/// Append-only ledger of OTP login attempts, consumed by
-/// `$lib/server/auth/rateLimiter` to cap brute-force on `verify` and mailbomb
-/// on `request`. One row per attempt; the limiter counts rows inside the
-/// bucket's window for its check. Lives in Postgres (not in-process memory)
-/// so horizontally-scaled SvelteKit pods share one ledger and a pod restart
-/// cannot reset an attacker's budget. `bucket` is kept as a `String` rather
+/// Append-only ledger of OTP login attempts, and of parent-welcome sends from
+/// the onboarding wizard, consumed by `$lib/server/auth/rateLimiter` to cap
+/// brute-force on `verify` and mailbomb on `request` and `parent_welcome`.
+/// One row per attempt; the limiter counts rows inside the bucket's window for
+/// its check. Lives in Postgres (not in-process memory) so horizontally-scaled
+/// SvelteKit pods share one ledger and a pod restart cannot reset an attacker's
+/// budget. `bucket` is kept as a `String` rather
 /// than a Prisma enum because the vocabulary lives in code
-/// (`OtpAttemptBucket` in `rateLimiter.ts`); adding a new bucket should not
+/// (`AttemptBucket` in `rateLimiter.ts`); adding a new bucket should not
 /// require a schema migration.
 model OtpAttempt {
   id        String   @id @default(cuid())

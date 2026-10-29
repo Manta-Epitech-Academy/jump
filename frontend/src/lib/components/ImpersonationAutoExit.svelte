@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { authClient } from '$lib/auth-client';
+  import { stopImpersonating } from '$lib/impersonation';
   import { toast } from 'svelte-sonner';
   import { IMPERSONATION_IDLE_WINDOW_SEC } from '$lib/domain/impersonation';
 
@@ -10,10 +10,10 @@
   // is an idle timeout: the server slides its expiry forward on each request
   // while the admin is active (`slideImpersonationExpiry`), and once it lapses
   // BetterAuth bounces the admin to login, dropping their own admin session
-  // with it. To avoid that dead-end we call the *supported* stop-impersonating
-  // API a touch before the server-side expiry, while the session is still
-  // valid: it cleanly restores the admin session, so we land the admin back in
-  // their space with a toast instead of a confusing logout.
+  // with it. To avoid that dead-end we stop the impersonation ourselves
+  // (`stopImpersonating`) a touch before the server-side expiry, while the
+  // session is still valid: it cleanly restores the admin session, so we land
+  // the admin back in their space with a toast instead of a confusing logout.
   //
   // "Active" means the server slid the window forward, and it does that on
   // every request that runs the hook (`slideImpersonationExpiry`), not only on
@@ -46,14 +46,14 @@
 
   async function autoExit() {
     try {
-      await authClient.admin.stopImpersonating();
+      await stopImpersonating();
       toast.info(
         "Session d'impersonation expirée, retour à votre compte admin.",
       );
       await goto(resolve(returnPath), { invalidateAll: true });
     } catch {
       // The window lapsed before we could stop (e.g. the machine slept past
-      // expiry): the supported API can no longer restore the admin session, so
+      // expiry): the stop can no longer restore the admin session, so
       // route to login with an explanation rather than a bare bounce.
       toast.info("Session d'impersonation expirée, reconnectez-vous.");
       await goto(resolve('/staff/login'), { invalidateAll: true });

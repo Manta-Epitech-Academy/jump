@@ -27,6 +27,7 @@ import {
   persistClosing,
   type ClosingMode,
 } from '$lib/server/services/closingService';
+import { loadClosingsRoster } from '$lib/server/services/closingsRoster';
 import { formatPersonName } from '$lib/domain/profile';
 
 /**
@@ -320,7 +321,15 @@ async function persist(
   });
 
   // Success carries no flash: the conduct UI signals each lifecycle outcome
-  // through its view transition (cover ⇆ questions ⇆ synthèse), not a toast.
+  // through its view transition (cover ⇆ questions ⇆ synthèse). A clôture also
+  // says how many of the event's closings remain, counted over the roster the
+  // Closings page lists, so whoever is running a series goes on to the next one
+  // without going back to the list to count. The total is how many there were,
+  // which the last one's banner says.
+  if (mode === 'close') {
+    const { counts, total } = await loadClosingsRoster(db, event.id);
+    return { form, remaining: counts.todo + counts.in_progress, total };
+  }
   return { form };
 }
 

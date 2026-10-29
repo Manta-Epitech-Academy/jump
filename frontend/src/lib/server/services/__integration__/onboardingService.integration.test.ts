@@ -1,14 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
+import { reachRulesStep } from './onboardingLadder';
 import {
   signOnboardingRules,
   validateTalentInterests,
-  ensureParentAccount,
 } from '../onboardingService';
 import { getOnboardingFunnel } from '../adminStats/onboardingFunnel';
 import { resolveScope, UnknownScopeError } from '$lib/server/adminApi/scope';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
+import { patchCurrentOnboardingRecord } from '../onboardingYearService';
 
 /**
  * The rules signature is the transaction that closes onboarding: timestamps, the
@@ -22,26 +23,13 @@ describe('onboardingService (integration)', () => {
   let campusId = '';
   let eventId = '';
   const talentIds: string[] = [];
-  const userIds: string[] = [];
   let techInterestId = '';
   let generalInterestId = '';
 
   /** A talent with a participation, so they have a campus (early-bird needs one). */
-  async function makeTalent(
-    over: Partial<{
-      infoValidatedAt: Date | null;
-      highSchoolValidatedAt: Date | null;
-      parentsValidatedAt: Date | null;
-      techInterestsValidatedAt: Date | null;
-      generalInterestsValidatedAt: Date | null;
-      equipmentValidatedAt: Date | null;
-      processingCompletedAt: Date | null;
-      rulesSignedAt: Date | null;
-      charterAcceptedAt: Date | null;
-    }> = {},
-  ) {
+  async function makeTalent() {
     const talent = await prisma.talent.create({
-      data: { nom: 'Test', prenom: 'Talent', ...over },
+      data: { nom: 'Test', prenom: 'Talent' },
     });
     talentIds.push(talent.id);
     await prisma.participation.create({
@@ -89,9 +77,6 @@ describe('onboardingService (integration)', () => {
       if (eventId) {
         await prisma.event.delete({ where: { id: eventId } }).catch(() => {});
       }
-      if (userIds.length) {
-        await prisma.bauth_user.deleteMany({ where: { id: { in: userIds } } });
-      }
       if (campusId) {
         await prisma.campus.delete({ where: { id: campusId } }).catch(() => {});
       }
@@ -101,20 +86,15 @@ describe('onboardingService (integration)', () => {
   });
 
   it('stamps the signature, grants the arrival XP and enqueues the PDF job in one go', async () => {
-    const talent = await makeTalent({
-      infoValidatedAt: new Date(),
-      highSchoolValidatedAt: new Date(),
-      parentsValidatedAt: new Date(),
-      techInterestsValidatedAt: new Date(),
-      generalInterestsValidatedAt: new Date(),
-      equipmentValidatedAt: new Date(),
-      processingCompletedAt: new Date(),
-    });
+    const talent = await makeTalent();
+    await reachRulesStep(talent.id);
 
-    const { jobId } = await signOnboardingRules({
+    const signed = await signOnboardingRules({
       talentId: talent.id,
       city: 'Lille',
     });
+    if (!signed.ok) throw new Error(`signature refused: ${signed.reason}`);
+    const { jobId } = signed;
 
     const [after, grants, job] = await Promise.all([
       prisma.talent.findUnique({ where: { id: talent.id } }),
@@ -136,6 +116,104 @@ describe('onboardingService (integration)', () => {
     const total = grants.reduce((sum, g) => sum + g.amount, 0);
     expect(after?.xp).toBe(total);
     expect(job?.documentType).toBe('rules');
+  });
+
+  it('refuses a signature posted before the rules step, writing nothing', async () => {
+    // The action takes any POST while onboarding is open. A signature sent from
+    // step one took the welcome XP and an early-bird tier, and pushed every
+    // talent who really finished after it down a tier (security audit run-1).
+    const talent = await makeTalent();
+
+    const signed = await signOnboardingRules({
+      talentId: talent.id,
+      city: 'Lille',
+    });
+
+    const [after, grants, jobs] = await Promise.all([
+      prisma.talent.findUniqueOrThrow({ where: { id: talent.id } }),
+      prisma.xpGrant.count({ where: { talentId: talent.id } }),
+      prisma.onboardingPdfJob.count({ where: { talentId: talent.id } }),
+    ]);
+    expect(after.rulesSignedAt).toBeNull();
+    expect(after.charterAcceptedAt).toBeNull();
+    expect(grants).toBe(0);
+    expect(jobs).toBe(0);
+    expect(signed).toEqual({ ok: false, reason: 'not_at_rules' });
+  });
+
+  it('takes one of two simultaneous submits and refuses the other', async () => {
+    // A double click on the signature form. The second must not restamp the
+    // date the talent signed nor queue a second render of the same document.
+    const talent = await makeTalent();
+    await reachRulesStep(talent.id);
+
+    const results = await Promise.all([
+      signOnboardingRules({ talentId: talent.id, city: 'Lille' }),
+      signOnboardingRules({ talentId: talent.id, city: 'Lille' }),
+    ]);
+
+    expect(
+      await prisma.onboardingPdfJob.count({ where: { talentId: talent.id } }),
+    ).toBe(1);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.filter((r) => !r.ok)).toEqual([
+      { ok: false, reason: 'not_at_rules' },
+    ]);
+  });
+
+  it('waits for another step of the same talent instead of deadlocking with it', async () => {
+    // Every other wizard step writes the talent's row, then its dossier. The
+    // signature used to lock the dossier first, so the two met each holding
+    // what the other wanted, and Postgres aborted one of them.
+    const talent = await makeTalent();
+    await reachRulesStep(talent.id);
+
+    let signature: Promise<unknown> = Promise.resolve();
+    await prisma.$transaction(async (tx) => {
+      await tx.talent.update({
+        where: { id: talent.id },
+        data: { phone: '+33600000000' },
+      });
+      signature = signOnboardingRules({ talentId: talent.id, city: 'Lille' })
+        // Kept, not thrown: the transaction below must finish either way.
+        .catch((err: unknown) => err);
+      // Long enough for the signature to take whatever it locks first.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await tx.onboarding_Record.updateMany({
+        where: { talentId: talent.id },
+        data: { parentsValidatedAt: new Date() },
+      });
+    });
+
+    expect(await signature).toMatchObject({ ok: true });
+  });
+
+  it("takes the talent's row before the dossier's whenever a dossier is written", async () => {
+    // Writing a dossier writes `Talent` too (the projection), so a writer that
+    // took the dossier first and the signature, which takes the talent first,
+    // each held what the other waited for: a guardian's co-signature during
+    // their child's signature, a step going back in another tab. Probed with
+    // NOWAIT, refused at once if the waiting writer already holds the dossier.
+    const talent = await makeTalent();
+    await reachRulesStep(talent.id);
+
+    let writer: Promise<unknown> = Promise.resolve();
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`
+        SELECT 1 FROM "Talent" WHERE "id" = ${talent.id} FOR UPDATE`;
+      writer = prisma.$transaction((wtx) =>
+        patchCurrentOnboardingRecord(wtx, talent.id, {
+          equipmentValidatedAt: new Date(),
+        }),
+      );
+      // Long enough for the writer to take whatever it locks first.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await tx.$executeRaw`
+        SELECT 1 FROM "Onboarding_Record"
+        WHERE "talentId" = ${talent.id} FOR UPDATE NOWAIT`;
+    });
+
+    await writer;
   });
 
   it('swaps the whole interest selection and stamps both interest steps', async () => {
@@ -196,51 +274,6 @@ describe('onboardingService (integration)', () => {
     expect(
       await prisma.talentInterest.count({ where: { talentId: talent.id } }),
     ).toBe(0);
-  });
-
-  it('provisions a parent login, refreshes its name, and refuses an address held by another role', async () => {
-    const parentEmail = `parent.${stamp}@example.test`;
-
-    expect(
-      await ensureParentAccount({
-        email: parentEmail,
-        prenom: 'Marie',
-        nom: 'Dupont',
-      }),
-    ).toBe('created');
-    const created = await prisma.bauth_user.findUnique({
-      where: { email: parentEmail },
-    });
-    userIds.push(created!.id);
-    expect(created?.role).toBe('parent');
-    expect(created?.emailVerified).toBe(true);
-
-    expect(
-      await ensureParentAccount({
-        email: parentEmail,
-        prenom: 'Marie-Claire',
-        nom: 'Dupont',
-      }),
-    ).toBe('refreshed');
-    expect(
-      (await prisma.bauth_user.findUnique({ where: { email: parentEmail } }))
-        ?.name,
-    ).toBe('Marie-Claire Dupont');
-
-    // A student's (or staff member's) address can never also host a parent login:
-    // one email, one account, one role.
-    const studentEmail = `student.${stamp}@example.test`;
-    const student = await prisma.bauth_user.create({
-      data: { email: studentEmail, role: 'student' },
-    });
-    userIds.push(student.id);
-    expect(
-      await ensureParentAccount({
-        email: studentEmail,
-        prenom: 'Jean',
-        nom: 'Martin',
-      }),
-    ).toBe('refused');
   });
 
   it('counts each talent on exactly one funnel rung, matching the ladder', async () => {

@@ -24,62 +24,70 @@ function forbidGroup(group: StaffGroup): never {
   });
 }
 
+/**
+ * A 303 to `location`, resolved against the request. Built rather than taken
+ * from `Response.redirect`, whose headers the Fetch standard freezes: the hook
+ * stamps its security headers on every guard answer, which throws `immutable`
+ * on a runtime that enforces the standard (Node, so Vitest) and only ever
+ * passed because Bun, which runs Jump, does not.
+ */
+function seeOther(location: string, base: URL): Response {
+  return new Response(null, {
+    status: 303,
+    headers: { location: new URL(location, base).href },
+  });
+}
+
 export async function applyRouteGuards(
   event: RequestEvent,
 ): Promise<Response | null> {
-  const currentPath = event.url.pathname;
   const routeId = event.route.id || '';
 
+  // Where to send someone: URLs, resolved against the base path.
   const p = (path: string) =>
     new URL(resolvePath(path as any), event.url).pathname;
 
   const pathStaffLogin = p('/staff/login');
-  const pathStaffOAuth = p('/staff/oauth');
-  const pathStaffAdmin = p('/staff/admin');
   const pathTalentLogin = p('/login');
   const pathTalentRoot = p('/');
   const pathTalentOnboarding = p('/onboarding');
-  const pathTalentOAuth = p('/oauth');
-  const pathLogout = p('/logout');
-  const pathApi = p('/api/');
-  const pathStaffDev = p('/staff/dev');
-
   const pathTalentWelcome = p('/welcome');
   const pathTalentCharte = p('/charte');
   const pathParentLogin = p('/login');
-  const pathParentFastlogin = p('/parent/fastlogin');
   const pathParentWelcome = p('/parent/welcome');
-  const pathParentReglement = p('/parent/reglement');
-  const pathParentSignature = p('/parent/signature');
   const pathParentMerci = p('/parent/merci');
 
-  const isTalentRoute = routeId.startsWith('/(talent)');
-  const isStaffRoute = routeId.startsWith('/(staff)');
-  const isParentRoute = routeId.startsWith('/(parent)');
-  const isAdminPath =
-    currentPath === pathStaffAdmin ||
-    currentPath.startsWith(`${pathStaffAdmin}/`);
-  const isDevPath =
-    currentPath === pathStaffDev || currentPath.startsWith(`${pathStaffDev}/`);
+  // Where someone is: the matched route, never event.url.pathname. The router
+  // matches on the decoded path while url.pathname keeps its percent-encoding,
+  // so a pathname compare lets `/staff/%61dmin/*` resolve to the admin route
+  // while reading as non-admin, or `/%6Fnboarding` reach the wizard's actions
+  // while reading as off it, and skip the guard that was about that route
+  // (security audit run-1). A request no route matches has no id, and nothing
+  // below concerns it: it is a 404.
+  const on = (id: string) => routeId === id;
+  const within = (id: string) => on(id) || routeId.startsWith(`${id}/`);
 
-  const isPublicPath =
-    currentPath.startsWith(pathLogout) || currentPath.startsWith(pathApi);
+  const isTalentRoute = within('/(talent)');
+  const isStaffRoute = within('/(staff)');
+  const isParentRoute = within('/(parent)');
+  const isAdminPath = within('/(staff)/staff/admin');
+  const isDevPath = within('/(staff)/staff/dev');
+
+  const onTalentLogin = on('/(talent)/login');
+  const onTalentWelcome = on('/(talent)/welcome');
+  const onTalentCharte = on('/(talent)/charte');
+  const onTalentOnboarding = within('/(talent)/onboarding');
 
   // --- Talent Guards ---
   if (isTalentRoute) {
-    const isTalentPublic =
-      currentPath === pathTalentLogin ||
-      currentPath.startsWith(pathTalentOAuth);
-
-    if (!event.locals.talent && !isTalentPublic) {
-      return Response.redirect(
-        new URL(loginUrlWithRedirect(pathTalentLogin, event.url), event.url)
-          .href,
-        303,
+    if (!event.locals.talent && !onTalentLogin) {
+      return seeOther(
+        loginUrlWithRedirect(pathTalentLogin, event.url),
+        event.url,
       );
     }
-    if (event.locals.talent && currentPath === pathTalentLogin) {
-      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+    if (event.locals.talent && onTalentLogin) {
+      return seeOther(pathTalentRoot, event.url);
     }
 
     // The school year both onboarding guards below ask about. The flat columns
@@ -101,14 +109,13 @@ export async function applyRouteGuards(
       getOnboardingStep(
         onboardingFieldsForYear(event.locals.talent, currentYear),
       ) !== null &&
-      currentPath !== pathTalentWelcome &&
-      !currentPath.startsWith(pathTalentOnboarding) &&
-      currentPath !== pathTalentLogin
+      !onTalentWelcome &&
+      !onTalentOnboarding &&
+      !onTalentLogin
     ) {
-      return Response.redirect(
-        new URL(onboardingFunnelUrl(pathTalentWelcome, event.url), event.url)
-          .href,
-        303,
+      return seeOther(
+        onboardingFunnelUrl(pathTalentWelcome, event.url),
+        event.url,
       );
     }
 
@@ -133,34 +140,27 @@ export async function applyRouteGuards(
 
       if (
         needsOnboarding &&
-        !currentPath.startsWith(pathTalentOnboarding) &&
-        currentPath !== pathTalentWelcome &&
-        currentPath !== pathTalentLogin
+        !onTalentOnboarding &&
+        !onTalentWelcome &&
+        !onTalentLogin
       ) {
-        return Response.redirect(
-          new URL(
-            onboardingFunnelUrl(pathTalentOnboarding, event.url),
-            event.url,
-          ).href,
-          303,
+        return seeOther(
+          onboardingFunnelUrl(pathTalentOnboarding, event.url),
+          event.url,
         );
       }
 
       // Already completed: prevent going back to onboarding
-      if (!needsOnboarding && currentPath.startsWith(pathTalentOnboarding)) {
-        return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+      if (!needsOnboarding && onTalentOnboarding) {
+        return seeOther(pathTalentRoot, event.url);
       }
     }
 
     // A talent with no dossier has no business in the wizard, whatever their
     // timestamps say. Without this they would sit on step 1 forever, since the
     // guard above no longer advances them.
-    if (
-      event.locals.talent &&
-      !walksOnboarding &&
-      currentPath.startsWith(pathTalentOnboarding)
-    ) {
-      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+    if (event.locals.talent && !walksOnboarding && onTalentOnboarding) {
+      return seeOther(pathTalentRoot, event.url);
     }
 
     // Charter guard. The RGPD charte conditions any use of Jump, and it is due
@@ -175,17 +175,14 @@ export async function applyRouteGuards(
     if (
       event.locals.talent &&
       !event.locals.talent.charterAcceptedAt &&
-      !currentPath.startsWith(pathTalentOnboarding) &&
-      currentPath !== pathTalentCharte &&
-      currentPath !== pathTalentWelcome &&
-      currentPath !== pathTalentLogin
+      !onTalentOnboarding &&
+      !onTalentCharte &&
+      !onTalentWelcome &&
+      !onTalentLogin
     ) {
-      return Response.redirect(
-        new URL(
-          walksOnboarding ? pathTalentOnboarding : pathTalentCharte,
-          event.url,
-        ).href,
-        303,
+      return seeOther(
+        walksOnboarding ? pathTalentOnboarding : pathTalentCharte,
+        event.url,
       );
     }
 
@@ -193,22 +190,21 @@ export async function applyRouteGuards(
     if (
       event.locals.talent &&
       event.locals.talent.charterAcceptedAt &&
-      currentPath === pathTalentCharte
+      onTalentCharte
     ) {
-      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+      return seeOther(pathTalentRoot, event.url);
     }
   }
 
   // --- Staff Guards ---
   if (isStaffRoute) {
     const isStaffPublic =
-      currentPath === pathStaffLogin || currentPath.startsWith(pathStaffOAuth);
+      on('/(staff)/staff/login') || within('/(staff)/staff/oauth');
 
     if (!isStaffPublic && !event.locals.user) {
-      return Response.redirect(
-        new URL(loginUrlWithRedirect(pathStaffLogin, event.url), event.url)
-          .href,
-        303,
+      return seeOther(
+        loginUrlWithRedirect(pathStaffLogin, event.url),
+        event.url,
       );
     }
 
@@ -220,13 +216,13 @@ export async function applyRouteGuards(
       event.locals.user?.role === 'student' &&
       !event.locals.staffProfile
     ) {
-      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+      return seeOther(pathTalentRoot, event.url);
     }
 
     // Admin sub-guard
     if (isAdminPath) {
       if (event.locals.staffProfile?.staffRole !== 'admin') {
-        return Response.redirect(new URL(pathStaffLogin, event.url).href, 303);
+        return seeOther(pathStaffLogin, event.url);
       }
     }
 
@@ -236,15 +232,9 @@ export async function applyRouteGuards(
       if (!can('devMember', role)) {
         const correctPath = getStaffRoleRedirectPath(role);
         if (correctPath) {
-          return Response.redirect(
-            new URL(p(correctPath), event.url).href,
-            303,
-          );
+          return seeOther(p(correctPath), event.url);
         }
-        return Response.redirect(
-          new URL(`${pathStaffLogin}?error=NoRole`, event.url).href,
-          303,
-        );
+        return seeOther(`${pathStaffLogin}?error=NoRole`, event.url);
       }
     }
   }
@@ -256,19 +246,16 @@ export async function applyRouteGuards(
     // Without this the guard bounces the unauthenticated clicker to login and
     // the endpoint never runs.
     const isParentPublic =
-      currentPath === pathParentLogin || currentPath === pathParentFastlogin;
+      on('/(parent)/parent/login') || on('/(parent)/parent/fastlogin');
 
     if (
       !isParentPublic &&
       (!event.locals.user || event.locals.user.role !== 'parent')
     ) {
-      return Response.redirect(new URL(pathParentLogin, event.url).href, 303);
+      return seeOther(pathParentLogin, event.url);
     }
-    if (
-      event.locals.user?.role === 'parent' &&
-      currentPath === pathParentLogin
-    ) {
-      return Response.redirect(new URL(pathParentWelcome, event.url).href, 303);
+    if (event.locals.user?.role === 'parent' && on('/(parent)/parent/login')) {
+      return seeOther(pathParentWelcome, event.url);
     }
 
     // Parent flow: welcome → règlement → droit-image → merci
@@ -293,22 +280,16 @@ export async function applyRouteGuards(
 
       if (pendingCount > 0) {
         if (
-          currentPath !== pathParentWelcome &&
-          currentPath !== pathParentReglement &&
-          currentPath !== pathParentSignature
+          !on('/(parent)/parent/welcome') &&
+          !on('/(parent)/parent/reglement') &&
+          !on('/(parent)/parent/signature')
         ) {
-          return Response.redirect(
-            new URL(pathParentWelcome, event.url).href,
-            303,
-          );
+          return seeOther(pathParentWelcome, event.url);
         }
       } else {
         // All signed: always land on merci (no dashboard in this release)
-        if (currentPath !== pathParentMerci) {
-          return Response.redirect(
-            new URL(pathParentMerci, event.url).href,
-            303,
-          );
+        if (!on('/(parent)/parent/merci')) {
+          return seeOther(pathParentMerci, event.url);
         }
       }
     }

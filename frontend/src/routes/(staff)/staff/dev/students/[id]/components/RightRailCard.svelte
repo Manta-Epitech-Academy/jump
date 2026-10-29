@@ -278,7 +278,7 @@
       </h4>
       {#if communications.length === 0}
         <p class="text-sm text-muted-foreground italic">
-          Aucune communication.
+          Aucun email ni SMS envoyé à ce talent.
         </p>
       {:else}
         <ul class="space-y-1.5">

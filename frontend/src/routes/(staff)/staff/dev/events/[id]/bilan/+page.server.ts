@@ -11,6 +11,7 @@ import {
   type FormStats,
 } from '$lib/server/feedbackStats';
 import { loadFeedbackRoster } from '$lib/server/services/feedbackRoster';
+import { countShownCohort } from '$lib/server/services/inscritsCohort';
 import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
 import { feedbackFormPath } from '$lib/domain/feedback';
 import type { BilanRow, RecoOption } from '$lib/domain/bilanRoster';
@@ -36,7 +37,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // form whose QR would 404. The full graph is loaded (not just id/title) so we
   // can read the recommendation question and its options. Dev never shows the
   // public link.
-  const form = await resolvePublishedEventForm(event);
+  const [form, rosterSize] = await Promise.all([
+    resolvePublishedEventForm(event),
+    countShownCohort(db, event.id),
+  ]);
   if (!form) {
     // No resolvable live form: the bilan module is on but nothing answers it. The
     // nav entry hides on the same condition (`hasFeedbackForm`); a direct URL then
@@ -87,6 +91,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       cohortNoun: event.cohortNoun,
     },
     form: { title: form.title, url: feedbackUrl },
+    // The header offers its export only when someone is there to export.
+    rosterSize,
     cohort,
   };
 };

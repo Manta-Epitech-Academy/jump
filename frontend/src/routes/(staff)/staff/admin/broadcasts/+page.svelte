@@ -158,7 +158,12 @@
 
     <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
-    <SortableTable {columns} rows={filtered} rowKey={(b: Row) => b.id}>
+    <SortableTable
+      {columns}
+      rows={filtered}
+      rowKey={(b: Row) => b.id}
+      onResetFilters={anyFiltersApplied ? resetFilters : undefined}
+    >
       {#snippet row(b: Row)}
         {@const total = b._count.recipients}
         {@const sentPct = total > 0 ? (b.progress.sent / total) * 100 : 0}
@@ -198,16 +203,6 @@
             Détail
           </Button>
         </Table.Cell>
-      {/snippet}
-
-      {#snippet empty()}
-        <div class="flex flex-col items-center gap-3 py-6">
-          <span
-            class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            Aucun envoi ne correspond à ces filtres
-          </span>
-        </div>
       {/snippet}
     </SortableTable>
   {/if}

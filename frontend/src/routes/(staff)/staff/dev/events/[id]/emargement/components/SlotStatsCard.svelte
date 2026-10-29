@@ -2,13 +2,16 @@
   import type { Snippet } from 'svelte';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import Lock from '@lucide/svelte/icons/lock';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
   import * as Card from '$lib/components/ui/card';
   import { cn } from '$lib/utils';
   import { statusBadgeClass } from '$lib/components/staff/statusBadge';
   import type { SlotStats } from '$lib/domain/eventPresence';
+  import { allPresentLine } from '$lib/domain/devVoice';
 
   let {
     slotLabel,
+    slotKey,
     stats,
     closed = false,
     stageRate = null,
@@ -16,6 +19,8 @@
   }: {
     /** Active half-day label (Matin / Après-midi). */
     slotLabel: string;
+    /** The créneau, day and half-day: it keys the line said when everyone is there. */
+    slotKey: string;
     stats: SlotStats;
     closed?: boolean;
     /** Whole-stage attendance rate, null until any créneau is émargé. */
@@ -63,16 +68,21 @@
   const pct = (n: number) =>
     stats.total > 0 ? Math.round((n / stats.total) * 100) : 0;
   const handled = $derived(stats.total - stats.pending);
+  // Everyone listed is there, late included: derived from the live stats, so it
+  // shows the moment the last talent is marked, during the appel.
+  const allPresent = $derived(
+    stats.total > 0 && stats.present + stats.late === stats.total,
+  );
 </script>
 
-<Card.Root class="rounded-sm shadow-raised">
+<Card.Root class="rounded-sm">
   <div
     class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
   >
     <ClipboardCheck class="h-5 w-5 text-epi-blue" />
     <h3 class="font-heading text-display-m text-foreground">Synthèse</h3>
     {#if closed}
-      <span class={cn('ml-auto', statusBadgeClass('warning'))}>
+      <span class={cn('ml-auto', statusBadgeClass('neutral'))}>
         <Lock class="h-3 w-3" /> Clôturé
       </span>
     {/if}
@@ -108,6 +118,13 @@
           {/if}
         {/each}
       </div>
+    {/if}
+
+    {#if allPresent}
+      <p class="flex items-center gap-1.5 text-xs font-medium text-foreground">
+        <CheckCheck class="h-4 w-4 shrink-0 text-epi-tech-ink" />
+        {allPresentLine(slotKey)}
+      </p>
     {/if}
 
     <dl class="space-y-1.5">

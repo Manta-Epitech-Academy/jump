@@ -22,6 +22,8 @@ import { authenticateOrRefuse } from './guard';
 import { recordAdminApiCall, TRANSPORT_OPERATIONS } from './audit';
 import { httpOperations } from './httpCatalogue';
 import {
+  isOperationAllowedForCapability,
+  operationsForTier,
   operationsOfferedTo,
   type AdminApiOperation,
   type AdminApiTier,
@@ -29,29 +31,38 @@ import {
 
 type JsonSchema = Record<string, unknown>;
 
-/** How every operation of this API behaves, for a human reading the reference. */
-const API_DESCRIPTION = [
-  'The curated administration API of Jump: named operations, the same ones the',
-  'MCP endpoint (/api/mcp) serves as tools. This document lists the ones your',
-  'token can call, and is generated from the catalogue on every request.',
-  '',
-  'Authenticate every call with `Authorization: Bearer <token>`. Tokens are',
-  'minted by an admin on /staff/admin/api-tokens; a read-only token sees no write',
-  'here, and a leadership token sees the steering figures only.',
-  '',
-  'A read is a GET taking its parameters from the query string. A write is a POST',
-  'taking a JSON object body, and answers with the state before and after it.',
-  'Unknown parameters are refused rather than ignored.',
-  '',
-  'Some writes replace a whole structure and take a `planDigest`. Call them',
-  'first without it: nothing changes and the answer is the plan with its digest.',
-  'Call again with that digest to apply; a 409 means the data moved in between,',
-  'so read the new plan and confirm again.',
-  '',
-  'A refusal is `{ "error": "..." }`, in French, with the status that says why;',
-  'an invalid parameter (400) also carries `details`. Every call, refused or not,',
-  'is recorded with the token that made it, and a write with what it changed.',
-].join('\n');
+/**
+ * How every operation of this API behaves, for a human reading the reference:
+ * what the document lists depends on whether it documents one token or both
+ * kinds of the tier's tokens, which is the admin reference page.
+ */
+const apiDescription = (bothKinds: boolean) =>
+  [
+    'The curated administration API of Jump: named operations, the same ones the',
+    'MCP endpoint (/api/mcp) serves as tools. This document lists the ones',
+    bothKinds
+      ? 'a token of this tier can call, read-only or allowed to write, each saying which of the two it needs when only one is offered it.'
+      : 'your token can call.',
+    'It is generated from the catalogue on every request.',
+    '',
+    'Authenticate every call with `Authorization: Bearer <token>`. Tokens are',
+    'minted by an admin on /staff/admin/api-tokens. A read-only token is offered',
+    'no write, a token allowed to write no read returning text a talent typed,',
+    'and a leadership token the steering figures only.',
+    '',
+    'A read is a GET taking its parameters from the query string. A write is a POST',
+    'taking a JSON object body, and answers with the state before and after it.',
+    'Unknown parameters are refused rather than ignored.',
+    '',
+    'Some writes replace a whole structure and take a `planDigest`. Call them',
+    'first without it: nothing changes and the answer is the plan with its digest.',
+    'Call again with that digest to apply; a 409 means the data moved in between,',
+    'so read the new plan and confirm again.',
+    '',
+    'A refusal is `{ "error": "..." }`, in French, with the status that says why;',
+    'an invalid parameter (400) also carries `details`. Every call, refused or not,',
+    'is recorded with the token that made it, and a write with what it changed.',
+  ].join('\n');
 
 /** Each operation, grouped by the first segment of its path. */
 const TAGS: Record<string, string> = {
@@ -139,16 +150,41 @@ function queryParameters(schema: JsonSchema) {
 }
 
 /**
+ * Why a token of the tier, with or without the write capability, may be
+ * refused an operation: the sentence the reference adds when it documents
+ * both kinds of token at once. Null when either kind is offered it.
+ */
+function capabilityNote(operation: AdminApiOperation): string | null {
+  if (!isOperationAllowedForCapability(operation, false))
+    return 'Needs a token allowed to write.';
+  if (!isOperationAllowedForCapability(operation, true))
+    return 'Not offered to a token allowed to write, since the answer carries text a talent typed, verbatim: call it with a read-only token.';
+  return null;
+}
+
+/**
  * The reference for one credential: only what it is offered, the rule MCP's
  * tool list follows, so a read-only token is never shown a write it would only
  * ever be refused.
+ *
+ * `writeEnabled: 'either'` documents the tier's tokens with and without the
+ * write capability together, each operation saying which of the two it needs
+ * when only one is offered it. That is the admin reference page: somebody
+ * looks a call up there before minting the token for it, so it has to show the
+ * writes a read-only token is not offered and the verbatim reads a token that
+ * writes is not.
  */
 export async function buildOpenApiDocument(credential: {
   tier: AdminApiTier;
-  writeEnabled: boolean;
+  writeEnabled: boolean | 'either';
   origin: string;
 }) {
-  const offered = new Map(operationsOfferedTo(credential));
+  const { tier, writeEnabled } = credential;
+  const offered = new Map(
+    writeEnabled === 'either'
+      ? operationsForTier(tier)
+      : operationsOfferedTo({ tier, writeEnabled }),
+  );
   const components: Record<string, JsonSchema> = {};
   const paths: Record<string, Record<string, unknown>> = {};
 
@@ -175,7 +211,12 @@ export async function buildOpenApiDocument(credential: {
       [route.method.toLowerCase()]: {
         operationId: route.name,
         summary: route.name,
-        description: operation.description,
+        description: [
+          operation.description,
+          writeEnabled === 'either' ? capabilityNote(operation) : null,
+        ]
+          .filter(Boolean)
+          .join(' '),
         tags: [TAGS[group] ?? group],
         ...(route.method === 'GET'
           ? { parameters: queryParameters(schema) }
@@ -210,7 +251,7 @@ export async function buildOpenApiDocument(credential: {
     info: {
       title: 'Jump administration API',
       version: '1',
-      description: API_DESCRIPTION,
+      description: apiDescription(writeEnabled === 'either'),
     },
     servers: [{ url: credential.origin }],
     security: [{ bearer: [] }],

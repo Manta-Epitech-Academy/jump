@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import { INVITABLE_STAFF_ROLES } from '$lib/domain/permissions';
+import { isStaffEmailAddress } from '$lib/domain/staff';
 
 const epitechEmail = z
   .email('Adresse email invalide')
-  .refine((v) => v.toLowerCase().endsWith('@epitech.eu'), {
+  .refine(isStaffEmailAddress, {
     message: 'Doit être une adresse @epitech.eu',
   });
 

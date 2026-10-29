@@ -362,6 +362,7 @@
     <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
     <SortableTable
+      onResetFilters={filtersApplied ? resetFilters : undefined}
       {columns}
       rows={visible}
       sortKey={view.sort}
@@ -409,16 +410,6 @@
             </div>
           {/if}
           {@render remedy(r)}
-        </div>
-      {/snippet}
-
-      {#snippet empty()}
-        <div class="flex flex-col items-center gap-3 py-6">
-          <span
-            class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            Aucun résultat
-          </span>
         </div>
       {/snippet}
     </SortableTable>

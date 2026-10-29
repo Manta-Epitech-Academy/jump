@@ -583,6 +583,7 @@
   {/if}
 
   <SortableTable
+    onResetFilters={anyFiltersApplied ? resetFilters : undefined}
     {columns}
     {rows}
     sortKey={view.sort}
@@ -708,16 +709,6 @@
         <EventStateBadge state={e.configState} past={e.status === 'past'} />
         <span class="ml-auto text-xs text-muted-foreground">
           {e.participations} inscrits
-        </span>
-      </div>
-    {/snippet}
-
-    {#snippet empty()}
-      <div class="flex flex-col items-center gap-3 py-6">
-        <span
-          class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Aucun événement
         </span>
       </div>
     {/snippet}

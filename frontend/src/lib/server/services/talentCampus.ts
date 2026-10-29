@@ -49,6 +49,9 @@ export async function resolveTalentCampus(
  * `rulesSignedAt`, and BEFORE that stamp, so the talent never counts itself
  * (its `rulesSignedAt` is still null at count time).
  *
+ * A completer is a talent whose `rulesSignedAt` is set, and that stands for the
+ * whole ladder because `signOnboardingRules` stamps it only at the `rules` step.
+ *
  * Takes a per-campus advisory lock, released when the caller's transaction
  * commits, so concurrent completions in the same campus serialize. Without it
  * two students finishing in the same instant each read a snapshot taken before

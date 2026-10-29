@@ -8,7 +8,11 @@ import {
   usageConnectionFeature,
 } from '$lib/domain/usage';
 import { applyRouteGuards } from '$lib/server/auth/guards';
-import { slideImpersonationExpiry } from '$lib/server/auth/impersonation';
+import {
+  loadImpersonator,
+  slideImpersonationExpiry,
+} from '$lib/server/auth/impersonation';
+import { revokeImpersonation } from '$lib/server/auth/impersonate';
 import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { resolveTalentCampus } from '$lib/server/services/talentCampus';
 import { recordSignInDay } from '$lib/server/services/signInStreak';
@@ -25,6 +29,7 @@ import {
   LOCKED_DOWN_CSP,
 } from '$lib/security/csp';
 import { workshopBaseUrls } from '$lib/server/workshops/origins';
+import { isCrossSiteWrite } from '$lib/security/crossSite';
 import { createInitialModeExpression } from 'mode-watcher';
 
 // Every CSP directive that is a fixed constant (or gone with the recorder, issue
@@ -145,6 +150,17 @@ function recordVisit(event: Parameters<Handle>[0]['event']) {
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
+  // 0. A write a browser sent from another site is refused before anything
+  // runs, for every route: see `security/crossSite.ts` for why kit's own check
+  // is not enough.
+  if (isCrossSiteWrite(event.request, event.url.origin)) {
+    const refused = new Response('Cross-site requests are forbidden', {
+      status: 403,
+    });
+    await setSecurityHeaders(refused);
+    return refused;
+  }
+
   recordOpenIfTracked(event);
 
   // 1. Get session from BetterAuth
@@ -164,6 +180,35 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.armedRealSends = false;
   event.locals.armedRealSendsUntil = null;
   event.locals.devRedirectPin = null;
+
+  // 1.5 An impersonated session acts on the admin's authority, so it holds
+  // only while that admin still is one (see `loadImpersonator`). Checked
+  // before anything is loaded for the target: a revoked session is answered
+  // on this very request, by `revokeImpersonation`. BetterAuth stores the
+  // admin's user id in `session.impersonatedBy`.
+  const impersonatedById =
+    (event.locals.session as { impersonatedBy?: string | null } | null)
+      ?.impersonatedBy ?? null;
+  if (impersonatedById && event.locals.session) {
+    const impersonator = await loadImpersonator(impersonatedById);
+    if (impersonator) {
+      // The real admin, so analytics attribute actions to the actor and not
+      // to the impersonated user.
+      event.locals.impersonator = impersonator;
+      // Keep an actively-used impersonation session from hitting its hard
+      // wall: slide its expiry forward so an admin testing a talent's flow is
+      // never bounced to login (which would drop their own admin session
+      // too). An abandoned session still lapses after the idle window.
+      slideImpersonationExpiry(event.locals.session);
+    } else {
+      const revoked = await revokeImpersonation(
+        event.request,
+        impersonatedById,
+      );
+      await setSecurityHeaders(revoked);
+      return revoked;
+    }
+  }
 
   // 2. Load profiles + refresh role from DB in a single query.
   // BetterAuth caches the session payload (including role) in a cookie for 5
@@ -207,48 +252,6 @@ export const handle: Handle = async ({ event, resolve }) => {
     if (talentCampus) {
       event.locals.talentCampusName = talentCampus.campusName;
       event.locals.talentCampusId = talentCampus.campusId;
-    }
-
-    // Resolve the real admin behind an impersonated session so analytics can
-    // attribute actions to the actor (not the impersonated user). BetterAuth
-    // stores the admin's user id in `session.impersonatedBy`.
-    const impersonatedById =
-      (event.locals.session as { impersonatedBy?: string | null } | null)
-        ?.impersonatedBy ?? null;
-    // Keep an actively-used impersonation session from hitting its hard wall:
-    // slide its expiry forward so an admin testing a talent's flow is never
-    // bounced to login (which would drop their own admin session too). An
-    // abandoned session still lapses after the idle window. See the helper.
-    if (impersonatedById && event.locals.session) {
-      slideImpersonationExpiry(event.locals.session);
-    }
-    if (impersonatedById) {
-      const adminRecord = await prisma.bauth_user.findUnique({
-        where: { id: impersonatedById },
-        select: {
-          email: true,
-          staffProfile: {
-            select: {
-              id: true,
-              staffRole: true,
-              campus: { select: { name: true } },
-              devRedirectEmails: true,
-              devRedirectPhones: true,
-            },
-          },
-        },
-      });
-      if (adminRecord) {
-        event.locals.impersonator = {
-          userId: impersonatedById,
-          email: adminRecord.email ?? null,
-          staffProfileId: adminRecord.staffProfile?.id ?? null,
-          staffRole: adminRecord.staffProfile?.staffRole ?? null,
-          campusName: adminRecord.staffProfile?.campus?.name ?? null,
-          devRedirectEmails: adminRecord.staffProfile?.devRedirectEmails ?? [],
-          devRedirectPhones: adminRecord.staffProfile?.devRedirectPhones ?? [],
-        };
-      }
     }
 
     event.locals.stagePhaseOverride = readDevPhaseOverride(event);

@@ -20,7 +20,7 @@
   // first time we hit a support surface and drive Crisp's own chat:show /
   // chat:hide on each client-side route change. (Across route groups the
   // component unmounts before it can hide, so a talent->staff exit must still be
-  // a full-page nav -- see TalentImpersonationBanner.stopImpersonating.)
+  // a full-page nav -- see TalentImpersonationBanner.returnToAdmin.)
   const websiteId = env.PUBLIC_CRISP_WEBSITE_ID ?? '';
 
   type CrispWindow = { $crisp?: unknown[]; CRISP_WEBSITE_ID?: string };

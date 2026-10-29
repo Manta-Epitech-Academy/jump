@@ -14,7 +14,9 @@
    * (sidebar, staff top bar, brand-blue hero) and this is right there too.
    *
    * `blink` is the charte's one sanctioned motion for it, a terminal cursor
-   * blinking after live text. Use it for that and nothing else.
+   * blinking after live text. Use it for that and nothing else. It blinks only
+   * for someone who has not asked for less motion: the cursor is still there,
+   * it just holds still.
    *
    * Call sites leave no whitespace between the title text and this element:
    * without a break opportunity the cursor cannot wrap onto a line of its own.
@@ -24,5 +26,5 @@
 
 <span
   aria-hidden="true"
-  class="text-epi-tech-ink {blink ? 'animate-pulse' : ''}">_</span
+  class="text-epi-tech-ink {blink ? 'motion-safe:animate-pulse' : ''}">_</span
 >

@@ -363,6 +363,16 @@ export type AdminApiOperation = {
    * somebody has to remember.
    */
   leadership: boolean;
+  /**
+   * The answer carries text typed outside the staff, by a talent or a parent,
+   * returned verbatim: a closing testimonial, or a school's name as a talent
+   * typed it when the annuaire did not know the UAI (`resolveSchoolByUai`). Such a read is never served to
+   * a credential that can write: in one MCP session, a sentence written as an
+   * instruction would otherwise sit next to the write tools it could ask a
+   * model to call, with only prose telling the model not to (security audit
+   * run-1). An admin reads it with a read-only or leadership token.
+   */
+  untrustedText: boolean;
   /** Bulk: a dry run first, then an apply echoing that plan's digest. */
   twoStep: boolean;
   run: (
@@ -396,6 +406,8 @@ function defineOperation<Shape extends z.ZodRawShape>(op: {
   shape: Shape;
   /** Grant this read to leadership tokens too. Absent = core team only. */
   leadership?: true;
+  /** Returns text an admin did not write, verbatim (see the field). */
+  untrustedText?: true;
   run: (
     params: z.output<z.ZodObject<Shape>>,
     ctx: OperationContext,
@@ -407,6 +419,7 @@ function defineOperation<Shape extends z.ZodRawShape>(op: {
     schema: z.strictObject(op.shape),
     kind: 'read',
     leadership,
+    untrustedText: op.untrustedText ?? false,
     twoStep: false,
     run: async (params, ctx) => {
       const answer = await op.run(params as z.output<z.ZodObject<Shape>>, ctx);
@@ -465,6 +478,7 @@ function defineWrite<Shape extends z.ZodRawShape>(op: {
     schema: z.strictObject(op.shape),
     kind: 'write',
     leadership: false,
+    untrustedText: false,
     twoStep: op.twoStep ?? false,
     run: (params, ctx) => op.run(params as z.output<z.ZodObject<Shape>>, ctx),
   };
@@ -747,6 +761,9 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_school_year_review: defineOperation({
     leadership: true,
+    // Its high-school reach is `stats_schools_reach`'s `topSchools`, names
+    // included.
+    untrustedText: true,
     description:
       'One school year summarised for a steering review: events run, cohort size and make-up, high-school and territorial reach, whether talents came back, and what they said in their closings. Pass compareTo to also get every headline figure as a movement against another year, already computed. Also returns "limites", stating in French what these figures cannot be read as. The school year is required.',
     shape: {
@@ -781,6 +798,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_schools_churn: defineOperation({
     leadership: true,
+    untrustedText: true,
     description: `Which high schools are new, which came back and which sent nobody this year, between two school years. Names the schools, most-represented first, capped at ${CHURN_SCHOOLS_LIMIT} per list. Both school years are required; there is no implicit previous year.`,
     shape: {
       schoolYear: requiredSchoolYear.describe(
@@ -1763,6 +1781,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_schools_reach: defineOperation({
     leadership: true,
+    untrustedText: true,
     description: `Which high schools the platform reaches: how many distinct ones, how many départements they cover, the ${SCHOOLS_TOP_N} most represented with their share of the cohort, and how much of the cohort is attached to no identified school at all - split into the ones who named a school Jump could not match and the ones who named none, because those two are chased differently.`,
     shape: { schoolYear, campus, eventId },
     run: async (params) => getSchoolsReach(await resolveScope(params)),
@@ -1896,6 +1915,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_closing_testimonials: defineOperation({
     leadership: true,
+    untrustedText: true,
     description: `Sentences students wrote about the event, word for word, from the one question each closing grid marks as quotable. Most recent first, no student identified. Default ${TESTIMONIALS_DEFAULT_LIMIT}, ${TESTIMONIALS_MAX_LIMIT} maximum.`,
     shape: {
       schoolYear,
@@ -1984,6 +2004,21 @@ export function isOperationAllowedForTier(
   return tier === 'core' || operation.leadership;
 }
 
+/**
+ * Whether a credential's write capability admits an operation. The single
+ * expression of that rule, read by the guard and by the MCP server like
+ * {@link isOperationAllowedForTier}: a write needs the capability, and a read
+ * that returns untrusted text needs its absence.
+ */
+export function isOperationAllowedForCapability(
+  operation: AdminApiOperation,
+  writeEnabled: boolean,
+): boolean {
+  return operation.kind === 'write'
+    ? writeEnabled
+    : !(operation.untrustedText && writeEnabled);
+}
+
 /** The operations a tier can call, in catalogue order. */
 export function operationsForTier(
   tier: AdminApiTier,
@@ -2004,7 +2039,7 @@ export function operationsOfferedTo(credential: {
   tier: AdminApiTier;
   writeEnabled: boolean;
 }): [AdminApiOperationName, AdminApiOperation][] {
-  return operationsForTier(credential.tier).filter(
-    ([, op]) => op.kind !== 'write' || credential.writeEnabled,
+  return operationsForTier(credential.tier).filter(([, op]) =>
+    isOperationAllowedForCapability(op, credential.writeEnabled),
   );
 }

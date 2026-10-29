@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { noMatchLine } from '$lib/domain/devVoice';
   import { page } from '$app/state';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
@@ -200,7 +201,8 @@
     rowKey={(r) => r.talentId}
     row={rowSnippet}
     mobileRow={mobileRowSnippet}
-    empty={emptySnippet}
+    onResetFilters={anyFiltersApplied ? resetFilters : undefined}
+    noMatchHint={noMatchLine(page.url.pathname)}
     stickyHeader
     layout="fixed"
   />
@@ -288,15 +290,5 @@
       {@render recoBadge(r)}
     </div>
     {@render statutBadge(r)}
-  </div>
-{/snippet}
-
-{#snippet emptySnippet()}
-  <div class="flex flex-col items-center gap-3 py-6">
-    <span
-      class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-    >
-      Aucun résultat
-    </span>
   </div>
 {/snippet}

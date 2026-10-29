@@ -77,6 +77,20 @@ function techInterests(links: InterestLink[]): InscritInterest[] {
 }
 
 /**
+ * How many people the dev space shows on an event, the cohort every page of the
+ * event lists. A page's shell reads it before streaming its body, so it offers
+ * no export of an event with no one in it: that export is an empty workbook.
+ */
+export async function countShownCohort(
+  db: ScopedPrismaClient,
+  eventId: string,
+): Promise<number> {
+  return db.participation.count({
+    where: { eventId, ...visibleParticipationWhere },
+  });
+}
+
+/**
  * The event's roster as the Inscrits page and its export show it: one row per
  * enrolment the dev space shows, with everything a column displays or filters
  * on. One builder for both, so the downloaded sheet can never describe a talent

@@ -24,7 +24,6 @@
   import { offerFacets } from '$lib/domain/listFacets';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import EmptyState from '$lib/components/EmptyState.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentContactDialog from '$lib/components/students/StudentContactDialog.svelte';
   import EditParentEmailDialog from '../EditParentEmailDialog.svelte';
@@ -354,6 +353,7 @@
     sortDir={view.dir}
     onSort={toggleSort}
     rowKey={(t) => t.id}
+    onResetFilters={hasActiveFilters ? resetFilters : undefined}
   >
     {#snippet row(talent)}
       <Table.Cell>
@@ -553,14 +553,6 @@
           </Tooltip.Provider>
         </div>
       </Table.Cell>
-    {/snippet}
-
-    {#snippet empty()}
-      <EmptyState
-        icon={Users}
-        title="Aucun talent"
-        description="Aucun talent ne correspond à ces filtres."
-      />
     {/snippet}
   </SortableTable>
 

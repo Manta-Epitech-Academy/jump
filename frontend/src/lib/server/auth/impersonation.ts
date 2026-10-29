@@ -24,6 +24,50 @@ import { IMPERSONATION_IDLE_WINDOW_SEC } from '$lib/domain/impersonation';
 // `STOP_BEFORE_MS` so the client always bows out before the server expiry.
 const MIN_BUMP_MS = 10_000;
 
+/**
+ * The admin behind an impersonated session, or null when nobody holds that
+ * authority any more.
+ *
+ * The session is BetterAuth's row on the TARGET, and `impersonatedBy` is a bare
+ * id with no relation: demoting or deleting the admin leaves it standing, and
+ * the slide above would keep it alive for as long as the holder stayed active
+ * (security audit run-1). So the authority is read here, on every request,
+ * rather than revoked where a role changes: role writers are spread over
+ * services, scripts and reconciliation, and BetterAuth's cookie cache would
+ * serve a deleted row for minutes anyway. A null means `revokeImpersonation`.
+ */
+export async function loadImpersonator(
+  adminUserId: string,
+): Promise<NonNullable<App.Locals['impersonator']> | null> {
+  const admin = await prisma.bauth_user.findUnique({
+    where: { id: adminUserId },
+    select: {
+      email: true,
+      staffProfile: {
+        select: {
+          id: true,
+          staffRole: true,
+          campus: { select: { name: true } },
+          devRedirectEmails: true,
+          devRedirectPhones: true,
+        },
+      },
+    },
+  });
+  const profile = admin?.staffProfile;
+  if (!admin || profile?.staffRole !== 'admin') return null;
+
+  return {
+    userId: adminUserId,
+    email: admin.email ?? null,
+    staffProfileId: profile.id,
+    staffRole: profile.staffRole,
+    campusName: profile.campus?.name ?? null,
+    devRedirectEmails: profile.devRedirectEmails,
+    devRedirectPhones: profile.devRedirectPhones,
+  };
+}
+
 // `expiresAt` is a Date from the DB adapter but an ISO string when the session
 // comes from BetterAuth's signed cookie cache (JSON has no Date type), so
 // normalize before any date math.

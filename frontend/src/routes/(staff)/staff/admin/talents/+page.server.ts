@@ -6,7 +6,10 @@ import {
   resetTalentToImport,
   TalentAlreadyErased,
 } from '$lib/server/services/talentAccount';
-import { changeParentEmail } from '$lib/server/services/parentAccount';
+import {
+  changeParentEmail,
+  type ChangeParentEmailResult,
+} from '$lib/server/services/parentAccount';
 import { parentCompleteWhere } from '$lib/server/db/dossierCompliance';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
@@ -22,6 +25,18 @@ import {
 import { resolveTalentFilters } from './facets';
 
 const PER_PAGE = 50;
+
+/** Why `changeParentEmail` refused an address, as the admin reads it. */
+const PARENT_EMAIL_REFUSALS: Record<
+  Extract<ChangeParentEmailResult, { ok: false }>['reason'],
+  string
+> = {
+  same_as_student:
+    "L'adresse du parent doit être différente de celle de l'élève.",
+  email_taken: 'Cette adresse est déjà utilisée par un autre compte.',
+  staff_address:
+    "Une adresse @epitech.eu est réservée à l'équipe : elle ne peut pas servir de compte parent.",
+};
 
 // Admin is campus-agnostic (no staffProfile.campusId), so the talent directory
 // here is intentionally global, unlike the campus-scoped dev students list.
@@ -152,10 +167,7 @@ export const actions: Actions = {
       });
       if (!result.ok) {
         return fail(400, {
-          message:
-            result.reason === 'same_as_student'
-              ? "L'adresse du parent doit être différente de celle de l'élève."
-              : 'Cette adresse est déjà utilisée par un autre compte.',
+          message: PARENT_EMAIL_REFUSALS[result.reason],
         });
       }
       const message = !result.changed

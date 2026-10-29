@@ -7,7 +7,10 @@ import {
 } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_CATEGORY_TAG_SELECT } from '$lib/server/services/eventCategories';
-import { loadInscritsCohort } from '$lib/server/services/inscritsCohort';
+import {
+  countShownCohort,
+  loadInscritsCohort,
+} from '$lib/server/services/inscritsCohort';
 import { loadClosingsRoster } from '$lib/server/services/closingsRoster';
 import { loadFeedbackRoster } from '$lib/server/services/feedbackRoster';
 import {
@@ -29,7 +32,6 @@ import {
   daysRangeLong,
   eventDayKeys,
 } from '$lib/domain/campusCalendar';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { eventHomeFigures, type EventHomeFigures } from '$lib/domain/eventHome';
 
 // The event's home (#443): where it opens, with its figures and its actions.
@@ -61,9 +63,7 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
     // cards read: the same gates as each section's own page.
     planEventWorkbook(event),
     resolveEventDiplomaIdentity(event),
-    db.participation.count({
-      where: { eventId: event.id, ...visibleParticipationWhere },
-    }),
+    countShownCohort(db, event.id),
   ]);
 
   const now = new Date();
@@ -99,6 +99,7 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
       days: daysRangeLong(first, last),
       length: daysLength(first, last),
       externalId: event.externalId,
+      cohortNoun: event.cohortNoun,
     },
     countdown: {
       status: applyPhaseOverride(

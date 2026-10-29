@@ -12,30 +12,16 @@
     emailEnhance,
     emailDelayed,
     emailMessage,
-    errorMessage,
   }: {
     emailForm: any;
     emailErrors: any;
     emailEnhance: any;
     emailDelayed: any;
     emailMessage: any;
-    errorMessage?: string | null;
   } = $props();
 </script>
 
 <div class="animate-slide-in-right">
-  {#if errorMessage}
-    <Alert
-      variant="destructive"
-      class="mb-6 rounded-xl border-destructive/30 bg-destructive/10 text-destructive"
-    >
-      <CircleAlert class="h-4 w-4" />
-      <AlertDescription class="text-xs font-medium">
-        {errorMessage}
-      </AlertDescription>
-    </Alert>
-  {/if}
-
   {#if $emailMessage && $emailMessage.type === 'error'}
     <Alert
       variant="destructive"
