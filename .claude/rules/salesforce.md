@@ -110,8 +110,10 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   nulls `Talent.externalId`, so without `Sync_ErasedContact` the next push
   re-creates the talent and its login as a first sight. Both pushes skip it
   before anything else, counted in `erased`, never a `Sync_Error` (which would
-  store the id and the name again). The model says why it holds the id alone
-  and why the inactivity sweep bars nothing.
+  store the id and the name again). The bar is on the person: a Lead erased
+  before Salesforce converted it bars the Contact that carries it in
+  `converted_lead_ids`, and the row moves onto that Contact. The model says
+  why it holds the id alone and why the inactivity sweep bars nothing.
 - **A failed run moves nothing.** The watermarks are no column anywhere: each is
   read off the latest run of its mode with `status = 'ok'` (`lastOkRun`), and
   which of that run's dates counts is the `startedAt` rule below. So a run

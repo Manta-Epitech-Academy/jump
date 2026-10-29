@@ -317,7 +317,7 @@ export async function syncTalents(talents: WorkerTalent[]) {
   let erased = 0;
   const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
   const erasedIds = await erasedContactsAmong(
-    talents.map((t) => t.external_id),
+    talents.flatMap((t) => [t.external_id, ...(t.converted_lead_ids ?? [])]),
   );
 
   // Canonical School per distinct UAI, resolved once for the whole batch.
@@ -331,7 +331,15 @@ export async function syncTalents(talents: WorkerTalent[]) {
     // because a `Sync_Error` would store the very id and name the erasure
     // removed. Counted rather than refused, for the reason below: Salesforce
     // keeps the contact, so the worker keeps sending it.
-    if (erasedIds.has(t.external_id)) {
+    //
+    // The bar is on the person, not on one of their ids: a talent erased while
+    // keyed on a Lead comes back as the Contact that Lead was converted into,
+    // so the bar follows it there (`carryErasureBar`).
+    const converted = t.converted_lead_ids ?? [];
+    const barredLeads = converted.filter((id) => erasedIds.has(id));
+    if (erasedIds.has(t.external_id) || barredLeads.length > 0) {
+      if (barredLeads.length > 0)
+        await carryErasureBar(t.external_id, barredLeads);
       erased++;
       continue;
     }
@@ -378,7 +386,6 @@ export async function syncTalents(talents: WorkerTalent[]) {
     // contact, before anything below looks it up by `external_id`. Skipped
     // and recorded like a nameless contact when more than one of them was
     // used, since only a person can say which one the student keeps.
-    const converted = t.converted_lead_ids ?? [];
     if ((await claimSalesforcePerson(t.external_id, converted)) === 'refused') {
       invalid++;
       await recordContactError('MERGE_REFUSED', {
@@ -642,6 +649,26 @@ async function erasedContactsAmong(externalIds: string[]) {
     select: { externalId: true },
   });
   return new Set(rows.map((r) => r.externalId));
+}
+
+/**
+ * Rekey the bar of an erased Lead onto the Contact it was converted into, as
+ * `claimSalesforcePerson` rekeys a talent: one person, one row, on the id
+ * Salesforce now sends. The enrolments push names the Contact, so a bar left on
+ * the Lead would leave its roster unresolved, and an admin readmitting the
+ * person copies the Contact's id out of Salesforce, not a Lead's.
+ */
+async function carryErasureBar(contactId: string, leadIds: string[]) {
+  await prisma.$transaction([
+    prisma.sync_ErasedContact.upsert({
+      where: { externalId: contactId },
+      create: { externalId: contactId },
+      update: {},
+    }),
+    prisma.sync_ErasedContact.deleteMany({
+      where: { externalId: { in: leadIds } },
+    }),
+  ]);
 }
 
 /**

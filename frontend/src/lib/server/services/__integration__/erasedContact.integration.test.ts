@@ -13,6 +13,8 @@
  *  - a full roster carrying the erased contact still proves its deletions, and
  *    the erased talent's kept enrolment is not pruned;
  *  - readmitting the contact lets the next push import them from scratch;
+ *  - a talent erased while keyed on a Lead stays barred once that Lead is
+ *    converted, and the bar moves onto the Contact;
  *  - the inactivity sweep's erasure bars nothing, since a swept talent who
  *    enrols again is the return Jump exists for.
  */
@@ -59,7 +61,15 @@ describe('a talent erased at their request (integration)', () => {
     last_name: 'Inactif',
     email: `noa.${stamp}@example.test`,
   };
-  const contacts = [erasedContact, stayingContact, sweptContact];
+  // Erased while Jump still keyed them on a Lead, then converted in Salesforce.
+  const leadContact = {
+    external_id: `test_erased_lead_${stamp}`,
+    first_name: 'Lou',
+    last_name: 'Converti',
+    email: `lou.${stamp}@example.test`,
+  };
+  const convertedContactId = `test_erased_converted_${stamp}`;
+  const contacts = [erasedContact, stayingContact, sweptContact, leadContact];
 
   let campusId = '';
   let erasedTalentId = '';
@@ -109,7 +119,11 @@ describe('a talent erased at their request (integration)', () => {
   afterAll(async () => {
     try {
       await prisma.sync_ErasedContact.deleteMany({
-        where: { externalId: { in: contacts.map((c) => c.external_id) } },
+        where: {
+          externalId: {
+            in: [...contacts.map((c) => c.external_id), convertedContactId],
+          },
+        },
       });
       // Erased talents lost their Salesforce id, so they are tracked by row id;
       // the ones imported since carry it again.
@@ -227,6 +241,49 @@ describe('a talent erased at their request (integration)', () => {
         select: { nom: true, externalId: true },
       }),
     ).toEqual({ nom: 'Anonymisé', externalId: null });
+  });
+
+  it('keeps a Lead-keyed erasure once Salesforce converts the Lead', async () => {
+    const lead = await prisma.talent.findUniqueOrThrow({
+      where: { externalId: leadContact.external_id },
+      select: { id: true },
+    });
+    erasedTalentIds.push(lead.id);
+    const request = await requestTalentDeletion(lead.id);
+    expect(await fulfillTalentDeletion(request.id, 'test-admin')).toBe(true);
+
+    // The worker now keys the person on the Contact, and names the Lead.
+    const converted = {
+      ...leadContact,
+      external_id: convertedContactId,
+      converted_lead_ids: [leadContact.external_id],
+    };
+    expect(await syncTalents([converted])).toMatchObject({
+      created: 0,
+      erased: 1,
+    });
+    expect(
+      await prisma.talent.findUnique({
+        where: { externalId: convertedContactId },
+      }),
+    ).toBeNull();
+
+    // The bar is on the id Salesforce now sends, so the enrolments push names
+    // a resolved member and an admin readmits them by the Contact's id.
+    const bars = await prisma.sync_ErasedContact.findMany({
+      where: {
+        externalId: { in: [leadContact.external_id, convertedContactId] },
+      },
+      select: { externalId: true },
+    });
+    expect(bars).toEqual([{ externalId: convertedContactId }]);
+    expect(
+      await syncParticipations(
+        eventExternalId,
+        { [convertedContactId]: 'Met' },
+        'incremental',
+      ),
+    ).toMatchObject({ erased: 1 });
   });
 
   it('bars nothing when the inactivity sweep is what erased the talent', async () => {
