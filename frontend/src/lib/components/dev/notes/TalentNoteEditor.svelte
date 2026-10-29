@@ -77,26 +77,41 @@
         return;
       }
       if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as {
-          message?: string;
-        } | null;
-        throw new Error(body?.message ?? '');
+        saveFailed(res.status < 500 ? await refusalOf(res) : undefined);
+        return;
       }
       const saved = (await res.json()).note as SerializedNote;
       conflict = null;
       onSaved?.(saved);
       toast.success('Note enregistrée.');
     } catch (e) {
+      // A lost connection or an answer that is not JSON: the browser's own
+      // English says nothing to act on.
       console.error('save talent note', e);
-      // The text stays in the editor, which is the one thing the person needs
-      // to know before trying again.
-      toast.error(
-        (e instanceof Error && e.message) || "La note n'a pas été enregistrée.",
-        { description: 'Votre texte est conservé : réessayez.' },
-      );
+      saveFailed();
     } finally {
       saving = false;
     }
+  }
+
+  /**
+   * The endpoint's own reason for a refusal (a 4xx it wrote, in French). A
+   * crash is left out by the caller: its body is SvelteKit's « Internal
+   * Error ».
+   */
+  async function refusalOf(res: Response): Promise<string | undefined> {
+    const body = (await res.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+    return body?.message;
+  }
+
+  // The text stays in the editor, which is the one thing the person needs to
+  // know before trying again.
+  function saveFailed(reason?: string) {
+    toast.error(reason ?? "La note n'a pas été enregistrée.", {
+      description: 'Votre texte est conservé : réessayez.',
+    });
   }
 
   function takeCurrent() {
