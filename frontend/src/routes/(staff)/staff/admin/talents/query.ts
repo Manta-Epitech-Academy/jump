@@ -20,6 +20,9 @@ import {
 import { isOnboardingEligible } from '$lib/domain/niveau';
 import { isParentDossierComplete } from '$lib/domain/dossierCompliance';
 import type { TalentAccountStatus, ParentCompletionStatus } from './labels';
+import type { TalentFilters, TalentsFacet, TalentsSortKey } from './view';
+import type { SortDir } from '$lib/domain/listView';
+import type { ListFacet } from '$lib/domain/listFacets';
 import { guardiansOf } from '$lib/domain/contact';
 import {
   everyTokenMatches,
@@ -33,77 +36,6 @@ import {
  * this module, so the on-screen badges and the exported file can never drift,
  * and a filter added in one place is honoured in both.
  */
-
-// ---- filter parsing -------------------------------------------------------
-
-// Mirrors the four onboarding states shown in the table's Statut column:
-// `active` = onboarding complete, `onboarding` = account exists but mid-flow,
-// `never` = no login account, `no_dossier` = a collégien, who has no onboarding
-// to do at all. `all` clears the filter.
-export type StatusFilter =
-  'all' | 'active' | 'onboarding' | 'never' | 'no_dossier';
-// Parent completion: "complete" once the guardian co-signed the règlement AND
-// settled the image-rights decision; "pending" = still blocked on one. `all`
-// clears it. Both buckets presuppose a parent on file (see buildTalentWhere).
-export type ParentStatusFilter = 'all' | 'pending' | 'complete';
-export type TalentSortKey = 'nom' | 'niveau' | 'xp' | 'activite';
-
-export type TalentFilters = {
-  q: string;
-  niveau: string;
-  status: StatusFilter;
-  /** Multi-select: every campus the admin scoped the directory to (empty = all). */
-  campusIds: string[];
-  parentStatus: ParentStatusFilter;
-  sort: TalentSortKey | '';
-  dir: 'asc' | 'desc';
-  page: number;
-};
-
-const STATUS_VALUES: StatusFilter[] = [
-  'all',
-  'active',
-  'onboarding',
-  'never',
-  'no_dossier',
-];
-const PARENT_STATUS_VALUES: ParentStatusFilter[] = [
-  'all',
-  'pending',
-  'complete',
-];
-const SORT_VALUES: TalentSortKey[] = ['nom', 'niveau', 'xp', 'activite'];
-
-/**
- * Parse the directory filters off the URL. Every enum-ish param degrades to its
- * default on junk input (so a hand-edited `?status=foo` never matches zero rows
- * by surprise), and `campus` is a comma-separated id list (`'all'`/blank → none).
- */
-export function parseTalentFilters(
-  searchParams: URLSearchParams,
-): TalentFilters {
-  const statusParam = (searchParams.get('status') || 'all') as StatusFilter;
-  const parentParam = (searchParams.get('parentStatus') ||
-    'all') as ParentStatusFilter;
-  const sortParam = (searchParams.get('sort') || '') as TalentSortKey;
-  const campusIds = (searchParams.get('campus') || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s && s !== 'all');
-
-  return {
-    q: searchParams.get('q') || '',
-    niveau: searchParams.get('niveau') || '',
-    status: STATUS_VALUES.includes(statusParam) ? statusParam : 'all',
-    campusIds,
-    parentStatus: PARENT_STATUS_VALUES.includes(parentParam)
-      ? parentParam
-      : 'all',
-    sort: SORT_VALUES.includes(sortParam) ? sortParam : '',
-    dir: searchParams.get('dir') === 'asc' ? 'asc' : 'desc',
-    page: Math.max(1, Number(searchParams.get('page')) || 1),
-  };
-}
 
 // ---- where building -------------------------------------------------------
 
@@ -141,36 +73,69 @@ export function onboardingDoneWhere(): Prisma.TalentWhereInput {
   };
 }
 
+/** The talents in each account state, as the Statut column names them:
+ *  what the filter keeps and what its counts count. */
+export const STATUT_WHERE: Record<
+  TalentAccountStatus,
+  () => Prisma.TalentWhereInput
+> = {
+  // A collégien has no ladder, so asking whether they cleared it is
+  // meaningless: no_dossier stands alone, and the other three keep their
+  // meaning within the population that does have one.
+  no_dossier: () => onboardingNotApplicableWhere,
+  never: () => ({ AND: [{ userId: null }, onboardingEligibleWhere] }),
+  active: () => ({ AND: [{ userId: { not: null } }, onboardingDoneWhere()] }),
+  pending: () => ({
+    AND: [
+      { userId: { not: null }, NOT: onboardingDoneWhere() },
+      onboardingEligibleWhere,
+    ],
+  }),
+};
+
+/** "Has a parent on file": the gate both parent states share (no parentEmail
+ *  is no one to chase), and the denominator of the parent-completion tile. */
+export const HAS_PARENT = { parentEmail: { not: null } } as const;
+
+/** The talents in each parent state, as the Parent column names them. */
+export const PARENT_WHERE: Record<
+  ParentCompletionStatus,
+  Prisma.TalentWhereInput
+> = {
+  pending: { AND: [HAS_PARENT, parentBlockedWhere] },
+  complete: { AND: [HAS_PARENT, parentCompleteWhere] },
+};
+
 /**
  * Builds the directory `where` and the KPI `scopeWhere` from one filter set.
  *
  * `scopeWhere` is the population the KPI tiles measure: search + niveau + the
- * campus/type participation match. The breakdown axes (`status`, `parentStatus`)
- * are deliberately excluded so a tile reads "how many of the scoped cohort are
+ * campus participation match. The breakdown axes (`statut`, `parent`) are
+ * deliberately excluded so a tile reads "how many of the scoped cohort are
  * onboarded", not "how many of the already-onboarded are onboarded".
  *
- * `where` layers the status + parentStatus narrowing on top. Everything is
- * accumulated into a single `AND` array (search included, as one `AND[].OR`
- * entry per word of the query) so the clauses compose instead of clobbering
- * each other: the old code assigned `where.AND` twice, which silently dropped
- * the status filter whenever a parent filter was also set, making "onboardé +
- * en attente parent" inexpressible.
+ * `where` layers the statut + parent narrowing on top. Every facet is one
+ * clause, an `OR` over its ticked values (several values of one facet widen,
+ * several facets narrow), and everything is accumulated into a single `AND`
+ * array (search included, as one `AND[].OR` entry per word of the query) so
+ * the clauses compose instead of clobbering each other: the old code assigned
+ * `where.AND` twice, which silently dropped the status filter whenever a parent
+ * filter was also set, making "onboardé + en attente parent" inexpressible.
  */
 export function buildTalentWhere(f: TalentFilters): {
   where: Prisma.TalentWhereInput;
   scopeWhere: Prisma.TalentWhereInput;
 } {
+  const { niveau, campus, statut, parent } = f.facets;
   const scope: Prisma.TalentWhereInput[] = [];
 
   scope.push(...everyTokenMatches(f.q, talentIdentityMatches));
-  if (f.niveau) scope.push({ niveau: f.niveau });
+  if (niveau.length) scope.push({ niveau: { in: niveau } });
 
   // A talent's campus isn't a column: `some` matches any campus they've
   // attended, the useful net for "anyone tied to campus X".
-  if (f.campusIds.length) {
-    scope.push({
-      participations: { some: { campusId: { in: f.campusIds } } },
-    });
+  if (campus.length) {
+    scope.push({ participations: { some: { campusId: { in: campus } } } });
   }
 
   const scopeWhere: Prisma.TalentWhereInput = scope.length
@@ -178,44 +143,33 @@ export function buildTalentWhere(f: TalentFilters): {
     : {};
 
   const narrow: Prisma.TalentWhereInput[] = [...scope];
-  // no_dossier is checked first and stands alone: a collégien has no ladder, so
-  // asking whether they cleared it is meaningless. The other three keep their
-  // meaning within the population that does have one.
-  if (f.status === 'no_dossier') narrow.push(onboardingNotApplicableWhere);
-  else if (f.status === 'never')
-    narrow.push({ userId: null }, onboardingEligibleWhere);
-  else if (f.status === 'active')
-    narrow.push({ userId: { not: null } }, onboardingDoneWhere());
-  else if (f.status === 'onboarding')
-    narrow.push(
-      { userId: { not: null }, NOT: onboardingDoneWhere() },
-      onboardingEligibleWhere,
-    );
-
-  // Both parent buckets presuppose a parent on file (a parentEmail to relance).
-  if (f.parentStatus === 'pending')
-    narrow.push({ parentEmail: { not: null } }, parentBlockedWhere);
-  else if (f.parentStatus === 'complete')
-    narrow.push({ parentEmail: { not: null } }, parentCompleteWhere);
+  if (statut.length) {
+    narrow.push({
+      OR: (statut as TalentAccountStatus[]).map((s) => STATUT_WHERE[s]()),
+    });
+  }
+  if (parent.length) {
+    narrow.push({
+      OR: (parent as ParentCompletionStatus[]).map((p) => PARENT_WHERE[p]),
+    });
+  }
 
   const where: Prisma.TalentWhereInput = narrow.length ? { AND: narrow } : {};
   return { where, scopeWhere };
 }
 
 /**
- * Clickable column sort → Prisma orderBy. Unknown/empty `sort` falls back to the
- * baseline ordering (most-recently-active first), so a junk param never breaks
- * the page and the export sorts identically to the table.
+ * Clickable column sort → Prisma orderBy, shared with the export so it sorts
+ * identically to the table. The bare address reads as `activite` desc
+ * (`TALENTS_VIEW`), the baseline: most recently active first.
  */
 export function buildOrderBy(
-  sort: TalentFilters['sort'],
-  dir: 'asc' | 'desc',
+  sort: TalentsSortKey,
+  dir: SortDir,
 ): Prisma.TalentOrderByWithRelationInput[] {
   switch (sort) {
     case 'nom':
       return [{ nom: dir }, { prenom: dir }];
-    case 'niveau':
-      return [{ niveau: { sort: dir, nulls: 'last' } }, { nom: 'asc' }];
     case 'xp':
       return [{ xp: dir }, { nom: 'asc' }];
     case 'activite':
@@ -231,11 +185,6 @@ export function buildOrderBy(
         {
           lastActiveAt: { sort: dir, nulls: dir === 'asc' ? 'first' : 'last' },
         },
-        { nom: 'asc' },
-      ];
-    default:
-      return [
-        { lastActiveAt: { sort: 'desc', nulls: 'last' } },
         { nom: 'asc' },
       ];
   }
@@ -399,7 +348,8 @@ export type TalentDirectoryRow = ReturnType<typeof projectTalentRow>;
  */
 export type TalentsCohort = {
   talents: TalentDirectoryRow[];
-  campuses: { id: string; name: string }[];
+  /** The column filters, counted over the whole directory (`./facets`). */
+  facets: ListFacet<TalentsFacet>[];
   totalItems: number;
   totalPages: number;
   stats: {
