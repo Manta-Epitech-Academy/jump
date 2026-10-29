@@ -3,10 +3,10 @@
  *
  *   bun run scripts/bootstrap-admins.ts nadia.lemoine@epitech.eu julien.david@epitech.eu
  *
- * Staff sign in with Microsoft OAuth only, and `staff/oauth/callback` refuses
- * anybody who has neither a pending `StaffInvitation` nor an already-provisioned
- * `StaffProfile`: it deletes the `bauth_user` BetterAuth just created and bounces
- * them with `NotInvited`. Invitations are written from `/staff/admin/users`,
+ * Staff sign in with Microsoft OAuth only, and the staff door
+ * (`src/lib/server/auth/staffDoor.ts`) refuses anybody who has neither a pending
+ * `StaffInvitation` nor an already-provisioned `StaffProfile`: BetterAuth creates
+ * no `bauth_user` for them and bounces them with `NotInvited`. Invitations are written from `/staff/admin/users`,
  * which needs an admin. So the first admin of a database cannot invite itself,
  * and that gap is the one this script fills - nothing else.
  *
@@ -20,7 +20,7 @@
  * a fresh database there is no non-generated account to attribute one to, and
  * attributing it to a generated one means the next `bun run seed` cascades the
  * invitation away. So it writes what the invitation would have produced -
- * `bauth_user` plus `StaffProfile` - which the callback then finds and lets
+ * `bauth_user` plus `StaffProfile` - which the staff door then finds and lets
  * through.
  *
  * No credential is minted. No password, no session, no OAuth account row: the
@@ -59,7 +59,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-/** The domain the OAuth callback enforces. An address outside it cannot log in. */
+/** The domain the staff door enforces (`isStaffEmailAddress` in src/lib/domain/staff.ts). An address outside it cannot log in. */
 const STAFF_EMAIL_DOMAIN = '@epitech.eu';
 
 const USAGE = `bun run scripts/bootstrap-admins.ts <email> [email...]
@@ -77,7 +77,7 @@ async function provision(email: string): Promise<[Outcome, string]> {
   if (!email.endsWith(STAFF_EMAIL_DOMAIN)) {
     return [
       'refused',
-      `outside ${STAFF_EMAIL_DOMAIN}; the OAuth callback would reject it`,
+      `outside ${STAFF_EMAIL_DOMAIN}; the staff door would refuse it`,
     ];
   }
 
@@ -92,11 +92,15 @@ async function provision(email: string): Promise<[Outcome, string]> {
   });
 
   // `bauth_user.email` is one namespace shared by staff, talents and parents, so
-  // an address already carrying a talent is a collision, not an account to
-  // promote. Overwriting the role here would lock that person out of their own
-  // space and hand their session the admin one.
+  // an address already carrying a talent or a parent login is a collision, not
+  // an account to promote. Overwriting the role here would lock that person out
+  // of their own space and hand their session the admin one. The same two the
+  // staff door refuses (`NotStaffAccount` in src/lib/server/auth/staffDoor.ts).
   if (existing?.talent) {
     return ['refused', 'this address already carries a talent account'];
+  }
+  if (existing?.role === 'parent') {
+    return ['refused', 'this address is already a parent login'];
   }
 
   const role = existing?.staffProfile?.staffRole;

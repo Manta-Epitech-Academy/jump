@@ -188,6 +188,20 @@ export interface BroadcastVariable {
   label: string;
   demo: string;
   contextual: boolean;
+  /**
+   * Inserted verbatim, so a template can link it: a URL Jump mints itself, or
+   * the campus contact address an admin validated as one, which gfm then
+   * links. Every other value is text, typed by a talent, a parent or staff,
+   * and `substituteVariables` keeps it from becoming Markdown syntax.
+   */
+  verbatim?: true;
+  /**
+   * Text an admin types and may run over several paragraphs. A mail body keeps
+   * its lines, so a template gives it lines of its own, never a button or a
+   * link label; every other text value is folded onto one line, since a name
+   * holds no line break on purpose and one would split the label it sits in.
+   */
+  multiline?: true;
 }
 
 export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
@@ -232,6 +246,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: 'Email de contact du campus du destinataire',
     demo: 'contact.paris@epitech.eu',
     contextual: false,
+    verbatim: true,
   },
   {
     key: 'event_name',
@@ -253,6 +268,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: 'Lien de connexion magique unique (par destinataire)',
     demo: 'https://jump.epiboost.fr/fastlogin?token=DEMO',
     contextual: true,
+    verbatim: true,
   },
   {
     key: 'parent_fastlogin_link',
@@ -260,6 +276,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: "Lien de connexion magique du parent (s'ouvre sur l'espace parent)",
     demo: 'https://jump.epiboost.fr/parent/fastlogin?token=DEMO',
     contextual: true,
+    verbatim: true,
   },
   {
     key: 'otp_code',
@@ -302,6 +319,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: "Lien de connexion vers l'espace concerné",
     demo: 'https://jump.epiboost.fr/parent/login',
     contextual: true,
+    verbatim: true,
   },
   {
     key: 'deletion_reason',
@@ -309,6 +327,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: "Motif du refus d'une demande de suppression de compte",
     demo: 'Ton compte reste nécessaire pour le stage de seconde en cours.',
     contextual: true,
+    multiline: true,
   },
 ] as const;
 

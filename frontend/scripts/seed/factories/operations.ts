@@ -10,9 +10,10 @@
 
 import type { StaffRole, TalentDeletionRequestStatus } from '@prisma/client';
 import type { World, TalentRef, StaffRef, CampusRef, EventRef } from '../world';
-import { id, seq } from '../ids';
+import { id, seedSalesforceId, seq } from '../ids';
 import { withGuaranteed } from '../rng';
 import { COHORT_NOUNS } from '../../../src/lib/domain/event';
+import { isShownInDevSpace } from '../../../src/lib/domain/sfMemberStatus';
 import {
   USAGE_FEATURES,
   USAGE_FEATURE_DEFS,
@@ -171,7 +172,11 @@ export function addSyncRuns(world: World): void {
  * a request is what runs `anonymizeTalent`, so its talent can only be an erased
  * one (`addErasedTalent`), never somebody who still carries a name, a phone and
  * a Salesforce id. Giving it a drawn talent was a state the application cannot
- * reach.
+ * reach. Fulfilling also bars the contact from the sync (`Sync_ErasedContact`),
+ * under an id nothing else names, since the erasure keeps no link to it, and
+ * shaped like a Salesforce one so an admin can readmit it locally. A second
+ * bar stands for an earlier erasure an admin has since lifted: a readmission
+ * stamps the row rather than deleting it.
  */
 export function addDeletionRequests(
   world: World,
@@ -193,6 +198,16 @@ export function addDeletionRequests(
         ? addErasedTalent(world, resolvedAt)
         : drawn.shift();
     if (!talent) break;
+    if (status === 'fulfilled') {
+      world.buffer.sync_ErasedContact.push(
+        { externalId: seedSalesforceId(1) },
+        {
+          externalId: seedSalesforceId(2),
+          readmittedAt: world.ctx.clock.days(-5),
+          readmittedBy: staffUserId,
+        },
+      );
+    }
     world.buffer.talentDeletionRequest.push({
       id: id('tdr', status),
       talentId: talent.id,
@@ -229,7 +244,10 @@ export function addDeletionRequests(
  * about when it asks which of its accounts belong to erased talents.
  *
  * Kept out of `world.talents` on purpose, so no later scenario can draw it and
- * hang an enrolment, a closing or a note on somebody who no longer exists.
+ * hang an enrolment, a closing or a note on somebody who no longer exists. It
+ * carries the one enrolment an erasure keeps, on an event that had started by
+ * then: the « Anonymisé » row a roster shows after an erasure. One on an event
+ * yet to start goes with the erasure, so none is seeded.
  */
 export function addErasedTalent(world: World, erasedAt: Date): TalentRef {
   const talentId = id('tal', 'efface');
@@ -256,6 +274,19 @@ export function addErasedTalent(world: World, erasedAt: Date): TalentRef {
     anonymizedAt: erasedAt,
     createdAt: world.ctx.clock.days(-300),
   });
+  // Pushed rather than `world.enrol`ed, which would put the talent on the
+  // event's roster for later scenarios to draw from.
+  const attended = world.events.find((event) => event.date < erasedAt);
+  if (attended) {
+    world.buffer.participation.push({
+      id: id('prt', attended.id.replace(/^sd_/, ''), 'tal_efface'),
+      talentId,
+      eventId: attended.id,
+      campusId: attended.campusId,
+      sfMemberStatus: null,
+      shownInDevSpace: isShownInDevSpace(null, attended.shownStatuses),
+    });
+  }
   return {
     id: talentId,
     userId,

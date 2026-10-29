@@ -16,6 +16,8 @@
  * glance that a row is fake.
  */
 
+import { salesforceId18 } from '../../src/lib/domain/salesforce';
+
 export const SEED_ID_PREFIX = 'sd_';
 
 /**
@@ -65,6 +67,20 @@ export function id(kind: string, ...parts: (string | number)[]): string {
 /** Zero-padded sequence part, so ids sort the way humans expect. */
 export function seq(n: number, width = 4): string {
   return String(n).padStart(width, '0');
+}
+
+/**
+ * A Salesforce id for a generated row that a form takes by its Salesforce id:
+ * readmitting an erased contact accepts 15 or 18 letters and digits, which no
+ * `sd_` id is, so the readmission could not be tried on generated data. `003`
+ * is a Contact's key prefix and `SEED` says the record is fake; `wipe()` reads
+ * this prefix where it reads `sd_` elsewhere. 18 characters with their real
+ * checksum, so the 15-character spelling an admin types finds the row too.
+ */
+export const SEED_SALESFORCE_ID_PREFIX = '003SEED';
+
+export function seedSalesforceId(n: number): string {
+  return salesforceId18(`${SEED_SALESFORCE_ID_PREFIX}${seq(n, 8)}`);
 }
 
 export function isSeedId(value: string | null | undefined): boolean {

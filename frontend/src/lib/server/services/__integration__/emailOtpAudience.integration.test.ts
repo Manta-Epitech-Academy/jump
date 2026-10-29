@@ -1,15 +1,17 @@
 /**
- * The email-OTP door, exercised over BetterAuth's own HTTP routes.
+ * The email-OTP door, exercised through BetterAuth's own endpoints.
  *
  * Deliberately not through the `/login` page action: the action always
- * filtered by role, and the routes underneath it did not, so the gap between
+ * filtered by role, and the endpoints underneath it did not, so the gap between
  * the two is precisely what let a staff account sign in with a code for as
  * long as it did. A test that drove the action would have stayed green
  * throughout.
  *
- * Everything here posts to `${ORIGIN}/api/auth/...` against the production
- * `auth` singleton, so what is asserted is the app's real configuration:
- * the gate, `disableSignUp`, the model mappings and the trusted origin.
+ * Those endpoints are no longer mounted over HTTP (`server/auth/httpSurface`),
+ * which the first test pins. Everything after it calls
+ * `auth.api.*` on the production `auth` singleton, the way the `/login` action
+ * does, so what is asserted is the app's real configuration: the gate,
+ * `disableSignUp` and the model mappings.
  */
 import {
   describe,
@@ -20,10 +22,10 @@ import {
   afterAll,
   vi,
 } from 'vitest';
-import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
+import { pathSpellings, postAuth } from './authHttp';
 
 // The two OTP mail senders, so the template a recipient gets is observable.
 // Nothing else in the chain is: with no `EmailActionMapping` row in the test
@@ -42,20 +44,17 @@ const talentEmail = `otp.talent.${stamp}@e2e.invalid`;
 const parentEmail = `otp.parent.${stamp}@e2e.invalid`;
 const dualEmail = `otp.dual.${stamp}@epitech.eu`;
 
-function postAuth(path: string, body: unknown): Promise<Response> {
-  return auth.handler(
-    new Request(`${env.ORIGIN}${path}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        // The send route carries better-auth's form-CSRF middleware and the
-        // router checks the origin on every POST; ORIGIN is what
-        // `createAuthOptions` trusts.
-        origin: env.ORIGIN!,
-      },
-      body: JSON.stringify(body),
-    }),
-  );
+// Bodies are passed loosely on purpose: several tests send one the endpoint's
+// schema rejects, and the point is to see the endpoint's own answer to it.
+function send(body: Record<string, unknown>): Promise<Response> {
+  return auth.api.sendVerificationOTP({
+    body: body as never,
+    asResponse: true,
+  });
+}
+
+function signIn(body: Record<string, unknown>): Promise<Response> {
+  return auth.api.signInEmailOTP({ body: body as never, asResponse: true });
 }
 
 const signInIdentifier = (email: string) => `sign-in-otp-${email}`;
@@ -70,16 +69,14 @@ const signInIdentifier = (email: string) => `sign-in-otp-${email}`;
 const unknownEmail = `otp.nobody.${stamp}@e2e.invalid`;
 
 /** Status plus raw body, so parity is compared byte for byte. */
-async function outcome(path: string, body: unknown) {
-  const response = await postAuth(path, body);
+async function outcome(call: Promise<Response>) {
+  const response = await call;
   return {
     status: response.status,
     body: await response.text(),
     setCookie: response.headers.get('set-cookie'),
   };
 }
-
-const SEND = '/api/auth/email-otp/send-verification-otp';
 
 function storedOtp(email: string): Promise<string | null> {
   return prisma.bauth_verification
@@ -171,14 +168,43 @@ describe('email OTP audience (integration)', () => {
     }
   });
 
-  it('mints no code for a staff address, and says nothing about the account', async () => {
-    const response = await postAuth(
-      '/api/auth/email-otp/send-verification-otp',
-      {
-        email: staffEmail,
+  it('mounts none of the plugin routes over HTTP', async () => {
+    // Every path better-auth 1.7.14 mounts for the plugin, written out rather
+    // than derived the way `auth.ts` derives them, so a derivation that went
+    // wrong cannot also agree with itself here.
+    const pluginPaths = [
+      '/email-otp/send-verification-otp',
+      '/email-otp/check-verification-otp',
+      '/email-otp/verify-email',
+      '/sign-in/email-otp',
+      '/email-otp/request-password-reset',
+      '/forget-password/email-otp',
+      '/email-otp/reset-password',
+      '/email-otp/request-email-change',
+      '/email-otp/change-email',
+    ];
+    for (const path of pluginPaths.flatMap(pathSpellings)) {
+      const response = await postAuth(`/api/auth${path}`, {
+        email: talentEmail,
         type: 'sign-in',
-      },
-    );
+        otp: '000000',
+      });
+      expect(response.status, path).toBe(404);
+    }
+
+    expect(
+      await prisma.bauth_verification.count({
+        where: { identifier: signInIdentifier(talentEmail) },
+      }),
+    ).toBe(0);
+    expect(sendOtpEmail).not.toHaveBeenCalled();
+  });
+
+  it('mints no code for a staff address, and says nothing about the account', async () => {
+    const response = await send({
+      email: staffEmail,
+      type: 'sign-in',
+    });
 
     // Byte for byte what an address with no account gets, so the answer
     // discloses nothing either way.
@@ -206,7 +232,7 @@ describe('email OTP audience (integration)', () => {
       },
     });
 
-    const response = await postAuth('/api/auth/sign-in/email-otp', {
+    const response = await signIn({
       email: staffEmail,
       otp: '123456',
     });
@@ -227,8 +253,8 @@ describe('email OTP audience (integration)', () => {
 
   it('answers a refused address exactly as it answers an unknown one', async () => {
     const [staff, unknown] = await Promise.all([
-      outcome(SEND, { email: staffEmail, type: 'sign-in' }),
-      outcome(SEND, { email: unknownEmail, type: 'sign-in' }),
+      outcome(send({ email: staffEmail, type: 'sign-in' })),
+      outcome(send({ email: unknownEmail, type: 'sign-in' })),
     ]);
 
     expect(staff).toEqual(unknown);
@@ -247,14 +273,18 @@ describe('email OTP audience (integration)', () => {
     });
 
     const [staffSignIn, unknownSignIn] = await Promise.all([
-      outcome('/api/auth/sign-in/email-otp', {
-        email: staffEmail,
-        otp: '654321',
-      }),
-      outcome('/api/auth/sign-in/email-otp', {
-        email: unknownEmail,
-        otp: '654321',
-      }),
+      outcome(
+        signIn({
+          email: staffEmail,
+          otp: '654321',
+        }),
+      ),
+      outcome(
+        signIn({
+          email: unknownEmail,
+          otp: '654321',
+        }),
+      ),
     ]);
 
     expect(staffSignIn).toEqual(unknownSignIn);
@@ -285,9 +315,9 @@ describe('email OTP audience (integration)', () => {
 
     for (const { label, partial } of rejected) {
       const [staff, talent, unknown] = await Promise.all([
-        outcome(SEND, { email: staffEmail, ...partial }),
-        outcome(SEND, { email: talentEmail, ...partial }),
-        outcome(SEND, { email: unknownEmail, ...partial }),
+        outcome(send({ email: staffEmail, ...partial })),
+        outcome(send({ email: talentEmail, ...partial })),
+        outcome(send({ email: unknownEmail, ...partial })),
       ]);
 
       expect(staff, label).toEqual(talent);
@@ -297,16 +327,18 @@ describe('email OTP audience (integration)', () => {
 
     // Same rule for a malformed address: the endpoint's own INVALID_EMAIL, not
     // a silent success of ours.
-    const malformed = await outcome(SEND, {
-      email: 'not-an-email',
-      type: 'sign-in',
-    });
+    const malformed = await outcome(
+      send({
+        email: 'not-an-email',
+        type: 'sign-in',
+      }),
+    );
     expect(malformed.status).toBe(400);
     expect(malformed.body).toContain('INVALID_EMAIL');
   });
 
   it('stores nothing that outlives a refused call', async () => {
-    await postAuth(SEND, { email: staffEmail, type: 'sign-in' });
+    await send({ email: staffEmail, type: 'sign-in' });
 
     // The substitute address the gate hands BetterAuth takes the plugin's
     // unknown-address path, which writes a row and deletes it again before it
@@ -324,13 +356,10 @@ describe('email OTP audience (integration)', () => {
   });
 
   it('refuses an address that is both staff and a talent', async () => {
-    const response = await postAuth(
-      '/api/auth/email-otp/send-verification-otp',
-      {
-        email: dualEmail,
-        type: 'sign-in',
-      },
-    );
+    const response = await send({
+      email: dualEmail,
+      type: 'sign-in',
+    });
 
     expect(response.status).toBe(200);
     expect(
@@ -341,11 +370,11 @@ describe('email OTP audience (integration)', () => {
   });
 
   it('signs a talent in through the code they were mailed', async () => {
-    const send = await postAuth('/api/auth/email-otp/send-verification-otp', {
+    const sent = await send({
       email: talentEmail,
       type: 'sign-in',
     });
-    expect(send.status).toBe(200);
+    expect(sent.status).toBe(200);
     expect(sendOtpEmail).toHaveBeenCalledTimes(1);
     expect(sendParentOtpEmail).not.toHaveBeenCalled();
 
@@ -355,13 +384,13 @@ describe('email OTP audience (integration)', () => {
     // the two being the same string.
     expect(vi.mocked(sendOtpEmail).mock.calls[0][1]).toBe(otp);
 
-    const signIn = await postAuth('/api/auth/sign-in/email-otp', {
+    const signedIn = await signIn({
       email: talentEmail,
       otp,
     });
 
-    expect(signIn.status).toBe(200);
-    expect(signIn.headers.get('set-cookie')).toContain(
+    expect(signedIn.status).toBe(200);
+    expect(signedIn.headers.get('set-cookie')).toContain(
       'better-auth.session_token',
     );
     const user = await prisma.bauth_user.findUnique({
@@ -374,24 +403,24 @@ describe('email OTP audience (integration)', () => {
   });
 
   it('signs a legal guardian in, on their own mail template', async () => {
-    const send = await postAuth('/api/auth/email-otp/send-verification-otp', {
+    const sent = await send({
       email: parentEmail,
       type: 'sign-in',
     });
-    expect(send.status).toBe(200);
+    expect(sent.status).toBe(200);
     expect(sendParentOtpEmail).toHaveBeenCalledTimes(1);
     expect(sendOtpEmail).not.toHaveBeenCalled();
 
     const otp = await storedOtp(parentEmail);
     expect(otp).toMatch(/^\d{6}$/);
 
-    const signIn = await postAuth('/api/auth/sign-in/email-otp', {
+    const signedIn = await signIn({
       email: parentEmail,
       otp,
     });
 
-    expect(signIn.status).toBe(200);
-    expect(signIn.headers.get('set-cookie')).toContain(
+    expect(signedIn.status).toBe(200);
+    expect(signedIn.headers.get('set-cookie')).toContain(
       'better-auth.session_token',
     );
     const user = await prisma.bauth_user.findUnique({

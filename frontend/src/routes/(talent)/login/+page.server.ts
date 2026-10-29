@@ -6,7 +6,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { camperEmailSchema, camperOtpSchema } from '$lib/validation/auth';
 import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
-import { checkRateLimit, recordAttempt } from '$lib/server/auth/rateLimiter';
+import { claimAttempt } from '$lib/server/auth/rateLimiter';
 import { prisma } from '$lib/server/db';
 import { resolveOtpIdentity } from '$lib/server/auth/otpAudience';
 import { ensureTalentUser } from '$lib/server/services/talentAccount';
@@ -26,30 +26,12 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   // Stash where the guard bounced them from, to replay after OTP verifies.
   captureRedirectCookie(url, cookies, 'talent');
 
-  const errorType = url.searchParams.get('error');
-  let errorMessage = '';
-
-  if (errorType === 'UnauthorizedDomain') {
-    errorMessage = 'Accès refusé. Veuillez utiliser une adresse @epitech.eu.';
-  } else if (errorType === 'OAuthFailed') {
-    errorMessage = "Échec de l'authentification Microsoft.";
-  } else if (errorType === 'OAuthStateMismatch') {
-    errorMessage = 'Erreur de sécurité (State Mismatch). Veuillez réessayer.';
-  } else if (errorType === 'ProviderMissing') {
-    errorMessage =
-      "Le fournisseur d'authentification Microsoft n'est pas configuré.";
-  } else if (errorType === 'StudentNotFound') {
-    errorMessage =
-      "Aucun profil Talent trouvé pour cette adresse email. Contactez l'administration.";
-  }
-
   const emailForm = await superValidate(zod4(camperEmailSchema));
   const otpForm = await superValidate(zod4(camperOtpSchema));
 
   return {
     emailForm,
     otpForm,
-    errorMessage,
   };
 };
 
@@ -63,18 +45,21 @@ export const actions: Actions = {
 
     const normalizedEmail = emailForm.data.email.toLowerCase().trim();
 
-    const requestLimit = await checkRateLimit('request', normalizedEmail);
-    if (!requestLimit.allowed) {
+    const claim = await claimAttempt('request', normalizedEmail);
+    if (!claim.allowed) {
       return message(
         emailForm,
         {
           type: 'error',
-          text: `Trop de demandes. Réessayez dans ${requestLimit.retryAfterSeconds} secondes.`,
+          text: `Trop de demandes. Réessayez dans ${claim.retryAfterSeconds} secondes.`,
         },
         { status: 429 },
       );
     }
 
+    // Only a sent code counts against the address; every other way out of
+    // the `try` gives the claim back.
+    let sent = false;
     try {
       // Route by the login identity (bauth_user): the single source of truth.
       // Every talent has an account from import (eager mint); a talent whose
@@ -126,8 +111,7 @@ export const actions: Actions = {
       await auth.api.sendVerificationOTP({
         body: { email: normalizedEmail, type: 'sign-in' },
       });
-
-      await recordAttempt('request', normalizedEmail);
+      sent = true;
 
       return message(emailForm, {
         type: 'success',
@@ -146,6 +130,8 @@ export const actions: Actions = {
         },
         { status: 500 },
       );
+    } finally {
+      if (!sent) await claim.release();
     }
   },
 
@@ -158,13 +144,13 @@ export const actions: Actions = {
 
     const normalizedEmail = otpForm.data.email.toLowerCase().trim();
 
-    const verifyLimit = await checkRateLimit('verify', normalizedEmail);
-    if (!verifyLimit.allowed) {
+    const claim = await claimAttempt('verify', normalizedEmail);
+    if (!claim.allowed) {
       return message(
         otpForm,
         {
           type: 'error',
-          text: `Trop de tentatives. Réessayez dans ${verifyLimit.retryAfterSeconds} secondes.`,
+          text: `Trop de tentatives. Réessayez dans ${claim.retryAfterSeconds} secondes.`,
         },
         { status: 429 },
       );
@@ -186,7 +172,7 @@ export const actions: Actions = {
 
       forwardAuthCookies(authResponse, cookies);
     } catch (err) {
-      await recordAttempt('verify', normalizedEmail);
+      // The claim stands: a failed verify is what this bucket counts.
       console.error('[verifyOtp] OTP Verify Error:', err);
       return message(
         otpForm,
@@ -194,6 +180,9 @@ export const actions: Actions = {
         { status: 400 },
       );
     }
+
+    // A clean sign-in costs the address nothing.
+    await claim.release();
 
     // Read + clear the "return to" target captured when the guard bounced them
     // to login (talents only; parents have their own destinations below).

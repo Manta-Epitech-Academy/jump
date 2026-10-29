@@ -1,5 +1,6 @@
 import ejs from 'ejs';
 import { renderMarkdown } from '$lib/markdown';
+import { escapeHtml } from '$lib/domain/htmlEscape';
 import { renderPdf } from '../infra/documentRenderer';
 import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
@@ -30,20 +31,32 @@ function formatFr(d: Date): string {
   });
 }
 
+// One pass over the rendered document, so a value is never searched for a
+// placeholder itself: filled token by token, a signer named `{{signatureLine}}`
+// took the document's own signature line.
+const PLACEHOLDER_RE = /\{\{(\w+)\}\}/g;
+
 /**
- * The droit-à-l'image document, filled in: the version's markdown with every
- * placeholder substituted. Pure, exported and separated from the render so the
- * substitution rules are testable without a browser, which is what they need to
- * be: they are business rules about a signed document, not formatting.
+ * The droit-à-l'image document, filled in and rendered to HTML. Pure, exported
+ * and separated from the PDF so the substitution rules are testable without a
+ * browser, which is what they need to be: they are business rules about a
+ * signed document, not formatting.
+ *
+ * The names and the place are typed by the talent and the guardian, so they
+ * are substituted into the HTML after the Markdown is rendered, escaped, and
+ * never parsed: spliced into the Markdown, a name could add styles, headings or
+ * paragraphs to the signed record of a minor's decision, and a `$'` in it
+ * pulled the rest of the template into the signer's place. Nothing is refused,
+ * since a real name holds characters Markdown reads as syntax.
  *
  * Every field a pre-ledger decision may be missing has a neutral fallback,
  * because the worker now renders from the dossier and an admin retry reaches
  * those rows. Of the 831 decisions in production at the time of writing, 114
  * carry no signer name and 813 carry no relationship or place of signature: they
  * predate the pipeline that captures them. Without the fallbacks those documents
- * render "Mme/Mr ****" and "Fait à , le …".
+ * render "Mme/Mr" followed by nothing and "Fait à , le …".
  */
-export function fillImageRightsDocument(fields: {
+export function renderImageRightsDocument(fields: {
   version: string | null | undefined;
   decision: ImageRightsDecision;
   signerName: string;
@@ -65,15 +78,20 @@ export function fillImageRightsDocument(fields: {
   const signatureLine = city
     ? `Fait à ${city}, le ${fields.formattedDate}`
     : `Fait le ${fields.formattedDate}`;
-  return (
-    template
-      .replace('{{signerName}}', `**${namedSigner}**`)
-      .replace('{{relationship}}', `**${relationship}**`)
-      .replace('{{studentName}}', `**${fields.studentName}**`)
-      // Only the versions written after the decision became annual name the year
-      // they cover; on an older one this replaces nothing, which is correct.
-      .replace('{{schoolYear}}', `**${fields.schoolYear}**`)
-      .replace('{{signatureLine}}', signatureLine)
+  const strong = (value: string) => `<strong>${escapeHtml(value)}</strong>`;
+  const values = new Map([
+    ['signerName', strong(namedSigner)],
+    ['relationship', strong(relationship)],
+    ['studentName', strong(fields.studentName)],
+    // Only the versions written after the decision became annual name the year
+    // they cover; on an older one this replaces nothing, which is correct.
+    ['schoolYear', strong(fields.schoolYear)],
+    // The template sets this one in bold itself.
+    ['signatureLine', escapeHtml(signatureLine)],
+  ]);
+  return renderMarkdown(template).replace(
+    PLACEHOLDER_RE,
+    (token, key: string) => values.get(key) ?? token,
   );
 }
 
@@ -142,18 +160,16 @@ export async function generateOnboardingPDF(data: {
   if (data.type === 'rules') {
     documentContent = renderMarkdown(reglementTextFor(data.reglementVersion));
   } else if (data.type === 'image-rights') {
-    documentContent = renderMarkdown(
-      fillImageRightsDocument({
-        version: data.droitImageVersion,
-        decision,
-        signerName: data.signerName ?? '',
-        relationship: data.relationship ?? '',
-        studentName: data.studentName,
-        city: data.city ?? '',
-        schoolYear: data.schoolYear ?? '',
-        formattedDate: formatFr(data.signedAt ?? new Date()),
-      }),
-    );
+    documentContent = renderImageRightsDocument({
+      version: data.droitImageVersion,
+      decision,
+      signerName: data.signerName ?? '',
+      relationship: data.relationship ?? '',
+      studentName: data.studentName,
+      city: data.city ?? '',
+      schoolYear: data.schoolYear ?? '',
+      formattedDate: formatFr(data.signedAt ?? new Date()),
+    });
   }
 
   const title =

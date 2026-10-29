@@ -153,6 +153,24 @@ describe('what a credential is offered as tools', () => {
     expect(offered).toContain('bulk_event_config');
   });
 
+  // Verbatim text typed outside the staff never shares a session with the
+  // writes: the testimonials, and the school names a talent typed for a lycée
+  // the annuaire does not know, wherever a read carries them.
+  it.each([
+    'stats_closing_testimonials',
+    'stats_schools_reach',
+    'stats_schools_churn',
+    'stats_school_year_review',
+  ])('keeps %s away from a token that can write', (operation) => {
+    expect(names({ tier: 'core', writeEnabled: true })).not.toContain(
+      operation,
+    );
+    expect(names({ tier: 'core', writeEnabled: false })).toContain(operation);
+    expect(names({ tier: 'leadership', writeEnabled: false })).toContain(
+      operation,
+    );
+  });
+
   // Belt and braces with the catalogue rule: even a leadership token that
   // somehow carried the write capability is offered nothing that mutates.
   //

@@ -20,12 +20,18 @@ import {
   onboardingFieldsForYear,
 } from '$lib/domain/talentOnboarding';
 import {
+  lockTalent,
   patchCurrentOnboardingRecord,
   type OnboardingRecordPatch,
 } from '$lib/server/services/onboardingYearService';
 import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
+import { claimAttempt } from '$lib/server/auth/rateLimiter';
 import {
-  ensureParentAccount,
+  isParentLoginRace,
+  setParentLogin,
+  type SetParentLoginResult,
+} from '$lib/server/services/parentAccount';
+import {
   validateTalentInterests,
   signOnboardingRules,
 } from '$lib/server/services/onboardingService';
@@ -186,6 +192,13 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   return { step };
 };
 
+/** The parents step refused because parent 1's address changed too often today. */
+type ParentsCapped = {
+  ok: false;
+  reason: 'capped';
+  retryAfterSeconds: number;
+};
+
 export const actions: Actions = {
   validateIdentity: async ({ request, locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
@@ -300,71 +313,119 @@ export const actions: Actions = {
     }
 
     const parentEmail = result.data.parentEmail.toLowerCase().trim();
+    const talentId = locals.talent.id;
+    const loginEmail = locals.user!.email;
 
-    // Provision the parent-1 login first, so a validated address always has a
-    // working parent account (the welcome link / co-signature flow are useless
-    // without one). `refused` means the address already belongs to another
-    // (non-parent) Jump account, a student's or a staff member's: one email is
-    // one account with one role, so it can never also host a parent login.
-    // Reject the step before anything is persisted and tell the talent to use a
-    // different address, rather than silently leave the parent unable to connect.
-    const provisioned = await ensureParentAccount({
-      email: parentEmail,
-      prenom: result.data.parentPrenom,
-      nom: result.data.parentNom,
-    });
-    if (provisioned === 'refused') {
+    // Parent 1's address and login move together (`setParentLogin`), in the
+    // same transaction as the rest of the step: a validated address always has
+    // a working parent account, since the welcome link and the co-signature are
+    // useless without one. `email_taken` means the address already belongs to
+    // another (non-parent) Jump account, a student's or a staff member's: one
+    // email is one account with one role; `staff_address` that it is a staff
+    // one, account or not. Nothing is persisted then, and the
+    // talent is asked for a different address rather than leaving the parent
+    // unable to connect.
+    //
+    // A new address mails a welcome link to whatever was typed, so changing it
+    // is capped per talent (`parent_welcome` in `rateLimiter.ts`); keeping it
+    // costs nothing. Whether it changes is read off the talent's locked row,
+    // not off `locals`, read when the request began: a concurrent submit of
+    // another address waits on the lock and reads the one this one commits,
+    // so no welcome goes out without its claim. The claim is given back below
+    // unless a welcome goes out.
+    let login: SetParentLoginResult | ParentsCapped;
+    let release = undefined as (() => Promise<void>) | undefined;
+    try {
+      login = await prisma.$transaction(async (tx) => {
+        await lockTalent(tx, talentId);
+        const current = await tx.talent.findUniqueOrThrow({
+          where: { id: talentId },
+          select: { parentEmail: true },
+        });
+        if ((current.parentEmail ?? '').toLowerCase().trim() !== parentEmail) {
+          const claim = await claimAttempt('parent_welcome', loginEmail);
+          if (!claim.allowed) {
+            return {
+              ok: false,
+              reason: 'capped',
+              retryAfterSeconds: claim.retryAfterSeconds,
+            } as const;
+          }
+          release = claim.release;
+        }
+        const set = await setParentLogin(tx, talentId, {
+          email: parentEmail,
+          name: `${result.data.parentPrenom} ${result.data.parentNom}`.trim(),
+        });
+        if (!set.ok) return set;
+        await tx.talent.update({
+          where: { id: talentId },
+          data: {
+            parentType: result.data.parentType,
+            parentCivilite: result.data.parentCivilite,
+            parentNom: result.data.parentNom,
+            parentPrenom: result.data.parentPrenom,
+            parentPhone: result.data.parentPhone || null,
+            parent2Type: result.data.parent2Type || null,
+            parent2Civilite: result.data.parent2Civilite || null,
+            parent2Nom: result.data.parent2Nom || null,
+            parent2Prenom: result.data.parent2Prenom || null,
+            parent2Email: result.data.parent2Email
+              ? result.data.parent2Email.toLowerCase().trim()
+              : null,
+            parent2Phone: result.data.parent2Phone || null,
+          },
+        });
+        await patchCurrentOnboardingRecord(tx, talentId, {
+          parentsValidatedAt: new Date(),
+        });
+        return set;
+      });
+    } catch (err) {
+      if (!isParentLoginRace(err)) {
+        await release?.();
+        throw err;
+      }
+      login = { ok: false, reason: 'email_taken' };
+    }
+    if (!login.ok || !login.changed) await release?.();
+    if (!login.ok && login.reason === 'capped') {
+      return fail(429, {
+        step: 'parents' as const,
+        errors: {
+          parentEmail: [
+            `Tu as déjà changé l'adresse de ton responsable plusieurs fois aujourd'hui. Réessaie dans ${Math.ceil(login.retryAfterSeconds / 3600)} h.`,
+          ],
+        },
+        values: raw as Record<string, string>,
+      });
+    }
+    if (!login.ok) {
       return fail(400, {
         step: 'parents' as const,
         errors: {
           parentEmail: [
-            'Cette adresse est déjà associée à un autre compte Jump. Indique une autre adresse e-mail pour ton responsable.',
+            login.reason === 'staff_address'
+              ? "Cette adresse est réservée à l'équipe Epitech. Indique l'adresse e-mail personnelle de ton responsable."
+              : 'Cette adresse est déjà associée à un autre compte Jump. Indique une autre adresse e-mail pour ton responsable.',
           ],
         },
         values: raw as Record<string, string>,
       });
     }
 
-    const talentId = locals.talent.id;
-    await prisma.$transaction(async (tx) => {
-      await tx.talent.update({
-        where: { id: talentId },
-        data: {
-          parentType: result.data.parentType,
-          parentCivilite: result.data.parentCivilite,
-          parentNom: result.data.parentNom,
-          parentPrenom: result.data.parentPrenom,
-          parentEmail,
-          parentPhone: result.data.parentPhone || null,
-          parent2Type: result.data.parent2Type || null,
-          parent2Civilite: result.data.parent2Civilite || null,
-          parent2Nom: result.data.parent2Nom || null,
-          parent2Prenom: result.data.parent2Prenom || null,
-          parent2Email: result.data.parent2Email
-            ? result.data.parent2Email.toLowerCase().trim()
-            : null,
-          parent2Phone: result.data.parent2Phone || null,
-        },
-      });
-      await patchCurrentOnboardingRecord(tx, talentId, {
-        parentsValidatedAt: new Date(),
-      });
-    });
-
     // Welcome carries the passwordless magic link into the parent space; it's
     // fire-and-forget (the only slow step) so a mail hiccup never blocks the
-    // talent's onboarding. A re-submit / back-and-forth doesn't re-send: the
-    // address is skipped when it was already stored on the talent before this
-    // submit. Parent 2 is persisted above as onboarding-collected data only: no
-    // account, no email, no portal access (the whole parent flow is parent-1).
-    const alreadyWelcomed =
-      (locals.talent.parentEmail ?? '').toLowerCase().trim() === parentEmail;
-    if (!alreadyWelcomed) {
+    // talent's onboarding. Only a new address is welcomed: a re-submit /
+    // back-and-forth that keeps it doesn't re-send. Parent 2 is persisted above
+    // as onboarding-collected data only: no account, no email, no portal access
+    // (the whole parent flow is parent-1).
+    if (login.changed) {
       void sendParentWelcomeEmail(
         parentEmail,
         result.data.parentNom,
         locals.talent.prenom,
-        locals.talent.id,
+        talentId,
       ).catch((err) =>
         console.error(`Failed to send parent welcome for ${parentEmail}:`, err),
       );
@@ -528,15 +589,19 @@ export const actions: Actions = {
       });
     }
 
-    const { jobId } = await signOnboardingRules({
+    const signed = await signOnboardingRules({
       talentId: locals.talent.id,
       city: result.data.city,
     });
+    // Not at the rules step: a stale tab, a second submit, or a crafted POST.
+    // The wizard's `load` resumes at the step actually owed, or sends a talent
+    // who has just finished to the dashboard, so there is nothing to say here.
+    if (!signed.ok) throw redirect(303, resolve('/onboarding'));
 
     // Generate the PDF + upload to S3 in the background: NOT awaited, so the
     // student reaches the dashboard immediately and the file lands a few seconds
     // later. Failures are visible and re-runnable at /staff/admin/onboarding-pdfs.
-    void runOnboardingPdfJob(jobId);
+    void runOnboardingPdfJob(signed.jobId);
 
     // Arm the arrival celebration (fired on the next dashboard load), then resume
     // the page the talent was heading for when onboarding interrupted them (e.g.

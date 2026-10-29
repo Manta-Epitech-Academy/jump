@@ -304,16 +304,21 @@ function technicalCause(err: unknown): string {
  *
  * Never refuses the batch. A row it cannot use comes back in `invalid` with a
  * `Sync_Error` naming it; see the comment at the top of the loop for what
- * returning instead used to cost. The talent's login errors are settled here
- * too, on every talent the pass carries, so the queue says what is still
- * failing rather than what once did.
+ * returning instead used to cost. A contact erased at their request comes back
+ * in `erased`, with nothing written at all. The talent's login errors are
+ * settled here too, on every talent the pass carries, so the queue says what
+ * is still failing rather than what once did.
  */
 export async function syncTalents(talents: WorkerTalent[]) {
   let created = 0;
   let updated = 0;
   let skipped = 0;
   let invalid = 0;
+  let erased = 0;
   const currentSchoolYear = schoolYearOf(new Date(), 'Europe/Paris').label;
+  const erasedIds = await erasedContactsAmong(
+    talents.flatMap((t) => [t.external_id, ...(t.converted_lead_ids ?? [])]),
+  );
 
   // Canonical School per distinct UAI, resolved once for the whole batch.
   const schoolIdByUai = await resolveSchools(talents);
@@ -321,6 +326,24 @@ export async function syncTalents(talents: WorkerTalent[]) {
   const takenIn: string[] = [];
 
   for (const t of talents) {
+    // A contact whose talent was erased at their request is never imported
+    // again: that is what the erasure promised them. Checked before the name,
+    // because a `Sync_Error` would store the very id and name the erasure
+    // removed. Counted rather than refused, for the reason below: Salesforce
+    // keeps the contact, so the worker keeps sending it.
+    //
+    // The bar is on the person, not on one of their ids: a talent erased while
+    // keyed on a Lead comes back as the Contact that Lead was converted into,
+    // so the bar follows it there (`carryErasureBar`).
+    const converted = t.converted_lead_ids ?? [];
+    const barredLeads = converted.filter((id) => erasedIds.has(id));
+    if (erasedIds.has(t.external_id) || barredLeads.length > 0) {
+      if (barredLeads.length > 0)
+        await carryErasureBar(t.external_id, barredLeads);
+      erased++;
+      continue;
+    }
+
     const email = t.email?.toLowerCase().trim() || null;
     // What a contact error names when Jump cannot take this one in.
     const contact = {
@@ -363,7 +386,6 @@ export async function syncTalents(talents: WorkerTalent[]) {
     // contact, before anything below looks it up by `external_id`. Skipped
     // and recorded like a nameless contact when more than one of them was
     // used, since only a person can say which one the student keeps.
-    const converted = t.converted_lead_ids ?? [];
     if ((await claimSalesforcePerson(t.external_id, converted)) === 'refused') {
       invalid++;
       await recordContactError('MERGE_REFUSED', {
@@ -617,7 +639,40 @@ export async function syncTalents(talents: WorkerTalent[]) {
   }
 
   await clearContactErrors(takenIn);
-  return { created, updated, skipped, invalid };
+  return { created, updated, skipped, invalid, erased };
+}
+
+/**
+ * Which of these Salesforce ids belong to a contact erased at their request
+ * and not readmitted since.
+ */
+async function erasedContactsAmong(externalIds: string[]) {
+  const rows = await prisma.sync_ErasedContact.findMany({
+    where: { externalId: { in: externalIds }, readmittedAt: null },
+    select: { externalId: true },
+  });
+  return new Set(rows.map((r) => r.externalId));
+}
+
+/**
+ * Rekey the bar of an erased Lead onto the Contact it was converted into, as
+ * `claimSalesforcePerson` rekeys a talent: one person, one row, on the id
+ * Salesforce now sends. The enrolments push names the Contact, so a bar left on
+ * the Lead would leave its roster unresolved, and an admin readmitting the
+ * person copies the Contact's id out of Salesforce, not a Lead's.
+ */
+async function carryErasureBar(contactId: string, leadIds: string[]) {
+  await prisma.$transaction([
+    prisma.sync_ErasedContact.upsert({
+      where: { externalId: contactId },
+      create: { externalId: contactId },
+      // A readmission of the Contact does not lift a bar its Lead still held.
+      update: { readmittedAt: null, readmittedBy: null },
+    }),
+    prisma.sync_ErasedContact.deleteMany({
+      where: { externalId: { in: leadIds } },
+    }),
+  ]);
 }
 
 /**
@@ -642,8 +697,10 @@ export async function syncTalents(talents: WorkerTalent[]) {
  * talents before enrolments and fails the run if that push fails, so an unknown
  * one is a contact the talents push skipped, for having no name or for a merge
  * it refused, which is already its own `Sync_Error` (`MISSING_NAME`,
- * `MERGE_REFUSED`). A talent whose login failed is
- * still created, so its enrolments resolve.
+ * `MERGE_REFUSED`). A talent whose login failed is still created, so its
+ * enrolments resolve. A contact erased at their request is the exception: it
+ * is known to be nobody Jump may hold, so it counts as resolved (`erased`), and
+ * a roster carrying one still proves its deletions.
  *
  * **Nothing here refuses, and that is the rule this function was rebuilt on.**
  * Every answer but a malformed payload is a success, because a refusal fails
@@ -678,10 +735,13 @@ export async function syncParticipations(
       eventUnknown: true,
     };
 
-  const known = await prisma.talent.findMany({
-    where: { externalId: { in: externalIds } },
-    select: { id: true, externalId: true },
-  });
+  const [known, erasedIds] = await Promise.all([
+    prisma.talent.findMany({
+      where: { externalId: { in: externalIds } },
+      select: { id: true, externalId: true },
+    }),
+    erasedContactsAmong(externalIds),
+  ]);
   // Read once per roster: what this event shows decides each row's projection,
   // written in the same statement as the status it derives from, and re-derived
   // for the whole event once the roster is written.
@@ -693,12 +753,14 @@ export async function syncParticipations(
 
   let upserted = 0;
   let skipped = 0;
+  let erased = 0;
   const presentTalentIds: string[] = [];
 
   for (const [externalId, rawStatus] of Object.entries(statusByExternalId)) {
     const talentId = talentIdByExternalId.get(externalId);
     if (!talentId) {
-      skipped++;
+      if (erasedIds.has(externalId)) erased++;
+      else skipped++;
       continue;
     }
 
@@ -724,15 +786,16 @@ export async function syncParticipations(
   // members this pass did not send.
   if (upserted > 0) await recomputeShownInDevSpace(prisma, [event.id]);
 
-  if (mode !== 'full') return { upserted, skipped, removed: 0, held: false };
+  if (mode !== 'full')
+    return { upserted, skipped, erased, removed: 0, held: false };
 
   const prune = await pruneFromFullRoster({
     eventId: event.id,
     presentTalentIds,
     sentCount: externalIds.length,
-    resolvedCount: upserted,
+    resolvedCount: upserted + erased,
   });
-  return { upserted, skipped, ...prune };
+  return { upserted, skipped, erased, ...prune };
 }
 
 /**
@@ -740,7 +803,8 @@ export async function syncParticipations(
  * roster can prove it.
  *
  * Absence from a full roster means "gone" only when the roster is COMPLETE:
- * non-empty, and every member resolved to a talent Jump knows. An empty one
+ * non-empty, and every member resolved to a talent Jump knows, or to a contact
+ * erased at their request. An empty one
  * looks exactly like a truncated fetch upstream, and a member the talents push
  * skipped (a nameless contact) may be the very person whose enrolment would
  * go. So when the
@@ -755,6 +819,20 @@ export async function syncParticipations(
  * and the next full pass applies the removals if its fresh roster is still
  * empty: the deletion is still made by a full pass and by nothing else, and
  * only while Salesforce still reports the campaign empty.
+ *
+ * The enrolments of a talent erased at their request are never pruned. The
+ * erasure keeps them as de-identified activity, only on events that had
+ * started (it deletes the others), and the person is not imported again
+ * (`Sync_ErasedContact`), so their absence from a roster proves nothing.
+ * Unless an admin readmits them: the new talent is then enrolled beside the
+ * de-identified one on those events, and both stay, since nothing ties the
+ * two together any more. Accepted, being one row per started event for a
+ * person who asked to be erased and then to come back. An erasure by the inactivity sweep is not one of them: it
+ * bars nothing, since a talent who enrols again is the return Jump exists for,
+ * and the sweep also takes a talent who simply never logged in, often while
+ * still enrolled. Re-imported as a new talent with a new enrolment, the person
+ * would sit on the event twice if the de-identified one were kept, so a full
+ * roster prunes it as it always did.
  */
 async function pruneFromFullRoster(roster: {
   eventId: string;
@@ -765,7 +843,11 @@ async function pruneFromFullRoster(roster: {
   const { eventId, presentTalentIds, sentCount, resolvedCount } = roster;
   // `notIn: []` matches every enrolment of the event, which is the prune an
   // empty roster asks for and exactly why that case needs proving first.
-  const absent = { eventId, talentId: { notIn: presentTalentIds } };
+  const absent = {
+    eventId,
+    talentId: { notIn: presentTalentIds },
+    talent: { deletionRequests: { none: { status: 'fulfilled' } } },
+  } satisfies Prisma.ParticipationWhereInput;
   const complete = sentCount > 0 && resolvedCount === sentCount;
 
   if (!complete) {

@@ -26,8 +26,9 @@ import { clearSignInStreak } from '$lib/server/services/signInStreak';
  * règlement parent / droit à l'image, each embeds the student's and guardian's
  * names and a signature) are deleted from object storage, not merely
  * dereferenced. We deliberately keep the de-identified behavioural telemetry
- * (participation, EventPresence, minigame attempts, the xp ledger, the CTFd
- * activity mirrors) so `xp`, `eventsCount` and aggregate stats survive the
+ * (participation on an event that has started, EventPresence, minigame
+ * attempts, the xp ledger, the CTFd activity mirrors) so `xp`, `eventsCount`
+ * and aggregate stats survive the
  * erasure, and with them the talent's `firstLoginAt` / `lastActiveAt`: the
  * retention figures read them (the "connected" count of the cohort profile, the
  * population of feature usage), and with the name gone they identify nobody.
@@ -57,7 +58,8 @@ import { clearSignInStreak } from '$lib/server/services/signInStreak';
  * This is the *real* deletion mechanism behind both entry points:
  *   - the daily inactivity sweep (`anonymizeInactiveStudents`), and
  *   - a talent's own deletion request once staff fulfil it
- *     (`talentDeletionService.fulfillTalentDeletion`).
+ *     (`talentDeletionService.fulfillTalentDeletion`), which alone also bars
+ *     the Salesforce contact from being imported again (`Sync_ErasedContact`).
  *
  * Idempotent: re-running on an already-anonymised talent is a harmless no-op
  * write (its parent emails are already null, so nothing is re-resolved). Takes
@@ -153,6 +155,10 @@ export async function anonymizeTalent(
   //    eventPresence, minigameAttempt, xpGrant, workshop_Participation): once
   //    the name is gone those are de-identified activity backing xp /
   //    eventsCount and aggregate stats.
+  //      - participation, on an event that has not started: an enrolment there
+  //        is a plan, not activity, and kept it would sit on the roster and
+  //        the émargement list as an « Anonymisé » nobody will be. The ones on
+  //        an event that has started are the activity kept above.
   //      - talentSfImport / talentInterest / imageRightsDecisionRecord: the SF
   //        mirror, interest selections, and the image-rights ledger (the ledger
   //        embeds the guardian's typed signer name).
@@ -178,6 +184,9 @@ export async function anonymizeTalent(
   //      - broadcastRecipient: the talent's and the parent's email / phone per
   //        send, matched on both slots (SetNull relations, so deleted here, not
   //        left orphaned). The parent is a data subject too.
+  await tx.participation.deleteMany({
+    where: { talentId, event: { date: { gt: new Date() } } },
+  });
   await tx.talentSfImport.deleteMany({ where: { talentId } });
   await tx.talentInterest.deleteMany({ where: { talentId } });
   await tx.schooling_YearRecord.deleteMany({ where: { talentId } });
@@ -240,6 +249,15 @@ export async function anonymizeTalent(
     },
   });
 
+  // OtpAttempt: the rate limiter's ledger, keyed by address. The talent's own
+  // login address sits there for a day after they change parent 1's address
+  // (`parent_welcome`), and for minutes after a code request.
+  if (talent.user?.email) {
+    await tx.otpAttempt.deleteMany({
+      where: { email: { equals: talent.user.email, mode: 'insensitive' } },
+    });
+  }
+
   // Scrub residual PII fields in operational audit logs for this talent:
   //   - AuthIdentityRepair: retains fromEmail/toEmail; replace with anonymized placeholders.
   //   - TalentDeletionRequest: retains reason and resolutionNote; set both to null.
@@ -292,6 +310,9 @@ export async function anonymizeTalent(
     });
     await tx.bauth_session.deleteMany({ where: { userId: orphan.id } });
     await tx.bauth_account.deleteMany({ where: { userId: orphan.id } });
+    await tx.otpAttempt.deleteMany({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
   }
 
   // The column scrub above only removes the app's *path* to the generated PDFs;

@@ -3,9 +3,9 @@
  *
  * The wizard's per-step timestamp stamps stay inline in the route (single-model
  * one-liners); what lives here is the logic that spans models and must be
- * atomic: provisioning the parent-1 login, swapping the interest selection, and
- * the rules signature (timestamps + layered XP facts + PDF job in one
- * transaction).
+ * atomic: swapping the interest selection, and the rules signature (timestamps
+ * + layered XP facts + PDF job in one transaction). Parent 1's address and login
+ * belong to `parentAccount.ts`, which the admin correction shares.
  *
  * HTTP concerns stay in the route: redirect target, the resume cookie, and the
  * arrival celebration.
@@ -26,59 +26,12 @@ import { enqueueOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobSe
 import type { ServiceResult } from './result';
 import { CURRENT_REGLEMENT_VERSION } from '$lib/content/reglement';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { getOnboardingStep } from '$lib/domain/talentOnboarding';
 import {
+  lockTalent,
   patchCurrentOnboardingRecord,
   upsertOnboardingYearRecord,
 } from './onboardingYearService';
-
-type ParentContact = { email: string; prenom: string; nom: string };
-
-export type EnsureParentResult = 'created' | 'refreshed' | 'refused';
-
-/**
- * Ensure parent-1's `bauth_user` exists (role `parent`, verified) and carries
- * the latest name. Awaited by the parents step: a validated address must always
- * end up with a working login, so this can't be fire-and-forget. The name upsert
- * always runs so a corrected name still propagates.
- *
- * Returns `'refused'` when the address already belongs to a NON-parent login (a
- * student's or staff member's account). One email = one `bauth_user` = one role,
- * so we can't also mint a parent login there; repurposing theirs would pollute
- * their identity, and the welcome magic link would be rejected anyway
- * (`/parent/fastlogin` filters by `role: 'parent'`). This function is the only
- * gate for that collision: the parents step runs no up-front email-availability
- * check, so `'refused'` is an ordinary, if uncommon, outcome (a family sharing
- * one inbox that already backs another student's login, or a parent who is also
- * Epitech staff), not a race.
- *
- * The caller rejects the step on `'refused'` and asks the talent for another
- * address instead of persisting and advancing. The parent portal carries the
- * règlement co-signature and the image-rights decision (an RGPD / legal step),
- * so a parent left with no account is a silently broken flow, not a cosmetic
- * gap. This replaces an earlier silent pass that only logged a warning and
- * stranded the parent until the shared address was fixed at source.
- */
-export async function ensureParentAccount(
-  parent: ParentContact,
-): Promise<EnsureParentResult> {
-  const name = `${parent.prenom} ${parent.nom}`.trim();
-  const existing = await prisma.bauth_user.findUnique({
-    where: { email: parent.email },
-    select: { id: true, role: true },
-  });
-  if (existing && existing.role !== 'parent') return 'refused';
-  if (!existing) {
-    await prisma.bauth_user.create({
-      data: { email: parent.email, name, role: 'parent', emailVerified: true },
-    });
-    return 'created';
-  }
-  await prisma.bauth_user.update({
-    where: { id: existing.id },
-    data: { name },
-  });
-  return 'refreshed';
-}
 
 export type InterestsFailure = 'stale_tech' | 'stale_general';
 
@@ -147,12 +100,21 @@ export async function validateTalentInterests(
  * Returns the enqueued job's id; the caller kicks off `runOnboardingPdfJob`
  * without awaiting it (the generation + S3 upload is the only slow part, and it
  * must not sit between the talent and their dashboard).
+ *
+ * Refuses (`not_at_rules`, nothing written) unless this year's dossier is at the
+ * `rules` step. The wizard only renders the signature form there, but the action
+ * takes any POST while onboarding is open, and a signature posted from step one
+ * took the welcome XP and an early-bird tier ahead of talents who had finished
+ * (security audit run-1). Checking here rather than in the action is what makes
+ * `rulesSignedAt` mean "the whole ladder is done" for every reader, the
+ * early-bird count first among them. A second submit of the same form is refused
+ * the same way, so it can neither restamp the signature nor queue a second PDF.
  */
 export async function signOnboardingRules(input: {
   talentId: string;
   city: string;
   signedAt?: Date;
-}): Promise<{ jobId: string }> {
+}): Promise<ServiceResult<'not_at_rules', { jobId: string }>> {
   const { talentId, city } = input;
   const now = input.signedAt ?? new Date();
   // One resolution for the dossier this act writes, the early-bird count and the
@@ -160,6 +122,19 @@ export async function signOnboardingRules(input: {
   const schoolYear = currentSchoolYearLabel();
 
   const job = await prisma.$transaction(async (tx) => {
+    // Lock the talent's row before reading the step, so two submits of the
+    // form serialize: the second one waits, then reads the signature the first
+    // one committed and is refused. The talent's row and not the dossier's,
+    // because every onboarding write takes it first (`lockTalent`): taking the
+    // dossier first here, a signature racing another step's submit
+    // deadlocked. Taken before the per-campus lock below, so those two are
+    // always acquired in the same order too.
+    await lockTalent(tx, talentId);
+    const dossier = await tx.onboarding_Record.findUnique({
+      where: { talentId_schoolYear: { talentId, schoolYear } },
+    });
+    if (!dossier || getOnboardingStep(dossier) !== 'rules') return null;
+
     // Resolve the talent's campus (most-recent participation) and their 0-based
     // position among completers in that campus, BEFORE stamping this talent's
     // own rulesSignedAt below, so the count is "those who finished before me".
@@ -234,5 +209,6 @@ export async function signOnboardingRules(input: {
     });
   });
 
-  return { jobId: job.id };
+  if (!job) return { ok: false, reason: 'not_at_rules' };
+  return { ok: true, jobId: job.id };
 }

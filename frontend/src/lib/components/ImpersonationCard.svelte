@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { authClient } from '$lib/auth-client';
+  import { stopImpersonating } from '$lib/impersonation';
   import LogOut from '@lucide/svelte/icons/log-out';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import { toast } from 'svelte-sonner';
@@ -40,11 +40,11 @@
     Boolean(page.data.canOverridePhase) && realPhase !== null,
   );
 
-  async function stopImpersonating() {
+  async function returnToAdmin() {
     if (busy) return;
     busy = true;
     try {
-      await authClient.admin.stopImpersonating();
+      await stopImpersonating();
       await goto(resolve('/staff/admin/users'), { invalidateAll: true });
     } catch (err) {
       console.error(err);
@@ -83,7 +83,7 @@
       {/if}
       <button
         type="button"
-        onclick={stopImpersonating}
+        onclick={returnToAdmin}
         disabled={busy}
         class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-sm bg-epi-together px-3 py-1.5 text-xs font-bold text-epi-dark transition-colors hover:bg-epi-together/90 disabled:cursor-not-allowed disabled:opacity-60"
       >

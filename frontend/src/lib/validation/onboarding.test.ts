@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { rulesSchema, rulesSchemaWithoutCharter } from './onboarding';
+import {
+  schoolSchema,
+  identitySchema,
+  parentsSchema,
+  rulesSchema,
+  rulesSchemaWithoutCharter,
+} from './onboarding';
 
 /**
  * The last step of the wizard collects two consents, and only one of them
@@ -76,5 +82,86 @@ describe('rulesSchemaWithoutCharter', () => {
     // Dropping the charte must not relax what a yearly dossier signs.
     const { acceptedRules: _omitted, ...partial } = withoutCharter;
     expect(rulesSchemaWithoutCharter.safeParse(partial).success).toBe(false);
+  });
+});
+
+describe('identitySchema names', () => {
+  const identity = {
+    civilite: 'femme',
+    nom: 'Dupont',
+    prenom: 'Léa',
+    phone: '+33612345678',
+  };
+
+  it.each(['N’Diaye', "N'Golo", 'Marie-Ève', 'Léa (Lily)', 'Ó Súilleabháin'])(
+    'accepts the real name %s as typed',
+    (name) => {
+      // Mails that quote a name escape it themselves, so the form has no
+      // reason to refuse a character a real name carries.
+      const parsed = identitySchema.safeParse({ ...identity, prenom: name });
+      expect(parsed.success && parsed.data.prenom).toBe(name);
+    },
+  );
+
+  it('counts the two characters once the padding is trimmed', () => {
+    expect(
+      identitySchema.safeParse({ ...identity, prenom: '  a ' }).success,
+    ).toBe(false);
+  });
+});
+
+// Parent 2 is optional as a whole, and its names are stored as the form
+// parses them: trimmed and bounded like every other name, once filled in.
+describe('parentsSchema names of parent 2', () => {
+  const parents = {
+    studentEmail: 'lea@example.test',
+    parentType: 'mere',
+    parentCivilite: 'femme',
+    parentNom: 'Dupont',
+    parentPrenom: 'Marie',
+    parentEmail: 'marie@example.test',
+    parentPhone: '+33612345678',
+  };
+  const parent2 = {
+    parent2Type: 'pere',
+    parent2Civilite: 'homme',
+    parent2Nom: '  Martin ',
+    parent2Prenom: ' Paul',
+    parent2Email: 'paul@example.test',
+  };
+
+  it('trims them', () => {
+    const parsed = parentsSchema.safeParse({ ...parents, ...parent2 });
+    expect(parsed.success && parsed.data).toMatchObject({
+      parent2Nom: 'Martin',
+      parent2Prenom: 'Paul',
+    });
+  });
+
+  it('caps them like the names of parent 1', () => {
+    const parsed = parentsSchema.safeParse({
+      ...parents,
+      ...parent2,
+      parent2Nom: 'x'.repeat(101),
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it('still leaves parent 2 out when nothing but blanks was typed', () => {
+    expect(
+      parentsSchema.safeParse({
+        ...parents,
+        parent2Nom: '   ',
+        parent2Prenom: '',
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe('schoolSchema', () => {
+  it('refuses a school name that is only blanks', () => {
+    // `.min(2)` ran before `.trim()`, so three spaces passed and stored an
+    // empty name with the step marked validated.
+    expect(schoolSchema.safeParse({ schoolName: '   ' }).success).toBe(false);
   });
 });

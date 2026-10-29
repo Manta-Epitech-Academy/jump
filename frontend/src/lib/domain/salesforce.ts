@@ -1,5 +1,5 @@
 /**
- * Salesforce Lightning deep-link helpers.
+ * Salesforce ids: the record one names, and the spelling Jump stores.
  *
  * `Talent.externalId` holds the Salesforce person a talent is: its Contact once
  * it has one, its Lead while it never became a Contact. `Event.externalId`
@@ -28,4 +28,27 @@ export function salesforceUrl(externalId: string): string {
   return object
     ? `${SF_TENANT_BASE}/lightning/r/${object}/${externalId}/view`
     : `${SF_TENANT_BASE}/${externalId}`;
+}
+
+const CHECKSUM_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ012345';
+
+/**
+ * The 18-character spelling of a Salesforce id, the one the API returns and
+ * so the one `Talent.externalId` and `Sync_ErasedContact` hold. Salesforce
+ * shows the case-sensitive 15-character one in its URLs and reports, which is
+ * what an admin copies; the three characters it lacks encode, five letters at
+ * a time, which of them are upper case. An 18-character id is returned as is.
+ */
+export function salesforceId18(id: string): string {
+  if (id.length !== 15) return id;
+  let suffix = '';
+  for (let chunk = 0; chunk < 3; chunk++) {
+    let bits = 0;
+    for (let i = 0; i < 5; i++) {
+      const c = id[chunk * 5 + i];
+      if (c >= 'A' && c <= 'Z') bits |= 1 << i;
+    }
+    suffix += CHECKSUM_ALPHABET[bits];
+  }
+  return id + suffix;
 }

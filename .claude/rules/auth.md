@@ -6,10 +6,12 @@ paths:
   - "frontend/src/lib/domain/permissions.ts"
   - "frontend/src/hooks.server.ts"
   - "frontend/src/routes/**/login/**"
+  - "frontend/src/routes/**/oauth/**"
   - "frontend/src/routes/api/auth/**"
   - "frontend/src/routes/api/test/login-as/**"
-  - "frontend/scripts/{accept-invitation,add-admin-user,bootstrap-admins}.ts"
+  - "frontend/scripts/{accept-invitation,bootstrap-admins}.ts"
   - "frontend/src/lib/server/services/__integration__/{emailOtpAudience,microsoftOAuthCallback,staffDoor}.integration.test.ts"
+  - "frontend/src/lib/server/services/__integration__/microsoftSignIn.ts"
   - "frontend/tests/e2e/auth.setup.ts"
 ---
 
@@ -99,9 +101,60 @@ account creation.
   the silent success exists to hide. Substituting keeps validation, error
   shapes and timing upstream where they belong; the parity is asserted per
   route, per malformed body, in `emailOtpAudience.integration.test.ts`.
+- **None of the plugin's routes is served over HTTP**, by the allowlist below.
+  Jump never needed them (every caller uses `auth.api.*`), and mounted they
+  skipped the per-email ledger in `server/auth/rateLimiter.ts`: one address
+  mailed 100 codes to a talent in a minute. That ledger is the only OTP limit
+  on purpose, because a per-IP one locks out a whole cohort behind a campus
+  NAT. A new caller that sends or checks a code for a visitor goes
+  through it.
 - **The plugin's two server-only endpoints carry no path**, so a matcher cannot
   see them. `server/auth/otpSession.ts` owns both halves of the credential
   (`mintSigninOtp`, `establishOtpSession`) and checks the audience itself.
+- **The admin plugin is not served over HTTP either**, by the same allowlist.
+  An admin session reached its routes directly: `impersonate-user` opened a
+  session on a guardian, whom Jump never offers, with no
+  `Audit_ImpersonationEvent` row, and `set-role` wrote `bauth_user.role`
+  without the `StaffProfile.staffRole` it pairs with (security audit run-1). Impersonation starts and stops only through
+  `server/auth/impersonate.ts` (`POST /api/impersonation/stop` for the way
+  back, under `/api` so an impersonated session reaches it), and a role
+  changes only through `updateStaffRole` in `services/staffAdminService.ts`.
+  The browser ships no `adminClient()`.
+- **An impersonation holds only while its admin is still one**, checked by
+  `hooks.server.ts` on every request (`loadImpersonator`), not revoked where
+  a role changes. The session is a row on the target whose `impersonatedBy`
+  has no relation, so a demoted or deleted admin kept acting as a talent for
+  as long as they stayed active (security audit run-1). Role writers are
+  spread over services, scripts and reconciliation, and BetterAuth's cookie
+  cache serves a deleted row for five minutes, so a check at the writers
+  would be neither complete nor immediate. A refused session goes through
+  `revokeImpersonation`: back to the admin's own session if they still have
+  one, signed out otherwise, audit window closed either way.
+- **Over HTTP, BetterAuth serves the staff door and nothing else:**
+  `POST /sign-in/social` and `/callback/microsoft`, the two routes the browser
+  client calls. `server/auth/httpSurface.ts` is an allowlist (an `onRequest`
+  plugin), not BetterAuth's `disabledPaths` denylist, so a route a release
+  adds, core or plugin, is closed on arrival. It also holds the sign-in to
+  the body the login page sends: `scopes` would bring the refresh token back,
+  and `idToken` signs in with a token minted elsewhere. Every other flow (OTP, the
+  session read in `hooks.server.ts`, logout, impersonation) runs through
+  `auth.api.*`, which the allowlist never sees. The core account, user and
+  session routes act on `session.user`, which for an impersonation session is
+  the target: mounted, an admin acting as a member of staff read their stored
+  Microsoft tokens (`get-access-token`), renamed them and signed them out
+  everywhere, unaudited (security audit run-1). A new browser call to
+  `/api/auth` means a new entry there, argued for; prefer a Jump route that
+  calls `auth.api.*`.
+- **A write a browser sends from another site is refused in `hooks.server.ts`,
+  for every route** (`security/crossSite.ts`, the rule of Go's
+  `CrossOriginProtection`). Kit's `csrf.checkOrigin` covers form content types
+  only, the session cookie is `SameSite=Lax`, and the CTFd instances share
+  production's site (`*.epiboost.fr`): a script on one could POST a bodyless
+  `fetch` to any JSON `+server.ts` as a logged-in admin, such as the test send
+  from the official sender (security audit run-1). A caller with neither
+  `Sec-Fetch-Site` nor `Origin` is a server and passes on its own secret. A
+  new flow where a browser writes to Jump from another origin (a `form_post`
+  OAuth return, an embedded form) is refused until argued for here.
 - **Opening a staff session locally, without Azure:** `POST /api/test/login-as`
   with `Authorization: Bearer $LOAD_TEST_SECRET`, then paste the returned cookie
   into the browser. No new mechanism and nothing to arm in production: the
@@ -128,13 +181,20 @@ day that member's `bauth_account` row is gone. Which is not hypothetical: 134 of
 Three things hold the invariant, and they are not interchangeable.
 `mapProfileToUser` on the Microsoft provider in `server/auth.ts` holds it at
 creation, which is where it belongs: reaching that callback means the tenant in
-`MICROSOFT_TENANT_ID` authenticated the address and `staff/oauth/callback` then
-refused anything outside `@epitech.eu`. The migration
+`MICROSOFT_TENANT_ID` authenticated the address and the staff door refuses
+anything outside `@epitech.eu`. That reading holds because the server refuses to
+boot unless the value is one directory's id (`server/auth/microsoftTenant.ts`):
+blank, the provider falls back to `common` without a word, and any directory's
+administrator could assert an admin's address and be linked onto their account
+(security audit run-1). The migration
 `20260915140000_verify_staff_emails_for_oauth_relink` holds it for the rows that
 predate that, scoped on `StaffProfile` because that row is the proof the
-callback ran. And the provisioning scripts (`bootstrap-admins.ts`,
-`add-admin-user.ts`, `accept-invitation.ts`) write it themselves, which is the
-only reason five accounts could still sign in while the other 134 could not.
+member was provisioned. And the provisioning scripts (`bootstrap-admins.ts`,
+`accept-invitation.ts`) write it themselves, which is the only reason five
+accounts could still sign in while the other 134 could not. One script
+provisions an admin: a second one, `add-admin-user.ts`, promoted a talent's or
+a parent's login that `bootstrap-admins.ts` refuses, and was deleted rather
+than kept in step.
 
 **Do not answer a linking refusal by setting `requireLocalEmailVerified: false`.**
 It is one line and it works, and it would open implicit linking to every
@@ -142,7 +202,7 @@ pre-existing local row rather than to the staff rows the refusal was about. Keep
 it at its default. But do not mistake it for a guard over who reaches the staff
 space, which is the reading it invites and which is false: it refuses only a row
 that has **never authenticated**. A guardian's row is written
-`emailVerified: true` at creation (`ensureParentAccount`, `changeParentEmail`),
+`emailVerified: true` at creation (`setParentLogin`),
 and a talent's is promoted to `true` by BetterAuth itself the first time they
 use the OTP door (`sign-in/email-otp` calls `revokeUnprovenAccountAccess` on an
 unverified row). Both link today, and the `bauth_user` rows carrying an
@@ -150,19 +210,33 @@ unverified row). Both link today, and the `bauth_user` rows carrying an
 what a Salesforce contact holding a staff address produces, are exactly the ones
 that do.
 
-**So the thing that protects a non-staff identity is `auth/staffDoor.ts`, not
-the link test.** `staff/oauth/callback` refuses such a sign-in either way, on the
-domain or on the missing `StaffProfile` and `StaffInvitation`; what
-`discardStaffSignIn` decides is what it is allowed to destroy on the way out.
-The rule is ownership rather than the reason for the refusal: a row carrying a
-`Talent`, a `StaffProfile` or `role: 'parent'` is **released** (the link this
-sign-in made and the session it minted go, the identity stays), and only a row
-carrying none of the three, which is one BetterAuth minted for this sign-in and
-nobody else will want, is deleted. Releasing the link is not housekeeping: left
-behind it would leave a guardian's or a talent's account permanently reachable
-through the staff Microsoft door, which is the disjoint-doors rule under Auth
-System. Deleting instead of releasing is silent and unrecoverable, since
-`Talent.userId` is `onDelete: SetNull`, so it is asserted on the `Talent` row in
-`services/__integration__/staffDoor.integration.test.ts`;
-`services/__integration__/microsoftOAuthCallback.integration.test.ts` carries the
-BetterAuth half, the register path beside the relink.
+**So the thing that protects a non-staff identity is the staff door, not the
+link test, and it decides before BetterAuth writes anything.**
+`staffDoorRefusal` (`server/auth/staffDoor.ts`) is wired as
+`user.validateUserInfo` in `server/auth.ts`, which BetterAuth calls ahead of
+each Microsoft write: creating a `bauth_user`, linking onto an existing one (by
+address, or through `/link-social`), and signing in on an account already
+linked. One rule for all three: outside `@epitech.eu` nobody; a `StaffProfile`
+with a role admits; a row carrying a `Talent` or `role: 'parent'` is refused
+(`NotStaffAccount`) even when an invitation names its address, because turning
+it into staff locks that talent or guardian out of the OTP door and the clash is
+a human's to resolve; otherwise a `StaffInvitation` admits and its absence
+refuses (`NotInvited`). The codes reach `/staff/login` through
+`onAPIError.errorURL`.
+
+**`staff/oauth/callback` provisions, it does not admit.** It used to hold the
+whole decision, and could not: BetterAuth redirects there only after it has
+created or linked the row and set the session cookie, and only because the
+client names it as `callbackURL`. A `sign-in/social` naming `/` kept the session
+and the link (security audit run-1). Deciding first also means a refusal leaves
+nothing to undo, which retired the release-or-delete logic the callback once
+needed. Do not move a refusal back into the callback. What it does check is
+that the session's user holds a Microsoft account, the proof the door ran:
+the route is public to the guards, so an OTP session reaches it with a GET
+and was provisioned from an invitation naming its address, the very clash
+the door refuses (`staffOAuthCallback.integration.test.ts`). The suites sign in with
+`callbackURL: '/'` on purpose, through `services/__integration__/microsoftSignIn.ts`:
+`staffDoor.integration.test.ts` asserts that a refusal leaves no session, no
+link and no new row, and the `Talent` row intact;
+`microsoftOAuthCallback.integration.test.ts` carries the BetterAuth half, the
+register path beside the relink.

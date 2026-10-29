@@ -73,6 +73,26 @@ export function formatPersonName(
   return parts.filter(Boolean).join(' ');
 }
 
+/**
+ * First name plus an initial ("Camille D."), never the full name: the name a
+ * talent shows to anyone who is not staff, such as other talents on a minigame
+ * board or a public CTFd scoreboard. Talents are minors, so what reaches a peer
+ * is the least that still lets a student recognise their own row. Build it on
+ * the server: a full surname sent to the browser has already left. Empty when
+ * both parts are.
+ */
+export function formatPeerName(
+  prenom: string | null | undefined,
+  nom: string | null | undefined,
+): string {
+  const first = formatGivenName(prenom?.trim());
+  // The first character, not the first UTF-16 unit, which would split a
+  // letter outside the BMP into half a pair.
+  const [initial = ''] = Array.from((nom ?? '').trim());
+  const shown = initial.toLocaleUpperCase('fr');
+  return (shown ? `${first} ${shown}.` : first).trim();
+}
+
 export const CIVILITE_OPTIONS = [
   { value: 'homme', label: 'Homme' },
   { value: 'femme', label: 'Femme' },

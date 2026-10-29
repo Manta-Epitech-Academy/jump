@@ -20,7 +20,7 @@
  */
 
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { SEED_ID_PREFIX } from './ids';
+import { SEED_ID_PREFIX, SEED_SALESFORCE_ID_PREFIX } from './ids';
 import { loadDatamodel } from './schema';
 
 /**
@@ -91,6 +91,7 @@ export type Buffered = {
   broadcastRecipient: Prisma.BroadcastRecipientCreateManyInput[];
   sync_Error: Prisma.Sync_ErrorCreateManyInput[];
   sync_Run: Prisma.Sync_RunCreateManyInput[];
+  sync_ErasedContact: Prisma.Sync_ErasedContactCreateManyInput[];
   adminFile: Prisma.AdminFileCreateManyInput[];
   audit_ImpersonationEvent: Prisma.Audit_ImpersonationEventCreateManyInput[];
   usage_FeatureUse: Prisma.Usage_FeatureUseCreateManyInput[];
@@ -155,6 +156,7 @@ const MODEL_ORDER = [
   'broadcastRecipient',
   'sync_Error',
   'sync_Run',
+  'sync_ErasedContact',
   'adminFile',
   'audit_ImpersonationEvent',
   'usage_FeatureUse',
@@ -349,6 +351,11 @@ export async function wipe(
   );
   await drop('adminFile', () =>
     prisma.adminFile.deleteMany({ where: { id: seeded } }),
+  );
+  await drop('sync_ErasedContact', () =>
+    prisma.sync_ErasedContact.deleteMany({
+      where: { externalId: { startsWith: SEED_SALESFORCE_ID_PREFIX } },
+    }),
   );
   await drop('sync_Run', () =>
     prisma.sync_Run.deleteMany({ where: { id: seeded } }),

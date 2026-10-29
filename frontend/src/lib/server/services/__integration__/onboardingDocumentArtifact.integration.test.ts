@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
 import { drainOnboardingPdfJobs } from './onboardingPdfJobs';
+import { reachRulesStep } from './onboardingLadder';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 
 /**
@@ -125,10 +126,12 @@ describe('règlement artifact per dossier (integration)', () => {
   });
 
   it("keeps last year's co-signed PDF when the talent signs again", async () => {
-    await signOnboardingRules({
+    await reachRulesStep(talentId);
+    const signed = await signOnboardingRules({
       talentId,
       city: 'Paris',
     });
+    expect(signed.ok).toBe(true);
     await drainJobs();
 
     const currentKey = `documents/${talentId}/rules-${currentYear}.pdf`;

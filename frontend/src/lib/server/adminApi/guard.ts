@@ -35,6 +35,7 @@ import {
   type AdminApiCaller,
 } from './audit';
 import {
+  isOperationAllowedForCapability,
   isOperationAllowedForTier,
   type AdminApiOperation,
 } from './operations';
@@ -172,7 +173,15 @@ export function authorizeOperation(
     };
   }
 
-  if (operation.kind === 'write' && !writeEnabled) {
+  if (!isOperationAllowedForCapability(operation, writeEnabled)) {
+    if (operation.kind === 'read') {
+      return {
+        ok: false,
+        status: 403,
+        message:
+          "Cette opération rend mot pour mot un texte qu'un administrateur n'a pas écrit, comme les phrases des élèves. Elle n'est pas servie à un token qui peut modifier, pour qu'aucun texte cité ne puisse provoquer une modification : utilisez un token en lecture seule ou un token de pilotage.",
+      };
+    }
     return {
       ok: false,
       status: 403,
