@@ -30,7 +30,11 @@
 </svelte:head>
 
 <div class="space-y-6 pb-12">
-  <TalentProfileHero student={data.student} xpStory={data.xpStory} />
+  <TalentProfileHero
+    student={data.student}
+    xpStory={data.xpStory}
+    season={data.season}
+  />
 
   <div class="grid gap-6 lg:grid-cols-10">
     <!-- Left 70%: the talent's dossier. A closing used to take this column over
