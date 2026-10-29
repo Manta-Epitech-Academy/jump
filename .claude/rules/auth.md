@@ -9,7 +9,7 @@ paths:
   - "frontend/src/routes/**/oauth/**"
   - "frontend/src/routes/api/auth/**"
   - "frontend/src/routes/api/test/login-as/**"
-  - "frontend/scripts/{accept-invitation,add-admin-user,bootstrap-admins}.ts"
+  - "frontend/scripts/{accept-invitation,bootstrap-admins}.ts"
   - "frontend/src/lib/server/services/__integration__/{emailOtpAudience,microsoftOAuthCallback,staffDoor}.integration.test.ts"
   - "frontend/src/lib/server/services/__integration__/microsoftSignIn.ts"
   - "frontend/tests/e2e/auth.setup.ts"
@@ -190,8 +190,11 @@ administrator could assert an admin's address and be linked onto their account
 `20260915140000_verify_staff_emails_for_oauth_relink` holds it for the rows that
 predate that, scoped on `StaffProfile` because that row is the proof the
 member was provisioned. And the provisioning scripts (`bootstrap-admins.ts`,
-`add-admin-user.ts`, `accept-invitation.ts`) write it themselves, which is the
-only reason five accounts could still sign in while the other 134 could not.
+`accept-invitation.ts`) write it themselves, which is the only reason five
+accounts could still sign in while the other 134 could not. One script
+provisions an admin: a second one, `add-admin-user.ts`, promoted a talent's or
+a parent's login that `bootstrap-admins.ts` refuses, and was deleted rather
+than kept in step.
 
 **Do not answer a linking refusal by setting `requireLocalEmailVerified: false`.**
 It is one line and it works, and it would open implicit linking to every

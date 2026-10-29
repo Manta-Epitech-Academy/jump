@@ -92,11 +92,15 @@ async function provision(email: string): Promise<[Outcome, string]> {
   });
 
   // `bauth_user.email` is one namespace shared by staff, talents and parents, so
-  // an address already carrying a talent is a collision, not an account to
-  // promote. Overwriting the role here would lock that person out of their own
-  // space and hand their session the admin one.
+  // an address already carrying a talent or a parent login is a collision, not
+  // an account to promote. Overwriting the role here would lock that person out
+  // of their own space and hand their session the admin one. The same two the
+  // staff door refuses (`NotStaffAccount` in src/lib/server/auth/staffDoor.ts).
   if (existing?.talent) {
     return ['refused', 'this address already carries a talent account'];
+  }
+  if (existing?.role === 'parent') {
+    return ['refused', 'this address is already a parent login'];
   }
 
   const role = existing?.staffProfile?.staffRole;

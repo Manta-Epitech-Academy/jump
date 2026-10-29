@@ -9,7 +9,7 @@ export function avatarStorageKey(userId: string): string {
 
 // Refresh bauth_user.image from MS Graph. BetterAuth's Microsoft provider
 // only fetches the photo on first user creation, so pre-provisioned accounts
-// (e.g. seeded via scripts/add-admin-user.ts) and subsequent logins never
+// (e.g. seeded via scripts/bootstrap-admins.ts) and subsequent logins never
 // pick up profile photo changes. Best-effort: failures must not block login.
 export async function syncMicrosoftAvatar(userId: string): Promise<void> {
   try {
