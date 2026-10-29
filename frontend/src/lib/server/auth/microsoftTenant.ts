@@ -21,9 +21,11 @@ const PERSONAL_ACCOUNTS_TENANT = '9188040d-6c67-4c5b-b112-36a304b66dad';
  *
  * Hence a tenant id and nothing else. `common`, `organizations` and `consumers`
  * are the multi-directory endpoints. A domain name such as `epitech.eu` would
- * pin the endpoint, but BetterAuth compares it to the issuer's id when it
- * checks a token, so every sign-in through `/sign-in/social`'s `idToken` form
- * would fail.
+ * pin the endpoint too, and the redirect flow the staff door uses would work
+ * with it; it is refused so the setting keeps one form, the one a token's
+ * issuer names. BetterAuth compares the two when it checks an id token, a flow
+ * `disableIdTokenSignIn` (`server/auth.ts`) keeps off today and a domain would
+ * break the day it came back.
  */
 export function pinnedMicrosoftTenant(value: string | undefined): string {
   if (
