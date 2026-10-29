@@ -20,18 +20,20 @@ import {
 import { handle } from '../../../../hooks.server';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
-import { cookieJar, sessionCookie } from './authHttp';
+import { cookieAfter, cookieJar, sessionCookie } from './authHttp';
 
 const stamp = Date.now();
 
-/** One request to `/staff/dev` carrying `cookie`, through the whole hook. */
+/**
+ * One request to `/staff/dev` carrying `cookie`, through the whole hook, and
+ * the `Cookie` header the browser sends next, read off the response.
+ */
 async function visitDevSpace(cookie: string) {
-  const jar = cookieJar(cookie);
   const url = new URL(`${env.ORIGIN}/staff/dev`);
   const event = {
     request: new Request(url, { headers: { cookie } }),
     url,
-    cookies: jar.cookies,
+    cookies: cookieJar(cookie).cookies,
     locals: {},
     route: { id: '/(staff)/staff/dev' },
     params: {},
@@ -40,7 +42,11 @@ async function visitDevSpace(cookie: string) {
     event,
     resolve: async () => new Response('ok'),
   });
-  return { locals: event.locals, response, cookie: jar.header() };
+  return {
+    locals: event.locals,
+    response,
+    next: cookieAfter(cookie, response),
+  };
 }
 
 describe('impersonation authority (integration)', () => {
@@ -116,36 +122,41 @@ describe('impersonation authority (integration)', () => {
     expect(await openSessions()).toBe(1);
   });
 
+  // The revocation answers the request itself, with the cookies on that very
+  // response: left to the guard, which answers a visitor without rendering,
+  // kit dropped them, and the browser kept the impersonation's cookie cache.
   it('hands a demoted admin back to their own session, and closes the window', async () => {
     expect((await updateStaffRole(adminId, 'dev')).ok).toBe(true);
 
-    const { locals, response, cookie } =
-      await visitDevSpace(impersonationCookie);
+    const { response, next } = await visitDevSpace(impersonationCookie);
 
     expect(response.status).toBe(303);
-    expect(response.headers.get('location')).toContain('/staff/login');
-    expect(locals.user).toBeNull();
-    expect(locals.staffProfile).toBeNull();
+    expect(response.headers.get('location')).toBe(`${env.ORIGIN}/staff/dev`);
     expect(await openSessions()).toBe(0);
     expect(await openWindows()).toBe(0);
-    // Their own session, now under the role they hold.
-    expect(cookie).toContain(adminCookie);
+
+    // The next request is their own session, under the role they now hold.
+    const after = await visitDevSpace(next);
+    expect(after.response.status).toBe(200);
+    expect(after.locals.user?.id).toBe(adminId);
+    expect(after.locals.impersonator).toBeNull();
   });
 
   it('signs out the holder of a deleted admin, and closes the window', async () => {
     expect((await deleteStaffUser(adminId)).ok).toBe(true);
 
-    const { locals, response, cookie } =
-      await visitDevSpace(impersonationCookie);
+    const { response, next } = await visitDevSpace(impersonationCookie);
 
     expect(response.status).toBe(303);
-    expect(response.headers.get('location')).toContain('/staff/login');
-    expect(locals.user).toBeNull();
-    expect(locals.staffProfile).toBeNull();
     expect(await openSessions()).toBe(0);
     expect(await openWindows()).toBe(0);
     // No session cookie left, the cookie cache included.
-    expect(cookie).not.toContain('session_token');
-    expect(cookie).not.toContain('session_data');
+    expect(next).not.toContain('session_token');
+    expect(next).not.toContain('session_data');
+
+    const after = await visitDevSpace(next);
+    expect(after.response.status).toBe(303);
+    expect(after.response.headers.get('location')).toContain('/staff/login');
+    expect(after.locals.user).toBeNull();
   });
 });

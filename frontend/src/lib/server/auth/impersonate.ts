@@ -103,14 +103,8 @@ export async function stopImpersonation(
   cookies: Cookies,
   adminUserId: string,
 ): Promise<boolean> {
-  const res = await auth.api.stopImpersonating({
-    headers: request.headers,
-    asResponse: true,
-  });
-  if (!res.ok) return false;
-
-  await closeImpersonationWindows(adminUserId);
-
+  const res = await endImpersonation(request, adminUserId);
+  if (!res) return false;
   forwardAuthCookies(res, cookies);
   return true;
 }
@@ -123,20 +117,61 @@ export async function stopImpersonation(
  * has no session to return to (it went with their row), so the browser is
  * signed out instead. Either way the impersonation row is gone, its cookies
  * (cookie cache included) are expired, and the audit window is closed.
+ *
+ * Answers the request itself, with a 303 back to the same URL carrying those
+ * cookies, rather than letting it run on as a visitor with no session. Kit
+ * writes `event.cookies` onto a response only through `resolve`, and the guard
+ * that meets a visitor on a guarded route answers without it, so the cookies
+ * were dropped on exactly the requests that needed them: the browser kept the
+ * impersonation cookie cache, which BetterAuth serves for five minutes, and
+ * the next request revoked again and landed the admin on the login form. The
+ * request the target's identity was making is not carried out; the next one is
+ * made under whoever the browser now is.
  */
 export async function revokeImpersonation(
   request: Request,
-  cookies: Cookies,
   adminUserId: string,
-): Promise<void> {
-  if (await stopImpersonation(request, cookies, adminUserId)) return;
+): Promise<Response> {
+  const res =
+    (await endImpersonation(request, adminUserId)) ??
+    (await signOutRevoked(request, adminUserId));
 
+  const headers = new Headers({ location: request.url });
+  for (const cookie of res.headers.getSetCookie()) {
+    headers.append('set-cookie', cookie);
+  }
+  return new Response(null, { status: 303, headers });
+}
+
+/**
+ * BetterAuth's half of leaving an impersonation, then the audit window's:
+ * the response whose cookies hand the browser back to the admin, or null when
+ * BetterAuth refused, having written nothing.
+ */
+async function endImpersonation(
+  request: Request,
+  adminUserId: string,
+): Promise<Response | null> {
+  const res = await auth.api.stopImpersonating({
+    headers: request.headers,
+    asResponse: true,
+  });
+  if (!res.ok) return null;
+  await closeImpersonationWindows(adminUserId);
+  return res;
+}
+
+/** The impersonation of an admin with no session left to return to. */
+async function signOutRevoked(
+  request: Request,
+  adminUserId: string,
+): Promise<Response> {
   const res = await auth.api.signOut({
     headers: request.headers,
     asResponse: true,
   });
   await closeImpersonationWindows(adminUserId);
-  forwardAuthCookies(res, cookies);
+  return res;
 }
 
 /** Close every open audit window of this admin: they have one at a time. */

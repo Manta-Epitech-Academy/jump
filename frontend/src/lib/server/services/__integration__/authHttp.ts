@@ -91,3 +91,30 @@ export function cookieJar(initial: string) {
       .join('; ');
   return { cookies, header };
 }
+
+/**
+ * The `Cookie` header a browser sends after `response`: `cookie` with the
+ * response's own `Set-Cookie` headers applied, a cookie expired by
+ * `Max-Age=0` dropped. Read off the response itself, never off a jar the code
+ * under test wrote into, since kit only puts its jar on a response it renders.
+ */
+export function cookieAfter(cookie: string, response: Response): string {
+  const values = new Map(
+    cookie
+      .split('; ')
+      .filter(Boolean)
+      .map((pair) => {
+        const at = pair.indexOf('=');
+        return [pair.slice(0, at), pair.slice(at + 1)];
+      }),
+  );
+  for (const line of response.headers.getSetCookie()) {
+    const [pair, ...attributes] = line.split(';');
+    const at = pair.indexOf('=');
+    const name = pair.slice(0, at).trim();
+    const expired = attributes.some((a) => /^\s*max-age=0\s*$/i.test(a));
+    if (expired) values.delete(name);
+    else values.set(name, pair.slice(at + 1).trim());
+  }
+  return [...values].map(([name, value]) => `${name}=${value}`).join('; ');
+}

@@ -183,9 +183,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // 1.5 An impersonated session acts on the admin's authority, so it holds
   // only while that admin still is one (see `loadImpersonator`). Checked
-  // before anything is loaded for the target: a revoked session reaches the
-  // guards as a visitor with no session, on this very request. BetterAuth
-  // stores the admin's user id in `session.impersonatedBy`.
+  // before anything is loaded for the target: a revoked session is answered
+  // on this very request, by `revokeImpersonation`. BetterAuth stores the
+  // admin's user id in `session.impersonatedBy`.
   const impersonatedById =
     (event.locals.session as { impersonatedBy?: string | null } | null)
       ?.impersonatedBy ?? null;
@@ -201,9 +201,12 @@ export const handle: Handle = async ({ event, resolve }) => {
       // too). An abandoned session still lapses after the idle window.
       slideImpersonationExpiry(event.locals.session);
     } else {
-      await revokeImpersonation(event.request, event.cookies, impersonatedById);
-      event.locals.user = null;
-      event.locals.session = null;
+      const revoked = await revokeImpersonation(
+        event.request,
+        impersonatedById,
+      );
+      await setSecurityHeaders(revoked);
+      return revoked;
     }
   }
 
