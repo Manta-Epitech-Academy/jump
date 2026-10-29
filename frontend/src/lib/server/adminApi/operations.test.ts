@@ -153,7 +153,7 @@ describe('what a credential is offered as tools', () => {
     expect(offered).toContain('bulk_event_config');
   });
 
-  // Verbatim text an admin did not write never shares a session with the
+  // Verbatim text typed outside the staff never shares a session with the
   // writes: the testimonials, and the school names a talent typed for a lycée
   // the annuaire does not know, wherever a read carries them.
   it.each([

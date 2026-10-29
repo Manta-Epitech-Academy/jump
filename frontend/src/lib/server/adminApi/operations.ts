@@ -364,7 +364,7 @@ export type AdminApiOperation = {
    */
   leadership: boolean;
   /**
-   * The answer carries text typed by someone with less authority than an admin,
+   * The answer carries text typed outside the staff, by a talent or a parent,
    * returned verbatim: a closing testimonial, or a school's name as a talent
    * typed it when the annuaire did not know the UAI (`resolveSchoolByUai`). Such a read is never served to
    * a credential that can write: in one MCP session, a sentence written as an
