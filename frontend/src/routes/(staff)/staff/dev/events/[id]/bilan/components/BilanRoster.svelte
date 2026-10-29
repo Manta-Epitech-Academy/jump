@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { noMatchLine } from '$lib/domain/devVoice';
   import { page } from '$app/state';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
@@ -234,6 +235,7 @@
     row={rowSnippet}
     mobileRow={mobileRowSnippet}
     onResetFilters={anyFiltersApplied ? resetFilters : undefined}
+    noMatchHint={noMatchLine(page.url.pathname)}
     stickyHeader
     layout="fixed"
   />

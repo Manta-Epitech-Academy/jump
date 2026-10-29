@@ -5,6 +5,7 @@
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import { getInitials } from '$lib/avatar';
   import { cn } from '$lib/utils';
+  import { FIRST_PLACE_LINE } from '$lib/domain/devVoice';
   import type { StaffTally } from './types';
 
   let {
@@ -36,7 +37,7 @@
     {#if staff.length === 0}
       <ResultsNotice
         compact
-        description="Chaque membre de l'équipe y apparaît dès son premier closing mené."
+        description={`${FIRST_PLACE_LINE} Chaque membre de l'équipe y apparaît dès son premier closing mené.`}
       />
     {:else}
       <ol class="space-y-2.5">

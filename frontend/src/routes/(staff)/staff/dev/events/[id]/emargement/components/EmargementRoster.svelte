@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { page } from '$app/state';
+  import { noMatchLine } from '$lib/domain/devVoice';
   import { SvelteMap } from 'svelte/reactivity';
   import { invalidate } from '$app/navigation';
   import { enhance as formEnhance, deserialize } from '$app/forms';
@@ -383,6 +385,7 @@
 
         <SortableTable
           onResetFilters={anyFilter ? resetFilters : undefined}
+          noMatchHint={noMatchLine(page.url.pathname)}
           {columns}
           rows={filtered}
           {sortKey}

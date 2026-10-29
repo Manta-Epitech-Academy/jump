@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { noMatchLine } from '$lib/domain/devVoice';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
   import X from '@lucide/svelte/icons/x';
@@ -461,6 +462,7 @@
     <Tooltip.Provider delayDuration={150}>
       <SortableTable
         onResetFilters={anyFiltersApplied ? resetFilters : undefined}
+        noMatchHint={noMatchLine(page.url.pathname)}
         {columns}
         rows={filtered}
         sortKey={view.sort}

@@ -39,6 +39,7 @@
     onRowClick,
     row,
     onResetFilters,
+    noMatchHint,
     headerClass = 'bg-muted/50',
     stickyHeader = false,
     layout = 'auto',
@@ -85,6 +86,11 @@
      * `ResultsNotice` in place of the table, saying what will come.
      */
     onResetFilters?: () => void;
+    /**
+     * A line under « Aucun résultat », the dev space's `noMatchLine`. The admin
+     * tables pass none.
+     */
+    noMatchHint?: string;
     headerClass?: string;
     /**
      * Freeze the header as the page scrolls, desktop only (`lg+`). There, the
@@ -198,9 +204,14 @@
      them (Closings) had lost the reset its siblings offer. -->
 {#snippet noMatch()}
   <div class="flex flex-col items-center gap-3 py-6">
-    <p class="epi-overline text-muted-foreground">
-      Aucun résultat<TitleCursor />
-    </p>
+    <div class="flex flex-col items-center gap-1 text-center">
+      <p class="epi-overline text-muted-foreground">
+        Aucun résultat<TitleCursor />
+      </p>
+      {#if noMatchHint}
+        <p class="text-sm text-muted-foreground">{noMatchHint}</p>
+      {/if}
+    </div>
     {#if onResetFilters}
       <Button variant="outline" size="sm" onclick={onResetFilters}>
         Réinitialiser les filtres
