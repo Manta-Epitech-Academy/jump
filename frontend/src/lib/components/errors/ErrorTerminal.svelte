@@ -33,6 +33,9 @@
   // (vous) both land here.
   const genericNotFound = $derived(!message || message === 'Not Found');
   const genericError = $derived(!message || message === 'Internal Error');
+  // Only a fault on our side (5xx) can pass on its own. A refusal (401, 403,
+  // 400) answers the same on every reload, so it is offered no retry.
+  const serverFault = $derived(page.status >= 500);
 
   // A lost page in the dev space gets the dev space's voice, a wink at the
   // cursor of the title, with the plain explanation as the hint. Recruiters read
@@ -122,7 +125,7 @@
             <span>L'adresse est peut-être incomplète.</span>
           </div>
         {/if}
-        {#if !is404}
+        {#if serverFault}
           <div class="log-line hint">
             <span class="log-prompt">&gt; hint:</span>
             <span
@@ -134,9 +137,9 @@
     </div>
 
     <!-- Actions: a crash is often passing, so it offers the retry first; a
-         missing page will not come back by reloading it. -->
+         missing page or a refusal will not change by reloading it. -->
     <div class="actions">
-      {#if !is404}
+      {#if serverFault}
         <button
           type="button"
           class="btn-retry"
