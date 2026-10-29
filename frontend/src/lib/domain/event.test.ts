@@ -16,18 +16,42 @@ describe('eventDaysLabel', () => {
       eventEndInstant('2026-11-14', REUNION),
       REUNION,
     );
-    expect(shown(label)).toBe('12 nov. 2026 → 14 nov. 2026');
+    expect(shown(label)).toBe('du 12 au 14 nov. 2026');
   });
 
-  it('can wrap only after the arrow, never inside a day', () => {
+  it('names a month or a year once when both days share it', () => {
+    const range = (start: string, end: string) =>
+      shown(
+        eventDaysLabel(
+          eventStartInstant(start, REUNION),
+          eventEndInstant(end, REUNION),
+          REUNION,
+        ),
+      );
+    expect(range('2026-11-28', '2026-12-03')).toBe('du 28 nov. au 3 déc. 2026');
+    expect(range('2026-12-28', '2027-01-02')).toBe(
+      'du 28 déc. 2026 au 2 janv. 2027',
+    );
+  });
+
+  it('writes the first of a month as an ordinal', () => {
     const label = eventDaysLabel(
-      eventStartInstant('2026-11-12', REUNION),
-      eventEndInstant('2026-11-14', REUNION),
+      eventStartInstant('2027-03-01', REUNION),
+      eventEndInstant('2027-03-03', REUNION),
+      REUNION,
+    );
+    expect(shown(label)).toBe('du 1er au 3 mars 2027');
+  });
+
+  it('can wrap only before "au", never inside an end', () => {
+    const label = eventDaysLabel(
+      eventStartInstant('2026-11-28', REUNION),
+      eventEndInstant('2026-12-03', REUNION),
       REUNION,
     );
     expect(label.split(' ').map(shown)).toEqual([
-      '12 nov. 2026 →',
-      '14 nov. 2026',
+      'du 28 nov.',
+      'au 3 déc. 2026',
     ]);
   });
 
