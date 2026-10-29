@@ -99,6 +99,16 @@ catalogue both read.
   (`maskUses`), on the row, in either half of a comparison and in the
   adoption gaps: never fewer than the actors, two uses say the masked count
   is one or two.
+
+  The floor withholds a cell from one answer, not from every combination of
+  answers. The national read is never masked, so the national figure minus the
+  other campuses' unmasked ones hands back a masked campus's uses, and its
+  distinct actors too over a one-month window, where they add up. Closing that
+  takes complementary suppression (masking a second cell so that no
+  subtraction isolates the first), which was weighed and left out: every token
+  that can make those calls is minted by an admin, the cube holds no pseudonym, and
+  what comes back is a count, never a person. A new narrowing filter keeps the
+  floor; it does not have to close the subtraction.
 - **Two stores, one figure, and a distinct actor is counted per month.** Inside
   the retention window the answer comes from `Usage_FeatureUse`, beyond it from
   the actor-free cube, and both go through `server/usage/read.ts` so the store
