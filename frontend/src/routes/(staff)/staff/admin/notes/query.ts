@@ -4,7 +4,7 @@ import {
   everyTokenMatches,
   talentIdentityMatches,
 } from '$lib/server/db/textSearch';
-import { FACET_NONE, type ListFacet } from '$lib/domain/listFacets';
+import { FACET_NONE, type CountedFacet } from '$lib/domain/listFacets';
 import type { SortDir } from '$lib/domain/listView';
 import type { NoteFilters, NotesFacet, NotesSortKey } from './view';
 
@@ -132,8 +132,9 @@ export type NoteDirectoryRow = ReturnType<typeof projectNoteRow>;
 
 export type NotesCohort = {
   notes: NoteDirectoryRow[];
-  /** The Auteur column's filter, counted over every note (`./facets`). */
-  facets: ListFacet<NotesFacet>[];
+  /** The Auteur column's counts over every note (`./facets`); the page ticks
+   *  them from its address. */
+  facetCounts: CountedFacet<NotesFacet>[];
   /** The campus select's options: a campus has no column to filter from. */
   campuses: { id: string; name: string }[];
   totalItems: number;

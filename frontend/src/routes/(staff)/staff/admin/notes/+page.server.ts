@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ url }) => {
   // ResultsSkeleton. The counts come first because they decide which ticked
   // values still exist, and so what the rows match.
   const cohort: Promise<NotesCohort> = (async () => {
-    const { filters, facets, campuses } = await resolveNoteFilters(
+    const { filters, facetCounts, campuses } = await resolveNoteFilters(
       url.searchParams,
     );
     const where = buildNoteWhere(filters);
@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ url }) => {
     ]);
     return {
       notes: rows.map(projectNoteRow),
-      facets,
+      facetCounts,
       campuses,
       totalItems,
       totalPages: Math.max(1, Math.ceil(totalItems / PER_PAGE)),

@@ -37,7 +37,9 @@ export const load: PageServerLoad = async ({ url }) => {
   // cost), resolve behind the shell skeleton. The counts come first because
   // they decide which ticked values still exist, and so what the rows match.
   const cohort: Promise<TalentsCohort> = (async () => {
-    const { filters, facets } = await resolveTalentFilters(url.searchParams);
+    const { filters, facetCounts } = await resolveTalentFilters(
+      url.searchParams,
+    );
     const { where, scopeWhere } = buildTalentWhere(filters);
     const orderBy = buildOrderBy(filters.sort, filters.dir);
 
@@ -74,7 +76,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
     return {
       talents: rows.map(projectTalentRow),
-      facets,
+      facetCounts,
       totalItems,
       totalPages: Math.ceil(totalItems / PER_PAGE),
       stats: {

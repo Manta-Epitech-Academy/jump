@@ -22,7 +22,7 @@ import { isParentDossierComplete } from '$lib/domain/dossierCompliance';
 import type { TalentAccountStatus, ParentCompletionStatus } from './labels';
 import type { TalentFilters, TalentsFacet, TalentsSortKey } from './view';
 import type { SortDir } from '$lib/domain/listView';
-import { FACET_NONE, type ListFacet } from '$lib/domain/listFacets';
+import { FACET_NONE, type CountedFacet } from '$lib/domain/listFacets';
 import { guardiansOf } from '$lib/domain/contact';
 import {
   everyTokenMatches,
@@ -357,8 +357,9 @@ export type TalentDirectoryRow = ReturnType<typeof projectTalentRow>;
  */
 export type TalentsCohort = {
   talents: TalentDirectoryRow[];
-  /** The column filters, counted over the whole directory (`./facets`). */
-  facets: ListFacet<TalentsFacet>[];
+  /** The column filters' counts over the whole directory (`./facets`); the
+   *  page ticks them from its address. */
+  facetCounts: CountedFacet<TalentsFacet>[];
   totalItems: number;
   totalPages: number;
   stats: {

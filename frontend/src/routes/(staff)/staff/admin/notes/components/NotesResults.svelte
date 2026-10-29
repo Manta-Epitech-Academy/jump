@@ -15,6 +15,7 @@
   import SearchableSelect from '$lib/components/staff/SearchableSelect.svelte';
   import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
   import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  import { offerFacets } from '$lib/domain/listFacets';
   import { page } from '$app/state';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
@@ -34,14 +35,15 @@
   } from '$lib/components/staff/datatable/urlList';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
 
-  let { notes, facets, campuses, totalItems, totalPages }: NotesCohort =
+  let { notes, facetCounts, campuses, totalItems, totalPages }: NotesCohort =
     $props();
 
-  // The view lives in the address (`../view`); read here, the sort, the page
-  // and the campus answer the click before the server does. The author
-  // filter's menu and what it keeps come with the cohort, counted over every
-  // note.
+  // The view lives in the address (`../view`); read here, the sort, the page,
+  // the campus and the ticked authors answer the click before the server does.
+  // The author counts come with the cohort, over every note, and go through
+  // the rules the server applied to them (`offerFacets`).
   const view = $derived(parseNoteFilters(page.url.searchParams));
+  const facets = $derived(offerFacets(facetCounts, view.facets));
   const controls = $derived(
     facetControls(facets, (facet, values) =>
       setListParams(NOTES_VIEW.facetParams(facet, values)),

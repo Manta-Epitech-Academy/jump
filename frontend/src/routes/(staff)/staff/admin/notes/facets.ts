@@ -2,25 +2,26 @@ import { prisma } from '$lib/server/db';
 import {
   FACET_NONE,
   offerFacets,
+  type CountedFacet,
   type FacetCount,
-  type ListFacet,
 } from '$lib/domain/listFacets';
 import { parseNoteFilters, type NoteFilters, type NotesFacet } from './view';
 
 /**
  * The gallery's filters as the address asks for them, with every value the
  * gallery does not carry dropped, plus what the page offers: the Auteur
- * column's filter and the campus select's options.
+ * column's counts and the campus select's options.
  *
  * The gallery is paged on the server, so the author facet is counted in the
  * database, over every note like every list counts its own, and goes through
- * `offerFacets`, the rules every staff list follows (`$lib/domain/listFacets`).
- * The campus has no column, so it is no column filter: only a ticked campus
- * that no longer exists is dropped.
+ * `offerFacets`, the rules every staff list follows (`$lib/domain/listFacets`):
+ * here to decide what the rows match, on the page with the ticks of its own
+ * address. The campus has no column, so it is no column filter: only a ticked
+ * campus that no longer exists is dropped.
  */
 export async function resolveNoteFilters(params: URLSearchParams): Promise<{
   filters: NoteFilters;
-  facets: ListFacet<NotesFacet>[];
+  facetCounts: CountedFacet<NotesFacet>[];
   campuses: { id: string; name: string }[];
 }> {
   const parsed = parseNoteFilters(params);
@@ -54,10 +55,10 @@ export async function resolveNoteFilters(params: URLSearchParams): Promise<{
     },
   ];
 
-  const [auteurFacet] = offerFacets(
-    [{ facet: 'auteur', title: 'Auteur', counts: auteur }],
-    parsed.facets,
-  );
+  const facetCounts: CountedFacet<NotesFacet>[] = [
+    { facet: 'auteur', title: 'Auteur', counts: auteur },
+  ];
+  const [auteurFacet] = offerFacets(facetCounts, parsed.facets);
   const campusIds = new Set(campuses.map((c) => c.id));
 
   return {
@@ -68,7 +69,7 @@ export async function resolveNoteFilters(params: URLSearchParams): Promise<{
         campus: parsed.facets.campus.filter((id) => campusIds.has(id)),
       },
     },
-    facets: [auteurFacet],
+    facetCounts,
     campuses,
   };
 }

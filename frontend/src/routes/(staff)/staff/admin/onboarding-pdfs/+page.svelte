@@ -10,6 +10,8 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { enhance } from '$app/forms';
   import { invalidate } from '$app/navigation';
+  import { page } from '$app/state';
+  import { offerFacets } from '$lib/domain/listFacets';
   import {
     clearListFilters,
     setListParams,
@@ -113,10 +115,16 @@
 
   const search = createUrlSearch();
 
-  // The Document filter sits in its column's header; its menu and what it
-  // keeps come from the load, counted over every job.
+  // The Document filter sits in its column's header: its counts come from the
+  // load, over every job, and what it ticks from the address.
+  const facets = $derived(
+    offerFacets(
+      data.facetCounts,
+      ONBOARDING_PDFS_VIEW.parse(page.url.searchParams).facets,
+    ),
+  );
   const controls = $derived(
-    facetControls(data.facets, (facet, values) =>
+    facetControls(facets, (facet, values) =>
       setListParams(ONBOARDING_PDFS_VIEW.facetParams(facet, values)),
     ),
   );

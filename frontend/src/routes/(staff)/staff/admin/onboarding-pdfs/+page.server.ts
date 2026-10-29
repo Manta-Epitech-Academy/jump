@@ -14,12 +14,13 @@ import {
   onboardingDownloadFilename,
   isOnboardingDocumentType,
 } from '$lib/server/services/onboardingDocuments';
-import { offerFacets } from '$lib/domain/listFacets';
+import { offerFacets, type CountedFacet } from '$lib/domain/listFacets';
 import {
   JOB_STATUS_FILTER,
   ONBOARDING_DOCUMENT_LABELS,
   ONBOARDING_PDFS_VIEW,
   type JobStatusFilter,
+  type OnboardingPdfsFacet,
 } from './view';
 
 type JobStatus = 'pending' | 'processing' | 'success' | 'error';
@@ -46,9 +47,10 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
   const view = ONBOARDING_PDFS_VIEW.parse(url.searchParams);
   const q = (url.searchParams.get('q') ?? '').trim();
 
-  // The Document column's filter, counted over every job like every list
-  // counts its own, and offered through the rules every staff list follows: a
-  // document no job carries is neither listed nor kept.
+  // The Document column's counts, over every job like every list counts its
+  // own, and offered through the rules every staff list follows: a document no
+  // job carries is neither listed nor kept. The page applies the same rules
+  // with the ticks of its own address.
   const byDocument = await prisma.onboardingPdfJob.groupBy({
     by: ['documentType'],
     _count: { _all: true },
@@ -56,23 +58,17 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
   const counted = new Map(
     byDocument.map((d) => [d.documentType, d._count._all]),
   );
-  const facets = offerFacets(
-    [
-      {
-        facet: 'document' as const,
-        title: 'Document',
-        counts: Object.entries(ONBOARDING_DOCUMENT_LABELS).map(
-          ([value, label]) => ({
-            value,
-            label,
-            count: counted.get(value) ?? 0,
-          }),
-        ),
-      },
-    ],
-    view.facets,
-  );
-  const documents = facets[0].selected;
+  const facetCounts: CountedFacet<OnboardingPdfsFacet>[] = [
+    {
+      facet: 'document',
+      title: 'Document',
+      counts: Object.entries(ONBOARDING_DOCUMENT_LABELS).map(
+        ([value, label]) => ({ value, label, count: counted.get(value) ?? 0 }),
+      ),
+    },
+  ];
+  const [documentFacet] = offerFacets(facetCounts, view.facets);
+  const documents = documentFacet.selected;
 
   const where: Prisma.OnboardingPdfJobWhereInput = {};
   if (status !== 'all') where.status = STATUS_FILTER_WHERE[status];
@@ -109,7 +105,7 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
 
   return {
     status,
-    facets,
+    facetCounts,
     errorCount: countByStatus.error,
     matchCount,
     // This admin's high-water mark, so the menu can offer "depuis le dernier

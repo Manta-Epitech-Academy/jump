@@ -64,9 +64,9 @@ describe('talent directory facets (integration)', () => {
   });
 
   it('counts each talent once per campus, however many events they joined', async () => {
-    const { facets } = await resolveTalentFilters(new URLSearchParams());
-    const campus = facets.find((f) => f.facet === 'campus');
-    expect(campus?.options.find((o) => o.value === campusId)?.count).toBe(2);
+    const { facetCounts } = await resolveTalentFilters(new URLSearchParams());
+    const campus = facetCounts.find((f) => f.facet === 'campus');
+    expect(campus?.counts.find((c) => c.value === campusId)?.count).toBe(2);
   });
 
   it('drops a ticked campus the directory does not carry', async () => {

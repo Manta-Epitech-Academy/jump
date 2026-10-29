@@ -6,7 +6,6 @@ import {
   offerFacets,
   type CountedFacet,
   type FacetCount,
-  type ListFacet,
 } from '$lib/domain/listFacets';
 import {
   PARENT_STATUS_LABELS,
@@ -116,18 +115,19 @@ export async function talentFacetCounts(): Promise<
 
 /**
  * The directory's filters as the address asks for them, with every value the
- * directory does not carry dropped, and the facets the page offers. The page
- * and the export both resolve through here, so the export holds exactly the
- * talents the table shows.
+ * directory does not carry dropped, and the counts they were checked against.
+ * The page and the export both resolve through here, so the export holds
+ * exactly the talents the table shows; the page applies `offerFacets` to the
+ * same counts with the ticks of its own address.
  */
 export async function resolveTalentFilters(params: URLSearchParams): Promise<{
   filters: TalentFilters;
-  facets: ListFacet<TalentsFacet>[];
+  facetCounts: CountedFacet<TalentsFacet>[];
 }> {
   const parsed = parseTalentFilters(params);
-  const facets = offerFacets(await talentFacetCounts(), parsed.facets);
+  const facetCounts = await talentFacetCounts();
   const kept = Object.fromEntries(
-    facets.map((f) => [f.facet, f.selected]),
+    offerFacets(facetCounts, parsed.facets).map((f) => [f.facet, f.selected]),
   ) as TalentFilters['facets'];
-  return { filters: { ...parsed, facets: kept }, facets };
+  return { filters: { ...parsed, facets: kept }, facetCounts };
 }

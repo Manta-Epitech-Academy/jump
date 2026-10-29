@@ -21,6 +21,7 @@
   import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
   import type { ColumnDef } from '$lib/components/staff/datatable/types';
   import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  import { offerFacets } from '$lib/domain/listFacets';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import EmptyState from '$lib/components/EmptyState.svelte';
@@ -60,14 +61,16 @@
   // The streamed cohort payload. This component owns every data-dependent
   // surface (KPI tiles, toolbar, table, pagination and the row dialogs), so it
   // mounts only once the cohort resolves behind the page shell.
-  let { talents, facets, totalItems, totalPages, stats }: TalentsCohort =
+  let { talents, facetCounts, totalItems, totalPages, stats }: TalentsCohort =
     $props();
 
-  // The view lives in the address (`../view`); read here, the sort and the page
-  // answer the click before the server does. The filters' menus and what they
-  // keep come with the cohort, counted over the whole directory.
+  // The view lives in the address (`../view`); read here, the sort, the page
+  // and the ticked values answer the click before the server does. The counts
+  // come with the cohort, over the whole directory, and go through the rules
+  // the server applied to them (`offerFacets`).
   const view = $derived(parseTalentFilters(page.url.searchParams));
   const search = createUrlSearch();
+  const facets = $derived(offerFacets(facetCounts, view.facets));
   const controls = $derived(
     facetControls(facets, (facet, values) =>
       setListParams(TALENTS_VIEW.facetParams(facet, values)),
