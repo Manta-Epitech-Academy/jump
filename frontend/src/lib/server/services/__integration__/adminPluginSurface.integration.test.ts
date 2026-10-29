@@ -10,12 +10,12 @@
  * `auth.api.*` from `server/auth/impersonate.ts`.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { isHttpError } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
-import {
-  startImpersonation,
-  stopImpersonation,
-} from '$lib/server/auth/impersonate';
+import { auth } from '$lib/server/auth';
+import { startImpersonation } from '$lib/server/auth/impersonate';
+import { POST as stopRoute } from '../../../../routes/api/impersonation/stop/+server';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
 import { cookieJar, pathSpellings, postAuth, sessionCookie } from './authHttp';
@@ -27,6 +27,31 @@ function requestWith(cookie: string): Request {
     method: 'POST',
     headers: { cookie },
   });
+}
+
+/**
+ * `POST /api/impersonation/stop`, the only way back now that BetterAuth's own
+ * route is not served, for the session `cookie` carries, as the hook hands it
+ * over. Answers the status, a refusal's included, and the cookies it set.
+ */
+async function stop(cookie: string) {
+  const request = new Request(`${env.ORIGIN}/api/impersonation/stop`, {
+    method: 'POST',
+    headers: { cookie },
+  });
+  const jar = cookieJar(cookie);
+  const session = await auth.api.getSession({ headers: request.headers });
+  try {
+    const response = await stopRoute({
+      request,
+      cookies: jar.cookies,
+      locals: { session: session?.session ?? null },
+    } as unknown as Parameters<typeof stopRoute>[0]);
+    return { status: response.status, cookie: jar.header() };
+  } catch (err) {
+    if (!isHttpError(err)) throw err;
+    return { status: err.status, cookie: jar.header() };
+  }
 }
 
 describe('admin plugin HTTP surface (integration)', () => {
@@ -125,10 +150,8 @@ describe('admin plugin HTTP surface (integration)', () => {
     });
     expect(opened.endedAt).toBeNull();
 
-    const back = cookieJar(jar.header());
-    expect(
-      await stopImpersonation(requestWith(jar.header()), back.cookies, adminId),
-    ).toBe(true);
+    const back = await stop(jar.header());
+    expect(back.status).toBe(204);
 
     const closed = await prisma.audit_ImpersonationEvent.findUniqueOrThrow({
       where: { id: opened.id },
@@ -138,6 +161,11 @@ describe('admin plugin HTTP surface (integration)', () => {
       await prisma.bauth_session.count({ where: { impersonatedBy: adminId } }),
     ).toBe(0);
     // The session the admin started from is the one they are handed back.
-    expect(back.header()).toContain(adminCookie);
+    expect(back.cookie).toContain(adminCookie);
+  });
+
+  // The session is the authorisation: only an impersonated one has a way back.
+  it('refuses the way back to a session that impersonates nobody', async () => {
+    expect((await stop(adminCookie)).status).toBe(403);
   });
 });
