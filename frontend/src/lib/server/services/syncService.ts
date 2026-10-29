@@ -816,10 +816,15 @@ export async function syncParticipations(
  * empty: the deletion is still made by a full pass and by nothing else, and
  * only while Salesforce still reports the campaign empty.
  *
- * An erased talent's enrolments are never pruned. The erasure keeps them as
- * de-identified activity, and it nulled the Salesforce id a roster would name
- * the talent by, so no roster can ever mention them again: their absence
- * proves nothing.
+ * The enrolments of a talent erased at their request are never pruned. The
+ * erasure keeps them as de-identified activity, and the person can never be
+ * imported again (`Sync_ErasedContact`), so their absence from a roster
+ * proves nothing. An erasure by the inactivity sweep is not one of them: it
+ * bars nothing, since a talent who enrols again is the return Jump exists for,
+ * and the sweep also takes a talent who simply never logged in, often while
+ * still enrolled. Re-imported as a new talent with a new enrolment, the person
+ * would sit on the event twice if the de-identified one were kept, so a full
+ * roster prunes it as it always did.
  */
 async function pruneFromFullRoster(roster: {
   eventId: string;
@@ -833,8 +838,8 @@ async function pruneFromFullRoster(roster: {
   const absent = {
     eventId,
     talentId: { notIn: presentTalentIds },
-    talent: { anonymizedAt: null },
-  };
+    talent: { deletionRequests: { none: { status: 'fulfilled' } } },
+  } satisfies Prisma.ParticipationWhereInput;
   const complete = sentCount > 0 && resolvedCount === sentCount;
 
   if (!complete) {

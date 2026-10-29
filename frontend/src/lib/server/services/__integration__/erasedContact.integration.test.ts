@@ -16,7 +16,8 @@
  *  - a talent erased while keyed on a Lead stays barred once that Lead is
  *    converted, and the bar moves onto the Contact;
  *  - the inactivity sweep's erasure bars nothing, since a swept talent who
- *    enrols again is the return Jump exists for.
+ *    enrols again is the return Jump exists for, and its enrolment is pruned
+ *    as before, or the person would sit on the event twice.
  */
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
@@ -287,6 +288,13 @@ describe('a talent erased at their request (integration)', () => {
   });
 
   it('bars nothing when the inactivity sweep is what erased the talent', async () => {
+    // The sweep also takes a talent who never logged in, often while still
+    // enrolled: the event the person comes back to can be this one.
+    await syncParticipations(
+      eventExternalId,
+      { [sweptContact.external_id]: 'Met' },
+      'incremental',
+    );
     const swept = await prisma.talent.findUniqueOrThrow({
       where: { externalId: sweptContact.external_id },
       select: { id: true },
@@ -300,5 +308,22 @@ describe('a talent erased at their request (integration)', () => {
       }),
     ).toBe(0);
     expect(await syncTalents([sweptContact])).toMatchObject({ created: 1 });
+
+    // Back as a new talent, enrolled again: the de-identified enrolment goes,
+    // or the person sits on the event twice.
+    await syncParticipations(
+      eventExternalId,
+      {
+        [erasedContact.external_id]: 'Met',
+        [sweptContact.external_id]: 'Met',
+      },
+      'full',
+    );
+    const onEvent = (talent: object) =>
+      prisma.participation.count({
+        where: { event: { externalId: eventExternalId }, talent },
+      });
+    expect(await onEvent({ id: swept.id })).toBe(0);
+    expect(await onEvent({ externalId: sweptContact.external_id })).toBe(1);
   });
 });

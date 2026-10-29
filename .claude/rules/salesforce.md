@@ -113,7 +113,9 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   store the id and the name again). The bar is on the person: a Lead erased
   before Salesforce converted it bars the Contact that carries it in
   `converted_lead_ids`, and the row moves onto that Contact. The model says
-  why it holds the id alone and why the inactivity sweep bars nothing.
+  why it holds the id alone and why the inactivity sweep bars nothing; a
+  swept talent's enrolments are therefore pruned like any other, or the
+  person, re-imported, would sit on the event twice.
 - **A failed run moves nothing.** The watermarks are no column anywhere: each is
   read off the latest run of its mode with `status = 'ok'` (`lastOkRun`), and
   which of that run's dates counts is the `startedAt` rule below. So a run
