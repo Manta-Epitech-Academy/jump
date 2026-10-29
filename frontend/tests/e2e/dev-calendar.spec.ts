@@ -17,9 +17,9 @@ test.describe('le calendrier du campus', () => {
   test("est la page d'arrivée et ouvre un événement", async ({ page }) => {
     await page.goto('/staff/dev');
 
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Calendrier' }),
-    ).toBeVisible();
+    // The heading greets whoever opens the page, by the hour; the page's
+    // name is its document title and the line under the greeting.
+    await expect(page).toHaveTitle('Calendrier');
 
     await page.getByRole('button', { name: /: Émargement E2E$/ }).click();
     await page.getByRole('link', { name: "Ouvrir l'événement" }).click();
