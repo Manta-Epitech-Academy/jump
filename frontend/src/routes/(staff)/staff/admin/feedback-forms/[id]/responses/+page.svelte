@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -10,6 +9,7 @@
   import SearchableSelect, {
     type SelectOption,
   } from '$lib/components/staff/SearchableSelect.svelte';
+  import { setListParams } from '$lib/components/staff/datatable/urlList';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import * as Table from '$lib/components/ui/table';
@@ -54,11 +54,9 @@
             ?.label ?? null),
   );
 
-  function setParam(key: string, value: string | undefined) {
-    const url = new URL(page.url);
-    if (value && value !== 'all') url.searchParams.set(key, value);
-    else url.searchParams.delete(key);
-    goto(url.toString(), { keepFocus: true, noScroll: true });
+  // `'all'` is the selects' own sentinel; the default view writes no param.
+  function setParam(key: string, value: string) {
+    setListParams({ [key]: value === 'all' ? '' : value });
   }
 
   const exportHref = $derived.by(() => {
