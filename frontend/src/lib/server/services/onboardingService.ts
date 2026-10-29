@@ -121,14 +121,15 @@ export async function signOnboardingRules(input: {
   const schoolYear = currentSchoolYearLabel();
 
   const job = await prisma.$transaction(async (tx) => {
-    // Lock the dossier row before reading the step, so two submits of the form
-    // serialize: the second one waits, then reads the signature the first one
-    // committed and is refused. Taken before the per-campus lock below, so the
-    // two are always acquired in the same order.
+    // Lock the talent's row before reading the step, so two submits of the
+    // form serialize: the second one waits, then reads the signature the first
+    // one committed and is refused. The talent's row and not the dossier's,
+    // because every other wizard step writes `Talent` first and its dossier
+    // second: taking the dossier first here, a signature racing another step's
+    // submit deadlocked. Taken before the per-campus lock below, so those two
+    // are always acquired in the same order too.
     await tx.$executeRaw`
-      SELECT 1 FROM "Onboarding_Record"
-      WHERE "talentId" = ${talentId} AND "schoolYear" = ${schoolYear}
-      FOR UPDATE`;
+      SELECT 1 FROM "Talent" WHERE "id" = ${talentId} FOR UPDATE`;
     const dossier = await tx.onboarding_Record.findUnique({
       where: { talentId_schoolYear: { talentId, schoolYear } },
     });

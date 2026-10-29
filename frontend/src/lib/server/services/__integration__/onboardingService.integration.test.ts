@@ -160,6 +160,33 @@ describe('onboardingService (integration)', () => {
     ]);
   });
 
+  it('waits for another step of the same talent instead of deadlocking with it', async () => {
+    // Every other wizard step writes the talent's row, then its dossier. The
+    // signature used to lock the dossier first, so the two met each holding
+    // what the other wanted, and Postgres aborted one of them.
+    const talent = await makeTalent();
+    await reachRulesStep(talent.id);
+
+    let signature: Promise<unknown> = Promise.resolve();
+    await prisma.$transaction(async (tx) => {
+      await tx.talent.update({
+        where: { id: talent.id },
+        data: { phone: '+33600000000' },
+      });
+      signature = signOnboardingRules({ talentId: talent.id, city: 'Lille' })
+        // Kept, not thrown: the transaction below must finish either way.
+        .catch((err: unknown) => err);
+      // Long enough for the signature to take whatever it locks first.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await tx.onboarding_Record.updateMany({
+        where: { talentId: talent.id },
+        data: { parentsValidatedAt: new Date() },
+      });
+    });
+
+    expect(await signature).toMatchObject({ ok: true });
+  });
+
   it('swaps the whole interest selection and stamps both interest steps', async () => {
     const talent = await makeTalent();
 
