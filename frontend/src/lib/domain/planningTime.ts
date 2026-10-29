@@ -1,4 +1,9 @@
-import { CalendarDateTime, fromDate, parseDate } from '@internationalized/date';
+import {
+  CalendarDateTime,
+  fromDate,
+  getDayOfWeek,
+  parseDate,
+} from '@internationalized/date';
 
 // Planning slots are stored as UTC instants in the DB but always *meant* in
 // the campus's wall-clock time: drag a slot at 14:00, the staff means 14:00
@@ -61,6 +66,20 @@ function asDate(instant: Date | string): Date {
 export function toDateKey(instant: Date | string, tz: string): DateKey {
   const z = fromDate(asDate(instant), tz);
   return `${z.year}-${pad2(z.month)}-${pad2(z.day)}`;
+}
+
+/**
+ * The campus's wall clock at an instant: the hour (0 to 23) and the ISO weekday
+ * (1 Monday to 7 Sunday). What anything said "by time of day" reads, a
+ * greeting first: `Date.getHours()` would answer in the server's timezone on
+ * the server render and in the browser's on the client.
+ */
+export function campusClock(
+  instant: Date | string,
+  tz: string,
+): { hour: number; weekday: number } {
+  const z = fromDate(asDate(instant), tz);
+  return { hour: z.hour, weekday: getDayOfWeek(z, 'fr-FR') + 1 };
 }
 
 /**

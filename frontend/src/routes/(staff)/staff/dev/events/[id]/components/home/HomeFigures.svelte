@@ -15,7 +15,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import Users from '@lucide/svelte/icons/users';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import School from '@lucide/svelte/icons/school';
   import Cpu from '@lucide/svelte/icons/cpu';
@@ -23,7 +22,7 @@
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
   import { Button } from '$lib/components/ui/button';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
   import {
     eventSurfacePath,
     type EventSurfaceKey,
@@ -49,10 +48,12 @@
   let {
     figures,
     eventId,
+    cohortNoun,
     reachable,
   }: {
     figures: EventHomeFigures;
     eventId: string;
+    cohortNoun: string | null;
     reachable: readonly EventSurfaceKey[];
   } = $props();
 
@@ -100,6 +101,7 @@
       icon: MessageSquareText,
       title: "Aucune réponse pour l'instant",
       hint: 'Le lien à partager aux inscrits est sur la page Feedback.',
+      action: openFeedback,
     },
   } satisfies Record<string, HomeCardEmpty>;
 
@@ -126,6 +128,10 @@
   });
 </script>
 
+{#snippet openFeedback()}
+  {@render seeMore({ surface: 'bilan', params: {} }, 'Ouvrir la page Feedback')}
+{/snippet}
+
 {#snippet seeMore(link: HomeLink, label: string)}
   {@const href = hrefOf(link)}
   {#if href}
@@ -137,11 +143,7 @@
 {/snippet}
 
 {#if figures.total === 0}
-  <ResultsNotice
-    icon={Users}
-    title="Aucun inscrit pour l'instant"
-    description="Les chiffres de l'événement s'afficheront dès que ses inscriptions seront synchronisées."
-  />
+  <EmptyCohortNotice {cohortNoun} />
 {:else}
   <div class={HOME_GRID_CLASS}>
     <BreakdownCard

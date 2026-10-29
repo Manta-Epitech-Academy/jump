@@ -31,6 +31,19 @@ export function formatGivenName(value: string | null | undefined): string {
 }
 
 /**
+ * The given name out of a full name held in one field ("julien DAVID" gives
+ * "Julien"), which is how a staff account stores it (`bauth_user.name`). The
+ * first word is taken as the given name, the convention the broadcast
+ * recipients already follow. `null` when there is no name to call someone by.
+ */
+export function firstNameOf(
+  fullName: string | null | undefined,
+): string | null {
+  const first = fullName?.trim().split(/\s+/)[0];
+  return first ? formatGivenName(first) : null;
+}
+
+/**
  * Uppercases a surname for display (French civil convention: "Dupont" → "DUPONT").
  * Locale-aware so accented letters case correctly ("é" → "É"). Like
  * formatGivenName, a pure display projection over the raw stored value, never

@@ -108,7 +108,7 @@
   <div class="pop relative">
     {#if ui.celebrate}
       <span
-        class="absolute inset-0 animate-ping rounded-full bg-epi-tech-ink/30"
+        class="absolute inset-0 rounded-full bg-epi-tech-ink/30 motion-safe:animate-ping"
         aria-hidden="true"
       ></span>
     {/if}

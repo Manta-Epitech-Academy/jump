@@ -186,7 +186,7 @@
           >
             <span class="relative flex h-2 w-2">
               <span
-                class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-blue opacity-75"
+                class="absolute inline-flex h-full w-full rounded-full bg-epi-blue opacity-75 motion-safe:animate-ping"
               ></span>
               <span
                 class="relative inline-flex h-2 w-2 rounded-full bg-epi-blue"

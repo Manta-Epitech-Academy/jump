@@ -37,7 +37,7 @@
     pageCount,
     paginate,
   } from '$lib/components/staff/datatable/paginate';
-  import EmptyState from '$lib/components/EmptyState.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import SearchableSelect, {
     type SelectOption,
   } from '$lib/components/staff/SearchableSelect.svelte';
@@ -327,6 +327,15 @@
     );
   }
 
+  function clearMemberSearch() {
+    memberSearch = '';
+    memberPage = 1;
+  }
+  function clearInviteSearch() {
+    inviteSearch = '';
+    invitePage = 1;
+  }
+
   // Keep the members search in sync with `?q` on navigation: when the command
   // palette deep-links here while already on this page, the component isn't
   // remounted, so the $state initializer above won't see the new query. Typing
@@ -543,6 +552,7 @@
       sortDir={memberSortDir}
       onSort={toggleMemberSort}
       rowKey={(u) => u.id}
+      onResetFilters={memberSearch.trim() ? clearMemberSearch : undefined}
     >
       {#snippet row(user)}
         <Table.Cell>
@@ -757,16 +767,6 @@
           </div>
         </Table.Cell>
       {/snippet}
-
-      {#snippet empty()}
-        <EmptyState
-          icon={Users}
-          title="Aucun membre"
-          description={memberSearch
-            ? 'Aucun membre ne correspond à cette recherche.'
-            : 'Aucun membre staff.'}
-        />
-      {/snippet}
     </SortableTable>
 
     <Pagination
@@ -800,125 +800,120 @@
       </Collapsible.Trigger>
 
       <Collapsible.Content class="space-y-3 pt-3">
-        <DataTableToolbar
-          searchValue={inviteSearch}
-          onSearchInput={(v) => {
-            inviteSearch = v;
-            invitePage = 1;
-          }}
-          searchPlaceholder="Rechercher un email…"
-          count={sortedInvites.length}
-          countNoun="invitation"
-          filtersApplied={inviteSearch.trim().length > 0}
-        >
-          {#snippet countActions()}
-            {#if selectedInvites.size > 0}
-              <Button
-                variant="destructive"
-                size="sm"
-                class="h-7 gap-1.5"
-                onclick={() => (bulkCancelOpen = true)}
-              >
-                <X class="h-3.5 w-3.5" />
-                Annuler la sélection ({selectedInvites.size})
-              </Button>
-            {/if}
-          {/snippet}
-        </DataTableToolbar>
-
-        <SortableTable
-          columns={inviteColumns}
-          rows={pagedInvites}
-          sortKey={inviteSortKey}
-          sortDir={inviteSortDir}
-          onSort={toggleInviteSort}
-          rowKey={(i) => i.id}
-          selectable
-          selected={selectedInvites}
-        >
-          {#snippet row(inv)}
-            <Table.Cell>
-              <div
-                class="flex items-center gap-2 text-sm text-muted-foreground"
-              >
-                <Mail class="h-3 w-3" />
-                {inv.email}
-              </div>
-            </Table.Cell>
-            <Table.Cell>
-              {#if inv.staffRole === 'admin'}
-                <span class="text-muted-foreground">-</span>
-              {:else}
-                {inv.campus?.name ?? '-'}
+        {#if data.invitations.length === 0}
+          <ResultsNotice compact description="Aucune invitation en attente." />
+        {:else}
+          <DataTableToolbar
+            searchValue={inviteSearch}
+            onSearchInput={(v) => {
+              inviteSearch = v;
+              invitePage = 1;
+            }}
+            searchPlaceholder="Rechercher un email…"
+            count={sortedInvites.length}
+            countNoun="invitation"
+            filtersApplied={inviteSearch.trim().length > 0}
+          >
+            {#snippet countActions()}
+              {#if selectedInvites.size > 0}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  class="h-7 gap-1.5"
+                  onclick={() => (bulkCancelOpen = true)}
+                >
+                  <X class="h-3.5 w-3.5" />
+                  Annuler la sélection ({selectedInvites.size})
+                </Button>
               {/if}
-            </Table.Cell>
-            <Table.Cell>
-              <Badge variant="secondary"
-                >{getStaffRoleLabel(inv.staffRole)}</Badge
-              >
-            </Table.Cell>
-            <Table.Cell class="text-sm text-muted-foreground">
-              {inv.invitedBy?.name ?? inv.invitedBy?.email ?? '-'}
-            </Table.Cell>
-            <Table.Cell class="text-sm text-muted-foreground">
-              {relativeAge(inv.createdAt)}
-            </Table.Cell>
-            <Table.Cell class="text-right">
-              <form
-                method="POST"
-                action="?/cancelInvitation&id={inv.id}"
-                class="inline"
-                use:enhance={() => {
-                  return async ({ update, result }) => {
-                    if (result.type === 'success') {
-                      track('admin_invitation_cancelled');
-                      toast.success('Invitation annulée');
-                    }
-                    await update();
-                  };
-                }}
-              >
-                <Tooltip.Provider delayDuration={300}>
-                  <Tooltip.Root>
-                    <Tooltip.Trigger>
-                      {#snippet child({ props })}
-                        <Button
-                          {...props}
-                          type="submit"
-                          variant="ghost"
-                          size="icon"
-                          class="text-destructive hover:bg-destructive/10"
-                          aria-label="Annuler l'invitation"
-                        >
-                          <X class="h-4 w-4" />
-                        </Button>
-                      {/snippet}
-                    </Tooltip.Trigger>
-                    <Tooltip.Content
-                      ><p>Annuler l'invitation</p></Tooltip.Content
-                    >
-                  </Tooltip.Root>
-                </Tooltip.Provider>
-              </form>
-            </Table.Cell>
-          {/snippet}
+            {/snippet}
+          </DataTableToolbar>
 
-          {#snippet empty()}
-            <EmptyState
-              icon={Mail}
-              title="Aucune invitation"
-              description={inviteSearch
-                ? 'Aucune invitation ne correspond à cette recherche.'
-                : 'Aucune invitation en attente.'}
-            />
-          {/snippet}
-        </SortableTable>
+          <SortableTable
+            columns={inviteColumns}
+            rows={pagedInvites}
+            sortKey={inviteSortKey}
+            sortDir={inviteSortDir}
+            onSort={toggleInviteSort}
+            rowKey={(i) => i.id}
+            selectable
+            selected={selectedInvites}
+            onResetFilters={inviteSearch.trim() ? clearInviteSearch : undefined}
+          >
+            {#snippet row(inv)}
+              <Table.Cell>
+                <div
+                  class="flex items-center gap-2 text-sm text-muted-foreground"
+                >
+                  <Mail class="h-3 w-3" />
+                  {inv.email}
+                </div>
+              </Table.Cell>
+              <Table.Cell>
+                {#if inv.staffRole === 'admin'}
+                  <span class="text-muted-foreground">-</span>
+                {:else}
+                  {inv.campus?.name ?? '-'}
+                {/if}
+              </Table.Cell>
+              <Table.Cell>
+                <Badge variant="secondary"
+                  >{getStaffRoleLabel(inv.staffRole)}</Badge
+                >
+              </Table.Cell>
+              <Table.Cell class="text-sm text-muted-foreground">
+                {inv.invitedBy?.name ?? inv.invitedBy?.email ?? '-'}
+              </Table.Cell>
+              <Table.Cell class="text-sm text-muted-foreground">
+                {relativeAge(inv.createdAt)}
+              </Table.Cell>
+              <Table.Cell class="text-right">
+                <form
+                  method="POST"
+                  action="?/cancelInvitation&id={inv.id}"
+                  class="inline"
+                  use:enhance={() => {
+                    return async ({ update, result }) => {
+                      if (result.type === 'success') {
+                        track('admin_invitation_cancelled');
+                        toast.success('Invitation annulée');
+                      }
+                      await update();
+                    };
+                  }}
+                >
+                  <Tooltip.Provider delayDuration={300}>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger>
+                        {#snippet child({ props })}
+                          <Button
+                            {...props}
+                            type="submit"
+                            variant="ghost"
+                            size="icon"
+                            class="text-destructive hover:bg-destructive/10"
+                            aria-label="Annuler l'invitation"
+                          >
+                            <X class="h-4 w-4" />
+                          </Button>
+                        {/snippet}
+                      </Tooltip.Trigger>
+                      <Tooltip.Content
+                        ><p>Annuler l'invitation</p></Tooltip.Content
+                      >
+                    </Tooltip.Root>
+                  </Tooltip.Provider>
+                </form>
+              </Table.Cell>
+            {/snippet}
+          </SortableTable>
 
-        <Pagination
-          page={invitePage}
-          totalPages={inviteTotalPages}
-          onPageChange={(p) => (invitePage = p)}
-        />
+          <Pagination
+            page={invitePage}
+            totalPages={inviteTotalPages}
+            onPageChange={(p) => (invitePage = p)}
+          />
+        {/if}
       </Collapsible.Content>
     </Collapsible.Root>
   </section>

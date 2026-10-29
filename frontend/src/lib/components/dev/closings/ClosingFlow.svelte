@@ -1,7 +1,7 @@
 <script lang="ts" module>
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   export type ClosingAction = 'start' | 'autosave' | 'close';
-  export type ClosingSaveState = 'idle' | 'saving' | 'saved';
+  export type ClosingSaveState = 'idle' | 'saving' | 'saved' | 'failed';
   // Surfaced to the page so it can mirror the lifecycle status and the
   // in-flight state if it needs to.
   export type ClosingActionState = {
@@ -14,6 +14,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { fly } from 'svelte/transition';
+  import { prefersReducedMotion } from 'svelte/motion';
   import type { TransitionConfig } from 'svelte/transition';
   import { superForm, type SuperValidated } from 'sveltekit-superforms';
   import { toast } from 'svelte-sonner';
@@ -27,6 +28,7 @@
   import Clock from '@lucide/svelte/icons/clock';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import CheckCheck from '@lucide/svelte/icons/check-check';
+  import CircleAlert from '@lucide/svelte/icons/circle-alert';
   // Domain-identity glyphs for the tech-domain chips (techProjection). Keyed by
   // the catalogue's ChoiceIconToken via CHIP_ICONS.
   import Code from '@lucide/svelte/icons/code';
@@ -44,11 +46,13 @@
   import Laugh from '@lucide/svelte/icons/laugh';
   import type { ClosingStatus } from '@prisma/client';
   import { Button } from '$lib/components/ui/button';
+  import { lastClosingLine } from '$lib/domain/devVoice';
   import { Textarea } from '$lib/components/ui/textarea';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Avatar from '$lib/components/ui/avatar';
   import PullQuote from '$lib/components/staff/PullQuote.svelte';
   import { getInitials } from '$lib/avatar';
+  import { closingsFacetParams } from '$lib/domain/closingsView';
   import { cn } from '$lib/utils';
   import {
     VERDICT_SECTION,
@@ -80,6 +84,7 @@
     conductedLabel = null,
     conductedBy = null,
     conductedByImage = null,
+    closingsHref,
     actionState = $bindable(),
   }: {
     form: SuperValidated<ClosingConductForm>;
@@ -109,6 +114,9 @@
     conductedLabel?: string | null;
     conductedBy?: string | null;
     conductedByImage?: string | null;
+    /** The event's Closings list: the finalised banner leads back to the
+     *  closings still to conduct there. */
+    closingsHref: string;
     // Autosave + in-flight state, surfaced so the page can mirror it if needed.
     actionState?: ClosingActionState;
   } = $props();
@@ -164,15 +172,18 @@
   // Onboarding's step transition: the outgoing card slides left + fades while
   // the incoming one flies in from the right. Local copy (8 lines) rather than a
   // cross-route import; the parent is position:relative so the absolute exit
-  // overlaps cleanly.
+  // overlaps cleanly. 120ms out then 200ms in: a step settles within DESIGN.md's
+  // 320ms ceiling (it took 430ms), over the 16px slide that is its longest.
+  // Asked for less motion, the step only fades.
+  const stepSlide = $derived(prefersReducedMotion.current ? 0 : 16);
   function exitSlide(
     _node: Element,
-    { duration = 180 }: { duration?: number } = {},
+    { duration = 120, x = 16 }: { duration?: number; x?: number } = {},
   ): TransitionConfig {
     return {
       duration,
       css: (t: number, u: number) =>
-        `position: absolute; top: 0; left: 0; right: 0; opacity: ${t}; transform: translateX(${-30 * u}px);`,
+        `position: absolute; top: 0; left: 0; right: 0; opacity: ${t}; transform: translateX(${-x * u}px);`,
     };
   }
 
@@ -183,6 +194,17 @@
   // at the moment clôture lands, which tested as ambiguous, without polluting
   // later visits to the finished record.
   let justFinalised = $state(false);
+  // How many of the event's closings remain once this one is finalised, as the
+  // close action counts them; null until then, or if the answer carries none.
+  let remaining = $state<number | null>(null);
+  // How many closings the event has, from the same count: the last one's
+  // banner says it.
+  let total = $state<number | null>(null);
+  const remainingHref = $derived(
+    `${closingsHref}?${new URLSearchParams(
+      closingsFacetParams('statut', ['todo', 'in_progress']),
+    )}`,
+  );
 
   let formEl: HTMLFormElement;
   let startBtn: HTMLButtonElement;
@@ -207,11 +229,18 @@
       onResult: ({ result, cancel }) => {
         // Autosave: keep the client form authoritative (don't let the echoed
         // server data clobber keystrokes made during the round-trip), and stay
-        // quiet, just flip the inline indicator.
+        // quiet, just flip the inline indicator. A failed save stays on screen
+        // until one succeeds: it used to toast and fall back to the neutral
+        // hint, so nothing left in view said the last answers were not saved.
         if (lastAction === 'autosave') {
-          saveState = result.type === 'success' ? 'saved' : 'idle';
-          if (result.type !== 'success') {
-            toast.error("Échec de l'enregistrement automatique.");
+          if (result.type === 'success') {
+            saveState = 'saved';
+          } else {
+            saveState = 'failed';
+            toast.error(
+              failureMessage(result) ??
+                "L'enregistrement automatique a échoué. Réessayez depuis le bas du formulaire.",
+            );
           }
           cancel();
           return;
@@ -231,14 +260,34 @@
             status = 'done';
             saveState = 'idle';
             justFinalised = true;
+            const left = result.data?.remaining;
+            remaining = typeof left === 'number' ? left : null;
+            const all = result.data?.total;
+            total = typeof all === 'number' ? all : null;
             toast.success('Closing finalisé.');
           }
-        } else if (result.type === 'failure') {
-          toast.error(result.data?.form?.message ?? 'Une erreur est survenue.');
+        } else if (result.type === 'failure' || result.type === 'error') {
+          // A refusal carries the server's reason; a crash or a lost
+          // connection does not, and must not replace the page with an error
+          // screen mid-closing: the answers on screen are still there.
+          toast.error(
+            failureMessage(result) ??
+              (lastAction === 'close'
+                ? "Le closing n'a pas pu être clôturé. Réessayez."
+                : "Le closing n'a pas pu démarrer. Réessayez."),
+          );
+          if (result.type === 'error') cancel();
         }
       },
     },
   );
+
+  /** The server's own reason for refusing an action, when it gave one. */
+  function failureMessage(result: { type: string; data?: unknown }) {
+    if (result.type !== 'failure') return null;
+    const data = result.data as { form?: { message?: string } } | undefined;
+    return data?.form?.message ?? null;
+  }
 
   // ── Debounced autosave (only while in progress) ──
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -250,6 +299,14 @@
       lastAction = 'autosave';
       formEl?.requestSubmit();
     }, 900);
+  }
+
+  // The failed indicator's « Réessayer »: the same save, without the debounce.
+  function retrySave() {
+    clearTimeout(saveTimer);
+    saveState = 'saving';
+    lastAction = 'autosave';
+    formEl?.requestSubmit();
   }
 
   // An explicit lifecycle action cancels the *scheduled* autosave (the debounce
@@ -395,7 +452,7 @@
   }
 
   const chipBase =
-    'cursor-pointer rounded-sm border px-3.5 py-2 text-sm font-medium transition select-none active:scale-95 disabled:cursor-default disabled:active:scale-100';
+    'cursor-pointer rounded-sm border px-3.5 py-2 text-sm font-medium transition select-none active:translate-y-px disabled:cursor-default disabled:active:translate-y-0';
   const chipIdle =
     'border-border bg-background text-foreground hover:border-epi-blue/40 hover:bg-epi-blue/5';
   // Active = tinted, not solid: a /10 wash + ring keeps the selection legible
@@ -564,7 +621,7 @@
             disabled={!interactive}
             onclick={() => setStars(q.id, idx + 1)}
             aria-label={`${idx + 1} sur ${q.max}`}
-            class="cursor-pointer rounded-sm p-0.5 transition-transform hover:scale-110 active:scale-95 disabled:cursor-default disabled:hover:scale-100 disabled:active:scale-100"
+            class="cursor-pointer rounded-sm p-0.5 transition-transform active:translate-y-px disabled:cursor-default disabled:active:translate-y-0"
           >
             <Star
               class={cn(
@@ -610,6 +667,17 @@
       <Loader2 class="h-3.5 w-3.5 animate-spin" /> Enregistrement…
     {:else if saveState === 'saved'}
       <Check class="h-3.5 w-3.5 text-epi-tech-ink" /> Enregistré
+    {:else if saveState === 'failed'}
+      <span class="flex items-center gap-1.5 font-medium text-destructive">
+        <CircleAlert class="h-3.5 w-3.5" /> Non enregistré
+      </span>
+      <button
+        type="button"
+        onclick={retrySave}
+        class="cursor-pointer font-medium text-foreground underline underline-offset-2"
+      >
+        Réessayer
+      </button>
     {:else}
       <!-- A hint, not a status: it says what the form will do, and it is the
            longest of the three labels. On a phone the two controls either side
@@ -762,17 +830,54 @@
                  the record stays uncluttered. Teal = gate cleared, the "done"
                  status-chip language. -->
             <div
-              class="flex items-center gap-3 rounded-md border border-epi-tech-ink/30 bg-epi-tech-ink/10 p-4"
+              class="flex flex-wrap items-center gap-3 rounded-md border border-epi-tech-ink/30 bg-epi-tech-ink/10 p-4"
             >
               <span
                 class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-epi-tech-ink/15"
               >
                 <CheckCheck class="h-5 w-5 text-epi-tech-ink" />
               </span>
-              <p class="text-sm font-medium text-foreground">
-                <span class="font-bold">Closing finalisé.</span> Il est clôturé et
-                n'est plus modifiable.
-              </p>
+              <div class="min-w-0 flex-1 space-y-0.5 text-sm">
+                <p class="font-medium text-foreground">
+                  <span class="font-bold">Closing finalisé.</span> Il est clôturé
+                  et n'est plus modifiable.
+                </p>
+                <!-- The end of one closing is where a series goes on: say what is
+                     left on the event, or that this was the last one. -->
+                {#if remaining === 0}
+                  <p class="text-muted-foreground">
+                    {lastClosingLine(total)}
+                  </p>
+                {:else if remaining !== null}
+                  <p class="text-muted-foreground">
+                    Encore {remaining}
+                    {remaining > 1 ? 'closings' : 'closing'} à mener sur l'événement.
+                  </p>
+                {/if}
+              </div>
+              {#if remaining}
+                <Button
+                  href={remainingHref}
+                  variant="outline"
+                  size="sm"
+                  class="shrink-0"
+                >
+                  Voir les closings à mener
+                  <ArrowRight />
+                </Button>
+              {:else if remaining === 0}
+                <!-- The list is where the series ends: its tally says who led
+                     how many. -->
+                <Button
+                  href={closingsHref}
+                  variant="outline"
+                  size="sm"
+                  class="shrink-0"
+                >
+                  Voir les closings
+                  <ArrowRight />
+                </Button>
+              {/if}
             </div>
           {/if}
 
@@ -889,8 +994,8 @@
                  short step sits balanced instead of clumped at the top. -->
             <div
               class="flex min-h-140 w-full flex-col justify-center"
-              in:fly|local={{ x: 30, duration: 250, delay: 180 }}
-              out:exitSlide|local={{ duration: 180 }}
+              in:fly|local={{ x: stepSlide, duration: 200, delay: 120 }}
+              out:exitSlide|local={{ duration: 120, x: stepSlide }}
             >
               {#if isIntro}
                 <!-- ── Cover: guide + the lifecycle CTA for the current status ── -->
@@ -994,7 +1099,7 @@
                           disabled={!interactive}
                           onclick={() => setRecommendation(value)}
                           class={cn(
-                            'flex cursor-pointer flex-col items-center gap-1.5 rounded-sm border px-2 py-3 text-center transition-ui active:scale-[0.98] disabled:cursor-default disabled:active:scale-100',
+                            'flex cursor-pointer flex-col items-center gap-1.5 rounded-sm border px-2 py-3 text-center transition-ui active:translate-y-px disabled:cursor-default disabled:active:translate-y-0',
                             active
                               ? TONE_ACTIVE[desc.tone]
                               : TONE_IDLE[desc.tone],

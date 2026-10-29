@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
@@ -10,8 +10,8 @@ import {
 } from '$lib/server/db/scoped';
 import { recomputeEventsCount } from '$lib/server/services/xpService';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
+import { countShownCohort } from '$lib/server/services/inscritsCohort';
 import { requireStaffGroup } from '$lib/server/auth/guards';
-import { cohortNounForms } from '$lib/domain/event';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import {
   presenceSlots,
@@ -72,10 +72,13 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   // / pastCutoffKeys synchronous: the header QR button reads the closed-state on
   // first paint, and the active-slot filter inits from `slots`. Only the heavy
   // roster join + presence grid + the O(rows×slots) attendance rate stream.
-  const closureRows = await db.eventPresenceClosure.findMany({
-    where: { eventId: event.id },
-    select: { day: true, slot: true },
-  });
+  const [closureRows, rosterSize] = await Promise.all([
+    db.eventPresenceClosure.findMany({
+      where: { eventId: event.id },
+      select: { day: true, slot: true },
+    }),
+    countShownCohort(db, event.id),
+  ]);
 
   // Closed = closed early by a staff member or past its 11h/15h cutoff
   // (`isSlotClosed`), derived here rather than written by a cron.
@@ -174,44 +177,50 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
     todayKey: toDateKey(now, timezone),
     closedKeys,
     pastCutoffKeys,
+    // The header offers its export only when someone is there to export.
+    rosterSize,
     // Un-awaited on purpose: SvelteKit streams it so the shell paints first.
     cohort,
   };
 };
 
-/** Refuse a créneau the event does not have (the grid no longer lists it). */
-function requirePresenceSlot(
+// The two refusals below are what a stale tab meets mid-appel, so the actions
+// return them as a failure carrying the reason (`message`, as the manual-close
+// refusal of `markAllPresent` does) rather than throwing: a thrown error is an
+// error page to SvelteKit, and its text never reaches the toast the roster
+// shows.
+
+/** Why the event has no such créneau (the grid no longer lists it), or null. */
+function slotRefusal(
   event: { date: Date; endDate: Date | null; startMinutes: number | null },
   timezone: string,
   day: string,
   slot: PresenceSlot,
-): void {
-  if (!isPresenceSlot(event, timezone, day, slot)) {
-    throw error(400, "Ce créneau n'appartient pas à l'événement.");
-  }
+): string | null {
+  return isPresenceSlot(event, timezone, day, slot)
+    ? null
+    : "Ce créneau n'appartient pas à l'événement.";
 }
 
 /**
- * Confirm the talent is on this event's sheet: enrolled for this campus and
- * shown in the dev space, the roster the page lists. A masked enrolment is
- * still an enrolment, which is why the refusal does not say "non inscrit".
+ * Why the talent is not on this event's sheet, or null when they are: enrolled
+ * for this campus and shown in the dev space, the roster the page lists. A
+ * masked enrolment is still an enrolment, which is why the refusal does not
+ * say "non inscrit".
  */
-async function assertOnSheet(
+async function sheetRefusal(
   campusId: string,
   eventId: string,
   talentId: string,
-): Promise<void> {
+): Promise<string | null> {
   const db = scopedPrisma(campusId);
   const onSheet = await db.participation.findFirst({
     where: { talentId, eventId, ...visibleParticipationWhere },
     select: { id: true },
   });
-  if (!onSheet) {
-    throw error(
-      400,
-      "Ce talent ne figure pas sur la feuille d'émargement de cet événement.",
-    );
-  }
+  return onSheet
+    ? null
+    : "Ce talent ne figure pas sur la feuille d'émargement de cet événement.";
 }
 
 export const actions: Actions = {
@@ -226,16 +235,17 @@ export const actions: Actions = {
       campusId,
       EVENT_MODULES.EMARGEMENT,
     );
-    requirePresenceSlot(
-      event,
-      getCampusTimezone(locals),
-      form.data.day,
-      form.data.slot,
-    );
     // Campus authorization for the write lands here: `loadEventOr404` scoped the
-    // event and `assertOnSheet` the talent's participation, so the raw-client
+    // event and `sheetRefusal` the talent's participation, so the raw-client
     // write below is safe (same shape as xpService's ledger callers).
-    await assertOnSheet(campusId, event.id, form.data.talentId);
+    const refusal =
+      slotRefusal(
+        event,
+        getCampusTimezone(locals),
+        form.data.day,
+        form.data.slot,
+      ) ?? (await sheetRefusal(campusId, event.id, form.data.talentId));
+    if (refusal) return message(form, refusal, { status: 400 });
 
     const day = dateKeyToDbDate(form.data.day);
     const { talentId, slot, status } = form.data;
@@ -296,12 +306,13 @@ export const actions: Actions = {
       campusId,
       EVENT_MODULES.EMARGEMENT,
     );
-    requirePresenceSlot(
+    const refusal = slotRefusal(
       event,
       getCampusTimezone(locals),
       form.data.day,
       form.data.slot,
     );
+    if (refusal) return message(form, refusal, { status: 400 });
 
     const result = await markAllPresentInSlot(
       campusId,
@@ -324,9 +335,13 @@ export const actions: Actions = {
       eventId: event.id,
     });
 
+    // Counted in présences, never in the cohort noun: an admin types that noun
+    // freely (« collégienne »), so a participle after it cannot agree.
     return message(
       form,
-      `${cohortNounForms(event.cohortNoun).Plural} sans présence enregistrée marqués présents.`,
+      result.marked === 0
+        ? 'Tout le monde avait déjà une présence sur ce créneau.'
+        : `${result.marked} ${result.marked > 1 ? 'présences enregistrées' : 'présence enregistrée'}.`,
     );
   },
 
@@ -341,13 +356,14 @@ export const actions: Actions = {
       campusId,
       EVENT_MODULES.EMARGEMENT,
     );
-    requirePresenceSlot(
+    const refusal = slotRefusal(
       event,
       getCampusTimezone(locals),
       form.data.day,
       form.data.slot,
     );
-    await closePresenceSlot(
+    if (refusal) return message(form, refusal, { status: 400 });
+    const { absent } = await closePresenceSlot(
       campusId,
       event.id,
       dateKeyToDbDate(form.data.day),
@@ -360,7 +376,12 @@ export const actions: Actions = {
       eventId: event.id,
     });
 
-    return message(form, 'Créneau clôturé.');
+    return message(
+      form,
+      absent === 0
+        ? 'Créneau clôturé : tout le monde y avait une présence.'
+        : `Créneau clôturé : ${absent} absent${absent > 1 ? 's' : ''} noté${absent > 1 ? 's' : ''}.`,
+    );
   },
 
   reopenSlot: async ({ request, locals, params }) => {
@@ -374,12 +395,13 @@ export const actions: Actions = {
       campusId,
       EVENT_MODULES.EMARGEMENT,
     );
-    requirePresenceSlot(
+    const refusal = slotRefusal(
       event,
       getCampusTimezone(locals),
       form.data.day,
       form.data.slot,
     );
+    if (refusal) return message(form, refusal, { status: 400 });
     await reopenPresenceSlot(
       campusId,
       event.id,

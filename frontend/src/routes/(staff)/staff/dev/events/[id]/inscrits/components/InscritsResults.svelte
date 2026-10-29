@@ -1,7 +1,7 @@
 <script lang="ts">
+  import { noMatchLine } from '$lib/domain/devVoice';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
-  import Users from '@lucide/svelte/icons/users';
   import X from '@lucide/svelte/icons/x';
   import Check from '@lucide/svelte/icons/check';
   import Minus from '@lucide/svelte/icons/minus';
@@ -18,7 +18,7 @@
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import { setListParams } from '$lib/components/staff/datatable/urlList';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import ActiveFilterChips, {
     type ActiveFilterChip,
@@ -288,7 +288,7 @@
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error('export xlsx', e);
-      toast.error("Échec de l'export.");
+      toast.error("L'export n'a pas pu être généré. Réessayez.");
     } finally {
       exporting = false;
     }
@@ -398,13 +398,7 @@
 {/snippet}
 
 {#if rows.length === 0}
-  <!-- The cohort is synced from Salesforce by the worker, not imported by hand,
-       so this is a notice and not an EmptyState: there is no action to offer. -->
-  <ResultsNotice
-    icon={Users}
-    title={`Aucun ${noun.singular} inscrit`}
-    description="Personne pour l'instant. Les inscrits apparaissent ici dès qu'ils sont marqués prêts dans Salesforce."
-  />
+  <EmptyCohortNotice cohortNoun={event.cohortNoun} />
 {:else}
   <div class="space-y-3">
     <DataTableToolbar
@@ -467,6 +461,8 @@
          than spinning up one provider per cohort row (~200 at full stage). -->
     <Tooltip.Provider delayDuration={150}>
       <SortableTable
+        onResetFilters={anyFiltersApplied ? resetFilters : undefined}
+        noMatchHint={noMatchLine(page.url.pathname)}
         {columns}
         rows={filtered}
         sortKey={view.sort}
@@ -646,26 +642,6 @@
                 </Badge>
               {/if}
             </div>
-          </div>
-        {/snippet}
-
-        {#snippet empty()}
-          <div class="flex flex-col items-center gap-3 py-6">
-            <span
-              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-            >
-              Aucun résultat
-            </span>
-            {#if anyFiltersApplied}
-              <Button
-                variant="outline"
-                size="sm"
-                onclick={resetFilters}
-                class="rounded-sm"
-              >
-                Réinitialiser les filtres
-              </Button>
-            {/if}
           </div>
         {/snippet}
       </SortableTable>

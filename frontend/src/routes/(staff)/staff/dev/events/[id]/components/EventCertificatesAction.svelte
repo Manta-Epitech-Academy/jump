@@ -77,7 +77,7 @@
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error('generate certificates', e);
-      toast.error('Échec de la génération des certificats.');
+      toast.error("Les certificats n'ont pas pu être générés. Réessayez.");
     } finally {
       generating = false;
     }

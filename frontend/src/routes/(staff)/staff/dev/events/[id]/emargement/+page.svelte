@@ -116,26 +116,29 @@
              toggles. Filter-scoped controls (search, statut) stay in the toolbar. -->
         <!-- Full-record export: every talent x every créneau, NOT the on-screen
              filter (unlike the Inscrits toolbar export). Kept here, away from the
-             toolbar, so it is never mistaken for a filtered export. -->
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <Button
-                {...props}
-                variant="outline"
-                size="sm"
-                href={exportHref}
-                class="rounded-sm"
-              >
-                <Download class="mr-1.5 h-4 w-4" />
-                Tout exporter (XLSX)
-              </Button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            Toutes les présences de l'événement (tous les créneaux)
-          </Tooltip.Content>
-        </Tooltip.Root>
+             toolbar, so it is never mistaken for a filtered export. With no one
+             in the event, it is an empty workbook. -->
+        {#if data.rosterSize > 0}
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  variant="outline"
+                  size="sm"
+                  href={exportHref}
+                  class="rounded-sm"
+                >
+                  <Download class="mr-1.5 h-4 w-4" />
+                  Tout exporter (XLSX)
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content>
+              Toutes les présences de l'événement (tous les créneaux)
+            </Tooltip.Content>
+          </Tooltip.Root>
+        {/if}
 
         {#if canEdit}
           <!-- A closed créneau (manual close OR past the 11h/15h cutoff) makes the

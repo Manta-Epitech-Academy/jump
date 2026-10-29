@@ -161,6 +161,35 @@ const rules: Rule[] = [
       '320 ms est le plafond pour une transition d’état (DESIGN.md § Motion)',
   },
   {
+    name: 'Aucune boucle d’animation pour qui demande moins de mouvement',
+    /**
+     * A loop carries no meaning a still frame does not (a halo that breathes,
+     * a skeleton that shimmers, a cursor that blinks), so it is the motion to
+     * drop first for someone whose system asks for less. Seven of them ran
+     * for everyone, and no global rule stops them, so each one carries the
+     * guard. `motion-safe:` keeps the element and its still frame: only the
+     * movement goes.
+     */
+    pattern: /(?<!motion-safe:)\banimate-(?:ping|pulse|bounce)\b/,
+    message:
+      'boucle sans garde : écrire motion-safe:animate-… (DESIGN.md § Motion, toute animation non triviale respecte prefers-reduced-motion)',
+  },
+  {
+    name: 'Aucun agrandissement au survol ni à l’appui dans les espaces staff',
+    /**
+     * DESIGN.md says it of the whole app (« no scale on press »), and the
+     * staff spaces are where the PO ruled for a sober tool: a press is marked
+     * by `active:translate-y-px`, as the buttons do. Scoped to staff because
+     * the talent and parent spaces still carry press scales of their own, a
+     * decision that belongs to those spaces rather than to this rule.
+     */
+    pattern: /\b(?:hover|active):scale-/,
+    files:
+      /routes[/\\]\(staff\)[/\\]|lib[/\\]components[/\\](?:staff|dev|admin)[/\\]/,
+    message:
+      'pas de changement d’échelle dans un espace staff : un appui se marque par active:translate-y-px (DESIGN.md § Motion)',
+  },
+  {
     name: 'Aucun `overline` nu (la décoration Tailwind)',
     // Tailwind ships `overline` for text-decoration-line. Written where
     // `epi-overline` was meant, it draws a hairline over the text and applies no

@@ -749,6 +749,7 @@ two different cell sizes.
 | `/` | Slash | Separates keywords in a list. |
 | Blueprint grid | Texture | 48px cells, `epiBlue` at 6% on light, white at 4.5% on dark. |
 | Pixel squares | Texture | Half-opacity `epiBlue`, white, or `epiLavender` rectangles, offset and overlapping. |
+| Seasonal pixels | A wink | The dev talent fiche's band only, in place of its squares: a jack-o'-lantern in `epiTogether` with an `epiTech` stem (15 to 31 October), a white snowflake (December). 8px cells on a nine-cell grid, still. A season the charte has no colour for gets nothing. |
 
 Titles are uppercase. Taglines are sentence case inside `< />`. Body copy is
 sentence case with French typography.

@@ -25,9 +25,14 @@
   let { data }: { data: PageData } = $props();
 
   // Badges, certificates and the inscrits sheet all print the cohort, so they
-  // answer only where the Inscrits section is on (`loadEventOr404`).
+  // answer only where the Inscrits section is on (`loadEventOr404`), and only
+  // once there is someone to print: with no inscrit they would hand back an
+  // empty document, and the page already says why there is no one. The whole
+  // export follows the same rule, since every one of its sheets lists the
+  // cohort.
+  const hasCohort = $derived(data.rosterSize > 0);
   const printsCohort = $derived(
-    data.reachable.includes(EVENT_MODULES.INSCRITS),
+    data.reachable.includes(EVENT_MODULES.INSCRITS) && hasCohort,
   );
 </script>
 
@@ -81,7 +86,7 @@
             {/if}
           {/if}
           <EventSalesforceButton externalId={data.event.externalId} />
-          {#if data.exportSections.length > 0}
+          {#if hasCohort && data.exportSections.length > 0}
             <Tooltip.Root>
               <Tooltip.Trigger>
                 {#snippet child({ props })}
@@ -120,7 +125,12 @@
       {/snippet}
     </ResultsSkeleton>
   {:then figures}
-    <HomeFigures {figures} eventId={data.event.id} reachable={data.reachable} />
+    <HomeFigures
+      {figures}
+      eventId={data.event.id}
+      cohortNoun={data.event.cohortNoun}
+      reachable={data.reachable}
+    />
   {:catch}
     <ResultsNotice
       title="Chargement impossible"

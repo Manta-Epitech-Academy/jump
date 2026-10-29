@@ -13,6 +13,8 @@ import { requireStaffGroup } from '$lib/server/auth/guards';
 import { NOTE_INCLUDE, serializeNote } from '$lib/server/talentNotes';
 import { getTalentJourney } from '$lib/server/services/talentJourneyService';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { toDateKey } from '$lib/domain/planningTime';
+import { seasonOn } from '$lib/domain/season';
 import {
   LATEST_IMAGE_RIGHTS_DECISION_ORDER,
   recordImageRightsDecision,
@@ -186,6 +188,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       communications,
       firstLoginAt,
       timezone,
+      season: seasonOn(toDateKey(new Date(), timezone)),
       imageRightsForm,
       imageRightsRecords,
       lastImageRightsDecision,

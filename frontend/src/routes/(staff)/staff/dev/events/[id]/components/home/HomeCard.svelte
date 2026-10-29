@@ -1,18 +1,21 @@
 <script lang="ts" module>
-  import type { Component } from 'svelte';
+  import type { Component, Snippet } from 'svelte';
   import type { LucideIcon } from '@lucide/svelte';
 
   /** What a card shows in place of figures it does not have yet: what is
-   *  missing, and where it will come from. */
+   *  missing, and where it will come from. `action` is the link to the page
+   *  where the person fills it, when the hint names one: the card's own
+   *  « Voir… » footer goes with its figures, so an empty card would otherwise
+   *  name a page it does not lead to. */
   export type HomeCardEmpty = {
     icon: LucideIcon | Component;
     title: string;
     hint: string;
+    action?: Snippet;
   };
 </script>
 
 <script lang="ts">
-  import type { Snippet } from 'svelte';
   import * as Card from '$lib/components/ui/card';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
@@ -49,6 +52,9 @@
         <p class="text-sm font-semibold">{empty.title}</p>
         <p class="text-xs text-muted-foreground">{empty.hint}</p>
       </div>
+      {#if empty.action}
+        <div class="pt-1">{@render empty.action()}</div>
+      {/if}
     </div>
   {:else}
     <div class="flex flex-1 flex-col gap-4">{@render children()}</div>
