@@ -403,7 +403,7 @@ export async function getFeatureUsage(
             periodeReference: comparison.periodeReference,
           }
         : null,
-      `Ce que « evolutionUtilisations » de chaque ligne compare : les mois calendaires révolus de la période demandée, listés dans « periode », face aux mêmes mois douze mois plus tôt, listés dans « periodeReference ». Douze mois et non la période précédente, parce que l'usage de Jump suit le calendrier scolaire : comparer septembre à août mesurerait la rentrée, pas l'adoption. Le mois en cours est écarté des deux côtés, n'étant pas comparable à un mois complet ; les utilisations affichées sur la ligne, elles, l'incluent, et ne sont donc pas la valeur comparée ici. L'évolution est toujours lue dans les totaux mensuels, seule source qui remonte à un an, quelle que soit la source des autres chiffres. « previous » vaut null tant que rien n'était mesuré sur la période de référence : un mois sans aucune ligne dans les totaux mensuels n'est pas un zéro, c'est une absence de mesure ; il vaut 0 quand la mesure existait et que personne ne s'en est servi. Vaut null en entier quand la période demandée ne contient aucun mois révolu. ${variationRule('count', COMPARISON_LABEL)}`,
+      `Ce que « evolutionUtilisations » de chaque ligne compare : les mois calendaires révolus de la période demandée, listés dans « periode », face aux mêmes mois douze mois plus tôt, listés dans « periodeReference ». Douze mois et non la période précédente, parce que l'usage de Jump suit le calendrier scolaire : comparer septembre à août mesurerait la rentrée, pas l'adoption. Le mois en cours est écarté des deux côtés, n'étant pas comparable à un mois complet ; les utilisations affichées sur la ligne, elles, l'incluent, et ne sont donc pas la valeur comparée ici. L'évolution est toujours lue dans les totaux mensuels, seule source qui remonte à un an, quelle que soit la source des autres chiffres. « previous » vaut null tant que rien n'était mesuré sur la période de référence : un mois sans aucune ligne dans les totaux mensuels n'est pas un zéro, c'est une absence de mesure ; il vaut 0 quand la mesure existait et que personne ne s'en est servi. Vaut null en entier quand la période demandée ne contient aucun mois révolu, et pour un événement : les totaux mensuels connaissent le campus et jamais l'événement, et l'évolution d'un campus à côté de la ligne d'un événement mêlerait deux périmètres. ${variationRule('count', COMPARISON_LABEL)}`,
     ),
     comparaison:
       filters.feature && comparison
@@ -444,11 +444,7 @@ type Comparison = {
   /** Each half's uses as an answer may show them, see {@link maskUses}. */
   currentUsesFor: (key: UsageFeatureKey) => number | null;
   previousUsesFor: (key: UsageFeatureKey) => number | null;
-  /**
-   * Whether the halves were read narrowed, for {@link maskCell}. The cube
-   * carries a campus and never an event, so this is the campus filter alone:
-   * an event-scoped call compares its campus's months.
-   */
+  /** Whether the halves were read by campus, for {@link maskCell}. */
   narrowed: boolean;
 };
 
@@ -458,6 +454,10 @@ type Comparison = {
  * Always the cube, even when the detailed rows could answer one half: a movement
  * computed one way here and another way there would be two growth figures under
  * one name, which is the defect this module was rewritten to remove.
+ *
+ * None for an event: the cube carries a campus and never an event, so the
+ * movement it holds is a campus's or the nation's, and set beside an event's
+ * row it would be a second scope under the row's name.
  */
 async function readComparison(
   features: readonly UsageFeatureKey[],
@@ -465,6 +465,7 @@ async function readComparison(
   scope: Scope,
   now: Date,
 ): Promise<Comparison | null> {
+  if (scope.event) return null;
   const months = comparisonMonths(window, now);
   if (!months) return null;
   const campusId = scope.campus?.id ?? null;

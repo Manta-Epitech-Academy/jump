@@ -603,6 +603,20 @@ describe('the figures the two stores must agree on', () => {
     expect(row?.partDeLaPopulation).toBeNull();
   });
 
+  it('compares no months for an event, which the monthly totals cannot isolate', async () => {
+    // The cube carries a campus and never an event, so the comparison read the
+    // nation's months and set their movement beside the event's row.
+    const answer = await getFeatureUsage(
+      { event: { id: eventA, label: 'Événement' } },
+      { days: 90, feature: USAGE_FEATURES.TALENT_FEEDBACK_OPEN },
+    );
+    expect(answer.evolution.value).toBeNull();
+    expect(answer.comparaison).toBeNull();
+    for (const row of answer.fonctionnalites.value) {
+      expect(row.evolutionUtilisations).toBeNull();
+    }
+  });
+
   it('still answers the same event cell once it clears the floor', async () => {
     // The floor withholds a small cell, it does not withhold the feature: a
     // mask that never lifts would be indistinguishable from a broken read.
@@ -794,6 +808,42 @@ describe('the figures the two stores must agree on', () => {
         campusId: campusB,
       },
     });
+  });
+
+  it("masks an abandoned feature's past uses on a campus", async () => {
+    // The adoption gaps hand back the uses a now-unused feature had a year ago;
+    // on a campus those are as small a cell as the row's own uses.
+    const { periodeReference } = (
+      await getFeatureUsage({ schoolYear: SCHOOL_YEAR }, {}, LATER)
+    ).evolution.value!;
+    const where = {
+      feature: USAGE_FEATURES.TALENT_CALENDAR_VIEW,
+      campusId: campusB,
+    };
+    await prisma.usage_FeatureMonthly.deleteMany({ where });
+    await prisma.usage_FeatureMonthly.create({
+      data: {
+        ...where,
+        actorKind: 'talent',
+        month: periodeReference[0],
+        uses: 2,
+        distinctActors: 2,
+        computedAt: new Date(),
+      },
+    });
+
+    const gaps = await getFeatureAdoptionGaps(
+      { schoolYear: SCHOOL_YEAR, campus: { id: campusB, name: CAMPUS_B } },
+      {},
+      LATER,
+    );
+    const abandoned = gaps.devenuesInutilisees.value.find(
+      (r) => r.feature === USAGE_FEATURES.TALENT_CALENDAR_VIEW,
+    );
+    expect(abandoned).toBeDefined();
+    expect(abandoned?.utilisationsPeriodeReference).toBeNull();
+
+    await prisma.usage_FeatureMonthly.deleteMany({ where });
   });
 
   it('tells never-measured apart from measured-at-zero', async () => {
