@@ -72,9 +72,12 @@ export function formatPeerName(
   prenom: string | null | undefined,
   nom: string | null | undefined,
 ): string {
-  const first = (prenom ?? '').trim();
-  const initial = (nom ?? '').trim().charAt(0).toUpperCase();
-  return (initial ? `${first} ${initial}.` : first).trim();
+  const first = formatGivenName(prenom?.trim());
+  // The first character, not the first UTF-16 unit, which would split a
+  // letter outside the BMP into half a pair.
+  const [initial = ''] = Array.from((nom ?? '').trim());
+  const shown = initial.toLocaleUpperCase('fr');
+  return (shown ? `${first} ${shown}.` : first).trim();
 }
 
 export const CIVILITE_OPTIONS = [
