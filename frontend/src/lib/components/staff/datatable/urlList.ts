@@ -50,8 +50,3 @@ export function clearListFilters(
   search.clear();
   setListParams({ ...cleared, q: '' });
 }
-
-/** Drop every filter: navigate to the bare pathname. */
-export function resetListParams(): void {
-  void goto(page.url.pathname, { keepFocus: true, noScroll: true });
-}
