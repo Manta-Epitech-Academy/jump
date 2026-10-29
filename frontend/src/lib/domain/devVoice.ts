@@ -99,7 +99,7 @@ export const ALL_CLOSINGS_DONE_LINE =
 
 const ALL_PRESENT_LINES = [
   'Au complet. Ça fait plaisir.',
-  "Tout le monde est là, personne n'a séché.",
+  'Tout le monde a répondu présent.',
   'Salle comble sur ce créneau.',
 ] as const;
 
