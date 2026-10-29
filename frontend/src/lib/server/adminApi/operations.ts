@@ -761,6 +761,9 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_school_year_review: defineOperation({
     leadership: true,
+    // Its high-school reach is `stats_schools_reach`'s `topSchools`, names
+    // included.
+    untrustedText: true,
     description:
       'One school year summarised for a steering review: events run, cohort size and make-up, high-school and territorial reach, whether talents came back, and what they said in their closings. Pass compareTo to also get every headline figure as a movement against another year, already computed. Also returns "limites", stating in French what these figures cannot be read as. The school year is required.',
     shape: {

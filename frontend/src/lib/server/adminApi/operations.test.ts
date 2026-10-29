@@ -155,11 +155,12 @@ describe('what a credential is offered as tools', () => {
 
   // Verbatim text an admin did not write never shares a session with the
   // writes: the testimonials, and the school names a talent typed for a lycée
-  // the annuaire does not know.
+  // the annuaire does not know, wherever a read carries them.
   it.each([
     'stats_closing_testimonials',
     'stats_schools_reach',
     'stats_schools_churn',
+    'stats_school_year_review',
   ])('keeps %s away from a token that can write', (operation) => {
     expect(names({ tier: 'core', writeEnabled: true })).not.toContain(
       operation,
