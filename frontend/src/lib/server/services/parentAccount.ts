@@ -1,12 +1,14 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
+import { isStaffEmailAddress } from '$lib/domain/staff';
 
 const norm = (v: string | null | undefined): string =>
   (v ?? '').trim().toLowerCase();
 
 export type SetParentLoginResult =
-  { ok: false; reason: 'email_taken' } | { ok: true; changed: boolean };
+  | { ok: false; reason: 'email_taken' | 'staff_address' }
+  | { ok: true; changed: boolean };
 
 /**
  * Point a talent's parent 1 at `next.email` and keep the parent login in step:
@@ -23,6 +25,10 @@ export type SetParentLoginResult =
  *   - An address held by a NON-parent login (a student's, a staff member's) is
  *     refused: one email is one account with one role, and repurposing theirs
  *     would hand this talent's guardian their identity.
+ *   - A staff address is refused even with no login behind it yet: a member
+ *     invited but not yet signed in has none, and a parent login minted on
+ *     their address is a row the staff door then refuses to turn into staff
+ *     (`auth/staffDoor.ts`), locking them out of Jump on a talent's typing.
  *   - An address that already hosts a parent login (a sibling's parent) is
  *     joined as it stands. Its name is left alone: it belongs to the family that
  *     declared it first, and a talent typing someone else's address must not
@@ -57,6 +63,8 @@ export async function setParentLogin(
   next: { email: string; name: string | null },
 ): Promise<SetParentLoginResult> {
   const newEmail = norm(next.email);
+  if (isStaffEmailAddress(newEmail))
+    return { ok: false, reason: 'staff_address' };
   const { parentEmail } = await tx.talent.findUniqueOrThrow({
     where: { id: talentId },
     select: { parentEmail: true },
@@ -119,7 +127,7 @@ export function isParentLoginRace(err: unknown): boolean {
 }
 
 export type ChangeParentEmailResult =
-  | { ok: false; reason: 'same_as_student' | 'email_taken' }
+  | { ok: false; reason: 'same_as_student' | 'email_taken' | 'staff_address' }
   | { ok: true; changed: boolean; welcomeSent: boolean };
 
 /**

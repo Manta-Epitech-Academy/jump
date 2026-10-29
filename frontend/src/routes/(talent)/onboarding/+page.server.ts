@@ -332,7 +332,8 @@ export const actions: Actions = {
     // a working parent account, since the welcome link and the co-signature are
     // useless without one. `email_taken` means the address already belongs to
     // another (non-parent) Jump account, a student's or a staff member's: one
-    // email is one account with one role. Nothing is persisted then, and the
+    // email is one account with one role; `staff_address` that it is a staff
+    // one, account or not. Nothing is persisted then, and the
     // talent is asked for a different address rather than leaving the parent
     // unable to connect.
     let login: SetParentLoginResult;
@@ -379,7 +380,9 @@ export const actions: Actions = {
         step: 'parents' as const,
         errors: {
           parentEmail: [
-            'Cette adresse est déjà associée à un autre compte Jump. Indique une autre adresse e-mail pour ton responsable.',
+            login.reason === 'staff_address'
+              ? "Cette adresse est réservée à l'équipe Epitech. Indique l'adresse e-mail personnelle de ton responsable."
+              : 'Cette adresse est déjà associée à un autre compte Jump. Indique une autre adresse e-mail pour ton responsable.',
           ],
         },
         values: raw as Record<string, string>,

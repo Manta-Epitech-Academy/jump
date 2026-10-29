@@ -98,6 +98,25 @@ describe('parent 1 login (integration)', () => {
     ).toBe(parentEmail);
   });
 
+  it('refuses a staff address before a staff login exists there', async () => {
+    // A member invited but not yet signed in has no login, so "held by another
+    // role" cannot catch it: a parent login minted there is one the staff door
+    // then refuses to turn into staff, locking the member out on a talent's
+    // typing.
+    const talentId = await makeTalent();
+    const invitee = `invitee.${stamp}@epitech.eu`;
+
+    expect(await setLogin(talentId, invitee)).toEqual({
+      ok: false,
+      reason: 'staff_address',
+    });
+    expect(await loginAt(invitee)).toBeNull();
+    expect(
+      (await prisma.talent.findUnique({ where: { id: talentId } }))
+        ?.parentEmail,
+    ).toBeNull();
+  });
+
   it('leaves no parent login behind an address the talent moved away from', async () => {
     const talentId = await makeTalent();
     const squatted = address('future-student');
