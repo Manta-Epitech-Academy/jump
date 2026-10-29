@@ -642,10 +642,13 @@ export async function syncTalents(talents: WorkerTalent[]) {
   return { created, updated, skipped, invalid, erased };
 }
 
-/** Which of these Salesforce ids belong to a contact erased at their request. */
+/**
+ * Which of these Salesforce ids belong to a contact erased at their request
+ * and not readmitted since.
+ */
 async function erasedContactsAmong(externalIds: string[]) {
   const rows = await prisma.sync_ErasedContact.findMany({
-    where: { externalId: { in: externalIds } },
+    where: { externalId: { in: externalIds }, readmittedAt: null },
     select: { externalId: true },
   });
   return new Set(rows.map((r) => r.externalId));
@@ -663,7 +666,8 @@ async function carryErasureBar(contactId: string, leadIds: string[]) {
     prisma.sync_ErasedContact.upsert({
       where: { externalId: contactId },
       create: { externalId: contactId },
-      update: {},
+      // A readmission of the Contact does not lift a bar its Lead still held.
+      update: { readmittedAt: null, readmittedBy: null },
     }),
     prisma.sync_ErasedContact.deleteMany({
       where: { externalId: { in: leadIds } },

@@ -112,8 +112,10 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   before anything else, counted in `erased`, never a `Sync_Error` (which would
   store the id and the name again). The bar is on the person: a Lead erased
   before Salesforce converted it bars the Contact that carries it in
-  `converted_lead_ids`, and the row moves onto that Contact. The model says
-  why it holds the id alone and why the inactivity sweep bars nothing; a
+  `converted_lead_ids`, and the row moves onto that Contact. A readmission
+  stamps the row rather than deleting it, so who lifted an erasure stays on
+  record. The model says why it holds the id and that stamp alone and why the
+  inactivity sweep bars nothing; a
   swept talent's enrolments are therefore pruned like any other, or the
   person, re-imported, would sit on the event twice.
 - **A failed run moves nothing.** The watermarks are no column anywhere: each is

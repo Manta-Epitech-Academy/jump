@@ -143,7 +143,8 @@ export async function fulfillTalentDeletion(
       await tx.sync_ErasedContact.upsert({
         where: { externalId },
         create: { externalId },
-        update: {},
+        // Erased again after a readmission: barred again.
+        update: { readmittedAt: null, readmittedBy: null },
       });
     }
     const documentKeys = await anonymizeTalent(tx, request.talentId);
@@ -169,19 +170,22 @@ export async function fulfillTalentDeletion(
  * Let a Salesforce contact erased at their request be imported again, when the
  * person asks to come back. The next push that carries the contact creates a
  * new talent from scratch: the erased one stays anonymised, since nothing ties
- * it to the contact any more.
+ * it to the contact any more. The bar is stamped rather than deleted, so the
+ * row keeps who lifted it and when.
  *
  * Takes the id somebody copies out of Salesforce, because Jump keeps no way to
  * find an erased person by name (`Sync_ErasedContact` says why).
  *
- * @returns false if the id was never barred, so a mistyped one is told apart
- * from a readmission.
+ * @returns false if the id is not barred, never was or already readmitted, so
+ * a mistyped one is told apart from a readmission.
  */
 export async function readmitSalesforceContact(
   externalId: string,
+  adminUserId: string,
 ): Promise<boolean> {
-  const { count } = await prisma.sync_ErasedContact.deleteMany({
-    where: { externalId },
+  const { count } = await prisma.sync_ErasedContact.updateMany({
+    where: { externalId, readmittedAt: null },
+    data: { readmittedAt: new Date(), readmittedBy: adminUserId },
   });
   return count > 0;
 }

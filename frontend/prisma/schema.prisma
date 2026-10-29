@@ -2098,19 +2098,32 @@ model Sync_Request {
 ///
 /// Written by `fulfillTalentDeletion` and nothing else: the inactivity sweep
 /// leaves none, because a talent it erased who enrols again is the return Jump
-/// exists for. Deleted by `readmitSalesforceContact`, when the person asks to
-/// come back, and the next push then imports them from scratch. Rekeyed by the
-/// sync from a Lead to the Contact it was converted into (`carryErasureBar`),
-/// since a talent is that Contact once it has one.
+/// exists for. Lifted by `readmitSalesforceContact`, when the person asks to
+/// come back: the row stays, stamped with who let the contact back and when,
+/// the bar holds only while `readmittedAt` is null, and the next push imports
+/// the person from scratch. A later erasure of the same contact bars it again
+/// and clears the stamp. Rekeyed by the sync from a Lead to the Contact it was
+/// converted into (`carryErasureBar`), since a talent is that Contact once it
+/// has one.
 ///
-/// The Salesforce id alone, on purpose. No foreign key to the anonymised
-/// `Talent` or to its `TalentDeletionRequest`, and no date either, since one
-/// written in the fulfilment's transaction would equal the request's
-/// `resolvedAt` and join the two: either link would tie a Salesforce identity
-/// back to the activity the erasure keeps (XP, enrolments, attempts), which is
-/// then no longer de-identified.
+/// The Salesforce id and the readmission, on purpose. No foreign key to the
+/// anonymised `Talent` or to its `TalentDeletionRequest`, and no date of the
+/// erasure, since one written in the fulfilment's transaction would equal the
+/// request's `resolvedAt` and join the two: either link would tie a Salesforce
+/// identity back to the activity the erasure keeps (XP, enrolments, attempts),
+/// which is then no longer de-identified. The readmission's date ties to
+/// nothing the erasure kept. That holds for what the model says, not for the
+/// row's storage: the bar is written in the erasure's transaction, so its
+/// system columns (`xmin`) match the request's until either row is rewritten,
+/// and somebody reading the database with SQL can join them. Keeping that
+/// reader out is the database's access control, not this model's.
+///
+/// `readmittedBy` is a bare user id, like `TalentDeletionRequest.resolvedBy`:
+/// the record of who lifted an erasure has to outlive that admin's account.
 model Sync_ErasedContact {
-  externalId String @id
+  externalId   String    @id
+  readmittedAt DateTime?
+  readmittedBy String?
 }
 
 /// A Salesforce `CampaignMember` status Jump knows: the vocabulary, not what any

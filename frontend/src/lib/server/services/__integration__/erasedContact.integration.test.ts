@@ -12,7 +12,8 @@
  *    it is written, not even a `Sync_Error`;
  *  - a full roster carrying the erased contact still proves its deletions, and
  *    the erased talent's kept enrolment is not pruned;
- *  - readmitting the contact lets the next push import them from scratch;
+ *  - readmitting the contact lets the next push import them from scratch, and
+ *    the bar keeps who let them back; erasing them again bars them again;
  *  - a talent erased while keyed on a Lead stays barred once that Lead is
  *    converted, and the bar moves onto the Contact;
  *  - the inactivity sweep's erasure bars nothing, since a swept talent who
@@ -217,13 +218,20 @@ describe('a talent erased at their request (integration)', () => {
   });
 
   it('imports the contact from scratch once readmitted', async () => {
-    expect(await readmitSalesforceContact(erasedContact.external_id)).toBe(
-      true,
-    );
-    // A mistyped id is told apart from a readmission.
-    expect(await readmitSalesforceContact(erasedContact.external_id)).toBe(
-      false,
-    );
+    expect(
+      await readmitSalesforceContact(erasedContact.external_id, 'test-admin'),
+    ).toBe(true);
+    // A mistyped or already readmitted id is told apart from a readmission.
+    expect(
+      await readmitSalesforceContact(erasedContact.external_id, 'test-admin'),
+    ).toBe(false);
+    // Lifting an erasure is recorded on the bar, not only in a pod's log.
+    expect(
+      await prisma.sync_ErasedContact.findUniqueOrThrow({
+        where: { externalId: erasedContact.external_id },
+        select: { readmittedBy: true, readmittedAt: true },
+      }),
+    ).toEqual({ readmittedBy: 'test-admin', readmittedAt: expect.any(Date) });
 
     const result = await syncTalents([erasedContact]);
     expect(result).toMatchObject({ created: 1, erased: 0 });
@@ -242,6 +250,27 @@ describe('a talent erased at their request (integration)', () => {
         select: { nom: true, externalId: true },
       }),
     ).toEqual({ nom: 'Anonymisé', externalId: null });
+  });
+
+  it('bars the contact again when the person is erased a second time', async () => {
+    const back = await prisma.talent.findUniqueOrThrow({
+      where: { externalId: erasedContact.external_id },
+      select: { id: true },
+    });
+    erasedTalentIds.push(back.id);
+    const request = await requestTalentDeletion(back.id);
+    expect(await fulfillTalentDeletion(request.id, 'test-admin')).toBe(true);
+
+    expect(await syncTalents([erasedContact])).toMatchObject({
+      created: 0,
+      erased: 1,
+    });
+    expect(
+      await prisma.sync_ErasedContact.findUniqueOrThrow({
+        where: { externalId: erasedContact.external_id },
+        select: { readmittedBy: true, readmittedAt: true },
+      }),
+    ).toEqual({ readmittedBy: null, readmittedAt: null });
   });
 
   it('keeps a Lead-keyed erasure once Salesforce converts the Lead', async () => {
@@ -275,9 +304,11 @@ describe('a talent erased at their request (integration)', () => {
       where: {
         externalId: { in: [leadContact.external_id, convertedContactId] },
       },
-      select: { externalId: true },
+      select: { externalId: true, readmittedAt: true },
     });
-    expect(bars).toEqual([{ externalId: convertedContactId }]);
+    expect(bars).toEqual([
+      { externalId: convertedContactId, readmittedAt: null },
+    ]);
     expect(
       await syncParticipations(
         eventExternalId,

@@ -141,18 +141,13 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { readmitForm: form });
 
     const { externalId } = form.data;
-    if (!(await readmitSalesforceContact(externalId))) {
+    if (!(await readmitSalesforceContact(externalId, locals.user.id))) {
       return message(
         form,
-        'Aucune suppression enregistrée pour cet identifiant Salesforce.',
+        "Aucune exclusion en cours pour cet identifiant Salesforce : il n'a jamais été supprimé à sa demande, ou son retour est déjà autorisé.",
         { status: 404 },
       );
     }
-    // The one trace of who let the contact back: the bar row is gone, and it
-    // never named anybody in Jump to begin with.
-    console.info(
-      `[account-deletions] Salesforce contact ${externalId} readmitted by ${locals.user.id}`,
-    );
     return message(
       form,
       'Retour autorisé : le contact sera réimporté au plus tard à la prochaine reprise complète.',

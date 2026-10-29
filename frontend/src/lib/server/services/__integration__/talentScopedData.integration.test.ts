@@ -84,8 +84,8 @@ type TalentColumn = { column: string; holds: Identity };
  *
  * `Sync_ErasedContact` names one by Salesforce id too, and is absent on
  * purpose: a row exists only once the talent is erased, never for the live
- * talent this suite seeds, and it holds the id alone, which is the one thing
- * the erasure keeps to honour itself. `erasedContact.integration.test.ts`
+ * talent this suite seeds, and it holds the id, the one thing the erasure
+ * keeps to honour itself, plus who lifted the bar once somebody does. `erasedContact.integration.test.ts`
  * covers it.
  */
 const BY_OTHER_IDENTITY: Record<string, readonly TalentColumn[]> = {
