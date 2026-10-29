@@ -29,11 +29,31 @@ import type { BetterAuthPlugin } from 'better-auth';
  * slash, `%2D`, upper case) is refused rather than reasoned about. The only
  * mistake left to make is in the list itself.
  *
+ * **A served route takes the body Jump's client sends, and no more.** The
+ * Microsoft sign-in accepts far more than the login page asks for, and the
+ * rest undid what `server/auth.ts` pins: `scopes` is appended to the
+ * configured ones, so a caller asking for `offline_access` was handed a refresh
+ * token again, stored in `bauth_account`; `idToken` signs in with a token
+ * minted elsewhere, a flow Jump never offers (security audit run-1). A key
+ * outside the list is refused with a 400, before BetterAuth reads the body.
+ *
  * `onRequest` runs on HTTP requests only, never on `auth.api.*`, and ahead of
  * routing, after BetterAuth's per-IP limiter. That limiter therefore sees the
  * refused requests too, which costs nothing: no legitimate caller sends one.
  */
-const MOUNTED_PATHS = ['/sign-in/social', '/callback/microsoft'];
+const MOUNTED: Record<string, ReadonlySet<string> | null> = {
+  // What `authClient.signIn.social` sends from `/staff/login`, with the keys
+  // the client may fill in itself.
+  '/sign-in/social': new Set([
+    'provider',
+    'callbackURL',
+    'errorCallbackURL',
+    'newUserCallbackURL',
+    'disableRedirect',
+  ]),
+  // Microsoft's return, a GET carrying its answer in the query.
+  '/callback/microsoft': null,
+};
 
 export function httpSurface(): BetterAuthPlugin {
   return {
@@ -42,10 +62,32 @@ export function httpSurface(): BetterAuthPlugin {
       // The same base the router strips, read the way it reads it.
       const basePath = new URL(ctx.baseURL).pathname.replace(/\/+$/, '');
       const { pathname } = new URL(request.url);
-      if (MOUNTED_PATHS.some((path) => pathname === `${basePath}${path}`)) {
-        return;
+      const path = Object.keys(MOUNTED).find(
+        (path) => pathname === `${basePath}${path}`,
+      );
+      if (!path) return { response: new Response(null, { status: 404 }) };
+
+      const accepted = MOUNTED[path];
+      if (accepted && !(await bodyWithin(request, accepted))) {
+        return { response: new Response(null, { status: 400 }) };
       }
-      return { response: new Response(null, { status: 404 }) };
     },
   };
+}
+
+/**
+ * Whether a JSON body names only `accepted` keys. A body that is no JSON
+ * object passes: BetterAuth's own validation refuses it, with its own answer.
+ */
+async function bodyWithin(request: Request, accepted: ReadonlySet<string>) {
+  let body: unknown;
+  try {
+    body = await request.clone().json();
+  } catch {
+    return true;
+  }
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return true;
+  }
+  return Object.keys(body).every((key) => accepted.has(key));
 }

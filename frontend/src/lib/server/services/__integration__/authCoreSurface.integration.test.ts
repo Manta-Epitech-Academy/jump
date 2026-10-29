@@ -146,4 +146,23 @@ describe('BetterAuth core HTTP surface (integration)', () => {
       ['User.Read', 'email', 'openid', 'profile'].sort(),
     );
   });
+
+  // `scopes` is appended to the configured scope, so it would bring the
+  // refresh token back; `idToken` signs in with a token minted elsewhere.
+  it.each([
+    ['scopes', { scopes: ['offline_access'] }],
+    ['idToken', { idToken: { token: 'header.payload.signature' } }],
+    ['additionalParams', { additionalParams: { prompt: 'none' } }],
+  ])(
+    'refuses a staff-door body carrying %s',
+    async (_key, extra: Record<string, unknown>) => {
+      const response = await postAuth('/api/auth/sign-in/social', {
+        provider: 'microsoft',
+        callbackURL: '/staff/oauth/callback',
+        ...extra,
+      });
+
+      expect(response.status).toBe(400);
+    },
+  );
 });

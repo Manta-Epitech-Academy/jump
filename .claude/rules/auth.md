@@ -134,7 +134,9 @@ account creation.
   `POST /sign-in/social` and `/callback/microsoft`, the two routes the browser
   client calls. `server/auth/httpSurface.ts` is an allowlist (an `onRequest`
   plugin), not BetterAuth's `disabledPaths` denylist, so a route a release
-  adds, core or plugin, is closed on arrival. Every other flow (OTP, the
+  adds, core or plugin, is closed on arrival. It also holds the sign-in to
+  the body the login page sends: `scopes` would bring the refresh token back,
+  and `idToken` signs in with a token minted elsewhere. Every other flow (OTP, the
   session read in `hooks.server.ts`, logout, impersonation) runs through
   `auth.api.*`, which the allowlist never sees. The core account, user and
   session routes act on `session.user`, which for an impersonation session is

@@ -98,6 +98,11 @@ export function createAuthOptions(
         // once, right after sign-in.
         disableDefaultScope: true,
         scope: ['openid', 'profile', 'email', 'User.Read'],
+        // Jump signs staff in through the redirect, never with an ID token a
+        // caller posts (`sign-in/social` with `idToken`), which would admit a
+        // token minted for another session. `httpSurface` refuses that body
+        // over HTTP too; this closes the flow itself.
+        disableIdTokenSignIn: true,
         // Entra ID emits no `email_verified` claim unless it is declared as an
         // optional claim on the app registration, so BetterAuth defaults the
         // profile to unverified and stamps `bauth_user.emailVerified = false`
