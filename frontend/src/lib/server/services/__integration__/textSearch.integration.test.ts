@@ -1,14 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
-import {
-  buildTalentWhere,
-  parseTalentFilters,
-} from '../../../../routes/(staff)/staff/admin/talents/query';
-import {
-  buildNoteWhere,
-  parseNoteFilters,
-} from '../../../../routes/(staff)/staff/admin/notes/query';
+import { buildTalentWhere } from '../../../../routes/(staff)/staff/admin/talents/query';
+import { parseTalentFilters } from '../../../../routes/(staff)/staff/admin/talents/view';
+import { buildNoteWhere } from '../../../../routes/(staff)/staff/admin/notes/query';
+import { parseNoteFilters } from '../../../../routes/(staff)/staff/admin/notes/view';
 import { GET as searchPeople } from '../../../../routes/api/admin/people/+server';
 
 /**

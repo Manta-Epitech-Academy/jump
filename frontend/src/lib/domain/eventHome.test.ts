@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { eventHomeFigures, HOME_LINKS, type EventHomeInput } from './eventHome';
-import { parseInscritsView } from './inscritsView';
+import { INSCRITS_VIEW } from './inscritsView';
 import { matchesFacets, rosterFacets, type InscritRow } from './inscritsRoster';
 import type { ClosingRow } from './closingsRoster';
 import { tallyClosings } from './closingsRoster';
@@ -40,7 +40,7 @@ const empty: EventHomeInput = { rows: [], closings: null, feedback: null };
 
 /** The rows the Inscrits page keeps for a part's link. */
 function opened(rows: InscritRow[], params: Record<string, string>) {
-  const view = parseInscritsView(new URLSearchParams(params));
+  const view = INSCRITS_VIEW.parse(new URLSearchParams(params));
   const facets = rosterFacets(rows, { showStatut: true }, view);
   return rows.filter((r) => matchesFacets(r, facets));
 }

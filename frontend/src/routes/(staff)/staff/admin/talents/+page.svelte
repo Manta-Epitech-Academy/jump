@@ -34,7 +34,7 @@
        resolved, the table stays mounted so server-side search / sort / paging
        swap data in place instead of reflashing the skeleton. -->
   {#if cohort.value}
-    <TalentsResults {...cohort.value} filters={data.filters} />
+    <TalentsResults {...cohort.value} />
   {:else if cohort.failed}
     <ResultsNotice
       title="Chargement impossible"

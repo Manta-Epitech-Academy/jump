@@ -14,14 +14,15 @@ import { parentCompleteWhere } from '$lib/server/db/dossierCompliance';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
-  parseTalentFilters,
   buildTalentWhere,
   buildOrderBy,
+  HAS_PARENT,
   TALENT_ROW_SELECT,
   projectTalentRow,
   onboardingDoneWhere,
   type TalentsCohort,
 } from './query';
+import { resolveTalentFilters } from './facets';
 
 const PER_PAGE = 50;
 
@@ -39,26 +40,24 @@ const PARENT_EMAIL_REFUSALS: Record<
 
 // Admin is campus-agnostic (no staffProfile.campusId), so the talent directory
 // here is intentionally global, unlike the campus-scoped dev students list.
-// The KPI tiles, however, report the *scoped* population (campus multiselect +
-// type + niveau + search) so the admin can read onboarding progress for a
-// chosen set of campuses; the breakdown filters (status, parentStatus) narrow
-// the table but not the tiles. Filter parsing / where building / row projection
-// all live in ./query so the page and the XLSX export can't drift.
+// The KPI tiles, however, report the *scoped* population (campus + niveau +
+// search) so the admin can read onboarding progress for a chosen set of
+// campuses; the breakdown filters (statut, parent) narrow the table but not the
+// tiles. Filter resolution / where building / row projection all live beside
+// this file (./facets, ./query) so the page and the XLSX export can't drift.
 export const load: PageServerLoad = async ({ url }) => {
-  const filters = parseTalentFilters(url.searchParams);
-  const { where, scopeWhere } = buildTalentWhere(filters);
-  const orderBy = buildOrderBy(filters.sort, filters.dir);
-
-  // "Has a parent on file" is the denominator for the parent-completion tile
-  // and the gate both parent buckets share (no parentEmail = no one to chase).
-  const hasParent = { parentEmail: { not: null } } as const;
-
-  // Stream the cohort: the heading paints immediately while the row page and the
-  // six scoped KPI counts (count() over the cumulative campus population, the
-  // page's measured ~300-400ms blocking cost) resolve behind the shell skeleton.
-  // Campuses (filter multiselect) rides the same payload: its only consumer, the
-  // toolbar, lives inside the streamed results region.
+  // Stream the cohort: the heading paints immediately while the column
+  // filters' counts, then the row page and the scoped KPI counts (count() over
+  // the cumulative campus population, the page's measured ~300-400ms blocking
+  // cost), resolve behind the shell skeleton. The counts come first because
+  // they decide which ticked values still exist, and so what the rows match.
   const cohort: Promise<TalentsCohort> = (async () => {
+    const { filters, facetCounts } = await resolveTalentFilters(
+      url.searchParams,
+    );
+    const { where, scopeWhere } = buildTalentWhere(filters);
+    const orderBy = buildOrderBy(filters.sort, filters.dir);
+
     const [
       rows,
       totalItems,
@@ -67,7 +66,6 @@ export const load: PageServerLoad = async ({ url }) => {
       withParent,
       parentsComplete,
       neverConnected,
-      campuses,
     ] = await Promise.all([
       prisma.talent.findMany({
         where,
@@ -82,22 +80,18 @@ export const load: PageServerLoad = async ({ url }) => {
       prisma.talent.count({
         where: { AND: [scopeWhere, onboardingDoneWhere()] },
       }),
-      prisma.talent.count({ where: { AND: [scopeWhere, hasParent] } }),
+      prisma.talent.count({ where: { AND: [scopeWhere, HAS_PARENT] } }),
       prisma.talent.count({
-        where: { AND: [scopeWhere, hasParent, parentCompleteWhere] },
+        where: { AND: [scopeWhere, HAS_PARENT, parentCompleteWhere] },
       }),
       // Talents imported without ever creating a login account, the far end of
       // the funnel (parents still owing = `withParent - parentsComplete`).
       prisma.talent.count({ where: { AND: [scopeWhere, { userId: null }] } }),
-      prisma.campus.findMany({
-        orderBy: { name: 'asc' },
-        select: { id: true, name: true },
-      }),
     ]);
 
     return {
       talents: rows.map(projectTalentRow),
-      campuses,
+      facetCounts,
       totalItems,
       totalPages: Math.ceil(totalItems / PER_PAGE),
       stats: {
@@ -111,7 +105,6 @@ export const load: PageServerLoad = async ({ url }) => {
   })();
 
   return {
-    filters,
     // Un-awaited on purpose: SvelteKit streams it so the heading paints first.
     cohort,
   };

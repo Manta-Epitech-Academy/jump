@@ -11,11 +11,13 @@
   import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type { ColumnDef } from '$lib/components/staff/datatable/types';
-  import { setListParams } from '$lib/components/staff/datatable/urlList';
+  import {
+    clearListFilters,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { facetControls } from '$lib/components/staff/datatable/facetControls';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import ActiveFilterChips, {
-    type ActiveFilterChip,
-  } from '$lib/components/staff/ActiveFilterChips.svelte';
+  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
   import ClosingVerdictChip from '$lib/components/dev/closings/ClosingVerdictChip.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import { resolve } from '$app/paths';
@@ -29,12 +31,9 @@
   } from '$lib/domain/closing';
   import {
     CLOSINGS_SORT_DEFAULT_DIR,
-    closingsClearedFacetParams,
-    closingsFacetParams,
-    closingsSortParams,
-    parseClosingsView,
     type ClosingsFacet,
     type ClosingsSortKey,
+    CLOSINGS_VIEW,
   } from '$lib/domain/closingsView';
   import {
     NOT_CONDUCTED_LABEL,
@@ -42,7 +41,6 @@
     closingsFacets,
     conductorLabel,
     matchesClosingsFacets,
-    type ClosingsFacetState,
   } from '$lib/domain/closingsRoster';
   import type { ClosingRow, ClosingsCohort } from './types';
   import SynthesisCard from './SynthesisCard.svelte';
@@ -100,29 +98,15 @@
   };
   // Filters, sort and search live in the address (`$lib/domain/closingsView`),
   // so the event home's cards can open this list already filtered.
-  const view = $derived(parseClosingsView(page.url.searchParams));
+  const view = $derived(CLOSINGS_VIEW.parse(page.url.searchParams));
   const search = createUrlSearch();
 
   const facets = $derived(closingsFacets(rows, view));
-  const facetOf = $derived(
-    new Map<ClosingsFacet, ClosingsFacetState>(facets.map((f) => [f.facet, f])),
+  const controls = $derived(
+    facetControls(facets, (facet, values) =>
+      setListParams(CLOSINGS_VIEW.facetParams(facet, values)),
+    ),
   );
-
-  function setFacet(facet: ClosingsFacet, values: string[]) {
-    setListParams(closingsFacetParams(facet, values));
-  }
-
-  // The header filter of a facet, or none when it has a single value to offer.
-  function filterOf(facet: ClosingsFacet): ColumnDef['filter'] {
-    const f = facetOf.get(facet);
-    return f && f.options.length > 0
-      ? {
-          options: f.options,
-          selected: f.selected,
-          onChange: (values) => setFacet(facet, values),
-        }
-      : undefined;
-  }
 
   // The mockup's columns, and like the Inscrits page one control each: the
   // names and the date sort, who conducted it, its state and the team's
@@ -137,7 +121,7 @@
       key: facet,
       label,
       class: width,
-      filter: filterOf(facet),
+      filter: controls.filterOf(facet),
     });
     return [
       { key: 'avatar', label: '', class: 'w-12' },
@@ -156,28 +140,12 @@
       { key: view.sort, dir: view.dir },
       key,
     );
-    setListParams(closingsSortParams(next.key, next.dir));
+    setListParams(CLOSINGS_VIEW.sortParams(next.key, next.dir));
   }
-
-  const chips = $derived<ActiveFilterChip[]>(
-    facets.flatMap((f) =>
-      f.selected.map((value) => ({
-        id: `${f.facet}:${value}`,
-        facet: f.title,
-        label: f.options.find((o) => o.value === value)?.label ?? value,
-        onRemove: () =>
-          setFacet(
-            f.facet,
-            f.selected.filter((v) => v !== value),
-          ),
-      })),
-    ),
-  );
 
   // Clears the filters and the search, keeps the sort, as on Inscrits.
   function resetFilters() {
-    search.clear();
-    setListParams({ ...closingsClearedFacetParams(), q: '' });
+    clearListFilters(CLOSINGS_VIEW.clearedFacetParams(), search);
   }
 
   const dateFmt = (d: Date | string | null) =>
@@ -236,7 +204,7 @@
   });
 
   const anyFiltersApplied = $derived(
-    chips.length > 0 || search.value.trim().length > 0,
+    controls.chips.length > 0 || search.value.trim().length > 0,
   );
   // A closing is an event-scoped act, so it is conducted on its own page under
   // the event rather than on the talent fiche: this roster is the way in
@@ -280,7 +248,11 @@
         filtersApplied={anyFiltersApplied}
       />
 
-      <ActiveFilterChips {chips} onReset={resetFilters} />
+      <ActiveFilterChips
+        chips={controls.chips}
+        {search}
+        onReset={resetFilters}
+      />
 
       <SortableTable
         onResetFilters={anyFiltersApplied ? resetFilters : undefined}

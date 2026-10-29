@@ -52,7 +52,7 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import PullQuote from '$lib/components/staff/PullQuote.svelte';
   import { getInitials } from '$lib/avatar';
-  import { closingsFacetParams } from '$lib/domain/closingsView';
+  import { CLOSINGS_VIEW } from '$lib/domain/closingsView';
   import { cn } from '$lib/utils';
   import {
     VERDICT_SECTION,
@@ -202,7 +202,7 @@
   let total = $state<number | null>(null);
   const remainingHref = $derived(
     `${closingsHref}?${new URLSearchParams(
-      closingsFacetParams('statut', ['todo', 'in_progress']),
+      CLOSINGS_VIEW.facetParams('statut', ['todo', 'in_progress']),
     )}`,
   );
 

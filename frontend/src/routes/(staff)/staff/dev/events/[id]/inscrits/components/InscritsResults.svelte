@@ -16,13 +16,15 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import { setListParams } from '$lib/components/staff/datatable/urlList';
+  import {
+    clearListFilters,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { facetControls } from '$lib/components/staff/datatable/facetControls';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import ActiveFilterChips, {
-    type ActiveFilterChip,
-  } from '$lib/components/staff/ActiveFilterChips.svelte';
+  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
   import type { ColumnDef } from '$lib/components/staff/datatable/types';
   import {
     statusBadgeClass,
@@ -40,12 +42,9 @@
   import { parcoursLabel } from '$lib/domain/enrolmentHistory';
   import {
     INSCRITS_SORT_DEFAULT_DIR,
-    inscritsClearedFacetParams,
-    inscritsFacetParams,
-    inscritsSortParams,
-    parseInscritsView,
     type InscritsFacet,
     type InscritsSortKey,
+    INSCRITS_VIEW,
   } from '$lib/domain/inscritsView';
   import {
     RULES_STATUS_LABELS,
@@ -67,7 +66,6 @@
     type InscritInterest,
     type InscritRow,
     type InscritsCohort,
-    type RosterFacet,
   } from '$lib/domain/inscritsRoster';
   import {
     buildHaystack,
@@ -141,32 +139,17 @@
     ready: { icon: Check, tone: 'success' },
   };
 
-  const view = $derived(parseInscritsView(page.url.searchParams));
+  const view = $derived(INSCRITS_VIEW.parse(page.url.searchParams));
   const search = createUrlSearch();
 
   const facets = $derived(
     rosterFacets(rows, { showStatut: showStatutColumn }, view),
   );
-  const facetOf = $derived(
-    new Map<InscritsFacet, RosterFacet>(facets.map((f) => [f.facet, f])),
+  const controls = $derived(
+    facetControls(facets, (facet, values) =>
+      setListParams(INSCRITS_VIEW.facetParams(facet, values)),
+    ),
   );
-
-  function setFacet(facet: InscritsFacet, values: string[]) {
-    setListParams(inscritsFacetParams(facet, values));
-  }
-
-  // The header filter of a facet, or none when the event does not offer it or
-  // when it has a single value to offer.
-  function filterOf(facet: InscritsFacet): ColumnDef['filter'] {
-    const f = facetOf.get(facet);
-    return f && f.options.length > 0
-      ? {
-          options: f.options,
-          selected: f.selected,
-          onChange: (values) => setFacet(facet, values),
-        }
-      : undefined;
-  }
 
   // The table holds the mockup's columns and, like the mockup, gives each one
   // control: the names and XP sort, every other column filters from its
@@ -184,7 +167,7 @@
       key: facet,
       label,
       class: width,
-      filter: filterOf(facet),
+      filter: controls.filterOf(facet),
     });
     const cols: ColumnDef[] = [
       filtered('genre', 'Genre', 'w-20'),
@@ -198,7 +181,7 @@
       filtered('lycee', 'Lycée', 'w-full'),
       filtered('niveau', 'Niveau', 'w-28'),
     ];
-    if (facetOf.has('statut')) cols.push(filtered('statut', 'Statut', 'w-28'));
+    if (controls.has('statut')) cols.push(filtered('statut', 'Statut', 'w-28'));
     return cols;
   });
 
@@ -208,29 +191,13 @@
       { key: view.sort, dir: view.dir },
       key,
     );
-    setListParams(inscritsSortParams(next.key, next.dir));
+    setListParams(INSCRITS_VIEW.sortParams(next.key, next.dir));
   }
-
-  const chips = $derived<ActiveFilterChip[]>(
-    facets.flatMap((f) =>
-      f.selected.map((value) => ({
-        id: `${f.facet}:${value}`,
-        facet: f.title,
-        label: f.options.find((o) => o.value === value)?.label ?? value,
-        onRemove: () =>
-          setFacet(
-            f.facet,
-            f.selected.filter((v) => v !== value),
-          ),
-      })),
-    ),
-  );
 
   // Clears the filters and the search, keeps the sort: what is cleared is what
   // narrowed the list, not how it is ordered.
   function resetFilters() {
-    search.clear();
-    setListParams({ ...inscritsClearedFacetParams(), q: '' });
+    clearListFilters(INSCRITS_VIEW.clearedFacetParams(), search);
   }
 
   function makeHaystack(r: InscritRow): string {
@@ -259,7 +226,7 @@
   });
 
   const anyFiltersApplied = $derived(
-    chips.length > 0 || search.value.trim().length > 0,
+    controls.chips.length > 0 || search.value.trim().length > 0,
   );
 
   let exporting = $state(false);
@@ -454,7 +421,7 @@
       {/snippet}
     </DataTableToolbar>
 
-    <ActiveFilterChips {chips} onReset={resetFilters} />
+    <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
     <!-- One provider for the whole table: it only carries the hover-delay
          config, so the per-row badge tooltips share a single instance rather
@@ -546,7 +513,7 @@
               <span class="text-sm text-muted-foreground">-</span>
             {/if}
           </Table.Cell>
-          {#if facetOf.has('statut')}
+          {#if controls.has('statut')}
             <Table.Cell>
               <Tooltip.Root>
                 <Tooltip.Trigger>
@@ -618,7 +585,7 @@
                   <Sparkles class="h-3 w-3" />
                   {r.xp}
                 </span>
-                {#if facetOf.has('statut')}
+                {#if controls.has('statut')}
                   <span class={statusBadgeClass(badge.tone)}>
                     <BadgeIcon class="h-3 w-3" />
                     {INSCRIT_STATUS_LABELS[r.status]}

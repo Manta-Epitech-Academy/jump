@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ExternalLink from '@lucide/svelte/icons/external-link';
@@ -9,13 +10,15 @@
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import ActiveFilterChips, {
-    type ActiveFilterChip,
-  } from '$lib/components/staff/ActiveFilterChips.svelte';
-  import type {
-    ColumnDef,
-    SortDir,
-  } from '$lib/components/staff/datatable/types';
+  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
+  import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  import {
+    clearListFilters,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import { listFacets, matchesListFacets } from '$lib/domain/listFacets';
   import {
     buildHaystack,
     matchesAllTokens,
@@ -39,25 +42,40 @@
   import { natureLabel } from '$lib/domain/authIdentity';
   import {
     REMEDY_WHO_LABELS,
-    SYNC_ERROR_KIND_LABELS,
-    SYNC_ERROR_KINDS,
-    type SyncErrorKind,
     type SyncErrorRemedy,
   } from '$lib/domain/syncError';
+  import {
+    SYNC_ERRORS_FACET_DEFS,
+    SYNC_ERRORS_SORT_DEFAULT_DIR,
+    SYNC_ERRORS_VIEW,
+    type SyncErrorsSortKey,
+  } from '../view';
   import type { PageData } from '../$types';
 
   type Row = Awaited<PageData['queue']>[number];
-  type SortKey = 'talent' | 'since' | 'last';
 
   let { rows }: { rows: Row[] } = $props();
 
   const PER_PAGE = 25;
 
-  let searchQuery = $state('');
-  let kinds = $state<SyncErrorKind[]>([]);
-  let sortKey = $state<SortKey>('since');
-  let sortDir = $state<SortDir>('asc');
-  let page = $state(1);
+  // Filters, sort and search live in the address (`../view`), so a reload or a
+  // link shared with a colleague shows the same queue.
+  const view = $derived(SYNC_ERRORS_VIEW.parse(page.url.searchParams));
+  const search = createUrlSearch();
+
+  const facets = $derived(
+    listFacets(
+      rows,
+      SYNC_ERRORS_FACET_DEFS,
+      SYNC_ERRORS_VIEW.facets,
+      view.facets,
+    ),
+  );
+  const controls = $derived(
+    facetControls(facets, (facet, values) =>
+      setListParams(SYNC_ERRORS_VIEW.facetParams(facet, values)),
+    ),
+  );
 
   // Who can act decides how loud the remedy reads: nobody can is the one an
   // admin must not go looking for a fix for.
@@ -69,28 +87,19 @@
     none: 'danger',
   };
 
-  const kindCounts = $derived(
-    SYNC_ERROR_KINDS.map((k) => ({
-      value: k,
-      label: SYNC_ERROR_KIND_LABELS[k],
-      count: rows.filter((r) => r.kind === k).length,
-    })),
-  );
-
   const columns: ColumnDef[] = $derived([
-    { key: 'talent', label: 'Talent', sortable: true, class: 'w-48' },
+    {
+      key: 'talent',
+      label: 'Talent',
+      sortable: true,
+      defaultSortDir: SYNC_ERRORS_SORT_DEFAULT_DIR.talent,
+      class: 'w-48',
+    },
     {
       key: 'problem',
       label: 'Problème',
       class: 'w-full',
-      filter: {
-        options: kindCounts,
-        selected: kinds,
-        onChange: (values) => {
-          kinds = values as SyncErrorKind[];
-          page = 1;
-        },
-      },
+      filter: controls.filterOf('probleme'),
     },
     { key: 'holder', label: 'En cause', class: 'w-48' },
     { key: 'remedy', label: 'Correction', class: 'w-72' },
@@ -98,27 +107,31 @@
       key: 'since',
       label: 'Depuis',
       sortable: true,
+      defaultSortDir: SYNC_ERRORS_SORT_DEFAULT_DIR.since,
       class: 'w-32',
     },
     {
       key: 'last',
       label: 'Dernière fois',
       sortable: true,
-      defaultSortDir: 'desc',
+      defaultSortDir: SYNC_ERRORS_SORT_DEFAULT_DIR.last,
       class: 'w-32',
     },
   ]);
 
   function toggleSort(key: string) {
-    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
-    sortKey = next.key as SortKey;
-    sortDir = next.dir;
+    const next = nextSort<SyncErrorsSortKey>(
+      columns,
+      { key: view.sort, dir: view.dir },
+      key,
+    );
+    setListParams(SYNC_ERRORS_VIEW.sortParams(next.key, next.dir));
   }
 
   const subjectName = (r: Row) =>
     `${r.subject.prenom} ${r.subject.nom}`.trim() || 'Contact sans nom';
 
-  function compareRows(a: Row, b: Row, key: SortKey): number {
+  function compareRows(a: Row, b: Row, key: SyncErrorsSortKey): number {
     switch (key) {
       case 'talent':
         return subjectName(a).localeCompare(subjectName(b), 'fr');
@@ -144,9 +157,9 @@
   }
 
   const filtered = $derived.by(() => {
-    const tokens = searchTokens(searchQuery);
+    const tokens = searchTokens(search.value);
     const out = rows.filter((r) => {
-      if (kinds.length > 0 && !kinds.includes(r.kind)) return false;
+      if (!matchesListFacets(r, facets, SYNC_ERRORS_FACET_DEFS)) return false;
       return matchesAllTokens(
         buildHaystack([
           r.subject.prenom,
@@ -162,35 +175,28 @@
     });
     out.sort(
       rowComparator({
-        compare: (a, b) => compareRows(a, b, sortKey),
-        dir: sortDir,
+        compare: (a, b) => compareRows(a, b, view.sort),
+        dir: view.dir,
       }),
     );
     return out;
   });
 
-  const visible = $derived(paginate(filtered, page, PER_PAGE));
+  // Paging only keeps the DOM small, so it stays on the page (`paginate.ts`),
+  // and goes back to the first page whenever the list it pages changes.
+  let currentPage = $derived.by(() => {
+    void filtered;
+    return 1;
+  });
+  const visible = $derived(paginate(filtered, currentPage, PER_PAGE));
   const totalPages = $derived(pageCount(filtered.length, PER_PAGE));
   const filtersApplied = $derived(
-    searchQuery.trim().length > 0 || kinds.length > 0,
+    search.value.trim().length > 0 || controls.chips.length > 0,
   );
 
-  const chips: ActiveFilterChip[] = $derived(
-    kinds.map((k) => ({
-      id: `kind:${k}`,
-      facet: 'Problème',
-      label: SYNC_ERROR_KIND_LABELS[k],
-      onRemove: () => {
-        kinds = kinds.filter((x) => x !== k);
-        page = 1;
-      },
-    })),
-  );
-
+  // Clears the filters and the search, keeps the sort, as on every staff list.
   function resetFilters() {
-    kinds = [];
-    searchQuery = '';
-    page = 1;
+    clearListFilters(SYNC_ERRORS_VIEW.clearedFacetParams(), search);
   }
 
   const subjectHref = (r: Row) =>
@@ -345,25 +351,22 @@
 {:else}
   <div class="space-y-4">
     <DataTableToolbar
-      searchValue={searchQuery}
-      onSearchInput={(v) => {
-        searchQuery = v;
-        page = 1;
-      }}
+      searchValue={search.value}
+      onSearchInput={(v) => (search.value = v)}
       searchPlaceholder="Rechercher un talent ou une adresse…"
       count={filtered.length}
       countNoun="erreur"
       {filtersApplied}
     />
 
-    <ActiveFilterChips {chips} onReset={resetFilters} />
+    <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
     <SortableTable
       onResetFilters={filtersApplied ? resetFilters : undefined}
       {columns}
       rows={visible}
-      {sortKey}
-      {sortDir}
+      sortKey={view.sort}
+      sortDir={view.dir}
       onSort={toggleSort}
       rowKey={(r) => r.id}
       layout="fixed"
@@ -411,6 +414,10 @@
       {/snippet}
     </SortableTable>
 
-    <Pagination {page} {totalPages} onPageChange={(p) => (page = p)} />
+    <Pagination
+      page={currentPage}
+      {totalPages}
+      onPageChange={(p) => (currentPage = p)}
+    />
   </div>
 {/if}

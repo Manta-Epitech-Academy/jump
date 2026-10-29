@@ -6,7 +6,6 @@
   } from '$lib/components/staff/datatable/search';
   import Database from '@lucide/svelte/icons/database';
   import Pencil from '@lucide/svelte/icons/pencil';
-  import FilterX from '@lucide/svelte/icons/filter-x';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import CircleDot from '@lucide/svelte/icons/circle-dot';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -27,12 +26,27 @@
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
+    ActiveFilterChip,
     ColumnDef,
-    SortDir,
   } from '$lib/components/staff/datatable/types';
   import { type SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
   import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
-  import SearchableSelect from '$lib/components/staff/SearchableSelect.svelte';
+  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
+  import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  import {
+    clearListFilters,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import { listFacets, matchesListFacets } from '$lib/domain/listFacets';
+  import {
+    EVENT_PERIOD,
+    EVENTS_FACET_DEFS,
+    EVENTS_SORT_DEFAULT_DIR,
+    EVENTS_VIEW,
+    type EventPeriod,
+    type EventsSortKey,
+  } from './view';
   import { toast } from 'svelte-sonner';
   import {
     EVENT_MODULE_DEFS,
@@ -56,26 +70,23 @@
 
   let { data } = $props();
 
-  type StatusFilter = 'upcoming' | 'ongoing' | 'prep' | 'all';
-
   // ─── Filters + sort (in-memory over the full event list) ──────────────────
-  let search = $state('');
-  let campusFilter = $state('all');
-  let yearFilter = $state('all');
-  // Default to the forward-looking view: across hundreds of events the admin's
-  // job is preparing what's coming, not scrolling the past graveyard.
-  let statusFilter = $state<StatusFilter>('upcoming');
-  // Default mirrors the server order (date desc): the newest events first.
-  let sortKey = $state('date');
-  let sortDir = $state<SortDir>('desc');
+  // The view lives in the address (`./view`), so a reload or a shared link
+  // shows the same list. The bare address is the forward-looking view: across
+  // hundreds of events the admin's job is preparing what's coming, not
+  // scrolling the past graveyard.
+  const view = $derived(EVENTS_VIEW.parse(page.url.searchParams));
+  const period = $derived(EVENT_PERIOD.parse(page.url.searchParams));
+  const search = createUrlSearch();
 
-  const campusOptions = $derived.by(() => {
-    const seen = new Map<string, string>();
-    for (const e of data.events) seen.set(e.campusId, e.campusName);
-    return [...seen]
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
-  });
+  const facets = $derived(
+    listFacets(data.events, EVENTS_FACET_DEFS, EVENTS_VIEW.facets, view.facets),
+  );
+  const controls = $derived(
+    facetControls(facets, (facet, values) =>
+      setListParams(EVENTS_VIEW.facetParams(facet, values)),
+    ),
+  );
 
   const yearOptions = $derived.by<SegmentOption[]>(() => {
     const seen = new Map<string, number>();
@@ -85,23 +96,42 @@
       .map(([label]) => ({ value: label, label }));
     return [{ value: 'all', label: 'Toutes les années' }, ...years];
   });
+  // A year the list does not hold (a link from last year) reads as every year.
+  const year = $derived.by(() => {
+    const raw = page.url.searchParams.get('annee');
+    return yearOptions.some((o) => o.value === raw && raw !== 'all')
+      ? (raw as string)
+      : 'all';
+  });
 
-  const columns: ColumnDef[] = [
-    { key: 'name', label: 'Événement', sortable: true, class: 'w-full' },
-    { key: 'state', label: 'État', sortable: true, class: 'w-36' },
-    { key: 'campus', label: 'Campus', sortable: true, class: 'w-40' },
-    { key: 'date', label: 'Dates', sortable: true, class: 'w-44' },
-    { key: 'modules', label: 'Modules', class: 'w-60' },
-    {
-      key: 'participations',
-      label: 'Inscrits',
+  // One control per column: the campus filters from its header, the others
+  // sort.
+  const columns = $derived.by<ColumnDef[]>(() => {
+    const sortable = (key: EventsSortKey) => ({
+      key,
       sortable: true,
-      align: 'right',
-      defaultSortDir: 'desc',
-      class: 'w-24',
-    },
-    { key: 'actions', label: '', align: 'right', class: 'w-24' },
-  ];
+      defaultSortDir: EVENTS_SORT_DEFAULT_DIR[key],
+    });
+    return [
+      { ...sortable('name'), label: 'Événement', class: 'w-full' },
+      { ...sortable('state'), label: 'État', class: 'w-36' },
+      {
+        key: 'campus',
+        label: 'Campus',
+        class: 'w-40',
+        filter: controls.filterOf('campus'),
+      },
+      { ...sortable('date'), label: 'Dates', class: 'w-44' },
+      { key: 'modules', label: 'Modules', class: 'w-60' },
+      {
+        ...sortable('participations'),
+        label: 'Inscrits',
+        align: 'right',
+        class: 'w-24',
+      },
+      { key: 'actions', label: '', align: 'right', class: 'w-24' },
+    ];
+  });
 
   // Sort "État" most-work-first: à configurer, then prêt à publier, then visible.
   const STATE_RANK: Record<EventConfigState, number> = {
@@ -111,41 +141,39 @@
   };
 
   function toggleSort(key: string) {
-    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
-    sortKey = next.key;
-    sortDir = next.dir;
+    const next = nextSort<EventsSortKey>(
+      columns,
+      { key: view.sort, dir: view.dir },
+      key,
+    );
+    setListParams(EVENTS_VIEW.sortParams(next.key, next.dir));
   }
 
   function compareEvents(
     a: AdminEventVM,
     b: AdminEventVM,
-    key: string,
+    key: EventsSortKey,
   ): number {
     switch (key) {
       case 'name':
         return a.displayName.localeCompare(b.displayName, 'fr');
-      case 'campus':
-        return a.campusName.localeCompare(b.campusName, 'fr');
       case 'state':
         return STATE_RANK[a.configState] - STATE_RANK[b.configState];
       case 'date':
         return a.dateTs - b.dateTs;
       case 'participations':
         return a.participations - b.participations;
-      default:
-        return 0;
     }
   }
 
-  // Everything except the status filter: drives both the KPI tile counts (each
-  // tile shows its bucket within the current campus/year/search scope) and,
-  // once status is applied, the table rows.
+  // Everything except the window: drives both the KPI tile counts (each tile
+  // shows its bucket within the current campus/year/search scope) and, once
+  // the window is applied, the table rows.
   const baseFiltered = $derived.by(() => {
-    const tokens = searchTokens(search);
+    const tokens = searchTokens(search.value);
     return data.events.filter((e) => {
-      if (campusFilter !== 'all' && e.campusId !== campusFilter) return false;
-      if (yearFilter !== 'all' && e.schoolYearLabel !== yearFilter)
-        return false;
+      if (!matchesListFacets(e, facets, EVENTS_FACET_DEFS)) return false;
+      if (year !== 'all' && e.schoolYearLabel !== year) return false;
       return matchesAllTokens(
         buildHaystack([e.displayName, e.titre, e.campusName]),
         tokens,
@@ -153,8 +181,8 @@
     });
   });
 
-  function matchesStatus(e: AdminEventVM): boolean {
-    switch (statusFilter) {
+  function matchesPeriod(e: AdminEventVM): boolean {
+    switch (period) {
       case 'upcoming':
         return e.status === 'upcoming';
       case 'ongoing':
@@ -170,10 +198,10 @@
   }
 
   const rows = $derived.by(() => {
-    const out = baseFiltered.filter(matchesStatus);
+    const out = baseFiltered.filter(matchesPeriod);
     out.sort((a, b) => {
-      const c = compareEvents(a, b, sortKey);
-      return sortDir === 'asc' ? c : -c;
+      const c = compareEvents(a, b, view.sort);
+      return view.dir === 'asc' ? c : -c;
     });
     return out;
   });
@@ -205,27 +233,62 @@
     };
   });
 
-  const STATUS_SUFFIX: Record<StatusFilter, string> = {
-    upcoming: 'à venir',
-    ongoing: 'en cours',
-    prep: 'à préparer',
-    all: 'au total',
+  // What each window is called: on its tile, in its chip, and as the end of
+  // the count line ("12 événements à venir").
+  const PERIODS: Record<EventPeriod, { tile: string; count: string }> = {
+    upcoming: { tile: 'À venir', count: 'à venir' },
+    ongoing: { tile: 'En cours', count: 'en cours' },
+    prep: { tile: 'À préparer', count: 'à préparer' },
+    all: { tile: 'Tous', count: 'au total' },
   };
+
+  const chips = $derived<ActiveFilterChip[]>([
+    ...(period === EVENT_PERIOD.defaultValue
+      ? []
+      : [
+          {
+            id: `periode:${period}`,
+            facet: 'Période',
+            label: PERIODS[period].tile,
+            onRemove: () =>
+              setListParams(EVENT_PERIOD.params(EVENT_PERIOD.defaultValue)),
+          },
+        ]),
+    ...controls.chips,
+    ...(year === 'all'
+      ? []
+      : [
+          {
+            id: `annee:${year}`,
+            facet: 'Année',
+            label: year,
+            onRemove: () => setListParams({ annee: '' }),
+          },
+        ]),
+  ]);
+
   const scopeFiltersApplied = $derived(
-    search.trim().length > 0 || campusFilter !== 'all' || yearFilter !== 'all',
+    search.value.trim().length > 0 ||
+      controls.chips.length > 0 ||
+      year !== 'all',
   );
   const anyFiltersApplied = $derived(
-    scopeFiltersApplied || statusFilter !== 'upcoming',
+    chips.length > 0 || search.value.trim().length > 0,
   );
   const countSuffix = $derived(
-    STATUS_SUFFIX[statusFilter] + (scopeFiltersApplied ? ' (filtrés)' : ''),
+    PERIODS[period].count + (scopeFiltersApplied ? ' (filtrés)' : ''),
   );
 
+  // Clears the filters, the window and the search, keeps the sort.
   function resetFilters() {
-    search = '';
-    campusFilter = 'all';
-    yearFilter = 'all';
-    statusFilter = 'upcoming';
+    clearListFilters(
+      {
+        ...EVENTS_VIEW.clearedFacetParams(),
+        annee: '',
+        ...EVENT_PERIOD.params(EVENT_PERIOD.defaultValue),
+      },
+      search,
+    );
   }
 
   // ─── Edit dialog ─────────────────────────────────────────────────────────
@@ -388,45 +451,45 @@
        counted within the current campus/year/type/search selection. -->
   <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
     <KpiTile
-      label="À venir"
+      label={PERIODS.upcoming.tile}
       value={stats.upcoming}
       sub={`${stats.inscrUpcoming} inscrits`}
       icon={CalendarClock}
       tone="blue"
-      pressed={statusFilter === 'upcoming'}
-      onclick={() => (statusFilter = 'upcoming')}
+      pressed={period === 'upcoming'}
+      onclick={() => setListParams(EVENT_PERIOD.params('upcoming'))}
     />
     <KpiTile
-      label="En cours"
+      label={PERIODS.ongoing.tile}
       value={stats.ongoing}
       icon={CircleDot}
       tone="teal"
-      pressed={statusFilter === 'ongoing'}
-      onclick={() => (statusFilter = 'ongoing')}
+      pressed={period === 'ongoing'}
+      onclick={() => setListParams(EVENT_PERIOD.params('ongoing'))}
     />
     <KpiTile
-      label="À préparer"
+      label={PERIODS.prep.tile}
       value={stats.prep}
       icon={TriangleAlert}
       tone="orange"
       helpText="Événements à venir ou en cours pas encore visibles dans l'espace dev : à configurer ou à publier."
-      pressed={statusFilter === 'prep'}
-      onclick={() => (statusFilter = 'prep')}
+      pressed={period === 'prep'}
+      onclick={() => setListParams(EVENT_PERIOD.params('prep'))}
     />
     <KpiTile
-      label="Tous"
+      label={PERIODS.all.tile}
       value={stats.all}
       sub={`${stats.inscrTotal} inscrits`}
       icon={CalendarDays}
       tone="neutral"
-      pressed={statusFilter === 'all'}
-      onclick={() => (statusFilter = 'all')}
+      pressed={period === 'all'}
+      onclick={() => setListParams(EVENT_PERIOD.params('all'))}
     />
   </div>
 
   <DataTableToolbar
-    searchValue={search}
-    onSearchInput={(v) => (search = v)}
+    searchValue={search.value}
+    onSearchInput={(v) => (search.value = v)}
     searchPlaceholder="Rechercher un événement…"
     filtersAlign="end"
     count={rows.length}
@@ -434,40 +497,16 @@
     {countSuffix}
   >
     {#snippet filters()}
-      <div class="w-full sm:w-56">
-        <SearchableSelect
-          options={campusOptions}
-          value={campusFilter}
-          onChange={(v) => (campusFilter = v)}
-          allLabel="Tous les campus"
-          placeholder="Tous les campus"
-          searchPlaceholder="Rechercher un campus…"
-          emptyLabel="Aucun campus."
-          triggerClass="w-full"
-        />
-      </div>
       <FilterSelect
         ariaLabel="Filtrer par année scolaire"
         options={yearOptions}
-        value={yearFilter}
-        onChange={(v) => (yearFilter = v)}
+        value={year}
+        onChange={(v) => setListParams({ annee: v === 'all' ? '' : v })}
       />
     {/snippet}
-
-    {#snippet countActions()}
-      {#if anyFiltersApplied}
-        <Button
-          variant="ghost"
-          size="sm"
-          onclick={resetFilters}
-          class="h-7 px-2 text-muted-foreground hover:text-foreground"
-        >
-          <FilterX class="mr-1.5 h-4 w-4" />
-          Réinitialiser
-        </Button>
-      {/if}
-    {/snippet}
   </DataTableToolbar>
+
+  <ActiveFilterChips {chips} {search} onReset={resetFilters} />
 
   {#if selected.size > 0}
     <div
@@ -547,8 +586,8 @@
     onResetFilters={anyFiltersApplied ? resetFilters : undefined}
     {columns}
     {rows}
-    {sortKey}
-    {sortDir}
+    sortKey={view.sort}
+    sortDir={view.dir}
     onSort={toggleSort}
     rowKey={(e) => e.id}
     onRowClick={(e) => openEdit(e)}

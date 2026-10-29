@@ -14,7 +14,6 @@
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Pencil from '@lucide/svelte/icons/pencil';
   import MessageSquare from '@lucide/svelte/icons/message-square';
-  import FilterX from '@lucide/svelte/icons/filter-x';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import FormStatusSelect from '$lib/components/admin/feedback/FormStatusSelect.svelte';
@@ -22,13 +21,21 @@
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import type {
-    ColumnDef,
-    SortDir,
-  } from '$lib/components/staff/datatable/types';
-  import SegmentedFilter, {
-    type SegmentOption,
-  } from '$lib/components/staff/SegmentedFilter.svelte';
+  import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
+  import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  import {
+    clearListFilters,
+    setListParams,
+  } from '$lib/components/staff/datatable/urlList';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import { listFacets, matchesListFacets } from '$lib/domain/listFacets';
+  import {
+    FORMS_FACET_DEFS,
+    FORMS_SORT_DEFAULT_DIR,
+    FORMS_VIEW,
+    type FormsSortKey,
+  } from './view';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -73,55 +80,59 @@
   );
 
   // ─── Filters + sort (in-memory over the resolved list) ────────────────────
-  let search = $state('');
-  let statusFilter = $state<'all' | string>('all');
-  let sortKey = $state('updated');
-  let sortDir = $state<SortDir>('desc');
+  // The view lives in the address (`./view`), so a reload or a shared link
+  // shows the same list.
+  const view = $derived(FORMS_VIEW.parse(page.url.searchParams));
+  const search = createUrlSearch();
 
-  const statusOptions: SegmentOption[] = [
-    { value: 'all', label: 'Tous' },
-    { value: 'draft', label: FORM_STATUS_LABELS.draft },
-    { value: 'published', label: FORM_STATUS_LABELS.published },
-    { value: 'archived', label: FORM_STATUS_LABELS.archived },
-  ];
+  const facets = $derived(
+    listFacets(
+      cohort.value?.rows ?? [],
+      FORMS_FACET_DEFS,
+      FORMS_VIEW.facets,
+      view.facets,
+    ),
+  );
+  const controls = $derived(
+    facetControls(facets, (facet, values) =>
+      setListParams(FORMS_VIEW.facetParams(facet, values)),
+    ),
+  );
 
   // No fixed column widths: auto layout sizes to content so the status pill keeps
   // its full label (a `w-full` title forced the others to min-width and clipped
   // it). The title column naturally absorbs the slack as the longest content.
-  const columns: ColumnDef[] = [
-    { key: 'title', label: 'Titre', sortable: true },
-    { key: 'status', label: 'Statut' },
-    { key: 'access', label: 'Accès' },
-    {
-      key: 'questions',
-      label: 'Questions',
+  const columns = $derived.by<ColumnDef[]>(() => {
+    const sortable = (key: FormsSortKey) => ({
+      key,
       sortable: true,
-      align: 'right',
-      defaultSortDir: 'desc',
-    },
-    {
-      key: 'responses',
-      label: 'Réponses',
-      sortable: true,
-      align: 'right',
-      defaultSortDir: 'desc',
-    },
-    {
-      key: 'updated',
-      label: 'Modifié',
-      sortable: true,
-      defaultSortDir: 'desc',
-    },
-    { key: 'actions', label: '', align: 'right' },
-  ];
+      defaultSortDir: FORMS_SORT_DEFAULT_DIR[key],
+    });
+    return [
+      { ...sortable('title'), label: 'Titre' },
+      { key: 'status', label: 'Statut', filter: controls.filterOf('statut') },
+      { key: 'access', label: 'Accès' },
+      { ...sortable('questions'), label: 'Questions', align: 'right' },
+      { ...sortable('responses'), label: 'Réponses', align: 'right' },
+      { ...sortable('updated'), label: 'Modifié' },
+      { key: 'actions', label: '', align: 'right' },
+    ];
+  });
 
   function toggleSort(key: string) {
-    const next = nextSort(columns, { key: sortKey, dir: sortDir }, key);
-    sortKey = next.key;
-    sortDir = next.dir;
+    const next = nextSort<FormsSortKey>(
+      columns,
+      { key: view.sort, dir: view.dir },
+      key,
+    );
+    setListParams(FORMS_VIEW.sortParams(next.key, next.dir));
   }
 
-  function compareRows(a: FormListRow, b: FormListRow, key: string): number {
+  function compareRows(
+    a: FormListRow,
+    b: FormListRow,
+    key: FormsSortKey,
+  ): number {
     switch (key) {
       case 'title':
         return a.title.localeCompare(b.title, 'fr');
@@ -132,31 +143,29 @@
       case 'updated':
         // updatedAt is an ISO string → lexicographic compare is chronological.
         return a.updatedAt.localeCompare(b.updatedAt);
-      default:
-        return 0;
     }
   }
 
   const rows = $derived.by(() => {
     if (!cohort.value) return [];
-    const tokens = searchTokens(search);
+    const tokens = searchTokens(search.value);
     const out = cohort.value.rows.filter((r) => {
-      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (!matchesListFacets(r, facets, FORMS_FACET_DEFS)) return false;
       return matchesAllTokens(buildHaystack([r.title, r.slug]), tokens);
     });
     out.sort((a, b) => {
-      const c = compareRows(a, b, sortKey);
-      return sortDir === 'asc' ? c : -c;
+      const c = compareRows(a, b, view.sort);
+      return view.dir === 'asc' ? c : -c;
     });
     return out;
   });
 
   const anyFiltersApplied = $derived(
-    search.trim().length > 0 || statusFilter !== 'all',
+    search.value.trim().length > 0 || controls.chips.length > 0,
   );
+  // Clears the filters and the search, keeps the sort.
   function resetFilters() {
-    search = '';
-    statusFilter = 'all';
+    clearListFilters(FORMS_VIEW.clearedFacetParams(), search);
   }
 
   const dateFmt = new Intl.DateTimeFormat('fr-FR', {
@@ -241,51 +250,24 @@
     <ResultsNotice description="Aucun formulaire pour le moment." />
   {:else}
     <DataTableToolbar
-      searchValue={search}
-      onSearchInput={(v) => (search = v)}
+      searchValue={search.value}
+      onSearchInput={(v) => (search.value = v)}
       searchPlaceholder="Rechercher un formulaire…"
       searchWidthClass="w-full max-w-[260px]"
-      filtersAlign="end"
       count={rows.length}
       countNoun="formulaire"
       filtersApplied={anyFiltersApplied}
-    >
-      {#snippet filters()}
-        <div class="flex items-center gap-2">
-          <span class="hidden epi-overline text-muted-foreground sm:inline">
-            Statut
-          </span>
-          <SegmentedFilter
-            ariaLabel="Filtrer par statut"
-            options={statusOptions}
-            value={statusFilter}
-            onChange={(v) => (statusFilter = v)}
-          />
-        </div>
-      {/snippet}
+    />
 
-      {#snippet countActions()}
-        {#if anyFiltersApplied}
-          <Button
-            variant="ghost"
-            size="sm"
-            onclick={resetFilters}
-            class="h-7 px-2 text-muted-foreground hover:text-foreground"
-          >
-            <FilterX class="mr-1.5 h-4 w-4" />
-            Réinitialiser
-          </Button>
-        {/if}
-      {/snippet}
-    </DataTableToolbar>
+    <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
     <Tooltip.Provider delayDuration={300}>
       <SortableTable
         onResetFilters={anyFiltersApplied ? resetFilters : undefined}
         {columns}
         {rows}
-        {sortKey}
-        {sortDir}
+        sortKey={view.sort}
+        sortDir={view.dir}
         onSort={toggleSort}
         rowKey={(r) => r.id}
       >
