@@ -50,4 +50,15 @@ describe('buildTalentWhere', () => {
       AND: [{ OR: [{ niveau: { in: ['2nde', '1ere'] } }] }],
     });
   });
+
+  it('keeps the talents with no niveau under « Non renseigné »', () => {
+    // `aucun` is the only way to reach them: dropping it would answer the menu's
+    // « Non renseigné » with an empty list.
+    expect(where('niveau=aucun').scopeWhere).toEqual({
+      AND: [{ OR: [{ niveau: null }] }],
+    });
+    expect(where('niveau=2nde,aucun').scopeWhere).toEqual({
+      AND: [{ OR: [{ niveau: { in: ['2nde'] } }, { niveau: null }] }],
+    });
+  });
 });
