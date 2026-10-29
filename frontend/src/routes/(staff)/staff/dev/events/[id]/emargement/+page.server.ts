@@ -12,7 +12,6 @@ import { recomputeEventsCount } from '$lib/server/services/xpService';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { countShownCohort } from '$lib/server/services/inscritsCohort';
 import { requireStaffGroup } from '$lib/server/auth/guards';
-import { cohortNounForms } from '$lib/domain/event';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import {
   presenceSlots,
@@ -336,12 +335,13 @@ export const actions: Actions = {
       eventId: event.id,
     });
 
-    const noun = cohortNounForms(event.cohortNoun);
+    // Counted in présences, never in the cohort noun: an admin types that noun
+    // freely (« collégienne »), so a participle after it cannot agree.
     return message(
       form,
       result.marked === 0
         ? 'Tout le monde avait déjà une présence sur ce créneau.'
-        : `${result.marked} ${result.marked > 1 ? noun.plural : noun.singular} marqué${result.marked > 1 ? 's' : ''} présent${result.marked > 1 ? 's' : ''}.`,
+        : `${result.marked} ${result.marked > 1 ? 'présences enregistrées' : 'présence enregistrée'}.`,
     );
   },
 
