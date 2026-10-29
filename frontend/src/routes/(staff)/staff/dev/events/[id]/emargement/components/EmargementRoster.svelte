@@ -310,24 +310,27 @@
     body.set('day', day);
     body.set('slot', slot);
     body.set('status', status);
+    // Only a refusal is worded by the server (a créneau the event no longer
+    // has, a talent no longer on the sheet). A lost connection or an answer
+    // that is not an action result carries the browser's own English, which
+    // says nothing to act on, so it gets the generic sentence.
+    let refusal: string | undefined;
     try {
       const res = await fetch('?/setPresence', { method: 'POST', body });
       const result = deserialize(await res.text());
-      if (result.type !== 'success')
-        throw new Error(
-          result.type === 'failure' ? (formMessage(result.data) ?? '') : '',
-        );
-      await invalidate('staff:event-presence');
-      // The reload now carries the write; drop the override unless a newer click
-      // on the same cell has already replaced it.
-      if (overrides.get(key) === status) overrides.delete(key);
+      if (result.type === 'success') {
+        await invalidate('staff:event-presence');
+        // The reload now carries the write; drop the override unless a newer
+        // click on the same cell has already replaced it.
+        if (overrides.get(key) === status) overrides.delete(key);
+        return;
+      }
+      if (result.type === 'failure') refusal = formMessage(result.data);
     } catch (e) {
-      if (overrides.get(key) === status) overrides.delete(key);
-      toast.error(
-        (e instanceof Error && e.message) ||
-          "La présence n'a pas été enregistrée. Réessayez.",
-      );
+      console.error('set presence', e);
     }
+    if (overrides.get(key) === status) overrides.delete(key);
+    toast.error(refusal ?? "La présence n'a pas été enregistrée. Réessayez.");
   }
 </script>
 
