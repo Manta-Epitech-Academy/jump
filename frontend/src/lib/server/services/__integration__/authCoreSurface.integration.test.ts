@@ -11,6 +11,7 @@
  * reach, no one acting as them can.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
 import { getAuth, pathSpellings, postAuth, sessionCookie } from './authHttp';
@@ -138,6 +139,10 @@ describe('BetterAuth core HTTP surface (integration)', () => {
     const { url } = (await response.json()) as { url: string };
     const authorize = new URL(url);
     expect(authorize.hostname).toBe('login.microsoftonline.com');
+    // One directory, the one `MICROSOFT_TENANT_ID` names. Left unpinned, the
+    // provider falls back to `common`, where any directory's administrator can
+    // assert an admin's address.
+    expect(authorize.pathname.split('/')[1]).toBe(env.MICROSOFT_TENANT_ID);
     // `offline_access` is what makes Microsoft issue a refresh token, the one
     // credential stored in `bauth_account` that outlives an impersonation
     // window. Jump never refreshes: the access token is read once, right
