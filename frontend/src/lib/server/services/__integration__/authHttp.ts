@@ -44,10 +44,19 @@ export function getAuth(path: string, cookie?: string): Promise<Response> {
 
 /**
  * Spellings of a path a match could miss. Each one must not reach a handler
- * either, whether `httpSurface` or the router is what turns it away.
+ * either, whether `httpSurface` or the router is what turns it away. Every
+ * hyphen is encoded, not the first alone, and a spelling that comes out as the
+ * path itself (no hyphen to encode) is listed once.
  */
 export function pathSpellings(path: string): string[] {
-  return [path, `${path}/`, path.toUpperCase(), path.replace('-', '%2D')];
+  return [
+    ...new Set([
+      path,
+      `${path}/`,
+      path.toUpperCase(),
+      path.replaceAll('-', '%2D'),
+    ]),
+  ];
 }
 
 /**
