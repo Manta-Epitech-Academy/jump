@@ -215,6 +215,7 @@ const DOMAINS: { title: string; models: string[] }[] = [
       'Sync_Cadence',
       'Sync_PruneHold',
       'Sync_Request',
+      'Sync_ErasedContact',
       'AdminApi_Token',
       'AdminApi_Call',
     ],

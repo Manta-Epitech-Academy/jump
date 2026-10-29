@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **83** modèles · **33** enums · **117** relations
+- **84** modèles · **33** enums · **117** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -21,7 +21,7 @@
 | Communication & Support | 5 |
 | Contenus & Centres d'intérêt | 5 |
 | Analytique d'usage | 2 |
-| Configuration & Système | 11 |
+| Configuration & Système | 12 |
 | Autres | 4 |
 
 ## 1 · Authentification & Profils
@@ -1059,6 +1059,7 @@ erDiagram
     String contactName
     String email
     String detail
+    String[] convertedLeadIds
     DateTime firstOccurredAt
     DateTime lastOccurredAt
   }
@@ -1100,6 +1101,11 @@ erDiagram
   Sync_Request {
     SyncMode mode PK
     DateTime requestedAt
+  }
+  Sync_ErasedContact {
+    String externalId PK
+    DateTime readmittedAt
+    String readmittedBy
   }
   AdminApi_Token {
     String id PK
