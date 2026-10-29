@@ -38,6 +38,16 @@ Read [`DESIGN.md`](../../DESIGN.md) at the repo root before any visual work: it 
 
   A list, or the whole body of a card or a dialog, gets `ResultsNotice` (`compact` inside a card or a dialog), never a bare italic sentence. The event home's cards are the one exception: `HomeCard` draws its own, as the 2027 mockup does. A missing value on one line among others (a field, a table cell, one entry of a rail) stays a muted line or `-`. The same state reads the same everywhere: an event with no one shown is `EmptyCohortNotice`, on every one of its pages.
 
+- **The dev space has a voice, and it lives in one file.** A tool used all day feels alive through a few lines that make its people smile: the calendar's greeting, a filter that found no one, the last closing of an event, a créneau where everyone came, a lost page. Every such line is in `$lib/domain/devVoice.ts`, so they can be read and rewritten side by side, and none is written inline in a component. A line:
+
+  1. **is understood by whoever reads it.** "Dev" is the recruitment team: Salesforce, relances and closings are their world, segfaults are not.
+  2. **is never said over a failure or lost work.** There the copy only says what failed and what to do.
+  3. **is never at a talent's expense.** Talents are minors, and a recruiter reads about them.
+  4. **does not agree with the cohort noun.** An admin types it freely (« collégienne », « élève »): it only follows « les », never takes an adjective or a « de ».
+  5. **rotates by a key, never at random,** when it is seen often (`pickLine`): the server render and the page must pick the same one, and a line must hold still while someone types.
+
+  It adds words, never motion: `DESIGN.md` § Motion still applies. The seasonal pixels on the talent fiche (`seasonOn`) follow the same idea in the charte's colours only.
+
 - **A list whose length comes from data scrolls in its own box.** Any `{#each}` over rows the database decides the count of gets a bounded, scrollable region: `max-h-[40svh] overflow-y-auto` on the list, and the dialog or card keeps its own `max-h-[90svh] overflow-y-auto` as the floor for short viewports. Viewport-relative, not a pixel cap, so the box grows with the screen instead of leaving a letterbox on a laptop.
 
   The tell is not "is it long today", it is **who decides how many rows there are**. A fixed catalogue rendered from a constant is bounded by the code and needs nothing. A ledger, an append-only log, an inventory, a feed or anything with a revoked/archived tail is bounded by nothing and only ever grows, so it is already wrong the day it ships even while it looks fine.
