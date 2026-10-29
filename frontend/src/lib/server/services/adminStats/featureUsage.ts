@@ -113,7 +113,7 @@ export const USAGE_SMALL_CELL_FLOOR = 5;
 
 const MASKED_CELL_RULE =
   `Pour les fonctionnalités côté talent, le nombre d'acteurs distincts est masqué (null) en dessous de ${USAGE_SMALL_CELL_FLOOR} dès que la question porte sur un seul campus ou sur un seul événement, ` +
-  `car sur un périmètre aussi étroit un compte de 1 ou 2 désignerait presque des personnes. Un zéro n'est jamais masqué : il ne désigne personne et c'est la réponse la plus utile. La part de la population est masquée avec lui, sinon elle le redonnerait.`;
+  `car sur un périmètre aussi étroit un compte de 1 ou 2 désignerait presque des personnes. Un zéro n'est jamais masqué : il ne désigne personne et c'est la réponse la plus utile. La part de la population est masquée avec lui, sinon elle le redonnerait, et le nombre d'utilisations aussi : il n'est jamais inférieur au nombre d'acteurs, donc 2 utilisations diraient 1 ou 2 personnes.`;
 
 const IMPERSONATION_RULE =
   "Les consultations faites par un administrateur en exploration d'un campus sont exclues : un administrateur qui regarde n'est pas un campus qui adopte.";
@@ -135,7 +135,8 @@ export type FeatureRow = {
   definition: string;
   audience: UsageAudience;
   espace: UsageSpace;
-  utilisations: number;
+  /** Null when masked with the actors, see {@link maskUses}. */
+  utilisations: number | null;
   /** The busiest month's distinct actors; null when masked by the floor. */
   acteursDistinctsMoisDePointe: number | null;
   moisDePointe: string | null;
@@ -242,6 +243,21 @@ function maskCell(
 }
 
 /**
+ * A cell's uses, masked whenever its actors are. Uses are never fewer than
+ * actors, so a bare `utilisations: 2` beside a masked count says it is 1 or 2,
+ * and the floor would be a formality.
+ */
+function maskUses(
+  key: UsageFeatureKey,
+  totals: FeatureTotals,
+  narrowed: boolean,
+): number | null {
+  return maskCell(key, totals.peakActors, narrowed) === null
+    ? null
+    : totals.uses;
+}
+
+/**
  * The day count to narrow by, or none.
  *
  * A named school year IS the window, so a default day count must not be
@@ -343,7 +359,7 @@ export async function getFeatureUsage(
       definition: def.definition,
       audience: def.audience,
       espace: def.space,
-      utilisations: t.uses,
+      utilisations: maskUses(key, t, narrowed),
       acteursDistinctsMoisDePointe: actors,
       moisDePointe: actors === null ? null : t.peakMonth,
       // Masked with the count, or the share would hand it straight back.
@@ -351,8 +367,8 @@ export async function getFeatureUsage(
       dernierMoisUtilise: t.lastMonth,
       evolutionUtilisations: comparison
         ? variation(
-            comparison.current.get(key)?.uses ?? 0,
-            comparison.previousFor(key),
+            comparison.currentUsesFor(key),
+            comparison.previousUsesFor(key),
             'count',
             COMPARISON_LABEL,
           ).value
@@ -425,6 +441,9 @@ type Comparison = {
   /** Null when the reference period holds no measurement at all. */
   previousFor: (key: string) => number | null;
   previousActorsFor: (key: string) => number | null;
+  /** Each half's uses as an answer may show them, see {@link maskUses}. */
+  currentUsesFor: (key: UsageFeatureKey) => number | null;
+  previousUsesFor: (key: UsageFeatureKey) => number | null;
   /**
    * Whether the halves were read narrowed, for {@link maskCell}. The cube
    * carries a campus and never an event, so this is the campus filter alone:
@@ -455,6 +474,7 @@ async function readComparison(
   ]);
   const current = foldByFeature(cur.tallies);
   const reference = foldByFeature(ref.tallies);
+  const narrowed = campusId !== null;
   return {
     ...months,
     current,
@@ -463,7 +483,13 @@ async function readComparison(
       ref.hasAnyRow ? (reference.get(key)?.uses ?? 0) : null,
     previousActorsFor: (key) =>
       ref.hasAnyRow ? (reference.get(key)?.peakActors ?? 0) : null,
-    narrowed: campusId !== null,
+    currentUsesFor: (key) =>
+      maskUses(key, current.get(key) ?? EMPTY_TOTALS, narrowed),
+    previousUsesFor: (key) =>
+      ref.hasAnyRow
+        ? maskUses(key, reference.get(key) ?? EMPTY_TOTALS, narrowed)
+        : null,
+    narrowed,
   };
 }
 
@@ -493,8 +519,8 @@ function buildComparison(
     periode: comparison.periode,
     periodeReference: comparison.periodeReference,
     utilisations: variation(
-      comparison.current.get(feature)?.uses ?? 0,
-      comparison.previousFor(feature),
+      comparison.currentUsesFor(feature),
+      comparison.previousUsesFor(feature),
       'count',
       COMPARISON_LABEL,
     ),
@@ -524,7 +550,7 @@ export type AdoptionGaps = {
       feature: string;
       libelle: string;
       espace: string;
-      utilisationsPeriodeReference: number;
+      utilisationsPeriodeReference: number | null;
     }[]
   >;
   unSeulCampus: Metric<{ feature: string; libelle: string; campus: string }[]>;
@@ -612,7 +638,7 @@ export async function getFeatureAdoptionGaps(
           feature: key,
           libelle: USAGE_FEATURE_DEFS[key].label,
           espace: USAGE_FEATURE_DEFS[key].space,
-          utilisationsPeriodeReference: comparison.previousFor(key) ?? 0,
+          utilisationsPeriodeReference: comparison.previousUsesFor(key),
         }))
     : [];
 
@@ -644,7 +670,7 @@ export async function getFeatureAdoptionGaps(
     ),
     devenuesInutilisees: metric(
       abandoned,
-      "Les fonctionnalités qui ont servi sur la même période l'an dernier et qui n'ont servi à personne sur celle-ci, avec le nombre d'utilisations qu'elles avaient alors. C'est le signal de retrait le plus fort des trois : une fonctionnalité qui n'a jamais servi peut n'avoir jamais été trouvée, une fonctionnalité qui ne sert plus a été trouvée puis abandonnée. Vide tant que les totaux mensuels ne remontent pas à un an.",
+      `Les fonctionnalités qui ont servi sur la même période l'an dernier et qui n'ont servi à personne sur celle-ci, avec le nombre d'utilisations qu'elles avaient alors. ${MASKED_CELL_RULE} C'est le signal de retrait le plus fort des trois : une fonctionnalité qui n'a jamais servi peut n'avoir jamais été trouvée, une fonctionnalité qui ne sert plus a été trouvée puis abandonnée. Vide tant que les totaux mensuels ne remontent pas à un an.`,
     ),
     unSeulCampus: metric(
       nationallyMeasured ? single : [],

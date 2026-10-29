@@ -596,7 +596,8 @@ describe('the figures the two stores must agree on', () => {
     const row = answer.fonctionnalites.value.find(
       (r) => r.feature === USAGE_FEATURES.TALENT_FEEDBACK_OPEN,
     );
-    expect(row?.utilisations).toBe(2);
+    // Two uses beside a masked count would say it is one or two people.
+    expect(row?.utilisations).toBeNull();
     expect(row?.acteursDistinctsMoisDePointe).toBeNull();
     expect(row?.moisDePointe).toBeNull();
     expect(row?.partDeLaPopulation).toBeNull();
@@ -652,7 +653,7 @@ describe('the figures the two stores must agree on', () => {
     // announcing that it had.
     const before = await getFeatureUsage({}, { days: 90 });
     const seeded = before.fonctionnalites.value.filter(
-      (r) => r.utilisations > 0,
+      (r) => (r.utilisations ?? 0) > 0,
     );
     expect(seeded.length).toBeGreaterThan(0);
 
@@ -750,13 +751,19 @@ describe('the figures the two stores must agree on', () => {
     await prisma.usage_FeatureMonthly.createMany({
       data: [monthly(current, 3), monthly(reference, 2)],
     });
-    const small = (await ask()).comparaison!;
-    expect(small.acteursDistinctsMoisDePointe.value).toEqual({
-      previous: null,
-      absolute: null,
-      relative: null,
-    });
+    const smallAnswer = await ask();
+    const small = smallAnswer.comparaison!;
+    const nothing = { previous: null, absolute: null, relative: null };
+    expect(small.acteursDistinctsMoisDePointe.value).toEqual(nothing);
     expect(small.partDeLaPopulation.value.previous).toBeNull();
+    // Uses are never fewer than actors, so they are masked with them: 2 uses
+    // would say the masked count is 1 or 2.
+    expect(small.utilisations.value).toEqual(nothing);
+    const row = smallAnswer.fonctionnalites.value.find(
+      (r) => r.feature === USAGE_FEATURES.TALENT_CALENDAR_VIEW,
+    )!;
+    expect(row.utilisations).toBeNull();
+    expect(row.evolutionUtilisations).toEqual(nothing);
 
     // Above the floor on both sides, the comparison answers in full.
     await prisma.usage_FeatureMonthly.deleteMany({
@@ -773,6 +780,10 @@ describe('the figures the two stores must agree on', () => {
     });
     const large = (await ask()).comparaison!;
     expect(large.acteursDistinctsMoisDePointe.value).toMatchObject({
+      previous: USAGE_SMALL_CELL_FLOOR,
+      absolute: 3,
+    });
+    expect(large.utilisations.value).toMatchObject({
       previous: USAGE_SMALL_CELL_FLOOR,
       absolute: 3,
     });

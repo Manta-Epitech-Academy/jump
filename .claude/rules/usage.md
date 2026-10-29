@@ -95,7 +95,10 @@ catalogue both read.
   name, so it discloses more than the cell already withheld. The rule is the
   narrowing and not the word campus: any filter that can bring a talent count
   below the whole platform goes through `maskCell`, and the share is masked with
-  the count or it hands the count straight back.
+  the count or it hands the count straight back. So are the uses
+  (`maskUses`), on the row, in either half of a comparison and in the
+  adoption gaps: never fewer than the actors, two uses say the masked count
+  is one or two.
 - **Two stores, one figure, and a distinct actor is counted per month.** Inside
   the retention window the answer comes from `Usage_FeatureUse`, beyond it from
   the actor-free cube, and both go through `server/usage/read.ts` so the store
