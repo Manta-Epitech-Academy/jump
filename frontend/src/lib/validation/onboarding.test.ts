@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   identitySchema,
+  parentsSchema,
   rulesSchema,
   rulesSchemaWithoutCharter,
 } from './onboarding';
@@ -105,5 +106,53 @@ describe('identitySchema names', () => {
     expect(
       identitySchema.safeParse({ ...identity, prenom: '  a ' }).success,
     ).toBe(false);
+  });
+});
+
+// Parent 2 is optional as a whole, and its names are stored as the form
+// parses them: trimmed and bounded like every other name, once filled in.
+describe('parentsSchema names of parent 2', () => {
+  const parents = {
+    studentEmail: 'lea@example.test',
+    parentType: 'mere',
+    parentCivilite: 'femme',
+    parentNom: 'Dupont',
+    parentPrenom: 'Marie',
+    parentEmail: 'marie@example.test',
+    parentPhone: '+33612345678',
+  };
+  const parent2 = {
+    parent2Type: 'pere',
+    parent2Civilite: 'homme',
+    parent2Nom: '  Martin ',
+    parent2Prenom: ' Paul',
+    parent2Email: 'paul@example.test',
+  };
+
+  it('trims them', () => {
+    const parsed = parentsSchema.safeParse({ ...parents, ...parent2 });
+    expect(parsed.success && parsed.data).toMatchObject({
+      parent2Nom: 'Martin',
+      parent2Prenom: 'Paul',
+    });
+  });
+
+  it('caps them like the names of parent 1', () => {
+    const parsed = parentsSchema.safeParse({
+      ...parents,
+      ...parent2,
+      parent2Nom: 'x'.repeat(101),
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it('still leaves parent 2 out when nothing but blanks was typed', () => {
+    expect(
+      parentsSchema.safeParse({
+        ...parents,
+        parent2Nom: '   ',
+        parent2Prenom: '',
+      }).success,
+    ).toBe(true);
   });
 });

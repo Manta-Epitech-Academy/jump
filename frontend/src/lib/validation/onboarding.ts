@@ -28,12 +28,11 @@ const requiredConsent = (message: string) => z.literal('true', { message });
 // characters. No character is refused: real names carry apostrophes, hyphens
 // and accents (N’Diaye, Marie-Ève), and the mails that quote a name escape it
 // themselves (`substituteVariables`). The cap only bounds what a form can store.
+// `nameText` is the trim and the cap alone, for a name a form may leave blank.
+const nameText = (label: string) =>
+  z.string().trim().max(100, `${label} ne peut pas dépasser 100 caractères`);
 const personName = (label: string) =>
-  z
-    .string()
-    .trim()
-    .min(2, `${label} doit faire au moins 2 caractères`)
-    .max(100, `${label} ne peut pas dépasser 100 caractères`);
+  nameText(label).min(2, `${label} doit faire au moins 2 caractères`);
 
 const optionalPhoneSchema = z
   .string()
@@ -45,8 +44,10 @@ const optionalPhoneSchema = z
 const parent2Schema = z.object({
   parent2Type: z.string().optional(),
   parent2Civilite: z.string().optional(),
-  parent2Nom: z.string().optional(),
-  parent2Prenom: z.string().optional(),
+  // Optional as a pair with the rest of parent 2: required, two characters at
+  // least, only once any of it is filled in (the refinements below).
+  parent2Nom: nameText('Le nom du parent').optional(),
+  parent2Prenom: nameText('Le prénom du parent').optional(),
   parent2Email: z.string().optional(),
   parent2Phone: optionalPhoneSchema,
 });
@@ -144,7 +145,7 @@ export const parentsSchema = z
   .refine(
     (data) =>
       !parent2Engaged(data) ||
-      (!!data.parent2Prenom && data.parent2Prenom.trim().length >= 2),
+      (!!data.parent2Prenom && data.parent2Prenom.length >= 2),
     {
       message: 'Le prénom du parent doit faire au moins 2 caractères',
       path: ['parent2Prenom'],
@@ -153,7 +154,7 @@ export const parentsSchema = z
   .refine(
     (data) =>
       !parent2Engaged(data) ||
-      (!!data.parent2Nom && data.parent2Nom.trim().length >= 2),
+      (!!data.parent2Nom && data.parent2Nom.length >= 2),
     {
       message: 'Le nom du parent doit faire au moins 2 caractères',
       path: ['parent2Nom'],
