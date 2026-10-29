@@ -62,16 +62,29 @@ function sanitizeHref(raw: string): string {
 // URL variable hasn't been substituted yet: otherwise marked falls back to
 // inline link parsing and the `:button` prefix leaks into the rendered HTML
 // as literal text (`:buttonLabel` artefact). The renderer below handles the
-// empty-href case explicitly. Both parts accept CommonMark backslash escapes,
-// which a variable value carries (`substituteVariables`), so `Léa \(Lily\)`
-// stays one label and shows as `Léa (Lily)`.
+// empty-href case explicitly. Both parts are read as Markdown text, so they
+// take a template author's backslash escapes and the numeric character
+// references a variable value is written in (`substituteVariables`): `Léa
+// &#40;Lily&#41;` stays one label and shows as `Léa (Lily)`.
 const BUTTON_RE =
   /^:button\[((?:\\.|[^\\\]\n])+)\]\(((?:\\.|[^\\)\n])*)\)\s*(?:\n|$)/;
 
 const ESCAPED_PUNCTUATION_RE = /\\([!-/:-@[-`{-~])/g;
+const NUMERIC_REFERENCE_RE = /&#(?:(\d{1,7})|[xX]([0-9a-fA-F]{1,6}));/g;
 
-function unescapeMarkdown(text: string): string {
-  return text.replace(ESCAPED_PUNCTUATION_RE, '$1');
+/** What marked does to the text of a paragraph, for the button's own parts. */
+function decodeMarkdownText(text: string): string {
+  return text
+    .replace(ESCAPED_PUNCTUATION_RE, '$1')
+    .replace(
+      NUMERIC_REFERENCE_RE,
+      (reference, decimal?: string, hex?: string) => {
+        const code = decimal ? Number(decimal) : parseInt(hex!, 16);
+        return code > 0 && code <= 0x10ffff
+          ? String.fromCodePoint(code)
+          : reference;
+      },
+    );
 }
 
 const broadcastButton = {
@@ -87,8 +100,8 @@ const broadcastButton = {
     return {
       type: 'broadcastButton',
       raw: match[0],
-      label: unescapeMarkdown(match[1]).trim(),
-      href: unescapeMarkdown(match[2]).trim(),
+      label: decodeMarkdownText(match[1]).trim(),
+      href: decodeMarkdownText(match[2]).trim(),
     };
   },
   renderer(token: Tokens.Generic): string {

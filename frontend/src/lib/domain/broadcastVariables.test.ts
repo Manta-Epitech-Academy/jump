@@ -42,6 +42,13 @@ describe('substituteVariables into a mail body', () => {
     ['a protocol URL', 'https://evil.example/pay'],
     ['a bare www. host', 'Payez sur www.evil.example/pay'],
     ['a www. host on a line of its own', 'Léa\n\nwww.evil.example'],
+    // marked's autolink starts after any of these, where the escape table it
+    // replaced only expected the start of a line, a space or an `_`.
+    ['a www. host after a letter', 'Awww.evil.example/login'],
+    ['a www. host after a bracket', '(www.evil.example'],
+    ['a www. host after a hyphen', 'Jean-www.evil.example'],
+    ['a www. host after a dot', 'hello.www.evil.example'],
+    ['a www. host after a quote', '"www.evil.example'],
     [
       'a button on its own line',
       'Léa\n\n:button[Confirmer mon compte](https://evil.example/login)\n\nmerci',
@@ -54,6 +61,13 @@ describe('substituteVariables into a mail body', () => {
       'mailto:contact.lille@epitech.eu',
     ]);
     expect(text.match(/ : \S+$/gm)).toEqual([` : ${PARENT_LINK}`]);
+  });
+
+  it('restyles nothing with underscores typed in a name', () => {
+    const { html } = mailFor('_Léa_ __Lily__');
+
+    expect(html).not.toMatch(/<(em|strong)\b/);
+    expect(html).toContain('_Léa_ __Lily__ vient de finaliser');
   });
 
   it.each(['N’Diaye', 'Marie-Ève', "N'Golo", 'Léa (Lily)', 'Jean-Pierre Jr.'])(

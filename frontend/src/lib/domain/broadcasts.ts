@@ -189,11 +189,12 @@ export interface BroadcastVariable {
   demo: string;
   contextual: boolean;
   /**
-   * A URL Jump mints itself, inserted verbatim so a template can use it as a
-   * link target. Every other value is text, typed by a talent, a parent or
-   * staff, and `substituteVariables` keeps it from becoming Markdown syntax.
+   * Inserted verbatim, so a template can link it: a URL Jump mints itself, or
+   * the campus contact address an admin validated as one, which gfm then
+   * links. Every other value is text, typed by a talent, a parent or staff,
+   * and `substituteVariables` keeps it from becoming Markdown syntax.
    */
-  link?: true;
+  verbatim?: true;
   /**
    * Text an admin types and may run over several paragraphs. A mail body keeps
    * its lines, so a template gives it lines of its own, never a button or a
@@ -245,6 +246,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: 'Email de contact du campus du destinataire',
     demo: 'contact.paris@epitech.eu',
     contextual: false,
+    verbatim: true,
   },
   {
     key: 'event_name',
@@ -266,7 +268,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: 'Lien de connexion magique unique (par destinataire)',
     demo: 'https://jump.epiboost.fr/fastlogin?token=DEMO',
     contextual: true,
-    link: true,
+    verbatim: true,
   },
   {
     key: 'parent_fastlogin_link',
@@ -274,7 +276,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: "Lien de connexion magique du parent (s'ouvre sur l'espace parent)",
     demo: 'https://jump.epiboost.fr/parent/fastlogin?token=DEMO',
     contextual: true,
-    link: true,
+    verbatim: true,
   },
   {
     key: 'otp_code',
@@ -317,7 +319,7 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     label: "Lien de connexion vers l'espace concerné",
     demo: 'https://jump.epiboost.fr/parent/login',
     contextual: true,
-    link: true,
+    verbatim: true,
   },
   {
     key: 'deletion_reason',

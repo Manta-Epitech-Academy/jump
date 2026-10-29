@@ -60,42 +60,30 @@ export function buildDemoContext(eventName?: string | null): VariableContext {
 
 const TOKEN_RE = /\{\{\s*([a-z_][a-z0-9_]*)\s*\}\}/gi;
 
-const LINK_KEYS: ReadonlySet<string> = new Set(
-  BROADCAST_VARIABLES.filter((v) => v.link).map((v) => v.key),
+const VERBATIM_KEYS: ReadonlySet<string> = new Set(
+  BROADCAST_VARIABLES.filter((v) => v.verbatim).map((v) => v.key),
 );
 
 const MULTILINE_KEYS: ReadonlySet<string> = new Set(
   BROADCAST_VARIABLES.filter((v) => v.multiline).map((v) => v.key),
 );
 
-// Every character that can open a Markdown construct able to add a link or a
-// button (link, image, `:button`, autolink, raw HTML, a protocol URL) or to
-// restyle the mail (emphasis, code, heading, quote, table). `. @ _ + -` are
-// left alone: they make up email addresses, and escaping them would stop gfm
-// linking `{{email_contact_campus}}` to itself, or for `_` and `+` link only
-// the part after it. What they can still open is taken apart below: a bare
-// `www.` host, which gfm links with no `:` to escape, and a block a line
-// starts.
-const MARKDOWN_SPECIAL_RE = /[\\`*~[\]()<>!#|:]/g;
-
-// gfm's extended autolink, the one target a value could still add: `www.`
-// where gfm starts one, at the start of a line or after a space or an `_`
-// (`*`, `~` and `(` are escaped already). Not inside an address, which would
-// cut `x@www.example.org` out of its own link.
-const WWW_AUTOLINK_RE = /(^|[\s_])(www)\./gi;
-
-// What a line can open at its start once the characters above are escaped: a
-// list item or a rule (`-`, `+`, `_`), a setext heading (`=`), an ordered item
-// (`1.`). Leading whitespace is dropped rather than escaped, since four spaces
-// open a code block.
-const LINE_START_RE = /^[-+=_]|^(\d+)(\.)/;
+// Every ASCII punctuation character but `&`: the whole alphabet Markdown
+// syntax is spelled in, gfm's autolinks included (`www.`, `@`, `://`). A value
+// writes each one as the numeric character reference it stands for, which
+// CommonMark never reads as syntax: decoded, it is text. So no link, autolink,
+// button, emphasis or block can come out of a value, by the spec rather than
+// by a table of what marked links, which had to guess and guessed wrong
+// (`awww.`, `(www.` and `_x_` all got through it). `&` stays as typed: alone it
+// opens nothing, and marked hands a decoded one to the text part as `&amp;`.
+const MARKDOWN_PUNCTUATION_RE = /[!-%'-/:-@[-`{-~]/g;
 
 /**
- * A text value as Markdown that renders as the characters it is: escaped
- * inline, each line kept, and nothing a line starts with opening a block. A
- * `multiline` value reaches it as typed, so a reason keeps its paragraphs,
- * where folding every value onto one line ran them together; any other one
- * reaches it folded.
+ * A text value as Markdown that renders as the characters it is: its
+ * punctuation written as character references, each line kept, and leading
+ * whitespace dropped, since four spaces open a code block. A `multiline` value
+ * reaches it as typed, so a reason keeps its paragraphs, where folding every
+ * value onto one line ran them together; any other one reaches it folded.
  */
 function escapeMarkdownText(value: string): string {
   return value
@@ -104,20 +92,16 @@ function escapeMarkdownText(value: string): string {
       line
         .replace(/[^\S\n]+/g, ' ')
         .trim()
-        .replace(MARKDOWN_SPECIAL_RE, '\\$&')
-        .replace(WWW_AUTOLINK_RE, '$1$2\\.')
-        .replace(LINE_START_RE, (start, digits?: string, dot?: string) =>
-          digits ? `${digits}\\${dot}` : `\\${start}`,
-        ),
+        .replace(MARKDOWN_PUNCTUATION_RE, (c) => `&#${c.charCodeAt(0)};`),
     )
     .join('\n');
 }
 
 /**
  * `markdown` is for a mail body, which `renderBroadcastEmail` parses after
- * substitution: a text value is backslash-escaped there, so a name such as
- * `[Cliquez ici](https://…)` renders as the characters it is instead of a link
- * in a mail sent under Epitech's name. `plain` is for a subject or an SMS.
+ * substitution: a text value's punctuation is written as character references
+ * there, so a name such as `[Cliquez ici](https://…)` renders as the
+ * characters it is instead of a link in a mail sent under Epitech's name. `plain` is for a subject or an SMS.
  * Either way a text value is folded onto one line, except a `multiline` one in
  * a mail body: a line break would split the label a name sits in, end a
  * header, or split a message.
@@ -133,7 +117,7 @@ export function substituteVariables(
     const key = rawKey.toLowerCase() as keyof VariableContext;
     if (!(key in ctx)) return '';
     const value = ctx[key] ?? '';
-    if (LINK_KEYS.has(key)) return value;
+    if (VERBATIM_KEYS.has(key)) return value;
     const folded = value.replace(/\s+/g, ' ');
     if (format === 'plain') return folded;
     return escapeMarkdownText(MULTILINE_KEYS.has(key) ? value : folded);
