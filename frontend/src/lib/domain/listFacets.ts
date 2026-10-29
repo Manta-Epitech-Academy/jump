@@ -1,24 +1,29 @@
 /**
- * The column filters of a staff list over an event's roster (Inscrits,
- * Closings, Feedback), once: what a filter offers, what it keeps, and how it
- * reads and writes the page address. Each list declares its facets; the rules
- * below are the same on all three, as the lists sit side by side and a
- * behaviour that differs between two of them is a bug in one.
+ * The column filters of every staff list, once: what a filter offers, what it
+ * keeps, and how it reads and writes the page address. Each list declares its
+ * facets; the rules below are the same on all of them (the event's Inscrits,
+ * Closings and Feedback, the admin directories), as a behaviour that differs
+ * between two lists is a bug in one.
  *
- * - **A facet's values are the roster's.** A value shows in a filter only when
- *   some row carries it, with how many do. The count is over the whole roster,
+ * - **A facet's values are the list's.** A value shows in a filter only when
+ *   some row carries it, with how many do. The count is over the whole list,
  *   not over what the other filters left, so it reads the same however the list
- *   is narrowed: it describes the event.
+ *   is narrowed: it describes the event, or the directory.
  * - **Several values of one facet widen, several facets narrow.** A row is kept
  *   when, for every active facet, it carries one of the values ticked.
- * - **A value the roster does not carry is ignored**, so a stale or hand-edited
+ * - **A value the list does not carry is ignored**, so a stale or hand-edited
  *   address (an option deleted since the link was shared) filters on what still
  *   exists instead of emptying the list.
- * - **A facet whose roster carries a single value keeps its column, with no
+ * - **A facet whose list carries a single value keeps its column, with no
  *   filter**, since it could not narrow the list; its param is ignored.
  * - **In the address, one param per facet, values comma-joined**, ids or enum
  *   keys and never labels, `aucun` for "not filled in". The default view writes
- *   nothing.
+ *   nothing (`$lib/domain/listView`).
+ *
+ * Who counts is the only thing that differs between lists. A list held whole
+ * in memory counts its rows (`listFacets`, through `countFacet`); a list paged
+ * on the server counts in the database and hands the counts to `offerFacets`.
+ * Both end in `offerFacets`, so the rules above are never written twice.
  */
 
 /** One value of a facet with how many rows carry it: what a filter menu lists,
@@ -65,24 +70,50 @@ export function countFacet<R>(
     .map(([value, label]) => ({ value, label, count: counts.get(value) ?? 0 }));
 }
 
-/** The facets offered, each with its counted values and what the view ticks. */
+/** The facets offered, each with its counted values and what the view ticks,
+ *  for a list held whole in memory. */
 export function listFacets<R, K extends string>(
   rows: readonly R[],
   defs: Record<K, FacetDef<R>>,
   keys: readonly K[],
   ticked: Record<K, readonly string[]>,
 ): ListFacet<K>[] {
-  return keys.map((facet) => {
-    const options = countFacet(rows, defs[facet]);
-    // One value cannot narrow anything (every row has it), so such a facet is
-    // not offered as a filter and its param is ignored.
-    const offered = new Set(
-      options.length > 1 ? options.map((o) => o.value) : [],
-    );
-    return {
+  return offerFacets(
+    keys.map((facet) => ({
       facet,
       title: defs[facet].title,
-      options: options.length > 1 ? options : [],
+      counts: countFacet(rows, defs[facet]),
+    })),
+    ticked,
+  );
+}
+
+/** One facet as counted, by the rows in memory or by the database: every
+ *  value the list carries, with how many rows do, in menu order. */
+export type CountedFacet<K extends string> = {
+  facet: K;
+  title: string;
+  counts: FacetCount[];
+};
+
+/** The facets offered off their counts, with what the view ticks in each:
+ *  where the rules above are applied, whoever counted. */
+export function offerFacets<K extends string>(
+  counted: readonly CountedFacet<K>[],
+  ticked: Record<K, readonly string[]>,
+): ListFacet<K>[] {
+  return counted.map(({ facet, title, counts }) => {
+    // A database count can name a value no row carries (a status bucket at
+    // zero); the menu lists only what the list holds.
+    const carried = counts.filter((c) => c.count > 0);
+    // One value cannot narrow anything (every row has it), so such a facet is
+    // not offered as a filter and its param is ignored.
+    const options = carried.length > 1 ? carried : [];
+    const offered = new Set(options.map((o) => o.value));
+    return {
+      facet,
+      title,
+      options,
       selected: ticked[facet].filter((v) => offered.has(v)),
     };
   });
