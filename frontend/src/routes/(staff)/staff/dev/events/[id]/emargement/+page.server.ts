@@ -10,6 +10,7 @@ import {
 } from '$lib/server/db/scoped';
 import { recomputeEventsCount } from '$lib/server/services/xpService';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
+import { countShownCohort } from '$lib/server/services/inscritsCohort';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { cohortNounForms } from '$lib/domain/event';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
@@ -72,10 +73,13 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   // / pastCutoffKeys synchronous: the header QR button reads the closed-state on
   // first paint, and the active-slot filter inits from `slots`. Only the heavy
   // roster join + presence grid + the O(rows×slots) attendance rate stream.
-  const closureRows = await db.eventPresenceClosure.findMany({
-    where: { eventId: event.id },
-    select: { day: true, slot: true },
-  });
+  const [closureRows, rosterSize] = await Promise.all([
+    db.eventPresenceClosure.findMany({
+      where: { eventId: event.id },
+      select: { day: true, slot: true },
+    }),
+    countShownCohort(db, event.id),
+  ]);
 
   // Closed = closed early by a staff member or past its 11h/15h cutoff
   // (`isSlotClosed`), derived here rather than written by a cron.
@@ -174,6 +178,8 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
     todayKey: toDateKey(now, timezone),
     closedKeys,
     pastCutoffKeys,
+    // The header offers its export only when someone is there to export.
+    rosterSize,
     // Un-awaited on purpose: SvelteKit streams it so the shell paints first.
     cohort,
   };

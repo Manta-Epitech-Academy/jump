@@ -30,16 +30,19 @@
     <PageHeader title={data.form.title} subtitle={eventDisplayName(data.event)}>
       {#snippet actions()}
         <div class="flex items-center gap-2">
-          <Button
-            href={`${page.url.pathname}/export`}
-            download
-            variant="outline"
-            size="sm"
-            class="rounded-sm"
-          >
-            <Download class="mr-1.5 h-4 w-4" />
-            Exporter XLSX
-          </Button>
+          <!-- With no one in the event, the export is an empty workbook. -->
+          {#if data.rosterSize > 0}
+            <Button
+              href={`${page.url.pathname}/export`}
+              download
+              variant="outline"
+              size="sm"
+              class="rounded-sm"
+            >
+              <Download class="mr-1.5 h-4 w-4" />
+              Exporter XLSX
+            </Button>
+          {/if}
           <Tooltip.Root>
             <Tooltip.Trigger>
               {#snippet child({ props })}
