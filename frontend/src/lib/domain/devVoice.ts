@@ -111,3 +111,9 @@ const ALL_PRESENT_LINES = [
 export function allPresentLine(slotKey: string): string {
   return pickLine(ALL_PRESENT_LINES, slotKey);
 }
+
+/**
+ * A lost page in the dev space. The error page's title above it, « Page
+ * introuvable_ », ends in the cursor it points at.
+ */
+export const NOT_FOUND_LINE = "Il n'y a rien ici, à part vous et ce curseur.";

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { resolve } from '$app/paths';
+  import { NOT_FOUND_LINE } from '$lib/domain/devVoice';
   import SearchX from '@lucide/svelte/icons/search-x';
   import ServerCrash from '@lucide/svelte/icons/server-crash';
   import Terminal from '@lucide/svelte/icons/terminal';
@@ -31,6 +33,17 @@
   // (vous) both land here.
   const genericNotFound = $derived(!message || message === 'Not Found');
   const genericError = $derived(!message || message === 'Internal Error');
+
+  // A lost page in the dev space gets the dev space's voice, a wink at the
+  // cursor of the title, with the plain explanation as the hint. Recruiters read
+  // it; talents and parents never land on a `/staff/dev` address.
+  const devBase = resolve('/staff/dev');
+  const lostInDevSpace = $derived(
+    is404 &&
+      genericNotFound &&
+      (page.url.pathname === devBase ||
+        page.url.pathname.startsWith(`${devBase}/`)),
+  );
 </script>
 
 <div class="error-container">
@@ -91,7 +104,9 @@
             &gt; error:
           </span>
           <span>
-            {#if is404 && genericNotFound}
+            {#if lostInDevSpace}
+              {NOT_FOUND_LINE}
+            {:else if is404 && genericNotFound}
               Cette page n'existe pas, ou plus : l'adresse est peut-être
               incomplète.
             {:else if !is404 && genericError}
@@ -101,6 +116,12 @@
             {/if}
           </span>
         </div>
+        {#if lostInDevSpace}
+          <div class="log-line hint">
+            <span class="log-prompt">&gt; hint:</span>
+            <span>L'adresse est peut-être incomplète.</span>
+          </div>
+        {/if}
         {#if !is404}
           <div class="log-line hint">
             <span class="log-prompt">&gt; hint:</span>
