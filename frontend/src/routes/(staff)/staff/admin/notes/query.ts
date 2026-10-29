@@ -4,41 +4,16 @@ import {
   everyTokenMatches,
   talentIdentityMatches,
 } from '$lib/server/db/textSearch';
+import { FACET_NONE, type ListFacet } from '$lib/domain/listFacets';
+import type { SortDir } from '$lib/domain/listView';
+import type { NoteFilters, NotesFacet, NotesSortKey } from './view';
 
 // Admin is campus-agnostic, so the notes oversight directory is global across
-// every campus. Filter parsing / where building / row projection live here (not
-// in the page) so the page and any future export can't drift, mirrors
-// `admin/talents/query.ts`.
+// every campus. Where building / row projection live here (not in the page) so
+// the page and any future export can't drift, mirrors `admin/talents/query.ts`;
+// the view it reads is parsed in `./view` and resolved in `./facets`.
 
 export const PER_PAGE = 50;
-
-export type NoteSortKey = 'date' | 'talent';
-
-export type NoteFilters = {
-  q: string;
-  campusIds: string[];
-  /** A StaffProfile id, or '' for all authors. */
-  author: string;
-  /** Sortable column (header click); defaults to creation date. */
-  sort: NoteSortKey;
-  dir: 'asc' | 'desc';
-  page: number;
-};
-
-export function parseNoteFilters(sp: URLSearchParams): NoteFilters {
-  const campusIds = (sp.get('campus') ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return {
-    q: (sp.get('q') ?? '').trim(),
-    campusIds,
-    author: sp.get('author') ?? '',
-    sort: sp.get('sort') === 'talent' ? 'talent' : 'date',
-    dir: sp.get('dir') === 'asc' ? 'asc' : 'desc',
-    page: Math.max(1, Number(sp.get('page') ?? '1') || 1),
-  };
-}
 
 export function buildNoteWhere(
   f: NoteFilters,
@@ -55,24 +30,33 @@ export function buildNoteWhere(
     ]),
   );
 
+  const { campus, auteur } = f.facets;
+
   // Campus = the talent participates on one of the selected campuses (talents
   // carry no direct campus FK), same resolution as the talents directory.
-  if (f.campusIds.length) {
+  if (campus.length) {
     and.push({
-      talent: { participations: { some: { campusId: { in: f.campusIds } } } },
+      talent: { participations: { some: { campusId: { in: campus } } } },
     });
   }
 
-  if (f.author) {
-    and.push({ authorId: f.author });
+  // Several authors widen; `aucun` is a note whose author's account is gone.
+  if (auteur.length) {
+    const ids = auteur.filter((a) => a !== FACET_NONE);
+    and.push({
+      OR: [
+        ...(ids.length ? [{ authorId: { in: ids } }] : []),
+        ...(auteur.includes(FACET_NONE) ? [{ authorId: null }] : []),
+      ],
+    });
   }
 
   return and.length ? { AND: and } : {};
 }
 
 export function buildNoteOrderBy(
-  sort: NoteSortKey,
-  dir: 'asc' | 'desc',
+  sort: NotesSortKey,
+  dir: SortDir,
 ): Prisma.Note_TalentNoteOrderByWithRelationInput[] {
   // `id` tiebreaker keeps pagination stable when many notes share a sort key.
   if (sort === 'talent') {
@@ -148,8 +132,10 @@ export type NoteDirectoryRow = ReturnType<typeof projectNoteRow>;
 
 export type NotesCohort = {
   notes: NoteDirectoryRow[];
+  /** The Auteur column's filter, counted over every note (`./facets`). */
+  facets: ListFacet<NotesFacet>[];
+  /** The campus select's options: a campus has no column to filter from. */
   campuses: { id: string; name: string }[];
-  authors: { id: string; name: string }[];
   totalItems: number;
   totalPages: number;
 };

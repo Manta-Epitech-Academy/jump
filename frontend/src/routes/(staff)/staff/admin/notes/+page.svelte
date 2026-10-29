@@ -26,7 +26,7 @@
   />
 
   {#if cohort.value}
-    <NotesResults {...cohort.value} filters={data.filters} />
+    <NotesResults {...cohort.value} />
   {:else if cohort.failed}
     <ResultsNotice
       title="Chargement impossible"

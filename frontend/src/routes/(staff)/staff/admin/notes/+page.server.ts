@@ -4,7 +4,6 @@ import { prisma } from '$lib/server/db';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 import {
-  parseNoteFilters,
   buildNoteWhere,
   buildNoteOrderBy,
   NOTE_ROW_SELECT,
@@ -12,20 +11,24 @@ import {
   PER_PAGE,
   type NotesCohort,
 } from './query';
+import { resolveNoteFilters } from './facets';
 
 // Admin is campus-agnostic: this is the global oversight view of every staff
 // note across all campuses. Filtering / pagination is server-side and streamed
 // behind the shell, mirroring the admin talents directory.
 export const load: PageServerLoad = async ({ url }) => {
-  const filters = parseNoteFilters(url.searchParams);
-  const where = buildNoteWhere(filters);
-  const orderBy = buildNoteOrderBy(filters.sort, filters.dir);
-
   // Un-awaited on purpose: the page shell + toolbar paint immediately while the
-  // row page, the total count, and the filter option lists resolve behind the
-  // ResultsSkeleton.
+  // filters' counts, then the row page and the total count, resolve behind the
+  // ResultsSkeleton. The counts come first because they decide which ticked
+  // values still exist, and so what the rows match.
   const cohort: Promise<NotesCohort> = (async () => {
-    const [rows, totalItems, campuses, authorProfiles] = await Promise.all([
+    const { filters, facets, campuses } = await resolveNoteFilters(
+      url.searchParams,
+    );
+    const where = buildNoteWhere(filters);
+    const orderBy = buildNoteOrderBy(filters.sort, filters.dir);
+
+    const [rows, totalItems] = await Promise.all([
       prisma.note_TalentNote.findMany({
         where,
         orderBy,
@@ -34,30 +37,17 @@ export const load: PageServerLoad = async ({ url }) => {
         select: NOTE_ROW_SELECT,
       }),
       prisma.note_TalentNote.count({ where }),
-      prisma.campus.findMany({
-        orderBy: { name: 'asc' },
-        select: { id: true, name: true },
-      }),
-      // Only staff who have actually authored a note populate the author filter.
-      prisma.staffProfile.findMany({
-        where: { notesAuthored: { some: {} } },
-        orderBy: { user: { name: 'asc' } },
-        select: { id: true, user: { select: { name: true } } },
-      }),
     ]);
     return {
       notes: rows.map(projectNoteRow),
+      facets,
       campuses,
-      authors: authorProfiles.map((a) => ({
-        id: a.id,
-        name: a.user.name ?? 'Staff',
-      })),
       totalItems,
       totalPages: Math.max(1, Math.ceil(totalItems / PER_PAGE)),
     };
   })();
 
-  return { filters, cohort };
+  return { cohort };
 };
 
 export const actions: Actions = {
