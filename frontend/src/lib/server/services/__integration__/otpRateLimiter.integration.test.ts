@@ -11,12 +11,17 @@
  *    row behind, while a double submit goes through whole;
  *  - a full window refuses with a wait, and a released claim frees its slot;
  *  - one exhausted address leaves every other address alone, which is the
- *    whole point of keying on the email and not on a campus NAT's IP.
+ *    whole point of keying on the email and not on a campus NAT's IP;
+ *  - the sweep drops a row once its own bucket's window is over, not the
+ *    longest one's.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
-import { claimAttempt } from '$lib/server/auth/rateLimiter';
+import {
+  claimAttempt,
+  sweepExpiredAttempts,
+} from '$lib/server/auth/rateLimiter';
 import { assertTestDatabase } from './testDatabase';
 
 describe('OTP rate limiter (integration)', () => {
@@ -96,5 +101,25 @@ describe('OTP rate limiter (integration)', () => {
       cohort.map((email) => claimAttempt('request', email)),
     );
     expect(claims.every((claim) => claim.allowed)).toBe(true);
+  });
+
+  // A row names an address, often a minor's: a code's row is kept the ten
+  // minutes its limit reads, not the day `parent_welcome` needs.
+  it('sweeps each bucket on its own window', async () => {
+    const email = address('sweep');
+    const anHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    await prisma.otpAttempt.createMany({
+      data: (['request', 'verify', 'parent_welcome'] as const).map(
+        (bucket) => ({ bucket, email, createdAt: anHourAgo }),
+      ),
+    });
+
+    await sweepExpiredAttempts();
+
+    const left = await prisma.otpAttempt.findMany({
+      where: { email },
+      select: { bucket: true },
+    });
+    expect(left).toEqual([{ bucket: 'parent_welcome' }]);
   });
 });

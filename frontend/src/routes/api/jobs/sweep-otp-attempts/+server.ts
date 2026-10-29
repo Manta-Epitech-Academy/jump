@@ -1,14 +1,14 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
-import { prisma } from '$lib/server/db';
 import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
-import { MAX_BUCKET_WINDOW_MS } from '$lib/server/auth/rateLimiter';
+import { sweepExpiredAttempts } from '$lib/server/auth/rateLimiter';
 
 /**
- * Drops `OtpAttempt` rows older than the longest rate-limit window. The
- * limiter (`$lib/server/auth/rateLimiter`) never reads rows past that cutoff,
- * so anything older is dead weight; sweeping keeps the hot index small.
+ * Drops each `OtpAttempt` row once its bucket's rate-limit window is over
+ * (`sweepExpiredAttempts`). The limiter never reads rows past that cutoff, so
+ * anything older is dead weight naming an address; sweeping also keeps the
+ * hot index small.
  *
  * Intended to run hourly via the external cron service (same pattern as the
  * other `/api/jobs/...` endpoints). The sweep is idempotent: running it more
@@ -24,10 +24,7 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 
   try {
-    const cutoff = new Date(Date.now() - MAX_BUCKET_WINDOW_MS);
-    const { count } = await prisma.otpAttempt.deleteMany({
-      where: { createdAt: { lt: cutoff } },
-    });
+    const count = await sweepExpiredAttempts();
     console.log(`[Job] OTP attempt sweep: ${count} rows deleted.`);
     return json({ success: true, deleted: count });
   } catch (err) {

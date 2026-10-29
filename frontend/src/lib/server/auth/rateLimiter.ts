@@ -58,10 +58,12 @@
  *     counters (the in-memory predecessor did, which was a soft hole an
  *     attacker could exploit by triggering restarts).
  *   - **Cluster cleanup** is the cron sweep at `POST /api/jobs/sweep-otp-attempts`
- *     (hourly is plenty: at ~1k attempts/day the table holds about a day of
- *     rows, the `parent_welcome` window, and the index on `createdAt` keeps the
- *     sweep cheap). Module-level timers would
- *     race across pods, so cleanup is centralised in the cron, not in-process.
+ *     (`sweepExpiredAttempts`), which drops each row once its own bucket's
+ *     window is over: a row names an address, often a minor's, so it is kept
+ *     no longer than the limit it serves needs it. One cutoff for every bucket
+ *     used to be the longest window, which kept the codes' rows a day for the
+ *     sake of `parent_welcome`. Module-level timers would race across pods, so
+ *     cleanup is centralised in the cron, not in-process.
  *   - **Write first, count second.** A claim commits its row and only then
  *     counts the window, so of two concurrent claims the later count sees
  *     both: never admitted past the cap. The price is that a burst larger than
@@ -93,13 +95,23 @@ const BUCKETS: Record<AttemptBucket, BucketConfig> = {
 };
 
 /**
- * Longest window across buckets. The cron sweep at
- * `/api/jobs/sweep-otp-attempts` uses this as its delete cutoff so a single
- * exported constant tracks bucket config without restating it.
+ * Delete every attempt its bucket's window no longer counts, each bucket on
+ * its own window. The limiter never reads a row past that cutoff, so the row
+ * is dead weight, and it names an address.
+ *
+ * @returns how many rows went.
  */
-export const MAX_BUCKET_WINDOW_MS = Math.max(
-  ...Object.values(BUCKETS).map((b) => b.windowMs),
-);
+export async function sweepExpiredAttempts(now = new Date()): Promise<number> {
+  const { count } = await prisma.otpAttempt.deleteMany({
+    where: {
+      OR: Object.entries(BUCKETS).map(([bucket, { windowMs }]) => ({
+        bucket,
+        createdAt: { lt: new Date(now.getTime() - windowMs) },
+      })),
+    },
+  });
+  return count;
+}
 
 function normalize(email: string): string {
   return email.toLowerCase().trim();
