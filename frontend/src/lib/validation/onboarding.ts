@@ -69,7 +69,9 @@ export const schoolSchema = z.object({
   // `schoolName`/`schoolCity` carry the display values (and are the only signal
   // for the free-text fallback, when no UAI is available).
   schoolUai: z.string().optional().or(z.literal('')),
-  schoolName: z.string().min(2, 'Le nom du lycée est requis').trim(),
+  // Trimmed first, like a person's name: blank padding counted towards the two
+  // characters and stored an empty name.
+  schoolName: z.string().trim().min(2, 'Le nom du lycée est requis'),
   schoolCity: z.string().optional().or(z.literal('')),
 });
 

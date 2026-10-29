@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  schoolSchema,
   identitySchema,
   parentsSchema,
   rulesSchema,
@@ -154,5 +155,13 @@ describe('parentsSchema names of parent 2', () => {
         parent2Prenom: '',
       }).success,
     ).toBe(true);
+  });
+});
+
+describe('schoolSchema', () => {
+  it('refuses a school name that is only blanks', () => {
+    // `.min(2)` ran before `.trim()`, so three spaces passed and stored an
+    // empty name with the step marked validated.
+    expect(schoolSchema.safeParse({ schoolName: '   ' }).success).toBe(false);
   });
 });
