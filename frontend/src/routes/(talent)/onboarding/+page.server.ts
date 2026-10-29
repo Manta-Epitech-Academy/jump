@@ -20,6 +20,7 @@ import {
   onboardingFieldsForYear,
 } from '$lib/domain/talentOnboarding';
 import {
+  lockTalent,
   patchCurrentOnboardingRecord,
   type OnboardingRecordPatch,
 } from '$lib/server/services/onboardingYearService';
@@ -191,6 +192,13 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   return { step };
 };
 
+/** The parents step refused because parent 1's address changed too often today. */
+type ParentsCapped = {
+  ok: false;
+  reason: 'capped';
+  retryAfterSeconds: number;
+};
+
 export const actions: Actions = {
   validateIdentity: async ({ request, locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
@@ -306,26 +314,7 @@ export const actions: Actions = {
 
     const parentEmail = result.data.parentEmail.toLowerCase().trim();
     const talentId = locals.talent.id;
-
-    // A new address mails a welcome link to whatever was typed, so changing it
-    // is capped per talent (`parent_welcome` in `rateLimiter.ts`); keeping it
-    // costs nothing. The claim is given back below unless a welcome goes out.
-    const changesAddress =
-      (locals.talent.parentEmail ?? '').toLowerCase().trim() !== parentEmail;
-    const claim = changesAddress
-      ? await claimAttempt('parent_welcome', locals.user!.email)
-      : null;
-    if (claim && !claim.allowed) {
-      return fail(429, {
-        step: 'parents' as const,
-        errors: {
-          parentEmail: [
-            `Tu as déjà changé l'adresse de ton responsable plusieurs fois aujourd'hui. Réessaie dans ${Math.ceil(claim.retryAfterSeconds / 3600)} h.`,
-          ],
-        },
-        values: raw as Record<string, string>,
-      });
-    }
+    const loginEmail = locals.user!.email;
 
     // Parent 1's address and login move together (`setParentLogin`), in the
     // same transaction as the rest of the step: a validated address always has
@@ -336,9 +325,34 @@ export const actions: Actions = {
     // one, account or not. Nothing is persisted then, and the
     // talent is asked for a different address rather than leaving the parent
     // unable to connect.
-    let login: SetParentLoginResult;
+    //
+    // A new address mails a welcome link to whatever was typed, so changing it
+    // is capped per talent (`parent_welcome` in `rateLimiter.ts`); keeping it
+    // costs nothing. Whether it changes is read off the talent's locked row,
+    // not off `locals`, read when the request began: a concurrent submit of
+    // another address waits on the lock and reads the one this one commits,
+    // so no welcome goes out without its claim. The claim is given back below
+    // unless a welcome goes out.
+    let login: SetParentLoginResult | ParentsCapped;
+    let release = undefined as (() => Promise<void>) | undefined;
     try {
       login = await prisma.$transaction(async (tx) => {
+        await lockTalent(tx, talentId);
+        const current = await tx.talent.findUniqueOrThrow({
+          where: { id: talentId },
+          select: { parentEmail: true },
+        });
+        if ((current.parentEmail ?? '').toLowerCase().trim() !== parentEmail) {
+          const claim = await claimAttempt('parent_welcome', loginEmail);
+          if (!claim.allowed) {
+            return {
+              ok: false,
+              reason: 'capped',
+              retryAfterSeconds: claim.retryAfterSeconds,
+            } as const;
+          }
+          release = claim.release;
+        }
         const set = await setParentLogin(tx, talentId, {
           email: parentEmail,
           name: `${result.data.parentPrenom} ${result.data.parentNom}`.trim(),
@@ -369,12 +383,23 @@ export const actions: Actions = {
       });
     } catch (err) {
       if (!isParentLoginRace(err)) {
-        await claim?.release();
+        await release?.();
         throw err;
       }
       login = { ok: false, reason: 'email_taken' };
     }
-    if (!login.ok || !login.changed) await claim?.release();
+    if (!login.ok || !login.changed) await release?.();
+    if (!login.ok && login.reason === 'capped') {
+      return fail(429, {
+        step: 'parents' as const,
+        errors: {
+          parentEmail: [
+            `Tu as déjà changé l'adresse de ton responsable plusieurs fois aujourd'hui. Réessaie dans ${Math.ceil(login.retryAfterSeconds / 3600)} h.`,
+          ],
+        },
+        values: raw as Record<string, string>,
+      });
+    }
     if (!login.ok) {
       return fail(400, {
         step: 'parents' as const,
