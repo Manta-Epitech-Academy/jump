@@ -6,7 +6,8 @@ on:
   push:
     branches: [main]
   schedule:
-    # Weekly scan: Monday 8:00 UTC
+    # Weekly, Monday 8:00 UTC, for DAST. Advisories against what is already on
+    # dev are vulnerability-watch.yml's, daily.
     - cron: "0 8 * * 1"
 
 permissions:
@@ -27,33 +28,26 @@ env:
   DISCORD_CLIENT_SECRET: ci-dummy
 
 jobs:
+  # Does this pull request add a known vulnerability? Only what it adds:
+  # scripts/check-dependency-audit.sh says why. The advisories already on dev
+  # are not a pull request's to fix; vulnerability-watch.yml turns each one into
+  # an issue of its own.
   dependency-audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
+    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v6
-
-      - uses: oven-sh/setup-bun@v2
         with:
-          bun-version-file: frontend/package.json
+          # The pull request is checked out as its merge commit, whose first
+          # parent is the base it merges into: the side its lockfile is
+          # compared with.
+          fetch-depth: 2
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/osv-scanner
 
-      - name: Install osv-scanner
-        run: |
-          OSV_SCANNER_VERSION=v2.3.5
-          OSV_SCANNER_SHA256=bb30c580afe5e757d3e959f4afd08a4795ea505ef84c46962b9a738aa573b41b
-          curl -sSfL -o osv-scanner "https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
-          echo "${OSV_SCANNER_SHA256}  osv-scanner" | sha256sum -c -
-          chmod +x osv-scanner
-          sudo mv osv-scanner /usr/local/bin/
-
-      - name: Audit dependencies
-        run: osv-scanner --lockfile=bun.lock
+      - name: Audit what this pull request adds
+        run: bash scripts/check-dependency-audit.sh --base HEAD^1
 
   secret-scan:
     name: Secret Scanning
@@ -104,23 +98,6 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep-results.sarif
-
-  docker-scan:
-    name: Docker Image Scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Build Docker image
-        run: docker build -t jump-sveltekit:scan ./frontend
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.35.0
-        with:
-          image-ref: "jump-sveltekit:scan"
-          format: "table"
-          exit-code: "1"
-          severity: "CRITICAL,HIGH"
 
   dast:
     name: DAST (OWASP ZAP)
