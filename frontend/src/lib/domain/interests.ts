@@ -17,6 +17,19 @@
  * this feeds.
  */
 
+import type { Prisma } from '@prisma/client';
+
 export const INTEREST_KINDS = ['tech', 'general'] as const;
 
 export type InterestKind = (typeof INTEREST_KINDS)[number];
+
+/**
+ * Prisma where-fragment for the interests onboarding offers. An archived one
+ * (`write_interest`) is never offered again, and the talents who picked it keep
+ * it, so every read of the catalogue a talent picks from and every write of
+ * that pick spreads this, and one that forgets it either offers a retired chip
+ * or takes a kept one away.
+ */
+export const offeredInterestWhere = {
+  archivedAt: null,
+} satisfies Prisma.InterestWhereInput;

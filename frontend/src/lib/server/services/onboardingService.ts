@@ -27,6 +27,7 @@ import type { ServiceResult } from './result';
 import { CURRENT_REGLEMENT_VERSION } from '$lib/content/reglement';
 import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
 import { getOnboardingStep } from '$lib/domain/talentOnboarding';
+import { offeredInterestWhere, type InterestKind } from '$lib/domain/interests';
 import {
   lockTalent,
   patchCurrentOnboardingRecord,
@@ -36,13 +37,33 @@ import {
 export type InterestsFailure = 'stale_tech' | 'stale_general';
 
 /**
+ * The talent's picks the interests step shows them, per kind: the offered ones
+ * only, the set `validateTalentInterests` swaps. A pick of an archived interest
+ * stays stored but is not shown, since the step renders no chip for it and a
+ * hidden one would be posted back, refused as stale, and could not be unticked.
+ */
+export async function offeredInterestSelection(
+  talentId: string,
+): Promise<Record<InterestKind, string[]>> {
+  const rows = await prisma.talentInterest.findMany({
+    where: { talentId, interest: offeredInterestWhere },
+    select: { interestId: true, interest: { select: { kind: true } } },
+  });
+  const ofKind = (kind: InterestKind) =>
+    rows.filter((r) => r.interest.kind === kind).map((r) => r.interestId);
+  return { tech: ofKind('tech'), general: ofKind('general') };
+}
+
+/**
  * Replace a talent's interest selection and stamp the interests steps done.
  *
  * The selection is a full swap (deleteMany + createMany), not a diff: the form
  * always posts the complete set, so a diff would only add a way for the two to
- * disagree. Ids are checked against the offered catalogue first, per kind, so a
- * chip archived by staff mid-session fails the step loudly instead of silently
- * dropping.
+ * disagree. The set is the OFFERED one (`offeredInterestWhere`): ids are checked
+ * against the offered catalogue first, per kind, so a chip archived by staff
+ * mid-session fails the step loudly instead of silently dropping, and the swap
+ * leaves alone the picks of an archived interest, which the form never shows
+ * and so never posts. A talent keeps those, as `write_interest` promises.
  */
 export async function validateTalentInterests(
   talentId: string,
@@ -57,14 +78,14 @@ export async function validateTalentInterests(
       where: {
         id: { in: input.techInterestIds },
         kind: 'tech',
-        archivedAt: null,
+        ...offeredInterestWhere,
       },
     }),
     prisma.interest.count({
       where: {
         id: { in: input.generalInterestIds },
         kind: 'general',
-        archivedAt: null,
+        ...offeredInterestWhere,
       },
     }),
   ]);
@@ -80,7 +101,9 @@ export async function validateTalentInterests(
   const allIds = [...input.techInterestIds, ...input.generalInterestIds];
 
   await prisma.$transaction(async (tx) => {
-    await tx.talentInterest.deleteMany({ where: { talentId } });
+    await tx.talentInterest.deleteMany({
+      where: { talentId, interest: offeredInterestWhere },
+    });
     await tx.talentInterest.createMany({
       data: allIds.map((interestId) => ({ talentId, interestId })),
     });
