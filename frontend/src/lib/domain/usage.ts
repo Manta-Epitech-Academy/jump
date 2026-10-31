@@ -94,12 +94,6 @@ export const USAGE_FEATURES = {
   ADMIN_EMAIL_ACTIONS_VIEW: 'admin_email_actions_view',
 
   // ── Admin space, actions, exports and documents ───────────────────
-  ADMIN_EVENT_CONFIG_SAVE: 'admin_event_config_save',
-  ADMIN_EVENT_BULK_MODULES: 'admin_event_bulk_modules',
-  ADMIN_EVENT_BULK_ACTIVATION: 'admin_event_bulk_activation',
-  ADMIN_EVENT_TEMPLATE_SAVE: 'admin_event_template_save',
-  ADMIN_EVENT_TEMPLATE_DELETE: 'admin_event_template_delete',
-  ADMIN_SF_STATUS_ADD: 'admin_sf_status_add',
   ADMIN_TALENTS_EXPORT: 'admin_talents_export',
   ADMIN_TALENT_RESET_TO_IMPORT: 'admin_talent_reset_to_import',
   ADMIN_SF_CONFLICT_ADOPT: 'admin_sf_conflict_adopt',
@@ -830,69 +824,6 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   }),
 
   // ── Admin space, actions, exports and documents ───────────────────
-  [USAGE_FEATURES.ADMIN_EVENT_CONFIG_SAVE]: def({
-    key: USAGE_FEATURES.ADMIN_EVENT_CONFIG_SAVE,
-    label: 'Configuration d’un événement',
-    definition: 'Enregistrements de la configuration d’un événement.',
-    audience: 'staff',
-    space: 'admin',
-    kind: 'action',
-    scope: 'global',
-    dedupe: 'each',
-  }),
-  [USAGE_FEATURES.ADMIN_EVENT_BULK_MODULES]: def({
-    key: USAGE_FEATURES.ADMIN_EVENT_BULK_MODULES,
-    label: 'Modules en masse',
-    definition:
-      'Applications en masse de modules à plusieurs événements. Une par opération, quel que soit le nombre d’événements touchés.',
-    audience: 'staff',
-    space: 'admin',
-    kind: 'action',
-    scope: 'global',
-    dedupe: 'each',
-  }),
-  [USAGE_FEATURES.ADMIN_EVENT_BULK_ACTIVATION]: def({
-    key: USAGE_FEATURES.ADMIN_EVENT_BULK_ACTIVATION,
-    label: 'Activation dev en masse',
-    definition:
-      'Activations ou désactivations en masse de l’espace dev sur plusieurs événements.',
-    audience: 'staff',
-    space: 'admin',
-    kind: 'action',
-    scope: 'global',
-    dedupe: 'each',
-  }),
-  [USAGE_FEATURES.ADMIN_EVENT_TEMPLATE_SAVE]: def({
-    key: USAGE_FEATURES.ADMIN_EVENT_TEMPLATE_SAVE,
-    label: 'Preset de configuration enregistré',
-    definition: 'Enregistrements d’un preset de configuration d’événement.',
-    audience: 'staff',
-    space: 'admin',
-    kind: 'action',
-    scope: 'global',
-    dedupe: 'each',
-  }),
-  [USAGE_FEATURES.ADMIN_EVENT_TEMPLATE_DELETE]: def({
-    key: USAGE_FEATURES.ADMIN_EVENT_TEMPLATE_DELETE,
-    label: 'Preset de configuration supprimé',
-    definition: 'Suppressions d’un preset de configuration d’événement.',
-    audience: 'staff',
-    space: 'admin',
-    kind: 'action',
-    scope: 'global',
-    dedupe: 'each',
-  }),
-  [USAGE_FEATURES.ADMIN_SF_STATUS_ADD]: def({
-    key: USAGE_FEATURES.ADMIN_SF_STATUS_ADD,
-    label: 'Statut Salesforce ajouté au catalogue',
-    definition:
-      'Ajouts au catalogue d’un statut Salesforce que Jump ne connaissait pas, depuis « Membres Salesforce ».',
-    audience: 'staff',
-    space: 'admin',
-    kind: 'action',
-    scope: 'global',
-    dedupe: 'each',
-  }),
   [USAGE_FEATURES.ADMIN_TALENTS_EXPORT]: def({
     key: USAGE_FEATURES.ADMIN_TALENTS_EXPORT,
     label: 'Export du répertoire des talents',

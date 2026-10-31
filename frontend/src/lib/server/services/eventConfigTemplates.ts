@@ -280,9 +280,4 @@ export const EventConfigTemplateService = {
     });
     return { template: toSummary(created), updated: false };
   },
-
-  /** Delete a template. Events keep their own config (a template is never a live link). */
-  async remove(id: string): Promise<void> {
-    await prisma.eventConfig_Template.delete({ where: { id } });
-  },
 };

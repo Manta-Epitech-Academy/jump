@@ -17,6 +17,17 @@
 
   const eventsHref = resolve('/staff/admin/events');
 
+  // One event on the cockpit: its campus and its name, over every period. A
+  // name alone repeats across campuses ("Stage de Seconde" names fifteen).
+  function eventHref(event: { campusId: string; displayName: string }): string {
+    const params = new URLSearchParams({
+      periode: 'all',
+      campus: event.campusId,
+      q: event.displayName,
+    });
+    return `${eventsHref}?${params}`;
+  }
+
   // The two passes answer different questions, so the card names which one ran:
   // the incremental keeps the data fresh, the full reconcile is the only pass
   // that notices something deleted in Salesforce.
@@ -205,7 +216,7 @@
         <div class="space-y-2">
           {#each data.recentEvents as event (event.id)}
             <a
-              href="{eventsHref}?event={event.id}"
+              href={eventHref(event)}
               class="group flex items-center gap-4 rounded-sm border px-4 py-3 transition-colors hover:border-epi-tomorrow/60 hover:bg-muted/40"
             >
               <div class="min-w-0 flex-1">

@@ -112,14 +112,3 @@ export async function resolveClosingGrids(
   });
   return new Map(graphs.map((g) => [g.id, toClosingGrid(g)]));
 }
-
-/**
- * The catalogue, for the event-config picker and the curated API.
- * Ordered by label so the dropdown reads alphabetically.
- */
-export function listClosingTemplates(): Promise<ClosingTemplateIdentity[]> {
-  return prisma.closing_Template.findMany({
-    select: IDENTITY_SELECT,
-    orderBy: { label: 'asc' },
-  });
-}
