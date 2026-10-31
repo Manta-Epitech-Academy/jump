@@ -4,8 +4,9 @@
 #
 # An entry is an advisory that does not reach Jump and has no fix on the line
 # in use, never a way to quiet one that does. Each one names why it does not
-# apply, so the reason can be re-checked, and expires, so the audit goes red
-# again if the fix has not landed by then rather than staying silent for good.
+# apply, so the reason can be re-checked, and expires, so the daily watch on
+# dev (.github/workflows/vulnerability-watch.yml) opens an issue for it again
+# if the fix has not landed by then rather than staying silent for good.
 
 # SvelteKit fixes both only in 3.0.0, a major release; the upgrade is its own
 # change, not a patch bump.

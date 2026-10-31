@@ -6,7 +6,8 @@ on:
   push:
     branches: [main]
   schedule:
-    # Weekly scan: Monday 8:00 UTC
+    # Weekly, Monday 8:00 UTC, for DAST. Advisories against what is already on
+    # dev are vulnerability-watch.yml's, daily.
     - cron: "0 8 * * 1"
 
 permissions:
@@ -97,23 +98,6 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep-results.sarif
-
-  docker-scan:
-    name: Docker Image Scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Build Docker image
-        run: docker build -t jump-sveltekit:scan ./frontend
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.35.0
-        with:
-          image-ref: "jump-sveltekit:scan"
-          format: "table"
-          exit-code: "1"
-          severity: "CRITICAL,HIGH"
 
   dast:
     name: DAST (OWASP ZAP)
