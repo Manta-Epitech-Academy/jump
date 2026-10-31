@@ -27,26 +27,26 @@ env:
   DISCORD_CLIENT_SECRET: ci-dummy
 
 jobs:
+  # Does this pull request add a known vulnerability? Only what it adds:
+  # scripts/check-dependency-audit.sh says why. The advisories already on dev
+  # are not a pull request's to fix; vulnerability-watch.yml turns each one into
+  # an issue of its own.
   dependency-audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
+    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v6
-
-      - uses: oven-sh/setup-bun@v2
         with:
-          bun-version-file: frontend/package.json
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+          # The pull request is checked out as its merge commit, whose first
+          # parent is the base it merges into: the side its lockfile is
+          # compared with.
+          fetch-depth: 2
 
       - uses: ./.github/actions/osv-scanner
 
-      - name: Audit dependencies
-        run: osv-scanner --lockfile=bun.lock
+      - name: Audit what this pull request adds
+        run: bash scripts/check-dependency-audit.sh --base HEAD^1
 
   secret-scan:
     name: Secret Scanning
