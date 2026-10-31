@@ -79,9 +79,12 @@ if [ ! -s "$tmp/new.tsv" ]; then
   exit 0
 fi
 
-while IFS=$'\t' read -r advisory package installed fixed _severity; do
-  echo "::error file=$LOCK::$package $installed: https://osv.dev/$advisory, fixed in ${fixed:-no release yet}"
-done < "$tmp/new.tsv"
+# awk and not `read`: tab is IFS whitespace, so `read` merges the empty `fixed`
+# of an advisory with no fix into the next field and reports the severity as
+# the version to bump to.
+awk -F'\t' -v lock="$LOCK" '{
+  printf "::error file=%s::%s %s: https://osv.dev/%s, fixed in %s\n", lock, $2, $3, $1, ($4 == "" ? "no release yet" : $4)
+}' "$tmp/new.tsv"
 
 cat >&2 <<'MSG'
 
