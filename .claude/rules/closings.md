@@ -63,8 +63,9 @@ Rules, each of which a reasonable-looking change breaks quietly rather than loud
   MEANS is a new key; changing how it READS is an edit, and it re-renders on
   documents already produced, which is what you want for a typo. That line is
   enforced, not hoped for: a kind change or a dropped option is refused once
-  answers exist (the same lock `feedbackFormsAdmin.ts` draws with
-  `STRUCTURAL_QUESTION_FIELDS`, where `prompt` is deliberately not structural).
+  answers exist (the same lock a feedback form's write draws with
+  `STRUCTURAL_QUESTION_FIELDS` in `domain/feedbackForms/authoring.ts`, where
+  `prompt` is deliberately not structural).
 - **`labelOverride` changes the prompt, never the identity.** A grid reads a
   question aloud in its own words ("Satisfaction globale du stage"); every figure
   keeps the bank's label, so the wording can fit the format and the number stays

@@ -131,8 +131,8 @@ Nine rules, and each is enforced rather than hoped for:
 
   Unlikely is not unreachable, and the line between them is the writer's, not
   the generator's taste. Public answers on a form that refuses the public look
-  unreachable and are merely unlikely: the builder closes a form to the
-  public freely after it has collected answers, so no check refuses them, and a
+  unreachable and are merely unlikely: `write_feedback_form` closes a form to
+  the public freely after it has collected answers, so no check refuses them, and a
   scenario that wants public answers picks a form that still admits them.
 
   The cross-table cases are asserted by hand in `assert/reachability.ts`, because

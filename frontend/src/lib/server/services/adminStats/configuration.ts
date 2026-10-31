@@ -61,6 +61,7 @@ import {
   readFeedbackFormContent,
   type FeedbackFormContent,
 } from '$lib/server/feedbackForms/content';
+import { feedbackFormPreviewLink } from '$lib/server/feedbackForms';
 import { hiddenEnrolmentsByEvent, scopedEvents, scopeLabels } from './cohort';
 import {
   eventStateCounts,
@@ -418,6 +419,8 @@ export type FormRow = {
 export type FeedbackForms = {
   forms: Metric<FormRow[]>;
   form: Metric<FeedbackFormContent | null>;
+  /** With formId, the sentence linking to its preview, to quote as it is. */
+  apercu: string | null;
   authoring: Metric<string[]>;
 };
 
@@ -439,9 +442,10 @@ const FEEDBACK_AUTHORING_CONTRACT = [
   "Retirer un formulaire, c'est l'archiver (status archived). Aucune opération ne supprime un formulaire.",
 ];
 
-export async function getFeedbackForms(
-  params: { formId?: string } = {},
-): Promise<FeedbackForms> {
+export async function getFeedbackForms(params: {
+  formId?: string;
+  origin: string;
+}): Promise<FeedbackForms> {
   const rows = await prisma.feedback_Form.findMany({
     orderBy: [{ status: 'asc' }, { title: 'asc' }],
     select: {
@@ -479,9 +483,16 @@ export async function getFeedbackForms(
       })),
       "Les formulaires de bilan existants. « status » vaut brouillon, publié ou archivé : seul un formulaire publié peut recevoir des réponses. « attachedEvents » compte les événements qui l'utilisent, « formId » est l'identifiant à passer aux opérations qui lisent ses résultats ou le rattachent à un événement.",
     ),
+    apercu: content
+      ? feedbackFormPreviewLink({
+          formId: params.formId!,
+          title: content.title,
+          origin: params.origin,
+        }).apercu
+      : null,
     form: metric(
       content,
-      "Le formulaire demandé par « formId », en entier et dans la forme exacte que write_feedback_form accepte : ses réglages, son persona, puis ses questions hors section et ses sections, dans l'ordre où un répondant les rencontre. Null si aucun formulaire n'a été demandé. « locked » vaut vrai dès qu'il a reçu une réponse : sa structure est alors figée. « personaIcon » est null pour la mascotte par défaut ; son « sourceUrl » est l'adresse d'où l'icône a été copiée, ou null si elle a été déposée dans l'interface.",
+      "Le formulaire demandé par « formId », en entier et dans la forme exacte que write_feedback_form accepte : ses réglages, son persona, puis ses questions hors section et ses sections, dans l'ordre où un répondant les rencontre. Null si aucun formulaire n'a été demandé. « locked » vaut vrai dès qu'il a reçu une réponse : sa structure est alors figée. « personaIcon » est null pour la mascotte par défaut ; son « sourceUrl » est l'adresse d'où l'icône a été copiée, ou null si elle a été déposée sur la page d'aperçu du formulaire.",
     ),
     authoring: metric(
       FEEDBACK_AUTHORING_CONTRACT,

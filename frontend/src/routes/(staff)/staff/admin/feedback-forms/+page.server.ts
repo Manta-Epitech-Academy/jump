@@ -1,17 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
-import { fail, redirect } from '@sveltejs/kit';
-import { superValidate } from 'sveltekit-superforms';
-import { zod4 } from 'sveltekit-superforms/adapters';
+import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { formCreateSchema } from '$lib/validation/feedbackForms';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
-import {
-  requireAdmin,
-  createForm,
-  duplicateForm,
-  deleteForm,
-} from '$lib/server/feedbackFormsAdmin';
+import { requireAdmin, deleteForm } from '$lib/server/feedbackFormsAdmin';
 
 export interface FormListRow {
   id: string;
@@ -29,12 +19,14 @@ export interface FormsCohort {
   rows: FormListRow[];
 }
 
+// The catalogue of forms, each opening on its preview and its responses. A form
+// is written over the admin API (`write_feedback_form`, `write_feedback_form_copy`,
+// its status included); deleting one stays here, since a delete a model could
+// aim on its own is never an operation (#483).
 export const load: PageServerLoad = async () => {
-  const createFormForm = await superValidate(zod4(formCreateSchema));
-
   const cohort: Promise<FormsCohort> = (async () => {
-    // Every form. An event-specific one (created via "Modifier pour cet
-    // événement") is just a normally-named form here, recognised by its title.
+    // Every form. An event-specific one is just a normally-named form here,
+    // recognised by its title.
     const forms = await prisma.feedback_Form.findMany({
       orderBy: { updatedAt: 'desc' },
       select: {
@@ -63,31 +55,11 @@ export const load: PageServerLoad = async () => {
     };
   })();
 
-  return { createFormForm, cohort };
+  return { cohort };
 };
 
 export const actions: Actions = {
-  create: async ({ request, locals }) => {
-    recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE, { locals });
-    const { staffId } = requireAdmin(locals);
-    const form = await superValidate(request, zod4(formCreateSchema));
-    if (!form.valid) return fail(400, { form });
-    const { id } = await createForm(staffId, form.data);
-    throw redirect(303, `/staff/admin/feedback-forms/${id}`);
-  },
-
-  duplicate: async ({ request, locals }) => {
-    recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE, { locals });
-    const { staffId } = requireAdmin(locals);
-    const data = await request.formData();
-    const id = data.get('id');
-    if (typeof id !== 'string') return fail(400, { message: 'id manquant' });
-    const { id: newId } = await duplicateForm(staffId, id);
-    throw redirect(303, `/staff/admin/feedback-forms/${newId}`);
-  },
-
   delete: async ({ url, locals }) => {
-    recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_FORM_WRITE, { locals });
     requireAdmin(locals);
     // id arrives as an action query param (?/delete&id=…) because the shared
     // ConfirmDeleteDialog renders no hidden field.

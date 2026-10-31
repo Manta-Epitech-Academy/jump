@@ -735,7 +735,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_feedback_forms: defineOperation({
     description:
-      'The feedback form catalogue: title, status (draft, published, archived), question count, response count, how many events use it, and whether it accepts public responses. Returns the form ids the other feedback operations take. Pass formId to also get that form whole, in the exact shape write_feedback_form takes, which is what you edit from rather than rewriting it, and the authoring rules a write enforces.',
+      'The feedback form catalogue: title, status (draft, published, archived), question count, response count, how many events use it, and whether it accepts public responses. Returns the form ids the other feedback operations take. Pass formId to also get that form whole, in the exact shape write_feedback_form takes, which is what you edit from rather than rewriting it, the authoring rules a write enforces, and an "apercu" sentence linking to the form as a respondent sees it: quote it whenever the reader wants to see the form, never describe it in your own words.',
     shape: {
       formId: z
         .string()
@@ -745,7 +745,7 @@ export const ADMIN_API_OPERATIONS = {
           `${handleDescribe('formId')} Pass one to also return the whole form; omit for the catalogue alone.`,
         ),
     },
-    run: (params) => getFeedbackForms(params),
+    run: (params, ctx) => getFeedbackForms({ ...params, origin: ctx.origin }),
   }),
 
   config_workshops: defineOperation({
@@ -958,7 +958,7 @@ export const ADMIN_API_OPERATIONS = {
   write_feedback_form: defineWrite({
     twoStep: true,
     description:
-      'Create a feedback form, or replace one whole. Read it first with config_feedback_forms and its formId, change what must change, and send everything back: whatever is left out is removed. Without planDigest it answers with the form as it stands, the form that would replace it, and a planDigest; the apply is refused if the form was edited or answered in between. Once a form has responses its structure is frozen: wording and settings still change, but adding, removing or reordering a section, question or option, or changing what a question collects (key, type, required, identity field, input kind, selection bounds) is refused; copy it with write_feedback_form_copy, write the copy, then archive the original. A defect a frozen structure already carries is not refused, so wording, settings and archiving stay possible. The rules stated on the parameters are checked together and every refusal comes back at once. Retire a form by setting status to archived; nothing deletes one. Safe to repeat on an existing form, since a retried apply no longer matches its digest; creating (no formId) is NOT, so keep the formId it answers with. Answers with the form as written, ids included.',
+      'Create a feedback form, or replace one whole. Read it first with config_feedback_forms and its formId, change what must change, and send everything back: whatever is left out is removed. Without planDigest it answers with the form as it stands, the form that would replace it, and a planDigest; the apply is refused if the form was edited or answered in between. Once a form has responses its structure is frozen: wording and settings still change, but adding, removing or reordering a section, question or option, or changing what a question collects (key, type, required, identity field, input kind, selection bounds) is refused; copy it with write_feedback_form_copy, write the copy, then archive the original. A defect a frozen structure already carries is not refused, so wording, settings and archiving stay possible. The rules stated on the parameters are checked together and every refusal comes back at once. Retire a form by setting status to archived; nothing deletes one. Safe to repeat on an existing form, since a retried apply no longer matches its digest; creating (no formId) is NOT, so keep the formId it answers with. Answers with the form as written, ids included, and an "apercu" sentence linking to its preview.',
     shape: {
       formId: z
         .string()
@@ -981,7 +981,7 @@ export const ADMIN_API_OPERATIONS = {
         .nullable()
         .optional()
         .describe(
-          'https address of the persona avatar. Jump downloads it and keeps a 256 px still: PNG, JPEG or WebP up to 20 MB, or a GIF up to 6 MB whose first frame is kept, from a public address. Restating the address the icon came from downloads nothing. Null puts the default mascot back. Omit to leave the icon as it is, which is the only way to keep one uploaded in the builder.',
+          'https address of the persona avatar. Jump downloads it and keeps a 256 px still: PNG, JPEG or WebP up to 20 MB, or a GIF up to 6 MB whose first frame is kept, from a public address. Restating the address the icon came from downloads nothing. Null puts the default mascot back. Omit to leave the icon as it is, which is the only way to keep one uploaded on the preview page of the form.',
         ),
       status: formFields.status.describe(
         'draft while it is being written, published to accept responses, archived to retire it.',
@@ -1025,19 +1025,19 @@ export const ADMIN_API_OPERATIONS = {
         .optional()
         .describe('Digest returned by the dry run. Omit to get a dry run.'),
     },
-    run: (params, ctx) => writeFeedbackForm(params, ctx.actorUserId),
+    run: (params, ctx) => writeFeedbackForm(params, ctx),
   }),
 
   write_feedback_form_copy: defineWrite({
     description:
-      'Copy a feedback form whole into a new draft: the same sections, questions, options, persona and icon, none of its responses. The copy starts as a draft, closed to the public, with no dashboard nudge, and its title ends in « (copie) ». NOT safe to repeat: every call makes another copy, so keep the formId it answers with. Answers with the copy, ids included.',
+      'Copy a feedback form whole into a new draft: the same sections, questions, options, persona and icon, none of its responses. The copy starts as a draft, closed to the public, with no dashboard nudge, and its title ends in « (copie) ». NOT safe to repeat: every call makes another copy, so keep the formId it answers with. Answers with the copy, ids included, and an "apercu" sentence linking to its preview.',
     shape: {
       formId: z
         .string()
         .min(1)
         .describe(`${handleDescribe('formId')} The form to copy.`),
     },
-    run: (params, ctx) => copyFeedbackForm(params, ctx.actorUserId),
+    run: (params, ctx) => copyFeedbackForm(params, ctx),
   }),
 
   write_diploma_template: defineWrite({
