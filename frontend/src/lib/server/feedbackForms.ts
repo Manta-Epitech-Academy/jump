@@ -1,5 +1,5 @@
-import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
+import { base } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import type {
   FormSchema,
@@ -12,7 +12,6 @@ import {
   projectQuestionToSchema,
   buildPersonaIconUrl,
 } from '$lib/domain/feedbackForms/schema';
-import { STRUCTURE_LOCKED_MESSAGE } from '$lib/domain/feedbackForms/authoring';
 
 /** Who a projected form is rendered for; mirrors Feedback_SubmissionSource. */
 export type FormAudience = 'public' | 'authenticated';
@@ -199,23 +198,22 @@ export function toFormSchema(
   };
 }
 
-/** Number of submissions a form has (drives the structural-edit lock). */
-export function countSubmissions(formId: string): Promise<number> {
-  return prisma.feedback_Submission.count({ where: { formId } });
-}
-
 /**
- * Throws 423 (Locked) if the form already has responses. Structural edits (add /
- * delete / reorder questions / options / sections) would shift the meaning of
- * existing answers, so once responses exist the admin must duplicate the form to
- * restructure. Text-only edits (prompt / label / intro) stay allowed and don't
- * call this. The status is deliberately distinct from the 409 (Conflict) that
- * uniqueness checks throw: the client flips read-only on 423 only, so a benign
- * "label already exists" clash never locks the whole builder.
+ * Where an admin sees a form as its respondents meet it, drafts included: its
+ * page in the admin space. Handed to the admin API's reads and writes as a
+ * finished French sentence (`apercu`), the way a certificate's preview is
+ * (`diplomaTemplatePreviewLink`): a model told "show the link" cannot know
+ * whether its reader's client renders anything, so the wording is ours. The
+ * page needs an admin session, which is who calls this API.
  */
-export async function assertEditable(formId: string): Promise<void> {
-  const n = await countSubmissions(formId);
-  if (n > 0) {
-    throw error(423, STRUCTURE_LOCKED_MESSAGE);
-  }
+export function feedbackFormPreviewLink(form: {
+  formId: string;
+  title: string;
+  origin: string;
+}): { url: string; apercu: string } {
+  const url = `${form.origin}${base}/staff/admin/feedback-forms/${encodeURIComponent(form.formId)}`;
+  return {
+    url,
+    apercu: `Aperçu de « ${form.title} » : ${url} (le formulaire tel qu'un talent ou un répondant public le voit, brouillon compris ; rien n'y est enregistré). Ouvrez ce lien pour le voir.`,
+  };
 }

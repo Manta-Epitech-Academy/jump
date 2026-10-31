@@ -131,8 +131,8 @@ Nine rules, and each is enforced rather than hoped for:
 
   Unlikely is not unreachable, and the line between them is the writer's, not
   the generator's taste. Public answers on a form that refuses the public look
-  unreachable and are merely unlikely: the builder closes a form to the
-  public freely after it has collected answers, so no check refuses them, and a
+  unreachable and are merely unlikely: `write_feedback_form` closes a form to
+  the public freely after it has collected answers, so no check refuses them, and a
   scenario that wants public answers picks a form that still admits them.
 
   The cross-table cases are asserted by hand in `assert/reachability.ts`, because
@@ -197,8 +197,8 @@ Nine rules, and each is enforced rather than hoped for:
   seeded row outright and `assert/coverage.ts` carries the reason under both
   `Sync_Source` and `Campus.externalName`. This is not a flag somebody re-enables
   by forgetting: there is nothing to re-enable. Turning the sync on for one campus
-  is an explicit act on `/staff/admin/campuses`, where a blank external name
-  already means null, plus a `write_sync_source` naming the campaign.
+  is an explicit act, `write_campus` giving it an `externalName`, plus a
+  `write_sync_source` naming the campaign.
 
   The contract itself lives with the surface, in
   [`salesforce.md`](./salesforce.md).

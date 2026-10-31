@@ -4,19 +4,12 @@
     matchesAllTokens,
     searchTokens,
   } from '$lib/components/staff/datatable/search';
-  import { untrack, onMount } from 'svelte';
-  import { superForm } from 'sveltekit-superforms';
-  import { enhance as formEnhance } from '$app/forms';
   import { page } from '$app/state';
-  import { toast } from 'svelte-sonner';
-  import Plus from '@lucide/svelte/icons/plus';
-  import Copy from '@lucide/svelte/icons/copy';
   import Trash2 from '@lucide/svelte/icons/trash-2';
-  import Pencil from '@lucide/svelte/icons/pencil';
+  import Eye from '@lucide/svelte/icons/eye';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
-  import FormStatusSelect from '$lib/components/admin/feedback/FormStatusSelect.svelte';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
@@ -37,15 +30,15 @@
     type FormsSortKey,
   } from './view';
   import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import { Textarea } from '$lib/components/ui/textarea';
   import { Badge } from '$lib/components/ui/badge';
-  import * as Dialog from '$lib/components/ui/dialog';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
-  import { FORM_STATUS_LABELS } from '$lib/domain/feedbackForms/status';
+  import {
+    FORM_STATUS_BADGE_CLASS,
+    FORM_STATUS_LABELS,
+    type FormStatusValue,
+  } from '$lib/domain/feedbackForms/status';
   import { publicFormPath } from '$lib/domain/feedback';
   import { resolve } from '$app/paths';
   import type { PageData } from './$types';
@@ -54,30 +47,12 @@
 
   let { data }: { data: PageData } = $props();
 
-  let createOpen = $state(false);
   let deleteOpen = $state(false);
   let deleteTarget = $state<FormListRow | null>(null);
 
-  // Deep-link from the event config wizard's "Créer un nouveau formulaire":
-  // land here with the create dialog already open instead of on a bare table.
-  // One-shot (onMount, not $effect) so closing the dialog doesn't reopen it.
-  onMount(() => {
-    if (page.url.searchParams.has('create')) createOpen = true;
-  });
-
-  // This page writes optimistically - a status change mutates the row in place,
-  // and the delete dialog's `update()` rebuilds `data.cohort` - so the list is
-  // held across those rather than re-awaited. See `createStreamedCohort`.
+  // The delete dialog's `update()` rebuilds `data.cohort`, so the list is held
+  // across it rather than re-awaited. See `createStreamedCohort`.
   const cohort = createStreamedCohort<FormsCohort>(() => data.cohort);
-
-  const { form, errors, enhance } = superForm(
-    untrack(() => data.createFormForm),
-    {
-      onResult: ({ result }) => {
-        if (result.type === 'redirect') createOpen = false;
-      },
-    },
-  );
 
   // ─── Filters + sort (in-memory over the resolved list) ────────────────────
   // The view lives in the address (`./view`), so a reload or a shared link
@@ -175,53 +150,6 @@
   });
   const fmtDate = (iso: string) => dateFmt.format(new Date(iso));
 
-  /** Id of the row whose status PATCH is in flight (locks its trigger). */
-  let statusPending = $state<string | null>(null);
-
-  // Changes a form's status straight from the list, reusing the builder's meta
-  // endpoint so status mutation has a single source of truth. Archiving is the
-  // supported way to retire a form that already has responses (it can't be
-  // deleted), so the control lives right where that need surfaces.
-  async function setStatus(row: FormListRow, status: string) {
-    if (status === row.status) return;
-    statusPending = row.id;
-    try {
-      const res = await fetch(
-        resolve(`/staff/admin/feedback-forms/${row.id}/meta`),
-        {
-          method: 'PATCH',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ status }),
-        },
-      );
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as {
-          message?: string;
-        } | null;
-        toast.error(body?.message ?? 'Le changement de statut a échoué.');
-        return;
-      }
-      row.status = status;
-      // Publishing a form no audience can reach is allowed but pointless; mirror
-      // the builder's reachability warning instead of letting it fail silently.
-      if (
-        status === 'published' &&
-        !row.allowsAuthenticatedAccess &&
-        !row.allowsPublicAccess
-      ) {
-        toast.warning(
-          'Publié, mais aucun mode d’accès n’est activé : personne ne peut répondre. Ouvrez les paramètres pour en activer un.',
-        );
-      } else {
-        toast.success(
-          `Statut : ${FORM_STATUS_LABELS[status as keyof typeof FORM_STATUS_LABELS]}`,
-        );
-      }
-    } finally {
-      statusPending = null;
-    }
-  }
-
   function askDelete(row: FormListRow) {
     deleteTarget = row;
     deleteOpen = true;
@@ -231,13 +159,11 @@
 <svelte:head><title>Formulaires de feedback</title></svelte:head>
 
 <div class="space-y-6">
-  <PageHeader title="Formulaires" accent="de feedback">
-    {#snippet actions()}
-      <Button size="sm" class="rounded-sm" onclick={() => (createOpen = true)}>
-        <Plus class="mr-1.5 h-4 w-4" /> Nouveau formulaire
-      </Button>
-    {/snippet}
-  </PageHeader>
+  <PageHeader
+    title="Formulaires"
+    accent="de feedback"
+    subtitle="Chaque formulaire tel qu’on y répond, et ses réponses"
+  />
 
   {#if cohort.failed}
     <ResultsNotice
@@ -247,7 +173,9 @@
   {:else if cohort.value === null}
     <p class="text-sm text-muted-foreground">Chargement…</p>
   {:else if cohort.value.rows.length === 0}
-    <ResultsNotice description="Aucun formulaire pour le moment." />
+    <ResultsNotice
+      description="Aucun formulaire pour le moment. Un formulaire s’écrit par l’API admin (write_feedback_form), puis se retrouve ici avec ses réponses."
+    />
   {:else}
     <DataTableToolbar
       searchValue={search.value}
@@ -297,11 +225,13 @@
             {/if}
           </Table.Cell>
           <Table.Cell>
-            <FormStatusSelect
-              value={r.status}
-              onChange={(v) => setStatus(r, v)}
-              disabled={statusPending === r.id}
-            />
+            <span
+              class="rounded-sm px-2 py-0.5 text-xs font-medium whitespace-nowrap {FORM_STATUS_BADGE_CLASS[
+                r.status as FormStatusValue
+              ]}"
+            >
+              {FORM_STATUS_LABELS[r.status as FormStatusValue]}
+            </span>
           </Table.Cell>
           <Table.Cell>
             <Badge variant="outline" class="epi-chip">
@@ -349,45 +279,13 @@
                       class="h-8 w-8"
                       href={resolve(`/staff/admin/feedback-forms/${r.id}`)}
                     >
-                      <Pencil class="h-4 w-4" />
-                      <span class="sr-only">Modifier</span>
+                      <Eye class="h-4 w-4" />
+                      <span class="sr-only">Aperçu</span>
                     </Button>
                   {/snippet}
                 </Tooltip.Trigger>
-                <Tooltip.Content>Modifier</Tooltip.Content>
+                <Tooltip.Content>Aperçu</Tooltip.Content>
               </Tooltip.Root>
-              <form
-                method="POST"
-                action="?/duplicate"
-                use:formEnhance={() =>
-                  async ({ result, update }) => {
-                    // The action redirects to the new form; toast first so the
-                    // duplication is acknowledged and persists across the nav.
-                    if (result.type === 'redirect') {
-                      toast.success('Formulaire dupliqué');
-                    }
-                    await update();
-                  }}
-              >
-                <input type="hidden" name="id" value={r.id} />
-                <Tooltip.Root>
-                  <Tooltip.Trigger>
-                    {#snippet child({ props })}
-                      <Button
-                        {...props}
-                        type="submit"
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8"
-                      >
-                        <Copy class="h-4 w-4" />
-                        <span class="sr-only">Dupliquer</span>
-                      </Button>
-                    {/snippet}
-                  </Tooltip.Trigger>
-                  <Tooltip.Content>Dupliquer</Tooltip.Content>
-                </Tooltip.Root>
-              </form>
               <Tooltip.Root>
                 <Tooltip.Trigger>
                   {#snippet child({ props })}
@@ -411,7 +309,7 @@
                 </Tooltip.Trigger>
                 <Tooltip.Content>
                   {r.submissionCount > 0
-                    ? 'Ce formulaire a des réponses : passez son statut à « Archivé » pour le retirer.'
+                    ? 'Ce formulaire a des réponses : archivez-le pour le retirer (write_feedback_form, status archived).'
                     : 'Supprimer'}
                 </Tooltip.Content>
               </Tooltip.Root>
@@ -422,42 +320,6 @@
     </Tooltip.Provider>
   {/if}
 </div>
-
-<Dialog.Root bind:open={createOpen}>
-  <Dialog.Content class="sm:max-w-lg">
-    <Dialog.Header>
-      <Dialog.Title>Nouveau formulaire</Dialog.Title>
-      <Dialog.Description>
-        Un brouillon vide est créé ; ajoutez ensuite les sections et questions.
-      </Dialog.Description>
-    </Dialog.Header>
-    <form method="POST" action="?/create" use:enhance class="space-y-4">
-      <div class="space-y-1.5">
-        <Label for="title">Titre</Label>
-        <Input id="title" name="title" bind:value={$form.title} />
-        {#if $errors.title}
-          <p class="text-xs text-destructive">{$errors.title}</p>
-        {/if}
-      </div>
-      <div class="space-y-1.5">
-        <Label for="intro">Message d'introduction (facultatif)</Label>
-        <Textarea
-          id="intro"
-          name="intro"
-          rows={4}
-          placeholder="Laissé vide, la mascotte dit un message d’accueil par défaut."
-          bind:value={$form.intro}
-        />
-        {#if $errors.intro}
-          <p class="text-xs text-destructive">{$errors.intro}</p>
-        {/if}
-      </div>
-      <Dialog.Footer>
-        <Button type="submit">Créer</Button>
-      </Dialog.Footer>
-    </form>
-  </Dialog.Content>
-</Dialog.Root>
 
 {#if deleteTarget}
   <ConfirmDeleteDialog

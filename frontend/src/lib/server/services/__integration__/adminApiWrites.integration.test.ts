@@ -533,6 +533,78 @@ describe('admin API writes (integration)', () => {
     await prisma.closing_Template.delete({ where: { id: grid.id } });
   });
 
+  // The wizard saved a preset from values nobody had saved on an event yet, and
+  // removed one. Over the API a preset is written from values alone, patched by
+  // name, and archived instead of deleted, since every preset name is readable.
+  it('writes a preset from values alone, patches it by name, and archives it', async () => {
+    const name = `Modèle par valeurs ${stamp}`;
+
+    const created = await call(postTemplate, writeSecret, {
+      name,
+      description: 'Stage de seconde, une semaine',
+      cohortNoun: 'stagiaire',
+      startTime: '09:00',
+      modules: ['inscrits', 'emargement'],
+      moduleSettings: { inscrits: { showStatutColumn: true } },
+    });
+    expect(created.status).toBe(200);
+    expect(created.payload.before).toBeNull();
+    expect(created.payload.after).toMatchObject({
+      cohortNoun: 'stagiaire',
+      startTime: '09:00',
+      modules: ['inscrits', 'emargement'],
+      moduleSettings: { inscrits: { showStatutColumn: true } },
+      archived: false,
+    });
+
+    const patched = await call(postTemplate, writeSecret, {
+      name,
+      startTime: null,
+    });
+    expect(patched.status).toBe(200);
+    expect(patched.payload.after).toMatchObject({
+      description: 'Stage de seconde, une semaine',
+      cohortNoun: 'stagiaire',
+      startTime: null,
+      modules: ['inscrits', 'emargement'],
+    });
+
+    const archived = await call(postTemplate, writeSecret, {
+      name,
+      archived: true,
+    });
+    expect(archived.status).toBe(200);
+    const listed = (await getEventTemplates()).templates.value.find(
+      (template) => template.name === name,
+    );
+    expect(listed).toMatchObject({ archived: true, cohortNoun: 'stagiaire' });
+
+    const restored = await call(postTemplate, writeSecret, {
+      name,
+      archived: false,
+    });
+    expect(restored.payload.after).toMatchObject({ archived: false });
+
+    await prisma.eventConfig_Template.deleteMany({ where: { name } });
+  });
+
+  it('refuses to create a preset from nothing, and a sub-option of a section it leaves off', async () => {
+    const empty = await call(postTemplate, writeSecret, {
+      name: `Modèle vide de tout ${stamp}`,
+      cohortNoun: 'stagiaire',
+    });
+    expect(empty.status).toBe(400);
+    expect(String(empty.payload.error)).toContain('modules');
+
+    const orphanOption = await call(postTemplate, writeSecret, {
+      name: `Modèle sans inscrits ${stamp}`,
+      modules: ['emargement'],
+      moduleSettings: { inscrits: { showStatutColumn: true } },
+    });
+    expect(orphanOption.status).toBe(400);
+    expect(String(orphanOption.payload.error)).toContain('ce modèle');
+  });
+
   // All or nothing: a refusal on one facet leaves every other facet of the same
   // call unwritten, which is what four separate tools could never promise.
   it('writes nothing when the activation it asks for is refused', async () => {
@@ -903,6 +975,57 @@ describe('admin API writes (integration)', () => {
 
     expect(status).toBe(409);
     expect(String(payload.error)).toContain('empreinte');
+  });
+
+  // A hand-picked selection, which the cockpit's checkboxes used to make: the
+  // plan names exactly those events, whatever campus or year they sit in.
+  it('plans and applies a change over named events', async () => {
+    const other = await prisma.event.create({
+      data: {
+        titre: `BulkNamed-${stamp}`,
+        date: new Date(Date.now() + 40 * 86_400_000),
+        campusId,
+      },
+    });
+    const named = { eventIds: [other.id], modules: ['emargement'] };
+
+    const dry = await call(postBulk, writeSecret, named);
+    expect(dry.status).toBe(200);
+    const plan = dry.payload.plan as { changes: { eventId: string }[] };
+    expect(plan.changes.map((c) => c.eventId)).toEqual([other.id]);
+
+    const applied = await call(postBulk, writeSecret, {
+      ...named,
+      planDigest: dry.payload.planDigest,
+    });
+    expect(applied.status).toBe(200);
+    const modules = await prisma.eventConfig_Module.findMany({
+      where: { eventId: other.id },
+      select: { moduleKey: true },
+    });
+    expect(modules.map((m) => m.moduleKey)).toEqual(['emargement']);
+
+    await prisma.eventConfig_Module.deleteMany({
+      where: { eventId: other.id },
+    });
+    await prisma.event.delete({ where: { id: other.id } });
+  });
+
+  it('refuses named events together with a filter, and an id no event has', async () => {
+    const both = await call(postBulk, writeSecret, {
+      eventIds: [eventId],
+      campus: `WriteCampus-${stamp}`,
+      visible: false,
+    });
+    expect(both.status).toBe(400);
+    expect(String(both.payload.error)).toContain('eventIds');
+
+    const ghost = await call(postBulk, writeSecret, {
+      eventIds: [eventId, 'no-such-event'],
+      visible: false,
+    });
+    expect(ghost.status).not.toBe(200);
+    expect(String(ghost.payload.error)).toContain('no-such-event');
   });
 
   // The facets a bulk change used to split across four tools, in one plan:

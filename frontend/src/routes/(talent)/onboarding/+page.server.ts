@@ -32,9 +32,11 @@ import {
   type SetParentLoginResult,
 } from '$lib/server/services/parentAccount';
 import {
+  offeredInterestSelection,
   validateTalentInterests,
   signOnboardingRules,
 } from '$lib/server/services/onboardingService';
+import { offeredInterestWhere } from '$lib/domain/interests';
 import {
   captureOnboardingReturn,
   consumeOnboardingReturn,
@@ -113,41 +115,28 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
     // year (start from a blank slate instead of anchoring them on last year's
     // answers, which is what the returning-talent dossier exists to avoid).
     // `TalentInterest` carries no date of its own and stays untouched either
-    // way - validating the step replaces the whole selection.
+    // way - validating the step replaces the whole offered selection.
     const prefill = dossier.interestsRecapSeenAt != null;
-    const [techInterests, generalInterests, existingTech, existingGeneral] =
-      await Promise.all([
-        prisma.interest.findMany({
-          where: { kind: 'tech' },
-          orderBy: { order: 'asc' },
-        }),
-        prisma.interest.findMany({
-          where: { kind: 'general' },
-          orderBy: { order: 'asc' },
-        }),
-        prefill
-          ? prisma.talentInterest.findMany({
-              where: { talentId: locals.talent.id, interest: { kind: 'tech' } },
-              select: { interestId: true },
-            })
-          : [],
-        prefill
-          ? prisma.talentInterest.findMany({
-              where: {
-                talentId: locals.talent.id,
-                interest: { kind: 'general' },
-              },
-              select: { interestId: true },
-            })
-          : [],
-      ]);
+    const [techInterests, generalInterests, selected] = await Promise.all([
+      prisma.interest.findMany({
+        where: { kind: 'tech', ...offeredInterestWhere },
+        orderBy: { order: 'asc' },
+      }),
+      prisma.interest.findMany({
+        where: { kind: 'general', ...offeredInterestWhere },
+        orderBy: { order: 'asc' },
+      }),
+      prefill
+        ? offeredInterestSelection(locals.talent.id)
+        : { tech: [], general: [] },
+    ]);
 
     return {
       step,
       techInterests,
       generalInterests,
-      selectedTechIds: existingTech.map((e) => e.interestId),
-      selectedGeneralIds: existingGeneral.map((e) => e.interestId),
+      selectedTechIds: selected.tech,
+      selectedGeneralIds: selected.general,
       freeText: prefill ? (locals.talent.interestsFreeText ?? '') : '',
       // Seeds a per-talent stable shuffle: chip order varies across the cohort
       // (anti-bias) but stays put across reloads for one student.

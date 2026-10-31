@@ -1,8 +1,10 @@
 import type { BroadcastChannel, Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import type { BroadcastVariableKey } from '$lib/domain/broadcasts';
 
 /**
- * A `MessageTemplate` is *broadcastable* iff it carries no `EmailActionMapping`.
+ * A `MessageTemplate` is *broadcastable* iff it carries no `EmailActionMapping`
+ * and no `{{otp_code}}`.
  *
  * Templates wired to an action are transactional (OTP login, relances,
  * account-deletion). They embed per-recipient secrets like `{{otp_code}}`, which
@@ -10,13 +12,31 @@ import { prisma } from '$lib/server/db';
  * recipient (see `buildPersonalization`). Cohort-broadcasting one would therefore
  * mail a working credential to the whole audience.
  *
+ * The code is excluded on its own, not only through the mapping: re-pointing a
+ * login action to a new template (`write_email_action`) unlinks the old one,
+ * which still carries the code, and the mapping alone would then let it be
+ * broadcast. The renderer fills the variable whatever its case and inner spaces
+ * (`citedVariables`), which a `where` cannot match as it does, so the clause
+ * looks for the key's name alone, case-insensitively: it catches every spelling
+ * the renderer fills, and the only text it wrongly keeps out of a bulk send
+ * names the variable outside braces. A subject is optional (an SMS has none),
+ * so its clause admits null explicitly: `NOT (subject ILIKE ...)` is null on a
+ * null subject and would drop every SMS template.
+ *
  * This fragment is the single source of that rule. The composer picker lists by
  * it, and every path that turns a `templateId` into a send resolves through
  * {@link loadBroadcastTemplate}, so the guarantee is enforced server-side rather
  * than only by hiding the option in the picker.
  */
+const CITES_LOGIN_CODE = {
+  contains: 'otp_code' satisfies BroadcastVariableKey,
+  mode: 'insensitive',
+} satisfies Prisma.StringFilter;
+
 export const BROADCASTABLE_TEMPLATE_WHERE = {
   emailActionMappings: { none: {} },
+  NOT: { body: CITES_LOGIN_CODE },
+  OR: [{ subject: null }, { NOT: { subject: CITES_LOGIN_CODE } }],
 } satisfies Prisma.MessageTemplateWhereInput;
 
 /** The template fields a broadcast snapshots and sends from. */

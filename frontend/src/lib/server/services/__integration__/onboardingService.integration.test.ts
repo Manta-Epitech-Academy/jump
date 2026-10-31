@@ -3,6 +3,7 @@ import { prisma } from '$lib/server/db';
 import { assertTestDatabase } from './testDatabase';
 import { reachRulesStep } from './onboardingLadder';
 import {
+  offeredInterestSelection,
   signOnboardingRules,
   validateTalentInterests,
 } from '../onboardingService';
@@ -274,6 +275,54 @@ describe('onboardingService (integration)', () => {
     expect(
       await prisma.talentInterest.count({ where: { talentId: talent.id } }),
     ).toBe(0);
+  });
+
+  it('keeps a pick of an archived interest out of the step and through its swap', async () => {
+    const talent = await makeTalent();
+    const retired = await prisma.interest.create({
+      data: { nom: `Test retired ${stamp}`, kind: 'tech', order: 998 },
+    });
+    try {
+      await validateTalentInterests(talent.id, {
+        techInterestIds: [techInterestId, retired.id],
+        generalInterestIds: [generalInterestId],
+      });
+      await prisma.interest.update({
+        where: { id: retired.id },
+        data: { archivedAt: new Date() },
+      });
+
+      // Back on the step, the talent is shown only what they can untick.
+      const shown = await offeredInterestSelection(talent.id);
+      expect(shown).toEqual({
+        tech: [techInterestId],
+        general: [generalInterestId],
+      });
+
+      // An archived interest can no longer be picked...
+      expect(
+        await validateTalentInterests(talent.id, {
+          techInterestIds: [retired.id],
+          generalInterestIds: [],
+        }),
+      ).toEqual({ ok: false, reason: 'stale_tech' });
+
+      // ...and posting back what the step shows passes and keeps the old pick.
+      const resubmitted = await validateTalentInterests(talent.id, {
+        techInterestIds: shown.tech,
+        generalInterestIds: [],
+      });
+      expect(resubmitted.ok).toBe(true);
+      const kept = await prisma.talentInterest.findMany({
+        where: { talentId: talent.id },
+        select: { interestId: true },
+      });
+      expect(kept.map((k) => k.interestId).sort()).toEqual(
+        [techInterestId, retired.id].sort(),
+      );
+    } finally {
+      await prisma.interest.delete({ where: { id: retired.id } });
+    }
   });
 
   it('counts each talent on exactly one funnel rung, matching the ladder', async () => {

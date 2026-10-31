@@ -8,16 +8,15 @@
  * four calls in an order it had to guess to configure and show one event, with
  * nothing atomic about the sequence: a facet is a field, not a tool.
  *
- * It goes through `EventService.updateEventConfig`, the same entry point the
- * admin wizard uses, so a change made from a chat and a change made from the
- * screen leave the database in the same state, hit the same validation, and land
- * in one transaction or not at all.
+ * It goes through `EventService.updateEventConfig`, which holds the rules of an
+ * event's configuration (an archived category, the activation rule), and lands in
+ * one transaction or not at all.
  *
  * The one thing added on top is **patch semantics**. `updateEventConfig` takes a
- * complete configuration and replaces it, which is right for a form (the form
- * holds every field) and wrong for a tool call: a model asked to "set the arrival
- * time" would have to supply the public name, the cohort noun, the sections and
- * the start time as well, and would cheerfully invent them. So the write reads
+ * complete configuration and replaces it, which is wrong for a tool call: a
+ * model asked to "set the arrival time" would have to supply the public name,
+ * the cohort noun, the sections and the start time as well, and would
+ * cheerfully invent them. So the write reads
  * the current state first, applies only the fields it was actually given (`null`
  * clears a field, an omitted field is left alone), and sends the whole thing
  * back. Rules that span facets, the activation rule first, are therefore judged
@@ -46,6 +45,7 @@ import {
 } from '$lib/domain/eventModules';
 import { EVENT_CONFIG_STATE_LABELS } from '$lib/domain/eventReadiness';
 import { UnknownScopeError } from '../scope';
+import { archivedAtFor } from './catalogue';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr, type HandleKind } from '../handles';
 import type { WriteOutcome } from '../plan';
@@ -140,24 +140,25 @@ function refuseUnknownModules(modules: string[]) {
  * to no effect; enabling it in the same call is what makes it count.
  */
 function mergedModuleSettings(
-  event: AdminEventVM,
+  stored: Record<string, unknown>,
   modules: readonly string[],
   patch: ModuleSettingsPatch | undefined,
+  subject: 'cet événement' | 'ce modèle',
 ): Record<string, unknown> {
-  if (!patch) return event.moduleSettings;
-  const merged = { ...event.moduleSettings };
+  if (!patch) return stored;
+  const merged = { ...stored };
   for (const [key, values] of Object.entries(patch)) {
     if (!values || !isEventModuleKey(key)) continue;
     if (!modules.includes(key)) {
       throw new OperationRefusedError(
-        `La section ${key} n'est pas activée sur cet événement, ses sous-options n'auraient donc aucun effet. Ajoutez-la à modules dans le même appel.`,
+        `La section ${key} n'est pas activée sur ${subject}, ses sous-options n'auraient donc aucun effet. Ajoutez-la à modules dans le même appel.`,
       );
     }
     const given = Object.fromEntries(
       Object.entries(values).filter(([, value]) => value !== undefined),
     );
     merged[key] = {
-      ...parseModuleSettings(key, event.moduleSettings[key]),
+      ...parseModuleSettings(key, stored[key]),
       ...given,
     };
   }
@@ -296,7 +297,12 @@ export async function writeEventConfig(
       event.category?.key ?? '',
     ),
     modules,
-    moduleSettings: mergedModuleSettings(event, modules, params.moduleSettings),
+    moduleSettings: mergedModuleSettings(
+      event.moduleSettings,
+      modules,
+      params.moduleSettings,
+      'cet événement',
+    ),
     devActivated: params.visible ?? event.devActivated,
     feedbackFormId: await resolvedReference(
       'feedbackFormId',
@@ -324,29 +330,137 @@ export async function writeEventConfig(
   };
 }
 
-export async function writeEventTemplate(params: {
-  eventId: string;
+/**
+ * What a preset holds, as the write takes it: every field patchable, `null`
+ * clearing it. The same shape as an event's configuration minus what only an
+ * event has (its activities, its visibility), because applying a preset is
+ * copying these values into `write_event_config`.
+ */
+export type EventTemplatePatch = {
   name: string;
-  description?: string;
-}): Promise<WriteOutcome> {
-  const event = await loadEvent(params.eventId);
-  const before = await EventConfigTemplateService.list().then(
-    (templates) => templates.find((t) => t.name === params.name) ?? null,
-  );
+  description?: string | null;
+  eventId?: string;
+  publicName?: string | null;
+  cohortNoun?: string | null;
+  startTime?: string | null;
+  categoryKey?: string | null;
+  modules?: string[];
+  moduleSettings?: ModuleSettingsPatch;
+  shownStatuses?: string[];
+  feedbackFormId?: string | null;
+  diplomaTemplateId?: string | null;
+  closingTemplateId?: string | null;
+  archived?: boolean;
+};
 
-  const { template, updated } = await EventConfigTemplateService.saveTemplate({
-    name: params.name,
-    description: params.description ?? '',
+type PresetConfig = {
+  publicName: string | null;
+  cohortNoun: string | null;
+  startTime: string | null;
+  categoryKey: string | null;
+  modules: string[];
+  moduleSettings: Record<string, unknown>;
+  shownStatuses: string[];
+  feedbackFormId: string | null;
+  diplomaTemplateId: string | null;
+  closingTemplateId: string | null;
+};
+
+/** An event's configuration, as a preset captures it. */
+function presetConfigOf(event: AdminEventVM): PresetConfig {
+  return {
     publicName: event.publicName,
-    cohortNoun: event.cohortNoun ?? '',
-    categoryKey: event.category?.key ?? '',
-    startTime: event.startTime,
+    cohortNoun: event.cohortNoun,
+    startTime: event.startTime || null,
+    categoryKey: event.category?.key ?? null,
     modules: event.modules,
     moduleSettings: event.moduleSettings,
-    feedbackFormId: event.feedbackFormId,
-    diplomaTemplateId: event.diplomaTemplateId,
-    closingTemplateId: event.closingTemplateId,
     shownStatuses: event.shownStatuses,
+    feedbackFormId: event.feedbackFormId || null,
+    diplomaTemplateId: event.diplomaTemplateId || null,
+    closingTemplateId: event.closingTemplateId || null,
+  };
+}
+
+const BLANK_PRESET: PresetConfig = {
+  publicName: null,
+  cohortNoun: null,
+  startTime: null,
+  categoryKey: null,
+  modules: [],
+  moduleSettings: {},
+  shownStatuses: [],
+  feedbackFormId: null,
+  diplomaTemplateId: null,
+  closingTemplateId: null,
+};
+
+/**
+ * Create, edit or archive one preset, by its name.
+ *
+ * What it starts from, in order: the event named by `eventId` (capturing an
+ * event as it stands, which is how most presets are born), else the preset as
+ * stored, else nothing. The fields the call gives are then laid over it with the
+ * same patch semantics as `write_event_config`, so a preset can be written from
+ * values alone, or captured from an event and adjusted in the same call.
+ *
+ * Archived, never deleted: every preset name is readable, so a delete would be
+ * one a model could aim on its own (class C).
+ */
+export async function writeEventTemplate(
+  params: EventTemplatePatch,
+): Promise<WriteOutcome> {
+  const name = params.name.trim();
+  const before =
+    (await EventConfigTemplateService.list()).find((t) => t.name === name) ??
+    null;
+  if (!before && !params.eventId && !params.modules) {
+    throw new OperationRefusedError(
+      `Aucun modèle ne s'appelle « ${name} ». Pour en créer un, partez d'un événement (eventId) ou donnez au moins ses sections (modules). ${handleProvenanceFr('templateName')}`,
+    );
+  }
+
+  const base = params.eventId
+    ? presetConfigOf(await loadEvent(params.eventId))
+    : (before ?? BLANK_PRESET);
+  if (params.modules) refuseUnknownModules(params.modules);
+  const modules = params.modules ?? base.modules;
+
+  const { template, updated } = await EventConfigTemplateService.saveTemplate({
+    name,
+    description: patched(params.description, before?.description ?? null),
+    publicName: patched(params.publicName, base.publicName),
+    cohortNoun: patched(params.cohortNoun, base.cohortNoun),
+    startTime: patched(params.startTime, base.startTime),
+    categoryKey: await resolvedReference(
+      'categoryKey',
+      params.categoryKey,
+      base.categoryKey ?? '',
+    ),
+    modules,
+    moduleSettings: mergedModuleSettings(
+      base.moduleSettings,
+      modules,
+      params.moduleSettings,
+      'ce modèle',
+    ),
+    feedbackFormId: await resolvedReference(
+      'feedbackFormId',
+      params.feedbackFormId,
+      base.feedbackFormId ?? '',
+    ),
+    diplomaTemplateId: await resolvedReference(
+      'diplomaTemplateId',
+      params.diplomaTemplateId,
+      base.diplomaTemplateId ?? '',
+    ),
+    closingTemplateId: await resolvedReference(
+      'closingTemplateId',
+      params.closingTemplateId,
+      base.closingTemplateId ?? '',
+    ),
+    shownStatuses: params.shownStatuses ?? base.shownStatuses,
+    archivedAt: archivedAtFor(params.archived, before?.archived ?? false),
     // Nobody's staff profile: the preset was saved by a token, and the audit
     // row already carries which one.
     actorId: null,

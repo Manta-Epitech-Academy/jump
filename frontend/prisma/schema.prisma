@@ -1124,6 +1124,11 @@ model EventConfig_Template {
   // The closing grid the preset carries, copied onto the event on apply like the
   // other config fields. Mirrors `Event.closingTemplateId`.
   closingTemplateId String?
+  // Archived rather than deleted, like a category: a model can read every
+  // preset's name, so a delete would be one it could aim on its own. An archived
+  // preset is no longer one to apply; the events it was applied to never kept a
+  // link to it.
+  archivedAt        DateTime?
   createdById       String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -2292,8 +2297,8 @@ model MessageTemplate {
 
 /// Maps a transactional email action (OTP login, welcome…) to a
 /// MessageTemplate. Resolved at send time by `sendActionEmail`. When no
-/// row exists for an action, the email is silently skipped (an admin
-/// warning surfaces in `/staff/admin/email-actions`). Action keys live in
+/// row exists for an action, the email is silently skipped (the admin API's
+/// `config_email_actions` reports it). Action keys live in
 /// `$lib/domain/emailActions.ts`.
 model EmailActionMapping {
   actionKey  String   @id
@@ -2374,12 +2379,17 @@ model BroadcastRecipient {
 
 // ─── Interests ───
 
+/// A centre d'intérêt a talent picks during onboarding. Archived
+/// (`archivedAt` set) rather than deleted (`write_interest`): it is no longer
+/// offered, and the talents who picked it keep it. A delete cascaded off every
+/// talent's dossier in silence.
 model Interest {
-  id    String  @id @default(cuid())
-  nom   String  @unique
-  emoji String?
-  kind  String  @default("general") // "tech" | "general"
-  order Int
+  id         String    @id @default(cuid())
+  nom        String    @unique
+  emoji      String?
+  kind       String    @default("general") // "tech" | "general"
+  order      Int
+  archivedAt DateTime?
 
   talentInterests TalentInterest[]
 }

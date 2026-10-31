@@ -108,6 +108,15 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'questions',
   // An event category's colour, a #rrggbb an admin picks.
   'color',
+  // A centre d'intérêt's emoji, and a campus's configuration: free values an
+  // admin types, the new name of a campus, and the flag that removes one.
+  'emoji',
+  'rename',
+  'externalName',
+  'timezone',
+  'departement',
+  'contactAddress',
+  'remove',
   // Flags, windows and sizes.
   'intervalMinutes',
   'enabled',

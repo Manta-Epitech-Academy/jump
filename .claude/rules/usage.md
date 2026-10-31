@@ -71,6 +71,16 @@ catalogue both read.
   unique constraint, so the actor, the event and the impersonation flag all live
   inside the key. Drop any one of them and `skipDuplicates` silently discards a
   legitimate row; `record.test.ts` pins all three.
+- **A key retires with its rows, in the same branch's migration.** When the
+  screen or the control a key measured goes, the key leaves `domain/usage.ts`
+  and a migration deletes its rows from BOTH stores (`20260906120000`,
+  `20261031100000`). Leaving the rows was tried once (bd53a4d4) and is not an
+  option: `stringCatalogues.ts` checks `Usage_FeatureUse.feature` on every row,
+  so `seed --check` refuses the first database that recorded the key, and
+  `rollup.ts` only recomputes a month that still has raw rows, so a cube row
+  under a dead key outlives the raw retention with nothing to remove it. What
+  the figures said before the removal belongs in the issue that decided it,
+  not in a store nothing reads any more.
 - **Fold before you purge.** `/api/jobs/usage-rollup` is one job for that reason:
   it folds every month present in the raw table, then purges past
   `USAGE_RAW_RETENTION_MONTHS`. Two jobs would make the ordering a scheduling

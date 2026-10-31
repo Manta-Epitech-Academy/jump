@@ -4,10 +4,7 @@
     matchesAllTokens,
     searchTokens,
   } from '$lib/components/staff/datatable/search';
-  import { deserialize } from '$app/forms';
-  import { toast } from 'svelte-sonner';
   import * as Dialog from '$lib/components/ui/dialog';
-  import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import * as Table from '$lib/components/ui/table';
   import { Input } from '$lib/components/ui/input';
@@ -55,13 +52,10 @@
     open = $bindable(false),
     eventId,
     eventTitle,
-    onStatusAdded,
   }: {
     open: boolean;
     eventId: string | null;
     eventTitle?: string;
-    /** Told when a word joins the catalogue, so the host can offer it. */
-    onStatusAdded?: (status: string) => void;
   } = $props();
 
   let loading = $state(false);
@@ -114,7 +108,8 @@
   });
 
   // The words Jump does not know, once each, most carried first: each is one
-  // decision (add it to the catalogue or not), whatever the number of rows.
+  // decision (add it to the catalogue or not, over the admin API), whatever the
+  // number of rows.
   const unknownWords = $derived.by(() => {
     const counts = new Map<string, number>();
     for (const row of data?.participations ?? []) {
@@ -125,44 +120,6 @@
       .map(([status, count]) => ({ status, count }))
       .sort((a, b) => b.count - a.count);
   });
-
-  let addingStatus = $state<string | null>(null);
-
-  // Posted via fetch rather than an enhanced <form>: this dialog also opens from
-  // inside the config wizard's form, and a nested form is invalid HTML. The host
-  // is told rather than the page invalidated, which would reset that form.
-  async function addToCatalogue(status: string) {
-    if (addingStatus) return;
-    addingStatus = status;
-    try {
-      const body = new FormData();
-      body.set('status', status);
-      const res = await fetch('/staff/admin/events?/addMemberStatus', {
-        method: 'POST',
-        body,
-      });
-      const result = deserialize(await res.text());
-      if (result.type === 'success') {
-        // The box that said so is gone once the last unknown word is added,
-        // so the next step travels with the confirmation.
-        toast.success(
-          `${status} ajouté, et toujours masqué : cochez-le dans la configuration des événements qui doivent l'afficher.`,
-        );
-        onStatusAdded?.(status);
-        await loadData();
-      } else {
-        toast.error(
-          (result.type === 'failure'
-            ? (result.data?.memberStatusError as string | undefined)
-            : undefined) ?? "Erreur lors de l'ajout du statut.",
-        );
-      }
-    } catch {
-      toast.error("Erreur lors de l'ajout du statut.");
-    } finally {
-      addingStatus = null;
-    }
-  }
 
   // Styled by what the dev space does with the word on THIS event, never by the
   // word itself: which words are shown is set per event, so a colour per word
@@ -246,27 +203,11 @@
                   de Jump
                 </span>
                 <InfoTooltip
-                  label="Ce que change l'ajout au catalogue"
-                  text="Salesforce a peut-être ajouté ou renommé un statut. L'ajouter au catalogue le fait connaître de Jump : il n'est plus signalé comme inconnu."
+                  label="Faire connaître ce statut"
+                  text="Salesforce a peut-être ajouté ou renommé un statut. L'ajouter au catalogue (write_sync_member_status) le fait connaître de Jump, puis la configuration de chaque événement dit s'il l'affiche."
                 />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  class="ml-auto h-7 cursor-pointer text-xs"
-                  disabled={addingStatus !== null}
-                  onclick={() => addToCatalogue(word.status)}
-                >
-                  {#if addingStatus === word.status}
-                    <LoaderCircle class="h-3 w-3 animate-spin" />
-                  {/if}
-                  Ajouter au catalogue
-                </Button>
               </div>
             {/each}
-            <p class="text-xs text-muted-foreground">
-              Ajouté, il reste masqué : cochez-le dans la configuration des
-              événements qui doivent l'afficher.
-            </p>
           </div>
         {/if}
 

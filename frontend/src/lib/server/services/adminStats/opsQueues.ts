@@ -249,6 +249,8 @@ export type BroadcastDelivery = {
   /** The name staff gave the send, and the subject line recipients saw. */
   name: string;
   subject: string | null;
+  /** The campus whose talents it went to. */
+  campus: string;
   channel: string;
   status: string;
   createdAt: string;
@@ -268,6 +270,7 @@ export type BroadcastDeliveries = {
   sent: Metric;
   failed: Metric;
   deliveryRate: Metric<number | null>;
+  mailOpenRate: Metric<number | null>;
   perBroadcast: Metric<BroadcastDelivery[]>;
   truncated: boolean;
 };
@@ -294,6 +297,7 @@ export async function getBroadcastDeliveries(
       channel: true,
       status: true,
       createdAt: true,
+      campus: { select: { name: true } },
       recipients: {
         select: { status: true, openedAt: true },
       },
@@ -309,6 +313,7 @@ export async function getBroadcastDeliveries(
       broadcastId: row.id,
       name: row.name,
       subject: row.subjectSnapshot,
+      campus: row.campus.name,
       channel: row.channel,
       status: row.status,
       createdAt: row.createdAt.toISOString(),
@@ -326,6 +331,9 @@ export async function getBroadcastDeliveries(
     perBroadcast.reduce((sum, row) => sum + pick(row), 0);
   const sent = total((r) => r.sent);
   const failed = total((r) => r.failed);
+  const mails = perBroadcast.filter((r) => r.channel === 'mail');
+  const mailTotal = (pick: (row: BroadcastDelivery) => number) =>
+    mails.reduce((sum, row) => sum + pick(row), 0);
 
   return {
     filters: { days },
@@ -346,9 +354,16 @@ export async function getBroadcastDeliveries(
       share(sent, sent + failed),
       'Part des messages partis parmi ceux dont le sort est tranché (partis ou en échec), en pourcentage. Les messages encore en attente sont exclus du calcul.',
     ),
+    mailOpenRate: metric(
+      share(
+        mailTotal((r) => r.opened),
+        mailTotal((r) => r.sent),
+      ),
+      "Part des mails partis qui ont été ouverts, tous envois groupés par mail de la période confondus, en pourcentage. Les SMS en sont exclus : un SMS ne se mesure pas à l'ouverture. Vaut null si aucun mail n'est parti.",
+    ),
     perBroadcast: metric(
       perBroadcast.slice(0, BROADCASTS_LIMIT),
-      `Le détail envoi par envoi, du plus récent au plus ancien, limité à ${BROADCASTS_LIMIT} lignes. « openRate » n'existe que pour le mail : un SMS ne se mesure pas à l'ouverture.`,
+      `Le détail envoi par envoi, du plus récent au plus ancien, limité à ${BROADCASTS_LIMIT} lignes. « campus » est le campus dont les talents l'ont reçu. « openRate » n'existe que pour le mail : un SMS ne se mesure pas à l'ouverture.`,
     ),
     truncated: perBroadcast.length > BROADCASTS_LIMIT,
   };
