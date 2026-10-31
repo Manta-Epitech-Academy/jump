@@ -40,8 +40,8 @@ export type InterestsFailure = 'stale_tech' | 'stale_general';
  *
  * The selection is a full swap (deleteMany + createMany), not a diff: the form
  * always posts the complete set, so a diff would only add a way for the two to
- * disagree. Ids are checked against the catalogue first, per kind, so a chip
- * deleted by staff mid-session fails the step loudly instead of silently
+ * disagree. Ids are checked against the offered catalogue first, per kind, so a
+ * chip archived by staff mid-session fails the step loudly instead of silently
  * dropping.
  */
 export async function validateTalentInterests(
@@ -54,10 +54,18 @@ export async function validateTalentInterests(
 ): Promise<ServiceResult<InterestsFailure>> {
   const [techCount, generalCount] = await Promise.all([
     prisma.interest.count({
-      where: { id: { in: input.techInterestIds }, kind: 'tech' },
+      where: {
+        id: { in: input.techInterestIds },
+        kind: 'tech',
+        archivedAt: null,
+      },
     }),
     prisma.interest.count({
-      where: { id: { in: input.generalInterestIds }, kind: 'general' },
+      where: {
+        id: { in: input.generalInterestIds },
+        kind: 'general',
+        archivedAt: null,
+      },
     }),
   ]);
 

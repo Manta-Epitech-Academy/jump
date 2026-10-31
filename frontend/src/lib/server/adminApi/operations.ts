@@ -167,6 +167,8 @@ import {
   getFeedbackForms,
   getEventTemplates,
   getEventCategories,
+  getEmailActions,
+  getInterests,
   getWorkshops,
   getTalentHomeContent,
 } from '$lib/server/services/adminStats/configuration';
@@ -182,6 +184,11 @@ import {
 } from './writes/talentHome';
 import { writeEventConfig, writeEventTemplate } from './writes/events';
 import { writeEventCategory } from './writes/eventCategories';
+import { writeEmailAction } from './writes/emailActions';
+import { writeInterest } from './writes/interests';
+import { writeCampus } from './writes/campuses';
+import { EMAIL_ACTION_KEYS } from '$lib/domain/emailActions';
+import { INTEREST_KINDS } from '$lib/domain/interests';
 import {
   retryPdfJob,
   resolveSchools,
@@ -779,6 +786,20 @@ export const ADMIN_API_OPERATIONS = {
       'The event categories (Coding Club, Stage, Camp...), archived ones included, with their colour and how many events carry each. A category colours the campus calendar and counts for badges, nothing else. Takes no parameter.',
     shape: {},
     run: () => getEventCategories(),
+  }),
+
+  config_email_actions: defineOperation({
+    description:
+      'Every transactional mail Jump sends (login codes, parent mails, account deletion), the template it sends from and the variables it needs, plus the mail templates one can be linked to. Takes no parameter.',
+    shape: {},
+    run: () => getEmailActions(),
+  }),
+
+  config_interests: defineOperation({
+    description:
+      "The centres d'intérêt a talent picks at onboarding, archived ones included, with how many talents picked each. Takes no parameter.",
+    shape: {},
+    run: () => getInterests(),
   }),
 
   config_admin_digest: defineOperation({
@@ -1585,6 +1606,112 @@ export const ADMIN_API_OPERATIONS = {
     run: (params) => writeEventCategory(params),
   }),
 
+  write_email_action: defineWrite({
+    description:
+      'Choose the mail template one transactional mail sends from. Refused for a template missing a variable the mail cannot do without, and for unlinking such a mail. Safe to repeat. Answers with the link before and after.',
+    shape: {
+      emailAction: z
+        .enum(EMAIL_ACTION_KEYS as [string, ...string[]])
+        .describe(handleDescribe('emailActionKey')),
+      messageTemplateId: z
+        .string()
+        .min(1)
+        .nullable()
+        .describe(`${handleDescribe('messageTemplateId')} Null unlinks it.`),
+    },
+    run: (params) =>
+      writeEmailAction(params as Parameters<typeof writeEmailAction>[0]),
+  }),
+
+  write_interest: defineWrite({
+    description:
+      "Create, rename or archive one centre d'intérêt. Without interestId it creates one; with it, only the fields you pass change. Archived, it is no longer offered and its talents keep it; there is no delete. Safe to repeat. Answers with it before and after.",
+    shape: {
+      interestId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(`${handleDescribe('interestId')}`),
+      kind: z
+        .enum(INTEREST_KINDS)
+        .optional()
+        .describe('Required to create one, never changed after.'),
+      label: z
+        .string()
+        .trim()
+        .min(1)
+        .max(80)
+        .optional()
+        .describe('Its French name. Required to create one.'),
+      emoji: z
+        .string()
+        .trim()
+        .max(16)
+        .nullable()
+        .optional()
+        .describe('Null removes it.'),
+      archived: z
+        .boolean()
+        .optional()
+        .describe(
+          'True to archive it, false to unarchive it. Omit to leave it as it stands.',
+        ),
+    },
+    run: (params) => writeInterest(params),
+  }),
+
+  write_campus: defineWrite({
+    description:
+      'Create a campus or change its configuration, by name: an unknown name creates one, otherwise only the fields you pass change. remove deletes one, refused while anything references it. Safe to repeat. Answers with the campus before and after.',
+    shape: {
+      campus: z
+        .string()
+        .trim()
+        .min(2)
+        .max(80)
+        .describe('Campus name, e.g. "Lille".'),
+      rename: z
+        .string()
+        .trim()
+        .min(2)
+        .max(80)
+        .optional()
+        .describe('A new name for an existing campus.'),
+      externalName: z
+        .string()
+        .trim()
+        .min(1)
+        .max(120)
+        .nullable()
+        .optional()
+        .describe(
+          'Its name in Salesforce, which lets the sync serve it. Null stops it.',
+        ),
+      timezone: z
+        .string()
+        .min(1)
+        .optional()
+        .describe('IANA time zone. Defaults to Europe/Paris.'),
+      departement: z
+        .string()
+        .trim()
+        .min(1)
+        .max(3)
+        .nullable()
+        .optional()
+        .describe(
+          'INSEE département code, e.g. "59": it sets the holidays shown.',
+        ),
+      contactAddress: z
+        .email()
+        .nullable()
+        .optional()
+        .describe('The contact address transactional mails quote.'),
+      remove: z.literal(true).optional().describe('Delete the campus.'),
+    },
+    run: (params) => writeCampus(params),
+  }),
+
   write_admin_digest_recipient: defineWrite({
     description:
       'Choose whether one admin receives the weekly admin digest, from the next Monday on. Only an admin account can, since its links need a staff session; one who loses the role stops receiving it with nothing to undo. Safe to repeat.',
@@ -1962,7 +2089,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_broadcast_deliveries: defineOperation({
-    description: `How bulk sends landed: recipients, sent, failed, pending and opens per broadcast, with delivery and open rates. Counts only, never a recipient. Window defaults to ${BROADCASTS_DEFAULT_DAYS} days; capped at ${BROADCASTS_LIMIT} broadcasts in the list.`,
+    description: `How bulk sends landed: recipients, sent, failed, pending and opens per broadcast and its campus, with delivery and open rates, and the open rate over every mail of the window. Counts only, never a recipient. Transactional mail (login codes, parent mails) is config_email_actions. Window defaults to ${BROADCASTS_DEFAULT_DAYS} days; capped at ${BROADCASTS_LIMIT} broadcasts in the list.`,
     shape: {
       days: z.coerce
         .number()

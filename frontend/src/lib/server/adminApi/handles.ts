@@ -49,7 +49,10 @@ export type HandleKind =
   | 'eventCategoryKey'
   | 'workshopDomainKey'
   | 'usageFeatureKey'
-  | 'adminAddress';
+  | 'adminAddress'
+  | 'emailActionKey'
+  | 'messageTemplateId'
+  | 'interestId';
 
 /**
  * Deliberately only the operation and the slice it covers, never where the value
@@ -104,6 +107,27 @@ type Handle = {
 };
 
 export const HANDLES: Record<HandleKind, Handle> = {
+  emailActionKey: {
+    what: 'Transactional mail action key, the stable name of one mail Jump sends on its own (a login code, a parent mail).',
+    frNoun: 'clés de mail transactionnel',
+    frGender: 'f',
+    producedBy: [{ operation: 'config_email_actions' }],
+  },
+
+  messageTemplateId: {
+    what: 'Mail template id, the template a transactional mail is sent from.',
+    frNoun: 'identifiants de modèle de mail',
+    frGender: 'm',
+    producedBy: [{ operation: 'config_email_actions' }],
+  },
+
+  interestId: {
+    what: "Centre d'intérêt id, one of the interests a talent picks at onboarding.",
+    frNoun: "identifiants de centre d'intérêt",
+    frGender: 'm',
+    producedBy: [{ operation: 'config_interests' }],
+  },
+
   usageFeatureKey: {
     what: 'Usage feature key, the catalogue name of a measurable feature of Jump.',
     frNoun: 'clés de fonctionnalité',
@@ -420,6 +444,10 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // complete set of them an activity is filed under.
   domainKey: 'workshopDomainKey',
   domains: 'workshopDomainKey',
+  // A transactional mail by its action key, and the template it is sent from.
+  emailAction: 'emailActionKey',
+  messageTemplateId: 'messageTemplateId',
+  interestId: 'interestId',
 };
 
 const list = (parts: string[]) =>

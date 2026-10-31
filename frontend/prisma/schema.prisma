@@ -2379,12 +2379,17 @@ model BroadcastRecipient {
 
 // ─── Interests ───
 
+/// A centre d'intérêt a talent picks during onboarding. Archived
+/// (`archivedAt` set) rather than deleted (`write_interest`): it is no longer
+/// offered, and the talents who picked it keep it. A delete cascaded off every
+/// talent's dossier in silence.
 model Interest {
-  id    String  @id @default(cuid())
-  nom   String  @unique
-  emoji String?
-  kind  String  @default("general") // "tech" | "general"
-  order Int
+  id         String    @id @default(cuid())
+  nom        String    @unique
+  emoji      String?
+  kind       String    @default("general") // "tech" | "general"
+  order      Int
+  archivedAt DateTime?
 
   talentInterests TalentInterest[]
 }

@@ -118,11 +118,11 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
     const [techInterests, generalInterests, existingTech, existingGeneral] =
       await Promise.all([
         prisma.interest.findMany({
-          where: { kind: 'tech' },
+          where: { kind: 'tech', archivedAt: null },
           orderBy: { order: 'asc' },
         }),
         prisma.interest.findMany({
-          where: { kind: 'general' },
+          where: { kind: 'general', archivedAt: null },
           orderBy: { order: 'asc' },
         }),
         prefill
