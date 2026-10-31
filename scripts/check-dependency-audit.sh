@@ -10,7 +10,7 @@
 # Same code locally and in CI, like scripts/check-work-item.sh.
 #
 # Usage:
-#   scripts/check-dependency-audit.sh                 # against origin/dev
+#   scripts/check-dependency-audit.sh                 # against where it left origin/dev
 #   scripts/check-dependency-audit.sh --base <sha>    # what CI passes
 #
 # How: when frontend/bun.lock differs from the base, both lockfiles are scanned
@@ -23,7 +23,7 @@
 # error left the findings empty and the guard passed on a scan nobody read.
 set -euo pipefail
 
-BASE="origin/dev"
+BASE=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -40,6 +40,14 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
 cd "$VULN_ROOT" || die "cannot enter $VULN_ROOT"
 LOCK=frontend/bun.lock
+
+# Locally, the point this branch left dev and not dev's tip: a lockfile change dev
+# made since then would otherwise read as this branch's, and an advisory dev has
+# fixed would be reported as added here. CI passes the merge commit's first
+# parent, against which the merge already shows only what the branch adds.
+if [ -z "$BASE" ]; then
+  BASE=$(git merge-base origin/dev HEAD) || die "no common ancestor with origin/dev (fetch it first)"
+fi
 
 git cat-file -e "${BASE}^{commit}" 2>/dev/null || die "base $BASE is not a commit here (fetch it first)"
 
