@@ -18,7 +18,10 @@
 # fails on each advisory + package found on this side and not on the base. When
 # the lockfile is unchanged it skips itself without calling OSV at all, so an
 # OSV outage cannot block a pull request that touches no dependency.
-set -uo pipefail
+#
+# -e: a report this script cannot read must fail the guard. Without it, a jq
+# error left the findings empty and the guard passed on a scan nobody read.
+set -euo pipefail
 
 BASE="origin/dev"
 
