@@ -10,6 +10,7 @@
  */
 
 import type { BroadcastVariableKey } from './broadcasts';
+import { citedVariables } from './broadcastVariables';
 
 interface EmailAction {
   key: string;
@@ -112,21 +113,13 @@ export const EMAIL_ACTION_KEYS = Object.keys(
   EMAIL_ACTIONS,
 ) as readonly EmailActionKey[];
 
-/** Whether a template's subject or body uses `{{variable}}`. */
-export function templateUsesVariable(
-  template: { subject: string | null; body: string },
-  variable: BroadcastVariableKey,
-): boolean {
-  const token = `{{${variable}}}`;
-  return template.body.includes(token) || !!template.subject?.includes(token);
-}
-
-/** The required variables of `action` that `template` does not use. */
+/** The required variables of `action` that `template` does not cite. */
 export function missingRequiredVariables(
   action: EmailActionKey,
   template: { subject: string | null; body: string },
 ): BroadcastVariableKey[] {
+  const cited = citedVariables(`${template.subject ?? ''}\n${template.body}`);
   return EMAIL_ACTIONS[action].requiredVariables.filter(
-    (variable) => !templateUsesVariable(template, variable),
+    (variable) => !cited.has(variable),
   );
 }

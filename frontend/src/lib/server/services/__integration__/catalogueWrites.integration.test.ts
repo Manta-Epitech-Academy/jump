@@ -158,7 +158,7 @@ describe('catalogue writes (integration)', () => {
     // Re-pointing an action unlinks the template it left, which still carries
     // a login code: it must not become something a bulk send can pick.
     it('keeps a template carrying a login code out of bulk sends once unlinked', async () => {
-      const first = await template('Code un', 'Code : {{otp_code}}');
+      const first = await template('Code un', 'Code : {{ OTP_CODE }}');
       const second = await template('Code deux', 'Code : {{otp_code}} !');
       for (const id of [first, second]) {
         expect(

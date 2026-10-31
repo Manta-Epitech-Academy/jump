@@ -26,6 +26,15 @@ describe('missingRequiredVariables', () => {
     ).toEqual([]);
   });
 
+  it('reads the variable however the renderer would fill it', () => {
+    for (const body of ['Code : {{ otp_code }}', 'Code : {{OTP_CODE}}']) {
+      expect(
+        missingRequiredVariables('otp_talent', { subject: null, body }),
+        body,
+      ).toEqual([]);
+    }
+  });
+
   it('asks a refusal to give its reason, as RGPD art. 12(4) does', () => {
     expect(
       missingRequiredVariables('account_deletion_refused', {
