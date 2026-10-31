@@ -52,15 +52,22 @@ async function stateOf(id: string): Promise<InterestState | null> {
     : null;
 }
 
-/** Refuses a label another interest holds, naming it. */
+/**
+ * Refuses a label another interest already reads as, whatever the case, naming
+ * it: two chips a talent cannot tell apart are one interest typed twice, and
+ * onboarding would offer both.
+ */
 async function refuseTakenLabel(label: string, ownId: string | null) {
-  const holder = await prisma.interest.findUnique({
-    where: { nom: label },
-    select: { id: true },
+  const holder = await prisma.interest.findFirst({
+    where: {
+      ...(ownId ? { id: { not: ownId } } : {}),
+      nom: { equals: label, mode: 'insensitive' },
+    },
+    select: { id: true, nom: true },
   });
-  if (holder && holder.id !== ownId) {
+  if (holder) {
     throw new OperationRefusedError(
-      `Un centre d'intérêt s'appelle déjà « ${label} » (${holder.id}). Modifiez celui-là, ou choisissez un autre nom.`,
+      `Un centre d'intérêt s'appelle déjà « ${holder.nom} » (${holder.id}). Modifiez celui-là, ou choisissez un autre nom.`,
     );
   }
 }

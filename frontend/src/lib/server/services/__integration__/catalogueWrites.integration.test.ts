@@ -243,7 +243,7 @@ describe('catalogue writes (integration)', () => {
 
       const twin = await call(postInterest, secret, {
         kind: 'general',
-        label: `Cuisine ${stamp}`,
+        label: `cuisine ${stamp}`,
       });
       expect(twin.status).toBe(400);
 
