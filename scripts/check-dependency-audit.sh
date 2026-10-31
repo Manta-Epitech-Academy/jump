@@ -52,13 +52,13 @@ mkdir "$tmp/base"
 # A base without a lockfile has nothing on it, so everything found here is new.
 if git show "$BASE:$LOCK" > "$tmp/base/bun.lock" 2>/dev/null; then
   osv_scan "$tmp/base/bun.lock" "$tmp/base.json" || die "osv-scanner could not scan the base lockfile"
-  osv_findings "$tmp/base.json" "$LOCK" > "$tmp/base.tsv"
+  osv_findings "$tmp/base.json" > "$tmp/base.tsv"
 else
   : > "$tmp/base.tsv"
 fi
 
 osv_scan "$LOCK" "$tmp/head.json" || die "osv-scanner could not scan $LOCK"
-osv_findings "$tmp/head.json" "$LOCK" > "$tmp/head.tsv"
+osv_findings "$tmp/head.json" > "$tmp/head.tsv"
 
 # FILENAME and not the usual NR == FNR: with no finding on the base, the base
 # file is empty, NR == FNR then holds for every line of the head file, and
@@ -76,7 +76,7 @@ if [ ! -s "$tmp/new.tsv" ]; then
   exit 0
 fi
 
-while IFS=$'\t' read -r advisory package installed fixed _severity _where; do
+while IFS=$'\t' read -r advisory package installed fixed _severity; do
   echo "::error file=$LOCK::$package $installed: https://osv.dev/$advisory, fixed in ${fixed:-no release yet}"
 done < "$tmp/new.tsv"
 
