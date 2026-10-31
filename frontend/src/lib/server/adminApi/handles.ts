@@ -363,6 +363,8 @@ export const HANDLES: Record<HandleKind, Handle> = {
 export const PARAM_HANDLES: Record<string, HandleKind> = {
   feature: 'usageFeatureKey',
   eventId: 'eventId',
+  // A hand-picked set of events for the bulk write, the list form of `eventId`.
+  eventIds: 'eventId',
   formId: 'formId',
   // The event configuration names each reference after the column it sets, so
   // the three sit side by side unambiguously in one write.

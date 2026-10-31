@@ -578,6 +578,35 @@ const feedbackQuestion = withQuestionRules(
 /** A dev-workspace section's settings when it has no sub-option to set. */
 const noSubOptions = z.strictObject({}).optional();
 
+/**
+ * The sub-options per section, as an event and a preset both take them. Every
+ * sub-option `domain/eventModules.ts` declares must be here, which
+ * `operations.test.ts` checks against the domain.
+ */
+const moduleSettings = z
+  .strictObject({
+    [EVENT_MODULES.INSCRITS]: z
+      .strictObject({
+        showStatutColumn: z
+          .boolean()
+          .optional()
+          .describe(
+            "Show the dossier progress column (connexion, règlement, droit à l'image) on the Inscrits table.",
+          ),
+      })
+      .optional(),
+    // A section with no sub-option still has its key, holding nothing: the
+    // reads return every enabled section's settings that way, so what a preset
+    // or a write's own answer holds goes back as it is.
+    [EVENT_MODULES.EMARGEMENT]: noSubOptions,
+    [EVENT_MODULES.BILAN]: noSubOptions,
+    [EVENT_MODULES.CLOSINGS]: noSubOptions,
+  } satisfies Record<EventModuleKey, z.ZodType>)
+  .describe(
+    'Sub-options per section, only those you pass change. A section must be in the saved modules, so enable it in the same call if it is not.',
+  )
+  .meta({ id: 'EventModuleSettings' });
+
 export const ADMIN_API_OPERATIONS = {
   stats_events: defineOperation({
     leadership: true,
@@ -740,7 +769,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_templates: defineOperation({
     description:
-      'Saved event-configuration presets and exactly what each one holds: sections and their sub-options, shown Salesforce statuses, public name, cohort noun, category, arrival time, and the feedback form, certificate and closing grid it points at. A preset is applied by copying its values: to write_event_config for one event, or its modules, shownStatuses and categoryKey to bulk_event_config for many.',
+      'Saved event-configuration presets, archived ones included, and exactly what each one holds: sections and their sub-options, shown Salesforce statuses, public name, cohort noun, category, arrival time, and the feedback form, certificate and closing grid it points at. A preset is applied by copying its values: to write_event_config for one event, or its modules, shownStatuses and categoryKey to bulk_event_config for many. An archived one is retired: do not apply it.',
     shape: {},
     run: () => getEventTemplates(),
   }),
@@ -874,29 +903,7 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           `${handleDescribe('sfStatus')} The complete set of Salesforce member statuses whose enrolments the dev workspace shows for this event; statuses left out are masked (still synced and in Jump). Enrolments with no status at all are always shown.`,
         ),
-      moduleSettings: z
-        .strictObject({
-          [EVENT_MODULES.INSCRITS]: z
-            .strictObject({
-              showStatutColumn: z
-                .boolean()
-                .optional()
-                .describe(
-                  "Show the dossier progress column (connexion, règlement, droit à l'image) on the Inscrits table.",
-                ),
-            })
-            .optional(),
-          // A section with no sub-option still has its key, holding nothing:
-          // the reads return every enabled section's settings that way, so
-          // what a preset or this write's own answer holds goes back as it is.
-          [EVENT_MODULES.EMARGEMENT]: noSubOptions,
-          [EVENT_MODULES.BILAN]: noSubOptions,
-          [EVENT_MODULES.CLOSINGS]: noSubOptions,
-        } satisfies Record<EventModuleKey, z.ZodType>)
-        .optional()
-        .describe(
-          'Sub-options per section, only those you pass change. A section must be in the saved modules, so enable it in the same call if it is not.',
-        ),
+      moduleSettings: moduleSettings.optional(),
       visible: z
         .boolean()
         .optional()
@@ -1437,19 +1444,103 @@ export const ADMIN_API_OPERATIONS = {
 
   write_event_template: defineWrite({
     description:
-      "Save one event's current configuration as a reusable named preset. An existing name is replaced, which is how a preset is edited. Safe to repeat: saving the same event under the same name twice leaves one preset.",
+      'Create, edit or archive one event-configuration preset, by its name. It starts from the event named by eventId if given (capturing it as it stands), else from the preset as stored; the fields you pass are then laid over it, with the same patch semantics as write_event_config. So a preset can be written from values alone, or captured from an event and adjusted in one call. Creating one needs eventId or modules. To retire one, archive it: there is no delete. Safe to repeat. Answers with the preset before and after.',
     shape: {
+      name: z
+        .string()
+        .trim()
+        .min(1)
+        .max(80)
+        .describe(
+          `${handleDescribe('templateName')} Creates one when no preset has it.`,
+        ),
       eventId: z
         .string()
         .min(1)
-        .describe('The event whose configuration is captured.'),
-      name: z
+        .optional()
+        .describe(
+          `${handleDescribe('eventId')} The event whose configuration the preset captures, before the fields below are laid over it.`,
+        ),
+      description: z
+        .string()
+        .trim()
+        .max(280)
+        .nullable()
+        .optional()
+        .describe('What the preset is for, in French. Null removes it.'),
+      publicName: z
+        .string()
+        .trim()
+        .min(1, 'Send null to remove it.')
+        .max(120)
+        .nullable()
+        .optional()
+        .describe('The friendly name it gives an event.'),
+      cohortNoun: z
+        .string()
+        .trim()
+        .min(1, 'Send null to remove it.')
+        .max(40)
+        .nullable()
+        .optional()
+        .describe('What one participant is called, e.g. "stagiaire".'),
+      categoryKey: z
         .string()
         .min(1)
+        .nullable()
+        .optional()
         .describe(
-          `${handleDescribe('templateName')} An existing one is overwritten.`,
+          `${handleDescribe('eventCategoryKey')} The category it gives an event. Null so it gives none.`,
         ),
-      description: z.string().optional(),
+      startTime: z
+        .string()
+        .refine(isWallClock, 'Use HH:MM on a 24h clock, e.g. "09:30".')
+        .nullable()
+        .optional()
+        .describe('The arrival time of day it gives an event, HH:MM.'),
+      modules: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `The complete set of dev-workspace sections it turns on. One of: ${EVENT_MODULE_KEYS.join(', ')}.`,
+        ),
+      moduleSettings: moduleSettings.optional(),
+      shownStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} The complete set of Salesforce member statuses it shows.`,
+        ),
+      feedbackFormId: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('formId')} The form its bilan section uses. Kept only while bilan is on.`,
+        ),
+      diplomaTemplateId: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('diplomaTemplateId')} The certificate its Inscrits export issues. Kept only while inscrits is on.`,
+        ),
+      closingTemplateId: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('closingTemplateId')} The grid its closings use. Kept only while closings is on.`,
+        ),
+      archived: z
+        .boolean()
+        .optional()
+        .describe(
+          'True to archive it, false to unarchive it. Omit to leave it as it stands.',
+        ),
     },
     run: (params) => writeEventTemplate(params),
   }),
@@ -1643,8 +1734,16 @@ export const ADMIN_API_OPERATIONS = {
 
   bulk_event_config: defineWrite({
     twoStep: true,
-    description: `Change the configuration of every event matching a filter, in one plan: their dev-workspace sections, the Salesforce statuses they show, their category, and whether the dev workspace shows them. Patch semantics: only the fields you pass change. Call it without planDigest for the list of events that would change and how (events that cannot be shown are listed with what they lack, judged after the sections this call sets), then with the planDigest to apply it all in one transaction. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
+    description: `Change the configuration of many events in one plan, named by eventIds or matched by a filter: their dev-workspace sections, the Salesforce statuses they show, their category, and whether the dev workspace shows them. Patch semantics: only the fields you pass change. Call it without planDigest for the list of events that would change and how (events that cannot be shown are listed with what they lack, judged after the sections this call sets), then with the planDigest to apply it all in one transaction. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
     shape: {
+      eventIds: z
+        .array(z.string().min(1))
+        .min(1)
+        .max(BULK_EVENTS_LIMIT)
+        .optional()
+        .describe(
+          `${handleDescribe('eventId')} The events to change, when they are a hand-picked set rather than a filter. Not with campus, schoolYear or onlyUpcoming.`,
+        ),
       campus,
       schoolYear,
       onlyUpcoming: z

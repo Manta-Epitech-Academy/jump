@@ -1124,6 +1124,11 @@ model EventConfig_Template {
   // The closing grid the preset carries, copied onto the event on apply like the
   // other config fields. Mirrors `Event.closingTemplateId`.
   closingTemplateId String?
+  // Archived rather than deleted, like a category: a model can read every
+  // preset's name, so a delete would be one it could aim on its own. An archived
+  // preset is no longer one to apply; the events it was applied to never kept a
+  // link to it.
+  archivedAt        DateTime?
   createdById       String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

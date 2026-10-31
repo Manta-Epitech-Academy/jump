@@ -525,8 +525,9 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         diplomaTemplateId: template.diplomaTemplateId,
         closingTemplateId: template.closingTemplateId,
         shownStatuses: template.shownStatuses,
+        archived: template.archived,
       })),
-      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun. « categoryKey » est la clé de la catégorie qu'il donne. Une catégorie archivée depuis n'est plus donnée à un événement : write_event_config la refuse, sauf sur un événement qui la porte déjà, et bulk_event_config la refuse toujours. « publicName », « cohortNoun », « categoryKey » et « startTime » valent null quand le modèle n'en porte pas.",
+      "Les modèles de configuration enregistrés, archivés compris, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun. « categoryKey » est la clé de la catégorie qu'il donne. Une catégorie archivée depuis n'est plus donnée à un événement : write_event_config la refuse, sauf sur un événement qui la porte déjà, et bulk_event_config la refuse toujours. « publicName », « cohortNoun », « categoryKey » et « startTime » valent null quand le modèle n'en porte pas. « archived » vaut vrai pour un modèle retiré : il n'est plus à appliquer.",
     ),
   };
 }
