@@ -39,6 +39,7 @@ import { MANIFEST_SETTING_KEY } from './ids';
 import { runChecks } from './assert';
 import {
   seedInterests,
+  seedArchivedInterest,
   seedEmailTemplates,
   seedBroadcastTemplates,
 } from './catalog/interestsAndTemplates';
@@ -198,7 +199,10 @@ async function loadPreexistingRows(
   });
   // Ordered, so which interests a dossier carries depends on the draw alone and
   // not on the order Postgres happened to return them in.
+  // Only the offered ones, as onboarding does: a talent never picks an archived
+  // interest, and leaving it out keeps every draw where it was before it existed.
   const interests = await prisma.interest.findMany({
+    where: { archivedAt: null },
     select: { id: true, kind: true },
     orderBy: { order: 'asc' },
   });
@@ -305,6 +309,7 @@ async function main(): Promise<void> {
 
     log('Catalogues :');
     log(`  intérêts               ${await seedInterests(prisma)}`);
+    await seedArchivedInterest(prisma, clock.today);
     log(
       `  formulaires de bilan   ${await seedFeedbackForms(prisma, clock.today)}`,
     );

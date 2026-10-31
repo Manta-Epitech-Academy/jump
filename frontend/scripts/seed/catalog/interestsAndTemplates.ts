@@ -99,6 +99,31 @@ export async function seedInterests(prisma: PrismaClient): Promise<number> {
   return catalogue.length;
 }
 
+/**
+ * One interest the team has retired, for a generated dataset only: archived is
+ * a state `write_interest` produces and onboarding must leave out, so it needs
+ * a row. Not part of `seedInterests`, which `--catalog-only` also runs against
+ * a populated database, where a retired entry nobody asked for has no place.
+ * Create-only like the catalogue, keyed on its unique name.
+ */
+export async function seedArchivedInterest(
+  prisma: PrismaClient,
+  anchor: Date,
+): Promise<void> {
+  await prisma.interest.createMany({
+    data: [
+      {
+        nom: 'Réseaux sociaux',
+        emoji: '📲',
+        kind: 'general',
+        order: INTEREST_GENERAL.length,
+        archivedAt: anchor,
+      },
+    ],
+    skipDuplicates: true,
+  });
+}
+
 // ─── Email templates + action mappings ───
 
 /**
