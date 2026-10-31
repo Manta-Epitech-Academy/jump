@@ -25,6 +25,7 @@
  * Safe to repeat: it sets values rather than adjusting them.
  */
 
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { academieOf } from '$lib/domain/school';
 import { OperationRefusedError } from '../errors';
@@ -122,8 +123,11 @@ async function refuseTaken(
   }
 }
 
-async function referencesOf(id: string): Promise<string[]> {
-  const counts = await prisma.campus.findUniqueOrThrow({
+async function referencesOf(
+  tx: Prisma.TransactionClient,
+  id: string,
+): Promise<string[]> {
+  const counts = await tx.campus.findUniqueOrThrow({
     where: { id },
     select: {
       _count: {
@@ -172,13 +176,22 @@ export async function writeCampus(params: {
         `Aucun campus ne s'appelle « ${name} ». meta_scope liste ceux qui existent.`,
       );
     }
-    const references = await referencesOf(existing.id);
-    if (references.length > 0) {
-      throw new OperationRefusedError(
-        `Le campus « ${existing.name} » ne peut pas être supprimé, il est référencé : ${references.join(', ')}. Seul un campus que rien n'utilise encore se supprime.`,
-      );
-    }
-    await prisma.campus.delete({ where: { id: existing.id } });
+    await prisma.$transaction(async (tx) => {
+      // The campus row is locked before anything is counted. A row inserted
+      // under any relation takes a key-share lock on it, so it either committed
+      // before this lock and is counted below, or waits for this transaction
+      // and then fails its foreign key. Counted then deleted without the lock,
+      // a row landing in between under a cascading relation (an invitation, a
+      // signatory, the home note) was taken away by the delete it never saw.
+      await tx.$executeRaw`SELECT 1 FROM "Campus" WHERE id = ${existing.id} FOR UPDATE`;
+      const references = await referencesOf(tx, existing.id);
+      if (references.length > 0) {
+        throw new OperationRefusedError(
+          `Le campus « ${existing.name} » ne peut pas être supprimé, il est référencé : ${references.join(', ')}. Seul un campus que rien n'utilise encore se supprime.`,
+        );
+      }
+      await tx.campus.delete({ where: { id: existing.id } });
+    });
     return { applied: true, before: stateOf(existing), after: null };
   }
 

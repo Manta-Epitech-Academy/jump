@@ -349,5 +349,32 @@ describe('catalogue writes (integration)', () => {
 
       await prisma.event.delete({ where: { id: event.id } });
     });
+
+    it('counts a reference written while the removal runs instead of cascading it away', async () => {
+      // The campus's home note cascades with it, so a removal that counted
+      // before the note committed and deleted after took the note away unseen.
+      const name = `Campus Course ${stamp}`;
+      campusNames.push(name);
+      await call(postCampus, secret, { campus: name });
+      const campus = await prisma.campus.findUniqueOrThrow({ where: { name } });
+
+      let removal: Promise<{ status: number }> = Promise.resolve({
+        status: 0,
+      });
+      await prisma.$transaction(async (tx) => {
+        await tx.talentHome_Note.create({
+          data: { campusId: campus.id, markdown: 'Bienvenue' },
+        });
+        removal = call(postCampus, secret, { campus: name, remove: true });
+        // Long enough for the removal to take whatever it locks first.
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      });
+
+      expect((await removal).status).toBe(400);
+      expect(
+        await prisma.talentHome_Note.count({ where: { campusId: campus.id } }),
+      ).toBe(1);
+      await prisma.talentHome_Note.delete({ where: { campusId: campus.id } });
+    });
   });
 });
