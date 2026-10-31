@@ -12,8 +12,9 @@
  * Deliberately NOT swept through every reader. A `where: { kind: 'tech' }` that
  * carries a typo returns no rows and the screen is visibly empty, so the literal
  * is self-correcting there and the indirection would buy nothing. The one place
- * a wrong value is silently ACCEPTED is the admin authoring form, which writes
- * whatever it validates, so that is the site this feeds.
+ * a wrong value could be silently ACCEPTED is the write that authors one
+ * (`write_interest`), which validates against this list, so that is the site
+ * this feeds.
  */
 
 export const INTEREST_KINDS = ['tech', 'general'] as const;

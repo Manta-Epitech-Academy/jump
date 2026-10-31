@@ -63,28 +63,20 @@
 
   <!-- KPIs -->
   <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-    <a
-      href={resolve('/staff/admin/campuses')}
-      class="block transition-ui hover:-translate-y-1"
-    >
-      <Card.Root
-        class="h-full border-t-4 border-t-epi-tomorrow shadow-raised hover:border-epi-tomorrow/80"
+    <!-- Not a link: a campus is configured over the admin API (write_campus,
+         read back by config_campus_overview), so there is no page to open. -->
+    <Card.Root class="h-full border-t-4 border-t-epi-tomorrow shadow-raised">
+      <Card.Header
+        class="flex flex-row items-center justify-between space-y-0 pb-2"
       >
-        <Card.Header
-          class="flex flex-row items-center justify-between space-y-0 pb-2"
-        >
-          <Card.Title
-            class="text-sm font-bold uppercase transition-colors hover:text-epi-tomorrow"
-            >Réseau</Card.Title
-          >
-          <Map class="h-4 w-4 text-muted-foreground" />
-        </Card.Header>
-        <Card.Content>
-          <div class="text-2xl font-bold">{data.stats.campuses}</div>
-          <p class="text-xs text-muted-foreground">Campus actifs</p>
-        </Card.Content>
-      </Card.Root>
-    </a>
+        <Card.Title class="text-sm font-bold uppercase">Réseau</Card.Title>
+        <Map class="h-4 w-4 text-muted-foreground" />
+      </Card.Header>
+      <Card.Content>
+        <div class="text-2xl font-bold">{data.stats.campuses}</div>
+        <p class="text-xs text-muted-foreground">Campus actifs</p>
+      </Card.Content>
+    </Card.Root>
 
     <a
       href={resolve('/staff/admin/users')}

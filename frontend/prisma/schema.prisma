@@ -2297,8 +2297,8 @@ model MessageTemplate {
 
 /// Maps a transactional email action (OTP login, welcome…) to a
 /// MessageTemplate. Resolved at send time by `sendActionEmail`. When no
-/// row exists for an action, the email is silently skipped (an admin
-/// warning surfaces in `/staff/admin/email-actions`). Action keys live in
+/// row exists for an action, the email is silently skipped (the admin API's
+/// `config_email_actions` reports it). Action keys live in
 /// `$lib/domain/emailActions.ts`.
 model EmailActionMapping {
   actionKey  String   @id

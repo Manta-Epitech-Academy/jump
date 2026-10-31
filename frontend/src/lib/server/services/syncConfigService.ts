@@ -34,7 +34,7 @@ import { lastOkRun } from './syncRunService';
  * database answers an empty list on any machine: that is how a validation
  * environment stays out of every sync's scope, and it is a property of the data
  * rather than a setting somebody can re-enable by forgetting. Arming a campus
- * is an explicit act on `/staff/admin/campuses`.
+ * is an explicit act, `write_campus` giving it an `externalName`.
  *
  * Stated once here, as a filter and as `isServedToWorker`, the same rule read
  * off a row, for the answers that report it instead of filtering on it.

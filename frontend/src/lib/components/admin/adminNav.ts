@@ -6,18 +6,14 @@ import GitCompareArrows from '@lucide/svelte/icons/git-compare-arrows';
 import FileCog from '@lucide/svelte/icons/file-cog';
 import ClipboardList from '@lucide/svelte/icons/clipboard-list';
 import FolderOpen from '@lucide/svelte/icons/folder-open';
-import Megaphone from '@lucide/svelte/icons/megaphone';
 import Send from '@lucide/svelte/icons/send';
 import Mails from '@lucide/svelte/icons/mails';
-import MailCog from '@lucide/svelte/icons/mail-warning';
-import Map from '@lucide/svelte/icons/map';
 import CalendarCog from '@lucide/svelte/icons/calendar-cog';
 import Signature from '@lucide/svelte/icons/signature';
 import Users from '@lucide/svelte/icons/users';
 import GraduationCap from '@lucide/svelte/icons/graduation-cap';
 import NotebookPen from '@lucide/svelte/icons/notebook-pen';
 import UserX from '@lucide/svelte/icons/user-x';
-import Heart from '@lucide/svelte/icons/heart';
 import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
 import ListChecks from '@lucide/svelte/icons/list-checks';
 import KeyRound from '@lucide/svelte/icons/key-round';
@@ -127,12 +123,6 @@ export const ADMIN_NAV: AdminNavSection[] = [
     title: 'Communication',
     items: [
       {
-        label: "Vue d'ensemble",
-        href: resolve('/staff/admin/communication'),
-        icon: Megaphone,
-        keywords: ['comm', 'communication'],
-      },
-      {
         label: 'Envoi en masse',
         href: resolve('/staff/admin/broadcasts'),
         icon: Send,
@@ -145,23 +135,11 @@ export const ADMIN_NAV: AdminNavSection[] = [
         icon: Mails,
         keywords: ['modele', 'broadcast'],
       },
-      {
-        label: 'Mails transactionnels',
-        href: resolve('/staff/admin/email-actions'),
-        icon: MailCog,
-        keywords: ['email', 'action', 'mapping'],
-      },
     ],
   },
   {
     title: 'Organisation',
     items: [
-      {
-        label: 'Réseau Campus',
-        href: resolve('/staff/admin/campuses'),
-        icon: Map,
-        keywords: ['campus', 'feature', 'flag'],
-      },
       {
         label: 'Événements',
         href: resolve('/staff/admin/events'),
@@ -205,12 +183,6 @@ export const ADMIN_NAV: AdminNavSection[] = [
     title: 'Pédagogie',
     items: [
       {
-        label: "Centres d'intérêt",
-        href: resolve('/staff/admin/interests'),
-        icon: Heart,
-        keywords: ['interet', 'centre'],
-      },
-      {
         label: 'Mini-jeux',
         href: resolve('/staff/admin/minigames'),
         icon: Gamepad2,
@@ -224,7 +196,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
           'formulaire',
           'feedback',
           'bilan',
-          'builder',
+          'apercu',
           'questionnaire',
           'reponses',
           'avis',

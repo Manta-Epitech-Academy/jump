@@ -63,7 +63,7 @@ export async function getInterestsBreakdown(
   // Both rankings capped the same way, and both reporting what the cap left out.
   // Only tech used to: the general list was sliced bare, and it is the one that
   // actually overflows (the catalogue ships 9 tech interests against 25 general
-  // ones, and staff add to it from /staff/admin/interests), so the side that
+  // ones, and staff add to it with write_interest), so the side that
   // silently dropped rows was the side with no tail figure.
   const techBreakdown = toBreakdown(tech, INTERESTS_TOP_N);
   const generalBreakdown = toBreakdown(general, INTERESTS_TOP_N);

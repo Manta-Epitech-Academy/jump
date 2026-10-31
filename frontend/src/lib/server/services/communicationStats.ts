@@ -1,9 +1,8 @@
 /**
- * Communication analytics: read-only projections over existing rows.
- *
- * Spans two outbound surfaces of the admin Communication hub: bulk broadcasts
- * (`Broadcast`/`BroadcastRecipient`) and transactional mail mappings
- * (`EmailActionMapping`). It owns no state: every figure is a read-time
+ * Broadcast analytics: read-only projections over existing rows, for the admin
+ * broadcasts list (`Broadcast`/`BroadcastRecipient`). The overview of every
+ * outbound surface is the admin API's (`ops_broadcast_deliveries`,
+ * `config_email_actions`). It owns no state: every figure is a read-time
  * projection via `groupBy`/`count` (the facts-as-rows convention, see
  * `.claude/rules/data-model.md`), so there is nothing to keep in sync and no migration.
  *
@@ -13,11 +12,6 @@
 import { prisma } from '$lib/server/db';
 import type { BroadcastChannel, BroadcastStatus } from '@prisma/client';
 import { BROADCAST_CHANNELS } from '$lib/domain/broadcasts';
-import {
-  EMAIL_ACTIONS,
-  EMAIL_ACTION_KEYS,
-  type EmailActionKey,
-} from '$lib/domain/emailActions';
 
 const DAY_MS = 86_400_000;
 const DEFAULT_WINDOW_DAYS = 30;
@@ -205,120 +199,4 @@ export async function getBroadcastStats(
   };
 
   return { window, totals, byChannel, byStatus };
-}
-
-// ── 3. Recent broadcast activity (overview feed) ──────────────────────────────
-export interface RecentBroadcast {
-  id: string;
-  name: string;
-  channel: BroadcastChannel;
-  status: BroadcastStatus;
-  campusName: string;
-  eventTitle: string | null;
-  createdAt: Date;
-  recipients: number;
-  sent: number;
-  failed: number;
-  opened: number;
-}
-
-async function getRecentBroadcasts(limit = 8): Promise<RecentBroadcast[]> {
-  const rows = await prisma.broadcast.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    select: {
-      id: true,
-      name: true,
-      channel: true,
-      status: true,
-      createdAt: true,
-      campus: { select: { name: true } },
-      event: { select: { titre: true } },
-    },
-  });
-  const progress = await getBroadcastProgress(rows.map((r) => r.id));
-  return rows.map((r) => {
-    const p = progress[r.id];
-    return {
-      id: r.id,
-      name: r.name,
-      channel: r.channel,
-      status: r.status,
-      campusName: r.campus.name,
-      eventTitle: r.event?.titre ?? null,
-      createdAt: r.createdAt,
-      recipients: p.sent + p.failed + p.pending,
-      sent: p.sent,
-      failed: p.failed,
-      opened: p.opened,
-    };
-  });
-}
-
-// ── 4. Transactional mail health ──────────────────────────────────────────────
-export interface TransactionalActionHealth {
-  key: EmailActionKey;
-  label: string;
-  mapped: boolean;
-  templateId: string | null;
-  templateName: string | null;
-  updatedAt: Date | null;
-}
-
-export interface TransactionalHealth {
-  actions: TransactionalActionHealth[];
-  mappedCount: number;
-  missingCount: number;
-  total: number;
-  /** True when every action has a template. */
-  healthy: boolean;
-}
-
-async function getTransactionalHealth(): Promise<TransactionalHealth> {
-  const mappings = await prisma.emailActionMapping.findMany({
-    select: {
-      actionKey: true,
-      templateId: true,
-      updatedAt: true,
-      template: { select: { name: true } },
-    },
-  });
-  const byKey = new Map(mappings.map((m) => [m.actionKey, m]));
-
-  const actions: TransactionalActionHealth[] = EMAIL_ACTION_KEYS.map((key) => {
-    const m = byKey.get(key);
-    return {
-      key,
-      label: EMAIL_ACTIONS[key].label,
-      mapped: Boolean(m),
-      templateId: m?.templateId ?? null,
-      templateName: m?.template?.name ?? null,
-      updatedAt: m?.updatedAt ?? null,
-    };
-  });
-  const mappedCount = actions.filter((a) => a.mapped).length;
-  const missingCount = actions.length - mappedCount;
-  return {
-    actions,
-    mappedCount,
-    missingCount,
-    total: actions.length,
-    healthy: missingCount === 0,
-  };
-}
-
-// ── 5. One-shot overview aggregate ────────────────────────────────────────────
-export interface CommunicationOverview {
-  broadcasts: BroadcastStats;
-  recentBroadcasts: RecentBroadcast[];
-  transactional: TransactionalHealth;
-}
-
-export async function getCommunicationOverview(): Promise<CommunicationOverview> {
-  const [broadcasts, recentBroadcasts, transactional] = await Promise.all([
-    getBroadcastStats(),
-    getRecentBroadcasts(),
-    getTransactionalHealth(),
-  ]);
-  return { broadcasts, recentBroadcasts, transactional };
 }
