@@ -54,8 +54,8 @@ RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" BETTER_AUTH_SEC
 # has to keep in step.
 FROM oven/bun:${BUN_VERSION}-alpine AS seeder
 
-# The same patch posture as the runtime image, so the vulnerability scan over
-# that one is representative of this one too.
+# The same patch posture as the runtime image: every build takes Alpine's
+# latest fixes.
 RUN apk upgrade --no-cache
 
 WORKDIR /app
