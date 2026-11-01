@@ -5,7 +5,8 @@
 // `Signatory.signatureKey`). Null = the default mascot art. WebP-normalized by
 // the shared image pipeline; served through the public persona-icon proxy.
 //
-// It arrives through two doors: bytes uploaded in the builder, or an https
+// It arrives through two doors: bytes uploaded on the form's preview page
+// (`/staff/admin/feedback-forms/[id]`), or an https
 // address given to the admin API's whole-form write, which copies it through the
 // same guarded download every authored picture uses (`images/remote.ts`).
 // `personaIconSourceUrl` records that address, and is null for an upload.

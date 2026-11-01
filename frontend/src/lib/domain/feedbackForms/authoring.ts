@@ -1,12 +1,11 @@
 // What a whole feedback form is, as the declarative write states it and the
 // detail read returns it, and the rules that hold over a form as a whole. Pure,
-// so the admin API write, the builder's endpoints and the builder's own warnings
-// read one set of rules rather than three.
+// so the write and anything reporting on a form read one set of rules.
 //
-// The split this file draws is the one the builder already enforced edit by
-// edit: once a form has responses, what a question MEANS is frozen and what it
-// READS is not. The write states the whole form at once, so the same line is
-// drawn here by comparing two whole forms instead of by inspecting one patch.
+// The line this file draws: once a form has responses, what a question MEANS is
+// frozen and what it READS is not. The write states the whole form at once, so
+// the line is drawn by comparing two whole forms rather than by inspecting one
+// patch.
 import {
   IDENTITY_FIELD_TO_QUESTION_TYPE,
   type IdentityField,
@@ -52,8 +51,7 @@ export type AuthoredSection = {
 
 /**
  * A whole form. Array order IS position: the questions outside any section come
- * first, then each section's, which is the order the builder lays them out in
- * and the order a respondent is asked them.
+ * first, then each section's, which is the order a respondent is asked them.
  */
 export type AuthoredForm = {
   title: string;
@@ -69,8 +67,8 @@ export type AuthoredForm = {
 };
 
 /**
- * Why a structural edit is refused once a form has responses. Said once, so the
- * builder's lock and the API's refusal give the same way out.
+ * Why a structural edit is refused once a form has responses. Said once, so
+ * every refusal gives the same way out.
  */
 export const STRUCTURE_LOCKED_MESSAGE =
   'Ce formulaire a déjà des réponses : dupliquez-le pour en modifier la structure.';
@@ -219,8 +217,8 @@ function settingProblems(form: AuthoredForm): string[] {
   }
 
   // The answering route refuses a talent when authenticated access is off, so a
-  // nudge would point the dashboard at a form that turns them away. The builder
-  // switches it off for you; a whole-form write says what it wants instead.
+  // nudge would point the dashboard at a form that turns them away. A whole-form
+  // write says what it wants, so the contradiction is refused, not repaired.
   if (form.dashboardNudge && !form.allowsAuthenticatedAccess) {
     problems.push(
       'La relance sur le tableau de bord (dashboardNudge) ne vaut que pour un formulaire ouvert aux talents connectés (allowsAuthenticatedAccess) : elle les enverrait sur un formulaire qui les refuse.',

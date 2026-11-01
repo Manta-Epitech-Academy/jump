@@ -78,17 +78,6 @@ export function resolveEventDiplomaDesign(
 }
 
 /**
- * The catalogue, for the event-config picker and the curated API.
- * Ordered by label so the dropdown reads alphabetically.
- */
-export function listDiplomaTemplates(): Promise<DiplomaTemplateIdentity[]> {
-  return prisma.diploma_Template.findMany({
-    select: IDENTITY_SELECT,
-    orderBy: { label: 'asc' },
-  });
-}
-
-/**
  * What one certificate actually looks like: its first page, rendered.
  *
  * The answer to a question the design alone cannot answer, because `styleCss` and

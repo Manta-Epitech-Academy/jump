@@ -61,7 +61,7 @@ type QuestionRow = Prisma.Feedback_QuestionGetPayload<{
  * responses and how many events use it.
  *
  * `personaIcon` is null for the default mascot. Its `sourceUrl` is the address
- * it was copied from, or null when it was uploaded in the builder: such an icon
+ * it was copied from, or null when it was uploaded on the preview page: such an icon
  * has no address to restate, which is why the write leaves the icon alone when
  * it is not mentioned.
  */

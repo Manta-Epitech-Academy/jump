@@ -49,9 +49,9 @@ export type AdminEventVM = {
   publicName: string;
   /** What the dev space / talents see today: publicName or the SF titre. */
   displayName: string;
-  /** Jump-owned cohort noun ("stagiaire", ...), or null when unnamed; set in the wizard. */
+  /** Jump-owned cohort noun ("stagiaire", ...), or null when unnamed. */
   cohortNoun: string | null;
-  /** The kind of event it is, or null when uncategorised; set in the wizard. */
+  /** The kind of event it is, or null when uncategorised. */
   category: EventCategoryView | null;
   campusId: string;
   campusName: string;
@@ -72,8 +72,8 @@ export type AdminEventVM = {
   /**
    * Raw activation gate (`devActivatedAt`): the admin has claimed the event for
    * the dev cohort. This alone does NOT make it visible - that also needs >=1
-   * module, at which point `configState` becomes `shown`. Drives the wizard's
-   * visibility toggle (the page reads the state through `configState`).
+   * module, at which point `configState` becomes `shown`. The admin API carries
+   * it forward on a patch (the page reads the state through `configState`).
    */
   devActivated: boolean;
   /**
@@ -144,7 +144,7 @@ export function jumpOwnedFields(
 }
 
 /**
- * The rows `bulkSetActivation` is allowed to activate: the SQL twin of
+ * The rows `setActivationForEvents` is allowed to activate: the SQL twin of
  * `activationBlockers` in `domain/eventReadiness`.
  *
  * Two spellings of one rule is the shape this replaces - the same
@@ -263,9 +263,9 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
  * Reconciles ONE event's `EventConfig_Module` rows to the desired set inside an
  * open transaction: deletes the modules dropped from the set, then UPSERTs each
  * desired module with its validated per-module sub-options (update preserves
- * `createdAt`). The single-event wizard save is the authoritative sub-option
- * editor, so it always (re)writes settings. The bulk list edit is a different
- * shape - presence only, across many events - and takes the set-based path in
+ * `createdAt`). The single-event save is the authoritative sub-option editor,
+ * so it always (re)writes settings. The bulk edit is a different shape -
+ * presence only, across many events - and takes the set-based path in
  * `setModulesForEvents` instead of looping this.
  *
  * Race-safe on the PK: the upsert means two admins saving the same event no
@@ -379,7 +379,7 @@ export async function eventWorkshopsOf(
  *
  * Takes the caller's transaction so a bulk write that changes more than the
  * sections (applying a template also sets the shown Salesforce statuses) lands
- * whole or not at all. `EventService.bulkSetModules` is the standalone form.
+ * whole or not at all.
  */
 export async function setModulesForEvents(
   tx: Prisma.TransactionClient,
@@ -497,15 +497,14 @@ export const EventService = {
   /**
    * Admin event configuration: the friendly `publicName`, the Jump-owned start
    * time-of-day, and the dev-workspace surfaces the event exposes, all in one
-   * transaction. Admin-only (the `/staff/admin/events` page is admin-gated and
+   * transaction. Admin-only (its one caller, the admin API, is admin-gated and
    * admins are cross-campus, so there is no campus check here; the event id is
    * the authority). `titre` and both days (`date`, `endDate`) are Salesforce's
    * and only the sync writes them.
    *
-   * `workshops` is the one part that is optional: the config dialog has no
-   * activity field, so it leaves the event's activities as they are, and only
-   * the admin API's `write_event_config` replaces them, in this same transaction
-   * so a refused save leaves them untouched too.
+   * `workshops` is optional: omitted, the event's activities stay as they are;
+   * given, they are replaced in this same transaction, so a refused save leaves
+   * them untouched too.
    */
   async updateEventConfig(
     eventId: string,
@@ -532,15 +531,15 @@ export const EventService = {
       select: { devActivatedAt: true, categoryKey: true },
     });
     // The activation rule, judged on the configuration being saved rather than
-    // the one stored. `bulkSetActivation` refuses through `activatableEventWhere`;
+    // the one stored. `bulk_event_config` refuses through `activatableEventWhere`;
     // this path writes `publicName` and `devActivatedAt` in the same call, and
     // once checked neither against the other: clearing the public name of an
     // activated event left it live in the dev workspace under its raw Salesforce
     // title, which is the one state the rule exists to prevent. It reaches here
-    // from both consumers - the config dialog, and `write_event_config`, whose
-    // patch semantics carry the stored activation forward into a call that only
-    // meant to edit a name, and which also shows an event through here, so a
-    // call naming the missing pieces and the activation together succeeds.
+    // from `write_event_config`, whose patch semantics carry the stored
+    // activation forward into a call that only meant to edit a name, and which
+    // also shows an event through here, so a call naming the missing pieces and
+    // the activation together succeeds.
     const refusal = data.devActivated
       ? activationRefusal({
           publicName: data.publicName.trim() || null,
@@ -628,31 +627,5 @@ export const EventService = {
         },
       });
     });
-  },
-
-  /**
-   * Makes many events expose exactly the given module set at once (admin list
-   * bulk edit): {@link setModulesForEvents} in its own transaction, so a failed
-   * insert rolls the deletes back. Admin-only and cross-campus like
-   * `updateEventConfig`: the ids are the authority.
-   */
-  async bulkSetModules(eventIds: string[], modules: string[]) {
-    if (eventIds.length === 0) return;
-    await prisma.$transaction((tx) =>
-      setModulesForEvents(tx, eventIds, modules),
-    );
-  },
-
-  /**
-   * Shows or hides many events in the dev workspace at once (the admin list's
-   * bulk action): {@link setActivationForEvents} in its own transaction.
-   */
-  async bulkSetActivation(
-    eventIds: string[],
-    activate: boolean,
-  ): Promise<{ activated: number; skipped: number }> {
-    return prisma.$transaction((tx) =>
-      setActivationForEvents(tx, eventIds, activate),
-    );
   },
 };

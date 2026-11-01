@@ -129,7 +129,7 @@ export type ActivationBlocker = (typeof ACTIVATION_BLOCKERS)[number];
  * A stricter rule than `configState`, and that gap is the bug this closes: an
  * event with sections but no public name is `ready` ("Prêt à publier", one
  * toggle from live) and the activation write refuses it. The rule lived only as a Prisma
- * `where` in `EventService.bulkSetActivation` and as a hand-copied predicate in
+ * `where` in the bulk activation and as a hand-copied predicate in
  * `adminApi/writes/bulk.ts`, so nothing that *reported* readiness could consult
  * it. Its Prisma twin is `activatableEventWhere` in `server/services/events`.
  *

@@ -25,8 +25,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
   const [templates, campuses] = await Promise.all([
     prisma.messageTemplate.findMany({
       // Only broadcast-purposed templates (see BROADCASTABLE_TEMPLATE_WHERE).
-      // Transactional ones stay editable via the templates list (email-actions
-      // links to manage them), just not pickable here; the send paths enforce
+      // Transactional ones stay editable via the templates list (the admin API's
+      // config_email_actions names them), just not pickable here; the send paths enforce
       // the same rule so hiding the option is not the only line of defence.
       where: BROADCASTABLE_TEMPLATE_WHERE,
       orderBy: { updatedAt: 'desc' },

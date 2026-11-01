@@ -121,6 +121,14 @@ export type EventModuleSettings = {
 };
 
 /**
+ * The sub-options a module declares, by name. What the admin API's settings
+ * schema has to accept, which `operations.test.ts` checks against this list.
+ */
+export function moduleSettingKeys(key: EventModuleKey): string[] {
+  return Object.keys(EVENT_MODULE_SETTINGS_SCHEMAS[key].shape);
+}
+
+/**
  * Parse a raw `settings` Json (DB column or posted form value) into the typed,
  * fully-defaulted settings for `key`. Falls back to all-defaults on any malformed
  * input, so a hand-edited or legacy row can never crash a read.
@@ -134,13 +142,6 @@ export function parseModuleSettings<K extends EventModuleKey>(
   >;
   const parsed = schema.safeParse(raw ?? {});
   return parsed.success ? parsed.data : schema.parse({});
-}
-
-/** The all-defaults settings for a module (used when a module is freshly enabled). */
-export function defaultModuleSettings<K extends EventModuleKey>(
-  key: K,
-): EventModuleSettings[K] {
-  return parseModuleSettings(key, {});
 }
 
 /** Whether a module is enabled, given a resolved set/list of an event's modules. */

@@ -93,7 +93,7 @@ Each file carries its surface's rules and the incidents that set them. Read it b
 | [`.claude/rules/auth.md`](.claude/rules/auth.md) | sign-in doors, guards, role groups, `hooks.server.ts` |
 | [`.claude/rules/closings.md`](.claude/rules/closings.md) | closings: the question bank, grids, records, their figures |
 | [`.claude/rules/data-model.md`](.claude/rules/data-model.md) | `schema.prisma`, a new model or relation, a migration |
-| [`.claude/rules/event-modules.md`](.claude/rules/event-modules.md) | event modules, the config wizard, certificate designs and rendering |
+| [`.claude/rules/event-modules.md`](.claude/rules/event-modules.md) | event modules, presets, certificate designs and rendering |
 | [`.claude/rules/onboarding.md`](.claude/rules/onboarding.md) | the onboarding dossier, règlement, image rights, the parent portal |
 | [`.claude/rules/salesforce.md`](.claude/rules/salesforce.md) | the worker API, the sync, Salesforce reconciliation |
 | [`.claude/rules/seed.md`](.claude/rules/seed.md) | `bun run seed` and the generated dataset |

@@ -1,7 +1,4 @@
-import {
-  BROADCAST_VARIABLES,
-  type BroadcastVariableKey,
-} from '$lib/domain/broadcasts';
+import { BROADCAST_VARIABLES, type BroadcastVariableKey } from './broadcasts';
 
 export interface VariableContext {
   prenom: string;
@@ -124,12 +121,19 @@ export function substituteVariables(
   });
 }
 
+/**
+ * The variable keys a text cites, as `substituteVariables` reads them: inner
+ * spaces and case aside, so `{{ OTP_CODE }}` is `otp_code`. Whatever asks
+ * whether a template uses a variable asks here, since a literal `{{otp_code}}`
+ * search misses spellings the renderer fills.
+ */
+export function citedVariables(text: string): Set<string> {
+  return new Set(
+    [...text.matchAll(TOKEN_RE)].map((match) => match[1].toLowerCase()),
+  );
+}
+
 export function findUnknownTokens(text: string): string[] {
-  const found = new Set<string>();
-  const known = new Set(BROADCAST_VARIABLES.map((v) => v.key));
-  for (const match of text.matchAll(TOKEN_RE)) {
-    const key = match[1].toLowerCase();
-    if (!known.has(key as BroadcastVariableKey)) found.add(key);
-  }
-  return [...found];
+  const known = new Set<string>(BROADCAST_VARIABLES.map((v) => v.key));
+  return [...citedVariables(text)].filter((key) => !known.has(key));
 }

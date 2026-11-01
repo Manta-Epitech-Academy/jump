@@ -75,7 +75,7 @@ export const actions: Actions = {
     if (mapped > 0) {
       return fail(400, {
         deleteError:
-          'Impossible : ce template est lié à une action email (voir /staff/admin/email-actions).',
+          'Impossible : ce template est lié à un mail transactionnel. Liez ce mail à un autre template par l’API admin (write_email_action), puis supprimez celui-ci.',
       });
     }
     await prisma.messageTemplate.delete({ where: { id } });

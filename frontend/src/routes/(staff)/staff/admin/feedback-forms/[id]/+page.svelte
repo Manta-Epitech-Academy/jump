@@ -1,286 +1,182 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { enhance } from '$app/forms';
-  import { resolve } from '$app/paths';
-  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-  import Lock from '@lucide/svelte/icons/lock';
-  import Plus from '@lucide/svelte/icons/plus';
-  import Eye from '@lucide/svelte/icons/eye';
-  import Rows3 from '@lucide/svelte/icons/rows-3';
+  import { invalidateAll } from '$app/navigation';
+  import { toast } from 'svelte-sonner';
+  import Camera from '@lucide/svelte/icons/camera';
+  import Loader2 from '@lucide/svelte/icons/loader-2';
+  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+  import MessageSquareDashed from '@lucide/svelte/icons/message-square-dashed';
   import { Button } from '$lib/components/ui/button';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import { sortable } from '$lib/actions/sortable';
-  import { projectEditorToSchema } from '$lib/domain/feedbackForms/projectToSchema';
-  import {
-    FormEditor,
-    type QuestionType,
-    type InputKind,
-    type EditorOptionKind,
-    type FormStatus,
-  } from './editor.svelte';
-  import FormTabs from './components/FormTabs.svelte';
-  import HeaderCard from './components/HeaderCard.svelte';
-  import DiffusionPopover from './components/DiffusionPopover.svelte';
-  import SectionBanner from './components/SectionBanner.svelte';
-  import QuestionCard from './components/QuestionCard.svelte';
-  import SaveStatus from './components/SaveStatus.svelte';
-  import FlushOnNavigate from './components/FlushOnNavigate.svelte';
-  import PreviewDialog from './components/PreviewDialog.svelte';
+  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
+  import ChatScreen from '$lib/components/feedback/ChatScreen.svelte';
+  import PersonaAvatar from '$lib/components/feedback/PersonaAvatar.svelte';
+  import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
+  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import { DEFAULT_PERSONA } from '$lib/domain/feedbackForms/schema';
+  import FormHeader from '../components/FormHeader.svelte';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
 
-  function buildInit(d: PageData) {
-    return {
-      formId: d.form.id,
-      slug: d.form.slug,
-      locked: d.locked,
-      meta: {
-        title: d.form.title,
-        intro: d.form.intro,
-        outro: d.form.outro,
-        personaName: d.form.personaName,
-        personaIconKey: d.form.personaIconKey,
-        status: d.form.status as FormStatus,
-        allowsAuthenticatedAccess: d.form.allowsAuthenticatedAccess,
-        allowsPublicAccess: d.form.allowsPublicAccess,
-        dashboardNudge: d.form.dashboardNudge,
-      },
-      sections: d.sections.map((s) => ({
-        id: s.id,
-        title: s.title,
-        intro: s.intro,
-        position: s.position,
-      })),
-      questions: d.questions.map((q) => ({
-        id: q.id,
-        key: q.key,
-        position: q.position,
-        sectionId: q.sectionId,
-        prompt: q.prompt,
-        type: q.type as QuestionType,
-        required: q.required,
-        identityField: q.identityField,
-        inputKind: q.inputKind as InputKind | null,
-        minSelections: q.minSelections,
-        maxSelections: q.maxSelections,
-        placeholder: q.placeholder,
-        options: q.options.map((o) => ({
-          id: o.id,
-          label: o.label,
-          kind: o.kind as EditorOptionKind,
-          position: o.position,
-          reaction: o.reaction,
-        })),
-      })),
-    };
-  }
+  type Audience = 'authenticated' | 'public';
+  const AUDIENCES: { value: Audience; label: string }[] = [
+    { value: 'authenticated', label: 'Talent connecté' },
+    { value: 'public', label: 'Répondant public' },
+  ];
 
-  // Rebuild the controller ONLY when navigating to a different form. SvelteKit
-  // reuses this component across the [id] param (e.g. the locked banner's
-  // "Dupliquer" redirect lands on the new form's id), so a one-shot `new
-  // FormEditor` at mount would keep rendering the old form until a full refresh.
-  // The body is untracked so same-form invalidations (polls, optimistic reloads)
-  // never clobber in-flight local edits; only the id change recreates it.
-  const editor = $derived.by(() => {
-    void data.form.id;
-    return untrack(() => new FormEditor(buildInit(data)));
-  });
-
-  const locked = $derived(editor.locked);
-  const sortedSections = $derived(
-    [...editor.sections].sort((a, b) => a.position - b.position),
-  );
-
-  let previewOpen = $state(false);
-  let previewAudience = $state<'public' | 'authenticated'>('authenticated');
-  const previewSchema = $derived(
-    projectEditorToSchema(
-      {
-        formId: editor.formId,
-        slug: editor.slug,
-        title: editor.title,
-        intro: editor.intro,
-        outro: editor.outro,
-        personaName: editor.personaName,
-        personaIconKey: editor.personaIconKey,
-        sections: editor.sections,
-        questions: editor.questions,
-      },
-      previewAudience,
+  // Opens on the experience the form actually offers: a public-only form as a
+  // public respondent meets it, everything else as a connected talent.
+  let audience = $state<Audience>(
+    untrack(() =>
+      data.form.allowsPublicAccess && !data.form.allowsAuthenticatedAccess
+        ? 'public'
+        : 'authenticated',
     ),
   );
-  // A connected talent has a known identity (used to interpolate copy); a public
-  // respondent does not (they are asked it in-flow).
-  const previewIdentity = $derived(
-    previewAudience === 'authenticated'
-      ? { prenom: 'Marc', campus: 'Lyon' }
-      : {},
-  );
+  // "Recommencer" replays the conversation without leaving the page.
+  let run = $state(0);
 
-  function openPreview() {
-    // Default to the more surprising experience available: a public-only form
-    // previews public, everything else previews the connected-talent flow.
-    previewAudience =
-      editor.allowsPublicAccess && !editor.allowsAuthenticatedAccess
-        ? 'public'
-        : 'authenticated';
-    previewOpen = true;
+  const schema = $derived(data.schemas[audience]);
+  // A connected talent is known (the copy is interpolated with it); a public
+  // respondent is asked who they are in the conversation itself.
+  const identity = $derived(
+    audience === 'authenticated' ? { prenom: 'Marc', campus: 'Lyon' } : {},
+  );
+  // The preview never persists: the chat's final submit goes nowhere.
+  const noop = async () => {};
+
+  // The avatar is the one thing the admin API cannot set from a file on disk
+  // (it takes an address), so its upload stays here, on the screen it shows on.
+  let fileInput = $state<HTMLInputElement | null>(null);
+  let iconBusy = $state(false);
+
+  async function sendIcon(method: 'POST' | 'DELETE', file?: File) {
+    iconBusy = true;
+    try {
+      let body: FormData | undefined;
+      if (file) {
+        body = new FormData();
+        body.append('file', file);
+      }
+      const res = await fetch(
+        `/api/feedback-forms/${data.form.id}/persona-icon`,
+        { method, body },
+      );
+      if (!res.ok) {
+        const b = (await res.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+        toast.error(b?.message ?? "Échec de l'enregistrement de l'icône.");
+        return;
+      }
+      await invalidateAll();
+    } catch {
+      toast.error('Une erreur réseau est survenue.');
+    } finally {
+      iconBusy = false;
+    }
   }
 
-  // One shared set of drag handlers for every per-section question list (only one
-  // drag runs at a time; the controller snapshots/commits the whole flat order).
-  const dragHandlers = {
-    onStart: () => editor.snapshotQuestions(),
-    onMove: (f: string, o: string) => editor.moveQuestion(f, o),
-    onCommit: () => editor.commitQuestions(),
-  };
+  function onPickIcon(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // let the same file be picked again after a reset
+    if (file) sendIcon('POST', file);
+  }
 </script>
 
-<svelte:head><title>Éditer le formulaire</title></svelte:head>
+<svelte:head><title>Aperçu · {data.form.title}</title></svelte:head>
 
-<FlushOnNavigate />
+<div class="space-y-6 pb-16">
+  <FormHeader
+    formId={data.form.id}
+    title={data.form.title}
+    status={data.form.status}
+  />
 
-<div class="space-y-5 pb-24">
-  <Tooltip.Provider delayDuration={300}>
-    <!-- Sticky top chrome: keeps the save status (so testers always see edits
-       are being kept), the preview, the tabs, and (when the form is locked)
-       the lock notice in view while scrolling a long form. The banner is the
-       last child of this one sticky element rather than a second sticky pinned
-       below it: a long locked form is effectively read-only, so the reason its
-       controls are disabled should stay on screen the whole time, and folding
-       it in here avoids coupling a second sticky to this bar's (wrapping)
-       height. The negative top offset cancels the admin <main>'s padding
-       (p-4 md:p-8) so the bar pins flush at the very top; with plain `top-0` a
-       sticky element clamps to the content box and leaks a padding-tall strip
-       of content above it. Opaque so dense cards don't ghost through; the tab
-       bar's border-b is the seam under the tabs, and the lock banner, when
-       shown, is the bottom edge. -->
-    <div class="sticky -top-4 z-20 space-y-3 bg-background pt-3 md:-top-8">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <a
-          href={resolve('/staff/admin/feedback-forms')}
-          class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+  <div class="flex flex-wrap items-center gap-3">
+    <div class="mr-auto flex items-center gap-2.5">
+      <button
+        type="button"
+        onclick={() => fileInput?.click()}
+        disabled={iconBusy}
+        aria-label="Changer l’icône de la mascotte"
+        class="group relative block h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-border transition hover:ring-foreground/40 disabled:cursor-wait"
+      >
+        <PersonaAvatar
+          iconUrl={schema.personaIconUrl}
+          alt={data.form.personaName ?? DEFAULT_PERSONA.name}
+          class="h-full w-full"
+        />
+        <span
+          class="absolute inset-0 flex items-center justify-center text-white transition {iconBusy
+            ? 'bg-black/50 opacity-100'
+            : 'bg-black/45 opacity-0 group-hover:opacity-100'}"
         >
-          <ArrowLeft class="h-4 w-4" /> Tous les formulaires
-        </a>
-        <div class="flex items-center gap-3">
-          <SaveStatus {editor} />
-          <Button
-            variant="outline"
-            size="sm"
-            class="rounded-sm"
-            onclick={openPreview}
-          >
-            <Eye class="mr-1.5 h-4 w-4" /> Aperçu
-          </Button>
-          <DiffusionPopover {editor} />
-        </div>
-      </div>
-
-      <FormTabs formId={editor.formId} />
-
-      {#if locked}
-        <div
-          class="flex flex-wrap items-start gap-3 rounded-sm border border-warning/30 bg-warning/10 p-3 text-sm text-warning"
+          {#if iconBusy}
+            <Loader2 class="h-4 w-4 animate-spin" />
+          {:else}
+            <Camera class="h-3.5 w-3.5" />
+          {/if}
+        </span>
+      </button>
+      <input
+        bind:this={fileInput}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        class="hidden"
+        onchange={onPickIcon}
+      />
+      <span class="text-sm font-medium">
+        {data.form.personaName ?? DEFAULT_PERSONA.name}
+      </span>
+      <InfoTooltip
+        label="L’icône de la mascotte"
+        text="Cliquez sur l’icône pour la remplacer par une image PNG, JPEG ou WebP. Le reste du formulaire s’écrit par l’API admin (write_feedback_form)."
+      />
+      {#if data.form.personaIconKey}
+        <Button
+          variant="ghost"
+          size="sm"
+          class="h-7 cursor-pointer text-xs text-muted-foreground"
+          disabled={iconBusy}
+          onclick={() => sendIcon('DELETE')}
         >
-          <Lock class="mt-0.5 h-4 w-4 shrink-0" />
-          <p class="min-w-0 flex-1">
-            Ce formulaire a déjà des réponses. Vous pouvez toujours en modifier
-            les textes (titre, intitulés, libellés, messages), mais pas la
-            structure (ajout, suppression, ordre, type de question). Pour la
-            changer, dupliquez-le.
-          </p>
-          <form method="POST" action="?/duplicate" use:enhance>
-            <Button
-              type="submit"
-              variant="outline"
-              size="sm"
-              class="rounded-sm"
-            >
-              Dupliquer
-            </Button>
-          </form>
-        </div>
+          Rétablir l’icône par défaut
+        </Button>
       {/if}
     </div>
 
-    <div class="mx-auto max-w-2xl space-y-4">
-      <HeaderCard {editor} />
+    <SegmentedFilter
+      options={AUDIENCES}
+      value={audience}
+      onChange={(v) => (audience = v as Audience)}
+      ariaLabel="Qui répond"
+    />
+    <Button
+      variant="outline"
+      size="sm"
+      class="h-8 cursor-pointer rounded-sm"
+      onclick={() => run++}
+      disabled={schema.questions.length === 0}
+    >
+      <RotateCcw class="mr-1.5 h-3.5 w-3.5" /> Recommencer
+    </Button>
+  </div>
 
-      {#each editor.groups as group (group.section?.id ?? '__none__')}
-        {#if group.section}
-          {@const s = group.section}
-          <SectionBanner
-            {editor}
-            section={s}
-            index={sortedSections.findIndex((x) => x.id === s.id) + 1}
-            total={sortedSections.length}
-            {locked}
-          />
-        {/if}
-
-        <div
-          class="space-y-4"
-          use:sortable={{ disabled: locked, ...dragHandlers }}
-        >
-          {#each group.questions as q (q.id)}
-            <QuestionCard
-              {editor}
-              question={q}
-              {locked}
-              sections={editor.sections}
-            />
-          {/each}
-        </div>
-
-        {#if !locked}
-          <button
-            type="button"
-            class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed py-2.5 text-sm text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
-            onclick={() =>
-              editor.addQuestion({
-                afterId: group.questions.at(-1)?.id,
-                sectionId: group.section?.id ?? null,
-              })}
-          >
-            <Plus class="h-4 w-4" /> Ajouter une question
-          </button>
-        {/if}
-      {/each}
-
-      {#if editor.groups.length === 0}
-        <div
-          class="rounded-sm border border-dashed bg-muted/10 p-12 text-center text-sm text-muted-foreground"
-        >
-          Formulaire vide.
-          <button
-            type="button"
-            class="cursor-pointer font-medium text-foreground underline underline-offset-2 disabled:cursor-not-allowed"
-            disabled={locked}
-            onclick={() => editor.addQuestion()}
-          >
-            Ajouter une première question
-          </button>.
-        </div>
-      {/if}
-
-      {#if !locked}
-        <button
-          type="button"
-          class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed py-2.5 text-sm text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
-          onclick={() => editor.addSection()}
-        >
-          <Rows3 class="h-4 w-4" /> Ajouter une section
-        </button>
-      {/if}
+  {#if schema.questions.length > 0}
+    <div
+      class="mx-auto h-[72vh] max-w-md overflow-hidden rounded-sm border bg-card shadow-raised"
+    >
+      {#key `${run}-${audience}`}
+        <ChatScreen form={schema} onSubmit={noop} {identity} {audience} />
+      {/key}
     </div>
-  </Tooltip.Provider>
+  {:else}
+    <ResultsNotice
+      icon={MessageSquareDashed}
+      title="Aucune question"
+      description="Ce formulaire ne pose encore rien à ce public. Ses questions s’écrivent par l’API admin (write_feedback_form)."
+    />
+  {/if}
 </div>
-
-<PreviewDialog
-  bind:open={previewOpen}
-  bind:audience={previewAudience}
-  schema={previewSchema}
-  identity={previewIdentity}
-/>

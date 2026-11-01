@@ -1,5 +1,6 @@
 /**
- * The class B write on events: one configuration change across a filtered set.
+ * The class B write on events: one configuration change across a set of events,
+ * named or filtered.
  *
  * One write, a patch, like its single-event twin `write_event_config`: the
  * sections, the shown Salesforce statuses, the category and the visibility are
@@ -25,6 +26,7 @@
  */
 
 import {
+  EventService,
   setActivationForEvents,
   setCategoryForEvents,
   setModulesForEvents,
@@ -46,25 +48,28 @@ import { archivedCategoryRefusal } from '$lib/domain/eventCategory';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import { runTwoStep, type WriteOutcome } from '../plan';
-import { resolveScope, type ScopeParams } from '../scope';
+import { resolveScope, UnknownScopeError, type ScopeParams } from '../scope';
 import { scopedEvents } from '$lib/server/services/adminStats/cohort';
 
 /** Events one bulk call will touch. Beyond this, narrow the filter. */
 export const BULK_EVENTS_LIMIT = 200;
 
-type BulkFilter = ScopeParams & { onlyUpcoming?: boolean };
+type BulkFilter = ScopeParams & {
+  onlyUpcoming?: boolean;
+  eventIds?: string[];
+};
 
 /**
- * The events a bulk filter selects. Goes through the same scope resolution as
- * every read, so "campus: Lile" is refused here exactly as it is there, before
- * anything is written.
+ * The events a bulk call selects: the ones it names, or the ones its filter
+ * matches. Never both, since a list narrowed again by a filter would change
+ * fewer events than were named without saying which. The filter goes through the
+ * same scope resolution as every read, so "campus: Lile" is refused here exactly
+ * as it is there, before anything is written.
  */
 async function targets(filter: BulkFilter): Promise<AdminEventVM[]> {
-  const scope = await resolveScope(filter);
-  const { events } = await scopedEvents(scope);
-  const selected = events
-    .filter((e) => !filter.onlyUpcoming || e.status !== 'past')
-    .sort((a, b) => a.id.localeCompare(b.id));
+  const selected = filter.eventIds
+    ? await namedEvents(filter)
+    : await filteredEvents(filter);
 
   if (selected.length === 0) {
     throw new OperationRefusedError(
@@ -73,10 +78,42 @@ async function targets(filter: BulkFilter): Promise<AdminEventVM[]> {
   }
   if (selected.length > BULK_EVENTS_LIMIT) {
     throw new OperationRefusedError(
-      `Ce filtre sélectionne ${selected.length} événements, au-delà de la limite de ${BULK_EVENTS_LIMIT} pour une modification en masse. Restreignez à un campus ou à une année scolaire.`,
+      `Cet appel sélectionne ${selected.length} événements, au-delà de la limite de ${BULK_EVENTS_LIMIT} pour une modification en masse. Restreignez à un campus ou à une année scolaire.`,
     );
   }
-  return selected;
+  return selected.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+async function filteredEvents(filter: BulkFilter): Promise<AdminEventVM[]> {
+  const scope = await resolveScope(filter);
+  const { events } = await scopedEvents(scope);
+  return events.filter((e) => !filter.onlyUpcoming || e.status !== 'past');
+}
+
+async function namedEvents({
+  eventIds = [],
+  ...filter
+}: BulkFilter): Promise<AdminEventVM[]> {
+  if (
+    filter.campus !== undefined ||
+    filter.schoolYear !== undefined ||
+    filter.onlyUpcoming !== undefined
+  ) {
+    throw new OperationRefusedError(
+      'Indiquez soit les événements (eventIds), soit un filtre (campus, schoolYear, onlyUpcoming), pas les deux.',
+    );
+  }
+  const wanted = new Set(eventIds);
+  const events = (await EventService.listAdminEvents()).filter((e) =>
+    wanted.has(e.id),
+  );
+  const unknown = [...wanted].filter((id) => !events.some((e) => e.id === id));
+  if (unknown.length > 0) {
+    throw new UnknownScopeError(
+      `Événement${unknown.length > 1 ? 's' : ''} introuvable${unknown.length > 1 ? 's' : ''} : ${unknown.join(', ')}. ${handleProvenanceFr('eventId')}`,
+    );
+  }
+  return events;
 }
 
 /** How every plan row identifies its event, so a human recognises the list. */

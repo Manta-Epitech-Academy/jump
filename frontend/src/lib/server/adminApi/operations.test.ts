@@ -8,7 +8,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { adminEventSchema } from '$lib/validation/events';
+import { z } from 'zod';
+import { EVENT_MODULE_KEYS, moduleSettingKeys } from '$lib/domain/eventModules';
 import { httpOperations } from './httpCatalogue';
 import {
   ADMIN_API_OPERATIONS,
@@ -189,53 +190,34 @@ describe('what a credential is offered as tools', () => {
   });
 });
 
-/**
- * Where each field of the admin event form is reachable from, as
- * `operation.param`. Explicit and exhaustive, with a throwing default, for the
- * same reason `requiredArgsFor` is: a new config field then fails this test until
- * somebody decides how the API exposes it, instead of quietly having no API at
- * all. One param is deliberately named differently from the form field
- * (`devActivated` is `visible`), which is why this cannot be a key intersection.
- */
-const EVENT_FIELD_WRITES: Record<string, string> = {
-  id: 'write_event_config.eventId',
-  publicName: 'write_event_config.publicName',
-  cohortNoun: 'write_event_config.cohortNoun',
-  categoryKey: 'write_event_config.categoryKey',
-  startTime: 'write_event_config.startTime',
-  modules: 'write_event_config.modules',
-  moduleSettings: 'write_event_config.moduleSettings',
-  devActivated: 'write_event_config.visible',
-  feedbackFormId: 'write_event_config.feedbackFormId',
-  diplomaTemplateId: 'write_event_config.diplomaTemplateId',
-  closingTemplateId: 'write_event_config.closingTemplateId',
-  shownStatuses: 'write_event_config.shownStatuses',
-};
+/** The sub-option names a write's `moduleSettings` accepts, for one section. */
+function acceptedSettingKeys(
+  operation: AdminApiOperation,
+  module: string,
+): string[] {
+  const settings = operation.schema.shape.moduleSettings as
+    z.ZodOptional<z.ZodObject> | undefined;
+  const section = settings?.unwrap().shape[module] as
+    z.ZodOptional<z.ZodObject> | undefined;
+  return Object.keys(section?.unwrap().shape ?? {});
+}
 
-describe('the API is the floor under the UI', () => {
-  // Event configuration is fully MCP-driven, so a field an admin can change in
-  // the wizard and nowhere else is a hole. This is the executable half of that
-  // rule; it was written after finding `moduleSettings` reachable through no
-  // write at all.
-  it('exposes every admin event-config field through some write', () => {
-    for (const field of Object.keys(adminEventSchema.shape)) {
-      const reachable = EVENT_FIELD_WRITES[field];
-      if (!reachable) {
-        throw new Error(
-          `adminEventSchema.${field} is reachable through no write operation. ` +
-            'Add one, then name it in EVENT_FIELD_WRITES.',
-        );
-      }
-      const [name, param] = reachable.split('.');
+describe('the API is the floor', () => {
+  // Event configuration is written over the API alone: there is no wizard left
+  // to hold a field the API lacks. What can still drift is a sub-option the
+  // domain declares and the hand-written schema does not, which would be
+  // reachable through nothing at all, as `moduleSettings` once was.
+  it('accepts every sub-option the domain declares, on the event and the preset writes', () => {
+    for (const name of ['write_event_config', 'write_event_template']) {
       const operation = ADMIN_API_OPERATIONS[
         name as keyof typeof ADMIN_API_OPERATIONS
-      ] as AdminApiOperation | undefined;
-      expect(operation, `${field} -> ${name}`).toBeDefined();
-      expect(operation?.kind, `${field} -> ${name}`).toBe('write');
-      expect(
-        Object.keys(operation!.schema.shape),
-        `${field} -> ${reachable}`,
-      ).toContain(param);
+      ] as AdminApiOperation;
+      for (const module of EVENT_MODULE_KEYS) {
+        expect(
+          acceptedSettingKeys(operation, module).sort(),
+          `${name}.moduleSettings.${module}`,
+        ).toEqual(moduleSettingKeys(module).sort());
+      }
     }
   });
 

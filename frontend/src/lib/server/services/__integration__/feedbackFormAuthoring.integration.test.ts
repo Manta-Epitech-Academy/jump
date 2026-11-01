@@ -88,6 +88,7 @@ type Payload = Record<string, unknown> & {
   planDigest?: string;
   formId?: string;
   form?: FormRead;
+  apercu?: string;
 };
 type OptionRead = {
   optionId: string;
@@ -303,6 +304,17 @@ describe('feedback forms authored over the API (integration)', () => {
     expect(read.sections.map((s) => s.title)).toEqual(['Ta semaine']);
     expect(read.sections[0].questions.map((q) => q.key)).toEqual(['mot']);
     expect(applied.payload.form).toEqual(read);
+
+    // Seeing it is a link, never a description: the write and the read hand
+    // over the same sentence, pointing at the form's preview page.
+    expect(applied.payload.apercu).toContain(
+      `/staff/admin/feedback-forms/${formId}`,
+    );
+    const catalogue = (await ADMIN_API_OPERATIONS.config_feedback_forms.run(
+      { formId },
+      { tier: 'core', actorUserId: 'test', origin: 'http://localhost' },
+    )) as { apercu: string | null };
+    expect(catalogue.apercu).toBe(applied.payload.apercu);
 
     // The audit row keeps both states, and the creation has nothing before it.
     const row = await prisma.adminApi_Call.findFirst({
@@ -606,12 +618,10 @@ describe('feedback forms authored over the API (integration)', () => {
     // picture host of this test is plain http on loopback.
     const apply = async (body: Record<string, unknown>) => {
       const params = body as unknown as Parameters<typeof writeFeedbackForm>[0];
-      const dry = await writeFeedbackForm(params, adminUserId);
+      const ctx = { actorUserId: adminUserId, origin: 'http://localhost' };
+      const dry = await writeFeedbackForm(params, ctx);
       if (dry.applied) throw new Error('a dry run applied');
-      return writeFeedbackForm(
-        { ...params, planDigest: dry.planDigest },
-        adminUserId,
-      );
+      return writeFeedbackForm({ ...params, planDigest: dry.planDigest }, ctx);
     };
     const iconOf = (formId: string) =>
       prisma.feedback_Form.findUniqueOrThrow({
