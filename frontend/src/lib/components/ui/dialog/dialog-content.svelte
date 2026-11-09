@@ -59,11 +59,7 @@
 </script>
 
 <DialogPortal {...portalProps}>
-  <Dialog.Overlay
-    class={instant
-      ? 'data-[state=closed]:animate-none data-[state=open]:animate-none'
-      : undefined}
-  />
+  <Dialog.Overlay {instant} />
   <DialogPrimitive.Content
     bind:ref
     data-slot="dialog-content"
