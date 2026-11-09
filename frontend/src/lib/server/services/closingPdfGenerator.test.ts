@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildClosingSynthesis,
   closingPdfFilename,
+  renderClosingHtml,
   type ClosingForPdf,
 } from './closingPdfGenerator';
 import { toClosingGrid, type StoredClosingTemplate } from '$lib/domain/closing';
@@ -102,7 +103,7 @@ const record = (answers: ClosingForPdf['answers']): ClosingForPdf =>
     talent: { prenom: 'lucie', nom: 'bartoletti', externalId: null },
     staff: { user: { name: 'Marie' } },
     campus: { name: 'Paris' },
-    event: { titre: 'Stage' },
+    event: { titre: 'Stage', category: null },
   }) as ClosingForPdf;
 
 describe('buildClosingSynthesis', () => {
@@ -187,6 +188,25 @@ describe('buildClosingSynthesis', () => {
       label: 'Une question retirée depuis',
       value: ['Sa réponse'],
     });
+  });
+});
+
+describe('renderClosingHtml', () => {
+  it("should tag the masthead with the event's category, never a fixed one", async () => {
+    // Every synthesis read « < Stage de Seconde /> » until 11/2026, a Coding
+    // Club's closing included.
+    const club = {
+      ...record([]),
+      event: { titre: 'CC Lille', category: { label: 'Coding Club' } },
+    };
+    const html = await renderClosingHtml(club, grid);
+    expect(html).toContain('&lt; Coding Club /&gt;');
+    expect(html).not.toContain('Stage de Seconde');
+  });
+
+  it('should leave the tag out for an event without a category', async () => {
+    const html = await renderClosingHtml(record([]), grid);
+    expect(html).not.toContain('class="code-tag"');
   });
 });
 
