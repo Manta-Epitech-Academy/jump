@@ -41,6 +41,18 @@ import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
 /** Events detailed one by one before the answer stops listing them. */
 export const EMARGEMENT_EVENTS_LIMIT = 40;
 
+/**
+ * The order the per-event list is capped in: the registers with a half-day
+ * nobody filled in first, since they are what the list is read for, then the
+ * rest; each group most recent first, the order the events arrive in. Dated
+ * alone, the cap filled with upcoming events (most recent first means furthest
+ * ahead first, and `since` keeps every one of them), so the weekly digest
+ * counted last week's unkept registers and could not name them.
+ */
+function unkeptFirst(a: EventCoverage, b: EventCoverage): number {
+  return Number(b.unkeptSlots > 0) - Number(a.unkeptSlots > 0);
+}
+
 export type EventCoverage = {
   eventId: string;
   event: string;
@@ -195,6 +207,9 @@ export async function getEmargementCoverage(
     };
   });
 
+  // Stable, so the date order of `withRegister` holds within each group.
+  perEvent.sort(unkeptFirst);
+
   const totalSlots = perEvent.reduce((sum, e) => sum + e.slots, 0);
   const totalElapsed = perEvent.reduce((sum, e) => sum + e.elapsedSlots, 0);
   const totalKept = perEvent.reduce((sum, e) => sum + e.keptSlots, 0);
@@ -241,7 +256,7 @@ export async function getEmargementCoverage(
     ),
     perEvent: metric(
       perEvent.slice(0, EMARGEMENT_EVENTS_LIMIT),
-      `Le détail événement par événement, du plus récent au plus ancien, limité à ${EMARGEMENT_EVENTS_LIMIT} lignes. « elapsedSlots », « keptSlots » et « keptShare » s'y lisent comme les chiffres du même nom, pour cet événement seul ; « unkeptSlots » compte ses demi-journées écoulées sans aucun pointage ; « marks » est le nombre de pointages enregistrés, tous statuts confondus.`,
+      `Le détail événement par événement, limité à ${EMARGEMENT_EVENTS_LIMIT} lignes : d'abord ceux qui ont au moins une demi-journée écoulée sans aucun pointage, puis les autres, chaque groupe du plus récent au plus ancien. « elapsedSlots », « keptSlots » et « keptShare » s'y lisent comme les chiffres du même nom, pour cet événement seul ; « unkeptSlots » compte ses demi-journées écoulées sans aucun pointage ; « marks » est le nombre de pointages enregistrés, tous statuts confondus.`,
     ),
     truncated: perEvent.length > EMARGEMENT_EVENTS_LIMIT,
   };

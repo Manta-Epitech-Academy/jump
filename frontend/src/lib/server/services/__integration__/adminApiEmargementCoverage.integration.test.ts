@@ -141,16 +141,12 @@ describe('émargement coverage (integration)', () => {
     expect(answer.marks.value).toBe(5);
   });
 
-  it('reads each event on its own grid', async () => {
+  // The past event comes first although the future one is more recent: its
+  // unkept half-days are what the capped list is read for (the weekly digest
+  // names them from it).
+  it('reads each event on its own grid, unkept registers first', async () => {
     const { perEvent } = await coverage();
     expect(perEvent.value).toEqual([
-      expect.objectContaining({
-        eventId: futureId,
-        slots: 2,
-        elapsedSlots: 1,
-        keptSlots: 1,
-        keptShare: 100,
-      }),
       expect.objectContaining({
         eventId: pastId,
         slots: 4,
@@ -158,6 +154,13 @@ describe('émargement coverage (integration)', () => {
         keptSlots: 2,
         unkeptSlots: 2,
         keptShare: 50,
+      }),
+      expect.objectContaining({
+        eventId: futureId,
+        slots: 2,
+        elapsedSlots: 1,
+        keptSlots: 1,
+        keptShare: 100,
       }),
     ]);
   });
