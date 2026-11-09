@@ -21,7 +21,14 @@ export { DURATION } from './tokens';
 
 type Direction = { direction?: 'in' | 'out' | 'both' };
 
-/** A leaving element answers at `fast`, an arriving one settles at `base`. */
+/**
+ * A leaving element answers at `fast`, an arriving one settles at `base`.
+ *
+ * Only `in:` and `out:` can tell the two apart. Svelte computes a
+ * `transition:` once for both ways, so it can reverse midway (`direction` is
+ * `'both'`), and it then runs at `base` both ways: write `in:fade out:fade`,
+ * never `transition:fade`, for the faster exit.
+ */
 function durationFor(options?: Direction): number {
   return options?.direction === 'out' ? DURATION.fast : DURATION.base;
 }

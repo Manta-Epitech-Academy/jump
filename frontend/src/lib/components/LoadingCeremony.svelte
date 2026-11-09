@@ -96,7 +96,8 @@
 {#if visible}
   <div
     class="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-[#013afb] px-6 text-center text-white"
-    transition:fade
+    in:fade
+    out:fade
   >
     <!-- Blueprint grid texture (same as the login brand panel). -->
     <div
