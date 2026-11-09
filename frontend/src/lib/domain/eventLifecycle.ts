@@ -63,3 +63,29 @@ export function applyPhaseOverride(
 ): EventLifecycleStatus {
   return override ?? real;
 }
+
+const NBSP = ' ';
+const MINUTE_MS = 60_000;
+
+/**
+ * The wait before an event opens, as its home's header says it: « Ouverture
+ * dans 7 j 4 h », « dans 7 j » on the hour, « dans 19 h » once under a day,
+ * « dans 42 min » under an hour, « imminente » once the hour has come on a page
+ * left open. A unit at zero is left out rather than written « 0 j » or « 01 h »:
+ * the line is read, not compared like a clock. Rounded up to the minute, so it
+ * never says « 0 min » while the event is still to open.
+ */
+export function openingCountdownLine(remainingMs: number): string {
+  const totalMinutes = Math.ceil(Math.max(0, remainingMs) / MINUTE_MS);
+  if (totalMinutes === 0) return 'Ouverture imminente';
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+  const parts =
+    days > 0
+      ? [`${days}${NBSP}j`, ...(hours > 0 ? [`${hours}${NBSP}h`] : [])]
+      : hours > 0
+        ? [`${hours}${NBSP}h`]
+        : [`${minutes}${NBSP}min`];
+  return `Ouverture dans ${parts.join(' ')}`;
+}

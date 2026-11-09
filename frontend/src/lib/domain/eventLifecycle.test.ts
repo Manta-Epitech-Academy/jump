@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { getEventStatus, getLifecycleBounds } from './eventLifecycle';
+import {
+  getEventStatus,
+  getLifecycleBounds,
+  openingCountdownLine,
+} from './eventLifecycle';
 import { fromWallClock } from './planningTime';
 
 const PARIS = 'Europe/Paris';
@@ -68,5 +72,31 @@ describe('getEventStatus', () => {
     expect(statusAt(event, '2026-10-24T22:30:00Z')).toBe('ongoing');
     expect(statusAt(event, '2026-10-25T22:59:00Z')).toBe('ongoing');
     expect(statusAt(event, '2026-10-25T23:01:00Z')).toBe('past');
+  });
+});
+
+describe('openingCountdownLine', () => {
+  const MIN = 60_000;
+  const HOUR = 60 * MIN;
+  const DAY = 24 * HOUR;
+  const line = (ms: number) => openingCountdownLine(ms).replaceAll(' ', ' ');
+
+  it('reads days and hours, the hours without a leading zero', () => {
+    expect(line(7 * DAY + HOUR + 30 * MIN)).toBe('Ouverture dans 7 j 1 h');
+  });
+
+  it('leaves out a unit at zero', () => {
+    expect(line(7 * DAY)).toBe('Ouverture dans 7 j');
+    expect(line(19 * HOUR + 59 * MIN)).toBe('Ouverture dans 19 h');
+  });
+
+  it('counts the minutes under an hour, never down to zero', () => {
+    expect(line(42 * MIN)).toBe('Ouverture dans 42 min');
+    expect(line(10_000)).toBe('Ouverture dans 1 min');
+  });
+
+  it('says the opening has come on a page left open past it', () => {
+    expect(line(0)).toBe('Ouverture imminente');
+    expect(line(-5 * MIN)).toBe('Ouverture imminente');
   });
 });
