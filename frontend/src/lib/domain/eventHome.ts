@@ -157,7 +157,7 @@ const inscrits = (params: Record<string, string>): HomeLink => ({
  * A facet as a ring: its first parts in the chart series, the rest folded into
  * one « Autres » part, in the next colour of the series, that opens Inscrits on
  * all of them at once (a filter keeps an inscrit carrying any of its values),
- * and « Non renseigné » last, unpainted.
+ * and « Non renseigné » last, in the grey of what is missing.
  * `toneOf` pins a value to a colour where the mockup gives it one (genre).
  */
 function facetRing(
@@ -216,7 +216,7 @@ function facetRing(
         missing.label,
         [INSCRITS_NONE],
         missing.count,
-        'muted',
+        'missing',
       ),
     );
   return parts;
@@ -256,10 +256,11 @@ const talent = (
 
 const NUMBER = new Intl.NumberFormat('fr-FR');
 
+// The mockup's colours: finalised green, under way orange, still to do blue.
 const STATUS_TONE: Record<ClosingListStatus, ChartTone> = {
   done: 'tech',
   in_progress: 'together',
-  todo: 'muted',
+  todo: 'blue',
 };
 
 const VERDICT_TONE: Record<RecommendationToneToken, ChartTone> = {
@@ -307,7 +308,7 @@ function closingsFigures(roster: ClosingsRoster): HomeClosings {
       label: 'Sans avis',
       count: finalised - withVerdict,
       share: shareOf(finalised - withVerdict, finalised),
-      tone: 'muted',
+      tone: 'missing',
       // Without a verdict is also every closing not finalised yet, so the list
       // is narrowed to the finalised ones the part counted.
       link: {

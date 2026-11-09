@@ -6,10 +6,9 @@ import type { ChartTone } from '$lib/domain/chartSeries';
  * their tints, since these are fills and never text (`DESIGN.md`: raw for
  * fills, ink for text under 24px). The order is `CHART_SERIES`'s.
  *
- * `muted` is an absence (« Non renseigné », « Sans avis »), so it is not
- * painted: its arc is the ring's own empty track and its swatch an empty box.
- * Painted in a light grey, it was one step from `drift`, the grey every closing
- * screen gives « Indécis », and the two read as the same answer.
+ * `missing` takes the mid grey, two steps darker than `drift`, the light grey
+ * every closing screen gives « Indécis »: one step apart, the two read as the
+ * same answer.
  */
 export const CHART_TONE_CLASS: Record<
   ChartTone,
@@ -65,9 +64,9 @@ export const CHART_TONE_CLASS: Record<
     fill: 'fill-muted-foreground/40',
     swatch: 'bg-muted-foreground/40',
   },
-  muted: {
-    stroke: 'stroke-muted',
-    fill: 'fill-muted',
-    swatch: 'border border-muted-foreground/50',
+  missing: {
+    stroke: 'stroke-epi-grey-mid',
+    fill: 'fill-epi-grey-mid',
+    swatch: 'bg-epi-grey-mid',
   },
 };

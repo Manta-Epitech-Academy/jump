@@ -96,7 +96,7 @@ describe('the niveau ring', () => {
       'tomorrow',
       'tech',
       'together',
-      'muted',
+      'missing',
     ]);
   });
 
@@ -202,6 +202,18 @@ describe('the closings cards', () => {
       ['closings', { statut: 'in_progress' }],
       ['closings', { statut: 'todo' }],
     ]);
+  });
+
+  it('paints every part, the missing verdict in its own grey', () => {
+    // A part left blank read as a hole in the pie (Mateo, 09/11/2026); the
+    // mockup paints « À réaliser » in blue.
+    const { closings } = eventHomeFigures({ ...empty, closings: roster });
+    expect(closings?.progress.map((p) => p.tone)).toEqual([
+      'tech',
+      'together',
+      'blue',
+    ]);
+    expect(closings?.verdicts.map((p) => p.tone)).toEqual(['blue', 'missing']);
   });
 });
 

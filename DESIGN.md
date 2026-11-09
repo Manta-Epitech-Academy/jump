@@ -428,8 +428,9 @@ as somebody else's tool. The order lives in `CHART_SERIES`
 
 The tints are fills, like the accents they come from, and never text. Two tones
 stay outside the series because they mean something rather than rank: the
-closing verdict « Indécis » and what is missing (« Non renseigné »), which is
-left unpainted.
+closing verdict « Indécis », and what is missing (« Non renseigné »), painted in
+`epiGreyMid`. Every part is painted: a part left blank read as a hole in the
+chart.
 
 ### Neutrals: one ramp, and it is blue-tinted
 
