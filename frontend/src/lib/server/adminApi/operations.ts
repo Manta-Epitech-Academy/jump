@@ -1895,7 +1895,7 @@ export const ADMIN_API_OPERATIONS = {
       safe: true,
       because: 'a document already generated is refused rather than rebuilt',
     },
-    destructive: false,
+    destructive: true,
     openWorld: false,
     description:
       'Regenerate one onboarding document that failed or got stuck. Sends no message to anyone, it only rebuilds a file. Answers with the resulting state, including the error if it failed again.',
@@ -2007,7 +2007,7 @@ export const ADMIN_API_OPERATIONS = {
       safe: true,
       because: 'asking again before it runs still yields one pass',
     },
-    destructive: false,
+    destructive: true,
     openWorld: false,
     description: `Ask the synchronisation worker for one pass of the given kind at ${NEXT_WORKER_WAKE_UP}, without changing any cadence. Use it when someone needs a change made in Salesforce to reach Jump now rather than at the next scheduled pass. The request is satisfied by the first successful pass that starts after it, after which the configured cadences apply again with nothing to restore; a pass that fails leaves it pending. stats_sync_health shows whether a request is pending and what the worker will do next.`,
     shape: {
@@ -2040,7 +2040,7 @@ export const ADMIN_API_OPERATIONS = {
       because:
         'a school that resolves drops out of the queue, one the directory still does not know is simply retried',
     },
-    destructive: false,
+    destructive: true,
     openWorld: true,
     description: `Retry the national directory lookup for high schools Jump only knows by a fallback name, so they stop being invisible in the reach figures. Touches at most ${SCHOOL_RESOLVE_LIMIT} per call.`,
     shape: {
