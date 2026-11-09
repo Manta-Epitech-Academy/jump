@@ -251,6 +251,50 @@ describe('the standing instructions', () => {
   });
 });
 
+// What a client is told about each tool's effect, read off the wire: the hints
+// are worth nothing if the SDK drops them, and a hint left unset defaults to the
+// most dangerous reading (destructive, open-world).
+describe('what each tool declares it does', () => {
+  async function listedTools() {
+    const server = buildAdminMcpServer(coreWriter, 'https://jump.example');
+    const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverSide);
+    const client = new Client({ name: 'annotations', version: '1' });
+    await client.connect(clientSide);
+    const { tools } = await client.listTools();
+    await client.close();
+    return new Map(tools.map((tool) => [tool.name, tool]));
+  }
+
+  it('declares a read read-only and closed', async () => {
+    const tools = await listedTools();
+    expect(tools.get('stats_events')?.annotations).toMatchObject({
+      readOnlyHint: true,
+      openWorldHint: false,
+    });
+  });
+
+  // The case the old prefix rule got wrong: an ops_* tool that hard-deletes.
+  it('declares an ops_* write as one, with its effect, in the hints and in the text', async () => {
+    const tools = await listedTools();
+    const reset = tools.get('ops_reset_closing');
+    expect(reset?.annotations).toEqual({
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    });
+    expect(reset?.description).toMatch(/Changes data\. Safe to repeat/);
+  });
+
+  it('tells the model when a retry is not harmless', async () => {
+    const tools = await listedTools();
+    expect(tools.get('write_feedback_form_copy')?.description).toMatch(
+      /Changes data\. NOT safe to repeat: every call makes another copy/,
+    );
+  });
+});
+
 /**
  * What Claude Code, the client the team uses, pays for this server, with a
  * ceiling on each part.

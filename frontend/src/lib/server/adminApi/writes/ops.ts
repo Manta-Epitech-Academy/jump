@@ -4,8 +4,8 @@
  *
  * Each delegates to the service the admin pages already use, so a repair made
  * from a chat is the same repair a human would have made from the screen.
- * Idempotency is stated per write below, because a model retries on timeout and
- * has to know whether that is safe.
+ * Whether retrying each one is safe is declared on its catalogue entry
+ * (`repeat` in `operations.ts`); the comments below say why it holds.
  */
 
 import { prisma } from '$lib/server/db';

@@ -76,13 +76,6 @@ describe('the operation catalogue', () => {
     }
   });
 
-  it('states in every write description whether repeating it is safe', () => {
-    for (const [name, operation] of entries) {
-      if (operation.kind !== 'write') continue;
-      expect(operation.description, name).toMatch(/repeat/i);
-    }
-  });
-
   it('gives every two-step write a way to send back the plan digest', () => {
     const twoStep = entries.filter(([, operation]) => operation.twoStep);
     expect(twoStep.length).toBeGreaterThan(0);
@@ -143,8 +136,10 @@ describe('what a credential is offered as tools', () => {
 
   it('shows a read-only core token every read and no write', () => {
     const offered = names({ tier: 'core', writeEnabled: false });
-    expect(offered.some((n) => n.startsWith('write_'))).toBe(false);
-    expect(offered.some((n) => n.startsWith('bulk_'))).toBe(false);
+    // By kind, never by prefix: five ops_* entries are writes.
+    for (const name of offered) {
+      expect(ADMIN_API_OPERATIONS[name].kind, name).toBe('read');
+    }
     expect(offered).toContain('config_campus_overview');
   });
 
@@ -183,8 +178,7 @@ describe('what a credential is offered as tools', () => {
       const offered = names({ tier: 'leadership', writeEnabled });
       expect(offered.length).toBeGreaterThan(0);
       for (const name of offered) {
-        expect(name.startsWith('write_'), name).toBe(false);
-        expect(name.startsWith('bulk_'), name).toBe(false);
+        expect(ADMIN_API_OPERATIONS[name].kind, name).toBe('read');
       }
     }
   });
