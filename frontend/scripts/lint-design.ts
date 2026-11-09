@@ -70,7 +70,7 @@ type Rule = {
   pattern: RegExp;
   message: string;
   /**
-   * Skip when this matches the offending line or the two after it. The window
+   * Skip when this matches the offending line or the five after it. The window
    * exists because the thing that makes a pattern acceptable is often on the
    * next line: an input suppressing its own outline is fine when its wrapper
    * draws a `focus-within` border.
@@ -159,6 +159,22 @@ const rules: Rule[] = [
     pattern: /\bduration-(?:4|5|6|7|8|9)\d\d\b|\bduration-\[[4-9]\d\d(?:ms)?\]/,
     message:
       '320 ms est le plafond pour une transition d’état (DESIGN.md § Motion)',
+  },
+  {
+    name: 'Aucune transition Svelte hors de $lib/motion',
+    /**
+     * A Svelte transition picks its duration, distance and delay in
+     * JavaScript, where neither the tokens nor the duration rule above can see
+     * them. Nineteen files did, drifted to 400ms, 300px and uncapped staggers,
+     * and one of them honoured prefers-reduced-motion. `$lib/motion` names what
+     * moves and owns how, so it is the only file allowed to import the
+     * primitives. `from` closes every import, single-line or not, so a
+     * multi-line specifier list cannot slip past a line-based linter here.
+     */
+    pattern: /from\s+['"]svelte\/(?:transition|easing)['"]/,
+    files: /^(?!.*lib[/\\]motion[/\\])/,
+    message:
+      'transition Svelte directe : passer par $lib/motion (enter, stagger, stepIn, stepOut, fade), qui porte les durées et la variante reduced-motion (DESIGN.md § Motion)',
   },
   {
     name: 'Aucune boucle d’animation pour qui demande moins de mouvement',
