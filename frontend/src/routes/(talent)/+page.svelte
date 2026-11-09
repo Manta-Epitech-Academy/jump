@@ -218,7 +218,7 @@
         <a
           href={resolve('/parcours')}
           class={cn(
-            'group block cursor-pointer rounded-xl border border-border bg-card p-6 shadow-raised transition-ui active:scale-[0.98] max-lg:order-2',
+            'group block cursor-pointer rounded-xl border border-border bg-card p-6 shadow-raised transition-ui active:translate-y-px max-lg:order-2',
             ownCards ? 'lg:col-span-4' : 'lg:col-span-12',
           )}
         >

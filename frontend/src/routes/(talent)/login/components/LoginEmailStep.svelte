@@ -59,7 +59,7 @@
     <Button
       type="submit"
       disabled={$emailDelayed}
-      class="h-12 w-full rounded-xl bg-epi-blue text-base font-bold text-white shadow-raised transition-ui hover:bg-epi-blue/90 active:scale-[0.98]"
+      class="h-12 w-full rounded-xl bg-epi-blue text-base font-bold text-white shadow-raised transition-ui hover:bg-epi-blue/90"
     >
       {#if $emailDelayed}
         <Sparkles class="mr-2 h-4 w-4 animate-spin" /> Vérification...

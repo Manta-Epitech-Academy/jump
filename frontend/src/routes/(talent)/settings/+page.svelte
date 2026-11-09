@@ -425,7 +425,7 @@
         <Button
           type="submit"
           disabled={requesting}
-          class="h-12 w-full rounded-xl bg-destructive tracking-normal text-status-foreground normal-case shadow-raised transition-ui hover:scale-[1.02] hover:bg-destructive/90 active:scale-[0.98]"
+          class="h-12 w-full rounded-xl bg-destructive tracking-normal text-status-foreground normal-case shadow-raised transition-ui hover:bg-destructive/90"
         >
           {#if requesting}
             Envoi en cours…
@@ -435,7 +435,7 @@
         </Button>
       </form>
       <AlertDialog.Cancel
-        class="h-12 w-full rounded-xl border border-border bg-transparent text-sm font-bold text-foreground-secondary transition-ui hover:bg-background active:scale-[0.98]"
+        class="h-12 w-full rounded-xl border border-border bg-transparent text-sm font-bold text-foreground-secondary transition-ui hover:bg-background"
       >
         Annuler
       </AlertDialog.Cancel>

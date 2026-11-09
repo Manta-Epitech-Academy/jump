@@ -191,19 +191,30 @@ const rules: Rule[] = [
       'boucle sans garde : écrire motion-safe:animate-… (DESIGN.md § Motion, toute animation non triviale respecte prefers-reduced-motion)',
   },
   {
-    name: 'Aucun agrandissement au survol ni à l’appui dans les espaces staff',
+    name: 'Aucun agrandissement au survol ni à l’appui',
     /**
-     * DESIGN.md says it of the whole app (« no scale on press »), and the
-     * staff spaces are where the PO ruled for a sober tool: a press is marked
-     * by `active:translate-y-px`, as the buttons do. Scoped to staff because
-     * the talent and parent spaces still carry press scales of their own, a
-     * decision that belongs to those spaces rather than to this rule.
+     * DESIGN.md says it of the whole app (« no scale on press »): a press is
+     * marked by `active:translate-y-px`, which every `Button` carries in its
+     * base. The rule once stopped at the staff spaces while the talent and
+     * parent ones kept ten press scales of their own, each a slightly different
+     * size; they now press the way the buttons do, so the rule covers them too.
      */
     pattern: /\b(?:hover|active):scale-/,
-    files:
-      /routes[/\\]\(staff\)[/\\]|lib[/\\]components[/\\](?:staff|dev|admin)[/\\]/,
     message:
-      'pas de changement d’échelle dans un espace staff : un appui se marque par active:translate-y-px (DESIGN.md § Motion)',
+      'pas de changement d’échelle au survol ni à l’appui : un appui se marque par active:translate-y-px, déjà dans la base de Button (DESIGN.md § Motion)',
+  },
+  {
+    name: 'Rien ne grandit depuis moins de 0,9',
+    /**
+     * Nothing in a room appears out of nothing, so an element that grows in
+     * from `scale-0` reads as a glitch rather than an arrival: the staff
+     * menu's icon did, and the theme toggle grew from 0.75. A brand reveal
+     * that needs a bigger pop (the XP float) states it in its own keyframes.
+     */
+    pattern:
+      /\b(?:scale|zoom-in|zoom-out)-(?:0|5|10|25|50|75)\b|\bscale-\[0?\.[0-8]\d*\]/,
+    message:
+      'une entrée part d’au moins 0,9 avec un fondu (zoom-in-90, zoom-in-95) : rien n’apparaît à partir de zéro (DESIGN.md § Motion)',
   },
   {
     name: 'Aucun `overline` nu (la décoration Tailwind)',

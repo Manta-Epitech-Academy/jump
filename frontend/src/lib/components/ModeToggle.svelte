@@ -26,15 +26,15 @@
                   class="relative flex h-full w-full items-center justify-center"
                 >
                   {#if userPrefersMode.current === 'light'}
-                    <div class="animate-in duration-200 zoom-in-75">
+                    <div class="animate-in duration-200 zoom-in-90">
                       <Sun class="h-[1.2rem] w-[1.2rem]" />
                     </div>
                   {:else if userPrefersMode.current === 'dark'}
-                    <div class="animate-in duration-200 zoom-in-75">
+                    <div class="animate-in duration-200 zoom-in-90">
                       <Moon class="h-[1.2rem] w-[1.2rem]" />
                     </div>
                   {:else}
-                    <div class="animate-in duration-200 zoom-in-75">
+                    <div class="animate-in duration-200 zoom-in-90">
                       <SunMoon class="h-[1.2rem] w-[1.2rem]" />
                     </div>
                   {/if}

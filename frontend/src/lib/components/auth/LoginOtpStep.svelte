@@ -137,7 +137,7 @@
       <Button
         type="submit"
         disabled={$otpDelayed || !otpComplete}
-        class="h-12 w-full rounded-xl bg-epi-tech text-base font-bold text-foreground shadow-raised transition-ui hover:bg-epi-tech/90 active:scale-[0.98] disabled:opacity-50"
+        class="h-12 w-full rounded-xl bg-epi-tech text-base font-bold text-foreground shadow-raised transition-ui hover:bg-epi-tech/90 disabled:opacity-50"
       >
         {#if $otpDelayed}
           Connexion...

@@ -7,7 +7,7 @@
   import { type VariantProps, tv } from 'tailwind-variants';
 
   export const buttonVariants = tv({
-    base: "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm text-sm font-bold uppercase tracking-wide transition-ui disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    base: "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm text-sm font-bold uppercase tracking-wide transition-ui active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
     variants: {
       variant: {
         default:
@@ -20,22 +20,21 @@
           'bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-raised',
         ghost:
           'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
-        link: 'text-primary underline-offset-4 hover:underline',
+        link: 'text-primary underline-offset-4 hover:underline active:translate-y-0',
         // `buttonNeon` (DESIGN.md): the one hopeful action on a talent or login
         // surface, never in a staff toolbar. Its text is `epiBlue`, which is
         // what makes this the one accent fill a button may carry.
-        neon: 'bg-epi-tech text-epi-blue hover:bg-epi-tech/90 shadow-raised active:translate-y-px',
+        neon: 'bg-epi-tech text-epi-blue hover:bg-epi-tech/90 shadow-raised',
         // `buttonInverse` (DESIGN.md): the primary pair swapped, white with
         // `epiBlue` text, for THE action of a brand-blue surface (a catalogue
         // card's way into its subject, a talent hero's way to the CRM). White
         // stays white in either theme, as the surface stays blue.
-        inverse:
-          'bg-white text-epi-blue hover:bg-white/90 shadow-raised active:translate-y-px',
+        inverse: 'bg-white text-epi-blue hover:bg-white/90 shadow-raised',
         // Any other action on a brand-blue surface: the translucent white panel
         // DESIGN.md names as the one fill a dark surface takes. `outline` there
         // paints `bg-background` under the surface's inherited white text.
         overlay:
-          'bg-white/10 text-white ring-1 ring-inset ring-white/20 hover:bg-white/15 active:translate-y-px',
+          'bg-white/10 text-white ring-1 ring-inset ring-white/20 hover:bg-white/15',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',
