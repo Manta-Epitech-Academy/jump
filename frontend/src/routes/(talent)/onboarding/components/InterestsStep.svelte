@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fly } from 'svelte/transition';
+  import { enter, stagger } from '$lib/motion';
   import { enhance } from '$app/forms';
   import { onboardingSubmit } from '../stepSubmit';
   import { Label } from '$lib/components/ui/label';
@@ -135,10 +135,10 @@
         {@const isSelected = techSelected.has(interest.id)}
         <button
           type="button"
-          in:fly={{ y: 15, duration: 300, delay: index * 50 }}
+          in:enter={{ delay: stagger(index) }}
           onclick={() => toggleTech(interest.id)}
           disabled={!isSelected && techFull}
-          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-ui hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-ui active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40
             {isSelected
             ? 'border-epi-blue bg-epi-blue/10 text-epi-blue shadow-raised dark:bg-epi-blue/20'
             : 'border-border bg-card text-foreground-secondary hover:border-border hover:bg-background'}"
@@ -167,10 +167,10 @@
         {@const isSelected = generalSelected.has(interest.id)}
         <button
           type="button"
-          in:fly={{ y: 15, duration: 300, delay: index * 50 }}
+          in:enter={{ delay: stagger(index) }}
           onclick={() => toggleGeneral(interest.id)}
           disabled={!isSelected && generalFull}
-          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-ui hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-ui active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40
             {isSelected
             ? 'border-epi-tomorrow-ink bg-epi-tomorrow-ink/10 text-epi-tomorrow-ink shadow-raised'
             : 'border-border bg-card text-foreground-secondary hover:border-border hover:bg-background'}"

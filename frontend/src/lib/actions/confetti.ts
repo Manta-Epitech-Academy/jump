@@ -32,7 +32,13 @@ function getConfetti(): CreateTypes {
   });
   document.body.appendChild(canvas);
 
-  instance = confetti.create(canvas, { resize: true, useWorker: false });
+  // A burst is pure motion with nothing to read in it, so it is the first
+  // thing to go for someone whose system asks for less (DESIGN.md § Motion).
+  instance = confetti.create(canvas, {
+    resize: true,
+    useWorker: false,
+    disableForReducedMotion: true,
+  });
   return instance;
 }
 

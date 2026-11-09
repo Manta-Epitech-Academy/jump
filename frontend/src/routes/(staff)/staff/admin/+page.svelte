@@ -80,7 +80,7 @@
 
     <a
       href={resolve('/staff/admin/users')}
-      class="block transition-ui hover:-translate-y-1"
+      class="block transition-ui active:translate-y-px"
     >
       <Card.Root
         class="h-full border-t-4 border-t-epi-tomorrow shadow-raised hover:border-epi-tomorrow/80"
@@ -103,7 +103,7 @@
 
     <a
       href={resolve('/staff/admin/talents')}
-      class="block transition-ui hover:-translate-y-1"
+      class="block transition-ui active:translate-y-px"
     >
       <Card.Root
         class="h-full border-t-4 border-t-epi-tomorrow shadow-raised hover:border-epi-tomorrow/80"
@@ -124,7 +124,7 @@
       </Card.Root>
     </a>
 
-    <a href={eventsHref} class="block transition-ui hover:-translate-y-1">
+    <a href={eventsHref} class="block transition-ui active:translate-y-px">
       <Card.Root
         class="h-full border-t-4 border-t-epi-tomorrow shadow-raised hover:border-epi-tomorrow/80"
       >

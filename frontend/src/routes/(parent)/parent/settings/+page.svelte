@@ -7,7 +7,7 @@
   import Moon from '@lucide/svelte/icons/moon';
   import SunMoon from '@lucide/svelte/icons/sun-moon';
   import { resolve } from '$app/paths';
-  import { fly } from 'svelte/transition';
+  import { enter, stagger } from '$lib/motion';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { track } from '$lib/analytics';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
@@ -24,7 +24,7 @@
 >
   <div class="w-full max-w-sm space-y-5">
     <!-- Header -->
-    <header in:fly={{ y: -20, duration: 400, delay: 100 }}>
+    <header in:enter={{ y: -12 }}>
       <div class="flex items-center gap-3">
         <Button
           variant="ghost"
@@ -41,7 +41,7 @@
       </div>
     </header>
 
-    <div class="space-y-4" in:fly={{ y: 20, duration: 400, delay: 200 }}>
+    <div class="space-y-4" in:enter={{ delay: stagger(1) }}>
       <!-- Profile Info (read-only) -->
       <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
         <h2
@@ -117,7 +117,7 @@
           <Button
             type="submit"
             variant="ghost"
-            class="h-11 w-full rounded-xl border border-destructive/30 bg-destructive/10 tracking-normal text-destructive normal-case transition-ui hover:scale-[1.02] hover:border-destructive/30 hover:bg-destructive/10 active:scale-[0.98]"
+            class="h-11 w-full rounded-xl border border-destructive/30 bg-destructive/10 tracking-normal text-destructive normal-case transition-ui hover:border-destructive/30 hover:bg-destructive/10"
           >
             Se déconnecter
           </Button>

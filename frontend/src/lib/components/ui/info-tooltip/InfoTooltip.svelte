@@ -17,35 +17,33 @@
   } = $props();
 </script>
 
-<Tooltip.Provider delayDuration={150}>
-  <Tooltip.Root>
-    <Tooltip.Trigger>
-      {#snippet child({ props })}
-        <span
-          {...props}
-          role="button"
-          tabindex={0}
-          data-hint
-          aria-label={label}
-          onclick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          onkeydown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
-          }}
-          class="inline-flex cursor-help items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Info class={cn('h-3 w-3', iconClass)} />
-        </span>
-      {/snippet}
-    </Tooltip.Trigger>
-    <Tooltip.Content class="max-w-xs text-xs leading-relaxed">
-      {#if content}
-        {@render content()}
-      {:else}
-        {text}
-      {/if}
-    </Tooltip.Content>
-  </Tooltip.Root>
-</Tooltip.Provider>
+<Tooltip.Root>
+  <Tooltip.Trigger>
+    {#snippet child({ props })}
+      <span
+        {...props}
+        role="button"
+        tabindex={0}
+        data-hint
+        aria-label={label}
+        onclick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        onkeydown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+        }}
+        class="inline-flex cursor-help items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <Info class={cn('h-3 w-3', iconClass)} />
+      </span>
+    {/snippet}
+  </Tooltip.Trigger>
+  <Tooltip.Content class="max-w-xs text-xs leading-relaxed">
+    {#if content}
+      {@render content()}
+    {:else}
+      {text}
+    {/if}
+  </Tooltip.Content>
+</Tooltip.Root>

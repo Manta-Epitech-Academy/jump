@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { fly } from 'svelte/transition';
-  import type { TransitionConfig } from 'svelte/transition';
+  import { stepIn, stepOut } from '$lib/motion';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import { onboardingSubmit } from './stepSubmit';
@@ -17,17 +16,6 @@
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
   import BrandBackdrop from '$lib/components/layout/BrandBackdrop.svelte';
-
-  function exitSlide(
-    _node: Element,
-    { duration = 250 }: { duration?: number } = {},
-  ): TransitionConfig {
-    return {
-      duration,
-      css: (t: number, u: number) =>
-        `position: absolute; top: 0; left: 0; right: 0; opacity: ${t}; transform: translateX(${-30 * u}px);`,
-    };
-  }
 
   let { data, form } = $props();
 
@@ -126,11 +114,7 @@
     <div class="mx-auto w-full max-w-lg px-4 py-8">
       <div class="relative">
         {#key data.step}
-          <div
-            class="w-full"
-            in:fly|local={{ x: 30, duration: 250, delay: 180 }}
-            out:exitSlide|local={{ duration: 180 }}
-          >
+          <div class="w-full" in:stepIn|local out:stepOut|local>
             {#if data.step === 'identity'}
               <IdentityStep
                 profile={data.profile}

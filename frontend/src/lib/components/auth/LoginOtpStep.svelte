@@ -5,7 +5,6 @@
   import CircleAlert from '@lucide/svelte/icons/circle-alert';
   import Lock from '@lucide/svelte/icons/lock';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-  import { fly } from 'svelte/transition';
   import { cn } from '$lib/utils';
 
   let { otpForm, otpErrors, otpEnhance, otpDelayed, otpMessage, goBack } =
@@ -71,7 +70,7 @@
   });
 </script>
 
-<div in:fly={{ x: 20, duration: 300 }}>
+<div>
   {#if $otpMessage}
     <Alert
       variant="destructive"
@@ -137,7 +136,7 @@
       <Button
         type="submit"
         disabled={$otpDelayed || !otpComplete}
-        class="h-12 w-full rounded-xl bg-epi-tech text-base font-bold text-foreground shadow-raised transition-ui hover:bg-epi-tech/90 active:scale-[0.98] disabled:opacity-50"
+        class="h-12 w-full rounded-xl bg-epi-tech text-base font-bold text-foreground shadow-raised transition-ui hover:bg-epi-tech/90 disabled:opacity-50"
       >
         {#if $otpDelayed}
           Connexion...
@@ -172,7 +171,9 @@
     }
   }
 
-  :global(.otp-digit:not(:placeholder-shown):not(:focus)) {
-    animation: digit-pop 0.2s ease-out;
+  @media (prefers-reduced-motion: no-preference) {
+    :global(.otp-digit:not(:placeholder-shown):not(:focus)) {
+      animation: digit-pop 0.2s ease-out;
+    }
   }
 </style>

@@ -9,7 +9,7 @@
   import X from '@lucide/svelte/icons/x';
   import Settings from '@lucide/svelte/icons/settings';
   import { resolve } from '$app/paths';
-  import { fly } from 'svelte/transition';
+  import { enter, stagger } from '$lib/motion';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { data } = $props();
@@ -20,7 +20,7 @@
 </svelte:head>
 
 <div class="mx-auto max-w-5xl px-4 py-8 sm:py-12">
-  <header class="mb-8" in:fly={{ y: -20, duration: 400, delay: 100 }}>
+  <header class="mb-8" in:enter={{ y: -12 }}>
     <div class="flex items-center gap-4">
       <div class="flex-1">
         <h1
@@ -47,7 +47,7 @@
   {#if data.children.length === 0}
     <div
       class="flex min-h-62.5 flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background/50 p-6 text-center"
-      in:fly={{ y: 20, duration: 400, delay: 200 }}
+      in:enter={{ delay: stagger(1) }}
     >
       <div class="mb-4 rounded-full bg-muted/50 p-4">
         <Users class="h-8 w-8 text-muted-foreground" />
@@ -65,7 +65,7 @@
         <a
           href={resolve(`/parent/enfant/${child.id}`)}
           class="group"
-          in:fly={{ y: 20, duration: 400, delay: 200 + i * 100 }}
+          in:enter={{ delay: stagger(i + 1) }}
         >
           <div
             class="dark:hover:shadow-noneark:hover:shadow-none relative h-full overflow-hidden rounded-xl border border-border bg-card p-6 shadow-raised transition-ui hover:shadow-raised"

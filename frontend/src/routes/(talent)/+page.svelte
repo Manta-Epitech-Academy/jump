@@ -4,7 +4,7 @@
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import { invalidateAll } from '$app/navigation';
-  import { fly } from 'svelte/transition';
+  import { enter, stagger } from '$lib/motion';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
   import Trophy from '@lucide/svelte/icons/trophy';
@@ -213,12 +213,12 @@
             ? 'lg:col-span-4 lg:block lg:space-y-6'
             : 'lg:col-span-12 lg:grid lg:grid-cols-12 lg:items-start lg:gap-6',
         )}
-        in:fly={{ x: -20, duration: 400, delay: 200 }}
+        in:enter={{ x: -12 }}
       >
         <a
           href={resolve('/parcours')}
           class={cn(
-            'group block cursor-pointer rounded-xl border border-border bg-card p-6 shadow-raised transition-ui active:scale-[0.98] max-lg:order-2',
+            'group block cursor-pointer rounded-xl border border-border bg-card p-6 shadow-raised transition-ui active:translate-y-px max-lg:order-2',
             ownCards ? 'lg:col-span-4' : 'lg:col-span-12',
           )}
         >
@@ -284,7 +284,7 @@
       {#if suggestsSomething}
         <div
           class="contents lg:col-span-8 lg:block lg:space-y-6"
-          in:fly={{ x: 20, duration: 400, delay: 300 }}
+          in:enter={{ x: 12, delay: stagger(1) }}
         >
           {#if hero}
             <!-- Where Jump says what to do now: the head of the right column,

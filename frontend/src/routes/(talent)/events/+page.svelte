@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { fly } from 'svelte/transition';
+  import { enter, stagger } from '$lib/motion';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import CalendarCheck from '@lucide/svelte/icons/calendar-check';
@@ -54,7 +54,7 @@
     <!-- Hero -->
     <div
       class="mb-8 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
-      in:fly={{ y: -20, duration: 400 }}
+      in:enter={{ y: -12 }}
     >
       <div class="flex items-center gap-4 px-5 py-4 sm:gap-5 sm:px-6">
         <!-- The figure alone in the square, with its unit beside it. A unit that
@@ -82,7 +82,7 @@
 
     <!-- Timeline -->
     {#if groupedMonths.length > 0}
-      <div class="relative" in:fly={{ y: 20, duration: 400, delay: 200 }}>
+      <div class="relative" in:enter={{ delay: stagger(1) }}>
         <!-- Vertical line -->
         <div
           class="absolute top-0 bottom-0 left-5 w-px bg-gradient-to-b from-epi-blue/40 via-epi-blue/20 to-transparent sm:left-6"
@@ -111,11 +111,7 @@
               {#each month.events as ev, eventIndex (ev.id)}
                 <div
                   class="group relative overflow-hidden rounded-xl border border-epi-blue/20 bg-card p-4 shadow-raised transition-ui hover:shadow-raised"
-                  in:fly={{
-                    x: -10,
-                    duration: 300,
-                    delay: Math.min(60 * eventIndex + 120 * monthIndex, 360),
-                  }}
+                  in:enter={{ x: -12, delay: stagger(eventIndex + monthIndex) }}
                 >
                   <!-- Accent left bar -->
                   <div

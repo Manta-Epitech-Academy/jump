@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { contrastRatio, FILL_INKS } from './color';
 import { cssVarName, loadContract, resolveToken } from './contract';
+import { DURATION, EASE_STANDARD_POINTS } from '../motion/tokens';
 
 const { root, dark, declared } = loadContract();
 
@@ -263,5 +264,39 @@ describe('design contract palette discipline', () => {
     expect(css).not.toMatch(
       /\b(slate|zinc|neutral|stone|amber|emerald|rose)\b/,
     );
+  });
+});
+
+describe('design contract motion parity', () => {
+  it('should give Svelte transitions the durations layout.css gives CSS', () => {
+    // Arrange: a Svelte transition cannot read a custom property, so
+    // lib/motion restates them and this is what keeps the copy honest.
+    const css = {
+      fast: root['--dur-fast'],
+      base: root['--dur-base'],
+      slow: root['--dur-slow'],
+    };
+
+    // Act
+    const js = Object.fromEntries(
+      Object.entries(DURATION).map(([name, ms]) => [name, `${ms}ms`]),
+    );
+
+    // Assert
+    expect(js).toEqual(css);
+  });
+
+  it('should give Svelte transitions the standard easing curve', () => {
+    // Arrange
+    const css = root['--motion-ease-standard'];
+
+    // Act
+    const points = /cubic-bezier\(([^)]+)\)/
+      .exec(css)?.[1]
+      .split(',')
+      .map((n) => Number(n.trim()));
+
+    // Assert
+    expect(points).toEqual([...EASE_STANDARD_POINTS]);
   });
 });

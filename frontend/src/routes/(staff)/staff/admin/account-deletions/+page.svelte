@@ -2,7 +2,6 @@
   import { untrack } from 'svelte';
   import { enhance } from '$app/forms';
   import { superForm } from 'sveltekit-superforms';
-  import { fly } from 'svelte/transition';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import ShieldOff from '@lucide/svelte/icons/shield-off';
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
@@ -76,7 +75,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <div in:fly={{ y: -12, duration: 300 }}>
+  <div>
     <PageHeader
       title="Demandes de"
       accent="suppression"
@@ -85,7 +84,7 @@
   </div>
 
   {#if data.overdueCount > 0}
-    <div in:fly={{ y: 12, duration: 300 }}>
+    <div>
       <Alert.Root variant="destructive">
         <ShieldAlert class="motion-safe:animate-pulse" />
         <Alert.Title class="font-heading">
@@ -100,7 +99,7 @@
   {/if}
 
   <!-- Pending queue -->
-  <div in:fly={{ y: 12, duration: 300, delay: 60 }}>
+  <div>
     <Card.Root>
       <Card.Header>
         <Card.Title class="font-heading">
@@ -208,7 +207,7 @@
 
   <!-- Resolved history -->
   {#if data.resolved.length > 0}
-    <div in:fly={{ y: 12, duration: 300, delay: 120 }}>
+    <div>
       <Card.Root>
         <Card.Header>
           <Card.Title class="font-heading">Historique</Card.Title>
@@ -262,7 +261,7 @@
 
   <!-- The way back: a person erased at their request is never re-imported
        until an admin lifts the bar on their Salesforce contact. -->
-  <div in:fly={{ y: 12, duration: 300, delay: 180 }}>
+  <div>
     <Card.Root>
       <Card.Header>
         <Card.Title class="flex items-center gap-2 font-heading">

@@ -4,7 +4,7 @@
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { resolve } from '$app/paths';
   import { enhance } from '$app/forms';
-  import { fly } from 'svelte/transition';
+  import { enter } from '$lib/motion';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import User from '@lucide/svelte/icons/user';
@@ -54,10 +54,7 @@
 
 <TalentPageHeader title="Paramètres" />
 
-<div
-  class="mx-auto max-w-sm space-y-4 px-4 py-8 sm:py-12"
-  in:fly={{ y: 20, duration: 400, delay: 200 }}
->
+<div class="mx-auto max-w-sm space-y-4 px-4 py-8 sm:py-12" in:enter>
   <!-- Profile Info (read-only) -->
   <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
     <h2
@@ -428,7 +425,7 @@
         <Button
           type="submit"
           disabled={requesting}
-          class="h-12 w-full rounded-xl bg-destructive tracking-normal text-status-foreground normal-case shadow-raised transition-ui hover:scale-[1.02] hover:bg-destructive/90 active:scale-[0.98]"
+          class="h-12 w-full rounded-xl bg-destructive tracking-normal text-status-foreground normal-case shadow-raised transition-ui hover:bg-destructive/90"
         >
           {#if requesting}
             Envoi en cours…
@@ -438,7 +435,7 @@
         </Button>
       </form>
       <AlertDialog.Cancel
-        class="h-12 w-full rounded-xl border border-border bg-transparent text-sm font-bold text-foreground-secondary transition-ui hover:bg-background active:scale-[0.98]"
+        class="h-12 w-full rounded-xl border border-border bg-transparent text-sm font-bold text-foreground-secondary transition-ui hover:bg-background"
       >
         Annuler
       </AlertDialog.Cancel>

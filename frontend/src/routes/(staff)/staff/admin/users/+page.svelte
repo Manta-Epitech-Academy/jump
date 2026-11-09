@@ -716,36 +716,6 @@
         <Table.Cell class="text-right">
           <div class="flex items-center justify-end gap-1">
             {#if user.id !== data.currentUserId && user.staffProfile?.staffRole && user.staffProfile.staffRole !== 'admin'}
-              <Tooltip.Provider delayDuration={300}>
-                <Tooltip.Root>
-                  <Tooltip.Trigger>
-                    {#snippet child({ props })}
-                      <Button
-                        {...props}
-                        variant="ghost"
-                        size="icon"
-                        class="text-muted-foreground hover:text-epi-tomorrow"
-                        aria-label="Se connecter en tant que {user.name ||
-                          user.email}"
-                        disabled={impersonating === user.id}
-                        onclick={() =>
-                          loginAs(
-                            user.id,
-                            user.staffProfile?.staffRole ?? null,
-                            user.staffProfile?.campus?.name ?? null,
-                          )}
-                      >
-                        <LogIn class="h-4 w-4" />
-                      </Button>
-                    {/snippet}
-                  </Tooltip.Trigger>
-                  <Tooltip.Content
-                    ><p>Se connecter en tant que ce membre</p></Tooltip.Content
-                  >
-                </Tooltip.Root>
-              </Tooltip.Provider>
-            {/if}
-            <Tooltip.Provider delayDuration={300}>
               <Tooltip.Root>
                 <Tooltip.Trigger>
                   {#snippet child({ props })}
@@ -753,17 +723,43 @@
                       {...props}
                       variant="ghost"
                       size="icon"
-                      class="text-destructive hover:bg-destructive/10"
-                      onclick={() => confirmDelete(user.id)}
-                      aria-label="Révoquer l'accès de {user.name || user.email}"
+                      class="text-muted-foreground hover:text-epi-tomorrow"
+                      aria-label="Se connecter en tant que {user.name ||
+                        user.email}"
+                      disabled={impersonating === user.id}
+                      onclick={() =>
+                        loginAs(
+                          user.id,
+                          user.staffProfile?.staffRole ?? null,
+                          user.staffProfile?.campus?.name ?? null,
+                        )}
                     >
-                      <Trash2 class="h-4 w-4" />
+                      <LogIn class="h-4 w-4" />
                     </Button>
                   {/snippet}
                 </Tooltip.Trigger>
-                <Tooltip.Content><p>Révoquer l'accès</p></Tooltip.Content>
+                <Tooltip.Content
+                  ><p>Se connecter en tant que ce membre</p></Tooltip.Content
+                >
               </Tooltip.Root>
-            </Tooltip.Provider>
+            {/if}
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="ghost"
+                    size="icon"
+                    class="text-destructive hover:bg-destructive/10"
+                    onclick={() => confirmDelete(user.id)}
+                    aria-label="Révoquer l'accès de {user.name || user.email}"
+                  >
+                    <Trash2 class="h-4 w-4" />
+                  </Button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content><p>Révoquer l'accès</p></Tooltip.Content>
+            </Tooltip.Root>
           </div>
         </Table.Cell>
       {/snippet}
@@ -882,27 +878,25 @@
                     };
                   }}
                 >
-                  <Tooltip.Provider delayDuration={300}>
-                    <Tooltip.Root>
-                      <Tooltip.Trigger>
-                        {#snippet child({ props })}
-                          <Button
-                            {...props}
-                            type="submit"
-                            variant="ghost"
-                            size="icon"
-                            class="text-destructive hover:bg-destructive/10"
-                            aria-label="Annuler l'invitation"
-                          >
-                            <X class="h-4 w-4" />
-                          </Button>
-                        {/snippet}
-                      </Tooltip.Trigger>
-                      <Tooltip.Content
-                        ><p>Annuler l'invitation</p></Tooltip.Content
-                      >
-                    </Tooltip.Root>
-                  </Tooltip.Provider>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger>
+                      {#snippet child({ props })}
+                        <Button
+                          {...props}
+                          type="submit"
+                          variant="ghost"
+                          size="icon"
+                          class="text-destructive hover:bg-destructive/10"
+                          aria-label="Annuler l'invitation"
+                        >
+                          <X class="h-4 w-4" />
+                        </Button>
+                      {/snippet}
+                    </Tooltip.Trigger>
+                    <Tooltip.Content
+                      ><p>Annuler l'invitation</p></Tooltip.Content
+                    >
+                  </Tooltip.Root>
                 </form>
               </Table.Cell>
             {/snippet}

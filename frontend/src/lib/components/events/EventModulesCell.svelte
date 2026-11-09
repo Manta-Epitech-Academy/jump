@@ -14,27 +14,25 @@
 </script>
 
 {#if modules.length}
-  <Tooltip.Provider delayDuration={200}>
-    <div class="flex items-center gap-1.5">
-      {#each modules as key (key)}
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <span
-                {...props}
-                class="flex size-6 items-center justify-center rounded-sm bg-secondary text-secondary-foreground"
-              >
-                <EventModuleIcon module={key} class="size-3.5" />
-              </span>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            {EVENT_MODULE_DEFS[key]?.label ?? key}
-          </Tooltip.Content>
-        </Tooltip.Root>
-      {/each}
-    </div>
-  </Tooltip.Provider>
+  <div class="flex items-center gap-1.5">
+    {#each modules as key (key)}
+      <Tooltip.Root>
+        <Tooltip.Trigger>
+          {#snippet child({ props })}
+            <span
+              {...props}
+              class="flex size-6 items-center justify-center rounded-sm bg-secondary text-secondary-foreground"
+            >
+              <EventModuleIcon module={key} class="size-3.5" />
+            </span>
+          {/snippet}
+        </Tooltip.Trigger>
+        <Tooltip.Content>
+          {EVENT_MODULE_DEFS[key]?.label ?? key}
+        </Tooltip.Content>
+      </Tooltip.Root>
+    {/each}
+  </div>
 {:else}
   <span class="text-xs text-muted-foreground">Aucun</span>
 {/if}

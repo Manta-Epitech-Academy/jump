@@ -243,7 +243,11 @@
    to be declared wherever that ink is re-pointed. Declared only on
    `.admin-space` it froze to the light magenta, and the admin sidebar's active
    entry rendered #9b0b93 on #0b0e1a - 2.4:1 - while the title cursor two nodes
-   away inverted correctly, because that one names the ink directly. */
+   away inverted correctly, because that one names the ink directly.
+
+   A surface portaled out of the layout root carries `admin-space` itself, as
+   `.talent-surface` does below: the phone menu (`StaffMobileNav`'s `skin`)
+   otherwise fell back to the blue accent, on the same dark chrome. */
 .admin-space,
 .admin-space .on-dark {
   --accent-space: var(--epi-tomorrow);
@@ -427,11 +431,14 @@
 
 /* The interactive-state transition. Names the properties it animates, unlike
    `transition-all`, which also animates layout ones: a width or a top that
-   animates is a jank source and never what the author meant. */
+   animates is a jank source and never what the author meant. `translate`,
+   `scale` and `rotate` are listed beside `transform` because Tailwind 4 writes
+   `translate-y-px` and friends to those individual properties: without them a
+   button's press and a link's arrow nudge snapped instead of moving. */
 @utility transition-ui {
   transition-property:
     color, background-color, border-color, outline-color, text-decoration-color,
-    box-shadow, transform, opacity, filter;
+    box-shadow, transform, translate, scale, rotate, opacity, filter;
   transition-timing-function: var(--motion-ease-standard);
   transition-duration: var(--dur-base);
 }
@@ -491,37 +498,6 @@
   .app-sidebar {
     view-transition-name: main-sidebar;
   }
-}
-
-/* --- Login step transitions: shared by the talent + parent OTP flows --- */
-@keyframes slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slide-in-left {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.animate-slide-in-right {
-  animation: slide-in-right 300ms ease-out;
-}
-
-.animate-slide-in-left {
-  animation: slide-in-left 300ms ease-out;
 }
 
 /* --- Markdown Prose Overrides (Notion-like with Epitech branding) --- */
@@ -684,33 +660,6 @@
   content: none;
 }
 
-/* --- Animations for Emotional Design --- */
-@keyframes stripes {
-  from {
-    background-position: 1rem 0;
-  }
-  to {
-    background-position: 0 0;
-  }
-}
-
-.animate-stripes {
-  animation: stripes 1s linear infinite;
-}
-
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-4px);
-  }
-  75% {
-    transform: translateX(4px);
-  }
-}
-
 /* --- "+N XP" reward float (onboarding arrival + daily minigame) --- */
 @keyframes xp-float {
   0% {
@@ -736,6 +685,57 @@
 
 .animate-xp-float {
   animation: xp-float 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes xp-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  12%,
+  70% {
+    opacity: 1;
+  }
+}
+
+/* --- Less motion, not none (DESIGN.md § Motion) -----------------------------
+   Asked for less motion, what moves stops moving and what fades keeps fading:
+   a dialog still appears softly, it just no longer grows or slides. Svelte
+   transitions get this from `$lib/motion`; this block covers the rest, and it
+   sits outside every `@layer` on purpose, because an unlayered rule beats a
+   layered utility whatever its specificity, so no `!important` is needed. */
+@media (prefers-reduced-motion: reduce) {
+  /* tw-animate (dialogs, popovers, menus, selects, tooltips) builds its
+     enter and exit from these offsets; zeroed, only the opacity remains. */
+  * {
+    --tw-enter-scale: 1;
+    --tw-enter-translate-x: 0;
+    --tw-enter-translate-y: 0;
+    --tw-enter-rotate: 0;
+    --tw-enter-blur: 0;
+    --tw-exit-scale: 1;
+    --tw-exit-translate-x: 0;
+    --tw-exit-translate-y: 0;
+    --tw-exit-rotate: 0;
+    --tw-exit-blur: 0;
+  }
+
+  /* vaul slides its drawer in with keyframes of its own and has no reduced
+     variant; its own fade keyframes take their place. `:root` lifts the
+     specificity one step above vaul's selectors, whichever loads last. */
+  :root
+    [data-vaul-drawer][data-vaul-snap-points='false'][data-vaul-drawer-direction][data-state='open'] {
+    animation-name: fadeIn;
+  }
+  :root
+    [data-vaul-drawer][data-vaul-snap-points='false'][data-vaul-drawer-direction][data-state='closed'] {
+    animation-name: fadeOut;
+  }
+
+  /* The XP float keeps its moment on screen, without the pop and the rise. */
+  .animate-xp-float {
+    animation-name: xp-fade;
+  }
 }
 
 /* --- Focus Mode Kiosk Overrides --- */

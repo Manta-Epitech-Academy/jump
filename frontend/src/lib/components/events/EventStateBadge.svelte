@@ -34,21 +34,19 @@
     $props();
 </script>
 
-<Tooltip.Provider delayDuration={200}>
-  <Tooltip.Root>
-    <Tooltip.Trigger>
-      {#snippet child({ props })}
-        <Badge
-          {...props}
-          variant="outline"
-          class="shrink-0 text-xs font-normal {stateBadgeClass(state, past)}"
-        >
-          {EVENT_CONFIG_STATE_LABELS[state]}
-        </Badge>
-      {/snippet}
-    </Tooltip.Trigger>
-    <Tooltip.Content class="max-w-56 text-xs">
-      {EVENT_CONFIG_STATE_HINTS[state]}
-    </Tooltip.Content>
-  </Tooltip.Root>
-</Tooltip.Provider>
+<Tooltip.Root>
+  <Tooltip.Trigger>
+    {#snippet child({ props })}
+      <Badge
+        {...props}
+        variant="outline"
+        class="shrink-0 text-xs font-normal {stateBadgeClass(state, past)}"
+      >
+        {EVENT_CONFIG_STATE_LABELS[state]}
+      </Badge>
+    {/snippet}
+  </Tooltip.Trigger>
+  <Tooltip.Content class="max-w-56 text-xs">
+    {EVENT_CONFIG_STATE_HINTS[state]}
+  </Tooltip.Content>
+</Tooltip.Root>
