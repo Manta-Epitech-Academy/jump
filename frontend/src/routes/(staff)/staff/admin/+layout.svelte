@@ -6,8 +6,6 @@
   import LogOut from '@lucide/svelte/icons/log-out';
   import Settings from '@lucide/svelte/icons/settings';
   import KeyRound from '@lucide/svelte/icons/key-round';
-  import Menu from '@lucide/svelte/icons/menu';
-  import X from '@lucide/svelte/icons/x';
   import Search from '@lucide/svelte/icons/search';
   import BrandMark from '$lib/components/layout/BrandMark.svelte';
   import AppRevision from '$lib/components/layout/AppRevision.svelte';
@@ -17,27 +15,19 @@
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import StaffSettingsDialog from '$lib/components/layout/StaffSettingsDialog.svelte';
   import AdminCommand from '$lib/components/admin/AdminCommand.svelte';
+  import StaffMobileNav from '$lib/components/staff/StaffMobileNav.svelte';
   import {
     ADMIN_NAV,
     type AdminNavItem,
     type AdminBadgeKey,
   } from '$lib/components/admin/adminNav';
-  import { fly, fade } from 'svelte/transition';
   import { track, secondsBetween } from '$lib/analytics';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
   let { children, data } = $props();
 
-  let mobileMenuOpen = $state(false);
   let settingsOpen = $state(false);
   let commandOpen = $state(false);
-
-  // Close the mobile menu on page navigation
-  $effect(() => {
-    if (page.url.pathname) {
-      mobileMenuOpen = false;
-    }
-  });
 
   const ADMIN_HOME = resolve('/staff/admin');
 
@@ -148,24 +138,14 @@
          share one bar, and the 8px this gives back is what keeps the mark clear
          of them at 320px rather than flush against them. -->
     <div class="flex min-w-0 items-center gap-2 sm:gap-4">
-      <Button
-        variant="ghost"
-        size="icon"
-        class="relative h-10 w-10 shrink-0 text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground md:hidden"
-        onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
+      <StaffMobileNav
+        triggerClass="text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground md:hidden"
       >
-        <Menu
-          class="absolute h-6 w-6 transition-ui duration-300 {mobileMenuOpen
-            ? 'scale-0 opacity-0'
-            : 'scale-100 opacity-100'}"
-        />
-        <X
-          class="absolute h-6 w-6 transition-ui duration-300 {mobileMenuOpen
-            ? 'scale-100 rotate-0 opacity-100'
-            : 'scale-0 -rotate-90 opacity-0'}"
-        />
-        <span class="sr-only">Toggle menu</span>
-      </Button>
+        <div class="min-h-0 flex-1 overflow-y-auto py-6 pr-2">
+          {@render navMenu()}
+        </div>
+        {@render sidebarFooter()}
+      </StaffMobileNav>
 
       <BrandMark
         href={resolve('/staff/admin')}
@@ -288,27 +268,6 @@
       </div>
       {@render sidebarFooter()}
     </aside>
-
-    <!-- Mobile Admin Sidebar Overlay -->
-    {#if mobileMenuOpen}
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="absolute inset-0 z-40 bg-black/80 md:hidden"
-        transition:fade={{ duration: 200 }}
-        onclick={() => (mobileMenuOpen = false)}
-      ></div>
-
-      <aside
-        class="on-dark absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-xs flex-col border-r border-chrome-border bg-chrome shadow-overlay md:hidden"
-        transition:fly={{ x: -300, duration: 300 }}
-      >
-        <div class="flex-1 overflow-y-auto py-6 pr-2">
-          {@render navMenu()}
-        </div>
-        {@render sidebarFooter()}
-      </aside>
-    {/if}
 
     <main
       class="flex-1 overflow-y-auto bg-background p-4 md:p-8"
