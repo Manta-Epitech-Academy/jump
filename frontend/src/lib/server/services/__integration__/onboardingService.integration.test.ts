@@ -59,7 +59,12 @@ describe('onboardingService (integration)', () => {
 
     const [tech, general] = await Promise.all([
       prisma.interest.create({
-        data: { nom: `Test tech ${stamp}`, kind: 'tech', order: 999 },
+        data: {
+          nom: `Test tech ${stamp}`,
+          shortLabel: 'Test',
+          kind: 'tech',
+          order: 999,
+        },
       }),
       prisma.interest.create({
         data: { nom: `Test general ${stamp}`, kind: 'general', order: 999 },
@@ -280,7 +285,12 @@ describe('onboardingService (integration)', () => {
   it('keeps a pick of an archived interest out of the step and through its swap', async () => {
     const talent = await makeTalent();
     const retired = await prisma.interest.create({
-      data: { nom: `Test retired ${stamp}`, kind: 'tech', order: 998 },
+      data: {
+        nom: `Test retired ${stamp}`,
+        shortLabel: 'Retiré',
+        kind: 'tech',
+        order: 998,
+      },
     });
     try {
       await validateTalentInterests(talent.id, {

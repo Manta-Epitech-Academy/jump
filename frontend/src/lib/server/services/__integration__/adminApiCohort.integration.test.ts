@@ -23,7 +23,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
-import { setEventShownStatuses } from '$lib/server/services/devSpaceVisibility';
+import { setEventStatusPolicy } from '$lib/server/services/devSpaceVisibility';
 import { assertTestDatabase } from './testDatabase';
 import { resolveScope } from '$lib/server/adminApi/scope';
 import { cohortWhere } from '$lib/server/services/adminStats/cohort';
@@ -80,7 +80,10 @@ describe('the cohort in scope (integration)', () => {
     // What the event shows, set the way the config surfaces set it, which is
     // also what derives each enrolment's visibility.
     await prisma.$transaction((tx) =>
-      setEventShownStatuses(tx, eventId, ['READY', 'MET']),
+      setEventStatusPolicy(tx, eventId, {
+        shown: ['READY', 'MET'],
+        attending: ['MET'],
+      }),
     );
   });
 

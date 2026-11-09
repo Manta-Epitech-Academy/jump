@@ -40,7 +40,11 @@ import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { addMinigamePublications, addXpRewards } from '../factories/engagement';
 import { addAdminApiTokens, addInvitations } from '../factories/operations';
 import { id, seq } from '../ids';
-import { DEFAULT_SHOWN_STATUSES, SF_STATUSES } from '../world';
+import {
+  DEFAULT_SHOWN_STATUSES,
+  SF_STATUSES,
+  attestsByDefault,
+} from '../world';
 import type { Scenario } from './types';
 
 export const platform: Scenario = {
@@ -359,6 +363,7 @@ export const platform: Scenario = {
         world.buffer.eventConfig_TemplateShownStatus.push({
           templateId,
           status,
+          attestsAttendance: attestsByDefault(status),
         });
       }
     }

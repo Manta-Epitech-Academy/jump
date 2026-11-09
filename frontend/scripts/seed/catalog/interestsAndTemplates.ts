@@ -27,16 +27,24 @@ import type { BroadcastChannel, PrismaClient } from '@prisma/client';
 /**
  * Tech-leaning interests. Order within the array is the displayed order.
  */
-export const INTEREST_TECH: { nom: string; emoji: string }[] = [
-  { nom: 'Créer des sites web', emoji: '🌐' },
-  { nom: 'Créer des apps', emoji: '📱' },
-  { nom: 'Créer des jeux vidéo', emoji: '🕹️' },
-  { nom: 'Programmation', emoji: '💻' },
-  { nom: 'Intelligence artificielle', emoji: '🤖' },
-  { nom: 'Robotique', emoji: '🦾' },
-  { nom: 'Data science / Analyse de données', emoji: '📊' },
-  { nom: 'Cloud / Infrastructure', emoji: '☁️' },
-  { nom: 'Cybersécurité / Hacking', emoji: '🔒' },
+export const INTEREST_TECH: {
+  nom: string;
+  shortLabel: string;
+  emoji: string;
+}[] = [
+  { nom: 'Créer des sites web', shortLabel: 'Web', emoji: '🌐' },
+  { nom: 'Créer des apps', shortLabel: 'Apps', emoji: '📱' },
+  { nom: 'Créer des jeux vidéo', shortLabel: 'Jeux vidéo', emoji: '🕹️' },
+  { nom: 'Programmation', shortLabel: 'Code', emoji: '💻' },
+  { nom: 'Intelligence artificielle', shortLabel: 'IA', emoji: '🤖' },
+  { nom: 'Robotique', shortLabel: 'Robotique', emoji: '🦾' },
+  {
+    nom: 'Data science / Analyse de données',
+    shortLabel: 'Data',
+    emoji: '📊',
+  },
+  { nom: 'Cloud / Infrastructure', shortLabel: 'Cloud', emoji: '☁️' },
+  { nom: 'Cybersécurité / Hacking', shortLabel: 'Cyber', emoji: '🔒' },
 ];
 
 /** General-interest options. Order within the array is the displayed order. */

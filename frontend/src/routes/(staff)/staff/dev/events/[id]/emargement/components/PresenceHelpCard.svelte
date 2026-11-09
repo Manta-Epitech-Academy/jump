@@ -3,7 +3,6 @@
   import QrCode from '@lucide/svelte/icons/qr-code';
   import MousePointerClick from '@lucide/svelte/icons/mouse-pointer-click';
   import Lock from '@lucide/svelte/icons/lock';
-  import FileDown from '@lucide/svelte/icons/file-down';
   import * as Card from '$lib/components/ui/card';
   import { cohortNounForms } from '$lib/domain/event';
 
@@ -11,8 +10,8 @@
   const noun = $derived(cohortNounForms(cohortNoun));
 
   // Static how-it-works card. Each line names the actual on-screen control
-  // ("Afficher le QR code", "Pointage manuel", "Clôturer", "Tout exporter") so
-  // the help maps onto the page: the QR + export buttons sit in the header, the
+  // ("Afficher le QR code", "Pointage manuel", "Clôturer") so the help maps
+  // onto the page: the QR button sits in the header, the
   // clôture / réouverture control in the Synthèse card just above. The bulk
   // "Tout présent" action is left out on purpose, the Synthèse card already
   // captions it next to its button so repeating it here would only duplicate.
@@ -53,14 +52,6 @@
         >
         « Clôturer » coupe le QR code et passe absents les « en attente » ; automatique
         à 11h et 15h. Un créneau fermé à la main se rouvre, pas un créneau passé l'heure.
-      </p>
-    </div>
-
-    <div class="flex gap-3">
-      <FileDown class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
-      <p class="text-muted-foreground">
-        <span class="font-semibold text-foreground">Tout exporter.</span>
-        Téléchargez tout l'émargement de l'événement (tous les créneaux) en XLSX.
       </p>
     </div>
   </Card.Content>

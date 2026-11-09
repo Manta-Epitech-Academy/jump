@@ -1,16 +1,12 @@
 <script lang="ts">
   import { noMatchLine } from '$lib/domain/devVoice';
   import { page } from '$app/state';
-  import { toast } from 'svelte-sonner';
   import X from '@lucide/svelte/icons/x';
   import Check from '@lucide/svelte/icons/check';
   import Minus from '@lucide/svelte/icons/minus';
   import Clock from '@lucide/svelte/icons/clock';
   import Unplug from '@lucide/svelte/icons/unplug';
-  import Download from '@lucide/svelte/icons/download';
-  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import Sparkles from '@lucide/svelte/icons/sparkles';
-  import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
@@ -21,7 +17,7 @@
     setListParams,
   } from '$lib/components/staff/datatable/urlList';
   import { facetControls } from '$lib/components/staff/datatable/facetControls';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import type { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
   import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
@@ -33,13 +29,12 @@
   import { talentFicheHref } from '$lib/components/dev/talentFiche';
   import { niveauLabel } from '$lib/domain/niveau';
   import { cohortNounForms } from '$lib/domain/event';
-  import { XP_EXPLAINER_FR } from '$lib/domain/xp';
   import {
     civiliteLabel,
     civiliteShortTitle,
     formatGivenName,
   } from '$lib/domain/profile';
-  import { parcoursLabel } from '$lib/domain/enrolmentHistory';
+  import { parcoursLabel } from '$lib/domain/visitHistory';
   import {
     INSCRITS_SORT_DEFAULT_DIR,
     type InscritsFacet,
@@ -60,22 +55,13 @@
   } from '$lib/domain/imageRights';
 
   import {
-    compareRows,
-    matchesFacets,
     rosterFacets,
+    shownInscrits,
     type InscritInterest,
     type InscritRow,
     type InscritsCohort,
   } from '$lib/domain/inscritsRoster';
-  import {
-    buildHaystack,
-    matchesAllTokens,
-    searchTokens,
-  } from '$lib/components/staff/datatable/search';
-  import {
-    nextSort,
-    rowComparator,
-  } from '$lib/components/staff/datatable/sort';
+  import { nextSort } from '$lib/components/staff/datatable/sort';
 
   // The streamed cohort payload plus the cheap shell values the table needs.
   // The view it shows (filters, sort, search) is not held here: it is read off
@@ -85,6 +71,7 @@
     rows,
     event,
     showStatutColumn = true,
+    search,
   }: InscritsCohort & {
     event: {
       id: string;
@@ -96,6 +83,8 @@
     // dossier/statut funnel column so it isn't dead noise. Gates only this column
     // (header, filter, cells) - the talent fiche is untouched.
     showStatutColumn?: boolean;
+    /** The search box on the page's title line, whose query this list applies. */
+    search: ReturnType<typeof createUrlSearch>;
   } = $props();
 
   // What this event calls a cohort member ("stagiaire" / "participant"), from the
@@ -140,7 +129,6 @@
   };
 
   const view = $derived(INSCRITS_VIEW.parse(page.url.searchParams));
-  const search = createUrlSearch();
 
   const facets = $derived(
     rosterFacets(rows, { showStatut: showStatutColumn }, view),
@@ -152,8 +140,8 @@
   );
 
   // The table holds the mockup's columns and, like the mockup, gives each one
-  // control: the names and XP sort, every other column filters from its
-  // header. It fits the content track (a roster that scrolls sideways loses
+  // control: the names, the XP and the parcours sort, every other column
+  // filters from its header. It fits the content track (a roster that scrolls sideways loses
   // the reading of a row); below `xl` the track is too narrow for these
   // columns, so the rows fold into cards there (`cardsBelow`). Fixed layout:
   // the widths below are the budget, and Lycée (`w-full`) takes what is left.
@@ -176,7 +164,7 @@
       // XP right after the name: it's the engagement signal we want the eye to
       // catch first, shown as a coloured pill (not flush grey data).
       { ...sortable('xp'), label: 'XP', class: 'w-20' },
-      filtered('parcours', 'Parcours', 'w-32'),
+      { ...sortable('parcours'), label: 'Parcours', class: 'w-36' },
       filtered('tech', 'Tech', 'w-40'),
       filtered('lycee', 'Lycée', 'w-full'),
       filtered('niveau', 'Niveau', 'w-28'),
@@ -200,66 +188,11 @@
     clearListFilters(INSCRITS_VIEW.clearedFacetParams(), search);
   }
 
-  function makeHaystack(r: InscritRow): string {
-    return buildHaystack([
-      r.nom,
-      r.prenom,
-      niveauLabel(r.niveau),
-      r.schoolName,
-      r.email,
-    ]);
-  }
-
-  const filtered = $derived.by(() => {
-    const tokens = searchTokens(search.value);
-    const out = rows.filter(
-      (r) =>
-        matchesFacets(r, facets) && matchesAllTokens(makeHaystack(r), tokens),
-    );
-    out.sort(
-      rowComparator({
-        compare: (a, b) => compareRows(a, b, view.sort),
-        dir: view.dir,
-      }),
-    );
-    return out;
-  });
+  const filtered = $derived(shownInscrits(rows, facets, view, search.value));
 
   const anyFiltersApplied = $derived(
     controls.chips.length > 0 || search.value.trim().length > 0,
   );
-
-  let exporting = $state(false);
-
-  // Export exactly the rows the dev is looking at (current filters + sort): POST
-  // their talent ids in display order to the export endpoint, which builds the
-  // XLSX server-side, then download the returned file.
-  async function exportXlsx() {
-    if (exporting || filtered.length === 0) return;
-    exporting = true;
-    try {
-      const res = await fetch(`${page.url.pathname}/export`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ talentIds: filtered.map((r) => r.talentId) }),
-      });
-      if (!res.ok) throw new Error(`Export failed: ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Inscrits - ${event.titre}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error('export xlsx', e);
-      toast.error("L'export n'a pas pu être généré. Réessayez.");
-    } finally {
-      exporting = false;
-    }
-  }
 </script>
 
 <!-- Statut badge tooltip: the three triage signals at a glance (did the student
@@ -338,13 +271,14 @@
     <span class="flex flex-wrap gap-1">
       {#each interests as interest (interest.id)}
         <!-- A tag, so a pill (`DESIGN.md`, and the mockup's Tech chips), in
-             sentence case rather than the chip's capitals: an interest is a
-             phrase (« Data science / analyse de données »), and in capitals
-             the longer ones took three lines. -->
+             the chip's capitals as the mockup draws it: the short label is a
+             word (« IA », « CYBER ») where the full name was a phrase that
+             took three lines (PO, 29/10/2026). The full name rides the
+             export. -->
         <span
-          class="rounded-full bg-epi-blue/5 px-2 py-0.5 epi-chip whitespace-normal text-epi-blue normal-case"
+          class="rounded-full bg-epi-blue/5 px-2 py-0.5 epi-chip whitespace-nowrap text-epi-blue"
         >
-          {interest.nom}
+          {interest.shortLabel}
         </span>
       {/each}
     </span>
@@ -352,8 +286,8 @@
 {/snippet}
 
 {#snippet parcoursPill(r: InscritRow)}
-  {@const label = parcoursLabel(r.priorEnrolments)}
-  {#if r.priorEnrolments === 0}
+  {@const label = parcoursLabel(r.priorVisits, r.civilite)}
+  {#if r.priorVisits === 0}
     <span
       class="inline-flex rounded-full bg-epi-tech/10 px-2 py-0.5 epi-chip whitespace-nowrap text-epi-tech-ink normal-case"
     >
@@ -368,56 +302,14 @@
   <EmptyCohortNotice cohortNoun={event.cohortNoun} />
 {:else}
   <div class="space-y-3">
+    <!-- The search box sits on the page's title line (`../+page.svelte`);
+         the toolbar keeps the count. -->
     <DataTableToolbar
-      searchValue={search.value}
-      onSearchInput={(v) => (search.value = v)}
-      searchPlaceholder={`Rechercher un ${noun.singular}…`}
-      searchWidthClass="w-full max-w-[230px]"
       count={filtered.length}
       countNoun={noun.singular}
       countNounPlural={noun.plural}
       filtersApplied={anyFiltersApplied}
-    >
-      {#snippet countActions()}
-        <!-- Export keeps to the right edge of the count line (ml-auto), acting
-             on exactly the count shown. -->
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <Button
-                {...props}
-                variant="outline"
-                size="sm"
-                onclick={exportXlsx}
-                disabled={exporting || filtered.length === 0}
-                class="ml-auto rounded-sm"
-              >
-                {#if exporting}
-                  <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-                {:else}
-                  <Download class="mr-1.5 h-4 w-4" />
-                {/if}
-                Exporter (XLSX)
-              </Button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content class="max-w-60 rounded-sm">
-            {@const exportNoun =
-              filtered.length > 1 ? noun.plural : noun.singular}
-            <p>
-              {#if anyFiltersApplied}
-                Exporte les {filtered.length}
-                {exportNoun} actuellement affichés (filtres et tri appliqués), pas
-                toute la cohorte.
-              {:else}
-                Exporte toute la cohorte ({filtered.length}
-                {exportNoun}).
-              {/if}
-            </p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      {/snippet}
-    </DataTableToolbar>
+    />
 
     <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
@@ -455,28 +347,18 @@
         </Table.Cell>
         <Table.Cell>
           <!-- XP as a coloured pill right beside the name: the engagement
-                 signal reads at a glance, not as flush grey data. Still the
-                 row-link anchor (relative z-10) with the hover explainer like
-                 the status badge; click opens the fiche, tabindex=-1 keeps one
-                 tab stop. -->
-          <Tooltip.Root>
-            <Tooltip.Trigger>
-              {#snippet child({ props })}
-                <a
-                  {...props}
-                  href={talentFicheHref(r.talentId, event.id)}
-                  tabindex={-1}
-                  class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
-                >
-                  <Sparkles class="h-3 w-3" />
-                  {r.xp}
-                </a>
-              {/snippet}
-            </Tooltip.Trigger>
-            <Tooltip.Content class="max-w-60">
-              <p class="text-xs">{XP_EXPLAINER_FR}</p>
-            </Tooltip.Content>
-          </Tooltip.Root>
+               signal reads at a glance, not as flush grey data. Still the
+               row-link anchor (relative z-10): click opens the fiche,
+               tabindex=-1 keeps one tab stop. No explainer on hover: shown on
+               every pill it was read on none (PO, 29/10/2026). -->
+          <a
+            href={talentFicheHref(r.talentId, event.id)}
+            tabindex={-1}
+            class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
+          >
+            <Sparkles class="h-3 w-3" />
+            {r.xp}
+          </a>
         </Table.Cell>
         <Table.Cell>{@render parcoursPill(r)}</Table.Cell>
         <Table.Cell class="whitespace-normal">

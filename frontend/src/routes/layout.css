@@ -23,6 +23,13 @@
   --epi-together: #ff5f3a;
   --epi-tomorrow: #ff1ef7;
   --epi-lavender: #b8c0e8;
+  /* Chart series (DESIGN.md § Chart series): each accent at 70 % over white,
+     then the charte's mid grey. Fills only. */
+  --epi-blue-tint: #4d75fc;
+  --epi-tomorrow-tint: #ff62f9;
+  --epi-tech-tint: #4dffb6;
+  --epi-together-tint: #ff8f75;
+  --epi-grey-mid: #6b7189;
   /* Charte: "text on light, never pure black". */
   --epi-dark: #181818;
 
@@ -298,6 +305,11 @@
   --color-epi-together: var(--epi-together);
   --color-epi-tomorrow: var(--epi-tomorrow);
   --color-epi-lavender: var(--epi-lavender);
+  --color-epi-blue-tint: var(--epi-blue-tint);
+  --color-epi-tomorrow-tint: var(--epi-tomorrow-tint);
+  --color-epi-tech-tint: var(--epi-tech-tint);
+  --color-epi-together-tint: var(--epi-together-tint);
+  --color-epi-grey-mid: var(--epi-grey-mid);
   --color-epi-dark: var(--epi-dark);
   --color-epi-tech-ink: var(--epi-tech-ink);
   --color-epi-together-ink: var(--epi-together-ink);

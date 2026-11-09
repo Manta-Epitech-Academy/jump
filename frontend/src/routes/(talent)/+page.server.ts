@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
 import { revokeXp } from '$lib/server/services/xpService';
 import { consumeArrivalCelebration } from '$lib/server/talent/arrivalCelebration';
@@ -76,9 +77,14 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       planning = buildPreviewPlanningView(locals.planningPreview);
     } else {
       // Event whose date range covers today (ongoing multi-day or single-day today).
+      // Only an enrolment the dev space shows: a talent who withdrew, or whose
+      // Salesforce status the event masks, is not expected there, and the card
+      // used to invite them anyway (PO, 02/11/2026). The same truth as the
+      // team's own lists, set event by event.
       const activeParticipation = await prisma.participation.findFirst({
         where: {
           talentId: studentId,
+          ...visibleParticipationWhere,
           event: {
             date: { lte: filterDateEnd },
             OR: [
@@ -97,6 +103,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         : await prisma.participation.findFirst({
             where: {
               talentId: studentId,
+              ...visibleParticipationWhere,
               event: { date: { gt: filterDateEnd } },
             },
             select: eventSelect,

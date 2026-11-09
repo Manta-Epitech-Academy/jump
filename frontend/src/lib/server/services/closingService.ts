@@ -2,6 +2,7 @@ import type { ClosingRecommendation, Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { gridQuestions, type ClosingGrid } from '$lib/domain/closing';
 import type { ClosingConductForm } from '$lib/validation/closings';
+import { recomputeAttendance } from './attendance';
 
 /**
  * Writing a closing: the transaction behind the three lifecycle actions.
@@ -106,6 +107,10 @@ export async function persistClosing(
       },
       select: { id: true },
     });
+    // A closing is a proof the talent came. Only the write that creates it can
+    // change the projection; every autosave after it re-derives the roster and
+    // writes nothing (`recomputeAttendance` skips an unchanged row).
+    await recomputeAttendance(tx, { eventIds: [input.eventId] });
 
     const keep: {
       questionId: string;

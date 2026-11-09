@@ -32,7 +32,7 @@ import {
   archivedCategoryRefusal,
   type EventCategoryView,
 } from '$lib/domain/eventCategory';
-import { setEventShownStatuses } from '$lib/server/services/devSpaceVisibility';
+import { setEventStatusPolicy } from '$lib/server/services/devSpaceVisibility';
 import {
   EVENT_CATEGORY_SELECT,
   eventCategoryView,
@@ -101,6 +101,8 @@ export type AdminEventVM = {
   closingTemplateId: string;
   /** The Salesforce statuses the dev space shows for this event, sorted. */
   shownStatuses: string[];
+  /** Those of them the event counts as a visit (`domain/attendance.ts`), sorted. */
+  attendanceStatuses: string[];
   participations: number;
 };
 
@@ -186,7 +188,7 @@ const ADMIN_EVENT_SELECT = {
   createdAt: true,
   campus: { select: { name: true, timezone: true } },
   modules: { select: { moduleKey: true, settings: true } },
-  shownStatuses: { select: { status: true } },
+  shownStatuses: { select: { status: true, attestsAttendance: true } },
   _count: {
     select: {
       participations: { where: visibleParticipationWhere },
@@ -267,6 +269,10 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
       // with sets sorted in code, and a database orders by its collation, which
       // need not agree with code-unit order once a word carries a space.
       shownStatuses: e.shownStatuses.map((row) => row.status).sort(),
+      attendanceStatuses: e.shownStatuses
+        .filter((row) => row.attestsAttendance)
+        .map((row) => row.status)
+        .sort(),
       participations: e._count.participations,
     };
   });
@@ -533,6 +539,8 @@ export const EventService = {
       diplomaTemplateId: string;
       closingTemplateId: string;
       shownStatuses: string[];
+      /** Which of `shownStatuses` count as a visit; each must be shown. */
+      attendanceStatuses: string[];
       workshops?: readonly EventWorkshopLink[];
     },
   ) {
@@ -620,7 +628,10 @@ export const EventService = {
       await applyModuleDiff(tx, eventId, data.modules, data.moduleSettings);
       // Refuses a word the catalogue does not hold, which rolls the whole save
       // back: a configuration is saved entirely or not at all.
-      await setEventShownStatuses(tx, eventId, data.shownStatuses);
+      await setEventStatusPolicy(tx, eventId, {
+        shown: data.shownStatuses,
+        attending: data.attendanceStatuses,
+      });
       if (data.workshops) {
         await replaceEventWorkshops(tx, eventId, data.workshops);
       }

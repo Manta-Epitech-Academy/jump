@@ -10,6 +10,13 @@ colors:
   epiTomorrow: '#ff1ef7'
   epiDark: '#181818'
   epiLavender: '#b8c0e8'
+  # ---- Chart series: each accent at 70 % over white, then the charte's mid
+  #      grey. Fills only, see § Chart series. ----
+  epiBlueTint: '#4d75fc'
+  epiTomorrowTint: '#ff62f9'
+  epiTechTint: '#4dffb6'
+  epiTogetherTint: '#ff8f75'
+  epiGreyMid: '#6b7189'
   # ---- Ink variants: same hues, legible as small text on light surfaces ----
   epiTechInk: '#007a46'
   epiTogetherInk: '#b5361a'
@@ -391,8 +398,8 @@ defines four status colors, all traced back to a brand hue:
 - `destructive` = `epiTogetherInk`. The charte already assigns orange to alerts.
 - info = `primary`.
 
-There is **no fifth status color and no separate palette for charts**. A hue that
-is not in this list does not appear in the product.
+There is **no fifth status color**. A hue that is not in this list does not
+appear in the product.
 
 One hue comes from data rather than from this file, and it is the exception
 this rule allows: an **event category's colour**, which the team authors over the
@@ -407,10 +414,28 @@ more). Everything else stays on the tokens: on the campus calendar an event
 without a category is a `mutedForeground` fill, and a day without school is a
 `muted` ground, so neither can pass for a category.
 
+### Chart series
+
+A chart's parts take their colours in the charte's order, never a palette of
+their own: `epiBlue`, `epiTomorrow`, `epiTech`, `epiTogether`, then the same
+four at 70 % (`epiBlueTint`, `epiTomorrowTint`, `epiTechTint`,
+`epiTogetherTint`, each accent mixed 70 % with white), then `epiGreyMid`. The
+first part is the largest or the first in its own order, so blue carries the
+most. The PO set that order on 29/10/2026 so the staff read Jump's charts as
+the house's: an « Autres » in lavender and an orange that never appeared read
+as somebody else's tool. The order lives in `CHART_SERIES`
+(`lib/domain/chartSeries.ts`); a chart picks a rank, never a colour.
+
+The tints are fills, like the accents they come from, and never text. Two tones
+stay outside the series because they mean something rather than rank: the
+closing verdict « Indécis », and what is missing (« Non renseigné »), painted in
+`epiGreyMid`. Every part is painted: a part left blank read as a hole in the
+chart.
+
 ### Neutrals: one ramp, and it is blue-tinted
 
 The charte neutrals are lavender-tinted, not grey: `#f6f7fb`, `#eceef5`,
-`#d9dce8`, `#b8c0e8`, `#0b0e1a`. That is the ramp, for all four spaces. Warm or
+`#d9dce8`, `#b8c0e8`, `#6b7189`, `#0b0e1a`. That is the ramp, for all four spaces. Warm or
 pure greys read as a different product next to the brand blue.
 
 | Role | Light | Dark | On its own surface |

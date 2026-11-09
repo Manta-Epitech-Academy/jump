@@ -19,7 +19,8 @@
  * domain verifies.
  */
 
-import type { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
+import { ATTENDANCE_PROOF_SQL } from '../../src/lib/domain/attendance';
 import { SEED_ID_PREFIX, SEED_SALESFORCE_ID_PREFIX } from './ids';
 import { loadDatamodel } from './schema';
 
@@ -294,6 +295,19 @@ export async function flush(
     log(`  ${key.padEnd(28)} ${String(rows.length).padStart(7)}`);
     total += rows.length;
   }
+  // Whether each talent came is a projection of three tables the scenarios fill
+  // at different moments, so it is derived once everything is written, with the
+  // statement the application recomputes it with: a seeded row is one the
+  // application's own writer could have written. Unlike the projections
+  // `assert/projections.ts` checks, it is not written by the generator and
+  // then proven: comparing it with the statement that just wrote it could
+  // never fail. The rule itself is held on real SQL by
+  // `attendance.integration.test.ts`.
+  await prisma.$executeRaw`
+    UPDATE "Participation" p
+    SET "attendanceAttested" = ${Prisma.raw(ATTENDANCE_PROOF_SQL)}
+    WHERE p."id" LIKE 'sd_%'
+  `;
   return total;
 }
 

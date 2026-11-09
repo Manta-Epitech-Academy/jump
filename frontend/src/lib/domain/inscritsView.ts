@@ -12,7 +12,6 @@ import { defineListView, type SortedListView } from '$lib/domain/listView';
 /** The facets, in the order the table shows their columns. */
 export const INSCRITS_FACETS = [
   'genre',
-  'parcours',
   'tech',
   'lycee',
   'niveau',
@@ -25,15 +24,17 @@ export type InscritsFacet = (typeof INSCRITS_FACETS)[number];
 export const INSCRITS_NONE = FACET_NONE;
 
 /**
- * The sortable columns and the direction a first click sorts them in: XP reads
- * best high-to-low, names alphabetically. Only these three sort: as in the
- * mockup, a column offers one control, and the others (genre, parcours, lycée,
- * niveau, statut) filter instead.
+ * The sortable columns and the direction a first click sorts them in: XP and
+ * the parcours read best high-to-low (the most loyal first, then the most XP:
+ * PO, 30/10/2026), names alphabetically. Only these four sort: as in the
+ * mockup, a column offers one control, and the others (genre, lycée, niveau,
+ * statut) filter instead.
  */
 export const INSCRITS_SORT_DEFAULT_DIR = {
   prenom: 'asc',
   nom: 'asc',
   xp: 'desc',
+  parcours: 'desc',
 } as const;
 
 export type InscritsSortKey = keyof typeof INSCRITS_SORT_DEFAULT_DIR;

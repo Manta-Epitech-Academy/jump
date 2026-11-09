@@ -7,11 +7,6 @@ import {
 } from '$lib/domain/dossierCompliance';
 import type { ImageRightsStatus } from '$lib/domain/imageRights';
 import {
-  PARCOURS_BUCKETS,
-  PARCOURS_BUCKET_LABELS,
-  parcoursBucket,
-} from '$lib/domain/enrolmentHistory';
-import {
   byCount,
   countFacet,
   FACET_NONE_LABEL,
@@ -22,6 +17,12 @@ import {
   type ListFacet,
 } from '$lib/domain/listFacets';
 import {
+  buildHaystack,
+  matchesAllTokens,
+  searchTokens,
+} from '$lib/components/staff/datatable/search';
+import { rowComparator } from '$lib/components/staff/datatable/sort';
+import {
   INSCRITS_FACETS,
   INSCRITS_NONE,
   type InscritsFacet,
@@ -29,8 +30,17 @@ import {
   type InscritsView,
 } from '$lib/domain/inscritsView';
 
-/** An interest as a row carries it: enough for a chip and a filter value. */
-export type InscritInterest = { id: string; nom: string; emoji: string | null };
+/**
+ * An interest as a row carries it: enough for a chip and a filter value. The
+ * dev space reads it by `shortLabel` (« IA »); `nom` is the full choice the
+ * talent picked, which the export keeps.
+ */
+export type InscritInterest = {
+  id: string;
+  nom: string;
+  shortLabel: string;
+  emoji: string | null;
+};
 
 /** One roster row of an event, as the Inscrits page lists it and the event
  *  home counts it. `id` is the participation id (stable row key). */
@@ -45,9 +55,9 @@ export type InscritRow = {
   schoolName: string | null;
   // Cumulative XP, drives the sortable XP column + its explainer tooltip.
   xp: number;
-  // Enrolments on the campus at earlier events: the Parcours column
-  // (`$lib/domain/enrolmentHistory`).
-  priorEnrolments: number;
+  // Visits on the campus at earlier events: the Parcours column
+  // (`$lib/domain/visitHistory`).
+  priorVisits: number;
   // Declared tech interests, in the catalogue's own order.
   techInterests: InscritInterest[];
   // Folded three-state funnel status (jamais / en cours / prêt); see
@@ -123,13 +133,6 @@ const FACETS: Record<InscritsFacet, InscritsFacetDef> = {
       NOT_FILLED,
     ],
   },
-  parcours: {
-    title: 'Parcours',
-    available: () => true,
-    valuesOf: (r) => [parcoursBucket(r.priorEnrolments)],
-    vocabulary: () =>
-      PARCOURS_BUCKETS.map((b) => [b, PARCOURS_BUCKET_LABELS[b]]),
-  },
   tech: {
     title: 'Tech',
     available: () => true,
@@ -138,7 +141,7 @@ const FACETS: Record<InscritsFacet, InscritsFacetDef> = {
       return ids.length > 0 ? ids : [INSCRITS_NONE];
     },
     vocabulary: (rows) => [
-      ...byCount(rows, (r) => r.techInterests.map((i) => [i.id, i.nom])),
+      ...byCount(rows, (r) => r.techInterests.map((i) => [i.id, i.shortLabel])),
       [INSCRITS_NONE, 'Aucun'],
     ],
   },
@@ -221,5 +224,45 @@ export function compareRows(
       return a.nom.localeCompare(b.nom, 'fr');
     case 'xp':
       return a.xp - b.xp;
+    // The visits, then the XP: two talents who came as often are told apart by
+    // what they did on the platform.
+    case 'parcours':
+      return a.priorVisits - b.priorVisits || a.xp - b.xp;
   }
+}
+
+/** What the search box matches a row on: its names, niveau, lycée and email. */
+function inscritHaystack(r: InscritRow): string {
+  return buildHaystack([
+    r.nom,
+    r.prenom,
+    niveauLabel(r.niveau),
+    r.schoolName,
+    r.email,
+  ]);
+}
+
+/**
+ * The rows the Inscrits page shows for this view: every active filter, the
+ * search, the sort, read on every keystroke.
+ */
+export function shownInscrits(
+  rows: readonly InscritRow[],
+  facets: readonly RosterFacet[],
+  view: InscritsView,
+  query: string,
+): InscritRow[] {
+  const tokens = searchTokens(query);
+  return rows
+    .filter(
+      (r) =>
+        matchesFacets(r, facets) &&
+        matchesAllTokens(inscritHaystack(r), tokens),
+    )
+    .sort(
+      rowComparator({
+        compare: (a, b) => compareRows(a, b, view.sort),
+        dir: view.dir,
+      }),
+    );
 }

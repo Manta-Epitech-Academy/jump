@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
   import QrCode from '@lucide/svelte/icons/qr-code';
-  import Download from '@lucide/svelte/icons/download';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -11,7 +10,9 @@
   import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import QrProjectionDialog from '$lib/components/staff/QrProjectionDialog.svelte';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
-  import { eventDisplayName } from '$lib/domain/event';
+  import { cohortNounForms, eventDisplayName } from '$lib/domain/event';
+  import TitleLineSearch from '$lib/components/staff/datatable/TitleLineSearch.svelte';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import type { PageData } from './$types';
   import BilanRoster from './components/BilanRoster.svelte';
   import StatsPanel from './components/StatsPanel.svelte';
@@ -19,49 +20,59 @@
   let { data }: { data: PageData } = $props();
 
   let qrOpen = $state(false);
+
+  // The search on the title's line, as on Inscrits (the event lists' canon,
+  // `.claude/rules/staff-lists.md`), held here for the roster under it.
+  const search = createUrlSearch();
+  const noun = $derived(cohortNounForms(data.event.cohortNoun));
 </script>
 
 <svelte:head>
   <title>{data.form.title} · {eventDisplayName(data.event)}</title>
 </svelte:head>
 
+{#snippet qrButton()}
+  <Tooltip.Root>
+    <Tooltip.Trigger>
+      {#snippet child({ props })}
+        <Button
+          {...props}
+          variant="outline"
+          size="sm"
+          onclick={() => (qrOpen = true)}
+          class="rounded-sm"
+        >
+          <QrCode class="mr-1.5 h-4 w-4" />
+          Afficher le QR code
+        </Button>
+      {/snippet}
+    </Tooltip.Trigger>
+    <Tooltip.Content class="max-w-56">
+      Projetez le QR code : les talents le scannent pour donner leur avis.
+    </Tooltip.Content>
+  </Tooltip.Root>
+{/snippet}
+
 <div class="space-y-6 pb-10">
-  <PageHeader title={data.form.title} subtitle={eventDisplayName(data.event)}>
+  <PageHeader
+    title={data.form.title}
+    subtitle={eventDisplayName(data.event)}
+    class="md:items-start"
+  >
     {#snippet actions()}
-      <div class="flex items-center gap-2">
-        <!-- With no one in the event, the export is an empty workbook. -->
-        {#if data.rosterSize > 0}
-          <Button
-            href={`${page.url.pathname}/export`}
-            download
-            variant="outline"
-            size="sm"
-            class="rounded-sm"
-          >
-            <Download class="mr-1.5 h-4 w-4" />
-            Exporter XLSX
-          </Button>
-        {/if}
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <Button
-                {...props}
-                variant="outline"
-                size="sm"
-                onclick={() => (qrOpen = true)}
-                class="rounded-sm"
-              >
-                <QrCode class="mr-1.5 h-4 w-4" />
-                Afficher le QR code
-              </Button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content class="max-w-56">
-            Projetez le QR code : les talents le scannent pour donner leur avis.
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </div>
+      <!-- With no one in the event, there is nothing to search: the QR code
+           alone, which brings the first answer. The answers are exported with
+           the whole event, from its home. -->
+      {#if data.rosterSize > 0}
+        <TitleLineSearch
+          {search}
+          placeholder={`Rechercher un ${noun.singular}…`}
+        >
+          {@render qrButton()}
+        </TitleLineSearch>
+      {:else}
+        {@render qrButton()}
+      {/if}
     {/snippet}
   </PageHeader>
 
@@ -85,6 +96,7 @@
             recoOptions={cohort.recoOptions}
             eventId={data.event.id}
             cohortNoun={data.event.cohortNoun}
+            {search}
           />
         {/snippet}
 

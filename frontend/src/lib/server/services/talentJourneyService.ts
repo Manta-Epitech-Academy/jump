@@ -4,15 +4,18 @@ import { eventDisplayName } from '$lib/domain/event';
 import { EVENT_MODULES, eventHasModule } from '$lib/domain/eventModules';
 import { isDevVisibleEvent } from '$lib/server/services/stageContext';
 import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { attendedBeforeWhere } from '$lib/domain/attendance';
 import type {
   TalentJourney,
   TalentJourneyEntry,
 } from '$lib/domain/talentJourney';
 
 /**
- * Build a talent's journey: their past events, newest first, each with the
- * closing conducted at it.
+ * Build a talent's journey: the events they came to, newest first, each with
+ * the closing conducted at it. « Came » is `attendedBeforeWhere`'s, the one the
+ * Inscrits parcours counts (#491), so the fiche and the « Déjà venu 3 fois » a
+ * recruiter just read cannot disagree; an enrolment with no proof of a visit is
+ * not a step of anybody's journey.
  *
  * Two queries, not a per-event lookup - participations and closings, unioned in
  * memory rather than joined in SQL, because a closing keys on (talent, event)
@@ -71,7 +74,7 @@ export async function getTalentJourney(
   // participation naming it is gone. Joined back by event id below.
   const [participations, closings] = await Promise.all([
     prisma.participation.findMany({
-      where: { talentId, ...visibleParticipationWhere },
+      where: { talentId, ...attendedBeforeWhere(new Date()) },
       select: {
         eventId: true,
         event: { select: JOURNEY_EVENT_SELECT },
@@ -130,7 +133,7 @@ export async function getTalentJourney(
     getEventStatus({ date: event.date, endDate: event.endDate }, bounds) ===
     'past';
 
-  // Every event the talent was enrolled in, plus every event a closing was
+  // Every event the talent came to, plus every event a closing was
   // conducted at, unioned rather than the first alone: a closing with no
   // participation left to join it is exactly a closing whose enrolment the
   // Salesforce sync has since pruned, and it must stay on this list for that

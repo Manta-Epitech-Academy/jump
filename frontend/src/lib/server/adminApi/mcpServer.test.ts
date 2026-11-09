@@ -298,7 +298,13 @@ const TOOL_LIST_BUDGET = [
   // the centres d'intérêt and the campus are three entities whose only write was
   // a page, so one write each (plus the two reads above); the preset's values,
   // its archiving and the bulk write's eventIds are fields of existing writes.
-  ['core, write-enabled', coreWriter, 100_200],
+  // Raised for « venu » (#491): which statuses count as a visit is a field of
+  // the event, preset and bulk writes and of the catalogue word, no new tool,
+  // but five new status lists, each naming where its words come from as every
+  // handle must (`handles.test.ts`); a tech interest's short label is a field
+  // of write_interest. Measured at 101 982 once merged with the weekly digest
+  // (#493), after cutting what the new descriptions restated.
+  ['core, write-enabled', coreWriter, 103_000],
 ] as const;
 
 describe('what a client loads up front', () => {

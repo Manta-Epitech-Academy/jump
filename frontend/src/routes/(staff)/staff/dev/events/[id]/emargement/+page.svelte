@@ -21,12 +21,18 @@
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import QrProjectionDialog from '$lib/components/staff/QrProjectionDialog.svelte';
   import EmargementRoster from './components/EmargementRoster.svelte';
+  import TitleLineSearch from '$lib/components/staff/datatable/TitleLineSearch.svelte';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
 
   let { data }: { data: PageData } = $props();
 
   const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole));
   // Event's Jump-owned cohort noun ("stagiaire" / "participant").
   const noun = $derived(cohortNounForms(data.event.cohortNoun));
+  // The search on the title's line, as on the event's other lists. Held here
+  // and handed to the roster, which stays mounted across the 5s reload; the
+  // load reads no address, so a query committed to `?q` reloads nothing.
+  const search = createUrlSearch();
 
   // ── Active créneau (shell-owned) ─────────────────────────────────────────
   // Kept here, not in the roster, so it survives the roster re-streaming every
@@ -85,8 +91,6 @@
   let rosterDialogOpen = $state(false);
   const anyDialogOpen = $derived(qrOpen || rosterDialogOpen);
 
-  const exportHref = $derived(`${page.url.pathname}/export`);
-
   // Poll so QR self-check-ins surface within seconds (the active créneau is
   // refined to the real wall-clock hour by the anchoring effect above). Polling
   // pauses while a dialog is open so a mid-edit form isn't resynced.
@@ -104,75 +108,67 @@
   <title>Émargement - {eventDisplayName(data.event)}</title>
 </svelte:head>
 
-<div class="space-y-6 pb-10">
-  <PageHeader title="Émargement" subtitle={eventDisplayName(data.event)}>
-    {#snippet actions()}
-      <!-- Header actions act on the whole stage or the display: the full-record
-             export (read) and the QR (display). The active slot's open/close
-             control lives in the SYNTHÈSE card instead, beside the Clôturé badge it
-             toggles. Filter-scoped controls (search, statut) stay in the toolbar. -->
-      <!-- Full-record export: every talent x every créneau, NOT the on-screen
-             filter (unlike the Inscrits toolbar export). Kept here, away from the
-             toolbar, so it is never mistaken for a filtered export. With no one
-             in the event, it is an empty workbook. -->
-      {#if data.rosterSize > 0}
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <Button
-                {...props}
-                variant="outline"
-                size="sm"
-                href={exportHref}
-                class="rounded-sm"
-              >
-                <Download class="mr-1.5 h-4 w-4" />
-                Tout exporter (XLSX)
-              </Button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            Toutes les présences de l'événement (tous les créneaux)
-          </Tooltip.Content>
-        </Tooltip.Root>
-      {/if}
+{#snippet qrButton()}
+  {#if canEdit}
+    <!-- A closed créneau (manual close OR past the 11h/15h cutoff) makes the
+           QR inert: a scan lands the talent on the "créneau clôturé" screen and
+           records nothing. Disable rather than project a dead code; the tooltip
+           says why and, when reopenable, points at the SYNTHÈSE reopen control.
+           A span wraps the button so the tooltip still fires while it's
+           disabled (a disabled button takes no pointer events). -->
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        {#snippet child({ props })}
+          <span {...props} class="inline-flex">
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={() => (qrOpen = true)}
+              disabled={!activeSlot || isActiveClosed}
+              class="rounded-sm"
+            >
+              <QrCode class="mr-1.5 h-4 w-4" />
+              Afficher le QR code
+            </Button>
+          </span>
+        {/snippet}
+      </Tooltip.Trigger>
+      <Tooltip.Content class="max-w-56">
+        {#if !isActiveClosed}
+          Projetez le QR code : les {noun.plural} le scannent pour pointer eux-mêmes.
+        {:else if isActivePastCutoff}
+          Ce créneau est terminé : les {noun.plural} ne peuvent plus pointer avec
+          le QR code.
+        {:else}
+          Ce créneau est clôturé : les {noun.plural} ne peuvent plus pointer. Rouvrez-le
+          pour réactiver le QR code.
+        {/if}
+      </Tooltip.Content>
+    </Tooltip.Root>
+  {/if}
+{/snippet}
 
-      {#if canEdit}
-        <!-- A closed créneau (manual close OR past the 11h/15h cutoff) makes the
-               QR inert: a scan lands the talent on the "créneau clôturé" screen and
-               records nothing. Disable rather than project a dead code; the tooltip
-               says why and, when reopenable, points at the SYNTHÈSE reopen control.
-               A span wraps the button so the tooltip still fires while it's
-               disabled (a disabled button takes no pointer events). -->
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <span {...props} class="inline-flex">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={() => (qrOpen = true)}
-                  disabled={!activeSlot || isActiveClosed}
-                  class="rounded-sm"
-                >
-                  <QrCode class="mr-1.5 h-4 w-4" />
-                  Afficher le QR code
-                </Button>
-              </span>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content class="max-w-56">
-            {#if !isActiveClosed}
-              Projetez le QR code : les {noun.plural} le scannent pour pointer eux-mêmes.
-            {:else if isActivePastCutoff}
-              Ce créneau est terminé : les {noun.plural} ne peuvent plus pointer avec
-              le QR code.
-            {:else}
-              Ce créneau est clôturé : les {noun.plural} ne peuvent plus pointer.
-              Rouvrez-le pour réactiver le QR code.
-            {/if}
-          </Tooltip.Content>
-        </Tooltip.Root>
+<div class="space-y-6 pb-10">
+  <PageHeader
+    title="Émargement"
+    subtitle={eventDisplayName(data.event)}
+    class="md:items-start"
+  >
+    {#snippet actions()}
+      <!-- The search, then what acts on the display: the QR. The active slot's
+             open/close control lives in the SYNTHÈSE card instead, beside the
+             Clôturé badge it toggles; the statut filter and the créneau stay in
+             the toolbar. The record is exported with the whole event, from its
+             home. -->
+      {#if data.rosterSize > 0}
+        <TitleLineSearch
+          {search}
+          placeholder={`Rechercher un ${noun.singular}…`}
+        >
+          {@render qrButton()}
+        </TitleLineSearch>
+      {:else}
+        {@render qrButton()}
       {/if}
     {/snippet}
   </PageHeader>
@@ -190,6 +186,7 @@
       eventId={data.event.id}
       cohortNoun={data.event.cohortNoun}
       timezone={data.timezone}
+      {search}
       bind:activeSlotKey
       bind:dialogOpen={rosterDialogOpen}
     />

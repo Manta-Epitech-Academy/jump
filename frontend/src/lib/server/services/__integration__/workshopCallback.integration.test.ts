@@ -98,7 +98,7 @@ describe('the workshop progress callback (integration)', () => {
     const [grant, participation] = await Promise.all([
       prisma.xpGrant.findUnique({
         where: { source_sourceId: { source: 'workshop', sourceId } },
-        select: { amount: true, createdAt: true },
+        select: { amount: true, createdAt: true, eventId: true },
       }),
       prisma.workshop_Participation.findUnique({
         where: { talentId_activityId: { talentId, activityId } },
@@ -260,6 +260,9 @@ describe('the workshop progress callback (integration)', () => {
     expect(grants).toBe(1);
     // Exactly the points CTFd reported: one XP per point, nothing applied.
     expect(grant?.amount).toBe(5 * STEP_POINTS);
+    // Earned at the event the participation is pinned to: what the event home
+    // sums as that event's XP.
+    expect(grant?.eventId).toBe(eventId);
     expect(participation?.solvedSteps).toBe(5);
     expect(participation?.totalSteps).toBe(TOTAL_STEPS);
     expect(owed).toBe(5 * STEP_POINTS);

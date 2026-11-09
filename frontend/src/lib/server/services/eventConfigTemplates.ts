@@ -8,7 +8,10 @@ import {
   parseModuleSettings,
   type EventModuleKey,
 } from '$lib/domain/eventModules';
-import { resolveKnownStatuses } from '$lib/server/services/devSpaceVisibility';
+import {
+  refuseAttendingNotShown,
+  resolveKnownStatuses,
+} from '$lib/server/services/devSpaceVisibility';
 
 /**
  * Service for `EventConfig_Template` - reusable, named, global event-config
@@ -43,6 +46,8 @@ type EventConfigTemplateSummary = {
   moduleSettings: Record<string, unknown>;
   /** The Salesforce statuses the dev space shows, sorted. */
   shownStatuses: string[];
+  /** Those of them that count as a visit, sorted. */
+  attendanceStatuses: string[];
   /** Retired: no longer one to apply. */
   archived: boolean;
 };
@@ -60,12 +65,12 @@ type TemplateRow = {
   closingTemplateId: string | null;
   archivedAt: Date | null;
   modules: { moduleKey: string; settings: Prisma.JsonValue }[];
-  shownStatuses: { status: string }[];
+  shownStatuses: { status: string; attestsAttendance: boolean }[];
 };
 
 const TEMPLATE_INCLUDE = {
   modules: { select: { moduleKey: true, settings: true } },
-  shownStatuses: { select: { status: true } },
+  shownStatuses: { select: { status: true, attestsAttendance: true } },
 } satisfies Prisma.EventConfig_TemplateInclude;
 
 function toSummary(t: TemplateRow): EventConfigTemplateSummary {
@@ -90,6 +95,10 @@ function toSummary(t: TemplateRow): EventConfigTemplateSummary {
     moduleSettings,
     // Sorted in code, like the event's own list (`buildAdminEventVMs`).
     shownStatuses: t.shownStatuses.map((row) => row.status).sort(),
+    attendanceStatuses: t.shownStatuses
+      .filter((row) => row.attestsAttendance)
+      .map((row) => row.status)
+      .sort(),
     archived: t.archivedAt !== null,
   };
 }
@@ -194,6 +203,7 @@ export const EventConfigTemplateService = {
     diplomaTemplateId: string;
     closingTemplateId: string;
     shownStatuses: string[];
+    attendanceStatuses: string[];
     archivedAt?: Date | null;
     actorId: string | null;
   }): Promise<{ template: EventConfigTemplateSummary; updated: boolean }> {
@@ -221,9 +231,13 @@ export const EventConfigTemplateService = {
     const cohortNoun = input.cohortNoun.trim() || null;
     const categoryKey = await resolveCategoryKey(input.categoryKey);
     const startMinutes = hhmmToMinutes(input.startTime);
-    const shownRows = (await resolveKnownStatuses(input.shownStatuses)).map(
-      (status) => ({ status }),
-    );
+    const shown = await resolveKnownStatuses(input.shownStatuses);
+    const attending = await resolveKnownStatuses(input.attendanceStatuses);
+    refuseAttendingNotShown(attending, shown);
+    const shownRows = shown.map((status) => ({
+      status,
+      attestsAttendance: attending.includes(status),
+    }));
 
     const existing = await prisma.eventConfig_Template.findUnique({
       where: { name },

@@ -1,16 +1,19 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
-import { countPriorEnrolments } from '../enrolmentHistory';
+import { countPriorVisits } from '../visitHistory';
 import { assertTestDatabase } from './testDatabase';
 
 /**
- * The count behind a talent's parcours (« 3ᵉ inscription »). It has to stay on
- * the campus (the scoped client does not scope this groupBy, so the campus is
- * written by hand and a leak would be silent), skip the enrolments the dev
- * space masks, and count only events strictly before the one being read: the
- * event itself and a later one are not history.
+ * The count behind a talent's parcours (« Déjà venu 2 fois »). It has to count
+ * visits, not enrolments, stay on the campus (the scoped client does not scope
+ * this groupBy, so the campus is written by hand and a leak would be silent),
+ * skip the enrolments the dev space masks, and count only events over before
+ * the one being read: the event itself and a later one are not history.
+ *
+ * The proof of each visit is written as the projection holds it
+ * (`attendanceAttested`); which proofs set it is `attendance.integration.test.ts`.
  */
-describe('prior enrolments (integration)', () => {
+describe('prior visits (integration)', () => {
   const stamp = Date.now();
   let campusId = '';
   let otherCampusId = '';
@@ -39,7 +42,7 @@ describe('prior enrolments (integration)', () => {
       campus: string,
       date: string,
       talent: string,
-      shown = true,
+      { shown = true, came = true }: { shown?: boolean; came?: boolean } = {},
     ) => {
       const event = await prisma.event.create({
         data: { titre: `Parcours ${date}`, campusId: campus, date: day(date) },
@@ -50,15 +53,17 @@ describe('prior enrolments (integration)', () => {
           talentId: talent,
           eventId: event.id,
           campusId: campus,
-          sfMemberStatus: shown ? 'READY' : 'DESISTED',
+          sfMemberStatus: shown ? (came ? 'MET' : 'READY') : 'DESISTED',
           shownInDevSpace: shown,
+          attendanceAttested: came,
         },
       });
     };
 
     await enrol(campusId, '2026-01-10', talentId); // counts
+    await enrol(campusId, '2026-02-10', talentId, { came: false }); // enrolled only
     await enrol(campusId, '2026-03-10', talentId); // counts
-    await enrol(campusId, '2026-04-10', talentId, false); // masked
+    await enrol(campusId, '2026-04-10', talentId, { shown: false }); // masked
     await enrol(otherCampusId, '2026-05-10', talentId); // other campus
     await enrol(campusId, '2026-06-10', talentId); // the event read
     await enrol(campusId, '2026-06-10', newcomerId); // same day, not history
@@ -75,8 +80,8 @@ describe('prior enrolments (integration)', () => {
     });
   });
 
-  it('counts the shown enrolments on the campus at earlier events only', async () => {
-    const counts = await countPriorEnrolments(
+  it('counts the visits on the campus at earlier events only', async () => {
+    const counts = await countPriorVisits(
       campusId,
       [talentId, newcomerId],
       day('2026-06-10'),
@@ -86,7 +91,7 @@ describe('prior enrolments (integration)', () => {
   });
 
   it('reads an earlier event as it stood then', async () => {
-    const counts = await countPriorEnrolments(
+    const counts = await countPriorVisits(
       campusId,
       [talentId],
       day('2026-03-10'),

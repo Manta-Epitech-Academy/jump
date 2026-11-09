@@ -9,6 +9,7 @@ import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
 import { resolveEventClosingIdentity } from '$lib/server/closingTemplates';
 import { loadClosingsRoster } from '$lib/server/services/closingsRoster';
+import { countShownCohort } from '$lib/server/services/inscritsCohort';
 import type { StaffTally, ClosingsCohort } from './components/types';
 
 const TOP_STAFF = 5;
@@ -93,6 +94,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       cohortNoun: event.cohortNoun,
     },
     timezone,
+    // With nobody shown, the search on the title line has nothing to search.
+    rosterSize: await countShownCohort(db, event.id),
     // Lets the leaderboard highlight the acting staff member's own row so they
     // can locate themselves at a glance, whatever their rank.
     currentStaffId: locals.staffProfile?.id ?? null,

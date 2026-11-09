@@ -54,7 +54,7 @@ export const closingPdfSelect = {
   talent: { select: { prenom: true, nom: true, externalId: true } },
   staff: { select: { user: { select: { name: true } } } },
   campus: { select: { name: true } },
-  event: { select: { titre: true } },
+  event: { select: { titre: true, category: { select: { label: true } } } },
 } as const satisfies Prisma.Closing_RecordSelect;
 
 /** The full record with relations the generator consumes, derived from
@@ -185,10 +185,14 @@ function formatTalentName(prenom: string, nom: string): string {
   return `${titleCase(prenom)} ${nom.toLocaleUpperCase('fr')}`;
 }
 
-export async function generateClosingPdf(
+/**
+ * The synthesis as HTML, before it is printed: the whole of what the document
+ * says, so a test can read it without a browser.
+ */
+export async function renderClosingHtml(
   record: ClosingForPdf,
   grid: ClosingGrid,
-): Promise<Uint8Array<ArrayBuffer>> {
+): Promise<string> {
   const recoKey = record.recommendation;
   const recoLabel = recoKey
     ? (CLOSING_RECOMMENDATIONS[recoKey]?.label ?? recoKey)
@@ -205,20 +209,25 @@ export async function generateClosingPdf(
     campusName: record.campus.name,
     conductedAt: formatDate(record.conductedAt),
     eventTitle: record.event.titre,
+    // The masthead's « < … /> » tag names the kind of event. It read « Stage de
+    // Seconde » for every closing until 11/2026, when closings already ran at
+    // several kinds of event; an event without a category gets no tag.
+    categoryLabel: record.event.category?.label ?? null,
     sections: buildClosingSynthesis(record, grid),
     recommendation: recoLabel,
     recommendationKey: recoKey,
     verdictNote: record.verdictNote,
   };
 
-  const htmlContent = await ejs.render(
-    closingTemplate,
-    { data },
-    { async: true },
-  );
+  return ejs.render(closingTemplate, { data }, { async: true });
+}
 
+export async function generateClosingPdf(
+  record: ClosingForPdf,
+  grid: ClosingGrid,
+): Promise<Uint8Array<ArrayBuffer>> {
   return renderPdf({
-    html: htmlContent,
+    html: await renderClosingHtml(record, grid),
     page: { width: '794px', height: '1123px' },
   });
 }

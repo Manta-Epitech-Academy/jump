@@ -414,6 +414,11 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   memberStatus: 'sfStatus',
   showStatuses: 'sfStatus',
   hideStatuses: 'sfStatus',
+  // The same words, as the ones an event counts as a visit: the complete set
+  // and the two halves of a bulk add/remove.
+  attendanceStatuses: 'sfStatus',
+  attestStatuses: 'sfStatus',
+  unattestStatuses: 'sfStatus',
   // The event configuration takes an id, like the certificate one beside it;
   // authoring takes a key, like `write_diploma_template`'s `code`. Both are produced by the
   // same configuration read, which returns a grid's id and its key together.

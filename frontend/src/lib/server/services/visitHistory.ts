@@ -1,20 +1,21 @@
 import { prisma } from '$lib/server/db';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { attendedBeforeWhere } from '$lib/domain/attendance';
 
 /**
- * How many times each talent had enrolled on the campus before a given date:
- * the count behind the parcours (`$lib/domain/enrolmentHistory`).
+ * How many times each talent had come to an event on the campus before a given
+ * date: the count behind the parcours (`$lib/domain/visitHistory`).
  *
- * "Before" is the event's day: an enrolment counts when its event is dated
- * strictly earlier, so a past event's roster reads as it stood then, and two
- * events on the same day are not each other's history. Only the enrolments the
- * dev space shows count, as everywhere in that space.
+ * « Came » is `attendedBeforeWhere`'s: a proof of attendance on an event over
+ * before `before`, the start of the event being looked at, so a past event's
+ * roster reads as it stood then and two events on the same day are not each
+ * other's history. Only the enrolments the dev space shows count, as everywhere
+ * in that space.
  *
  * One `groupBy` for the whole cohort. It runs on the plain client with the
  * campus written into the filter by hand, because `scopedPrisma` does not scope
  * `participation.groupBy`: a scoped call here would count other campuses.
  */
-export async function countPriorEnrolments(
+export async function countPriorVisits(
   campusId: string,
   talentIds: readonly string[],
   before: Date,
@@ -25,8 +26,7 @@ export async function countPriorEnrolments(
     where: {
       campusId,
       talentId: { in: [...talentIds] },
-      ...visibleParticipationWhere,
-      event: { date: { lt: before } },
+      ...attendedBeforeWhere(before),
     },
     _count: { _all: true },
   });

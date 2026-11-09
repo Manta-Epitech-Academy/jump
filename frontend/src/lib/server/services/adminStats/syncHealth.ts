@@ -142,6 +142,8 @@ type MemberStatusRow = {
   known: boolean;
   /** Null for a word the catalogue does not hold, and for the missing status. */
   shownByDefault: boolean | null;
+  /** Likewise. */
+  attestsByDefault: boolean | null;
   count: number;
   share: number | null;
   shownCount: number;
@@ -216,6 +218,9 @@ async function memberStatusReport(): Promise<MemberStatusReport> {
   const shownByDefaultOf = new Map(
     catalogue.map((row) => [row.status, row.shownByDefault]),
   );
+  const attestsByDefaultOf = new Map(
+    catalogue.map((row) => [row.status, row.attestsByDefault]),
+  );
 
   // Every word of the catalogue starts at zero, so a word nothing carries yet is
   // listed too: this is where the vocabulary is read before it is written to.
@@ -251,6 +256,8 @@ async function memberStatusReport(): Promise<MemberStatusReport> {
       known: status !== null && shownByDefaultOf.has(status),
       shownByDefault:
         status === null ? null : (shownByDefaultOf.get(status) ?? null),
+      attestsByDefault:
+        status === null ? null : (attestsByDefaultOf.get(status) ?? null),
       count: tally.count,
       share: share(tally.count, total),
       shownCount: tally.shown,
@@ -460,7 +467,7 @@ export async function getSyncHealth<F extends SinceFilter = SinceFilter>(
     prunesHeldTruncated: prunesHeldEvents > PRUNES_HELD_LIMIT,
     memberStatuses: metric(
       statuses.rows,
-      "Le vocabulaire Salesforce de Jump : chaque statut de son catalogue et chaque statut effectivement reçu, du plus au moins fréquent. « count » est le nombre d'inscriptions qui le portent et « share » leur part du total. « known » dit si le statut figure au catalogue ; « shownByDefault » s'il est affiché d'emblée sur un événement nouvellement créé (null pour un statut hors catalogue). « shownCount » est le nombre de ces inscriptions que l'espace dev affiche : chaque événement règle lui-même les statuts qu'il affiche (« shownStatuses » dans config_event_detail), un même statut peut donc être affiché sur un événement et masqué sur un autre. Aucune inscription n'est absente de Jump. La ligne dont « status » vaut null regroupe les inscriptions importées avant que Jump n'enregistre le statut, toujours affichées.",
+      "Le vocabulaire Salesforce de Jump : chaque statut de son catalogue et chaque statut effectivement reçu, du plus au moins fréquent. « count » est le nombre d'inscriptions qui le portent et « share » leur part du total. « known » dit si le statut figure au catalogue ; « shownByDefault » s'il est affiché d'emblée sur un événement nouvellement créé, « attestsByDefault » s'il y compte d'emblée comme une venue (null pour un statut hors catalogue, dans les deux cas). « shownCount » est le nombre de ces inscriptions que l'espace dev affiche : chaque événement règle lui-même les statuts qu'il affiche (« shownStatuses » dans config_event_detail), un même statut peut donc être affiché sur un événement et masqué sur un autre. Aucune inscription n'est absente de Jump. La ligne dont « status » vaut null regroupe les inscriptions importées avant que Jump n'enregistre le statut, toujours affichées.",
     ),
     unrecognisedStatuses: metric(
       statuses.unrecognised,

@@ -23,7 +23,7 @@ function row(over: Partial<InscritRow> & { id: string }): InscritRow {
     schoolId: null,
     schoolName: null,
     xp: 0,
-    priorEnrolments: 0,
+    priorVisits: 0,
     techInterests: [],
     status: 'ready',
     connected: true,
@@ -36,7 +36,13 @@ function row(over: Partial<InscritRow> & { id: string }): InscritRow {
   };
 }
 
-const empty: EventHomeInput = { rows: [], closings: null, feedback: null };
+const empty: EventHomeInput = {
+  rows: [],
+  eventXp: new Map(),
+  hasActivities: false,
+  closings: null,
+  feedback: null,
+};
 
 /** The rows the Inscrits page keeps for a part's link. */
 function opened(rows: InscritRow[], params: Record<string, string>) {
@@ -81,6 +87,19 @@ describe('the niveau ring', () => {
     expect(opened(rows, autres.link.params)).toHaveLength(2);
   });
 
+  it('colours the parts in the charte order, « Autres » included', () => {
+    // The PO's 29/10 review: « Autres » came out in lavender, so the orange
+    // the charte puts fourth never showed.
+    const parts = eventHomeFigures({ ...empty, rows }).niveau;
+    expect(parts.map((p) => p.tone)).toEqual([
+      'blue',
+      'tomorrow',
+      'tech',
+      'together',
+      'missing',
+    ]);
+  });
+
   it('opens on each part exactly the inscrits it counted', () => {
     for (const part of eventHomeFigures({ ...empty, rows }).niveau)
       expect(opened(rows, part.link.params)).toHaveLength(part.count);
@@ -98,29 +117,40 @@ describe('the niveau ring', () => {
 });
 
 describe('the talent rankings', () => {
-  it('lists XP highest first, never a talent with none', () => {
+  it("ranks the XP earned on the event's activities, never a talent who earned none", () => {
+    // The lifetime leader earned nothing this time: the card is there to show
+    // who stood out at this event (PO, 29/10/2026).
     const rows = [
-      row({ id: 'a', xp: 0 }),
+      row({ id: 'leader', xp: 5000 }),
       row({ id: 'b', xp: 1250 }),
       row({ id: 'c', xp: 300 }),
     ];
-    const { topXp } = eventHomeFigures({ ...empty, rows });
+    const eventXp = new Map([
+      ['b', 1250],
+      ['c', 1250],
+    ]);
+    const { topXp } = eventHomeFigures({ ...empty, rows, eventXp });
+    // Level at the event, told apart by their lifetime XP.
     expect(topXp.map((t) => t.talentId)).toEqual(['b', 'c']);
-    expect(topXp[0].detail).toBe('1\u202f250');
+    expect(topXp[0].detail).toBe('+1\u202f250');
   });
 
   it('lists the parcours furthest along, newcomers left out', () => {
     const rows = [
-      row({ id: 'new', priorEnrolments: 0 }),
-      row({ id: 'third', priorEnrolments: 2 }),
-      row({ id: 'second', priorEnrolments: 1 }),
+      row({ id: 'new', priorVisits: 0 }),
+      row({ id: 'third', priorVisits: 2, civilite: 'femme' }),
+      row({ id: 'second', priorVisits: 1, civilite: 'homme' }),
     ];
     const { returning } = eventHomeFigures({ ...empty, rows });
-    expect(returning.map((t) => [t.talentId, t.detail])).toEqual([
-      ['third', '3ᵉ inscription'],
-      ['second', '2ᵉ inscription'],
+    expect(returning.map((t) => [t.talentId, t.detail, t.totalXp])).toEqual([
+      ['third', 'Déjà venue 2 fois', '0'],
+      ['second', 'Déjà venu 1 fois', '0'],
     ]);
-    expect(opened(rows, HOME_LINKS.returning.params)).toHaveLength(2);
+    // Its « Voir… » opens every inscrit, in the order the card reads.
+    const view = INSCRITS_VIEW.parse(
+      new URLSearchParams(HOME_LINKS.returning.params),
+    );
+    expect([view.sort, view.dir]).toEqual(['parcours', 'desc']);
   });
 });
 
@@ -172,6 +202,18 @@ describe('the closings cards', () => {
       ['closings', { statut: 'in_progress' }],
       ['closings', { statut: 'todo' }],
     ]);
+  });
+
+  it('paints every part, the missing verdict in its own grey', () => {
+    // A part left blank read as a hole in the pie (Mateo, 09/11/2026); the
+    // mockup paints « À réaliser » in blue.
+    const { closings } = eventHomeFigures({ ...empty, closings: roster });
+    expect(closings?.progress.map((p) => p.tone)).toEqual([
+      'tech',
+      'together',
+      'blue',
+    ]);
+    expect(closings?.verdicts.map((p) => p.tone)).toEqual(['blue', 'missing']);
   });
 });
 

@@ -199,6 +199,7 @@ describe('catalogue writes (integration)', () => {
       const created = await call(postInterest, secret, {
         kind: 'tech',
         label: `Robotique ${stamp}`,
+        shortLabel: 'Robots',
         emoji: '🤖',
       });
       expect(created.status).toBe(200);
@@ -212,6 +213,7 @@ describe('catalogue writes (integration)', () => {
       });
       expect(renamed.payload.after).toMatchObject({
         label: `Robots ${stamp}`,
+        shortLabel: 'Robots',
         emoji: '🤖',
         archived: false,
       });
@@ -257,6 +259,19 @@ describe('catalogue writes (integration)', () => {
         label: `Danse ${stamp}`,
       });
       expect(kindless.status).toBe(400);
+
+      // A tech interest is read by its short label in the dev workspace, so
+      // it cannot be created without one; a general one has nowhere to show it.
+      const unnamed = await call(postInterest, secret, {
+        kind: 'tech',
+        label: `Drones ${stamp}`,
+      });
+      expect(unnamed.status).toBe(400);
+      const shortGeneral = await call(postInterest, secret, {
+        interestId: firstId,
+        shortLabel: 'Cuisine',
+      });
+      expect(shortGeneral.status).toBe(400);
     });
   });
 

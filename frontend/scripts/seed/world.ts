@@ -249,6 +249,21 @@ export const DEFAULT_SHOWN_STATUSES: readonly SeedSfStatus[] = [
 ];
 
 /**
+ * Which of the shown words an event counts as attended unless a scenario says
+ * otherwise: the catalogue's `attestsByDefault`, MET, which is what the worker
+ * gives an event it creates. Checked against the catalogue by
+ * `assert/reachability.ts`, like {@link DEFAULT_SHOWN_STATUSES}.
+ */
+export const DEFAULT_ATTENDING_STATUSES: readonly SeedSfStatus[] = [
+  SF_STATUSES.attended,
+];
+
+/** Whether a shown word attests attendance on an event or a preset. */
+export function attestsByDefault(status: string): boolean {
+  return (DEFAULT_ATTENDING_STATUSES as readonly string[]).includes(status);
+}
+
+/**
  * The Salesforce member status a participation gets when nobody says otherwise.
  *
  * Only VISIBLE statuses are ever drawn, and that is what keeps every cohort on
@@ -1280,7 +1295,11 @@ export class World {
       opts.shownStatuses ?? DEFAULT_SHOWN_STATUSES,
     );
     for (const status of shownStatuses) {
-      this.buffer.eventConfig_ShownStatus.push({ eventId, status });
+      this.buffer.eventConfig_ShownStatus.push({
+        eventId,
+        status,
+        attestsAttendance: attestsByDefault(status),
+      });
     }
 
     for (const [index, workshop] of (opts.workshops ?? []).entries()) {
@@ -1636,6 +1655,8 @@ export class World {
     sourceId: string | null;
     amount: number;
     campusId?: string | null;
+    /** The event it was earned at, for the one source that names one: an activity. */
+    eventId?: string | null;
     /**
      * When the granting fact happened. A ledger row whose date is not its
      * fact's date is a row the application could not have written: the talent's
@@ -1658,6 +1679,7 @@ export class World {
       source: opts.source,
       sourceId: opts.sourceId,
       amount: opts.amount,
+      eventId: opts.eventId ?? null,
       createdAt: opts.at ?? this.ctx.clock.days(-20),
     });
     this.xpByTalent.set(
@@ -1712,6 +1734,7 @@ export class World {
         sourceId: workshopGrantSourceId(opts.slug, opts.talent.id),
         amount,
         campusId: opts.event.campusId,
+        eventId: opts.event.id,
         at: opts.at,
       });
     }

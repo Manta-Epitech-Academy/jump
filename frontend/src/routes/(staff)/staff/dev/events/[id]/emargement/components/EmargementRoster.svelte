@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { noMatchLine } from '$lib/domain/devVoice';
+  import type { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { invalidate } from '$app/navigation';
   import { enhance as formEnhance, deserialize } from '$app/forms';
@@ -59,7 +60,8 @@
   // picked here; `dialogOpen` is reported up so the shell can pause polling while
   // an edit dialog is open. This component owns all filter/sort/optimistic state,
   // so it stays mounted across the 5s reload (the shell swaps `rows`/`presences`
-  // in place) and never loses an in-flight edit or the current search.
+  // in place) and never loses an in-flight edit. The search is the page's, on
+  // its title's line, and filters these rows as it is typed.
   let {
     rows,
     presences,
@@ -72,6 +74,7 @@
     eventId,
     cohortNoun,
     timezone,
+    search,
     activeSlotKey = $bindable(),
     dialogOpen = $bindable(false),
   }: EmargementCohort & {
@@ -86,6 +89,7 @@
     cohortNoun: string | null;
     /** Campus IANA timezone, forwarded to the notes dialog for byline times. */
     timezone: string;
+    search: ReturnType<typeof createUrlSearch>;
     activeSlotKey: string;
     dialogOpen?: boolean;
   } = $props();
@@ -124,8 +128,7 @@
     );
   }
 
-  // ── Filters (status + search only) ──────────────────────────────────────
-  let searchQuery = $state('');
+  // ── Filters (status + the page's search) ────────────────────────────────
   let statusFilter = $state<'all' | CellStatus>('all');
   let sortKey = $state<PresenceSortKey>('nom');
   let sortDir = $state<SortDir>('asc');
@@ -149,7 +152,7 @@
   }
 
   const filtered = $derived.by(() => {
-    const tokens = searchTokens(searchQuery);
+    const tokens = searchTokens(search.value);
     const out = rows.filter((r) => {
       if (statusFilter !== 'all' && rowStatus(r) !== statusFilter) return false;
       return matchesAllTokens(haystack(r), tokens);
@@ -162,7 +165,7 @@
   });
 
   const anyFilter = $derived(
-    searchQuery.trim().length > 0 || statusFilter !== 'all',
+    search.value.trim().length > 0 || statusFilter !== 'all',
   );
 
   function toggleSort(key: string) {
@@ -171,7 +174,7 @@
     sortDir = next.dir;
   }
   function resetFilters() {
-    searchQuery = '';
+    search.value = '';
     statusFilter = 'all';
   }
 
@@ -342,11 +345,6 @@
   >
     {#snippet main()}
       <DataTableToolbar
-        searchValue={searchQuery}
-        onSearchInput={(v) => (searchQuery = v)}
-        searchPlaceholder={`Rechercher un ${noun.singular}…`}
-        searchWidthClass="flex-1 min-w-0 max-w-[230px]"
-        filtersAlign="end"
         count={filtered.length}
         countNoun={noun.singular}
         countNounPlural={noun.plural}

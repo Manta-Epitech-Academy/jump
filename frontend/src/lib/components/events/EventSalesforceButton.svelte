@@ -1,11 +1,10 @@
 <script lang="ts">
   import SalesforceLinkButton from '$lib/components/salesforce/SalesforceLinkButton.svelte';
   import * as Tooltip from '$lib/components/ui/tooltip';
-  import { ACTION_TILE_CLASS } from './actionTile';
 
-  // The event's Salesforce campaign, as one of the actions on its home. Through
-  // `SalesforceLinkButton`, so it keeps the brand glyph and the "opens off
-  // Jump" arrow every Salesforce link in the dev space carries.
+  // The event's Salesforce campaign, as one of the actions on its home: a tile
+  // like the others (`SalesforceLinkButton`'s `tile` layout), the brand glyph
+  // over its label.
   type Props = {
     externalId: string | null | undefined;
   };
@@ -21,8 +20,8 @@
           {...props}
           {externalId}
           label="Campagne Salesforce"
+          layout="tile"
           size="default"
-          class={ACTION_TILE_CLASS}
         />
       {/snippet}
     </Tooltip.Trigger>
