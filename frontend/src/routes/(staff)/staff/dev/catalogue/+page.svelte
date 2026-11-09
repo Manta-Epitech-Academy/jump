@@ -74,7 +74,7 @@
     <ResultsNotice
       icon={LayoutGrid}
       title="Aucun sujet au catalogue pour l'instant"
-      description="Un sujet y apparaît dès que son accroche, son niveau, ses domaines, un visuel et le code superviseur de son instance sont renseignés."
+      description="Les sujets que les talents peuvent travailler lors d'un événement, sur tous les campus, apparaîtront ici dès qu'ils seront prêts."
     />
   {:else}
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
