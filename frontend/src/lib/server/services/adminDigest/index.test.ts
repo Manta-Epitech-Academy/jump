@@ -8,6 +8,7 @@ const getDataFreshness = vi.fn();
 const getPdfJobsHealth = vi.fn();
 const getAccountDeletionQueue = vi.fn();
 const getFeatureAdoptionGaps = vi.fn();
+const getEmargementCoverage = vi.fn();
 
 vi.mock('$lib/server/services/adminStats/eventsList', () => ({
   getEventsConfigList: (...args: unknown[]) => getEventsConfigList(...args),
@@ -23,6 +24,9 @@ vi.mock('$lib/server/services/adminStats/opsQueues', () => ({
   getPdfJobsHealth: (...args: unknown[]) => getPdfJobsHealth(...args),
   getAccountDeletionQueue: (...args: unknown[]) =>
     getAccountDeletionQueue(...args),
+}));
+vi.mock('$lib/server/services/adminStats/emargementCoverage', () => ({
+  getEmargementCoverage: (...args: unknown[]) => getEmargementCoverage(...args),
 }));
 vi.mock('$lib/server/services/adminStats/featureUsage', () => ({
   getFeatureAdoptionGaps: () => getFeatureAdoptionGaps(),
@@ -245,6 +249,26 @@ function unmeasurableAdoptionPayload() {
   };
 }
 
+type CoverageStub = {
+  eventId: string;
+  event: string;
+  campus: string;
+  dateLabel: string;
+  elapsedSlots: number;
+  unkeptSlots: number;
+};
+
+/** Registers of the window; `withUnkept` is over every event, not the list. */
+function emargementPayload(perEvent: CoverageStub[] = [], withUnkept?: number) {
+  return {
+    eventsWithUnkeptSlots: metric(
+      withUnkept ?? perEvent.filter((e) => e.unkeptSlots > 0).length,
+      'def',
+    ),
+    perEvent: metric(perEvent, 'def'),
+  };
+}
+
 /** Where a section starts in the text part, by its upper-cased title. */
 const at = (text: string, title: string) => text.indexOf(`\n${title}\n`);
 
@@ -256,6 +280,7 @@ beforeEach(() => {
   getPdfJobsHealth.mockReset().mockResolvedValue(pdfJobsPayload());
   getAccountDeletionQueue.mockReset().mockResolvedValue(deletionsPayload());
   getFeatureAdoptionGaps.mockReset().mockResolvedValue(adoptionPayload());
+  getEmargementCoverage.mockReset().mockResolvedValue(emargementPayload());
 });
 
 describe('buildAdminDigest', () => {
@@ -272,6 +297,49 @@ describe('buildAdminDigest', () => {
     expect(getSyncHealth).toHaveBeenCalledWith({ since: PREVIOUS });
     expect(getPdfJobsHealth).toHaveBeenCalledWith({ since: PREVIOUS });
     expect(getAccountDeletionQueue).toHaveBeenCalledWith({ since: PREVIOUS });
+    expect(getEmargementCoverage).toHaveBeenCalledWith({}, { since: PREVIOUS });
+  });
+
+  // A half-day nobody marked reads as the whole cohort absent, and it is only
+  // cheap to fill in while the team still remembers who came.
+  it("names last week's registers with a half-day nobody marked", async () => {
+    getEmargementCoverage.mockResolvedValue(
+      emargementPayload([
+        {
+          eventId: 'e1',
+          event: 'Stage Web',
+          campus: 'Lyon',
+          dateLabel: '3 nov. 2026 → 7 nov. 2026',
+          elapsedSlots: 10,
+          unkeptSlots: 2,
+        },
+        {
+          eventId: 'e2',
+          event: 'Coding Club',
+          campus: 'Lille',
+          dateLabel: '4 nov. 2026',
+          elapsedSlots: 2,
+          unkeptSlots: 0,
+        },
+      ]),
+    );
+
+    const digest = await buildAdminDigest(baseline);
+
+    expect(digest.text).toContain(
+      'Depuis le point du lundi 2 novembre, 1 événement a laissé des demi-journées sans aucun pointage',
+    );
+    expect(digest.text).toContain(
+      '- Stage Web (Lyon, 3 nov. 2026 → 7 nov. 2026) : 2 demi-journées sur 10 sans pointage.',
+    );
+    expect(digest.text).not.toContain('Coding Club');
+    expect(digest.text).not.toContain('À TRAITER EN PRIORITÉ');
+  });
+
+  it('says nothing of the registers when every one was kept', async () => {
+    const digest = await buildAdminDigest(baseline);
+
+    expect(at(digest.text, 'ÉMARGEMENT')).toBe(-1);
   });
 
   it('says so in the subject when nothing is urgent, and opens on no priority block', async () => {

@@ -50,6 +50,8 @@ export type EventCoverage = {
   slots: number;
   elapsedSlots: number;
   keptSlots: number;
+  /** Elapsed half-days with no mark at all: sheets nobody filled in. */
+  unkeptSlots: number;
   /** Percentage of this event's elapsed half-days that hold a mark. */
   keptShare: number | null;
   marks: number;
@@ -68,6 +70,7 @@ export type EmargementCoverage = {
   elapsedSlots: Metric;
   keptSlots: Metric;
   keptShare: Metric<number | null>;
+  eventsWithUnkeptSlots: Metric;
   marks: Metric;
   byStatus: Metric<
     { status: string; label: string; count: number; share: number | null }[]
@@ -186,6 +189,7 @@ export async function getEmargementCoverage(
       slots: slots.length,
       elapsedSlots: elapsed.length,
       keptSlots: kept.length,
+      unkeptSlots: elapsed.length - kept.length,
       keptShare: share(kept.length, elapsed.length),
       marks: row?._count.eventPresences ?? 0,
     };
@@ -218,6 +222,10 @@ export async function getEmargementCoverage(
       share(totalKept, totalElapsed),
       "Part des demi-journées écoulées où au moins un pointage a été enregistré, en pourcentage. Seules les demi-journées écoulées y entrent : un événement qui n'a pas encore eu lieu ne fait pas baisser ce chiffre, sauf un créneau qu'un membre de l'équipe a clôturé à l'avance.",
     ),
+    eventsWithUnkeptSlots: metric(
+      perEvent.filter((e) => e.unkeptSlots > 0).length,
+      'Événements qui ont au moins une demi-journée écoulée sans aucun pointage, comptés sur tous les événements et non sur la liste plafonnée. Sur chacun, la cohorte compte comme absente de ces demi-journées tant que personne ne remplit la feuille.',
+    ),
     marks: metric(
       totalMarks,
       "Pointages enregistrés sur ces événements, tous statuts confondus. C'est le dénominateur de la répartition ci-dessous.",
@@ -233,7 +241,7 @@ export async function getEmargementCoverage(
     ),
     perEvent: metric(
       perEvent.slice(0, EMARGEMENT_EVENTS_LIMIT),
-      `Le détail événement par événement, du plus récent au plus ancien, limité à ${EMARGEMENT_EVENTS_LIMIT} lignes. « elapsedSlots », « keptSlots » et « keptShare » s'y lisent comme les chiffres du même nom, pour cet événement seul ; « marks » est le nombre de pointages enregistrés, tous statuts confondus.`,
+      `Le détail événement par événement, du plus récent au plus ancien, limité à ${EMARGEMENT_EVENTS_LIMIT} lignes. « elapsedSlots », « keptSlots » et « keptShare » s'y lisent comme les chiffres du même nom, pour cet événement seul ; « unkeptSlots » compte ses demi-journées écoulées sans aucun pointage ; « marks » est le nombre de pointages enregistrés, tous statuts confondus.`,
     ),
     truncated: perEvent.length > EMARGEMENT_EVENTS_LIMIT,
   };
@@ -250,6 +258,7 @@ function empty(scope: Scope, since: Date | undefined): EmargementCoverage {
     elapsedSlots: metric(0, none),
     keptSlots: metric(0, none),
     keptShare: metric(null, none),
+    eventsWithUnkeptSlots: metric(0, none),
     marks: metric(0, none),
     byStatus: metric([], none),
     perEvent: metric([], none),

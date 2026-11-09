@@ -37,6 +37,7 @@ import type {
   PdfJobsSince,
 } from '$lib/server/services/adminStats/opsQueues';
 import type { getFeatureAdoptionGaps } from '$lib/server/services/adminStats/featureUsage';
+import type { EmargementCoverage } from '$lib/server/services/adminStats/emargementCoverage';
 import {
   EVENT_MISSING_LABELS,
   IMMINENT_WITHIN_DAYS,
@@ -72,6 +73,8 @@ export type DigestInput = {
   freshness: Awaited<ReturnType<typeof getDataFreshness>>;
   pdfJobs: PdfJobsHealth & PdfJobsSince;
   deletions: DeletionQueue & DeletionQueueSince;
+  /** Restricted to the events still under way at the baseline or later. */
+  emargement: EmargementCoverage;
   adoption: Awaited<ReturnType<typeof getFeatureAdoptionGaps>>;
 };
 
@@ -89,7 +92,7 @@ export const DIGEST_PAGES = {
 
 type Severity = 'urgent' | 'action' | 'info';
 
-type SectionKey = 'events' | 'queues' | 'sync' | 'adoption';
+type SectionKey = 'events' | 'emargement' | 'queues' | 'sync' | 'adoption';
 
 type DigestFinding = {
   section: SectionKey;
@@ -102,6 +105,7 @@ type DigestFinding = {
 /** Topic sections, in reading order. */
 const SECTIONS: { key: SectionKey; title: string }[] = [
   { key: 'events', title: 'Événements à préparer' },
+  { key: 'emargement', title: 'Émargement' },
   { key: 'queues', title: 'Files en attente' },
   { key: 'sync', title: 'Synchronisation' },
   { key: 'adoption', title: 'Adoption' },
@@ -293,6 +297,54 @@ function eventFindings(input: DigestInput): DigestFinding[] {
     });
 
   return findings;
+}
+
+// ── Émargement ───────────────────────────────────────────────────────────────
+
+/** How many events with unkept half-days to name before deferring to the API. */
+const LISTED_UNKEPT = 10;
+
+const capitalised = (text: string) =>
+  text.charAt(0).toUpperCase() + text.slice(1);
+
+/**
+ * Last week's registers with a half-day nobody filled in. Such a half-day reads
+ * as the whole cohort absent, in the attendance figures and on every talent's
+ * record, and it is only cheap to put right while the team still remembers who
+ * came: a week later, nobody does. Silent when every register was kept.
+ */
+function emargementFindings({
+  emargement,
+  baseline,
+}: DigestInput): DigestFinding[] {
+  const n = emargement.eventsWithUnkeptSlots.value;
+  if (n === 0) return [];
+  const unkept = emargement.perEvent.value.filter((e) => e.unkeptSlots > 0);
+  const listed = unkept.slice(0, LISTED_UNKEPT);
+  const remaining = n - listed.length;
+  return [
+    {
+      section: 'emargement',
+      severity: 'action',
+      blocks: [
+        paragraph(
+          `${capitalised(windowFr(baseline))}, `,
+          strong(n),
+          ` ${plural(n, 'événement a', 'événements ont')} laissé des demi-journées sans aucun pointage : la cohorte y compte comme absente tant que la feuille n'est pas remplie.`,
+        ),
+        ...listed.map((e) =>
+          item(
+            `${e.event} (${e.campus}, ${e.dateLabel}) : `,
+            strong(e.unkeptSlots),
+            ` ${plural(e.unkeptSlots, 'demi-journée', 'demi-journées')} sur ${e.elapsedSlots} sans pointage.`,
+          ),
+        ),
+        ...(remaining > 0
+          ? [note(`Et ${remaining} ${plural(remaining, 'autre', 'autres')}.`)]
+          : []),
+      ],
+    },
+  ];
 }
 
 // ── Queues ───────────────────────────────────────────────────────────────────
@@ -587,6 +639,7 @@ function subjectOf(urgent: DigestFinding[]): string {
 export function composeDigest(input: DigestInput): DigestDocument {
   const findings = [
     ...eventFindings(input),
+    ...emargementFindings(input),
     ...queueFindings(input),
     ...syncFindings(input),
     ...adoptionFindings(input),

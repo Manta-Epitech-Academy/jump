@@ -156,6 +156,7 @@ describe('émargement coverage (integration)', () => {
         slots: 4,
         elapsedSlots: 4,
         keptSlots: 2,
+        unkeptSlots: 2,
         keptShare: 50,
       }),
     ]);
@@ -180,5 +181,8 @@ describe('émargement coverage (integration)', () => {
     expect(dayAfter.perEvent.value.map((e) => e.eventId)).toEqual([futureId]);
     expect(dayAfter.slots.value).toBe(2);
     expect(dayAfter.marks.value).toBe(2);
+    // The future event's only elapsed half-day was closed early and marked.
+    expect(dayAfter.eventsWithUnkeptSlots.value).toBe(0);
+    expect(lastDay.eventsWithUnkeptSlots.value).toBe(1);
   });
 });

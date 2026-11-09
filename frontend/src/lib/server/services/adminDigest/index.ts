@@ -45,6 +45,7 @@ import {
   getAccountDeletionQueue,
 } from '$lib/server/services/adminStats/opsQueues';
 import { getFeatureAdoptionGaps } from '$lib/server/services/adminStats/featureUsage';
+import { getEmargementCoverage } from '$lib/server/services/adminStats/emargementCoverage';
 import {
   ADOPTION_WINDOW_DAYS,
   composeDigest,
@@ -84,7 +85,7 @@ export type AdminDigest = {
  */
 async function readDigestInput(baseline: DigestBaseline): Promise<DigestInput> {
   const since = { since: baseline.since };
-  const [events, sync, freshness, pdfJobs, deletions, adoption] =
+  const [events, sync, freshness, pdfJobs, deletions, emargement, adoption] =
     await Promise.all([
       // The events still to prepare, soonest first: the same list
       // `config_events` answers with `state: to_prepare`.
@@ -93,6 +94,8 @@ async function readDigestInput(baseline: DigestBaseline): Promise<DigestInput> {
       getDataFreshness(),
       getPdfJobsHealth(since),
       getAccountDeletionQueue(since),
+      // Last week's registers: the events still under way at the baseline.
+      getEmargementCoverage({}, since),
       // Read through the same service the API answers from, so a figure in an
       // inbox and the same figure asked over MCP cannot disagree.
       getFeatureAdoptionGaps({}, { days: ADOPTION_WINDOW_DAYS }),
@@ -104,6 +107,7 @@ async function readDigestInput(baseline: DigestBaseline): Promise<DigestInput> {
     freshness,
     pdfJobs,
     deletions,
+    emargement,
     adoption,
   };
 }
