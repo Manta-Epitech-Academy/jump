@@ -105,6 +105,8 @@
       <img
         src="/api/signatures/{s.id}?v={s.updatedAt.getTime()}"
         alt="Signature de {s.name}"
+        loading="lazy"
+        decoding="async"
         class="max-h-14 max-w-24 object-contain"
       />
     </div>
