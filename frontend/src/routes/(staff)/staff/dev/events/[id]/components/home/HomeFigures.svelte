@@ -162,7 +162,7 @@
 {#snippet sectionTitle(id: string, rank: string, title: string)}
   <h2 {id} class="flex items-center gap-2 epi-overline text-muted-foreground">
     <span class="text-epi-blue">{rank}</span>
-    {title}<TitleCursor />
+    <span>{title}<TitleCursor /></span>
   </h2>
 {/snippet}
 
