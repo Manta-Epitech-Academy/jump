@@ -12,8 +12,7 @@
  * assumption anybody makes is that the application is wrong.
  */
 
-import { Prisma, type PrismaClient } from '@prisma/client';
-import { ATTENDANCE_PROOF_SQL } from '../../../src/lib/domain/attendance';
+import type { PrismaClient } from '@prisma/client';
 import { ONBOARDING_PROJECTED_FIELDS } from '../../../src/lib/domain/talentOnboarding';
 
 export async function projectionFailures(
@@ -78,25 +77,6 @@ export async function projectionFailures(
   for (const row of visibilityDrift) {
     failures.push(
       `Participation.shownInDevSpace ${String(row.cached)} ne correspond pas aux statuts affichés par son événement (${row.id})`,
-    );
-  }
-
-  // Whether the talent came is a projection of four tables. Compared with the
-  // very statement the application recomputes it with (`ATTENDANCE_PROOF_SQL`,
-  // imported rather than restated), so a scenario that writes a proof after the
-  // projection was derived shows up here.
-  const attendanceDrift = await prisma.$queryRaw<
-    { id: string; cached: boolean }[]
-  >`
-    SELECT p."id", p."attendanceAttested" AS cached
-    FROM "Participation" p
-    WHERE p."id" LIKE 'sd_%'
-      AND p."attendanceAttested" <> ${Prisma.raw(ATTENDANCE_PROOF_SQL)}
-    LIMIT 5
-  `;
-  for (const row of attendanceDrift) {
-    failures.push(
-      `Participation.attendanceAttested ${String(row.cached)} ne correspond pas aux preuves de venue de son talent (${row.id})`,
     );
   }
 

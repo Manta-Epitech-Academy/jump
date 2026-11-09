@@ -293,10 +293,14 @@ export async function flush(
     log(`  ${key.padEnd(28)} ${String(rows.length).padStart(7)}`);
     total += rows.length;
   }
-  // Whether each talent came is a projection of four tables the scenarios fill
+  // Whether each talent came is a projection of three tables the scenarios fill
   // at different moments, so it is derived once everything is written, with the
   // statement the application recomputes it with: a seeded row is one the
-  // application's own writer could have written.
+  // application's own writer could have written. Unlike the projections
+  // `assert/projections.ts` checks, it is not written by the generator and
+  // then proven: comparing it with the statement that just wrote it could
+  // never fail. The rule itself is held on real SQL by
+  // `attendance.integration.test.ts`.
   await prisma.$executeRaw`
     UPDATE "Participation" p
     SET "attendanceAttested" = ${Prisma.raw(ATTENDANCE_PROOF_SQL)}
