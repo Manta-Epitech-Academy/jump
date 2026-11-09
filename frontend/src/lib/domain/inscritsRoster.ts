@@ -17,6 +17,12 @@ import {
   type ListFacet,
 } from '$lib/domain/listFacets';
 import {
+  buildHaystack,
+  matchesAllTokens,
+  searchTokens,
+} from '$lib/components/staff/datatable/search';
+import { rowComparator } from '$lib/components/staff/datatable/sort';
+import {
   INSCRITS_FACETS,
   INSCRITS_NONE,
   type InscritsFacet,
@@ -214,4 +220,41 @@ export function compareRows(
     case 'parcours':
       return a.priorVisits - b.priorVisits || a.xp - b.xp;
   }
+}
+
+/** What the search box matches a row on: its names, niveau, lycée and email. */
+function inscritHaystack(r: InscritRow): string {
+  return buildHaystack([
+    r.nom,
+    r.prenom,
+    niveauLabel(r.niveau),
+    r.schoolName,
+    r.email,
+  ]);
+}
+
+/**
+ * The rows the Inscrits page shows for this view: every active filter, the
+ * search, the sort. The page reads it on every keystroke and its export reads
+ * it off the same address, so the file holds exactly the list on screen.
+ */
+export function shownInscrits(
+  rows: readonly InscritRow[],
+  facets: readonly RosterFacet[],
+  view: InscritsView,
+  query: string,
+): InscritRow[] {
+  const tokens = searchTokens(query);
+  return rows
+    .filter(
+      (r) =>
+        matchesFacets(r, facets) &&
+        matchesAllTokens(inscritHaystack(r), tokens),
+    )
+    .sort(
+      rowComparator({
+        compare: (a, b) => compareRows(a, b, view.sort),
+        dir: view.dir,
+      }),
+    );
 }

@@ -9,7 +9,10 @@ import {
   eventModuleSettings,
 } from '$lib/server/services/stageContext';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { loadInscritsCohort } from '$lib/server/services/inscritsCohort';
+import {
+  countShownCohort,
+  loadInscritsCohort,
+} from '$lib/server/services/inscritsCohort';
 import type { InscritsCohort } from '$lib/domain/inscritsRoster';
 
 // The load reads nothing off the address on purpose. The page's filters, sort
@@ -37,6 +40,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   return {
     event,
+    // One count, awaited with the shell: with nobody shown, the search and the
+    // export on the title line have nothing to act on and are left out.
+    rosterSize: await countShownCohort(db, event.id),
     // Inscrits sub-option: hide the dossier/statut funnel column for events whose
     // campus doesn't onboard. Cheap shell value, so it rides the first paint.
     showStatutColumn: eventModuleSettings(event, EVENT_MODULES.INSCRITS)

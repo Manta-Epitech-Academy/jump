@@ -16,7 +16,7 @@
     setListParams,
   } from '$lib/components/staff/datatable/urlList';
   import { facetControls } from '$lib/components/staff/datatable/facetControls';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import type { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
   import ClosingVerdictChip from '$lib/components/dev/closings/ClosingVerdictChip.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
@@ -74,11 +74,14 @@
     cohortNoun,
     timezone,
     currentStaffId,
+    search,
   }: ClosingsCohort & {
     eventId: string;
     cohortNoun: string | null;
     timezone: string;
     currentStaffId: string | null;
+    /** The search box on the page's title line, as on Inscrits. */
+    search: ReturnType<typeof createUrlSearch>;
   } = $props();
 
   // Event's Jump-owned cohort noun ("stagiaire" / "participant").
@@ -99,7 +102,6 @@
   // Filters, sort and search live in the address (`$lib/domain/closingsView`),
   // so the event home's cards can open this list already filtered.
   const view = $derived(CLOSINGS_VIEW.parse(page.url.searchParams));
-  const search = createUrlSearch();
 
   const facets = $derived(closingsFacets(rows, view));
   const controls = $derived(
@@ -239,10 +241,6 @@
   >
     {#snippet main()}
       <DataTableToolbar
-        searchValue={search.value}
-        onSearchInput={(v) => (search.value = v)}
-        searchPlaceholder={`Rechercher un ${noun.singular}…`}
-        searchWidthClass="w-full max-w-[230px]"
         count={filtered.length}
         countNoun="closing"
         filtersApplied={anyFiltersApplied}

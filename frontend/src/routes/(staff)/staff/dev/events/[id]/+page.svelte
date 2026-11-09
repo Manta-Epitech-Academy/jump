@@ -1,15 +1,12 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
-  import { Button } from '$lib/components/ui/button';
   import { Skeleton } from '$lib/components/ui/skeleton';
-  import * as Tooltip from '$lib/components/ui/tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import EventCategoryChip from '$lib/components/events/EventCategoryChip.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
-  import { ACTION_TILE_CLASS } from '$lib/components/events/actionTile';
+  import ExcelExportTile from '$lib/components/events/ExcelExportTile.svelte';
   import { EVENT_MODULES } from '$lib/domain/eventModules';
   import type { PageData } from './$types';
   import EventCountdown from './components/EventCountdown.svelte';
@@ -86,27 +83,13 @@
         {/if}
         <EventSalesforceButton externalId={data.event.externalId} />
         {#if hasCohort && data.exportSections.length > 0}
-          <Tooltip.Root>
-            <Tooltip.Trigger>
-              {#snippet child({ props })}
-                <Button
-                  {...props}
-                  href={resolve(`/staff/dev/events/${data.event.id}/export`)}
-                  download
-                  variant="outline"
-                  class={ACTION_TILE_CLASS}
-                >
-                  <FileSpreadsheet />
-                  Exporter Excel
-                </Button>
-              {/snippet}
-            </Tooltip.Trigger>
-            <Tooltip.Content class="max-w-64">
-              Tout l'événement, une feuille par section : {data.exportSections.join(
-                ', ',
-              )}.
-            </Tooltip.Content>
-          </Tooltip.Root>
+          <ExcelExportTile
+            href={resolve(`/staff/dev/events/${data.event.id}/export`)}
+          >
+            Tout l'événement, une feuille par section : {data.exportSections.join(
+              ', ',
+            )}.
+          </ExcelExportTile>
         {/if}
       </div>
     {/snippet}

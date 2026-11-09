@@ -21,6 +21,7 @@ import {
 import { niveauLabel } from '$lib/domain/niveau';
 import { civiliteLabel } from '$lib/domain/profile';
 import { parcoursLabel } from '$lib/domain/visitHistory';
+import type { InscritRow } from '$lib/domain/inscritsRoster';
 import {
   INSCRIT_STATUS_LABELS,
   RULES_STATUS_LABELS,
@@ -63,48 +64,41 @@ import { closingVerdict, conductorLabel } from '$lib/domain/closingsRoster';
  * what" triage sheet. The contacts are read here only, so they never travel in
  * the page's payload.
  *
- * `talentIds` narrows it to the rows the Inscrits page is showing, in its
- * order; without it, the whole roster by nom.
+ * `narrow` keeps the rows the Inscrits page is showing, in its order
+ * (`shownInscrits`, read off the page's address); without it, the whole roster
+ * by nom.
  */
 export async function inscritsSheet(
   db: ScopedPrismaClient,
   event: EventRecord,
   timezone: string,
-  { talentIds }: { talentIds?: readonly string[] } = {},
+  { narrow }: { narrow?: (rows: InscritRow[]) => InscritRow[] } = {},
 ): Promise<XlsxSheet> {
   const [cohort, contacts] = await Promise.all([
-    loadInscritsCohort(db, event, timezone, { talentIds }),
-    talentIds?.length === 0
-      ? []
-      : db.participation.findMany({
-          where: {
-            eventId: event.id,
-            ...(talentIds ? { talentId: { in: [...talentIds] } } : {}),
-            ...visibleParticipationWhere,
-          },
+    loadInscritsCohort(db, event, timezone),
+    db.participation.findMany({
+      where: {
+        eventId: event.id,
+        ...visibleParticipationWhere,
+      },
+      select: {
+        talentId: true,
+        talent: {
           select: {
-            talentId: true,
-            talent: {
-              select: {
-                phone: true,
-                parentPrenom: true,
-                parentNom: true,
-                parentEmail: true,
-                parentPhone: true,
-              },
-            },
+            phone: true,
+            parentPrenom: true,
+            parentNom: true,
+            parentEmail: true,
+            parentPhone: true,
           },
-        }),
+        },
+      },
+    }),
   ]);
   const contactOf = new Map(contacts.map((c) => [c.talentId, c.talent]));
 
-  // Preserve the page's filtered + sorted order when it sent one.
-  const byTalent = new Map(cohort.rows.map((r) => [r.talentId, r]));
-  const ordered = talentIds
-    ? talentIds
-        .map((id) => byTalent.get(id))
-        .filter((r): r is NonNullable<typeof r> => !!r)
-    : cohort.rows;
+  // The Inscrits page's own rows, filtered and sorted, when it asked for them.
+  const ordered = narrow ? narrow(cohort.rows) : cohort.rows;
 
   const rows = ordered.map((r) => {
     const contact = contactOf.get(r.talentId);

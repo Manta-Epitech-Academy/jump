@@ -1,14 +1,26 @@
 <script lang="ts">
-  import { eventDisplayName } from '$lib/domain/event';
+  import { page } from '$app/state';
+  import { cohortNounForms, eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import SearchBox from '$lib/components/staff/datatable/SearchBox.svelte';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import ExcelExportTile from '$lib/components/events/ExcelExportTile.svelte';
   import InscritsResults from './components/InscritsResults.svelte';
 
-  // The event's actions (badges, certificates, its Salesforce campaign, the
-  // whole export) live on its home, the mockup's: this page is the list.
+  // The event's other actions (badges, certificates, its Salesforce campaign,
+  // the whole export) live on its home, the mockup's: this page is the list.
+  // Its search and its export sit on the title's line rather than stacked
+  // above the table (PO, 29/10/2026). The search is held here, so the box in
+  // the header and the list under it filter on the same query as it is typed;
+  // the export is a link carrying the page's address, so it downloads the list
+  // as the filters, the sort and the search leave it.
   let { data }: { data: PageData } = $props();
+
+  const search = createUrlSearch();
+  const noun = $derived(cohortNounForms(data.event.cohortNoun));
 </script>
 
 <svelte:head>
@@ -16,7 +28,30 @@
 </svelte:head>
 
 <div class="space-y-6 pb-10">
-  <PageHeader title="Inscrits" subtitle={eventDisplayName(data.event)} />
+  <PageHeader
+    title="Inscrits"
+    subtitle={eventDisplayName(data.event)}
+    class="md:items-start"
+  >
+    {#snippet actions()}
+      {#if data.rosterSize > 0}
+        <div class="flex w-full flex-wrap items-center gap-3 md:w-auto">
+          <SearchBox
+            value={search.value}
+            onInput={(v) => (search.value = v)}
+            placeholder={`Rechercher un ${noun.singular}…`}
+            class="w-full md:w-60"
+          />
+          <ExcelExportTile
+            href={`${page.url.pathname}/export${page.url.search}`}
+          >
+            Les {noun.plural} tels que la liste les affiche : filtres, tri et recherche
+            appliqués.
+          </ExcelExportTile>
+        </div>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   {#await data.cohort}
     <ResultsSkeleton />
@@ -25,6 +60,7 @@
       {...cohort}
       event={data.event}
       showStatutColumn={data.showStatutColumn}
+      {search}
     />
   {:catch}
     <ResultsNotice

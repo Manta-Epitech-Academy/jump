@@ -4,6 +4,7 @@ import { niveauLabel } from '$lib/domain/niveau';
 import {
   compareRows,
   matchesFacets,
+  shownInscrits,
   rosterFacets,
   type RosterContext,
   type RosterFacet,
@@ -150,5 +151,20 @@ describe('the parcours sort', () => {
       .sort((a, b) => compareRows(b, a, 'parcours'))
       .map((r) => r.id);
     expect(desc.slice(0, 2)).toEqual(['c', 'b']);
+  });
+});
+
+describe('the rows the page shows, and its export downloads', () => {
+  it('applies the filters, the search and the sort of one address', () => {
+    const params = new URLSearchParams('niveau=2nde,1ere&sort=xp&q=lou');
+    const view = INSCRITS_VIEW.parse(params);
+    const shown = shownInscrits(
+      cohort,
+      rosterFacets(cohort, full, view),
+      view,
+      params.get('q') ?? '',
+    );
+    // d has no niveau; xp high to low puts c (900) before b (100) before a (0).
+    expect(shown.map((r) => r.id)).toEqual(['c', 'b', 'a']);
   });
 });

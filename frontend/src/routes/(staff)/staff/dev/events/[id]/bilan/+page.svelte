@@ -11,7 +11,9 @@
   import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
   import QrProjectionDialog from '$lib/components/staff/QrProjectionDialog.svelte';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
-  import { eventDisplayName } from '$lib/domain/event';
+  import { cohortNounForms, eventDisplayName } from '$lib/domain/event';
+  import SearchBox from '$lib/components/staff/datatable/SearchBox.svelte';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import type { PageData } from './$types';
   import BilanRoster from './components/BilanRoster.svelte';
   import StatsPanel from './components/StatsPanel.svelte';
@@ -19,6 +21,11 @@
   let { data }: { data: PageData } = $props();
 
   let qrOpen = $state(false);
+
+  // The search on the title's line, as on Inscrits (the event lists' canon,
+  // `.claude/rules/staff-lists.md`), held here for the roster under it.
+  const search = createUrlSearch();
+  const noun = $derived(cohortNounForms(data.event.cohortNoun));
 </script>
 
 <svelte:head>
@@ -28,7 +35,15 @@
 <div class="space-y-6 pb-10">
   <PageHeader title={data.form.title} subtitle={eventDisplayName(data.event)}>
     {#snippet actions()}
-      <div class="flex items-center gap-2">
+      <div class="flex w-full flex-wrap items-center gap-2 md:w-auto">
+        {#if data.rosterSize > 0}
+          <SearchBox
+            value={search.value}
+            onInput={(v) => (search.value = v)}
+            placeholder={`Rechercher un ${noun.singular}…`}
+            class="w-full md:w-60"
+          />
+        {/if}
         <!-- With no one in the event, the export is an empty workbook. -->
         {#if data.rosterSize > 0}
           <Button
@@ -85,6 +100,7 @@
             recoOptions={cohort.recoOptions}
             eventId={data.event.id}
             cohortNoun={data.event.cohortNoun}
+            {search}
           />
         {/snippet}
 

@@ -96,14 +96,13 @@ export async function countShownCohort(
  * on. One builder for both, so the downloaded sheet can never describe a talent
  * differently from the line it was exported from.
  *
- * `talentIds` narrows it to the rows the export was asked for; the page takes
- * the whole cohort, ordered by nom as the table first shows it.
+ * The whole cohort, ordered by nom as the table first shows it; the export
+ * narrows it the way the page does (`shownInscrits`).
  */
 export async function loadInscritsCohort(
   db: ScopedPrismaClient,
   event: EventRecord,
   timezone: string,
-  { talentIds }: { talentIds?: readonly string[] } = {},
 ): Promise<InscritsCohort> {
   // The règlement applying to this event is the one of the event's own school
   // year, so that is the dossier the statut column reads (see
@@ -115,7 +114,6 @@ export async function loadInscritsCohort(
       where: {
         eventId: event.id,
         ...visibleParticipationWhere,
-        ...(talentIds ? { talentId: { in: [...talentIds] } } : {}),
       },
       select: INSCRIT_PARTICIPATION_SELECT,
       orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],

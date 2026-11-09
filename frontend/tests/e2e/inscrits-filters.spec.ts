@@ -2,9 +2,10 @@
  * The Inscrits filters live in the page address (#442), and that is only true
  * through a real browser: the header funnel writes the querystring, the page
  * reads it back after a reload, the Back button walks the filtering history,
- * and the export posts exactly the rows left on screen. The matching rules
- * themselves are unit-tested (`roster.test.ts`); this checks the seam between
- * the controls, the router and the server.
+ * and the export downloads the list at the address on screen. The matching
+ * rules, the export's included (`shownInscrits`), are unit-tested
+ * (`inscritsRoster.test.ts`); this checks the seam between the controls, the
+ * router and the server.
  *
  * The fixture's roster: ROSTERUN (Seconde, femme), ROSTERDEUX (Seconde, homme),
  * ROSTERTROIS (Première, femme).
@@ -70,18 +71,16 @@ test.describe('les filtres des inscrits', () => {
       .poll(() => shownNames(page))
       .toEqual(['ROSTERDEUX', 'ROSTERUN']);
 
-    // The export posts exactly the rows left on screen.
-    const [exportRequest] = await Promise.all([
-      page.waitForRequest(
-        (r) => r.url().endsWith('/inscrits/export') && r.method() === 'POST',
-      ),
-      page.getByRole('button', { name: 'Exporter (XLSX)' }).click(),
+    // The export downloads the list at the address on screen, filters
+    // included, which the server narrows with the page's own rule.
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('link', { name: 'Exporter Excel' }).click(),
     ]);
-    const posted = (exportRequest.postDataJSON() as { talentIds: string[] })
-      .talentIds;
-    expect([...posted].sort()).toEqual(
-      ['e2e-talent-roster-1', 'e2e-talent-roster-2'].sort(),
-    );
+    const exported = new URL(download.url());
+    expect(exported.pathname).toBe(`${INSCRITS_URL}/export`);
+    expect(exported.searchParams.get('niveau')).toBe('Seconde');
+    expect(download.suggestedFilename()).toMatch(/^Inscrits - .*\.xlsx$/);
 
     await page
       .getByRole('button', { name: 'Retirer le filtre Niveau : Seconde' })
