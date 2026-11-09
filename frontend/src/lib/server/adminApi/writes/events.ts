@@ -44,6 +44,7 @@ import {
   type EventModuleSettings,
 } from '$lib/domain/eventModules';
 import { EVENT_CONFIG_STATE_LABELS } from '$lib/domain/eventReadiness';
+import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
 import { UnknownScopeError } from '../scope';
 import { archivedAtFor } from './catalogue';
 import { OperationRefusedError } from '../errors';
@@ -60,6 +61,7 @@ type EventState = {
   modules: string[];
   moduleSettings: Record<string, unknown>;
   shownStatuses: string[];
+  attendanceStatuses: string[];
   feedbackFormId: string | null;
   diplomaTemplateId: string | null;
   closingTemplateId: string | null;
@@ -78,6 +80,7 @@ async function stateOf(event: AdminEventVM): Promise<EventState> {
     modules: [...event.modules].sort(),
     moduleSettings: event.moduleSettings,
     shownStatuses: event.shownStatuses,
+    attendanceStatuses: event.attendanceStatuses,
     feedbackFormId: event.feedbackFormId || null,
     diplomaTemplateId: event.diplomaTemplateId || null,
     closingTemplateId: event.closingTemplateId || null,
@@ -113,6 +116,7 @@ export type EventConfigPatch = {
   modules?: string[];
   moduleSettings?: ModuleSettingsPatch;
   shownStatuses?: string[];
+  attendanceStatuses?: string[];
   visible?: boolean;
   feedbackFormId?: string | null;
   diplomaTemplateId?: string | null;
@@ -276,6 +280,30 @@ async function resolvedWorkshops(
   }));
 }
 
+/**
+ * The statuses an event or a preset shows and counts as a visit once the patch
+ * is laid over it. A list the call sends is taken whole (and refused by the
+ * service if it counts a word it does not show); a list it leaves out is kept,
+ * except that a word it stops showing also stops counting, as hiding a word
+ * does everywhere.
+ */
+function statusPolicyFor(
+  params: { shownStatuses?: string[]; attendanceStatuses?: string[] },
+  base: { shownStatuses: string[]; attendanceStatuses: string[] },
+): { shownStatuses: string[]; attendanceStatuses: string[] } {
+  const shownStatuses = params.shownStatuses ?? base.shownStatuses;
+  if (params.attendanceStatuses) {
+    return { shownStatuses, attendanceStatuses: params.attendanceStatuses };
+  }
+  const shown = new Set(shownStatuses.map((raw) => normalizeSfStatus(raw)));
+  return {
+    shownStatuses,
+    attendanceStatuses: base.attendanceStatuses.filter((status) =>
+      shown.has(status),
+    ),
+  };
+}
+
 export async function writeEventConfig(
   params: EventConfigPatch,
 ): Promise<WriteOutcome> {
@@ -319,7 +347,7 @@ export async function writeEventConfig(
       params.closingTemplateId,
       event.closingTemplateId,
     ),
-    shownStatuses: params.shownStatuses ?? event.shownStatuses,
+    ...statusPolicyFor(params, event),
     workshops: params.workshops && (await resolvedWorkshops(params.workshops)),
   });
 
@@ -347,6 +375,7 @@ export type EventTemplatePatch = {
   modules?: string[];
   moduleSettings?: ModuleSettingsPatch;
   shownStatuses?: string[];
+  attendanceStatuses?: string[];
   feedbackFormId?: string | null;
   diplomaTemplateId?: string | null;
   closingTemplateId?: string | null;
@@ -361,6 +390,7 @@ type PresetConfig = {
   modules: string[];
   moduleSettings: Record<string, unknown>;
   shownStatuses: string[];
+  attendanceStatuses: string[];
   feedbackFormId: string | null;
   diplomaTemplateId: string | null;
   closingTemplateId: string | null;
@@ -376,6 +406,7 @@ function presetConfigOf(event: AdminEventVM): PresetConfig {
     modules: event.modules,
     moduleSettings: event.moduleSettings,
     shownStatuses: event.shownStatuses,
+    attendanceStatuses: event.attendanceStatuses,
     feedbackFormId: event.feedbackFormId || null,
     diplomaTemplateId: event.diplomaTemplateId || null,
     closingTemplateId: event.closingTemplateId || null,
@@ -390,6 +421,7 @@ const BLANK_PRESET: PresetConfig = {
   modules: [],
   moduleSettings: {},
   shownStatuses: [],
+  attendanceStatuses: [],
   feedbackFormId: null,
   diplomaTemplateId: null,
   closingTemplateId: null,
@@ -459,7 +491,7 @@ export async function writeEventTemplate(
       params.closingTemplateId,
       base.closingTemplateId ?? '',
     ),
-    shownStatuses: params.shownStatuses ?? base.shownStatuses,
+    ...statusPolicyFor(params, base),
     archivedAt: archivedAtFor(params.archived, before?.archived ?? false),
     // Nobody's staff profile: the preset was saved by a token, and the audit
     // row already carries which one.

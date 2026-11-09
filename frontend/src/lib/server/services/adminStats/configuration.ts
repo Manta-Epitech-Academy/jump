@@ -49,6 +49,10 @@ import {
   VISIBLE_PARTICIPATION_DEFINITION,
 } from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
+import {
+  ATTENDED_DEFINITION,
+  attendedBeforeWhere,
+} from '$lib/domain/attendance';
 import { CERTIFICATE_TOKENS } from '$lib/domain/diplomas';
 import type { WorkshopCoverKind } from '$lib/domain/workshops';
 import {
@@ -226,6 +230,8 @@ export type EventDetail = {
   } | null>;
   workshops: Metric<EventWorkshopState[]>;
   shownStatuses: Metric<string[]>;
+  attendanceStatuses: Metric<string[]>;
+  attended: Metric;
   participants: Metric;
   hiddenFromDevSpace: Metric;
   syncedEnrolments: Metric;
@@ -264,6 +270,9 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
   const workshops = await eventWorkshopsOf(event.id);
 
   const hidden = (await hiddenEnrolmentsByEvent([event.id])).get(event.id) ?? 0;
+  const attended = await prisma.participation.count({
+    where: { eventId: event.id, ...attendedBeforeWhere(new Date()) },
+  });
 
   return {
     event: metric(
@@ -336,6 +345,11 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
       event.shownStatuses,
       "Les statuts Salesforce dont l'espace dev affiche les inscriptions sur cet événement. Les inscriptions aux autres statuts restent synchronisées et enregistrées dans Jump, seul l'espace dev les masque ; celles sans statut sont toujours affichées. Se règle avec write_event_config (« shownStatuses »).",
     ),
+    attendanceStatuses: metric(
+      event.attendanceStatuses,
+      "Parmi les statuts affichés, ceux que cet événement compte comme une venue : un talent qui porte l'un d'eux est venu, une fois l'événement terminé. C'est ce que compte « Déjà venu » dans l'espace dev. Se règle avec write_event_config (« attendanceStatuses »).",
+    ),
+    attended: metric(attended, `Talents ${ATTENDED_DEFINITION}.`),
     participants: metric(
       event.participations,
       `Inscriptions à cet événement, ${VISIBLE_PARTICIPATION_DEFINITION}.`,
@@ -547,6 +561,7 @@ export type TemplateRow = {
   diplomaTemplateId: string | null;
   closingTemplateId: string | null;
   shownStatuses: string[];
+  attendanceStatuses: string[];
 };
 
 export type EventTemplates = { templates: Metric<TemplateRow[]> };
@@ -569,9 +584,10 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         diplomaTemplateId: template.diplomaTemplateId,
         closingTemplateId: template.closingTemplateId,
         shownStatuses: template.shownStatuses,
+        attendanceStatuses: template.attendanceStatuses,
         archived: template.archived,
       })),
-      "Les modèles de configuration enregistrés, archivés compris, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun. « categoryKey » est la clé de la catégorie qu'il donne. Une catégorie archivée depuis n'est plus donnée à un événement : write_event_config la refuse, sauf sur un événement qui la porte déjà, et bulk_event_config la refuse toujours. « publicName », « cohortNoun », « categoryKey » et « startTime » valent null quand le modèle n'en porte pas. « archived » vaut vrai pour un modèle retiré : il n'est plus à appliquer.",
+      "Les modèles de configuration enregistrés, archivés compris, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun. « categoryKey » est la clé de la catégorie qu'il donne. « attendanceStatuses » liste ceux de ses statuts affichés qu'il compte comme une venue. Une catégorie archivée depuis n'est plus donnée à un événement : write_event_config la refuse, sauf sur un événement qui la porte déjà, et bulk_event_config la refuse toujours. « publicName », « cohortNoun », « categoryKey » et « startTime » valent null quand le modèle n'en porte pas. « archived » vaut vrai pour un modèle retiré : il n'est plus à appliquer.",
     ),
   };
 }

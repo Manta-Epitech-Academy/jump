@@ -127,6 +127,7 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   // spells out: the section has to be in the same call's `modules` anyway.
   'moduleSettings',
   'shownByDefault',
+  'attestsByDefault',
   'pageWidthPx',
   'pageHeightPx',
   'onlyUpcoming',

@@ -16,11 +16,17 @@ import { resetClosing } from '../closingResetService';
 import { enterWorkshop } from '../workshopService';
 import { recomputeAttendance } from '../attendance';
 import { attendedBeforeWhere } from '$lib/domain/attendance';
+import { writeEventConfig } from '$lib/server/adminApi/writes/events';
+import { bulkEventConfig } from '$lib/server/adminApi/writes/bulk';
+import { writeSyncMemberStatus } from '$lib/server/adminApi/writes/sync';
 import { assertTestDatabase } from './testDatabase';
 
 const stamp = Date.now();
 const campusExternalName = `ATT_CAMPUS_${stamp}`;
 const campusName = `Att Campus ${stamp}`;
+// A catalogue word of this run's own: the catalogue is platform-wide and has no
+// delete.
+const stageWord = `4 - EN STAGE ${stamp}`;
 const keys = ['met', 'ready', 'emarge', 'closing', 'workshop'] as const;
 type Key = (typeof keys)[number];
 const talents = keys.map((key) => ({
@@ -134,6 +140,9 @@ describe('« venu », the attendance projection (integration)', () => {
         where: { id: { in: [...userIds, staffUserId] } },
       });
       await prisma.campus.delete({ where: { id: campusId } });
+      await prisma.sync_MemberStatus.deleteMany({
+        where: { status: stageWord },
+      });
     } catch {
       // ignore: the test database is disposable
     }
@@ -262,5 +271,71 @@ describe('« venu », the attendance projection (integration)', () => {
     const nextDay = new Date('2026-03-04T00:00:00Z');
     expect(await cameTo('club', clubDay)).toEqual([]);
     expect(await cameTo('club', nextDay)).toEqual([ext.met]);
+  });
+
+  it('lets the PO count another status as a visit over the admin API', async () => {
+    await writeEventConfig({
+      eventId: eventIds.club,
+      attendanceStatuses: ['MET', 'ready'],
+    });
+    expect(await cameTo('club')).toEqual([ext.met, ext.ready].sort());
+  });
+
+  it('stops counting a status the event stops showing', async () => {
+    await writeEventConfig({
+      eventId: eventIds.club,
+      shownStatuses: ['READY'],
+    });
+    const detail = await prisma.eventConfig_ShownStatus.findMany({
+      where: { eventId: eventIds.club },
+      select: { status: true, attestsAttendance: true },
+    });
+    expect(detail).toEqual([{ status: 'READY', attestsAttendance: true }]);
+    // MET is masked now, so the talent who carries it is not shown at all.
+    expect(await cameTo('club')).toEqual([ext.ready]);
+    await writeEventConfig({
+      eventId: eventIds.club,
+      shownStatuses: ['READY', 'MET'],
+      attendanceStatuses: ['MET'],
+    });
+    expect(await cameTo('club')).toEqual([ext.met]);
+  });
+
+  it('refuses to count a status the event does not show', async () => {
+    await expect(
+      writeEventConfig({
+        eventId: eventIds.club,
+        attendanceStatuses: ['CONNECTED'],
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('counts a status on many events at once, in a plan', async () => {
+    await writeSyncMemberStatus({ memberStatus: stageWord });
+    const params = {
+      eventIds: [eventIds.club, eventIds.emarge],
+      showStatuses: [stageWord],
+      attestStatuses: [stageWord],
+    };
+    const plan = await bulkEventConfig(params);
+    if (plan.applied) throw new Error('a call without digest is a dry run');
+    await bulkEventConfig({ ...params, planDigest: plan.planDigest });
+    const rows = await prisma.eventConfig_ShownStatus.findMany({
+      where: { status: stageWord },
+      select: { eventId: true, attestsAttendance: true },
+    });
+    expect(rows.map((r) => r.attestsAttendance)).toEqual([true, true]);
+    // What each event already counted is kept.
+    expect(await cameTo('club')).toEqual([ext.met]);
+  });
+
+  it('refuses a catalogue word counted by default but masked by default', async () => {
+    await expect(
+      writeSyncMemberStatus({
+        memberStatus: stageWord,
+        shownByDefault: false,
+        attestsByDefault: true,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
   });
 });
