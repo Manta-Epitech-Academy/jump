@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import type { ChartTone } from '$lib/domain/eventHome';
+  import type { ChartTone } from '$lib/domain/chartSeries';
   import { cn } from '$lib/utils';
   import { CHART_TONE_CLASS } from './chartTone';
   import { pieSlices } from './pieSlices';

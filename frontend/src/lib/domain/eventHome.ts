@@ -8,6 +8,7 @@ import {
 import { CLOSINGS_VIEW } from './closingsView';
 import type { ClosingsRoster } from './closingsRoster';
 import { BILAN_VIEW } from './bilanView';
+import { seriesTone, type ChartTone } from './chartSeries';
 import { PARCOURS_BUCKETS, parcoursLabel } from './enrolmentHistory';
 import { facetTally, type InscritRow } from './inscritsRoster';
 import { FACET_NONE, type FacetCount } from './listFacets';
@@ -36,16 +37,6 @@ export type HomeLink = {
   surface: 'inscrits' | 'closings' | 'bilan';
   params: Record<string, string>;
 };
-
-/**
- * A chart colour. The four brand accents carry the first parts, as the mockup
- * draws them; `lavender` gathers the rest under « Autres », `drift` is the
- * verdict « Indécis » as every closing screen tones it, and `muted` is what is
- * missing (« Non renseigné », « Sans avis »), left unpainted. No palette of its
- * own (`DESIGN.md`).
- */
-export type ChartTone =
-  'blue' | 'tomorrow' | 'tech' | 'together' | 'lavender' | 'drift' | 'muted';
 
 /** One part of a ring, with its share of the ring's whole. */
 export type HomePart = {
@@ -135,8 +126,6 @@ export const TOP_BARS = 6;
 /** How many talents a ranking lists. */
 export const TOP_TALENTS = 5;
 
-const ACCENTS: readonly ChartTone[] = ['blue', 'tomorrow', 'tech', 'together'];
-
 const NBSP = ' ';
 
 /** « 42 % », French spacing, nothing for an empty whole. */
@@ -150,9 +139,10 @@ const inscrits = (params: Record<string, string>): HomeLink => ({
 });
 
 /**
- * A facet as a ring: its first parts in the accents, the rest folded into one
- * « Autres » part that opens Inscrits on all of them at once (a filter keeps an
- * inscrit carrying any of its values), and « Non renseigné » last, in neutral.
+ * A facet as a ring: its first parts in the chart series, the rest folded into
+ * one « Autres » part, in the next colour of the series, that opens Inscrits on
+ * all of them at once (a filter keeps an inscrit carrying any of its values),
+ * and « Non renseigné » last, unpainted.
  * `toneOf` pins a value to a colour where the mockup gives it one (genre).
  */
 function facetRing(
@@ -186,7 +176,13 @@ function facetRing(
     filled.length > RING_PARTS ? filled.slice(0, RING_PARTS - 1) : filled;
   const rest = filled.slice(shown.length);
   const parts = shown.map((v, i) =>
-    part(v.value, v.label, [v.value], v.count, toneOf?.[v.value] ?? ACCENTS[i]),
+    part(
+      v.value,
+      v.label,
+      [v.value],
+      v.count,
+      toneOf?.[v.value] ?? seriesTone(i),
+    ),
   );
   if (rest.length > 0)
     parts.push(
@@ -195,7 +191,7 @@ function facetRing(
         'Autres',
         rest.map((v) => v.value),
         rest.reduce((n, v) => n + v.count, 0),
-        'lavender',
+        seriesTone(shown.length),
       ),
     );
   if (missing)
@@ -335,7 +331,7 @@ function feedbackFigures(feedback: EventHomeInput['feedback']): HomeFeedback {
       share: shareOf(count, answered),
       // Colour by rank among the options, best first, so a colour keeps its
       // meaning whichever options were picked.
-      tone: ACCENTS[rank] ?? 'lavender',
+      tone: seriesTone(rank),
       link: {
         surface: 'bilan',
         params: BILAN_VIEW.facetParams('reco', [option.id]),

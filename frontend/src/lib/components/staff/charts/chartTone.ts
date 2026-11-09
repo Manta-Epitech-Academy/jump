@@ -1,9 +1,10 @@
-import type { ChartTone } from '$lib/domain/eventHome';
+import type { ChartTone } from '$lib/domain/chartSeries';
 
 /**
  * A chart tone as classes: the ring's stroke, the disc's fill and the legend's
- * swatch, from the same token so the three can never disagree. Raw accents, since these are fills
- * and never text (`DESIGN.md`: raw for fills, ink for text under 24px).
+ * swatch, from the same token so the three can never disagree. Raw accents and
+ * their tints, since these are fills and never text (`DESIGN.md`: raw for
+ * fills, ink for text under 24px). The order is `CHART_SERIES`'s.
  *
  * `muted` is an absence (« Non renseigné », « Sans avis »), so it is not
  * painted: its arc is the ring's own empty track and its swatch an empty box.
@@ -34,10 +35,30 @@ export const CHART_TONE_CLASS: Record<
     fill: 'fill-epi-together',
     swatch: 'bg-epi-together',
   },
-  lavender: {
-    stroke: 'stroke-epi-lavender',
-    fill: 'fill-epi-lavender',
-    swatch: 'bg-epi-lavender',
+  blueTint: {
+    stroke: 'stroke-epi-blue-tint',
+    fill: 'fill-epi-blue-tint',
+    swatch: 'bg-epi-blue-tint',
+  },
+  tomorrowTint: {
+    stroke: 'stroke-epi-tomorrow-tint',
+    fill: 'fill-epi-tomorrow-tint',
+    swatch: 'bg-epi-tomorrow-tint',
+  },
+  techTint: {
+    stroke: 'stroke-epi-tech-tint',
+    fill: 'fill-epi-tech-tint',
+    swatch: 'bg-epi-tech-tint',
+  },
+  togetherTint: {
+    stroke: 'stroke-epi-together-tint',
+    fill: 'fill-epi-together-tint',
+    swatch: 'bg-epi-together-tint',
+  },
+  grey: {
+    stroke: 'stroke-epi-grey-mid',
+    fill: 'fill-epi-grey-mid',
+    swatch: 'bg-epi-grey-mid',
   },
   drift: {
     stroke: 'stroke-muted-foreground/40',

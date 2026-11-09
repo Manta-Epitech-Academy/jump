@@ -81,6 +81,19 @@ describe('the niveau ring', () => {
     expect(opened(rows, autres.link.params)).toHaveLength(2);
   });
 
+  it('colours the parts in the charte order, « Autres » included', () => {
+    // The PO's 29/10 review: « Autres » came out in lavender, so the orange
+    // the charte puts fourth never showed.
+    const parts = eventHomeFigures({ ...empty, rows }).niveau;
+    expect(parts.map((p) => p.tone)).toEqual([
+      'blue',
+      'tomorrow',
+      'tech',
+      'together',
+      'muted',
+    ]);
+  });
+
   it('opens on each part exactly the inscrits it counted', () => {
     for (const part of eventHomeFigures({ ...empty, rows }).niveau)
       expect(opened(rows, part.link.params)).toHaveLength(part.count);
