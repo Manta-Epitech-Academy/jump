@@ -19,10 +19,18 @@
    */
   let {
     triggerClass,
+    skin,
     children,
   }: {
     /** Colours of the menu button, which sits on the layout's own header. */
     triggerClass?: string;
+    /**
+     * The layout's space skin (`admin-space`). The drawer portals to <body>,
+     * out of the layout root that carries the skin, so it has to wear the
+     * class itself or its accent falls back to the default blue
+     * (`routes/layout.css`, Space skins).
+     */
+    skin?: string;
     children: Snippet;
   } = $props();
 
@@ -46,7 +54,10 @@
     <Menu aria-hidden="true" />
   </Drawer.Trigger>
   <Drawer.Content
-    class="on-dark border-chrome-border bg-chrome text-chrome-foreground shadow-overlay data-[vaul-drawer-direction=left]:rounded-r-none"
+    class={cn(
+      'on-dark border-chrome-border bg-chrome text-chrome-foreground shadow-overlay data-[vaul-drawer-direction=left]:rounded-r-none',
+      skin,
+    )}
   >
     <Drawer.Title class="sr-only">Menu de navigation</Drawer.Title>
     {@render children()}

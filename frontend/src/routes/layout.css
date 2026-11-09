@@ -243,7 +243,11 @@
    to be declared wherever that ink is re-pointed. Declared only on
    `.admin-space` it froze to the light magenta, and the admin sidebar's active
    entry rendered #9b0b93 on #0b0e1a - 2.4:1 - while the title cursor two nodes
-   away inverted correctly, because that one names the ink directly. */
+   away inverted correctly, because that one names the ink directly.
+
+   A surface portaled out of the layout root carries `admin-space` itself, as
+   `.talent-surface` does below: the phone menu (`StaffMobileNav`'s `skin`)
+   otherwise fell back to the blue accent, on the same dark chrome. */
 .admin-space,
 .admin-space .on-dark {
   --accent-space: var(--epi-tomorrow);

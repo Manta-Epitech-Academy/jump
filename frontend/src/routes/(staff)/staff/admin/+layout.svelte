@@ -139,6 +139,7 @@
          of them at 320px rather than flush against them. -->
     <div class="flex min-w-0 items-center gap-2 sm:gap-4">
       <StaffMobileNav
+        skin="admin-space"
         triggerClass="text-chrome-foreground-muted hover:bg-chrome-hover hover:text-chrome-foreground md:hidden"
       >
         <div class="min-h-0 flex-1 overflow-y-auto py-6 pr-2">
