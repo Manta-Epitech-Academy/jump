@@ -252,84 +252,67 @@ describe('the standing instructions', () => {
 });
 
 /**
- * What a client that loads everything receives before its first question, by
- * credential: the server instructions plus the `tools/list` answer, in
- * characters, as the SDK actually sends them.
+ * What Claude Code, the client the team uses, pays for this server, with a
+ * ceiling on each part.
  *
- * That is the worst case, and it is the one measured. Claude Code defers tool
- * definitions: up front it keeps the names and the instructions, and loads a
- * tool's definition when its search picks it, so there what matters is that each
- * definition carries only what concerns its tool and that tools are told apart.
- * A client that loads everything (the desktop app has shipped ignoring deferral)
- * pays the whole list for the whole conversation, and with every definition
- * loaded both the size of the list and the count of tools degrade the choice.
- * The instructions are counted because every client loads them, deferral or not.
+ * It keeps the tool names and the server instructions up front, and loads one
+ * tool's definition when its search picks it. So two things cost: the
+ * instructions, on every conversation, and each definition, every time it is
+ * chosen. The count of tools barely does: a name is some twenty characters.
  *
- * A ratchet, not a target. This list used to grow one well-meant operation at a
- * time with nothing measuring it, until a write-enabled token loaded about
- * 106 000 characters of tools before anybody asked anything; folding the facet
- * writes into one write per entity, dropping the reads another read answered and
- * naming each handle's full sources rather than every slice brought it to the
- * figures below, each pinned a few percent above what it measured.
+ * Each ceiling is fixed, and neither moves when the catalogue grows: a new
+ * entity brings tools of its own, each measured against the same ceiling. That
+ * is the difference with the budget this replaced, a total over the whole list
+ * pinned per credential, which every new entity had to raise and which was
+ * raised nine times between #393 and #491 without ever refusing anything. The
+ * total is what a client that loads everything pays (about 109 000 characters
+ * for a token that writes, at #496), and no client the team uses does.
  *
- * So raising a number here is the decision, and it is made in the pull request
- * that needs it, with the reason in its description. Before raising one, check
- * the failure's list of heaviest tools: a new facet of an entity that already
- * has a write is a field of that write, not a tool.
+ * Over a ceiling, the fix is in what failed, not in the number: the
+ * instructions take a rule only by giving one up, since text one tool needs
+ * belongs in that tool; a definition sheds what it restates (a parameter's
+ * description, the server instructions) before a field moves to a tool of its
+ * own. Two tools a search cannot tell apart cost more than either ceiling, and
+ * no measure here catches that: it is for review.
  */
-const TOOL_LIST_BUDGET = [
-  ['leadership', leadership, 23_200],
-  // Raised for the event categories (#438): a new entity, so one read and one
-  // write of its own, plus the category as a field of the two event writes.
-  // Raised again for the admin pages the API replaced (#483): the transactional
-  // mails and the centres d'intérêt are entities no read answered, so one read
-  // each, and a feedback form's read carries the link to its preview.
-  // Raised again for the weekly digest's "nouveau" (#493): five reads take a
-  // `since` instant, so the figures the inbox marks as new are the ones a chat
-  // gets by asking, rather than a count left to the model.
-  ['core, read-only', { ...coreWriter, writeEnabled: false }, 46_800],
-  // Raised for the subject catalogue (#439): the domains are a new entity, so
-  // one write of their own (their read is config_workshops, which already
-  // answered for the activities' sibling entities), plus the level, notions and
-  // domains as fields of write_workshop. Raised again for the supervisor code
-  // (#459), a field of write_workshop_instance rather than a tool, since it is
-  // the host's, and a condition of the catalogue write_workshop states.
-  // Raised for the admin pages the API replaced (#483): the transactional mails,
-  // the centres d'intérêt and the campus are three entities whose only write was
-  // a page, so one write each (plus the two reads above); the preset's values,
-  // its archiving and the bulk write's eventIds are fields of existing writes.
-  // Raised for « venu » (#491): which statuses count as a visit is a field of
-  // the event, preset and bulk writes and of the catalogue word, no new tool,
-  // but five new status lists, each naming where its words come from as every
-  // handle must (`handles.test.ts`); a tech interest's short label is a field
-  // of write_interest. Measured at 101 982 once merged with the weekly digest
-  // (#493), after cutting what the new descriptions restated.
-  ['core, write-enabled', coreWriter, 103_000],
-] as const;
+const INSTRUCTIONS_CEILING = 3_200;
+const DEFINITION_CEILING = 7_700;
 
-describe('what a client loads up front', () => {
-  for (const [label, credential, budget] of TOOL_LIST_BUDGET) {
-    it(`stays within its budget for a ${label} token`, async () => {
+describe('what Claude Code pays for this server', () => {
+  it.each(['core', 'leadership'] as const)(
+    'keeps the %s instructions under their ceiling',
+    (tier) => {
+      const size = adminMcpInstructions(tier).length;
+      expect(
+        size,
+        `${tier} instructions: ${size} characters`,
+      ).toBeLessThanOrEqual(INSTRUCTIONS_CEILING);
+    },
+  );
+
+  it('keeps every tool definition under its ceiling, for every credential', async () => {
+    const credentials = [
+      leadership,
+      { ...coreWriter, writeEnabled: false },
+      coreWriter,
+    ];
+    const over: string[] = [];
+    for (const credential of credentials) {
       const server = buildAdminMcpServer(credential, 'https://jump.example');
       const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
       await server.connect(serverSide);
-      const client = new Client({ name: 'budget', version: '1' });
+      const client = new Client({ name: 'ceiling', version: '1' });
       await client.connect(clientSide);
-
       const { tools } = await client.listTools();
-      const size =
-        (client.getInstructions() ?? '').length + JSON.stringify(tools).length;
-      const heaviest = tools
-        .map((tool) => `${tool.name} ${JSON.stringify(tool).length}`)
-        .sort((a, b) => Number(b.split(' ')[1]) - Number(a.split(' ')[1]))
-        .slice(0, 5)
-        .join(', ');
-
-      expect(
-        size,
-        `${label}: ${tools.length} tools, ${size} characters. Heaviest: ${heaviest}`,
-      ).toBeLessThanOrEqual(budget);
+      for (const tool of tools) {
+        const size = JSON.stringify(tool).length;
+        if (size <= DEFINITION_CEILING) continue;
+        over.push(
+          `${tool.name} ${size} (description ${tool.description?.length ?? 0}, input schema ${JSON.stringify(tool.inputSchema).length})`,
+        );
+      }
       await client.close();
-    });
-  }
+    }
+    expect([...new Set(over)], 'definitions over the ceiling').toEqual([]);
+  });
 });

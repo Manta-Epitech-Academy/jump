@@ -602,8 +602,8 @@ function ruleRulesFilesLoad() {
  *
  * Le budget est la taille d'après la cure plus une marge, pas un idéal. Le
  * relever est une décision prise dans la pull request qui en a besoin, avec sa
- * raison, comme `TOOL_LIST_BUDGET` dans `mcpServer.test.ts` ; ce qui ne
- * concerne qu'une surface va dans son fichier de `.claude/rules/`. Le plafond de
+ * raison ; ce qui ne concerne qu'une surface va dans son fichier de
+ * `.claude/rules/`. Le plafond de
  * Codex, lui, ne se relève pas.
  */
 const AGENTS_BUDGET_BYTES = 14 * 1024;
