@@ -244,8 +244,7 @@ function inscritHaystack(r: InscritRow): string {
 
 /**
  * The rows the Inscrits page shows for this view: every active filter, the
- * search, the sort. The page reads it on every keystroke and its export reads
- * it off the same address, so the file holds exactly the list on screen.
+ * search, the sort, read on every keystroke.
  */
 export function shownInscrits(
   rows: readonly InscritRow[],

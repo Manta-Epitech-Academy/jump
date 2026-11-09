@@ -85,8 +85,6 @@
   let rosterDialogOpen = $state(false);
   const anyDialogOpen = $derived(qrOpen || rosterDialogOpen);
 
-  const exportHref = $derived(`${page.url.pathname}/export`);
-
   // Poll so QR self-check-ins surface within seconds (the active créneau is
   // refined to the real wall-clock hour by the anchoring effect above). Polling
   // pauses while a dialog is open so a mid-edit form isn't resynced.
@@ -107,36 +105,11 @@
 <div class="space-y-6 pb-10">
   <PageHeader title="Émargement" subtitle={eventDisplayName(data.event)}>
     {#snippet actions()}
-      <!-- Header actions act on the whole stage or the display: the full-record
-             export (read) and the QR (display). The active slot's open/close
-             control lives in the SYNTHÈSE card instead, beside the Clôturé badge it
-             toggles. Filter-scoped controls (search, statut) stay in the toolbar. -->
-      <!-- Full-record export: every talent x every créneau, NOT the on-screen
-             filter (unlike the Inscrits toolbar export). Kept here, away from the
-             toolbar, so it is never mistaken for a filtered export. With no one
-             in the event, it is an empty workbook. -->
-      {#if data.rosterSize > 0}
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <Button
-                {...props}
-                variant="outline"
-                size="sm"
-                href={exportHref}
-                class="rounded-sm"
-              >
-                <Download class="mr-1.5 h-4 w-4" />
-                Tout exporter (XLSX)
-              </Button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            Toutes les présences de l'événement (tous les créneaux)
-          </Tooltip.Content>
-        </Tooltip.Root>
-      {/if}
-
+      <!-- Header actions act on the display: the QR. The active slot's
+             open/close control lives in the SYNTHÈSE card instead, beside the
+             Clôturé badge it toggles. Filter-scoped controls (search, statut)
+             stay in the toolbar. The record is exported with the whole event,
+             from its home. -->
       {#if canEdit}
         <!-- A closed créneau (manual close OR past the 11h/15h cutoff) makes the
                QR inert: a scan lands the talent on the "créneau clôturé" screen and

@@ -188,7 +188,6 @@
     clearListFilters(INSCRITS_VIEW.clearedFacetParams(), search);
   }
 
-  // The rule the export applies too, off the same address (`shownInscrits`).
   const filtered = $derived(shownInscrits(rows, facets, view, search.value));
 
   const anyFiltersApplied = $derived(

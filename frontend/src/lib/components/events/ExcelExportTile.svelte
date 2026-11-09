@@ -5,10 +5,9 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { ACTION_TILE_CLASS } from './actionTile';
 
-  // « Exporter Excel » as an event's square action tile: a plain download, the
-  // tooltip saying what the file holds. The event home exports the whole event
-  // with it, the Inscrits page the list it shows; one shape for both, as the PO
-  // asked (29/10/2026).
+  // « Exporter Excel » as an event's square action tile, on its home: a plain
+  // download, the tooltip saying what the file holds. It is the event's one
+  // export; the pages' own were retired unused (#491).
   let { href, children }: { href: string; children: Snippet } = $props();
 </script>
 

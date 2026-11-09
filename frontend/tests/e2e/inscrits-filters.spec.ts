@@ -1,9 +1,8 @@
 /**
  * The Inscrits filters live in the page address (#442), and that is only true
  * through a real browser: the header funnel writes the querystring, the page
- * reads it back after a reload, the Back button walks the filtering history,
- * and the export downloads the list at the address on screen. The matching
- * rules, the export's included (`shownInscrits`), are unit-tested
+ * reads it back after a reload, and the Back button walks the filtering
+ * history. The matching rules themselves are unit-tested
  * (`inscritsRoster.test.ts`); this checks the seam between the controls, the
  * router and the server.
  *
@@ -70,17 +69,6 @@ test.describe('les filtres des inscrits', () => {
     await expect
       .poll(() => shownNames(page))
       .toEqual(['ROSTERDEUX', 'ROSTERUN']);
-
-    // The export downloads the list at the address on screen, filters
-    // included, which the server narrows with the page's own rule.
-    const [download] = await Promise.all([
-      page.waitForEvent('download'),
-      page.getByRole('link', { name: 'Exporter Excel' }).click(),
-    ]);
-    const exported = new URL(download.url());
-    expect(exported.pathname).toBe(`${INSCRITS_URL}/export`);
-    expect(exported.searchParams.get('niveau')).toBe('Seconde');
-    expect(download.suggestedFilename()).toMatch(/^Inscrits - .*\.xlsx$/);
 
     await page
       .getByRole('button', { name: 'Retirer le filtre Niveau : Seconde' })

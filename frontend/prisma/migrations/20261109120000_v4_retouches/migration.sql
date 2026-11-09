@@ -1,3 +1,7 @@
+-- The v4.0.0 retouches (#491), one migration for the branch: « venu », the
+-- XP an event's activities earned, the tech interests' short labels, and the
+-- retired page exports.
+
 -- « Venu » (#491): which Salesforce statuses an event counts as attended, the
 -- catalogue's default for new events, and the projection every dev screen
 -- reads to say « Déjà venu 3 fois ».
@@ -106,3 +110,19 @@ WHERE "kind" = 'tech';
 ALTER TABLE "Interest"
     ADD CONSTRAINT "Interest_tech_has_short_label"
     CHECK ("kind" <> 'tech' OR "shortLabel" IS NOT NULL);
+
+-- An event has one export, its home's workbook. The Inscrits, Émargement and
+-- Feedback pages each downloaded their own sheet, and none of the three served
+-- anyone over the 90 days before 09/11/2026 (`stats_feature_adoption_gaps`):
+-- their routes are gone, and their usage keys retire with their rows, from the
+-- raw table and from the monthly cube (`.claude/rules/usage.md`).
+--
+-- /!\ Warnings: this deletes every row carrying one of the three retired keys.
+-- The loss is intended: the catalogue no longer declares them, so
+-- `seed --check` would refuse the rows, and `usage/rollup.ts` would never
+-- remove a cube row under a dead key.
+DELETE FROM "Usage_FeatureUse"
+WHERE "feature" IN ('dev_inscrits_export', 'dev_emargement_export', 'dev_bilan_export');
+
+DELETE FROM "Usage_FeatureMonthly"
+WHERE "feature" IN ('dev_inscrits_export', 'dev_emargement_export', 'dev_bilan_export');

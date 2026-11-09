@@ -21,7 +21,6 @@ import {
 import { niveauLabel } from '$lib/domain/niveau';
 import { civiliteLabel } from '$lib/domain/profile';
 import { parcoursLabel } from '$lib/domain/visitHistory';
-import type { InscritRow } from '$lib/domain/inscritsRoster';
 import {
   INSCRIT_STATUS_LABELS,
   RULES_STATUS_LABELS,
@@ -46,10 +45,10 @@ import {
 import { closingVerdict, conductorLabel } from '$lib/domain/closingsRoster';
 
 /**
- * The sheets an event's exports are made of, one builder per section. Each
- * page's own export downloads its sheet alone, and the event home's export
- * gathers the sheets of every section the event has into one workbook, so a
- * section reads the same in both files.
+ * The sheets of an event's export, one builder per section, gathered by the
+ * event home into one workbook. It is the event's only export: Inscrits,
+ * Émargement and Feedback each had their own download of their sheet, and
+ * none served anyone over the 90 days before 09/11/2026 (#491).
  *
  * A builder does not gate: the route calling it has already checked the
  * section is on (and its data gate, a form or a grid), exactly as it would for
@@ -62,17 +61,12 @@ import { closingVerdict, conductorLabel } from '$lib/domain/closingsRoster';
  * phone/email and splits the folded "Statut" into its two gates (règlement,
  * droit à l'image), and the file doubles as a contact list and a "who owes
  * what" triage sheet. The contacts are read here only, so they never travel in
- * the page's payload.
- *
- * `narrow` keeps the rows the Inscrits page is showing, in its order
- * (`shownInscrits`, read off the page's address); without it, the whole roster
- * by nom.
+ * the page's payload. The whole roster, by nom.
  */
 export async function inscritsSheet(
   db: ScopedPrismaClient,
   event: EventRecord,
   timezone: string,
-  { narrow }: { narrow?: (rows: InscritRow[]) => InscritRow[] } = {},
 ): Promise<XlsxSheet> {
   const [cohort, contacts] = await Promise.all([
     loadInscritsCohort(db, event, timezone),
@@ -97,10 +91,7 @@ export async function inscritsSheet(
   ]);
   const contactOf = new Map(contacts.map((c) => [c.talentId, c.talent]));
 
-  // The Inscrits page's own rows, filtered and sorted, when it asked for them.
-  const ordered = narrow ? narrow(cohort.rows) : cohort.rows;
-
-  const rows = ordered.map((r) => {
+  const rows = cohort.rows.map((r) => {
     const contact = contactOf.get(r.talentId);
     const parentName = [contact?.parentPrenom, contact?.parentNom]
       .filter(Boolean)
@@ -335,9 +326,8 @@ export async function closingsSheet(
 /**
  * Which sheets the event's whole export carries: a section's sheet only when
  * its own page would answer, the module on and its data gate passed (a
- * published form for Feedback, a grid for Closings). The same reading the
- * section's own export makes, so the whole file never holds a section its page
- * would refuse.
+ * published form for Feedback, a grid for Closings), so the file never holds
+ * a section its page would refuse.
  */
 export type EventWorkbookPlan = {
   inscrits: boolean;

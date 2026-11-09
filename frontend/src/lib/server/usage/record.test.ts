@@ -56,7 +56,7 @@ describe('recordUsage', () => {
   it('never throws when the write fails', async () => {
     createMany.mockRejectedValue(new Error('db down'));
     expect(() =>
-      recordUsage(USAGE_FEATURES.DEV_INSCRITS_EXPORT, {
+      recordUsage(USAGE_FEATURES.DEV_EVENT_EXPORT, {
         locals: staffLocals(),
         eventId: 'event-1',
       }),
@@ -66,12 +66,12 @@ describe('recordUsage', () => {
   });
 
   it('identifies a staff member and stamps their campus and event', () => {
-    recordUsage(USAGE_FEATURES.DEV_INSCRITS_EXPORT, {
+    recordUsage(USAGE_FEATURES.DEV_EVENT_EXPORT, {
       locals: staffLocals(),
       eventId: 'event-1',
     });
     expect(written()).toMatchObject({
-      feature: 'dev_inscrits_export',
+      feature: 'dev_event_export',
       actorKind: 'staff',
       staffProfileId: 'staff-1',
       actorHash: null,
@@ -146,7 +146,7 @@ describe('recordUsage', () => {
   });
 
   it('attributes an impersonated staff surface to the real admin', () => {
-    recordUsage(USAGE_FEATURES.DEV_INSCRITS_EXPORT, {
+    recordUsage(USAGE_FEATURES.DEV_EVENT_EXPORT, {
       locals: staffLocals({
         session: { id: 'sess-1', impersonatedBy: 'admin-user' },
         staffProfile: { id: 'victim-profile', campusId: 'campus-9' },

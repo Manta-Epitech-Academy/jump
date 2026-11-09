@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { page } from '$app/state';
   import { cohortNounForms, eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -7,16 +6,13 @@
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import TitleLineSearch from '$lib/components/staff/datatable/TitleLineSearch.svelte';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import ExcelExportTile from '$lib/components/events/ExcelExportTile.svelte';
   import InscritsResults from './components/InscritsResults.svelte';
 
-  // The event's other actions (badges, certificates, its Salesforce campaign,
-  // the whole export) live on its home, the mockup's: this page is the list.
-  // Its search and its export sit on the title's line rather than stacked
-  // above the table (PO, 29/10/2026). The search is held here, so the box in
-  // the header and the list under it filter on the same query as it is typed;
-  // the export is a link carrying the page's address, so it downloads the list
-  // as the filters, the sort and the search leave it.
+  // The event's actions (badges, certificates, its Salesforce campaign, the
+  // export) live on its home, the mockup's: this page is the list. Its search
+  // sits on the title's line rather than stacked above the table (PO,
+  // 29/10/2026), held here so the box in the header and the list under it
+  // filter on the same query as it is typed.
   let { data }: { data: PageData } = $props();
 
   const search = createUrlSearch();
@@ -38,14 +34,7 @@
         <TitleLineSearch
           {search}
           placeholder={`Rechercher un ${noun.singular}…`}
-        >
-          <ExcelExportTile
-            href={`${page.url.pathname}/export${page.url.search}`}
-          >
-            Les {noun.plural} tels que la liste les affiche : filtres, tri et recherche
-            appliqués.
-          </ExcelExportTile>
-        </TitleLineSearch>
+        />
       {/if}
     {/snippet}
   </PageHeader>

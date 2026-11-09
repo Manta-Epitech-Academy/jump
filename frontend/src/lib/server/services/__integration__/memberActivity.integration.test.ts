@@ -48,7 +48,7 @@ const TODAY = new Date();
 const YESTERDAY = new Date(TODAY.getTime() - DAY);
 
 const INSCRITS = USAGE_FEATURE_DEFS[USAGE_FEATURES.DEV_INSCRITS_VIEW].label;
-const EXPORT = USAGE_FEATURE_DEFS[USAGE_FEATURES.DEV_INSCRITS_EXPORT].label;
+const EXPORT = USAGE_FEATURE_DEFS[USAGE_FEATURES.DEV_EVENT_EXPORT].label;
 const ACTIVITE =
   USAGE_FEATURE_DEFS[USAGE_FEATURES.ADMIN_STAFF_ACTIVITY_OPEN].label;
 
@@ -118,7 +118,7 @@ beforeAll(async () => {
   await use(member, USAGE_FEATURES.DEV_INSCRITS_VIEW, YESTERDAY, 'm-v1');
   await use(member, USAGE_FEATURES.DEV_INSCRITS_VIEW, TODAY, 'm-v2');
   await use(member, USAGE_FEATURES.DEV_INSCRITS_VIEW, TODAY, 'm-v3');
-  await use(member, USAGE_FEATURES.DEV_INSCRITS_EXPORT, TODAY, 'm-e1');
+  await use(member, USAGE_FEATURES.DEV_EVENT_EXPORT, TODAY, 'm-e1');
 
   // An admin's own space, plus the dev-space rows an exploration attributes to
   // them.

@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
   import QrCode from '@lucide/svelte/icons/qr-code';
-  import Download from '@lucide/svelte/icons/download';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -61,23 +60,14 @@
     class="md:items-start"
   >
     {#snippet actions()}
-      <!-- With no one in the event, there is nothing to search and the export
-           is an empty workbook: the QR code alone, which brings the first answer. -->
+      <!-- With no one in the event, there is nothing to search: the QR code
+           alone, which brings the first answer. The answers are exported with
+           the whole event, from its home. -->
       {#if data.rosterSize > 0}
         <TitleLineSearch
           {search}
           placeholder={`Rechercher un ${noun.singular}…`}
         >
-          <Button
-            href={`${page.url.pathname}/export`}
-            download
-            variant="outline"
-            size="sm"
-            class="rounded-sm"
-          >
-            <Download class="mr-1.5 h-4 w-4" />
-            Exporter XLSX
-          </Button>
           {@render qrButton()}
         </TitleLineSearch>
       {:else}

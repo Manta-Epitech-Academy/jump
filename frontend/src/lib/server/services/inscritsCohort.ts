@@ -19,7 +19,7 @@ import type {
 // The talent columns the roster shows and filters on, and nothing else: the
 // cohort fetch (~200 rows) must not drag the full Talent row (Salesforce-mirror
 // columns). Contact details are not here either: the page never shows them, so
-// the XLSX export reads them on its own (`inscrits/export/+server.ts`) and they never
+// the event's XLSX export reads them on its own (`inscritsSheet`) and they never
 // reach the page's payload.
 const INSCRIT_TALENT_SELECT = {
   id: true,
@@ -113,13 +113,13 @@ export async function countShownCohort(
 }
 
 /**
- * The event's roster as the Inscrits page and its export show it: one row per
- * enrolment the dev space shows, with everything a column displays or filters
- * on. One builder for both, so the downloaded sheet can never describe a talent
- * differently from the line it was exported from.
+ * The event's roster as the Inscrits page and the event's export show it: one
+ * row per enrolment the dev space shows, with everything a column displays or
+ * filters on. One builder for both, so the downloaded sheet can never describe
+ * a talent differently from the line on screen.
  *
- * The whole cohort, ordered by nom as the table first shows it; the export
- * narrows it the way the page does (`shownInscrits`).
+ * The whole cohort, ordered by nom as the table first shows it; the page
+ * narrows it (`shownInscrits`).
  */
 export async function loadInscritsCohort(
   db: ScopedPrismaClient,
