@@ -164,7 +164,7 @@ describe('the parcours sort', () => {
   });
 });
 
-describe('the rows the page shows, and its export downloads', () => {
+describe('the rows the page shows', () => {
   it('applies the filters, the search and the sort of one address', () => {
     const params = new URLSearchParams('niveau=2nde,1ere&sort=xp&q=lou');
     const view = INSCRITS_VIEW.parse(params);

@@ -23,8 +23,8 @@
  * Whether a talent came is not read off a status by name either: each event
  * says which of the words it shows count as a visit
  * (`EventConfig_ShownStatus.attestsAttendance`), and `domain/attendance.ts`
- * holds the rule that combines them with the émargement, the closings and the
- * activities. The émargement stays Jump's presence record, half-day by half-day.
+ * holds the rule that combines them with the émargement and the closings. The
+ * émargement stays Jump's presence record, half-day by half-day.
  */
 
 import type { Prisma } from '@prisma/client';

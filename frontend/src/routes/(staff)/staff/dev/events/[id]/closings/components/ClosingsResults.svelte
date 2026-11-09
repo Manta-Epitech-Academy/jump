@@ -24,7 +24,6 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import { getInitials } from '$lib/avatar';
   import { formatGivenName } from '$lib/domain/profile';
-  import { cohortNounForms } from '$lib/domain/event';
   import {
     CLOSING_STATUS_LABELS,
     type ClosingListStatus,
@@ -83,9 +82,6 @@
     /** The search box on the page's title line, as on Inscrits. */
     search: ReturnType<typeof createUrlSearch>;
   } = $props();
-
-  // Event's Jump-owned cohort noun ("stagiaire" / "participant").
-  const noun = $derived(cohortNounForms(cohortNoun));
 
   const STATUS_ICON: Record<ClosingListStatus, typeof Check> = {
     todo: Circle,

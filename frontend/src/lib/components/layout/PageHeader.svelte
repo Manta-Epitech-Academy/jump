@@ -105,7 +105,7 @@
     {/if}
   </div>
   {#if actions}
-    <!-- flex-wrap so a multi-action header (Émargement's export + QR) drops to a
+    <!-- flex-wrap so a multi-action header (Émargement's search + QR) drops to a
          second line on a phone instead of overflowing; no effect once it fits. -->
     <div class="flex flex-wrap items-center gap-2">{@render actions()}</div>
   {/if}

@@ -302,8 +302,8 @@
   <EmptyCohortNotice cohortNoun={event.cohortNoun} />
 {:else}
   <div class="space-y-3">
-    <!-- The search box and the export sit on the page's title line
-         (`../+page.svelte`); the toolbar keeps the count. -->
+    <!-- The search box sits on the page's title line (`../+page.svelte`);
+         the toolbar keeps the count. -->
     <DataTableToolbar
       count={filtered.length}
       countNoun={noun.singular}

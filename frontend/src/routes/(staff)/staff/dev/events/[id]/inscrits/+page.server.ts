@@ -40,8 +40,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   return {
     event,
-    // One count, awaited with the shell: with nobody shown, the search and the
-    // export on the title line have nothing to act on and are left out.
+    // One count, awaited with the shell: with nobody shown, the search on the
+    // title line has nothing to act on and is left out.
     rosterSize: await countShownCohort(db, event.id),
     // Inscrits sub-option: hide the dossier/statut funnel column for events whose
     // campus doesn't onboard. Cheap shell value, so it rides the first paint.

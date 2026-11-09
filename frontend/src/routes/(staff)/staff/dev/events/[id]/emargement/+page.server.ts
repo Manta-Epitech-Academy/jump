@@ -176,7 +176,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
     todayKey: toDateKey(now, timezone),
     closedKeys,
     pastCutoffKeys,
-    // The header offers its export only when someone is there to export.
+    // The header offers its search only when someone is there to search for.
     rosterSize,
     // Un-awaited on purpose: SvelteKit streams it so the shell paints first.
     cohort,
