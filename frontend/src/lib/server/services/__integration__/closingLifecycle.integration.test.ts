@@ -684,6 +684,49 @@ describe("the talent's journey", () => {
     await prisma.event.delete({ where: { id: event.id } });
   });
 
+  it('leaves out a past event the talent was enrolled in but never came to', async () => {
+    // The fiche and the Inscrits parcours count the same visits (#491): an
+    // enrolment with no proof is not a step of the talent's journey.
+    const [came, enrolledOnly] = await Promise.all(
+      ['ClosingCame', 'ClosingEnrolledOnly'].map((titre) =>
+        prisma.event.create({
+          data: {
+            titre: `${titre}-${stamp}`,
+            date: new Date('2026-03-02T00:00:00.000Z'),
+            campusId: ids.campus,
+          },
+        }),
+      ),
+    );
+    const talent = await prisma.talent.create({
+      data: { nom: 'Visits', prenom: `Test${stamp}` },
+    });
+    await prisma.participation.createMany({
+      data: [
+        {
+          talentId: talent.id,
+          eventId: came.id,
+          campusId: ids.campus,
+          attendanceAttested: true,
+        },
+        { talentId: talent.id, eventId: enrolledOnly.id, campusId: ids.campus },
+      ],
+    });
+
+    const journey = await getTalentJourney(
+      talent.id,
+      ids.campus,
+      'Europe/Paris',
+    );
+    expect(journey.entries.map((e) => e.eventId)).toEqual([came.id]);
+
+    await prisma.participation.deleteMany({ where: { talentId: talent.id } });
+    await prisma.talent.delete({ where: { id: talent.id } });
+    await prisma.event.deleteMany({
+      where: { id: { in: [came.id, enrolledOnly.id] } },
+    });
+  });
+
   it('names an event as a link only where the reader can open it', async () => {
     // A journey is not campus-scoped, and an event exposes the surfaces an admin
     // configured, so the fiche can hold rows whose destination would 404 on both
@@ -736,6 +779,8 @@ describe("the talent's journey", () => {
     const talent = await prisma.talent.create({
       data: { nom: 'Links', prenom: `Test${stamp}` },
     });
+    // Each a visit (the projection a proof would set): the journey lists the
+    // events the talent came to.
     await prisma.participation.createMany({
       data: [
         { talentId: talent.id, eventId: open.id, campusId: ids.campus },
@@ -746,7 +791,7 @@ describe("the talent's journey", () => {
           eventId: elsewhere.id,
           campusId: ids.otherCampus,
         },
-      ],
+      ].map((row) => ({ ...row, attendanceAttested: true })),
     });
 
     const journey = await getTalentJourney(
