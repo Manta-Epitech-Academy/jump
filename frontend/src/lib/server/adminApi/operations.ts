@@ -928,7 +928,7 @@ export const ADMIN_API_OPERATIONS = {
         .array(z.string())
         .optional()
         .describe(
-          `${handleDescribe('sfStatus')} The complete set of shown statuses this event counts as a visit: a talent who carries one came, once the event is over, which is what « Déjà venu » counts in the dev workspace. Each must be shown (shownStatuses, as saved by this call). An émargement present or late, a closing or an activity at the event count as a visit whatever the status. Empty so no status counts.`,
+          `${handleDescribe('sfStatus')} The complete set of shown statuses this event counts as a visit: a talent who carries one came, once the event is over, which is what « Déjà venu » counts in the dev workspace. Each must be shown (shownStatuses, as saved by this call). An émargement present or late or a closing at the event counts as a visit whatever the status; an activity never does, since it is done from anywhere. Empty so no status counts.`,
         ),
       moduleSettings: moduleSettings.optional(),
       visible: z
