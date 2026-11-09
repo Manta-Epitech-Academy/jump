@@ -467,11 +467,11 @@ describe('buildAdminDigest', () => {
     const digest = await buildAdminDigest(week);
 
     expect(digest.html).toContain(
-      'Lille-CodingClub-1 <strong>nouveau</strong>',
+      'Lille-CodingClub-1 (<strong>nouveau</strong>)',
     );
-    expect(digest.html).not.toContain('Lille-CodingClub-2 <strong>');
+    expect(digest.html).not.toContain('Lille-CodingClub-2 (');
     expect(digest.text).toContain(
-      '1 de ces événements est arrivé dans Jump depuis le point du lundi 2 novembre.',
+      'Parmi les événements à préparer, 1 est arrivé dans Jump depuis le point du lundi 2 novembre.',
     );
   });
 
@@ -558,6 +558,28 @@ describe('buildAdminDigest', () => {
     expect(digest.text).not.toContain('non généré');
     expect(digest.html).toContain('/staff/admin/onboarding-pdfs?statut=error');
     expect(digest.subject).toBe("Jump - point hebdomadaire, rien d'urgent");
+  });
+
+  // « 1 demande, dont 1 devenue hors délai » reads as two facts where there is
+  // one; an hour count prints with the decimal comma its reader expects.
+  it('says "all new" without counting them twice, and hours the French way', async () => {
+    getAccountDeletionQueue.mockResolvedValue(
+      deletionsPayload({ pending: 1, overdue: 1, overdueSince: 1 }),
+    );
+    getSyncHealth.mockResolvedValue(
+      syncPayload({ openErrors: 2, openErrorsSince: 2 }),
+    );
+    getDataFreshness.mockResolvedValue(freshnessPayload(1.2));
+
+    const digest = await buildAdminDigest(week);
+
+    expect(digest.text).toContain(
+      'le délai que nous nous imposons, devenue hors délai depuis le point du lundi 2 novembre.',
+    );
+    expect(digest.text).toContain(
+      '2 erreurs de synchronisation sont ouvertes, toutes nouvelles depuis',
+    );
+    expect(digest.text).toContain('il y a 1,2 h.');
   });
 
   it('says a single failed generation without the wrong plural', async () => {

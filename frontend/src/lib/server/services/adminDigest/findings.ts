@@ -157,17 +157,27 @@ function windowFr({ since, previous }: DigestBaseline): string {
     : 'sur les 7 derniers jours';
 }
 
-/** « , dont 2 nouvelles depuis le point du lundi 2 novembre », or nothing. */
+/**
+ * How many of `total` are new: « , dont 2 nouvelles depuis le point du lundi
+ * 2 novembre », or « , toutes nouvelles … » when every one is, since « 1 erreur,
+ * dont 1 nouvelle » reads as two facts where there is one. Nothing when none is.
+ */
 function ofWhichNew(
   n: number,
+  total: number,
   baseline: DigestBaseline,
-  one: string,
-  many: string,
+  words: { one: string; many: string; all: string },
 ): string {
-  return n > 0
-    ? `, dont ${n} ${plural(n, one, many)} ${windowFr(baseline)}`
-    : '';
+  if (n === 0) return '';
+  const window = windowFr(baseline);
+  if (n === total) return `, ${total === 1 ? words.one : words.all} ${window}`;
+  return `, dont ${n} ${plural(n, words.one, words.many)} ${window}`;
 }
+
+const HOURS = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
+
+/** « 1,2 h », the decimal comma included. */
+const hoursFr = (hours: number) => `${HOURS.format(hours)} h`;
 
 // ── Events ───────────────────────────────────────────────────────────────────
 
@@ -195,7 +205,7 @@ function eventsTable(rows: EventRow[], since: Date): DigestBlock {
     head: ['Événement (Salesforce)', 'Campus', 'Dates', 'À faire'],
     rows: rows.map((row) => [
       new Date(row.addedAt) >= since
-        ? [row.salesforceName, ' ', { strong: 'nouveau' }]
+        ? [row.salesforceName, ' (', { strong: 'nouveau' }, ')']
         : [row.salesforceName],
       [row.campus],
       [row.dateLabel],
@@ -293,7 +303,7 @@ function eventFindings(input: DigestInput): DigestFinding[] {
       severity: 'info',
       blocks: [
         note(
-          `${added} ${plural(added, 'de ces événements est arrivé', 'de ces événements sont arrivés')} dans Jump ${windowFr(baseline)}.`,
+          `Parmi les événements à préparer, ${added} ${plural(added, 'est arrivé', 'sont arrivés')} dans Jump ${windowFr(baseline)}.`,
         ),
       ],
     });
@@ -372,7 +382,7 @@ function queueFindings({
       blocks: [
         item(
           strong(overdue),
-          ` ${plural(overdue, 'demande de suppression de compte a dépassé', 'demandes de suppression de compte ont dépassé')} le délai que nous nous imposons${ofWhichNew(deletions.overdueSince.value, baseline, 'devenue hors délai', 'devenues hors délai')}. `,
+          ` ${plural(overdue, 'demande de suppression de compte a dépassé', 'demandes de suppression de compte ont dépassé')} le délai que nous nous imposons${ofWhichNew(deletions.overdueSince.value, overdue, baseline, { one: 'devenue hors délai', many: 'devenues hors délai', all: 'toutes devenues hors délai' })}. `,
           link(DIGEST_PAGES.accountDeletions, 'Voir les demandes'),
           '.',
         ),
@@ -384,7 +394,7 @@ function queueFindings({
       severity: 'info',
       blocks: [
         item(
-          `${pending} ${plural(pending, 'demande de suppression de compte est en attente', 'demandes de suppression de compte sont en attente')}, encore dans les délais${ofWhichNew(deletions.pendingSince.value, baseline, 'arrivée', 'arrivées')}.`,
+          `${pending} ${plural(pending, 'demande de suppression de compte est en attente', 'demandes de suppression de compte sont en attente')}, encore dans les délais${ofWhichNew(deletions.pendingSince.value, pending, baseline, { one: 'arrivée', many: 'arrivées', all: 'toutes arrivées' })}.`,
         ),
       ],
     });
@@ -396,7 +406,7 @@ function queueFindings({
       blocks: [
         item(
           strong(failed),
-          ` ${plural(failed, 'génération de document en échec', 'générations de document en échec')}${ofWhichNew(pdfJobs.failedSince.value, baseline, 'nouvelle', 'nouvelles')} : tant qu'${plural(failed, "elle n'est pas relancée", 'elles ne sont pas relancées')}, ${plural(failed, "le talent concerné n'a", "les talents concernés n'ont")} pas de document à télécharger. `,
+          ` ${plural(failed, 'génération de document en échec', 'générations de document en échec')}${ofWhichNew(pdfJobs.failedSince.value, failed, baseline, { one: 'nouvelle', many: 'nouvelles', all: 'toutes nouvelles' })} : tant qu'${plural(failed, "elle n'est pas relancée", 'elles ne sont pas relancées')}, ${plural(failed, "le talent concerné n'a", "les talents concernés n'ont")} pas de document à télécharger. `,
           link(DIGEST_PAGES.onboardingPdfs, 'Voir la file'),
           '.',
         ),
@@ -457,11 +467,11 @@ function syncFindings({
     findings.push({
       section: 'sync',
       severity: 'urgent',
-      subject: `Salesforce muet depuis ${last.ageHours} h`,
+      subject: `Salesforce muet depuis ${hoursFr(last.ageHours)}`,
       blocks: [
         paragraph(
           'Dernière synchronisation Salesforce il y a ',
-          strong(`${last.ageHours} h`),
+          strong(hoursFr(last.ageHours)),
           ' : à vérifier sur ',
           link(DIGEST_PAGES.dashboard, 'le tableau de bord admin'),
           '.',
@@ -475,7 +485,7 @@ function syncFindings({
       blocks: [
         paragraph(
           'Dernière synchronisation Salesforce il y a ',
-          strong(`${last.ageHours} h`),
+          strong(hoursFr(last.ageHours)),
           '.',
         ),
       ],
@@ -488,7 +498,7 @@ function syncFindings({
       blocks: [
         paragraph(
           strong(openErrors),
-          ` ${plural(openErrors, 'erreur', 'erreurs')} de synchronisation ${plural(openErrors, 'est ouverte', 'sont ouvertes')}${ofWhichNew(sync.openErrorsSince.value, baseline, 'nouvelle', 'nouvelles')}, avec ce qu'elles empêchent et qui peut les corriger sur `,
+          ` ${plural(openErrors, 'erreur', 'erreurs')} de synchronisation ${plural(openErrors, 'est ouverte', 'sont ouvertes')}${ofWhichNew(sync.openErrorsSince.value, openErrors, baseline, { one: 'nouvelle', many: 'nouvelles', all: 'toutes nouvelles' })}, avec ce qu'elles empêchent et qui peut les corriger sur `,
           link(DIGEST_PAGES.syncErrors, 'la page dédiée'),
           '.',
         ),
@@ -512,7 +522,7 @@ function syncFindings({
       blocks: [
         paragraph(
           strong(prunesHeld),
-          ` ${plural(prunesHeld, 'événement garde', 'événements gardent')} des inscriptions qu'une reprise complète n'a pas pu confirmer comme retirées de Salesforce${ofWhichNew(sync.prunesHeldSince.value, baseline, 'nouveau', 'nouveaux')}, et rien n'y est supprimé sans preuve. Les contacts sans nom qui les retiennent sont sur `,
+          ` ${plural(prunesHeld, 'événement garde', 'événements gardent')} des inscriptions qu'une reprise complète n'a pas pu confirmer comme retirées de Salesforce${ofWhichNew(sync.prunesHeldSince.value, prunesHeld, baseline, { one: 'nouveau', many: 'nouveaux', all: 'tous nouveaux' })}, et rien n'y est supprimé sans preuve. Les contacts sans nom qui les retiennent sont sur `,
           link(DIGEST_PAGES.syncErrors, 'la page dédiée'),
           " ; une campagne réellement vidée se confirme par l'API d'administration.",
         ),
