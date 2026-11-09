@@ -58,6 +58,7 @@ import {
   claimDigestWeek,
   digestBaseline,
   finishDigestRun,
+  recordDigestSend,
 } from './ledger';
 
 export type AdminDigest = {
@@ -173,9 +174,9 @@ export async function buildAdminDigest(
 
 /**
  * What a trigger did. `no_recipient`: nobody is chosen, so nothing was built.
- * `already_sent`: this week's digest already went out, so this trigger mailed
- * nobody. `sent`: this trigger claimed the week and sent it, `failed` counting
- * the mails that did not leave.
+ * `already_sent`: this week's digest already reached somebody, or another
+ * trigger is sending it, so this one mailed nobody. `sent`: this trigger claimed
+ * the week and sent it, `failed` counting the mails that did not leave.
  */
 export type AdminDigestSendResult =
   | { outcome: 'no_recipient' | 'already_sent'; recipients: number }
@@ -194,11 +195,9 @@ export async function sendAdminDigest(
   if (recipients.length === 0)
     return { outcome: 'no_recipient', recipients: 0 };
 
-  // Claimed before anything is read or sent, so a second trigger this week
-  // stops here instead of mailing every admin again.
-  const claim = await claimDigestWeek(now, recipients.length);
-  if (!claim) return { outcome: 'already_sent', recipients: recipients.length };
-
+  // Built before the week is claimed: a read that fails then throws with the
+  // week still free, so the retry that follows the 500 sends it. Claimed
+  // first, the week would be held by a run that never mailed anybody.
   const [baseline, adoption] = await Promise.all([
     digestBaseline(now),
     adoptionDue(now),
@@ -208,11 +207,21 @@ export async function sendAdminDigest(
     env.ORIGIN ?? '',
   );
 
+  // Claimed before anything is sent, so a second trigger this week stops here
+  // instead of mailing every admin again.
+  const claim = await claimDigestWeek(now, {
+    recipients: recipients.length,
+    includedAdoption: digest.includesAdoption,
+  });
+  if (!claim) return { outcome: 'already_sent', recipients: recipients.length };
+
   let sent = 0;
   let failed = 0;
   // One message per admin rather than a single multi-recipient send: on a
   // trapped environment the dev-redirect resolves per send, and a shared "to"
-  // would also expose the whole admin list in every header.
+  // would also expose the whole admin list in every header. Each one is counted
+  // on the run as it leaves, so a run that dies half-way still says whom it
+  // reached and its week is not mailed again.
   for (const to of recipients) {
     const result = await sendEmail({
       from: MAIL_FROM,
@@ -221,6 +230,7 @@ export async function sendAdminDigest(
       html: digest.html,
       text: digest.text,
     });
+    await recordDigestSend(claim.runId, result.ok);
     if (result.ok) sent++;
     else {
       failed++;
@@ -228,11 +238,7 @@ export async function sendAdminDigest(
     }
   }
 
-  await finishDigestRun(claim.runId, {
-    sent,
-    failed,
-    includedAdoption: digest.includesAdoption,
-  });
+  await finishDigestRun(claim.runId);
 
   return {
     outcome: 'sent',

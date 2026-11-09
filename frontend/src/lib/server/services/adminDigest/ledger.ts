@@ -3,8 +3,8 @@
  *
  * Three questions read it, and each used to have no answer but a pod log:
  * - **May this trigger send?** Only if it claims the week first. A second
- *   trigger in the same week (a manual re-run, a CronJob retry after a 500)
- *   finds the week claimed and mails nobody.
+ *   trigger in the same week (a manual re-run, a CronJob retry) finds the week
+ *   claimed and mails nobody, unless the run holding it reached nobody.
  * - **New since when?** Since the last digest that reached somebody, which is
  *   what a recipient means by "depuis la semaine dernière". A missed Monday
  *   widens the window rather than hiding a week; with no such digest yet, the
@@ -12,6 +12,11 @@
  * - **Is adoption due?** Adoption appears in the first digest of each month, read
  *   off the rows rather than off the calendar, so a missed first Monday does not
  *   skip the month.
+ *
+ * "Reached somebody" is `sent > 0`, and `sent` is counted as each mail leaves
+ * rather than once at the end: a run that dies half-way still says who it
+ * reached, so its week is not mailed a second time and the next digest counts
+ * "nouveau" from it.
  *
  * Weeks and months are counted in Europe/Paris (`$lib/domain/adminDigestCalendar`).
  */
@@ -24,8 +29,8 @@ import {
 
 /**
  * How long an unfinished run holds its week. A send to a handful of admins takes
- * seconds, so a run still open after this died mid-way (a pod killed, a crash
- * before the last send) and the week is claimed again.
+ * seconds, so a run still open after this died (a pod killed, a database error
+ * between two mails), and if it reached nobody the week is claimed again.
  */
 const CLAIM_TIMEOUT_MS = 15 * 60 * 1000;
 
@@ -35,21 +40,25 @@ const FALLBACK_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Claims `now`'s week for a send to `recipients` admins, or says it is taken.
+ * Claims `now`'s week for a digest addressed to `recipients` admins, or says it
+ * is taken. Called once the mail is built and before it is sent, so a read that
+ * fails leaves the week free for the next trigger.
  *
  * The insert is `ON CONFLICT DO NOTHING` on the unique week, so two triggers
  * racing each other cannot both win it. A week already claimed is taken over
- * only when its run delivered nothing: it died before finishing (open longer
- * than {@link CLAIM_TIMEOUT_MS}), or it finished with every send failed. The
- * take-over is one conditional `UPDATE`, the claim pattern the broadcast
- * orchestrator uses, so it too has a single winner.
+ * only when its run reached nobody: it finished with every send failed, or it
+ * died before its first mail left (open longer than {@link CLAIM_TIMEOUT_MS}).
+ * A run that reached somebody keeps its week even if it died afterwards, since
+ * taking it over would mail those admins twice. The take-over is one
+ * conditional `UPDATE`, the claim pattern the broadcast orchestrator uses, so it
+ * too has a single winner.
  */
 export async function claimDigestWeek(
   now: Date,
-  recipients: number,
+  run: { recipients: number; includedAdoption: boolean },
 ): Promise<{ runId: string } | null> {
   const weekOf = digestWeekOf(now);
-  const fresh = { startedAt: now, recipients };
+  const fresh = { startedAt: now, ...run };
 
   const inserted = await prisma.adminDigest_Run.createMany({
     data: [{ weekOf, ...fresh }],
@@ -59,64 +68,74 @@ export async function claimDigestWeek(
     const retaken = await prisma.adminDigest_Run.updateMany({
       where: {
         weekOf,
+        sent: 0,
         OR: [
-          {
-            finishedAt: null,
-            startedAt: { lt: new Date(now.getTime() - CLAIM_TIMEOUT_MS) },
-          },
-          { finishedAt: { not: null }, sent: 0 },
+          { finishedAt: { not: null } },
+          { startedAt: { lt: new Date(now.getTime() - CLAIM_TIMEOUT_MS) } },
         ],
       },
-      data: {
-        ...fresh,
-        finishedAt: null,
-        sent: 0,
-        failed: 0,
-        includedAdoption: false,
-      },
+      data: { ...fresh, finishedAt: null, failed: 0 },
     });
     if (retaken.count === 0) return null;
   }
 
-  const run = await prisma.adminDigest_Run.findUniqueOrThrow({
+  const claimed = await prisma.adminDigest_Run.findUniqueOrThrow({
     where: { weekOf },
     select: { id: true },
   });
-  return { runId: run.id };
+  return { runId: claimed.id };
 }
 
-/** Closes a claimed run with what it delivered. */
+/** Counts one mail of a claimed run, the moment the mail service answered. */
+export async function recordDigestSend(
+  runId: string,
+  delivered: boolean,
+): Promise<void> {
+  await prisma.adminDigest_Run.update({
+    where: { id: runId },
+    data: delivered ? { sent: { increment: 1 } } : { failed: { increment: 1 } },
+  });
+}
+
+/** Closes a claimed run once every mail has been tried. */
 export async function finishDigestRun(
   runId: string,
-  outcome: { sent: number; failed: number; includedAdoption: boolean },
   now: Date = new Date(),
 ): Promise<void> {
   await prisma.adminDigest_Run.update({
     where: { id: runId },
-    data: { ...outcome, finishedAt: now },
+    data: { finishedAt: now },
   });
 }
 
-/** A digest that reached at least one admin. */
-const DELIVERED = { finishedAt: { not: null }, sent: { gt: 0 } } as const;
+/**
+ * A digest that reached at least one admin, finished or not: a run that died
+ * after its first mail still put the mail in that inbox.
+ */
+const DELIVERED = { sent: { gt: 0 } } as const;
 
 /**
- * Where "nouveau" starts for the digest of `now`'s week: when the last delivered
+ * Where "nouveau" starts for the digest of `at`'s week: when the last delivered
  * digest of an earlier week read its figures, or seven days back when there is
  * none. `previous` says which, because the mail words the two differently.
+ *
+ * A pure reading of the ledger for that week, so it answers the same whenever it
+ * is asked: a run only ever claims its own week, so no earlier week changes
+ * once it is over. `config_admin_digest` relies on it to say which window the
+ * last digest counted "nouveau" over.
  */
 export async function digestBaseline(
-  now: Date,
+  at: Date,
 ): Promise<{ since: Date; previous: boolean }> {
   const last = await prisma.adminDigest_Run.findFirst({
-    where: { ...DELIVERED, weekOf: { lt: digestWeekOf(now) } },
+    where: { ...DELIVERED, weekOf: { lt: digestWeekOf(at) } },
     orderBy: { startedAt: 'desc' },
     select: { startedAt: true },
   });
   return last
     ? { since: last.startedAt, previous: true }
     : {
-        since: new Date(now.getTime() - FALLBACK_WINDOW_DAYS * DAY_MS),
+        since: new Date(at.getTime() - FALLBACK_WINDOW_DAYS * DAY_MS),
         previous: false,
       };
 }

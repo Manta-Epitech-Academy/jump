@@ -32,7 +32,26 @@ vi.mock('$lib/server/services/adminStats/featureUsage', () => ({
   getFeatureAdoptionGaps: () => getFeatureAdoptionGaps(),
 }));
 
-const { buildAdminDigest } = await import('./index');
+const adminDigestRecipients = vi.fn();
+const sendEmail = vi.fn();
+const ledger = {
+  adoptionDue: vi.fn(),
+  claimDigestWeek: vi.fn(),
+  digestBaseline: vi.fn(),
+  finishDigestRun: vi.fn(),
+  recordDigestSend: vi.fn(),
+};
+
+vi.mock('$lib/server/services/adminStats/adminDigestRecipients', () => ({
+  adminDigestRecipients: () => adminDigestRecipients(),
+}));
+vi.mock('$lib/server/email', () => ({
+  MAIL_FROM: 'jump@example.test',
+  sendEmail: (...args: unknown[]) => sendEmail(...args),
+}));
+vi.mock('./ledger', () => ledger);
+
+const { buildAdminDigest, sendAdminDigest } = await import('./index');
 
 /** The previous digest read its figures on Monday 2 November 2026, 08:00 Paris. */
 const PREVIOUS = new Date('2026-11-02T07:00:00.000Z');
@@ -763,5 +782,58 @@ describe('buildAdminDigest', () => {
     expect(digest.text).not.toContain('ont servi au moins une fois');
     expect(digest.summary.unusedFeatures).toBeNull();
     expect(digest.summary.singleCampusFeatures).toBeNull();
+  });
+});
+
+describe('sendAdminDigest', () => {
+  beforeEach(() => {
+    adminDigestRecipients
+      .mockReset()
+      .mockResolvedValue(['a@x.test', 'b@x.test']);
+    sendEmail.mockReset().mockResolvedValue({ ok: true });
+    ledger.digestBaseline.mockReset().mockResolvedValue(baseline);
+    ledger.adoptionDue.mockReset().mockResolvedValue(false);
+    ledger.claimDigestWeek.mockReset().mockResolvedValue({ runId: 'run' });
+    ledger.recordDigestSend.mockReset().mockResolvedValue(undefined);
+    ledger.finishDigestRun.mockReset().mockResolvedValue(undefined);
+  });
+
+  // Claimed before the reads, a failed read left the week held by a run that
+  // mailed nobody, and the retry after the 500 answered "already sent".
+  it('leaves the week unclaimed when a read fails', async () => {
+    getSyncHealth.mockRejectedValue(new Error('connection reset'));
+
+    await expect(sendAdminDigest()).rejects.toThrow('connection reset');
+    expect(ledger.claimDigestWeek).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('counts each mail on the run as it leaves, before closing it', async () => {
+    sendEmail
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: false, message: 'refused' });
+
+    const result = await sendAdminDigest();
+
+    expect(result).toMatchObject({ outcome: 'sent', sent: 1, failed: 1 });
+    expect(ledger.claimDigestWeek).toHaveBeenCalledWith(expect.any(Date), {
+      recipients: 2,
+      includedAdoption: false,
+    });
+    expect(ledger.recordDigestSend.mock.calls).toEqual([
+      ['run', true],
+      ['run', false],
+    ]);
+    expect(ledger.finishDigestRun).toHaveBeenCalledWith('run');
+  });
+
+  it('mails nobody when the week is already claimed', async () => {
+    ledger.claimDigestWeek.mockResolvedValue(null);
+
+    expect(await sendAdminDigest()).toEqual({
+      outcome: 'already_sent',
+      recipients: 2,
+    });
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });

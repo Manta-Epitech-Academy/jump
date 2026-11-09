@@ -3036,20 +3036,23 @@ model AdminApi_Call {
 /// `config_admin_digest`, which says when the last one went out: the job's only
 /// other trace is a pod log, and nobody on the team has kubectl.
 ///
-/// A week whose run failed every send, or died before finishing, is claimed
-/// again by the next trigger and its row rewritten: it delivered nothing, so
-/// there is no fact for the rewrite to lose.
+/// A week whose run reached nobody (every send failed, or it died before its
+/// first mail left) is claimed again by the next trigger and its row rewritten:
+/// it delivered nothing, so there is no fact for the rewrite to lose. A run that
+/// reached somebody keeps its week, even if it died before finishing.
 model AdminDigest_Run {
   id               String    @id @default(cuid())
   /// The Monday of the Europe/Paris week this digest belongs to. Unique: the
   /// claim on it is what makes a second trigger in the same week a no-op.
   weekOf           DateTime  @unique @db.Date
-  /// When the claim was taken, which is also when the figures were read.
+  /// The instant the digest read its figures, just before it claimed the week.
   startedAt        DateTime  @default(now())
   /// Null while sending, and on a run that died before it was done.
   finishedAt       DateTime?
   /// How many admins it was addressed to, counted when the week was claimed.
   recipients       Int
+  /// Mails that left and mails the service refused, counted one by one as each
+  /// is tried, so a run that died half-way still says whom it reached.
   sent             Int       @default(0)
   failed           Int       @default(0)
   /// Whether this digest carried the adoption section, which appears in the

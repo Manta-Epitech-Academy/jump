@@ -34,7 +34,7 @@ export const POST: RequestHandler = async ({ request }) => {
           `(${result.summary.eventsToPrepare} events to prepare, ` +
           `${result.summary.openSyncErrors} sync errors).`
         : result.outcome === 'already_sent'
-          ? "[Job] Admin digest: this week's digest already went out, nothing sent."
+          ? "[Job] Admin digest: this week's digest already reached somebody or is being sent, nothing sent."
           : '[Job] Admin digest: no recipient chosen (write_admin_digest_recipient), nothing sent.';
     console.log(line);
     return json({ success: true, ...result });
