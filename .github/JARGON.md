@@ -47,11 +47,12 @@ The dev workspace never prints them; an admin sees the raw word in « Membres Sa
 
 **Which statuses the dev workspace shows is configuration, set per event, never code** (#371). Three pieces of data hold it:
 
-| Term                   | Meaning                                                                                                                            | Where                                                                                                 |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| **Status catalogue**   | The words Jump knows. A word missing from it is _unrecognised_.                                                                    | `Sync_MemberStatus`, written by `write_sync_member_status` and from « Membres Salesforce »            |
-| **Shown statuses**     | The words one event's dev workspace shows. Copied from a template, seeded at creation from the catalogue's `shownByDefault` words. | `EventConfig_ShownStatus`, written by `write_event_config`, `bulk_event_config` and the config wizard |
-| **Shown in dev space** | Whether one enrolment is shown: its status against its event's shown statuses.                                                     | `Participation.shownInDevSpace`, a projection                                                         |
+| Term                   | Meaning                                                                                                                            | Where                                                                                       |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Status catalogue**   | The words Jump knows. A word missing from it is _unrecognised_.                                                                    | `Sync_MemberStatus`, written by `write_sync_member_status`                                  |
+| **Shown statuses**     | The words one event's dev workspace shows. Copied from a template, seeded at creation from the catalogue's `shownByDefault` words. | `EventConfig_ShownStatus`, written by `write_event_config` and `bulk_event_config`          |
+| **Attending statuses** | Among the shown words, those one event counts as a visit (MET; « 4 - En stage » on a stage). Seeded from `attestsByDefault`.       | `EventConfig_ShownStatus.attestsAttendance`, written by the same two (`attendanceStatuses`) |
+| **Shown in dev space** | Whether one enrolment is shown: its status against its event's shown statuses.                                                     | `Participation.shownInDevSpace`, a projection                                               |
 
 The vocabulary at the time of the switch, and what a new event shows:
 
@@ -72,12 +73,13 @@ Rules over that data: `frontend/src/lib/domain/sfMemberStatus.ts`. Its writer: `
 
 ## Participation vs Émargement
 
-These two concepts are distinct and must not be confused in code or documentation. A Salesforce status says nothing about presence in Jump: no screen, figure or export reads `MET` as « présent » or `READY` as « absent ».
+These three concepts are distinct and must not be confused in code or documentation. No Salesforce word means anything by itself: an event says which of its words count as a visit, and none ever reads as « absent ».
 
-| Concept           | Definition                                                                                                                                                                                                                | Data Source            |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| **Participation** | The fact that a talent is enrolled in an event (originates from Salesforce via worker). `Participation` entity in DB.                                                                                                     | Salesforce sync worker |
-| **Émargement**    | Real-time attendance tracking during the event, entered by staff inside Jump. `EventPresence` entity in DB. The only presence record in Jump, independent of SF statuses: an unmarked cell in a closed slot reads absent. | Staff entry in Jump    |
+| Concept           | Definition                                                                                                                                                                                                                                                                                                                    | Data Source            |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| **Participation** | The fact that a talent is enrolled in an event (originates from Salesforce via worker). `Participation` entity in DB.                                                                                                                                                                                                         | Salesforce sync worker |
+| **Venu**          | The talent came to an event that is over: one proof is enough (an attending status, an émargement present or late, a closing, an activity), and its absence proves nothing. What « Déjà venu 3 fois » and « Nouveau » count. `Participation.attendanceAttested`, read through `attendedBeforeWhere` (`domain/attendance.ts`). | Projection of the four |
+| **Émargement**    | Real-time attendance tracking during the event, entered by staff inside Jump. `EventPresence` entity in DB. Jump's half-day presence record: an unmarked cell in a closed slot reads absent there, and only there.                                                                                                            | Staff entry in Jump    |
 
 ---
 
