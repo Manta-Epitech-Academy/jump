@@ -1,23 +1,31 @@
 /**
  * « Venu » (#491): a talent came to an event once it is over and something
  * attests it, a status the event counts as attended, an émargement or a
- * closing; an activity, done from anywhere, does not. Every dev screen reads it through one projection,
- * `Participation.attendanceAttested`, and these tests hold, on real SQL, that
- * each writer of a proof keeps it true: the sync (a status changed in
- * Salesforce lands at the next pass), the émargement and the closings.
+ * closing; an activity, done from anywhere, does not. Every dev screen reads it
+ * through one projection, `Participation.attendanceAttested`, and these tests
+ * hold, on real SQL, that each writer of a proof keeps it true: the sync (a
+ * status changed in Salesforce lands at the next pass), the émargement, the
+ * closings, and the three operations that move or delete a talent's proofs
+ * (erasure, reset to import, merge). Each goes through the writer itself, so
+ * a writer that stops re-deriving the projection fails here.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { syncEvents, syncParticipations, syncTalents } from '../syncService';
-import { markAllPresentInSlot } from '../presenceService';
+import { markAllPresentInSlot, writePresenceCell } from '../presenceService';
+import { persistClosing } from '../closingService';
 import { resetClosing } from '../closingResetService';
+import { anonymizeTalent } from '../anonymizationService';
+import { resetTalentToImport } from '../talentAccount';
+import { mergeTalents } from '../talentMergeService';
 import { enterWorkshop } from '../workshopService';
 import { recomputeAttendance } from '../attendance';
 import { attendedBeforeWhere } from '$lib/domain/attendance';
 import { writeEventConfig } from '$lib/server/adminApi/writes/events';
 import { bulkEventConfig } from '$lib/server/adminApi/writes/bulk';
 import { writeSyncMemberStatus } from '$lib/server/adminApi/writes/sync';
+import type { CellStatus } from '$lib/domain/eventPresence';
 import { assertTestDatabase } from './testDatabase';
 
 const stamp = Date.now();
@@ -26,7 +34,18 @@ const campusName = `Att Campus ${stamp}`;
 // A catalogue word of this run's own: the catalogue is platform-wide and has no
 // delete.
 const stageWord = `4 - EN STAGE ${stamp}`;
-const keys = ['met', 'ready', 'emarge', 'closing', 'workshop'] as const;
+const keys = [
+  'met',
+  'ready',
+  'emarge',
+  'cell',
+  'closing',
+  'workshop',
+  'erased',
+  'reset',
+  'survivor',
+  'absorbed',
+] as const;
 type Key = (typeof keys)[number];
 const talents = keys.map((key) => ({
   external_id: `att_${key}_${stamp}`,
@@ -45,6 +64,10 @@ const events = {
   emarge: { external_id: `att_emarge_${stamp}`, start_date: '2026-03-09' },
   closing: { external_id: `att_closing_${stamp}`, start_date: '2026-03-16' },
   workshop: { external_id: `att_workshop_${stamp}`, start_date: '2026-03-23' },
+  cell: { external_id: `att_cell_${stamp}`, start_date: '2026-03-30' },
+  erased: { external_id: `att_erased_${stamp}`, start_date: '2026-04-06' },
+  reset: { external_id: `att_reset_${stamp}`, start_date: '2026-04-13' },
+  merge: { external_id: `att_merge_${stamp}`, start_date: '2026-04-20' },
   upcoming: { external_id: `att_upcoming_${stamp}`, start_date: '2099-06-01' },
 };
 type EventKey = keyof typeof events;
@@ -111,18 +134,21 @@ describe('« venu », the attendance projection (integration)', () => {
 
   afterAll(async () => {
     try {
+      // By id: the erasure scrubs the external id it would be found by.
+      const ours = { id: { in: Object.values(talentIds) } };
       const created = await prisma.talent.findMany({
-        where: { externalId: { in: talents.map((t) => t.external_id) } },
+        where: ours,
         select: { userId: true },
       });
       await prisma.closing_Record.deleteMany({ where: { campusId } });
       await prisma.closing_ResetEvent.deleteMany({
         where: { talentId: talentIds.closing },
       });
-      await prisma.workshop_Participation.deleteMany({ where: { campusId } });
-      await prisma.talent.deleteMany({
-        where: { externalId: { in: talents.map((t) => t.external_id) } },
+      await prisma.talentDeletionRequest.deleteMany({
+        where: { talentId: ours.id },
       });
+      await prisma.workshop_Participation.deleteMany({ where: { campusId } });
+      await prisma.talent.deleteMany({ where: ours });
       await prisma.event.deleteMany({ where: { campusId } });
       await prisma.closing_Template.deleteMany({ where: { id: templateId } });
       await prisma.workshop_Activity.deleteMany({
@@ -155,6 +181,42 @@ describe('« venu », the attendance projection (integration)', () => {
     });
     return rows.map((row) => row.talent.externalId).sort();
   };
+
+  /** Open a closing the way the conduct page does, with nothing answered yet. */
+  const startClosing = (talent: Key, event: EventKey) =>
+    persistClosing({
+      talentId: talentIds[talent],
+      eventId: eventIds[event],
+      campusId,
+      staffId,
+      templateId,
+      grid: {
+        templateId,
+        key: `att_${stamp}`,
+        label: `Att ${stamp}`,
+        sections: [],
+        synthesisSections: [],
+      },
+      form: {
+        talentId: talentIds[talent],
+        answers: {},
+        recommendation: null,
+        verdictNote: '',
+      },
+      mode: 'start',
+    });
+
+  /** Émarge a talent present on the morning of a single-day event. */
+  const markPresent = (talent: Key, event: EventKey, status: CellStatus) =>
+    writePresenceCell(
+      {
+        talentId: talentIds[talent],
+        eventId: eventIds[event],
+        day: new Date(`${events[event].start_date}T00:00:00Z`),
+        slot: 'morning',
+      },
+      { status, source: 'manual', markedById: staffId },
+    );
 
   it('counts a status the event attests as attended, MET by default', async () => {
     await syncParticipations(
@@ -213,26 +275,37 @@ describe('« venu », the attendance projection (integration)', () => {
     expect(await cameTo('emarge')).toEqual([ext.emarge]);
   });
 
+  it('follows one cell marked and cleared, by a staff member or a scan', async () => {
+    await syncParticipations(
+      events.cell.external_id,
+      { [ext.cell]: 'READY' },
+      'full',
+    );
+    await markPresent('cell', 'cell', 'late');
+    expect(await cameTo('cell')).toEqual([ext.cell]);
+    await markPresent('cell', 'cell', 'pending');
+    expect(await cameTo('cell')).toEqual([]);
+    await markPresent('cell', 'cell', 'absent');
+    expect(await cameTo('cell')).toEqual([]);
+  });
+
   it('counts a closing, and forgets it once the closing is reset', async () => {
     await syncParticipations(
       events.closing.external_id,
       { [ext.closing]: 'READY' },
       'full',
     );
-    const closing = await prisma.$transaction(async (tx) => {
-      const record = await tx.closing_Record.create({
-        data: {
+    await startClosing('closing', 'closing');
+    expect(await cameTo('closing')).toEqual([ext.closing]);
+    const closing = await prisma.closing_Record.findUniqueOrThrow({
+      where: {
+        talentId_eventId: {
           talentId: talentIds.closing,
           eventId: eventIds.closing,
-          campusId,
-          templateId,
         },
-        select: { id: true },
-      });
-      await recomputeAttendance(tx, { eventIds: [eventIds.closing] });
-      return record;
+      },
+      select: { id: true },
     });
-    expect(await cameTo('closing')).toEqual([ext.closing]);
 
     await resetClosing({
       closingId: closing.id,
@@ -264,6 +337,46 @@ describe('« venu », the attendance projection (integration)', () => {
     });
     await recomputeAttendance(prisma, { eventIds: [eventIds.workshop] });
     expect(await cameTo('workshop')).toEqual([]);
+  });
+
+  it('forgets a closing erased with its talent', async () => {
+    await syncParticipations(
+      events.erased.external_id,
+      { [ext.erased]: 'READY' },
+      'full',
+    );
+    await startClosing('erased', 'erased');
+    expect(await cameTo('erased')).toEqual([ext.erased]);
+    // The enrolment outlives the erasure on an event that has started; the
+    // closing that proved the visit does not.
+    await prisma.$transaction((tx) => anonymizeTalent(tx, talentIds.erased));
+    expect(await cameTo('erased')).toEqual([]);
+  });
+
+  it('forgets the émargement a reset to import deletes', async () => {
+    await syncParticipations(
+      events.reset.external_id,
+      { [ext.reset]: 'READY' },
+      'full',
+    );
+    await markPresent('reset', 'reset', 'present');
+    expect(await cameTo('reset')).toEqual([ext.reset]);
+    await resetTalentToImport(talentIds.reset);
+    expect(await cameTo('reset')).toEqual([]);
+  });
+
+  it("counts an absorbed talent's émargement on the survivor's own enrolment", async () => {
+    await syncParticipations(
+      events.merge.external_id,
+      { [ext.survivor]: 'READY', [ext.absorbed]: 'READY' },
+      'full',
+    );
+    await markPresent('absorbed', 'merge', 'present');
+    expect(await cameTo('merge')).toEqual([ext.absorbed]);
+    await prisma.$transaction((tx) =>
+      mergeTalents(tx, talentIds.survivor, [talentIds.absorbed]),
+    );
+    expect(await cameTo('merge')).toEqual([ext.survivor]);
   });
 
   it('counts a visit only before the event looked at, never the same day', async () => {
