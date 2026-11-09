@@ -2,7 +2,7 @@
 paths:
   - "frontend/src/lib/server/adminApi/**"
   - "frontend/src/lib/server/services/adminStats/**"
-  - "frontend/src/lib/server/services/adminDigest.ts"
+  - "frontend/src/lib/server/services/adminDigest/**"
   - "frontend/src/routes/api/admin/**"
   - "frontend/src/routes/api/mcp/**"
   - "frontend/src/routes/**/api-tokens/**"
@@ -100,7 +100,7 @@ Pieces:
 
 `services/adminStats/cohort.ts` is where "the cohort in scope" is defined once, for every aggregate: an operation states what it measured, never who it measured it over.
 
-The weekly admin digest (`services/adminDigest.ts`, `POST /api/jobs/admin-digest`) reads those same services, so an inbox figure and an asked figure can't disagree. It goes to the admins chosen with `write_admin_digest_recipient`, never to every admin: the role grants reading the admin space, and is given to people the digest was not written for (#426).
+The weekly admin digest (`services/adminDigest/`, `POST /api/jobs/admin-digest`) reads those same services, so an inbox figure and an asked figure can't disagree. It goes to the admins chosen with `write_admin_digest_recipient`, never to every admin: the role grants reading the admin space, and is given to people the digest was not written for (#426).
 
 ## The API is the floor
 

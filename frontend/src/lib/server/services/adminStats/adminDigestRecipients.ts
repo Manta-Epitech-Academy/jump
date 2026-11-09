@@ -1,7 +1,7 @@
 /**
  * Who receives the Monday digest: the admins chosen for it, and nobody else.
  *
- * The one rule, held here so the send (`services/adminDigest.ts`) and the answer
+ * The one rule, held here so the send (`services/adminDigest/`) and the answer
  * to "who gets it" (`config_admin_digest`) cannot disagree: an account receives
  * the digest when it is admin AND `receivesAdminDigest` is set. The role is read
  * at the moment of asking, the way `verifyToken` re-reads it for a token, so a

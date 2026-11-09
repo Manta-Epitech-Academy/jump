@@ -26,7 +26,7 @@ vi.mock('$lib/server/services/adminStats/featureUsage', () => ({
   getFeatureAdoptionGaps: () => getFeatureAdoptionGaps(),
 }));
 
-const { buildAdminDigest } = await import('./adminDigest');
+const { buildAdminDigest } = await import('./index');
 
 type EventStub = {
   eventId: string;
@@ -277,13 +277,13 @@ describe('buildAdminDigest', () => {
 
     expect(digest.html).toContain('<strong>2</strong> événements gardent');
     expect(digest.html).toContain('/staff/admin/sync-errors');
-    expect(digest.text).toContain('faute de preuve : 2');
+    expect(digest.text).toContain('2 événements gardent des inscriptions');
     expect(digest.summary.prunesHeldEvents).toBe(2);
 
     getSyncHealth.mockResolvedValue(syncPayload());
     const quiet = await buildAdminDigest();
     expect(quiet.html).not.toContain('gardent des inscriptions');
-    expect(quiet.text).not.toContain('faute de preuve');
+    expect(quiet.text).not.toContain('gardent des inscriptions');
   });
 
   // An unknown status masks an enrolment and fails nothing, which is how every
@@ -297,10 +297,10 @@ describe('buildAdminDigest', () => {
     expect(digest.html).toContain(
       '<strong>3</strong> inscriptions portent un statut Salesforce que Jump ne connaît pas, sur 1 événement',
     );
-    expect(digest.html).toContain(
+    expect(digest.text).toContain(
       "Les statuts reçus et les événements concernés se lisent par l'API d'administration.",
     );
-    expect(digest.text).toContain("masquées de l'espace dev : 3");
+    expect(digest.text).toContain("masquées de l'espace dev");
     expect(digest.summary.unrecognisedSfStatuses).toBe(3);
 
     getSyncHealth.mockResolvedValue(syncPayload());
@@ -308,7 +308,9 @@ describe('buildAdminDigest', () => {
     expect(quiet.html).not.toContain(
       'statut Salesforce que Jump ne connaît pas',
     );
-    expect(quiet.text).not.toContain('statut Salesforce inconnu');
+    expect(quiet.text).not.toContain(
+      'statut Salesforce que Jump ne connaît pas',
+    );
   });
 
   it('names the stuck queues, and says so plainly when there are none', async () => {
@@ -377,7 +379,7 @@ describe('buildAdminDigest', () => {
 
     expect(digest.subject).toBe('Jump - 200 événements à préparer');
     expect(digest.html).toContain('Et 185 autres');
-    expect(digest.text).toContain('et 185 autre(s)');
+    expect(digest.text).toContain('Et 185 autres.');
   });
 
   it('flags a stale sync and escapes event titles into the HTML', async () => {
@@ -394,7 +396,7 @@ describe('buildAdminDigest', () => {
     // where to check it rather than only that it needs checking.
     expect(digest.html).toContain('à vérifier sur');
     expect(digest.html).toContain('/staff/admin"');
-    expect(digest.text).toContain('  Voir : /staff/admin');
+    expect(digest.text).toContain('le tableau de bord admin (/staff/admin)');
     expect(digest.html).toContain('Lille &lt;script&gt;');
     expect(digest.html).not.toContain('<script>');
   });
