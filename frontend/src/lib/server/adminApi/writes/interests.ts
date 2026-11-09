@@ -6,7 +6,9 @@
  * under them with nothing to say so. Archived, it is no longer offered and the
  * talents who picked it keep it. Its kind (tech or general) is the question it
  * answers, so it is chosen once, at creation: moving one would move answers
- * from one question to the other.
+ * from one question to the other. A tech interest carries a short label, the
+ * word a roster chip reads it by (« IA » for « Intelligence artificielle »),
+ * given at creation and changeable after; a general one has none.
  *
  * Safe to repeat: it sets values rather than adjusting them, and a new interest
  * takes the next position of its kind only when it is created.
@@ -23,6 +25,7 @@ type InterestState = {
   interestId: string;
   kind: string;
   label: string;
+  shortLabel: string | null;
   emoji: string | null;
   order: number;
   archived: boolean;
@@ -35,6 +38,7 @@ async function stateOf(id: string): Promise<InterestState | null> {
       id: true,
       kind: true,
       nom: true,
+      shortLabel: true,
       emoji: true,
       order: true,
       archivedAt: true,
@@ -45,6 +49,7 @@ async function stateOf(id: string): Promise<InterestState | null> {
         interestId: row.id,
         kind: row.kind,
         label: row.nom,
+        shortLabel: row.shortLabel,
         emoji: row.emoji,
         order: row.order,
         archived: row.archivedAt !== null,
@@ -72,10 +77,28 @@ async function refuseTakenLabel(label: string, ownId: string | null) {
   }
 }
 
+/**
+ * The short label a write gives, refused on a general interest: no screen reads
+ * one, and an answer stored where nothing shows it is a value nobody checks.
+ */
+function shortLabelFor(
+  kind: InterestKind,
+  shortLabel: string | undefined,
+): string | null {
+  const value = shortLabel?.trim() || null;
+  if (value && kind !== 'tech') {
+    throw new OperationRefusedError(
+      "Seul un centre d'intérêt tech porte un nom court : c'est celui qu'affichent les colonnes et les barres de l'espace dev.",
+    );
+  }
+  return value;
+}
+
 export async function writeInterest(params: {
   interestId?: string;
   kind?: InterestKind;
   label?: string;
+  shortLabel?: string;
   emoji?: string | null;
   archived?: boolean;
 }): Promise<WriteOutcome> {
@@ -89,6 +112,12 @@ export async function writeInterest(params: {
       );
     }
     const { kind, label } = params;
+    const shortLabel = shortLabelFor(kind, params.shortLabel);
+    if (kind === 'tech' && !shortLabel) {
+      throw new OperationRefusedError(
+        `Un centre d'intérêt tech se crée avec son nom court (shortLabel), le mot que lisent les recruteurs dans la liste des inscrits, par exemple « IA » pour « Intelligence artificielle ».`,
+      );
+    }
     await refuseTakenLabel(label, null);
     let id = '';
     await refusingRaces(
@@ -102,6 +131,7 @@ export async function writeInterest(params: {
           data: {
             kind,
             nom: label,
+            shortLabel,
             emoji: emoji ?? null,
             order: (last._max.order ?? 0) + 1,
             archivedAt: params.archived ? new Date() : null,
@@ -126,6 +156,10 @@ export async function writeInterest(params: {
     );
   }
   if (params.label) await refuseTakenLabel(params.label, before.interestId);
+  const shortLabel =
+    params.shortLabel === undefined
+      ? undefined
+      : shortLabelFor(before.kind as InterestKind, params.shortLabel);
 
   await refusingRaces(
     `Un centre d'intérêt s'appelle déjà « ${params.label} ».`,
@@ -134,6 +168,7 @@ export async function writeInterest(params: {
         where: { id: before.interestId },
         data: {
           nom: params.label,
+          shortLabel,
           emoji,
           archivedAt: archivedAtFor(params.archived, before.archived),
         },

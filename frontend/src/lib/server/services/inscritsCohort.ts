@@ -54,7 +54,15 @@ const INSCRIT_TALENT_SELECT = {
   interests: {
     where: { interest: { kind: 'tech' } },
     select: {
-      interest: { select: { id: true, nom: true, emoji: true, order: true } },
+      interest: {
+        select: {
+          id: true,
+          nom: true,
+          shortLabel: true,
+          emoji: true,
+          order: true,
+        },
+      },
     },
   },
 } satisfies Prisma.TalentSelect;
@@ -66,14 +74,28 @@ const INSCRIT_PARTICIPATION_SELECT = {
   sfMemberStatus: true,
 } satisfies Prisma.ParticipationSelect;
 
-type InterestLink = { interest: InscritInterest & { order: number } };
+type InterestLink = {
+  interest: Omit<InscritInterest, 'shortLabel'> & {
+    shortLabel: string | null;
+    order: number;
+  };
+};
 
 /** A talent's tech interests in the catalogue's own order. */
 function techInterests(links: InterestLink[]): InscritInterest[] {
-  return links
-    .map((l) => l.interest)
-    .sort((a, b) => a.order - b.order)
-    .map(({ id, nom, emoji }) => ({ id, nom, emoji }));
+  return (
+    links
+      .map((l) => l.interest)
+      .sort((a, b) => a.order - b.order)
+      // A tech interest always has its short label (the table's CHECK); `nom`
+      // only satisfies the column's type.
+      .map(({ id, nom, shortLabel, emoji }) => ({
+        id,
+        nom,
+        shortLabel: shortLabel ?? nom,
+        emoji,
+      }))
+  );
 }
 
 /**

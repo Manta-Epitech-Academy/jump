@@ -1655,6 +1655,15 @@ export const ADMIN_API_OPERATIONS = {
         .max(80)
         .optional()
         .describe('Its French name. Required to create one.'),
+      shortLabel: z
+        .string()
+        .trim()
+        .min(1)
+        .max(20)
+        .optional()
+        .describe(
+          'Tech interests only, and required to create one: the word the dev workspace reads it by in its roster chips and bars, e.g. "IA" for "Intelligence artificielle". The full label stays what talents pick at onboarding.',
+        ),
       emoji: z
         .string()
         .trim()

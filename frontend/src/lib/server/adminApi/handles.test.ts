@@ -57,6 +57,7 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'description',
   'reason',
   'label',
+  'shortLabel',
   // The address of a CTFd instance, typed once when it is deployed, and its
   // supervisor code, copied from the instance.
   'baseUrl',

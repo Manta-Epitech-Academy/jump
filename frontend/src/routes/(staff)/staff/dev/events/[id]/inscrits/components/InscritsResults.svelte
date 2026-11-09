@@ -272,13 +272,14 @@
     <span class="flex flex-wrap gap-1">
       {#each interests as interest (interest.id)}
         <!-- A tag, so a pill (`DESIGN.md`, and the mockup's Tech chips), in
-             sentence case rather than the chip's capitals: an interest is a
-             phrase (« Data science / analyse de données »), and in capitals
-             the longer ones took three lines. -->
+             the chip's capitals as the mockup draws it: the short label is a
+             word (« IA », « CYBER ») where the full name was a phrase that
+             took three lines (PO, 29/10/2026). The full name rides the
+             export. -->
         <span
-          class="rounded-full bg-epi-blue/5 px-2 py-0.5 epi-chip whitespace-normal text-epi-blue normal-case"
+          class="rounded-full bg-epi-blue/5 px-2 py-0.5 epi-chip whitespace-nowrap text-epi-blue"
         >
-          {interest.nom}
+          {interest.shortLabel}
         </span>
       {/each}
     </span>

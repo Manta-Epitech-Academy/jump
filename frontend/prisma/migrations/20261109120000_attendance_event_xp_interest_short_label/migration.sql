@@ -83,3 +83,30 @@ FROM "Workshop_Participation" w
 JOIN "Workshop_Activity" a ON a."id" = w."activityId"
 WHERE g."source" = 'workshop'
   AND g."sourceId" = a."slug" || ':' || w."talentId";
+
+-- A tech interest's short label (#491): the word a roster chip shows where the
+-- name is the choice a talent read at onboarding.
+
+-- AlterTable
+ALTER TABLE "Interest" ADD COLUMN "shortLabel" TEXT;
+
+-- The catalogue's tech interests get the words the PO's mockup reads them by;
+-- one added since over the admin API keeps its name until the PO gives it one
+-- (write_interest), so no row breaks the CHECK below.
+UPDATE "Interest" SET "shortLabel" = CASE "nom"
+  WHEN 'Créer des sites web' THEN 'Web'
+  WHEN 'Créer des apps' THEN 'Apps'
+  WHEN 'Créer des jeux vidéo' THEN 'Jeux vidéo'
+  WHEN 'Programmation' THEN 'Code'
+  WHEN 'Intelligence artificielle' THEN 'IA'
+  WHEN 'Robotique' THEN 'Robotique'
+  WHEN 'Data science / Analyse de données' THEN 'Data'
+  WHEN 'Cloud / Infrastructure' THEN 'Cloud'
+  WHEN 'Cybersécurité / Hacking' THEN 'Cyber'
+  ELSE "nom"
+END
+WHERE "kind" = 'tech';
+
+ALTER TABLE "Interest"
+    ADD CONSTRAINT "Interest_tech_has_short_label"
+    CHECK ("kind" <> 'tech' OR "shortLabel" IS NOT NULL);

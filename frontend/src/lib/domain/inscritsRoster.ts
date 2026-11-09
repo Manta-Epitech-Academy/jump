@@ -30,8 +30,17 @@ import {
   type InscritsView,
 } from '$lib/domain/inscritsView';
 
-/** An interest as a row carries it: enough for a chip and a filter value. */
-export type InscritInterest = { id: string; nom: string; emoji: string | null };
+/**
+ * An interest as a row carries it: enough for a chip and a filter value. The
+ * dev space reads it by `shortLabel` (« IA »); `nom` is the full choice the
+ * talent picked, which the export keeps.
+ */
+export type InscritInterest = {
+  id: string;
+  nom: string;
+  shortLabel: string;
+  emoji: string | null;
+};
 
 /** One roster row of an event, as the Inscrits page lists it and the event
  *  home counts it. `id` is the participation id (stable row key). */
@@ -132,7 +141,7 @@ const FACETS: Record<InscritsFacet, InscritsFacetDef> = {
       return ids.length > 0 ? ids : [INSCRITS_NONE];
     },
     vocabulary: (rows) => [
-      ...byCount(rows, (r) => r.techInterests.map((i) => [i.id, i.nom])),
+      ...byCount(rows, (r) => r.techInterests.map((i) => [i.id, i.shortLabel])),
       [INSCRITS_NONE, 'Aucun'],
     ],
   },

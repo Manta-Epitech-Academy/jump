@@ -42,8 +42,18 @@ function row(over: Partial<InscritRow> & { id: string }): InscritRow {
   };
 }
 
-const ia = { id: 'ia', nom: 'IA', emoji: null };
-const cyber = { id: 'cyber', nom: 'Cyber', emoji: null };
+const ia = {
+  id: 'ia',
+  nom: 'Intelligence artificielle',
+  shortLabel: 'IA',
+  emoji: null,
+};
+const cyber = {
+  id: 'cyber',
+  nom: 'Cybersécurité / Hacking',
+  shortLabel: 'Cyber',
+  emoji: null,
+};
 
 const cohort = [
   row({ id: 'a', niveau: '2nde', civilite: 'femme', techInterests: [ia] }),
@@ -166,5 +176,20 @@ describe('the rows the page shows, and its export downloads', () => {
     );
     // d has no niveau; xp high to low puts c (900) before b (100) before a (0).
     expect(shown.map((r) => r.id)).toEqual(['c', 'b', 'a']);
+  });
+});
+
+describe('the tech filter', () => {
+  it('names each interest by its short label, as the column does', () => {
+    const facets = rosterFacets(
+      cohort,
+      full,
+      INSCRITS_VIEW.parse(new URLSearchParams()),
+    );
+    expect(facet(facets, 'tech')?.options.map((o) => o.label)).toEqual([
+      'IA',
+      'Cyber',
+      'Aucun',
+    ]);
   });
 });

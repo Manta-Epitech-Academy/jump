@@ -2405,9 +2405,16 @@ model BroadcastRecipient {
 /// (`archivedAt` set) rather than deleted (`write_interest`): it is no longer
 /// offered, and the talents who picked it keep it. A delete cascaded off every
 /// talent's dossier in silence.
+///
+/// `shortLabel` is the word a recruiter reads in a roster chip (« IA »,
+/// « Cyber ») where `nom` is the choice a talent read at onboarding
+/// (« Intelligence artificielle »). Only a tech interest has one, and it must:
+/// the tech interests are the ones the dev space lays out in columns and bars
+/// (#491). A CHECK holds it.
 model Interest {
   id         String    @id @default(cuid())
   nom        String    @unique
+  shortLabel String?
   emoji      String?
   kind       String    @default("general") // "tech" | "general"
   order      Int

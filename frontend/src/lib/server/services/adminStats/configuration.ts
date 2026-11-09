@@ -891,6 +891,7 @@ export type InterestRow = {
   interestId: string;
   kind: string;
   label: string;
+  shortLabel: string | null;
   emoji: string | null;
   order: number;
   archived: boolean;
@@ -906,6 +907,7 @@ export async function getInterests(): Promise<Interests> {
       id: true,
       kind: true,
       nom: true,
+      shortLabel: true,
       emoji: true,
       order: true,
       archivedAt: true,
@@ -918,12 +920,13 @@ export async function getInterests(): Promise<Interests> {
         interestId: row.id,
         kind: row.kind,
         label: row.nom,
+        shortLabel: row.shortLabel,
         emoji: row.emoji,
         order: row.order,
         archived: row.archivedAt !== null,
         talents: row._count.talentInterests,
       })),
-      "Les centres d'intérêt qu'un talent choisit à l'inscription, archivés compris, par nature puis dans l'ordre où ils lui sont proposés. « kind » vaut tech ou general, les deux questions posées séparément. « interestId » est l'identifiant que prend write_interest. « archived » vaut vrai pour un centre qui n'est plus proposé ; les talents qui l'avaient choisi le gardent. « talents » compte les talents qui l'ont choisi, sur toutes les années.",
+      "Les centres d'intérêt qu'un talent choisit à l'inscription, archivés compris, par nature puis dans l'ordre où ils lui sont proposés. « kind » vaut tech ou general, les deux questions posées séparément. « interestId » est l'identifiant que prend write_interest. « shortLabel » est le nom court d'un centre tech, celui qu'affiche l'espace dev (null pour un centre general). « archived » vaut vrai pour un centre qui n'est plus proposé ; les talents qui l'avaient choisi le gardent. « talents » compte les talents qui l'ont choisi, sur toutes les années.",
     ),
   };
 }
