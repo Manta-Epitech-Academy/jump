@@ -161,10 +161,14 @@
   {/if}
 {/snippet}
 
+<!-- A section heads its three cards, so it reads a step above their mono
+     titles and a step below the page's own: Anton, the rank greyed before it,
+     as the mockup sets « 01 AUDIENCE_ ». It was the cards' overline at first,
+     and the three moments of the page did not read as such (Mateo, 09/11/2026). -->
 {#snippet sectionTitle(id: string, rank: string, title: string)}
-  <h2 {id} class="flex items-center gap-2 epi-overline text-muted-foreground">
-    <span class="text-epi-blue">{rank}</span>
-    <span>{title}<TitleCursor /></span>
+  <h2 {id} class="font-heading text-display-m uppercase">
+    <span class="text-muted-foreground">{rank}</span>
+    {title}<TitleCursor />
   </h2>
 {/snippet}
 
