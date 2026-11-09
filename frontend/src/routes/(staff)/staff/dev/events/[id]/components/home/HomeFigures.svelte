@@ -14,6 +14,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import Sparkles from '@lucide/svelte/icons/sparkles';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import School from '@lucide/svelte/icons/school';
   import Cpu from '@lucide/svelte/icons/cpu';
   import Trophy from '@lucide/svelte/icons/trophy';
@@ -146,7 +147,10 @@
 {/snippet}
 
 <!-- The mockup's « Voir… »: a thin mono label on a quiet ground, under the
-     figures it continues, rather than a full button competing with them. -->
+     figures it continues, rather than a full button competing with them. It
+     ends in the chevron its card's rows end in, which the mockup leaves out:
+     without it a mono label on grey read as a tag, not as a way to another
+     page (Mateo, 09/11/2026). -->
 {#snippet seeMore(link: HomeLink, label: string)}
   {@const href = hrefOf(link)}
   {#if href}
@@ -154,9 +158,10 @@
       {href}
       variant="ghost"
       size="sm"
-      class="h-7 bg-muted px-2.5 epi-overline text-foreground"
+      class="h-7 gap-1 bg-muted pr-1.5 pl-2.5 epi-overline text-foreground"
     >
       {label}
+      <ChevronRight class="size-3.5 text-muted-foreground" aria-hidden="true" />
     </Button>
   {/if}
 {/snippet}
@@ -208,9 +213,12 @@
           empty={figures.returning.length === 0 ? EMPTY.parcours : null}
         >
           {#snippet footer()}
+            <!-- « par XP »'s wording, shorter than the mockup's « Voir tous
+                 les inscrits par parcours », which filled a third of a 1440px
+                 page to its borders once the chevron came in. -->
             {@render seeMore(
               HOME_LINKS.returning,
-              'Voir tous les inscrits par parcours',
+              'Voir les inscrits par parcours',
             )}
           {/snippet}
         </TalentRankCard>
