@@ -30,6 +30,11 @@ export interface GrantXpInput {
   sourceId: string | null;
   amount: number;
   campusId?: string | null;
+  /**
+   * The event the XP was earned at, when the fact says so: an activity walked
+   * at that event. What the event home's « Top acquisition XP » sums.
+   */
+  eventId?: string | null;
 }
 
 export interface RevokeXpInput {
@@ -125,6 +130,7 @@ export async function grantXp(
         sourceId: null,
         amount: input.amount,
         campusId: input.campusId ?? null,
+        eventId: input.eventId ?? null,
       },
     });
   } else {
@@ -135,6 +141,7 @@ export async function grantXp(
       update: {
         amount: input.amount,
         campusId: input.campusId ?? null,
+        eventId: input.eventId ?? null,
       },
       create: {
         talentId: input.talentId,
@@ -142,6 +149,7 @@ export async function grantXp(
         sourceId: input.sourceId,
         amount: input.amount,
         campusId: input.campusId ?? null,
+        eventId: input.eventId ?? null,
       },
     });
   }

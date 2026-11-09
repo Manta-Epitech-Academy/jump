@@ -987,6 +987,7 @@ model Event {
   planningSlots       Planning_Slot[]
   broadcasts          Broadcast[]
   minigameAttempts    MinigameAttempt[]
+  xpGrants            XpGrant[]
   presenceClosures    EventPresenceClosure[]
   eventPresences      EventPresence[]
   feedbackSubmissions Feedback_Submission[]
@@ -2536,15 +2537,23 @@ model XpGrant {
   // (never deduped: Postgres treats NULLs as distinct under the unique index).
   sourceId  String?
   amount    Int
+  /// The event the XP was earned at, when the fact names one: an activity
+  /// walked there (`workshop`), from the event its `Workshop_Participation` is
+  /// pinned to. Null for every other source, none of which says which event it
+  /// happened at. A record of what was true once, like `campusId`; what the
+  /// event home's « Top acquisition XP » sums (#491).
+  eventId   String?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
   talent Talent  @relation(fields: [talentId], references: [id], onDelete: Cascade)
   campus Campus? @relation(fields: [campusId], references: [id], onDelete: SetNull)
+  event  Event?  @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@unique([source, sourceId])
   @@index([talentId])
   @@index([campusId])
+  @@index([eventId])
   @@index([source])
 }
 

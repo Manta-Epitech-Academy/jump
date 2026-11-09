@@ -1655,6 +1655,8 @@ export class World {
     sourceId: string | null;
     amount: number;
     campusId?: string | null;
+    /** The event it was earned at, for the one source that names one: an activity. */
+    eventId?: string | null;
     /**
      * When the granting fact happened. A ledger row whose date is not its
      * fact's date is a row the application could not have written: the talent's
@@ -1677,6 +1679,7 @@ export class World {
       source: opts.source,
       sourceId: opts.sourceId,
       amount: opts.amount,
+      eventId: opts.eventId ?? null,
       createdAt: opts.at ?? this.ctx.clock.days(-20),
     });
     this.xpByTalent.set(
@@ -1731,6 +1734,7 @@ export class World {
         sourceId: workshopGrantSourceId(opts.slug, opts.talent.id),
         amount,
         campusId: opts.event.campusId,
+        eventId: opts.event.id,
         at: opts.at,
       });
     }

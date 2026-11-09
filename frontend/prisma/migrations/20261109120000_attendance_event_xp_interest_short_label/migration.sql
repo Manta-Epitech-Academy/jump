@@ -61,3 +61,25 @@ SET "attendanceAttested" = (
     WHERE w."eventId" = p."eventId" AND w."talentId" = p."talentId"
   )
 );
+
+-- The event an XP grant was earned at (#491): what the event home's « Top
+-- acquisition XP » sums. Only an activity names one.
+
+-- AlterTable
+ALTER TABLE "XpGrant" ADD COLUMN "eventId" TEXT;
+
+-- CreateIndex
+CREATE INDEX "XpGrant_eventId_idx" ON "XpGrant"("eventId");
+
+-- AddForeignKey
+ALTER TABLE "XpGrant" ADD CONSTRAINT "XpGrant_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- An activity's grant is keyed `${activitySlug}:${talentId}`
+-- (`workshopGrantSourceId`), one per talent and activity, and the activity's
+-- participation is pinned to the event the talent walked it at: that event.
+UPDATE "XpGrant" g
+SET "eventId" = w."eventId"
+FROM "Workshop_Participation" w
+JOIN "Workshop_Activity" a ON a."id" = w."activityId"
+WHERE g."source" = 'workshop'
+  AND g."sourceId" = a."slug" || ':' || w."talentId";
