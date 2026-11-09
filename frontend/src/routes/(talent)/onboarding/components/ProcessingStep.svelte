@@ -3,7 +3,7 @@
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import Sparkles from '@lucide/svelte/icons/sparkles';
-  import { fade } from 'svelte/transition';
+  import { fade } from '$lib/motion';
 
   let formEl: HTMLFormElement;
   let textIndex = $state(0);
@@ -48,7 +48,7 @@
 
   <div class="h-8">
     {#if failed}
-      <p in:fade={{ duration: 200 }} class="text-sm text-destructive">
+      <p in:fade class="text-sm text-destructive">
         Une erreur est survenue.
         <button
           type="button"
@@ -64,7 +64,7 @@
     {:else}
       {#key textIndex}
         <p
-          in:fade={{ duration: 200 }}
+          in:fade
           class="text-lg font-bold tracking-wide text-foreground-secondary uppercase"
         >
           {messages[textIndex]}

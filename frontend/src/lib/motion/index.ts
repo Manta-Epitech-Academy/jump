@@ -98,7 +98,7 @@ export function stepIn(node: Element): TransitionConfig {
  * The outgoing step, lifted out of the flow so the incoming one takes its
  * place at once. The parent must be `position: relative`.
  */
-export function stepOut(): TransitionConfig {
+export function stepOut(_node: Element): TransitionConfig {
   const x = prefersReducedMotion.current ? 0 : STEP_DISTANCE;
   return {
     duration: DURATION.fast,

@@ -13,9 +13,7 @@
 
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { fly } from 'svelte/transition';
-  import { prefersReducedMotion } from 'svelte/motion';
-  import type { TransitionConfig } from 'svelte/transition';
+  import { stepIn, stepOut } from '$lib/motion';
   import { superForm, type SuperValidated } from 'sveltekit-superforms';
   import { toast } from 'svelte-sonner';
   import Star from '@lucide/svelte/icons/star';
@@ -167,24 +165,6 @@
   }
   function resume() {
     step = resumeStep();
-  }
-
-  // Onboarding's step transition: the outgoing card slides left + fades while
-  // the incoming one flies in from the right. Local copy (8 lines) rather than a
-  // cross-route import; the parent is position:relative so the absolute exit
-  // overlaps cleanly. 120ms out then 200ms in: a step settles within DESIGN.md's
-  // 320ms ceiling (it took 430ms), over the 16px slide that is its longest.
-  // Asked for less motion, the step only fades.
-  const stepSlide = $derived(prefersReducedMotion.current ? 0 : 16);
-  function exitSlide(
-    _node: Element,
-    { duration = 120, x = 16 }: { duration?: number; x?: number } = {},
-  ): TransitionConfig {
-    return {
-      duration,
-      css: (t: number, u: number) =>
-        `position: absolute; top: 0; left: 0; right: 0; opacity: ${t}; transform: translateX(${-x * u}px);`,
-    };
   }
 
   let lastAction = $state<ClosingAction>('autosave');
@@ -994,8 +974,8 @@
                  short step sits balanced instead of clumped at the top. -->
             <div
               class="flex min-h-140 w-full flex-col justify-center"
-              in:fly|local={{ x: stepSlide, duration: 200, delay: 120 }}
-              out:exitSlide|local={{ duration: 120, x: stepSlide }}
+              in:stepIn|local
+              out:stepOut|local
             >
               {#if isIntro}
                 <!-- ── Cover: guide + the lifecycle CTA for the current status ── -->

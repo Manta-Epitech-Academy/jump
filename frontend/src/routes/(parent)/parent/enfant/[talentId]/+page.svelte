@@ -14,7 +14,7 @@
   import Settings from '@lucide/svelte/icons/settings';
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
-  import { fly } from 'svelte/transition';
+  import { enter, stagger } from '$lib/motion';
   import { renderMarkdown } from '$lib/markdown';
   import {
     CURRENT_DROIT_IMAGE_VERSION,
@@ -57,7 +57,7 @@
 
 <div class="mx-auto max-w-5xl px-4 py-8 sm:py-12">
   <!-- Header -->
-  <header class="mb-8" in:fly={{ y: -20, duration: 400, delay: 100 }}>
+  <header class="mb-8" in:enter={{ y: -12 }}>
     <div class="flex items-center gap-4">
       {#if data.hasMultipleChildren}
         <a
@@ -93,7 +93,7 @@
 
   <div class="space-y-6">
     <!-- Image rights: status + editable decision (revocable "à tout moment") -->
-    <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
+    <div in:enter={{ delay: stagger(1) }}>
       {#if data.child.imageRightsStatus === 'undecided'}
         <div
           class="overflow-hidden rounded-xl border border-warning/30 bg-warning/10 shadow-raised"
@@ -172,7 +172,7 @@
     {#if data.todayPlanning}
       <div
         class="overflow-hidden rounded-xl border border-border bg-card shadow-raised"
-        in:fly={{ y: 20, duration: 400, delay: 250 }}
+        in:enter={{ delay: stagger(2) }}
       >
         <div class="border-b border-border bg-background/50 px-6 py-4">
           <p class="text-sm font-semibold text-foreground-secondary">
@@ -239,7 +239,7 @@
 
     <!-- Upcoming events -->
     {#if data.upcomingEvents.length > 0}
-      <div in:fly={{ y: 20, duration: 400, delay: 300 }}>
+      <div in:enter={{ delay: stagger(3) }}>
         <div class="mb-4 flex items-center gap-3">
           <h2
             class="flex items-center gap-2 font-heading text-display-s text-foreground"

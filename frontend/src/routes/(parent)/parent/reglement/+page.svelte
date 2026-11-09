@@ -3,7 +3,7 @@
   import CheckCircle from '@lucide/svelte/icons/check-circle';
   import { renderMarkdown } from '$lib/markdown';
   import { reglementTextFor } from '$lib/content/reglement';
-  import { fly } from 'svelte/transition';
+  import { enter } from '$lib/motion';
   import ParentFlowShell from '$lib/components/parent/ParentFlowShell.svelte';
   import ChildRulesForm from './ChildRulesForm.svelte';
 
@@ -56,7 +56,7 @@
       <!-- Success message -->
       {#if form?.success}
         <div
-          in:fly={{ y: -10, duration: 300 }}
+          in:enter={{ y: -12 }}
           class="mb-4 flex items-center gap-3 rounded-xl border border-success/40 bg-success/10 px-4 py-3"
         >
           <CheckCircle class="h-5 w-5 shrink-0 text-success" />

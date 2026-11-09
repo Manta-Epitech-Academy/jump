@@ -4,7 +4,7 @@
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { resolve } from '$app/paths';
   import { enhance } from '$app/forms';
-  import { fly } from 'svelte/transition';
+  import { enter } from '$lib/motion';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import User from '@lucide/svelte/icons/user';
@@ -54,10 +54,7 @@
 
 <TalentPageHeader title="Paramètres" />
 
-<div
-  class="mx-auto max-w-sm space-y-4 px-4 py-8 sm:py-12"
-  in:fly={{ y: 20, duration: 400, delay: 200 }}
->
+<div class="mx-auto max-w-sm space-y-4 px-4 py-8 sm:py-12" in:enter>
   <!-- Profile Info (read-only) -->
   <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
     <h2

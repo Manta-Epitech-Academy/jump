@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fly } from 'svelte/transition';
+  import { enter, stagger } from '$lib/motion';
   import { enhance } from '$app/forms';
   import { onboardingSubmit } from '../stepSubmit';
   import { Label } from '$lib/components/ui/label';
@@ -135,7 +135,7 @@
         {@const isSelected = techSelected.has(interest.id)}
         <button
           type="button"
-          in:fly={{ y: 15, duration: 300, delay: index * 50 }}
+          in:enter={{ delay: stagger(index) }}
           onclick={() => toggleTech(interest.id)}
           disabled={!isSelected && techFull}
           class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-ui hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
@@ -167,7 +167,7 @@
         {@const isSelected = generalSelected.has(interest.id)}
         <button
           type="button"
-          in:fly={{ y: 15, duration: 300, delay: index * 50 }}
+          in:enter={{ delay: stagger(index) }}
           onclick={() => toggleGeneral(interest.id)}
           disabled={!isSelected && generalFull}
           class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-ui hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
