@@ -287,6 +287,17 @@ describe('what each tool declares it does', () => {
     expect(reset?.description).toMatch(/Changes data\. Safe to repeat/);
   });
 
+  // The instructions name the sentence a model tells a write by, so the
+  // sentence has to be on every write and on nothing else.
+  it('marks every write, and only a write, with the sentence the instructions name', async () => {
+    expect(adminMcpInstructions('core')).toContain('"Changes data."');
+    for (const tool of (await listedTools()).values()) {
+      expect(tool.description?.includes('Changes data.'), tool.name).toBe(
+        tool.annotations?.readOnlyHint === false,
+      );
+    }
+  });
+
   it('tells the model when a retry is not harmless', async () => {
     const tools = await listedTools();
     expect(tools.get('write_feedback_form_copy')?.description).toMatch(
