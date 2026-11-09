@@ -71,6 +71,7 @@ describe('weekly admin digest recipients (integration)', () => {
 
   beforeAll(async () => {
     assertTestDatabase();
+    await prisma.adminDigest_Run.deleteMany({});
     chosenId = (await createAdminAccount(chosenAddress)).id;
     otherId = (await createAdminAccount(otherAddress)).id;
     secret = (
@@ -80,6 +81,7 @@ describe('weekly admin digest recipients (integration)', () => {
 
   afterAll(async () => {
     try {
+      await prisma.adminDigest_Run.deleteMany({});
       await prisma.adminApi_Call.deleteMany({
         where: { actorUserId: chosenId },
       });
@@ -94,13 +96,10 @@ describe('weekly admin digest recipients (integration)', () => {
   it('builds and sends nothing while no admin is chosen', async () => {
     const result = await sendAdminDigest();
 
-    expect(result).toEqual({
-      sent: 0,
-      failed: 0,
-      recipients: 0,
-      summary: null,
-    });
+    expect(result).toEqual({ outcome: 'no_recipient', recipients: 0 });
     expect(sendEmail).not.toHaveBeenCalled();
+    // A Monday with nobody chosen sent nothing, so it records no run.
+    expect(await prisma.adminDigest_Run.count()).toBe(0);
   });
 
   it('lists every admin, none of them receiving it until chosen', async () => {
@@ -133,10 +132,28 @@ describe('weekly admin digest recipients (integration)', () => {
     expect(repeat.payload.before).toEqual(repeat.payload.after);
 
     sendEmail.mockResolvedValue({ ok: true });
-    expect(await sendAdminDigest()).toMatchObject({ sent: 1, recipients: 1 });
+    expect(await sendAdminDigest()).toMatchObject({
+      outcome: 'sent',
+      sent: 1,
+      recipients: 1,
+    });
     expect(sendEmail.mock.calls.map(([mail]) => mail.to)).toEqual([
       chosenAddress,
     ]);
+
+    // Triggered again the same week, it mails nobody, and the API says when
+    // the one that did go out left.
+    expect(await sendAdminDigest()).toEqual({
+      outcome: 'already_sent',
+      recipients: 1,
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const { payload } = await call(getRecipients, secret);
+    expect((payload.lastSend as { value: unknown }).value).toMatchObject({
+      recipients: 1,
+      sent: 1,
+      failed: 0,
+    });
     expect((await adminRow(chosenAddress))?.receivesDigest).toBe(true);
 
     const row = await prisma.adminApi_Call.findFirst({

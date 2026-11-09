@@ -51,11 +51,14 @@ import {
   type DigestInput,
 } from './findings';
 import { renderDigestHtml, renderDigestText } from './render';
+import { claimDigestWeek, finishDigestRun } from './ledger';
 
 export type AdminDigest = {
   subject: string;
   html: string;
   text: string;
+  /** Whether the adoption section is in it, recorded on the week's run. */
+  includesAdoption: boolean;
   /** Structured counts, so the job can log what it announced. */
   summary: {
     eventsToPrepare: number;
@@ -117,22 +120,38 @@ export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
     subject: doc.subject,
     html: renderDigestHtml(doc, baseUrl),
     text: renderDigestText(doc, baseUrl),
+    includesAdoption: true,
     summary: summarise(input),
   };
 }
 
-export type AdminDigestSendResult = {
-  sent: number;
-  failed: number;
-  recipients: number;
-  /** Null when nobody was chosen: no digest is built for nobody. */
-  summary: AdminDigest['summary'] | null;
-};
+/**
+ * What a trigger did. `no_recipient`: nobody is chosen, so nothing was built.
+ * `already_sent`: this week's digest already went out, so this trigger mailed
+ * nobody. `sent`: this trigger claimed the week and sent it, `failed` counting
+ * the mails that did not leave.
+ */
+export type AdminDigestSendResult =
+  | { outcome: 'no_recipient' | 'already_sent'; recipients: number }
+  | {
+      outcome: 'sent';
+      recipients: number;
+      sent: number;
+      failed: number;
+      summary: AdminDigest['summary'];
+    };
 
-export async function sendAdminDigest(): Promise<AdminDigestSendResult> {
+export async function sendAdminDigest(
+  now: Date = new Date(),
+): Promise<AdminDigestSendResult> {
   const recipients = await adminDigestRecipients();
   if (recipients.length === 0)
-    return { sent: 0, failed: 0, recipients: 0, summary: null };
+    return { outcome: 'no_recipient', recipients: 0 };
+
+  // Claimed before anything is read or sent, so a second trigger this week
+  // stops here instead of mailing every admin again.
+  const claim = await claimDigestWeek(now, recipients.length);
+  if (!claim) return { outcome: 'already_sent', recipients: recipients.length };
 
   const digest = await buildAdminDigest(env.ORIGIN ?? '');
 
@@ -156,7 +175,14 @@ export async function sendAdminDigest(): Promise<AdminDigestSendResult> {
     }
   }
 
+  await finishDigestRun(claim.runId, {
+    sent,
+    failed,
+    includedAdoption: digest.includesAdoption,
+  });
+
   return {
+    outcome: 'sent',
     sent,
     failed,
     recipients: recipients.length,

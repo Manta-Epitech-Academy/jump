@@ -19,6 +19,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { metric } from '$lib/server/adminApi/metrics';
+import { lastDigestRun } from '$lib/server/services/adminDigest/ledger';
 
 /** Every admin account, whether it receives the digest or not. */
 const ADMIN_ACCOUNT = {
@@ -46,7 +47,7 @@ export async function adminDigestRecipients(): Promise<string[]> {
 }
 
 export async function getAdminDigestRecipients() {
-  const [rows, recipients] = await Promise.all([
+  const [rows, recipients, lastRun] = await Promise.all([
     prisma.bauth_user.findMany({
       where: ADMIN_ACCOUNT,
       orderBy: { email: 'asc' },
@@ -57,6 +58,7 @@ export async function getAdminDigestRecipients() {
       },
     }),
     prisma.bauth_user.count({ where: RECIPIENT }),
+    lastDigestRun(),
   ]);
 
   return {
@@ -70,6 +72,16 @@ export async function getAdminDigestRecipients() {
     recipients: metric(
       recipients,
       "Nombre d'administrateurs à qui le prochain récapitulatif du lundi sera envoyé. Zéro signifie qu'aucun récapitulatif ne part.",
+    ),
+    lastSend: metric(
+      lastRun && {
+        weekOf: lastRun.weekOf.toISOString().slice(0, 10),
+        at: lastRun.finishedAt?.toISOString() ?? null,
+        recipients: lastRun.recipients,
+        sent: lastRun.sent,
+        failed: lastRun.failed,
+      },
+      "Dernier récapitulatif du lundi parti, ou null si aucun n'est jamais parti. « weekOf » est le lundi de la semaine qu'il couvre (heure de Paris), « at » l'heure où l'envoi s'est terminé, « recipients » le nombre d'administrateurs à qui il était adressé, « sent » le nombre de mails effectivement partis et « failed » ceux que le service d'envoi a refusés. Une semaine sans ligne ici est une semaine où aucun récapitulatif n'est parti, soit faute de destinataire désigné, soit parce que l'envoi n'a pas été déclenché.",
     ),
   };
 }

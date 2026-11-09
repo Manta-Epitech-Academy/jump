@@ -804,7 +804,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_admin_digest: defineOperation({
     description:
-      'Who receives the weekly admin digest sent on Mondays: every admin account, by the address it logs in with, and whether the digest goes to it. Chosen per admin, never implied by the role; nobody chosen means no digest is sent. Takes no parameter.',
+      'Who receives the weekly admin digest sent on Mondays: every admin account, by the address it logs in with, and whether the digest goes to it. Chosen per admin, never implied by the role; nobody chosen means no digest is sent. Also when the last one went out and how many mails left. Takes no parameter.',
     shape: {},
     run: () => getAdminDigestRecipients(),
   }),
