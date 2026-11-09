@@ -107,8 +107,9 @@ export async function persistClosing(
       },
       select: { id: true },
     });
-    // A closing is a proof the talent came; the first write of one can make the
-    // event count as a visit.
+    // A closing is a proof the talent came. Only the write that creates it can
+    // change the projection; every autosave after it re-derives the roster and
+    // writes nothing (`recomputeAttendance` skips an unchanged row).
     await recomputeAttendance(tx, { eventIds: [input.eventId] });
 
     const keep: {
