@@ -172,7 +172,9 @@
     }
   }
 
-  :global(.otp-digit:not(:placeholder-shown):not(:focus)) {
-    animation: digit-pop 0.2s ease-out;
+  @media (prefers-reduced-motion: no-preference) {
+    :global(.otp-digit:not(:placeholder-shown):not(:focus)) {
+      animation: digit-pop 0.2s ease-out;
+    }
   }
 </style>

@@ -653,33 +653,6 @@
   content: none;
 }
 
-/* --- Animations for Emotional Design --- */
-@keyframes stripes {
-  from {
-    background-position: 1rem 0;
-  }
-  to {
-    background-position: 0 0;
-  }
-}
-
-.animate-stripes {
-  animation: stripes 1s linear infinite;
-}
-
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-4px);
-  }
-  75% {
-    transform: translateX(4px);
-  }
-}
-
 /* --- "+N XP" reward float (onboarding arrival + daily minigame) --- */
 @keyframes xp-float {
   0% {
@@ -705,6 +678,57 @@
 
 .animate-xp-float {
   animation: xp-float 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes xp-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  12%,
+  70% {
+    opacity: 1;
+  }
+}
+
+/* --- Less motion, not none (DESIGN.md § Motion) -----------------------------
+   Asked for less motion, what moves stops moving and what fades keeps fading:
+   a dialog still appears softly, it just no longer grows or slides. Svelte
+   transitions get this from `$lib/motion`; this block covers the rest, and it
+   sits outside every `@layer` on purpose, because an unlayered rule beats a
+   layered utility whatever its specificity, so no `!important` is needed. */
+@media (prefers-reduced-motion: reduce) {
+  /* tw-animate (dialogs, popovers, menus, selects, tooltips) builds its
+     enter and exit from these offsets; zeroed, only the opacity remains. */
+  * {
+    --tw-enter-scale: 1;
+    --tw-enter-translate-x: 0;
+    --tw-enter-translate-y: 0;
+    --tw-enter-rotate: 0;
+    --tw-enter-blur: 0;
+    --tw-exit-scale: 1;
+    --tw-exit-translate-x: 0;
+    --tw-exit-translate-y: 0;
+    --tw-exit-rotate: 0;
+    --tw-exit-blur: 0;
+  }
+
+  /* vaul slides its drawer in with keyframes of its own and has no reduced
+     variant; its own fade keyframes take their place. `:root` lifts the
+     specificity one step above vaul's selectors, whichever loads last. */
+  :root
+    [data-vaul-drawer][data-vaul-snap-points='false'][data-vaul-drawer-direction][data-state='open'] {
+    animation-name: fadeIn;
+  }
+  :root
+    [data-vaul-drawer][data-vaul-snap-points='false'][data-vaul-drawer-direction][data-state='closed'] {
+    animation-name: fadeOut;
+  }
+
+  /* The XP float keeps its moment on screen, without the pop and the rise. */
+  .animate-xp-float {
+    animation-name: xp-fade;
+  }
 }
 
 /* --- Focus Mode Kiosk Overrides --- */

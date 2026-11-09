@@ -20,7 +20,9 @@
 <div
   class={cn(
     'bubble flex max-w-[85%] flex-col gap-0.5',
-    isBot ? 'items-start self-start' : 'items-end self-end',
+    isBot
+      ? 'origin-bottom-left items-start self-start'
+      : 'origin-bottom-right items-end self-end',
   )}
 >
   <div
@@ -37,19 +39,26 @@
 </div>
 
 <style>
-  @media (prefers-reduced-motion: no-preference) {
+  /* A bubble grows from its tail, the corner it was said from. No overshoot:
+     bubbles arrive one after another all along a form, and the brand does not
+     bounce (DESIGN.md § Motion). Asked for less motion, it only fades in. */
+  .bubble {
+    animation: bubble-in var(--dur-base) var(--motion-ease-standard);
+  }
+  @media (prefers-reduced-motion: reduce) {
     .bubble {
-      animation: pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      animation-name: bubble-fade;
     }
   }
-  @keyframes pop {
+  @keyframes bubble-in {
     from {
       opacity: 0;
-      transform: scale(0.85) translateY(6px);
+      transform: scale(0.96) translateY(6px);
     }
-    to {
-      opacity: 1;
-      transform: scale(1) translateY(0);
+  }
+  @keyframes bubble-fade {
+    from {
+      opacity: 0;
     }
   }
 </style>
