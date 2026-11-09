@@ -349,7 +349,7 @@ const RESET: Policy = {
       why: 'The enrolments the worker wrote are part of the import.',
       rederived: {
         columns: ['attendanceAttested'],
-        why: 'Whether the talent came, re-derived once the émargement, closings and activities that proved it are gone.',
+        why: 'Whether the talent came, re-derived once the émargement and closings that proved it are gone.',
       },
     },
     Schooling_YearRecord: {

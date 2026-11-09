@@ -1,11 +1,10 @@
 /**
  * « Venu » (#491): a talent came to an event once it is over and something
- * attests it, a status the event counts as attended, an émargement, a closing
- * or an activity. Every dev screen reads it through one projection,
+ * attests it, a status the event counts as attended, an émargement or a
+ * closing; an activity, done from anywhere, does not. Every dev screen reads it through one projection,
  * `Participation.attendanceAttested`, and these tests hold, on real SQL, that
  * each writer of a proof keeps it true: the sync (a status changed in
- * Salesforce lands at the next pass), the émargement, the closings and the
- * activities.
+ * Salesforce lands at the next pass), the émargement and the closings.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -243,7 +242,7 @@ describe('« venu », the attendance projection (integration)', () => {
     expect(await cameTo('closing')).toEqual([]);
   });
 
-  it('counts an activity entered at the event', async () => {
+  it('does not count an activity: it is done from anywhere, after the event too', async () => {
     await syncParticipations(
       events.workshop.external_id,
       { [ext.workshop]: 'READY' },
@@ -263,7 +262,8 @@ describe('« venu », the attendance projection (integration)', () => {
       eventId: eventIds.workshop,
       campusId,
     });
-    expect(await cameTo('workshop')).toEqual([ext.workshop]);
+    await recomputeAttendance(prisma, { eventIds: [eventIds.workshop] });
+    expect(await cameTo('workshop')).toEqual([]);
   });
 
   it('counts a visit only before the event looked at, never the same day', async () => {

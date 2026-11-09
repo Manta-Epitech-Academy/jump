@@ -85,13 +85,15 @@
       title: "Aucun centre d'intérêt tech",
       hint: 'Les inscrits les choisissent en complétant leur dossier.',
     },
-    // The card ranks the XP earned at the event, and only its activities earn
-    // any there: an event without one says so, which also says what the card
-    // is for (PO, 30/10/2026).
+    // The card ranks the XP earned on the event's activities, the only XP
+    // attributed to an event: an event without one says so, which also says
+    // what the card is for (PO, 30/10/2026). « Sur ses activités », never
+    // « pendant l'événement »: an activity stays open once the event is over
+    // and is done from anywhere.
     noActivity: {
       icon: Trophy,
       title: 'Aucune activité associée',
-      hint: 'Cette carte classe les XP gagnés pendant l’événement, sur ses activités.',
+      hint: 'Cette carte classe les XP gagnés sur les activités de l’événement.',
     },
     xp: {
       icon: Trophy,

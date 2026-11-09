@@ -117,7 +117,7 @@ describe('the niveau ring', () => {
 });
 
 describe('the talent rankings', () => {
-  it('ranks the XP earned at the event, never a talent who earned none', () => {
+  it("ranks the XP earned on the event's activities, never a talent who earned none", () => {
     // The lifetime leader earned nothing this time: the card is there to show
     // who stood out at this event (PO, 29/10/2026).
     const rows = [

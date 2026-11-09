@@ -12,7 +12,8 @@
   // its two rankings:
   //   - `parcours`: the name, « Déjà venu 3 fois » under it, and the talent's
   //     lifetime XP at the right of the row;
-  //   - `xp`: a rank, the name, and the XP earned at the event at the right.
+  //   - `xp`: a rank, the name, and the XP earned on the event's activities
+  //     at the right.
   // The XP sits at the right in both, where the eye looks for a figure, rather
   // than under the name (PO, 30/10/2026). Raw XP, never a level (`AGENTS.md`).
   let {

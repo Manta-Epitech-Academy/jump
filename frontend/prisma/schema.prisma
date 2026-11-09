@@ -1252,9 +1252,9 @@ model Participation {
   shownInDevSpace    Boolean @default(true)
   /// Whether something attests that the talent came to this event: a status
   /// the event counts as attended (`EventConfig_ShownStatus.attestsAttendance`),
-  /// a half-day émargé present or late, a closing, or an activity entered there.
-  /// One proof is enough, and no absence is ever inferred. A cached projection of
-  /// those four tables, stored for the same reason as `shownInDevSpace`, and
+  /// a half-day émargé present or late, or a closing. One proof is enough, and
+  /// no absence is ever inferred; an activity, done from anywhere, is none. A
+  /// cached projection of those three tables, stored for the same reason as `shownInDevSpace`, and
   /// written only by `services/attendance.ts`, in the transaction of whatever it
   /// derives from. It holds no date: « came » also needs the event to be over,
   /// which no write marks, so that half is applied on read
@@ -2544,8 +2544,8 @@ model XpGrant {
   // (never deduped: Postgres treats NULLs as distinct under the unique index).
   sourceId  String?
   amount    Int
-  /// The event the XP was earned at, when the fact names one: an activity
-  /// walked there (`workshop`), from the event its `Workshop_Participation` is
+  /// The event whose activity earned the XP, when the fact names one: an
+  /// activity (`workshop`), from the event its `Workshop_Participation` is
   /// pinned to. Null for every other source, none of which says which event it
   /// happened at. A record of what was true once, like `campusId`; what the
   /// event home's « Top acquisition XP » sums (#491).

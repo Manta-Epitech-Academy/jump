@@ -31,7 +31,7 @@ export interface GrantXpInput {
   amount: number;
   campusId?: string | null;
   /**
-   * The event the XP was earned at, when the fact says so: an activity walked
+   * The event whose activity earned the XP, when the fact says so: an activity
    * at that event. What the event home's « Top acquisition XP » sums.
    */
   eventId?: string | null;

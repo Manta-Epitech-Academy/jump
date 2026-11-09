@@ -56,10 +56,6 @@ SET "attendanceAttested" = (
     SELECT 1 FROM "Closing_Record" c
     WHERE c."eventId" = p."eventId" AND c."talentId" = p."talentId"
   )
-  OR EXISTS (
-    SELECT 1 FROM "Workshop_Participation" w
-    WHERE w."eventId" = p."eventId" AND w."talentId" = p."talentId"
-  )
 );
 
 -- The event an XP grant was earned at (#491): what the event home's « Top

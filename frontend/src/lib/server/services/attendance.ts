@@ -3,11 +3,11 @@
  * whether something attests that a talent came to an event (the rule:
  * `domain/attendance.ts`).
  *
- * Four tables can hold a proof, and each of their writers calls this inside its
- * own transaction, so the projection never disagrees with the rows it was read
- * from: the status policy (`devSpaceVisibility.ts`) and the sync, the
- * émargement, the closings, the activities, and the three operations that move
- * or delete a talent's rows (erasure, reset to import, merge).
+ * Three tables can hold a proof, and each of their writers calls this inside
+ * its own transaction, so the projection never disagrees with the rows it was
+ * read from: the status policy (`devSpaceVisibility.ts`) and the sync, the
+ * émargement, the closings, and the three operations that move or delete a
+ * talent's rows (erasure, reset to import, merge).
  */
 
 import { Prisma } from '@prisma/client';

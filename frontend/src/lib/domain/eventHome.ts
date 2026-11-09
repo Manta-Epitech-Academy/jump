@@ -19,14 +19,14 @@ import { INSCRITS_NONE, INSCRITS_VIEW } from './inscritsView';
  * pages list, so a figure here and the list it opens can never count two
  * different cohorts. The page sets them in three sections (#491): who is coming
  * (niveau, genre, parcours), what moves on the day (lycées and interests as the
- * dossiers fill, the XP earned at the event), and what came of it (closings,
+ * dossiers fill, the XP earned on its activities), and what came of it (closings,
  * feedback).
  *
  * - The profile of the cohort (niveau, genre, lycées, tech interests) is
  *   counted with `facetTally`, the count the Inscrits filters show, and each
  *   part opens Inscrits filtered on exactly the values it counted. The parcours
  *   lists the top of the Inscrits page's own parcours sort.
- * - The XP ranking is the XP earned at this event (`XpGrant.eventId`), not the
+ * - The XP ranking is the XP earned on this event's activities (`XpGrant.eventId`), not the
  *   talents' lifetime XP: the leader of the parcours would lead that one too,
  *   and the card is there to show who stood out this time.
  * - The closings' progress and the team's verdicts come from the Closings
@@ -72,7 +72,7 @@ export type HomeTalent = {
   talentId: string;
   prenom: string;
   nom: string;
-  /** « Déjà venu 3 fois », or the XP earned at the event (« +1 250 »). */
+  /** « Déjà venu 3 fois », or the XP earned on the event's activities (« +1 250 »). */
   detail: string;
   /** The parcours only: the talent's lifetime XP, grouped (« 1 250 »). */
   totalXp?: string;
@@ -112,7 +112,7 @@ export type EventHomeFigures = {
   returning: HomeTalent[];
   /** The inscrits who earned the most XP at this event. */
   topXp: HomeTalent[];
-  /** Whether the event offers any activity, the one way XP is earned at it. */
+  /** Whether the event offers any activity, the one way XP is tied to it. */
   hasActivities: boolean;
   /** Null when the event runs no closing. */
   closings: HomeClosings | null;
@@ -121,7 +121,7 @@ export type EventHomeFigures = {
 
 export type EventHomeInput = {
   rows: readonly InscritRow[];
-  /** XP each talent earned at this event, keyed by talent id. */
+  /** XP each talent earned on this event's activities, keyed by talent id. */
   eventXp: ReadonlyMap<string, number>;
   hasActivities: boolean;
   closings: ClosingsRoster | null;

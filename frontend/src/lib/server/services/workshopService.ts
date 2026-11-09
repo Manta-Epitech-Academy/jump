@@ -38,7 +38,6 @@ import {
   type WorkshopSession,
 } from '$lib/server/workshops/ticket';
 import { grantXp } from './xpService';
-import { recomputeAttendance } from './attendance';
 
 export type WorkshopEntry = {
   activityId: string;
@@ -247,34 +246,28 @@ export async function enterWorkshop(
   talentId: string,
   entry: WorkshopEntry,
 ): Promise<WorkshopSession> {
-  // Entering an activity is a proof the talent came to the event it is pinned
-  // to, so the « venu » of that event is re-derived with the write.
-  const { event } = await prisma.$transaction(async (tx) => {
-    const participation = await tx.workshop_Participation.upsert({
-      where: {
-        talentId_activityId: { talentId, activityId: entry.activityId },
-      },
-      create: {
-        talentId,
-        activityId: entry.activityId,
-        eventId: entry.eventId,
-        campusId: entry.campusId,
-      },
-      update: {},
-      select: {
-        event: {
-          select: {
-            id: true,
-            titre: true,
-            publicName: true,
-            date: true,
-            campus: { select: { id: true, name: true, timezone: true } },
-          },
+  const { event } = await prisma.workshop_Participation.upsert({
+    where: {
+      talentId_activityId: { talentId, activityId: entry.activityId },
+    },
+    create: {
+      talentId,
+      activityId: entry.activityId,
+      eventId: entry.eventId,
+      campusId: entry.campusId,
+    },
+    update: {},
+    select: {
+      event: {
+        select: {
+          id: true,
+          titre: true,
+          publicName: true,
+          date: true,
+          campus: { select: { id: true, name: true, timezone: true } },
         },
       },
-    });
-    await recomputeAttendance(tx, { eventIds: [participation.event.id] });
-    return participation;
+    },
   });
   return {
     id: event.id,
@@ -363,8 +356,7 @@ export async function applyWorkshopProgress(
       sourceId: workshopGrantSourceId(activity.slug, payload.talentId),
       amount: payload.points,
       campusId: participation.campusId,
-      // The event the participation is pinned to, the one the talent walked
-      // the activity at.
+      // The event the participation is pinned to, whose activity this is.
       eventId: participation.eventId,
     });
 
