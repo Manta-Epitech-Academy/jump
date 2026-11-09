@@ -37,7 +37,11 @@ import {
   activationBlockers,
   eventMissingConfig,
   isEventToPrepare,
+  IMMINENT_WITHIN_DAYS,
+  PREPARATION_HORIZONS,
+  SOON_WITHIN_DAYS,
   type EventConfigState,
+  type PreparationHorizon,
 } from '$lib/domain/eventReadiness';
 import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
 import type { EventModuleKey } from '$lib/domain/eventModules';
@@ -110,6 +114,13 @@ export type EventConfigRow = EventIdentity & {
   syncedEnrolments: number;
   /** When the event arrived in Jump, synced or created by hand (ISO 8601). */
   addedAt: string;
+  /** How soon it starts (`preparationHorizon`), or null once it is over. */
+  horizon: PreparationHorizon | null;
+};
+
+/** The configuration answer: the list, plus how its events split by horizon. */
+export type EventsConfigList = EventsList<EventConfigRow> & {
+  byHorizon: Metric<Record<PreparationHorizon, number>>;
 };
 
 /** What the configuration list adds when asked `since` an instant. */
@@ -144,6 +155,8 @@ const identityOf = (event: AdminEventVM): EventIdentity => ({
   status: event.status,
   participants: event.participations,
 });
+
+const HORIZON_DEFINITION = `« horizon » dit dans combien de temps l'événement commence, en jours calendaires dans le fuseau horaire du campus : imminent s'il est en cours ou commence dans les ${IMMINENT_WITHIN_DAYS} jours, soon dans les ${SOON_WITHIN_DAYS} jours, later au-delà, et null s'il est terminé.`;
 
 const IDENTITY_DEFINITION =
   "Un événement par ligne : d'abord ceux à venir ou en cours, du plus proche au plus lointain, puis ceux qui sont terminés, du plus récent au plus ancien. « eventId » est l'identifiant à passer aux opérations qui prennent un événement en filtre. « event » est le nom que voient les équipes et les talents. « status » vaut upcoming (à venir), ongoing (en cours) ou past (terminé), calculé dans le fuseau horaire du campus.";
@@ -198,10 +211,17 @@ export async function getEventsConfigList<F extends SinceFilter = SinceFilter>(
   scope: Scope = {},
   params: EventsListParams = {},
   filters?: F,
-): Promise<WithSince<EventsList<EventConfigRow>, EventsConfigSince, F>> {
+): Promise<WithSince<EventsConfigList, EventsConfigSince, F>> {
   const { matching, page } = await selectEvents(scope, params);
   const hidden = await hiddenEnrolmentsByEvent(page.map((event) => event.id));
-  const answer: EventsList<EventConfigRow> = {
+  const byHorizon = Object.fromEntries(
+    PREPARATION_HORIZONS.map((h) => [
+      h,
+      matching.filter((event) => event.horizon === h).length,
+    ]),
+  ) as Record<PreparationHorizon, number>;
+
+  const answer: EventsConfigList = {
     filters: labels(scope, params),
     events: metric(matching.length, countDefinition),
     list: metric(
@@ -224,9 +244,14 @@ export async function getEventsConfigList<F extends SinceFilter = SinceFilter>(
           hiddenFromDevSpace: masked,
           syncedEnrolments: event.participations + masked,
           addedAt: new Date(event.createdTs).toISOString(),
+          horizon: event.horizon,
         };
       }),
-      `${IDENTITY_DEFINITION} « configState » est l'état affiché par la page Événements de l'espace admin : unconfigured (aucune section activée), ready (configuré mais masqué) ou shown (visible dans l'espace dev). « missing » liste ce qui n'est pas renseigné, y compris ce qui n'empêche rien ; « activationBlockers » liste ce qui empêche vraiment de le rendre visible, et une liste vide veut dire qu'un simple basculement suffit. « category » est sa catégorie (« key », la clé que prend write_event_config, et « label », son libellé), ou null s'il n'en a pas. « shownStatuses » liste les statuts Salesforce dont l'espace dev affiche les inscriptions sur cet événement. « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION}. « hiddenFromDevSpace » compte les ${HIDDEN_PARTICIPATION_DEFINITION} « syncedEnrolments » compte les ${SYNCED_PARTICIPATION_DEFINITION} « addedAt » est la date à laquelle l'événement est arrivé dans Jump, par la synchronisation Salesforce ou créé à la main. Limité à ${EVENTS_LIST_LIMIT} lignes.`,
+      `${IDENTITY_DEFINITION} « configState » est l'état affiché par la page Événements de l'espace admin : unconfigured (aucune section activée), ready (configuré mais masqué) ou shown (visible dans l'espace dev). « missing » liste ce qui n'est pas renseigné, y compris ce qui n'empêche rien ; « activationBlockers » liste ce qui empêche vraiment de le rendre visible, et une liste vide veut dire qu'un simple basculement suffit. « category » est sa catégorie (« key », la clé que prend write_event_config, et « label », son libellé), ou null s'il n'en a pas. « shownStatuses » liste les statuts Salesforce dont l'espace dev affiche les inscriptions sur cet événement. « participants » compte les inscriptions, ${VISIBLE_PARTICIPATION_DEFINITION}. « hiddenFromDevSpace » compte les ${HIDDEN_PARTICIPATION_DEFINITION} « syncedEnrolments » compte les ${SYNCED_PARTICIPATION_DEFINITION} « addedAt » est la date à laquelle l'événement est arrivé dans Jump, par la synchronisation Salesforce ou créé à la main. ${HORIZON_DEFINITION} Limité à ${EVENTS_LIST_LIMIT} lignes.`,
+    ),
+    byHorizon: metric(
+      byHorizon,
+      `Ces événements répartis selon leur « horizon », comptés sur le total et non sur la liste plafonnée : ${HORIZON_DEFINITION}`,
     ),
     truncated: matching.length > EVENTS_LIST_LIMIT,
   };

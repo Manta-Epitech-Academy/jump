@@ -48,10 +48,11 @@ import { getFeatureAdoptionGaps } from '$lib/server/services/adminStats/featureU
 import {
   ADOPTION_WINDOW_DAYS,
   composeDigest,
+  type DigestBaseline,
   type DigestInput,
 } from './findings';
 import { renderDigestHtml, renderDigestText } from './render';
-import { claimDigestWeek, finishDigestRun } from './ledger';
+import { claimDigestWeek, digestBaseline, finishDigestRun } from './ledger';
 
 export type AdminDigest = {
   subject: string;
@@ -62,6 +63,8 @@ export type AdminDigest = {
   /** Structured counts, so the job can log what it announced. */
   summary: {
     eventsToPrepare: number;
+    /** Of those, the ones under way or starting within a week. */
+    imminentEvents: number;
     openSyncErrors: number;
     prunesHeldEvents: number;
     unrecognisedSfStatuses: number;
@@ -75,27 +78,40 @@ export type AdminDigest = {
   };
 };
 
-/** Read every payload the digest speaks from, in parallel. */
-async function readDigestInput(): Promise<DigestInput> {
+/**
+ * Read every payload the digest speaks from, in parallel, each asked "since" the
+ * baseline so its "nouveau" is the figure the API gives for that instant.
+ */
+async function readDigestInput(baseline: DigestBaseline): Promise<DigestInput> {
+  const since = { since: baseline.since };
   const [events, sync, freshness, pdfJobs, deletions, adoption] =
     await Promise.all([
       // The events still to prepare, soonest first: the same list
       // `config_events` answers with `state: to_prepare`.
-      getEventsConfigList({}, { state: 'to_prepare' }),
-      getSyncHealth(),
+      getEventsConfigList({}, { state: 'to_prepare' }, since),
+      getSyncHealth(since),
       getDataFreshness(),
-      getPdfJobsHealth(),
-      getAccountDeletionQueue(),
+      getPdfJobsHealth(since),
+      getAccountDeletionQueue(since),
       // Read through the same service the API answers from, so a figure in an
       // inbox and the same figure asked over MCP cannot disagree.
       getFeatureAdoptionGaps({}, { days: ADOPTION_WINDOW_DAYS }),
     ]);
-  return { events, sync, freshness, pdfJobs, deletions, adoption };
+  return {
+    baseline,
+    events,
+    sync,
+    freshness,
+    pdfJobs,
+    deletions,
+    adoption,
+  };
 }
 
 function summarise(input: DigestInput): AdminDigest['summary'] {
   return {
     eventsToPrepare: input.events.events.value,
+    imminentEvents: input.events.byHorizon.value.imminent,
     openSyncErrors: input.sync.openErrors.value,
     prunesHeldEvents: input.sync.prunesHeldEvents.value,
     unrecognisedSfStatuses: input.sync.unrecognisedStatuses.value,
@@ -109,12 +125,16 @@ function summarise(input: DigestInput): AdminDigest['summary'] {
 }
 
 /**
- * Build the digest. `baseUrl` (pass `env.ORIGIN`) turns every page link and the
- * shell's logo into an absolute URL, the way a recipient's mail client needs it;
- * the default empty string is only for tests, which assert on the relative path.
+ * Build the digest, "nouveau" counted from `baseline` (`digestBaseline`).
+ * `baseUrl` (pass `env.ORIGIN`) turns every page link and the shell's logo into
+ * an absolute URL, the way a recipient's mail client needs it; the default empty
+ * string is only for tests, which assert on the relative path.
  */
-export async function buildAdminDigest(baseUrl = ''): Promise<AdminDigest> {
-  const input = await readDigestInput();
+export async function buildAdminDigest(
+  baseline: DigestBaseline,
+  baseUrl = '',
+): Promise<AdminDigest> {
+  const input = await readDigestInput(baseline);
   const doc = composeDigest(input);
   return {
     subject: doc.subject,
@@ -153,7 +173,10 @@ export async function sendAdminDigest(
   const claim = await claimDigestWeek(now, recipients.length);
   if (!claim) return { outcome: 'already_sent', recipients: recipients.length };
 
-  const digest = await buildAdminDigest(env.ORIGIN ?? '');
+  const digest = await buildAdminDigest(
+    await digestBaseline(now),
+    env.ORIGIN ?? '',
+  );
 
   let sent = 0;
   let failed = 0;

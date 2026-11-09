@@ -63,6 +63,62 @@ export function isEventToPrepare(input: {
 }
 
 /**
+ * How soon an event starts, for deciding which preparation is urgent.
+ *
+ * The list of events to prepare runs months ahead, so soonest-first alone puts
+ * an event starting on Thursday beside one starting in spring, and a mail that
+ * lists them alike teaches its reader that none is pressing. Three bands, by
+ * calendar day in the campus's timezone, the same axis as the lifecycle status:
+ *
+ *  - `imminent` already under way, or starting within {@link IMMINENT_WITHIN_DAYS} days
+ *  - `soon`     starting within {@link SOON_WITHIN_DAYS} days
+ *  - `later`    starting after that
+ *
+ * A past event has no horizon (`null`): there is nothing left to prepare.
+ */
+export type PreparationHorizon = 'imminent' | 'soon' | 'later';
+
+export const PREPARATION_HORIZONS = [
+  'imminent',
+  'soon',
+  'later',
+] as const satisfies readonly PreparationHorizon[];
+
+/** A week: an event starting next Monday is still this week's preparation. */
+export const IMMINENT_WITHIN_DAYS = 7;
+/** Three weeks: enough lead time to name it, configure it and announce it. */
+export const SOON_WITHIN_DAYS = 21;
+
+const DAY_MS = 86_400_000;
+
+/** Whole calendar days from `from` to `to`, both `YYYY-MM-DD`. */
+function daysBetween(from: string, to: string): number {
+  const utc = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((utc(to) - utc(from)) / DAY_MS);
+}
+
+/**
+ * The band an event falls in. `startDay` and `today` are calendar days
+ * (`YYYY-MM-DD`) in the event's campus timezone, so the caller that already
+ * holds that timezone decides them once and this stays a rule about days.
+ */
+export function preparationHorizon(
+  status: EventLifecycleStatus,
+  startDay: string,
+  today: string,
+): PreparationHorizon | null {
+  if (status === 'past') return null;
+  if (status === 'ongoing') return 'imminent';
+  const days = daysBetween(today, startDay);
+  if (days <= IMMINENT_WITHIN_DAYS) return 'imminent';
+  if (days <= SOON_WITHIN_DAYS) return 'soon';
+  return 'later';
+}
+
+/**
  * What the two configuration rules below read off an event.
  *
  * Structural rather than `AdminEventVM`, so the rules stay in the domain: the

@@ -90,6 +90,8 @@ describe('figures asked since an instant (integration)', () => {
 
     expect(answer.events.value).toBe(2);
     expect(answer.addedSince.value).toBe(1);
+    // A month out in the campus calendar: past the three weeks of "soon".
+    expect(answer.byHorizon.value).toEqual({ imminent: 0, soon: 0, later: 2 });
     const addedAt = new Map(
       answer.list.value.map((row) => [row.eventId, row.addedAt]),
     );

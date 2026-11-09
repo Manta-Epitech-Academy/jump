@@ -16,6 +16,7 @@ import {
   canBeMadeVisible,
   eventMissingConfig,
   EVENT_MISSING_LABELS,
+  preparationHorizon,
   type EventConfigFields,
 } from './eventReadiness';
 
@@ -87,5 +88,31 @@ describe('activationBlockers', () => {
       EVENT_MISSING_LABELS.cohortNoun,
     );
     expect(activationBlockers(noNoun)).toEqual([]);
+  });
+});
+
+// The weekly digest leads with the imminent band, so an event filed one band
+// too late is one nobody prepares in time.
+describe('preparationHorizon', () => {
+  const today = '2026-11-09';
+
+  it('counts calendar days, the seventh still this week and the twenty-first still soon', () => {
+    expect(preparationHorizon('upcoming', '2026-11-16', today)).toBe(
+      'imminent',
+    );
+    expect(preparationHorizon('upcoming', '2026-11-17', today)).toBe('soon');
+    expect(preparationHorizon('upcoming', '2026-11-30', today)).toBe('soon');
+    expect(preparationHorizon('upcoming', '2026-12-01', today)).toBe('later');
+  });
+
+  it('holds across a month and a year end', () => {
+    expect(preparationHorizon('upcoming', '2027-01-04', '2026-12-28')).toBe(
+      'imminent',
+    );
+  });
+
+  it('treats an event under way as imminent and a finished one as having no horizon', () => {
+    expect(preparationHorizon('ongoing', '2026-11-02', today)).toBe('imminent');
+    expect(preparationHorizon('past', '2026-11-02', today)).toBeNull();
   });
 });

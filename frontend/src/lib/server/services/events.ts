@@ -22,7 +22,9 @@ import {
 import {
   activationRefusal,
   eventConfigState,
+  preparationHorizon,
   type EventConfigState,
+  type PreparationHorizon,
 } from '$lib/domain/eventReadiness';
 import { schoolYearOf } from '$lib/domain/schoolYear';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
@@ -67,6 +69,8 @@ export type AdminEventVM = {
   startTime: string;
   /** Lifecycle bucket in the event's own campus tz: à venir / en cours / passé. */
   status: EventLifecycleStatus;
+  /** How soon it starts, in the same tz (`preparationHorizon`); null once past. */
+  horizon: PreparationHorizon | null;
   /** Linked to a Salesforce campaign (`externalId`); false = admin-created. */
   synced: boolean;
   /**
@@ -198,11 +202,14 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
   // Lifecycle bounds are timezone-dependent and the list is cross-campus, so
   // memoize one bounds object per distinct campus tz instead of recomputing it
   // for every row.
+  // One `now` for both, so an event's status and its horizon are read at the
+  // same instant even when the list is built across midnight.
+  const now = new Date();
   const boundsByTz = new Map<string, LifecycleBounds>();
   const boundsFor = (tz: string): LifecycleBounds => {
     let b = boundsByTz.get(tz);
     if (!b) {
-      b = getLifecycleBounds(tz);
+      b = getLifecycleBounds(tz, now);
       boundsByTz.set(tz, b);
     }
     return b;
@@ -215,6 +222,11 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
     // raw endDate (null = single-day, a whole-day window) decides the bucket, so
     // the cockpit and the dev space agree.
     const status = getEventStatus(e, boundsFor(tz));
+    const horizon = preparationHorizon(
+      status,
+      toDateKey(e.date, tz),
+      toDateKey(now, tz),
+    );
     const present = e.modules.filter((m) => isEventModuleKey(m.moduleKey));
     const modules = present.map((m) => m.moduleKey as EventModuleKey);
     const moduleSettings: Record<string, unknown> = {};
@@ -238,6 +250,7 @@ function buildAdminEventVMs(rows: AdminEventRow[]): AdminEventVM[] {
       schoolYearStart: sy.startYear,
       startTime: minutesToHHMM(e.startMinutes),
       status,
+      horizon,
       synced: e.externalId != null,
       devActivated: e.devActivatedAt != null,
       configState: eventConfigState({
