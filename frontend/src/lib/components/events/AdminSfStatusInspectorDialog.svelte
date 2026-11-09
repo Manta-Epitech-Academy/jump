@@ -323,27 +323,25 @@
                           Visible
                         </span>
                       {:else}
-                        <Tooltip.Provider delayDuration={150}>
-                          <Tooltip.Root>
-                            <Tooltip.Trigger>
-                              {#snippet child({ props })}
-                                <span
-                                  {...props}
-                                  class="inline-flex cursor-help items-center gap-1 text-xs font-bold text-muted-foreground"
-                                >
-                                  <EyeOff class="h-3 w-3" />
-                                  Masqué
-                                </span>
-                              {/snippet}
-                            </Tooltip.Trigger>
-                            <Tooltip.Content
-                              class="max-w-xs text-xs first-letter:uppercase"
-                            >
-                              {SF_STATUS_CLASS_LABELS[row.statusClass]},
-                              toujours enregistrée dans Jump.
-                            </Tooltip.Content>
-                          </Tooltip.Root>
-                        </Tooltip.Provider>
+                        <Tooltip.Root>
+                          <Tooltip.Trigger>
+                            {#snippet child({ props })}
+                              <span
+                                {...props}
+                                class="inline-flex cursor-help items-center gap-1 text-xs font-bold text-muted-foreground"
+                              >
+                                <EyeOff class="h-3 w-3" />
+                                Masqué
+                              </span>
+                            {/snippet}
+                          </Tooltip.Trigger>
+                          <Tooltip.Content
+                            class="max-w-xs text-xs first-letter:uppercase"
+                          >
+                            {SF_STATUS_CLASS_LABELS[row.statusClass]}, toujours
+                            enregistrée dans Jump.
+                          </Tooltip.Content>
+                        </Tooltip.Root>
                       {/if}
                     </Table.Cell>
                   </Table.Row>

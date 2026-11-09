@@ -189,135 +189,132 @@
 
     <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
-    <Tooltip.Provider delayDuration={300}>
-      <SortableTable
-        onResetFilters={anyFiltersApplied ? resetFilters : undefined}
-        {columns}
-        {rows}
-        sortKey={view.sort}
-        sortDir={view.dir}
-        onSort={toggleSort}
-        rowKey={(r) => r.id}
-      >
-        {#snippet row(r: FormListRow)}
-          <Table.Cell>
-            <a
-              href={resolve(`/staff/admin/feedback-forms/${r.id}`)}
-              class="font-medium hover:underline"
-            >
-              {r.title}
-            </a>
-            {#if r.allowsPublicAccess}
-              <!-- Public form: show the real shareable link. -->
-              <span
-                class="mt-0.5 flex items-center gap-1 font-mono text-xs text-muted-foreground"
-              >
-                {publicFormPath(r.slug)}
-                <CopyButton
-                  value={`${page.url.origin}${publicFormPath(r.slug)}`}
-                  label="Copier le lien public"
-                />
-              </span>
-            {:else}
-              <span class="block font-mono text-xs text-muted-foreground">
-                {r.slug}
-              </span>
-            {/if}
-          </Table.Cell>
-          <Table.Cell>
+    <SortableTable
+      onResetFilters={anyFiltersApplied ? resetFilters : undefined}
+      {columns}
+      {rows}
+      sortKey={view.sort}
+      sortDir={view.dir}
+      onSort={toggleSort}
+      rowKey={(r) => r.id}
+    >
+      {#snippet row(r: FormListRow)}
+        <Table.Cell>
+          <a
+            href={resolve(`/staff/admin/feedback-forms/${r.id}`)}
+            class="font-medium hover:underline"
+          >
+            {r.title}
+          </a>
+          {#if r.allowsPublicAccess}
+            <!-- Public form: show the real shareable link. -->
             <span
-              class="rounded-sm px-2 py-0.5 text-xs font-medium whitespace-nowrap {FORM_STATUS_BADGE_CLASS[
-                r.status as FormStatusValue
-              ]}"
+              class="mt-0.5 flex items-center gap-1 font-mono text-xs text-muted-foreground"
             >
-              {FORM_STATUS_LABELS[r.status as FormStatusValue]}
+              {publicFormPath(r.slug)}
+              <CopyButton
+                value={`${page.url.origin}${publicFormPath(r.slug)}`}
+                label="Copier le lien public"
+              />
             </span>
-          </Table.Cell>
-          <Table.Cell>
-            <Badge variant="outline" class="epi-chip">
-              {r.allowsPublicAccess ? 'Auth + Public' : 'Auth'}
-            </Badge>
-          </Table.Cell>
-          <Table.Cell class="text-right font-mono text-sm">
-            {r.questionCount}
-          </Table.Cell>
-          <Table.Cell class="text-right font-mono text-sm">
-            {r.submissionCount}
-          </Table.Cell>
-          <Table.Cell class="text-xs whitespace-nowrap text-muted-foreground">
-            {fmtDate(r.updatedAt)}
-          </Table.Cell>
-          <Table.Cell>
-            <div class="flex items-center justify-end gap-1">
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  {#snippet child({ props })}
-                    <Button
-                      {...props}
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      href={resolve(
-                        `/staff/admin/feedback-forms/${r.id}/responses`,
-                      )}
-                    >
-                      <MessageSquare class="h-4 w-4" />
-                      <span class="sr-only">Réponses</span>
-                    </Button>
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content>Réponses ({r.submissionCount})</Tooltip.Content
-                >
-              </Tooltip.Root>
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  {#snippet child({ props })}
-                    <Button
-                      {...props}
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      href={resolve(`/staff/admin/feedback-forms/${r.id}`)}
-                    >
-                      <Eye class="h-4 w-4" />
-                      <span class="sr-only">Aperçu</span>
-                    </Button>
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content>Aperçu</Tooltip.Content>
-              </Tooltip.Root>
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  {#snippet child({ props })}
-                    <!-- Span wrapper so the tooltip still fires while the button
+          {:else}
+            <span class="block font-mono text-xs text-muted-foreground">
+              {r.slug}
+            </span>
+          {/if}
+        </Table.Cell>
+        <Table.Cell>
+          <span
+            class="rounded-sm px-2 py-0.5 text-xs font-medium whitespace-nowrap {FORM_STATUS_BADGE_CLASS[
+              r.status as FormStatusValue
+            ]}"
+          >
+            {FORM_STATUS_LABELS[r.status as FormStatusValue]}
+          </span>
+        </Table.Cell>
+        <Table.Cell>
+          <Badge variant="outline" class="epi-chip">
+            {r.allowsPublicAccess ? 'Auth + Public' : 'Auth'}
+          </Badge>
+        </Table.Cell>
+        <Table.Cell class="text-right font-mono text-sm">
+          {r.questionCount}
+        </Table.Cell>
+        <Table.Cell class="text-right font-mono text-sm">
+          {r.submissionCount}
+        </Table.Cell>
+        <Table.Cell class="text-xs whitespace-nowrap text-muted-foreground">
+          {fmtDate(r.updatedAt)}
+        </Table.Cell>
+        <Table.Cell>
+          <div class="flex items-center justify-end gap-1">
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8"
+                    href={resolve(
+                      `/staff/admin/feedback-forms/${r.id}/responses`,
+                    )}
+                  >
+                    <MessageSquare class="h-4 w-4" />
+                    <span class="sr-only">Réponses</span>
+                  </Button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content>Réponses ({r.submissionCount})</Tooltip.Content>
+            </Tooltip.Root>
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8"
+                    href={resolve(`/staff/admin/feedback-forms/${r.id}`)}
+                  >
+                    <Eye class="h-4 w-4" />
+                    <span class="sr-only">Aperçu</span>
+                  </Button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content>Aperçu</Tooltip.Content>
+            </Tooltip.Root>
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <!-- Span wrapper so the tooltip still fires while the button
                          is disabled (a disabled button emits no pointer events);
                          this is the case where the hint matters most: why
                          deletion is blocked. -->
-                    <span {...props} class="inline-flex">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        disabled={r.submissionCount > 0}
-                        onclick={() => askDelete(r)}
-                      >
-                        <Trash2 class="h-4 w-4" />
-                        <span class="sr-only">Supprimer</span>
-                      </Button>
-                    </span>
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content>
-                  {r.submissionCount > 0
-                    ? 'Ce formulaire a des réponses : archivez-le pour le retirer (write_feedback_form, status archived).'
-                    : 'Supprimer'}
-                </Tooltip.Content>
-              </Tooltip.Root>
-            </div>
-          </Table.Cell>
-        {/snippet}
-      </SortableTable>
-    </Tooltip.Provider>
+                  <span {...props} class="inline-flex">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      disabled={r.submissionCount > 0}
+                      onclick={() => askDelete(r)}
+                    >
+                      <Trash2 class="h-4 w-4" />
+                      <span class="sr-only">Supprimer</span>
+                    </Button>
+                  </span>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                {r.submissionCount > 0
+                  ? 'Ce formulaire a des réponses : archivez-le pour le retirer (write_feedback_form, status archived).'
+                  : 'Supprimer'}
+              </Tooltip.Content>
+            </Tooltip.Root>
+          </div>
+        </Table.Cell>
+      {/snippet}
+    </SortableTable>
   {/if}
 </div>
 

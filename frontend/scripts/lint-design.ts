@@ -177,6 +177,23 @@ const rules: Rule[] = [
       'transition Svelte directe : passer par $lib/motion (enter, stagger, stepIn, stepOut, fade), qui porte les durées et la variante reduced-motion (DESIGN.md § Motion)',
   },
   {
+    name: 'Un seul fournisseur d’infobulles, à la racine',
+    /**
+     * bits-ui skips the hover delay only between tooltips of one provider, so
+     * every local provider is a wall the "next tooltip opens at once" rule
+     * cannot cross. Twenty-seven of them had grown, with four different
+     * delays. The one in `routes/+layout.svelte` reaches every page, portals
+     * included, since a Svelte context follows the component tree and not the
+     * DOM.
+     */
+    pattern:
+      /<(?:Tooltip\.Provider|TooltipProvider|TooltipPrimitive\.Provider)\b/,
+    files:
+      /^(?!.*(?:routes[/\\]\+layout\.svelte$|components[/\\]ui[/\\]tooltip[/\\]))/,
+    message:
+      'Tooltip.Provider local : celui de routes/+layout.svelte couvre déjà toute l’application, et un second casse l’ouverture immédiate de l’infobulle voisine (DESIGN.md § Motion)',
+  },
+  {
     name: 'Aucune boucle d’animation pour qui demande moins de mouvement',
     /**
      * A loop carries no meaning a still frame does not (a halo that breathes,

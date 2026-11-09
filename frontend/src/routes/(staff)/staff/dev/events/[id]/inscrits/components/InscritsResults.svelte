@@ -381,237 +381,225 @@
       {#snippet countActions()}
         <!-- Export keeps to the right edge of the count line (ml-auto), acting
              on exactly the count shown. -->
-        <Tooltip.Provider delayDuration={300}>
-          <Tooltip.Root>
-            <Tooltip.Trigger>
-              {#snippet child({ props })}
-                <Button
-                  {...props}
-                  variant="outline"
-                  size="sm"
-                  onclick={exportXlsx}
-                  disabled={exporting || filtered.length === 0}
-                  class="ml-auto rounded-sm"
-                >
-                  {#if exporting}
-                    <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-                  {:else}
-                    <Download class="mr-1.5 h-4 w-4" />
-                  {/if}
-                  Exporter (XLSX)
-                </Button>
-              {/snippet}
-            </Tooltip.Trigger>
-            <Tooltip.Content class="max-w-60 rounded-sm">
-              {@const exportNoun =
-                filtered.length > 1 ? noun.plural : noun.singular}
-              <p>
-                {#if anyFiltersApplied}
-                  Exporte les {filtered.length}
-                  {exportNoun} actuellement affichés (filtres et tri appliqués), pas
-                  toute la cohorte.
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <Button
+                {...props}
+                variant="outline"
+                size="sm"
+                onclick={exportXlsx}
+                disabled={exporting || filtered.length === 0}
+                class="ml-auto rounded-sm"
+              >
+                {#if exporting}
+                  <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
                 {:else}
-                  Exporte toute la cohorte ({filtered.length}
-                  {exportNoun}).
+                  <Download class="mr-1.5 h-4 w-4" />
                 {/if}
-              </p>
-            </Tooltip.Content>
-          </Tooltip.Root>
-        </Tooltip.Provider>
+                Exporter (XLSX)
+              </Button>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content class="max-w-60 rounded-sm">
+            {@const exportNoun =
+              filtered.length > 1 ? noun.plural : noun.singular}
+            <p>
+              {#if anyFiltersApplied}
+                Exporte les {filtered.length}
+                {exportNoun} actuellement affichés (filtres et tri appliqués), pas
+                toute la cohorte.
+              {:else}
+                Exporte toute la cohorte ({filtered.length}
+                {exportNoun}).
+              {/if}
+            </p>
+          </Tooltip.Content>
+        </Tooltip.Root>
       {/snippet}
     </DataTableToolbar>
 
     <ActiveFilterChips chips={controls.chips} {search} onReset={resetFilters} />
 
-    <!-- One provider for the whole table: it only carries the hover-delay
-         config, so the per-row badge tooltips share a single instance rather
-         than spinning up one provider per cohort row (~200 at full stage). -->
-    <Tooltip.Provider delayDuration={150}>
-      <SortableTable
-        onResetFilters={anyFiltersApplied ? resetFilters : undefined}
-        noMatchHint={noMatchLine(page.url.pathname)}
-        {columns}
-        rows={filtered}
-        sortKey={view.sort}
-        sortDir={view.dir}
-        onSort={toggleSort}
-        rowKey={(r) => r.id}
-        rowHref={(r) => talentFicheHref(r.talentId, event.id)}
-        rowLabel={(r) => `Voir la fiche de ${r.prenom} ${r.nom}`}
-        stickyHeader
-        layout="fixed"
-        cardsBelow="xl"
-      >
-        {#snippet row(r: InscritRow)}
-          <!-- « Mme » / « M. », the word for `autre`, which has no courtesy
+    <SortableTable
+      onResetFilters={anyFiltersApplied ? resetFilters : undefined}
+      noMatchHint={noMatchLine(page.url.pathname)}
+      {columns}
+      rows={filtered}
+      sortKey={view.sort}
+      sortDir={view.dir}
+      onSort={toggleSort}
+      rowKey={(r) => r.id}
+      rowHref={(r) => talentFicheHref(r.talentId, event.id)}
+      rowLabel={(r) => `Voir la fiche de ${r.prenom} ${r.nom}`}
+      stickyHeader
+      layout="fixed"
+      cardsBelow="xl"
+    >
+      {#snippet row(r: InscritRow)}
+        <!-- « Mme » / « M. », the word for `autre`, which has no courtesy
                title, and « - » when the talent left it blank, as every empty
                cell reads: the two filter values never look alike. -->
-          <Table.Cell class="text-sm text-muted-foreground">
-            {civiliteShortTitle(r.civilite) || civiliteLabel(r.civilite) || '-'}
-          </Table.Cell>
-          <!-- prénom/nom truncate within their fixed columns: realistic names
+        <Table.Cell class="text-sm text-muted-foreground">
+          {civiliteShortTitle(r.civilite) || civiliteLabel(r.civilite) || '-'}
+        </Table.Cell>
+        <!-- prénom/nom truncate within their fixed columns: realistic names
                fit, but a freak-long one ellipsizes inside its cell (full value
                on hover) instead of bleeding into the neighbouring column. -->
-          <Table.Cell class="font-medium">
-            {@const prenom = formatGivenName(r.prenom)}
-            <span class="block truncate" title={prenom}>{prenom}</span>
-          </Table.Cell>
-          <Table.Cell class="font-bold uppercase">
-            <span class="block truncate" title={r.nom}>{r.nom}</span>
-          </Table.Cell>
-          <Table.Cell>
-            <!-- XP as a coloured pill right beside the name: the engagement
+        <Table.Cell class="font-medium">
+          {@const prenom = formatGivenName(r.prenom)}
+          <span class="block truncate" title={prenom}>{prenom}</span>
+        </Table.Cell>
+        <Table.Cell class="font-bold uppercase">
+          <span class="block truncate" title={r.nom}>{r.nom}</span>
+        </Table.Cell>
+        <Table.Cell>
+          <!-- XP as a coloured pill right beside the name: the engagement
                  signal reads at a glance, not as flush grey data. Still the
                  row-link anchor (relative z-10) with the hover explainer like
                  the status badge; click opens the fiche, tabindex=-1 keeps one
-                 tab stop. Rides the table-level Tooltip.Provider. -->
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props })}
-                  <a
-                    {...props}
-                    href={talentFicheHref(r.talentId, event.id)}
-                    tabindex={-1}
-                    class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
-                  >
-                    <Sparkles class="h-3 w-3" />
-                    {r.xp}
-                  </a>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content class="max-w-60">
-                <p class="text-xs">{XP_EXPLAINER_FR}</p>
-              </Tooltip.Content>
-            </Tooltip.Root>
-          </Table.Cell>
-          <Table.Cell>{@render parcoursPill(r)}</Table.Cell>
-          <Table.Cell class="whitespace-normal">
-            {@render interestChips(r.techInterests)}
-          </Table.Cell>
-          <Table.Cell class="text-sm whitespace-normal">
-            {#if r.schoolName}
-              <!-- Some school names run very long (e.g. "Section d'enseignement
+                 tab stop. -->
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <a
+                  {...props}
+                  href={talentFicheHref(r.talentId, event.id)}
+                  tabindex={-1}
+                  class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
+                >
+                  <Sparkles class="h-3 w-3" />
+                  {r.xp}
+                </a>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content class="max-w-60">
+              <p class="text-xs">{XP_EXPLAINER_FR}</p>
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </Table.Cell>
+        <Table.Cell>{@render parcoursPill(r)}</Table.Cell>
+        <Table.Cell class="whitespace-normal">
+          {@render interestChips(r.techInterests)}
+        </Table.Cell>
+        <Table.Cell class="text-sm whitespace-normal">
+          {#if r.schoolName}
+            <!-- Some school names run very long (e.g. "Section d'enseignement
                  général et technologique du Lycée agricole …"). Lycée takes
                  the width the fixed columns leave, so a name may take a second
                  line before it is cut; full name on hover. -->
-              <span class="line-clamp-2" title={r.schoolName}>
-                {r.schoolName}
-              </span>
-            {:else}
-              <span class="text-muted-foreground">-</span>
-            {/if}
-          </Table.Cell>
+            <span class="line-clamp-2" title={r.schoolName}>
+              {r.schoolName}
+            </span>
+          {:else}
+            <span class="text-muted-foreground">-</span>
+          {/if}
+        </Table.Cell>
+        <Table.Cell>
+          {#if r.niveau}
+            <Badge
+              variant="secondary"
+              class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
+            >
+              {niveauLabel(r.niveau)}
+            </Badge>
+          {:else}
+            <span class="text-sm text-muted-foreground">-</span>
+          {/if}
+        </Table.Cell>
+        {#if controls.has('statut')}
           <Table.Cell>
-            {#if r.niveau}
-              <Badge
-                variant="secondary"
-                class="rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
-              >
-                {niveauLabel(r.niveau)}
-              </Badge>
-            {:else}
-              <span class="text-sm text-muted-foreground">-</span>
-            {/if}
-          </Table.Cell>
-          {#if controls.has('statut')}
-            <Table.Cell>
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  {#snippet child({ props })}
-                    {@const badge = INSCRIT_STATUS_BADGE[r.status]}
-                    {@const BadgeIcon = badge.icon}
-                    <!-- The badge IS the row link: relative z-10 lifts it above
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  {@const badge = INSCRIT_STATUS_BADGE[r.status]}
+                  {@const BadgeIcon = badge.icon}
+                  <!-- The badge IS the row link: relative z-10 lifts it above
                          the stretched-link overlay so it both fires the tooltip
                          on hover and navigates to the fiche on click (cmd/middle
                          click included). tabindex=-1 keeps a single tab stop per
                          row - the overlay link already covers keyboard nav. -->
-                    <!-- A talent with no dossier owes nothing, so the cell
+                  <!-- A talent with no dossier owes nothing, so the cell
                          reads « - » like any empty one, and the tooltip says
                          why. The chip's label was also the one that did not
                          fit the column. -->
-                    {#if r.status === 'no_dossier'}
-                      <a
-                        {...props}
-                        href={talentFicheHref(r.talentId, event.id)}
-                        tabindex={-1}
-                        aria-label={INSCRIT_STATUS_LABELS[r.status]}
-                        class="relative z-10 text-sm text-muted-foreground"
-                      >
-                        -
-                      </a>
-                    {:else}
-                      <a
-                        {...props}
-                        href={talentFicheHref(r.talentId, event.id)}
-                        tabindex={-1}
-                        class={cn(
-                          'relative z-10',
-                          statusBadgeClass(badge.tone),
-                        )}
-                      >
-                        <BadgeIcon class="h-3 w-3" />
-                        {INSCRIT_STATUS_LABELS[r.status]}
-                      </a>
-                    {/if}
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content class="max-w-64">
-                  {@render statusBreakdown(r)}
-                </Tooltip.Content>
-              </Tooltip.Root>
-            </Table.Cell>
-          {/if}
-        {/snippet}
+                  {#if r.status === 'no_dossier'}
+                    <a
+                      {...props}
+                      href={talentFicheHref(r.talentId, event.id)}
+                      tabindex={-1}
+                      aria-label={INSCRIT_STATUS_LABELS[r.status]}
+                      class="relative z-10 text-sm text-muted-foreground"
+                    >
+                      -
+                    </a>
+                  {:else}
+                    <a
+                      {...props}
+                      href={talentFicheHref(r.talentId, event.id)}
+                      tabindex={-1}
+                      class={cn('relative z-10', statusBadgeClass(badge.tone))}
+                    >
+                      <BadgeIcon class="h-3 w-3" />
+                      {INSCRIT_STATUS_LABELS[r.status]}
+                    </a>
+                  {/if}
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content class="max-w-64">
+                {@render statusBreakdown(r)}
+              </Tooltip.Content>
+            </Tooltip.Root>
+          </Table.Cell>
+        {/if}
+      {/snippet}
 
-        <!-- Card (below xl): the roster's columns can't fit there, so the
+      <!-- Card (below xl): the roster's columns can't fit there, so the
              row folds to the name with XP and the status badge top-right, then
              the parcours, lycée and niveau beneath. Its filters open from the
              table's "Filtrer" drawer. The whole card links to the fiche via
              SortableTable's `rowHref`, so the badge stays a plain span here. -->
-        {#snippet mobileRow(r: InscritRow)}
-          {@const prenom = formatGivenName(r.prenom)}
-          {@const badge = INSCRIT_STATUS_BADGE[r.status]}
-          {@const BadgeIcon = badge.icon}
-          <div class="min-w-0 space-y-1">
-            <div class="flex items-start justify-between gap-2">
-              <p class="min-w-0 truncate text-sm">
-                <span class="font-medium">{prenom}</span>
-                <span class="font-bold uppercase">{r.nom}</span>
-              </p>
-              <div class="flex shrink-0 items-center gap-1.5">
-                <span
-                  class="inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
-                >
-                  <Sparkles class="h-3 w-3" />
-                  {r.xp}
-                </span>
-                {#if controls.has('statut')}
-                  <span class={statusBadgeClass(badge.tone)}>
-                    <BadgeIcon class="h-3 w-3" />
-                    {INSCRIT_STATUS_LABELS[r.status]}
-                  </span>
-                {/if}
-              </div>
-            </div>
-            <div>{@render parcoursPill(r)}</div>
-            <div class="flex items-center gap-2">
+      {#snippet mobileRow(r: InscritRow)}
+        {@const prenom = formatGivenName(r.prenom)}
+        {@const badge = INSCRIT_STATUS_BADGE[r.status]}
+        {@const BadgeIcon = badge.icon}
+        <div class="min-w-0 space-y-1">
+          <div class="flex items-start justify-between gap-2">
+            <p class="min-w-0 truncate text-sm">
+              <span class="font-medium">{prenom}</span>
+              <span class="font-bold uppercase">{r.nom}</span>
+            </p>
+            <div class="flex shrink-0 items-center gap-1.5">
               <span
-                class="min-w-0 flex-1 truncate text-xs text-muted-foreground"
+                class="inline-flex items-center gap-1 rounded-full bg-epi-tech-ink/10 px-2 py-0.5 text-xs font-bold text-epi-tech-ink"
               >
-                {r.schoolName || '-'}
+                <Sparkles class="h-3 w-3" />
+                {r.xp}
               </span>
-              {#if r.niveau}
-                <Badge
-                  variant="secondary"
-                  class="shrink-0 rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
-                >
-                  {niveauLabel(r.niveau)}
-                </Badge>
+              {#if controls.has('statut')}
+                <span class={statusBadgeClass(badge.tone)}>
+                  <BadgeIcon class="h-3 w-3" />
+                  {INSCRIT_STATUS_LABELS[r.status]}
+                </span>
               {/if}
             </div>
           </div>
-        {/snippet}
-      </SortableTable>
-    </Tooltip.Provider>
+          <div>{@render parcoursPill(r)}</div>
+          <div class="flex items-center gap-2">
+            <span class="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+              {r.schoolName || '-'}
+            </span>
+            {#if r.niveau}
+              <Badge
+                variant="secondary"
+                class="shrink-0 rounded-sm bg-epi-blue/5 px-2 py-0 epi-chip text-epi-blue"
+              >
+                {niveauLabel(r.niveau)}
+              </Badge>
+            {/if}
+          </div>
+        </div>
+      {/snippet}
+    </SortableTable>
   </div>
 {/if}

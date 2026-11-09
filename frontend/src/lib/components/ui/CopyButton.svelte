@@ -43,33 +43,31 @@
   }
 </script>
 
-<Tooltip.Provider delayDuration={300}>
-  <Tooltip.Root>
-    <Tooltip.Trigger>
-      {#snippet child({ props })}
-        <button
-          {...props}
-          type="button"
-          onclick={copy}
-          disabled={!value}
-          aria-label={label}
-          class={cn(
-            'inline-flex cursor-pointer items-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40',
-            children ? 'justify-between gap-2' : 'h-6 w-6 justify-center',
-            className,
-          )}
-        >
-          {@render children?.()}
-          {#if copied}
-            <Check class="h-3.5 w-3.5 shrink-0 text-success" />
-          {:else}
-            <Copy class="h-3.5 w-3.5 shrink-0" />
-          {/if}
-        </button>
-      {/snippet}
-    </Tooltip.Trigger>
-    <Tooltip.Content>
-      <p>{copied ? 'Copié' : label}</p>
-    </Tooltip.Content>
-  </Tooltip.Root>
-</Tooltip.Provider>
+<Tooltip.Root>
+  <Tooltip.Trigger>
+    {#snippet child({ props })}
+      <button
+        {...props}
+        type="button"
+        onclick={copy}
+        disabled={!value}
+        aria-label={label}
+        class={cn(
+          'inline-flex cursor-pointer items-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40',
+          children ? 'justify-between gap-2' : 'h-6 w-6 justify-center',
+          className,
+        )}
+      >
+        {@render children?.()}
+        {#if copied}
+          <Check class="h-3.5 w-3.5 shrink-0 text-success" />
+        {:else}
+          <Copy class="h-3.5 w-3.5 shrink-0" />
+        {/if}
+      </button>
+    {/snippet}
+  </Tooltip.Trigger>
+  <Tooltip.Content>
+    <p>{copied ? 'Copié' : label}</p>
+  </Tooltip.Content>
+</Tooltip.Root>

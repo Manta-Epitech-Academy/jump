@@ -112,41 +112,39 @@
       <p class="truncate font-bold">{s.name}</p>
       <p class="truncate text-sm text-muted-foreground">{s.role}</p>
     </div>
-    <Tooltip.Provider delayDuration={300}>
-      <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-            <Button
-              {...props}
-              variant="ghost"
-              size="icon"
-              onclick={() => openEdit(s)}
-              aria-label="Modifier {s.name}"
-            >
-              <Pencil class="h-4 w-4" />
-            </Button>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content><p>Modifier</p></Tooltip.Content>
-      </Tooltip.Root>
-      <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-            <Button
-              {...props}
-              variant="ghost"
-              size="icon"
-              class="text-destructive hover:text-destructive"
-              onclick={() => confirmDelete(s.id)}
-              aria-label="Supprimer {s.name}"
-            >
-              <Trash2 class="h-4 w-4" />
-            </Button>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content><p>Supprimer</p></Tooltip.Content>
-      </Tooltip.Root>
-    </Tooltip.Provider>
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        {#snippet child({ props })}
+          <Button
+            {...props}
+            variant="ghost"
+            size="icon"
+            onclick={() => openEdit(s)}
+            aria-label="Modifier {s.name}"
+          >
+            <Pencil class="h-4 w-4" />
+          </Button>
+        {/snippet}
+      </Tooltip.Trigger>
+      <Tooltip.Content><p>Modifier</p></Tooltip.Content>
+    </Tooltip.Root>
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        {#snippet child({ props })}
+          <Button
+            {...props}
+            variant="ghost"
+            size="icon"
+            class="text-destructive hover:text-destructive"
+            onclick={() => confirmDelete(s.id)}
+            aria-label="Supprimer {s.name}"
+          >
+            <Trash2 class="h-4 w-4" />
+          </Button>
+        {/snippet}
+      </Tooltip.Trigger>
+      <Tooltip.Content><p>Supprimer</p></Tooltip.Content>
+    </Tooltip.Root>
   </div>
 {/snippet}
 

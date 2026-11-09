@@ -353,42 +353,40 @@
   {@const Icon = s.icon}
   <li class="flex items-center justify-between gap-3">
     <span class="text-muted-foreground">{name}</span>
-    <Tooltip.Provider delayDuration={150}>
-      <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-            {#if onTrigger}
-              <!-- The verdict itself is the edit affordance: clicking it opens
-                   the correction dialog. -->
-              <button
-                {...props}
-                type="button"
-                onclick={onTrigger}
-                class="inline-flex cursor-pointer items-center gap-1 epi-overline underline decoration-dotted underline-offset-4 transition-opacity hover:opacity-80 {s.colorClass}"
-              >
-                <Icon class="h-3 w-3" />
-                {s.label}
-              </button>
-            {:else}
-              <span
-                {...props}
-                class="inline-flex cursor-help items-center gap-1 epi-overline {s.colorClass}"
-              >
-                <Icon class="h-3 w-3" />
-                {s.label}
-              </span>
-            {/if}
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content class="max-w-60">
-          <p class="text-xs">{s.tooltip}</p>
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        {#snippet child({ props })}
           {#if onTrigger}
-            <p class="mt-1 text-xs text-muted-foreground">
-              Cliquez pour corriger la décision.
-            </p>
+            <!-- The verdict itself is the edit affordance: clicking it opens
+                   the correction dialog. -->
+            <button
+              {...props}
+              type="button"
+              onclick={onTrigger}
+              class="inline-flex cursor-pointer items-center gap-1 epi-overline underline decoration-dotted underline-offset-4 transition-opacity hover:opacity-80 {s.colorClass}"
+            >
+              <Icon class="h-3 w-3" />
+              {s.label}
+            </button>
+          {:else}
+            <span
+              {...props}
+              class="inline-flex cursor-help items-center gap-1 epi-overline {s.colorClass}"
+            >
+              <Icon class="h-3 w-3" />
+              {s.label}
+            </span>
           {/if}
-        </Tooltip.Content>
-      </Tooltip.Root>
-    </Tooltip.Provider>
+        {/snippet}
+      </Tooltip.Trigger>
+      <Tooltip.Content class="max-w-60">
+        <p class="text-xs">{s.tooltip}</p>
+        {#if onTrigger}
+          <p class="mt-1 text-xs text-muted-foreground">
+            Cliquez pour corriger la décision.
+          </p>
+        {/if}
+      </Tooltip.Content>
+    </Tooltip.Root>
   </li>
 {/snippet}

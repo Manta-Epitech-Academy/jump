@@ -38,6 +38,7 @@ Il est **lexical** : il cherche des classes interdites dans les composants. La p
 | 18  | Aucun `text-white` sur un remplissage qui s'inverse                          | `destructive`, `success`, `warning` s'éclaircissent en sombre et le blanc tombe à 1,3:1 : la paire est `text-status-foreground`           | § Colors              |
 | 19  | Aucun import de `svelte/transition` ou `svelte/easing` hors de `$lib/motion` | Dix-neuf fichiers choisissaient leurs durées et un seul respectait reduced-motion ; `$lib/motion` porte les tokens et la variante réduite | § Motion              |
 | 20  | Rien ne grandit depuis moins de 0,9 (`scale-0`, `zoom-in-75`…)               | Une icône de menu surgissait de `scale-0` ; une entrée part d'au moins 0,9 avec un fondu                                                  | § Motion              |
+| 21  | Un seul `Tooltip.Provider`, dans `routes/+layout.svelte`                     | 27 fournisseurs locaux, 4 délais différents : l'infobulle voisine attendait à nouveau au lieu de s'ouvrir tout de suite                   | § Motion              |
 
 Pour la règle 13, le script accepte un indicateur de remplacement (`focus:border-`, `focus-visible:border-`, `focus-within:border-`) trouvé sur la ligne fautive ou les cinq suivantes.
 
