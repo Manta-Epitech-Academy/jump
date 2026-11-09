@@ -5,7 +5,6 @@
   import CircleAlert from '@lucide/svelte/icons/circle-alert';
   import Lock from '@lucide/svelte/icons/lock';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-  import { stepIn } from '$lib/motion';
   import { cn } from '$lib/utils';
 
   let { otpForm, otpErrors, otpEnhance, otpDelayed, otpMessage, goBack } =
@@ -71,7 +70,7 @@
   });
 </script>
 
-<div in:stepIn>
+<div>
   {#if $otpMessage}
     <Alert
       variant="destructive"

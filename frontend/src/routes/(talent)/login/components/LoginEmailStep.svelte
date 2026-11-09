@@ -5,7 +5,6 @@
   import { Alert, AlertDescription } from '$lib/components/ui/alert';
   import CircleAlert from '@lucide/svelte/icons/circle-alert';
   import Sparkles from '@lucide/svelte/icons/sparkles';
-  import { stepIn } from '$lib/motion';
 
   let {
     emailForm,
@@ -22,7 +21,7 @@
   } = $props();
 </script>
 
-<div in:stepIn>
+<div>
   {#if $emailMessage && $emailMessage.type === 'error'}
     <Alert
       variant="destructive"
