@@ -246,15 +246,28 @@ describe('recovery after a refusal', () => {
       expect(usage.recoveryRate.value).toBeNull();
     });
 
-    it('a transport name, even one a token was refused under', async () => {
+    // The transport's "not found" answered it, not a message Jump wrote; the
+    // name is counted where it belongs, in inventedOperations.
+    it('a refusal on a name the catalogue does not hold', async () => {
       callFindMany.mockResolvedValue([
-        tokenCall('t1', 'mcp_request', 400, 0),
+        tokenCall('t1', 'stats_talent_lookup', 404, 0),
         tokenCall('t1', 'stats_sync_health', 200, 1),
       ]);
 
       const usage = await getApiUsage({}, KNOWN);
 
       expect(usage.recoveryRate.value).toBeNull();
+    });
+
+    it('a transport name as the success that recovers a refusal', async () => {
+      callFindMany.mockResolvedValue([
+        tokenCall('t1', 'stats_sync_health', 400, 0),
+        tokenCall('t1', 'openapi_document', 200, 1),
+      ]);
+
+      const usage = await getApiUsage({}, KNOWN);
+
+      expect(usage.recoveryRate.value).toBe(0);
     });
   });
 });

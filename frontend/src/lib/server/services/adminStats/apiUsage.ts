@@ -109,12 +109,16 @@ type CallRow = {
  * does not help, whatever its refusal rate.
  *
  * Only what can be judged is: a token's call, since a browser session is a
- * person and an unidentified caller has nothing to recover with; an operation,
- * not a transport name; and a refusal older than the window, since a recent one
- * may still be recovered.
+ * person and an unidentified caller has nothing to recover with; a refusal on a
+ * catalogue operation, since a name the catalogue does not hold is answered by
+ * the transport's "not found" rather than by a message Jump wrote, and is what
+ * `inventedOperations` reports; and a refusal older than the window, since a
+ * recent one may still be recovered. A transport name is no call to recover
+ * with either: reading the HTTP reference answers no question.
  */
 function recoveries(
   rows: CallRow[],
+  known: ReadonlySet<string>,
   now: number,
 ): { judged: Map<string, number>; recovered: Map<string, number> } {
   const windowMs = RECOVERY_WINDOW_MINUTES * 60_000;
@@ -138,6 +142,7 @@ function recoveries(
         continue;
       }
       if (call.status >= 500 || at > now - windowMs) continue;
+      if (!known.has(call.operation)) continue;
       judged.set(call.operation, (judged.get(call.operation) ?? 0) + 1);
       if (nextSuccess !== null && nextSuccess - at <= windowMs) {
         recovered.set(call.operation, (recovered.get(call.operation) ?? 0) + 1);
@@ -233,7 +238,7 @@ export async function getApiUsage(
   // Computed after the loop, once each operation has its totals: a refusal rate
   // per operation is what tells a widely-used tool with a hard filter apart from
   // one nobody can call correctly, which the global rate cannot.
-  const { judged, recovered } = recoveries(rows, Date.now());
+  const { judged, recovered } = recoveries(rows, known, Date.now());
   const operations = [...byOperation.values()].map((row) => ({
     ...row,
     refusedShare: share(row.refused, row.calls),
@@ -287,7 +292,7 @@ export async function getApiUsage(
     ),
     recoveryRate: metric(
       share(sum(recovered), sum(judged)),
-      `Part des refus après lesquels le même token a obtenu une réponse, sur n'importe quelle opération, dans les ${RECOVERY_WINDOW_MINUTES} minutes : un refus repris est un refus dont le message a dit quoi faire ensuite. Ne comptent que les refus d'un token (pas ceux d'une session d'administration ouverte dans le navigateur, ni ceux d'un appelant non identifié) vieux de plus de ${RECOVERY_WINDOW_MINUTES} minutes. Vaut null si aucun refus ne remplit ces conditions.`,
+      `Part des refus après lesquels le même token a obtenu une réponse, sur n'importe quelle opération, dans les ${RECOVERY_WINDOW_MINUTES} minutes : un refus repris est un refus dont le message a dit quoi faire ensuite. Ne comptent que les refus d'un token (pas ceux d'une session d'administration ouverte dans le navigateur, ni ceux d'un appelant non identifié), sur une opération du catalogue (un nom inventé relève de « inventedOperations »), vieux de plus de ${RECOVERY_WINDOW_MINUTES} minutes. Vaut null si aucun refus ne remplit ces conditions.`,
     ),
     byOperation: metric(
       [...operations].sort((a, b) => b.calls - a.calls),
