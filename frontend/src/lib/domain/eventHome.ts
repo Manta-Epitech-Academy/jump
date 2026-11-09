@@ -17,11 +17,18 @@ import { INSCRITS_NONE, INSCRITS_VIEW } from './inscritsView';
 /**
  * The event home's figures (#443): nine cards over the rosters the event's own
  * pages list, so a figure here and the list it opens can never count two
- * different cohorts.
+ * different cohorts. The page sets them in three sections (#491): who is coming
+ * (niveau, genre, parcours), what moves on the day (lycées and interests as the
+ * dossiers fill, the XP earned at the event), and what came of it (closings,
+ * feedback).
  *
- * - The profile of the cohort (niveau, genre, lycées, tech interests, parcours,
- *   XP) is counted with `facetTally`, the count the Inscrits filters show, and
- *   each part opens Inscrits filtered on exactly the values it counted.
+ * - The profile of the cohort (niveau, genre, lycées, tech interests) is
+ *   counted with `facetTally`, the count the Inscrits filters show, and each
+ *   part opens Inscrits filtered on exactly the values it counted. The parcours
+ *   lists the top of the Inscrits page's own parcours sort.
+ * - The XP ranking is the XP earned at this event (`XpGrant.eventId`), not the
+ *   talents' lifetime XP: the leader of the parcours would lead that one too,
+ *   and the card is there to show who stood out this time.
  * - The closings' progress and the team's verdicts come from the Closings
  *   roster and open the Closings page filtered; a verdict counts once its
  *   closing is finalised (`closingVerdict`), on the card as on the list.
@@ -65,8 +72,10 @@ export type HomeTalent = {
   talentId: string;
   prenom: string;
   nom: string;
-  /** « Déjà venu 3 fois », or the XP grouped by thousands (« 1 250 »). */
+  /** « Déjà venu 3 fois », or the XP earned at the event (« +1 250 »). */
   detail: string;
+  /** The parcours only: the talent's lifetime XP, grouped (« 1 250 »). */
+  totalXp?: string;
 };
 
 export type HomeClosings = {
@@ -101,7 +110,10 @@ export type EventHomeFigures = {
   tech: HomeBar[];
   /** The inscrits furthest into their parcours, newcomers left out. */
   returning: HomeTalent[];
+  /** The inscrits who earned the most XP at this event. */
   topXp: HomeTalent[];
+  /** Whether the event offers any activity, the one way XP is earned at it. */
+  hasActivities: boolean;
   /** Null when the event runs no closing. */
   closings: HomeClosings | null;
   feedback: HomeFeedback;
@@ -109,6 +121,9 @@ export type EventHomeFigures = {
 
 export type EventHomeInput = {
   rows: readonly InscritRow[];
+  /** XP each talent earned at this event, keyed by talent id. */
+  eventXp: ReadonlyMap<string, number>;
+  hasActivities: boolean;
   closings: ClosingsRoster | null;
   feedback: {
     rows: readonly { respondedAt: unknown; recoOptionId: string | null }[];
@@ -227,11 +242,16 @@ function facetBars(
   }));
 }
 
-const talent = (row: InscritRow, detail: string): HomeTalent => ({
+const talent = (
+  row: InscritRow,
+  detail: string,
+  totalXp?: string,
+): HomeTalent => ({
   talentId: row.talentId,
   prenom: row.prenom,
   nom: row.nom,
   detail,
+  ...(totalXp !== undefined ? { totalXp } : {}),
 });
 
 const NUMBER = new Intl.NumberFormat('fr-FR');
@@ -351,13 +371,18 @@ export function eventHomeFigures(input: EventHomeInput): EventHomeFigures {
     .filter((r) => r.priorVisits > 0)
     .sort((a, b) => compareRows(b, a, 'parcours'))
     .slice(0, TOP_TALENTS)
-    .map((r) => talent(r, parcoursLabel(r.priorVisits, r.civilite)));
+    .map((r) =>
+      talent(r, parcoursLabel(r.priorVisits, r.civilite), NUMBER.format(r.xp)),
+    );
 
+  // Two talents level at the event are told apart by their lifetime XP, as
+  // the Inscrits page would order them.
+  const earned = (r: InscritRow) => input.eventXp.get(r.talentId) ?? 0;
   const topXp = rows
-    .filter((r) => r.xp > 0)
-    .sort((a, b) => b.xp - a.xp)
+    .filter((r) => earned(r) > 0)
+    .sort((a, b) => earned(b) - earned(a) || b.xp - a.xp)
     .slice(0, TOP_TALENTS)
-    .map((r) => talent(r, NUMBER.format(r.xp)));
+    .map((r) => talent(r, `+${NUMBER.format(earned(r))}`));
 
   return {
     total: rows.length,
@@ -371,6 +396,7 @@ export function eventHomeFigures(input: EventHomeInput): EventHomeFigures {
     tech: facetBars(rows, 'tech'),
     returning,
     topXp,
+    hasActivities: input.hasActivities,
     closings: input.closings ? closingsFigures(input.closings) : null,
     feedback: feedbackFigures(input.feedback),
   };

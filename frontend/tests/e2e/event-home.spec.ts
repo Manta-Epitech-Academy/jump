@@ -29,14 +29,18 @@ test.describe("l'accueil d'un événement", () => {
       page.getByRole('heading', { level: 1, name: /Inscrits E2E/ }),
     ).toBeVisible();
     await expect(
-      page.getByRole('heading', { level: 2, name: /Inscrits par niveau/ }),
+      page.getByRole('heading', { level: 3, name: /Inscrits par niveau/ }),
     ).toBeVisible();
-    // No closing grid and no questionnaire on this event: no card for either.
+    // No closing grid and no questionnaire on this event: no card for either,
+    // and so no Bilan section to hold them.
     await expect(
-      page.getByRole('heading', { level: 2, name: /Closings/ }),
+      page.getByRole('heading', { level: 3, name: /Closings/ }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole('heading', { level: 2, name: /Feedback/ }),
+      page.getByRole('heading', { level: 3, name: /Feedback/ }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', { level: 2, name: /Bilan/ }),
     ).toHaveCount(0);
 
     await page.getByRole('link', { name: /^Seconde\s+2\b/ }).click();

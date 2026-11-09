@@ -73,7 +73,7 @@
                 CHART_TONE_CLASS[part.tone].swatch,
               )}
             ></span>
-            <span class="min-w-0 flex-1 leading-snug font-medium break-words"
+            <span class="min-w-0 flex-1 truncate leading-snug font-medium"
               >{part.label}</span
             >
             <span class="font-semibold">{part.count}</span>

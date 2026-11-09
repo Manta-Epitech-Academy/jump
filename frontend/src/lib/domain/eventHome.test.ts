@@ -36,7 +36,13 @@ function row(over: Partial<InscritRow> & { id: string }): InscritRow {
   };
 }
 
-const empty: EventHomeInput = { rows: [], closings: null, feedback: null };
+const empty: EventHomeInput = {
+  rows: [],
+  eventXp: new Map(),
+  hasActivities: false,
+  closings: null,
+  feedback: null,
+};
 
 /** The rows the Inscrits page keeps for a part's link. */
 function opened(rows: InscritRow[], params: Record<string, string>) {
@@ -111,15 +117,22 @@ describe('the niveau ring', () => {
 });
 
 describe('the talent rankings', () => {
-  it('lists XP highest first, never a talent with none', () => {
+  it('ranks the XP earned at the event, never a talent who earned none', () => {
+    // The lifetime leader earned nothing this time: the card is there to show
+    // who stood out at this event (PO, 29/10/2026).
     const rows = [
-      row({ id: 'a', xp: 0 }),
+      row({ id: 'leader', xp: 5000 }),
       row({ id: 'b', xp: 1250 }),
       row({ id: 'c', xp: 300 }),
     ];
-    const { topXp } = eventHomeFigures({ ...empty, rows });
+    const eventXp = new Map([
+      ['b', 1250],
+      ['c', 1250],
+    ]);
+    const { topXp } = eventHomeFigures({ ...empty, rows, eventXp });
+    // Level at the event, told apart by their lifetime XP.
     expect(topXp.map((t) => t.talentId)).toEqual(['b', 'c']);
-    expect(topXp[0].detail).toBe('1\u202f250');
+    expect(topXp[0].detail).toBe('+1\u202f250');
   });
 
   it('lists the parcours furthest along, newcomers left out', () => {
@@ -129,9 +142,9 @@ describe('the talent rankings', () => {
       row({ id: 'second', priorVisits: 1, civilite: 'homme' }),
     ];
     const { returning } = eventHomeFigures({ ...empty, rows });
-    expect(returning.map((t) => [t.talentId, t.detail])).toEqual([
-      ['third', 'Déjà venue 2 fois'],
-      ['second', 'Déjà venu 1 fois'],
+    expect(returning.map((t) => [t.talentId, t.detail, t.totalXp])).toEqual([
+      ['third', 'Déjà venue 2 fois', '0'],
+      ['second', 'Déjà venu 1 fois', '0'],
     ]);
     // Its « Voir… » opens every inscrit, in the order the card reads.
     const view = INSCRITS_VIEW.parse(
