@@ -1,8 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { recomputeEventsCount } from '$lib/server/services/xpService';
-import { recomputeAttendance } from '$lib/server/services/attendance';
+import { writePresenceCell } from '$lib/server/services/presenceService';
 import { verifyCheckinToken } from '$lib/server/presence/checkinToken';
 import { isSlotClosed } from '$lib/server/presence/slotClosure';
 import { eventDisplayName } from '$lib/domain/event';
@@ -107,16 +106,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   // No-downgrade: a status a staff member set by hand wins over a scan, so a
   // self-check-in can rescue a system "absent" but never undo a deliberate call.
-  const key = {
-    talentId_eventId_day_slot: {
-      talentId: talent.id,
-      eventId,
-      day: dayDate,
-      slot,
-    },
-  };
+  const cell = { talentId: talent.id, eventId, day: dayDate, slot };
   const existing = await prisma.eventPresence.findUnique({
-    where: key,
+    where: { talentId_eventId_day_slot: cell },
     select: { status: true, source: true },
   });
   if (existing && existing.source === 'manual') {
@@ -127,25 +119,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     };
   }
 
-  // The self-check-in and its two projections commit together: a first scan can
-  // make this event count as attended, for the talent's `eventsCount` and for
-  // the dev space's « venu ».
-  await prisma.$transaction(async (tx) => {
-    await tx.eventPresence.upsert({
-      where: key,
-      create: {
-        talentId: talent.id,
-        eventId,
-        day: dayDate,
-        slot,
-        status: 'present',
-        source: 'qr',
-        markedAt: new Date(),
-      },
-      update: { status: 'present', source: 'qr', markedAt: new Date() },
-    });
-    await recomputeEventsCount(tx, talent.id);
-    await recomputeAttendance(tx, { eventIds: [eventId] });
+  // The scan and its two projections commit together: a first scan can make
+  // this event count as attended (`writePresenceCell`).
+  await writePresenceCell(cell, {
+    status: 'present',
+    source: 'qr',
+    markedById: null,
   });
 
   return { state: 'present' as CheckinState, ...withLabel };

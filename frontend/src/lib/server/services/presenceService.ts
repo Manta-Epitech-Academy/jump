@@ -1,8 +1,15 @@
 import { prisma } from '$lib/server/db';
 import { scopedPrisma } from '$lib/server/db/scoped';
-import { recomputeEventsCountBulk } from '$lib/server/services/xpService';
+import {
+  recomputeEventsCount,
+  recomputeEventsCountBulk,
+} from '$lib/server/services/xpService';
 import { recomputeAttendance } from './attendance';
-import type { PresenceSlot } from '$lib/domain/eventPresence';
+import type {
+  CellStatus,
+  PresenceSlot,
+  PresenceSource,
+} from '$lib/domain/eventPresence';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 
 // Émargement is autonomous from Participation, but the roster of who is expected
@@ -70,6 +77,48 @@ export async function reopenPresenceSlot(
 ): Promise<void> {
   await scopedPrisma(campusId).eventPresenceClosure.deleteMany({
     where: { eventId, day, slot },
+  });
+}
+
+/**
+ * Write one émargement cell, a staff member's mark or a talent's QR scan, and
+ * re-derive the two projections a cell feeds in the same transaction: the
+ * talent's `eventsCount` and the dev space's « venu » (`attendance.ts`). A
+ * `pending` mark clears the cell (the row goes), which can take either back.
+ *
+ * Who may write the cell is the caller's to settle first: the staff route
+ * scopes the event to its campus and the talent to its sheet, the QR route
+ * verifies its token and refuses to overwrite a manual mark.
+ */
+export async function writePresenceCell(
+  cell: { talentId: string; eventId: string; day: Date; slot: PresenceSlot },
+  mark: {
+    status: CellStatus;
+    source: Exclude<PresenceSource, 'system'>;
+    markedById: string | null;
+  },
+): Promise<void> {
+  const { talentId, eventId, day, slot } = cell;
+  await prisma.$transaction(async (tx) => {
+    if (mark.status === 'pending') {
+      await tx.eventPresence.deleteMany({
+        where: { talentId, eventId, day, slot },
+      });
+    } else {
+      const written = {
+        status: mark.status,
+        source: mark.source,
+        markedById: mark.markedById,
+        markedAt: new Date(),
+      };
+      await tx.eventPresence.upsert({
+        where: { talentId_eventId_day_slot: cell },
+        create: { ...cell, ...written },
+        update: written,
+      });
+    }
+    await recomputeEventsCount(tx, talentId);
+    await recomputeAttendance(tx, { eventIds: [eventId] });
   });
 }
 

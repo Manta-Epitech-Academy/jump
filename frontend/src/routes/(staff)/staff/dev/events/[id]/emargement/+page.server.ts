@@ -2,14 +2,11 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { prisma } from '$lib/server/db';
 import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { recomputeEventsCount } from '$lib/server/services/xpService';
-import { recomputeAttendance } from '$lib/server/services/attendance';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { countShownCohort } from '$lib/server/services/inscritsCohort';
 import { requireStaffGroup } from '$lib/server/auth/guards';
@@ -37,6 +34,7 @@ import {
   closePresenceSlot,
   reopenPresenceSlot,
   markAllPresentInSlot,
+  writePresenceCell,
 } from '$lib/server/services/presenceService';
 import {
   setPresenceSchema,
@@ -237,8 +235,9 @@ export const actions: Actions = {
       EVENT_MODULES.EMARGEMENT,
     );
     // Campus authorization for the write lands here: `loadEventOr404` scoped the
-    // event and `sheetRefusal` the talent's participation, so the raw-client
-    // write below is safe (same shape as xpService's ledger callers).
+    // event and `sheetRefusal` the talent's participation, so the write below
+    // (`writePresenceCell`, on the raw client) is safe (same shape as
+    // xpService's ledger callers).
     const refusal =
       slotRefusal(
         event,
@@ -248,41 +247,17 @@ export const actions: Actions = {
       ) ?? (await sheetRefusal(campusId, event.id, form.data.talentId));
     if (refusal) return message(form, refusal, { status: 400 });
 
-    const day = dateKeyToDbDate(form.data.day);
     const { talentId, slot, status } = form.data;
-
-    // The presence write and its two projections commit together: a mark or an
-    // unmark can change whether this event counts as attended, both for the
-    // talent's `eventsCount` and for the dev space's « venu ».
-    await prisma.$transaction(async (tx) => {
-      if (status === 'pending') {
-        // Reset the cell back to "en attente": drop the row entirely.
-        await tx.eventPresence.deleteMany({
-          where: { talentId, eventId: event.id, day, slot },
-        });
-      } else {
-        const common = {
-          status,
-          source: 'manual' as const,
-          markedById: locals.staffProfile.id,
-          markedAt: new Date(),
-        };
-        await tx.eventPresence.upsert({
-          where: {
-            talentId_eventId_day_slot: {
-              talentId,
-              eventId: event.id,
-              day,
-              slot,
-            },
-          },
-          create: { talentId, eventId: event.id, day, slot, ...common },
-          update: common,
-        });
-      }
-      await recomputeEventsCount(tx, talentId);
-      await recomputeAttendance(tx, { eventIds: [event.id] });
-    });
+    // « En attente » clears the cell; the projections follow either way.
+    await writePresenceCell(
+      {
+        talentId,
+        eventId: event.id,
+        day: dateKeyToDbDate(form.data.day),
+        slot,
+      },
+      { status, source: 'manual', markedById: locals.staffProfile.id },
+    );
 
     recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_MARK, {
       locals,
