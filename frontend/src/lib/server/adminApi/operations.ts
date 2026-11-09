@@ -922,13 +922,13 @@ export const ADMIN_API_OPERATIONS = {
         .array(z.string())
         .optional()
         .describe(
-          `${handleDescribe('sfStatus')} The complete set of Salesforce member statuses whose enrolments the dev workspace shows for this event; statuses left out are masked (still synced and in Jump). Enrolments with no status at all are always shown. A status left out also stops counting as a visit.`,
+          `${handleDescribe('sfStatus')} The complete set of Salesforce member statuses whose enrolments the dev workspace shows for this event; statuses left out are masked (still synced and in Jump). Enrolments with no status at all are always shown.`,
         ),
       attendanceStatuses: z
         .array(z.string())
         .optional()
         .describe(
-          `${handleDescribe('sfStatus')} The complete set of shown statuses this event counts as a visit: a talent who carries one came, once the event is over, which is what « Déjà venu » counts in the dev workspace. Each must be shown (shownStatuses, as saved by this call). An émargement present or late or a closing at the event counts as a visit whatever the status; an activity never does, since it is done from anywhere. Empty so no status counts.`,
+          `${handleDescribe('sfStatus')} The complete set of shown statuses this event counts as a visit, once it is over (« Déjà venu » in the dev workspace). Each must be shown; one hidden stops counting. An émargement present or late or a closing counts whatever the status; an activity never does.`,
         ),
       moduleSettings: moduleSettings.optional(),
       visible: z
@@ -1536,13 +1536,13 @@ export const ADMIN_API_OPERATIONS = {
         .array(z.string())
         .optional()
         .describe(
-          `${handleDescribe('sfStatus')} The complete set of Salesforce member statuses it shows. A status left out also stops counting as a visit.`,
+          `${handleDescribe('sfStatus')} The complete set of Salesforce member statuses it shows.`,
         ),
       attendanceStatuses: z
         .array(z.string())
         .optional()
         .describe(
-          `${handleDescribe('sfStatus')} The complete set of shown statuses it counts as a visit (the talent came). Each must be shown.`,
+          `${handleDescribe('sfStatus')} The complete set of shown statuses it counts as a visit. Each must be shown.`,
         ),
       feedbackFormId: z
         .string()
@@ -1662,7 +1662,7 @@ export const ADMIN_API_OPERATIONS = {
         .max(20)
         .optional()
         .describe(
-          'Tech interests only, and required to create one: the word the dev workspace reads it by in its roster chips and bars, e.g. "IA" for "Intelligence artificielle". The full label stays what talents pick at onboarding.',
+          'Tech interests only, required to create one: the word the dev workspace shows, e.g. "IA" for "Intelligence artificielle".',
         ),
       emoji: z
         .string()
@@ -1794,7 +1794,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_sync_member_status: defineWrite({
     description:
-      'Add a Salesforce member status to the words Jump knows, or change whether newly created events show it and count it as a visit (the talent came). A word Jump does not know is masked everywhere and reported by stats_sync_health; adding it stops the report but shows it on no existing event: write_event_config or bulk_event_config does that. Safe to repeat: an upsert on the word. Nothing is ever deleted.',
+      'Add a Salesforce member status to the words Jump knows, or change whether newly created events show it and count it as a visit. A word Jump does not know is masked everywhere and reported by stats_sync_health; adding it stops the report but shows it on no existing event: write_event_config or bulk_event_config does that. Safe to repeat: an upsert on the word. Nothing is ever deleted.',
     shape: {
       memberStatus: z
         .string()
@@ -1806,13 +1806,13 @@ export const ADMIN_API_OPERATIONS = {
         .boolean()
         .optional()
         .describe(
-          'Whether an event the sync creates from now on starts by showing this status. Defaults to false for a new word; existing events are never changed by it. False also stops it counting as a visit by default.',
+          'Whether an event the sync creates from now on starts by showing this status. Defaults to false for a new word; existing events are never changed by it.',
         ),
       attestsByDefault: z
         .boolean()
         .optional()
         .describe(
-          'Whether an event the sync creates from now on counts this status as a visit: a talent who carries it came, once the event is over (MET). Only a word shown by default can. Defaults to false for a new word; existing events are never changed by it, write_event_config and bulk_event_config set theirs.',
+          'Whether an event the sync creates from now on counts this status as a visit (MET). Only a word shown by default can. Defaults to false for a new word; existing events keep theirs.',
         ),
     },
     run: (params) => writeSyncMemberStatus(params),
@@ -1916,7 +1916,7 @@ export const ADMIN_API_OPERATIONS = {
         .array(z.string())
         .optional()
         .describe(
-          `${handleDescribe('sfStatus')} The complete set of statuses every matching event will show, e.g. a preset's from config_event_templates. Not with showStatuses or hideStatuses. A status left out also stops counting as a visit.`,
+          `${handleDescribe('sfStatus')} The complete set of statuses every matching event will show, e.g. a preset's from config_event_templates. Not with showStatuses or hideStatuses.`,
         ),
       showStatuses: z
         .array(z.string())
@@ -1928,19 +1928,19 @@ export const ADMIN_API_OPERATIONS = {
         .array(z.string())
         .optional()
         .describe(
-          `${handleDescribe('sfStatus')} Statuses every matching event will stop showing, and stop counting as a visit. Their enrolments stay synced and in Jump.`,
+          `${handleDescribe('sfStatus')} Statuses every matching event will stop showing, and stop counting. Their enrolments stay synced and in Jump.`,
         ),
       attendanceStatuses: z
         .array(z.string())
         .optional()
         .describe(
-          `${handleDescribe('sfStatus')} The complete set of statuses every matching event will count as a visit (the talent came, once the event is over), e.g. a preset's from config_event_templates. Each must be shown on every matching event, as this call leaves it. Not with attestStatuses or unattestStatuses.`,
+          `${handleDescribe('sfStatus')} The complete set of statuses every matching event will count as a visit, e.g. a preset's from config_event_templates. Each must be shown there once the call applies. Not with attestStatuses or unattestStatuses.`,
         ),
       attestStatuses: z
         .array(z.string())
         .optional()
         .describe(
-          `${handleDescribe('sfStatus')} Statuses every matching event will count as a visit, on top of what each already counts. Each must be shown on every matching event, as this call leaves it. Made for a format whose words the PO settles, e.g. « 4 - En stage » on every stage.`,
+          `${handleDescribe('sfStatus')} Statuses every matching event will count as a visit, on top of what each already counts. Each must be shown there once the call applies.`,
         ),
       unattestStatuses: z
         .array(z.string())
