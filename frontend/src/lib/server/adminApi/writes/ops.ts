@@ -122,9 +122,10 @@ export async function resolveSchools(params: {
 // ── Reset a closing ──────────────────────────────────────────────────────────
 
 /**
- * NOT safe to repeat, and the only write here that destroys anything: the
- * closing row is deleted so the talent returns to "à faire" and a fresh one can
- * be conducted. The answers do not come back.
+ * The only write here that destroys anything: the closing row is deleted so the
+ * talent returns to "à faire" and a fresh one can be conducted. The answers do
+ * not come back. Safe to repeat all the same, since repeating is not undoing: a
+ * second call finds no closing under that id and is refused below.
  *
  * Two things keep that defensible. The id can only come from the admin closings
  * page, since no operation in this tier returns one, so a model cannot pick a

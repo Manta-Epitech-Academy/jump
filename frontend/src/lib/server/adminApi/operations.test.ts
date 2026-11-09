@@ -3,8 +3,7 @@
  *
  * These are the rules that are easy to break by adding an entry and easy to
  * miss in review, because nothing fails until somebody calls the operation: a
- * write granted to leadership, a bulk tool with no way to pass a plan digest, a
- * write whose description never says whether retrying is safe.
+ * write granted to leadership, a bulk tool with no way to pass a plan digest.
  */
 
 import { describe, it, expect } from 'vitest';
