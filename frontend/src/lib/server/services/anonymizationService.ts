@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { recomputeAttendance } from './attendance';
 import { prisma } from '$lib/server/db';
 import { findUnreferencedParentAccount } from '$lib/server/services/parentAccount';
 import {
@@ -220,6 +221,9 @@ export async function anonymizeTalent(
   // Answers and their option rows cascade from the record, so this one delete
   // takes the whole closing with it.
   await tx.closing_Record.deleteMany({ where: { talentId } });
+  // The enrolments kept above may have counted as a visit through a closing
+  // that is now gone; their émargement, kept, still proves what it proved.
+  await recomputeAttendance(tx, { talentIds: [talentId] });
   await tx.closing_ResetEvent.deleteMany({ where: { talentId } });
   await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
   await tx.broadcastRecipient.deleteMany({

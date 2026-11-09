@@ -9,6 +9,7 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { recomputeEventsCount } from '$lib/server/services/xpService';
+import { recomputeAttendance } from '$lib/server/services/attendance';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { countShownCohort } from '$lib/server/services/inscritsCohort';
 import { requireStaffGroup } from '$lib/server/auth/guards';
@@ -250,9 +251,9 @@ export const actions: Actions = {
     const day = dateKeyToDbDate(form.data.day);
     const { talentId, slot, status } = form.data;
 
-    // The presence write and the `eventsCount` projection commit together: a
-    // mark/unmark can change whether this event counts as attended, so refresh
-    // the cached count in the same transaction.
+    // The presence write and its two projections commit together: a mark or an
+    // unmark can change whether this event counts as attended, both for the
+    // talent's `eventsCount` and for the dev space's « venu ».
     await prisma.$transaction(async (tx) => {
       if (status === 'pending') {
         // Reset the cell back to "en attente": drop the row entirely.
@@ -280,6 +281,7 @@ export const actions: Actions = {
         });
       }
       await recomputeEventsCount(tx, talentId);
+      await recomputeAttendance(tx, { eventIds: [event.id] });
     });
 
     recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_MARK, {

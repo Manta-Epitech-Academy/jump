@@ -17,6 +17,7 @@ import { error } from '@sveltejs/kit';
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
+import { recomputeAttendance } from './attendance';
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -55,14 +56,23 @@ export async function upsertMemberStatus(
   return status;
 }
 
-/** What a newly created event starts showing. */
-export async function defaultShownStatuses(): Promise<string[]> {
+/**
+ * What a newly created event starts showing, and which of those it counts as
+ * attended: the catalogue's `shownByDefault` and `attestsByDefault`, as the rows
+ * the event is created with.
+ */
+export async function defaultShownStatuses(): Promise<
+  { status: string; attestsAttendance: boolean }[]
+> {
   const rows = await prisma.sync_MemberStatus.findMany({
     where: { shownByDefault: true },
     orderBy: { status: 'asc' },
-    select: { status: true },
+    select: { status: true, attestsByDefault: true },
   });
-  return rows.map((row) => row.status);
+  return rows.map((row) => ({
+    status: row.status,
+    attestsAttendance: row.attestsByDefault,
+  }));
 }
 
 /** The words each event shows, keyed by event id. An event with none maps to an empty set. */
@@ -155,6 +165,7 @@ export async function replaceShownStatuses(
     });
   }
   await recomputeShownInDevSpace(tx, eventIds);
+  await recomputeAttendance(tx, { eventIds });
 }
 
 /**
@@ -186,6 +197,7 @@ export async function changeShownStatuses(
     });
   }
   await recomputeShownInDevSpace(tx, eventIds);
+  await recomputeAttendance(tx, { eventIds });
 }
 
 /**

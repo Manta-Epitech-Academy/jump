@@ -1048,10 +1048,16 @@ model EventConfig_Module {
 ///
 /// `Participation.shownInDevSpace` is its projection, recomputed in the same
 /// transaction as any change here (`services/devSpaceVisibility.ts`).
+///
+/// `attestsAttendance` says this status, on this event, means the talent came:
+/// MET on a Coding Club, « 4 - En stage » on a stage. Only a shown status can
+/// say it, which is why it is a flag on the row rather than a second set. It
+/// feeds `Participation.attendanceAttested` (`services/attendance.ts`).
 model EventConfig_ShownStatus {
-  eventId String
+  eventId           String
   /// Bound to the catalogue, so an event can only show a word Jump knows.
-  status  String
+  status            String
+  attestsAttendance Boolean @default(false)
 
   event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   definition Sync_MemberStatus @relation(fields: [status], references: [status], onDelete: Restrict)
@@ -1162,8 +1168,9 @@ model EventConfig_TemplateModule {
 /// Mirror of `EventConfig_ShownStatus` on the template side, so a preset carries
 /// which Salesforce statuses the dev space shows and applying it is a row copy.
 model EventConfig_TemplateShownStatus {
-  templateId String
-  status     String
+  templateId        String
+  status            String
+  attestsAttendance Boolean @default(false)
 
   template   EventConfig_Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
   definition Sync_MemberStatus    @relation(fields: [status], references: [status], onDelete: Restrict)
@@ -1228,11 +1235,11 @@ model Diploma_Template {
 }
 
 model Participation {
-  id             String  @id @default(cuid())
-  talentId       String
-  eventId        String
-  campusId       String
-  sfMemberStatus String? // raw Salesforce CampaignMember status, e.g. CONNECTED/READY/MET/DESISTED
+  id                 String  @id @default(cuid())
+  talentId           String
+  eventId            String
+  campusId           String
+  sfMemberStatus     String? // raw Salesforce CampaignMember status, e.g. CONNECTED/READY/MET/DESISTED
   /// Whether the dev space shows this enrolment: a cached projection of
   /// `sfMemberStatus` against the event's `EventConfig_ShownStatus` rows, true
   /// when there is no status at all (a row synced before the column existed; the
@@ -1241,7 +1248,17 @@ model Participation {
   /// dev count, list and aggregate filters on it (`visibleParticipationWhere`).
   /// Written only through `services/devSpaceVisibility.ts` and the sync, in the
   /// same statement or transaction as whatever it derives from.
-  shownInDevSpace Boolean @default(true)
+  shownInDevSpace    Boolean @default(true)
+  /// Whether something attests that the talent came to this event: a status
+  /// the event counts as attended (`EventConfig_ShownStatus.attestsAttendance`),
+  /// a half-day émargé present or late, a closing, or an activity entered there.
+  /// One proof is enough, and no absence is ever inferred. A cached projection of
+  /// those four tables, stored for the same reason as `shownInDevSpace`, and
+  /// written only by `services/attendance.ts`, in the transaction of whatever it
+  /// derives from. It holds no date: « came » also needs the event to be over,
+  /// which no write marks, so that half is applied on read
+  /// (`attendedBeforeWhere` in `domain/attendance.ts`), never here.
+  attendanceAttested Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1258,6 +1275,7 @@ model Participation {
   @@index([eventId])
   @@index([eventId, sfMemberStatus])
   @@index([eventId, shownInDevSpace])
+  @@index([talentId, attendanceAttested])
   @@index([campusId])
   @@index([talentId])
   @@index([talentId, campusId])
@@ -2146,13 +2164,16 @@ model Sync_ErasedContact {
 /// A word absent from here is unrecognised: masked from the dev space on every
 /// event and reported by `stats_sync_health` and the weekly digest, which is how a
 /// new word is noticed rather than hidden in silence. `shownByDefault` is what a
-/// newly created event starts showing (`EventConfig_ShownStatus`), copied once.
+/// newly created event starts showing (`EventConfig_ShownStatus`), copied once,
+/// and `attestsByDefault` whether that new event counts it as attended (MET). A
+/// CHECK holds that a word attests by default only if it is shown by default.
 /// The four words Salesforce sent at the time ship with the migration.
 model Sync_MemberStatus {
-  status         String   @id
-  shownByDefault Boolean
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  status           String   @id
+  shownByDefault   Boolean
+  attestsByDefault Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   events    EventConfig_ShownStatus[]
   templates EventConfig_TemplateShownStatus[]

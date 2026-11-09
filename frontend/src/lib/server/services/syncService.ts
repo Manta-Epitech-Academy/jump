@@ -40,6 +40,7 @@ import {
   shownStatusesByEvent,
 } from '$lib/server/services/devSpaceVisibility';
 import { schoolYearOf } from '$lib/domain/schoolYear';
+import { recomputeAttendance } from '$lib/server/services/attendance';
 import { eventEndInstant, eventStartInstant } from '$lib/domain/event';
 import { isCalendarDay, type DateKey } from '$lib/domain/planningTime';
 import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
@@ -132,7 +133,8 @@ export async function syncEvents(events: WorkerEvent[]) {
   const unresolvedCampuses = new Set<string>();
   const undated: string[] = [];
   // Read lazily, once per push: most pushes create no event at all.
-  let shownByDefault: string[] | undefined;
+  let shownByDefault:
+    Awaited<ReturnType<typeof defaultShownStatuses>> | undefined;
 
   for (const e of events) {
     const campus = campusByExternalName.get(e.campus_ext_name);
@@ -189,7 +191,7 @@ export async function syncEvents(events: WorkerEvent[]) {
             create: defaultEventModules().map((moduleKey) => ({ moduleKey })),
           },
           shownStatuses: {
-            create: shownByDefault.map((status) => ({ status })),
+            create: shownByDefault,
           },
         },
       });
@@ -784,7 +786,12 @@ export async function syncParticipations(
   // while the roster is being written would be overwritten on the rows still to
   // come. Re-derived once from the policy as it stands, which also catches the
   // members this pass did not send.
-  if (upserted > 0) await recomputeShownInDevSpace(prisma, [event.id]);
+  // Whether each member came is re-derived the same way: a status the event
+  // counts as attended may have just been set by this pass.
+  if (upserted > 0) {
+    await recomputeShownInDevSpace(prisma, [event.id]);
+    await recomputeAttendance(prisma, { eventIds: [event.id] });
+  }
 
   if (mode !== 'full')
     return { upserted, skipped, erased, removed: 0, held: false };

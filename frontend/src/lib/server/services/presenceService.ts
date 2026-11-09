@@ -1,6 +1,7 @@
 import { prisma } from '$lib/server/db';
 import { scopedPrisma } from '$lib/server/db/scoped';
 import { recomputeEventsCountBulk } from '$lib/server/services/xpService';
+import { recomputeAttendance } from './attendance';
 import type { PresenceSlot } from '$lib/domain/eventPresence';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 
@@ -147,6 +148,7 @@ export async function markAllPresentInSlot(
       tx,
       roster.map((p) => p.talentId).filter((id) => !alreadyAttending.has(id)),
     );
+    await recomputeAttendance(tx, { eventIds: [eventId] });
 
     return count;
   });

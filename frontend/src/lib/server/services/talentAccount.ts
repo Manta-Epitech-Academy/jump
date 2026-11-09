@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { recomputeAttendance } from './attendance';
 import { prisma } from '$lib/server/db';
 import {
   changeUserEmail,
@@ -309,6 +310,9 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     await tx.workshop_Participation.deleteMany({ where: { talentId } });
     await tx.xpGrant.deleteMany({ where: { talentId } });
     await tx.eventPresence.deleteMany({ where: { talentId } });
+    // The closings, activities and émargement just deleted were the proofs of
+    // the talent's visits; the enrolments, which the sync owns, stay.
+    await recomputeAttendance(tx, { talentIds: [talentId] });
     await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
     await tx.broadcastRecipient.deleteMany({
       where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },

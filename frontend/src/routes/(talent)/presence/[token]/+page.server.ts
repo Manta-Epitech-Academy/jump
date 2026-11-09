@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { recomputeEventsCount } from '$lib/server/services/xpService';
+import { recomputeAttendance } from '$lib/server/services/attendance';
 import { verifyCheckinToken } from '$lib/server/presence/checkinToken';
 import { isSlotClosed } from '$lib/server/presence/slotClosure';
 import { eventDisplayName } from '$lib/domain/event';
@@ -126,9 +127,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     };
   }
 
-  // The self-check-in and the `eventsCount` projection commit together: a first
-  // scan can make this event count as attended, so refresh the cached count in
-  // the same transaction as the write.
+  // The self-check-in and its two projections commit together: a first scan can
+  // make this event count as attended, for the talent's `eventsCount` and for
+  // the dev space's « venu ».
   await prisma.$transaction(async (tx) => {
     await tx.eventPresence.upsert({
       where: key,
@@ -144,6 +145,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       update: { status: 'present', source: 'qr', markedAt: new Date() },
     });
     await recomputeEventsCount(tx, talent.id);
+    await recomputeAttendance(tx, { eventIds: [eventId] });
   });
 
   return { state: 'present' as CheckinState, ...withLabel };

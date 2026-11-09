@@ -115,7 +115,7 @@ describe('per-event dev-space visibility (integration)', () => {
       });
       eventIds[key] = event.id;
       expect(event.shownStatuses.map((row) => row.status).sort()).toEqual(
-        await defaultShownStatuses(),
+        (await defaultShownStatuses()).map((row) => row.status),
       );
     }
   });

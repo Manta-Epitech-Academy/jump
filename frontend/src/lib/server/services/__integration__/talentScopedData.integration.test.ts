@@ -52,14 +52,22 @@ type TableFate =
   /** None of the talent's rows survive. */
   | { fate: 'delete'; why: string }
   /** Every row the talent had survives unchanged (new rows are allowed). */
-  | { fate: 'keep'; why: string }
+  | { fate: 'keep'; why: string; rederived?: Rederived }
   /** The rows survive with the listed columns changed and the others equal. */
   | { fate: 'scrub'; columns: readonly string[]; why: string }
   /**
    * Merge only: every row the absorbed talent had now names the survivor
    * instead, and is otherwise unchanged.
    */
-  | { fate: 'move'; why: string };
+  | { fate: 'move'; why: string; rederived?: Rederived };
+
+/**
+ * Columns of a kept or moved row that the operation re-derives from other rows,
+ * a projection rather than a fact (`Participation.attendanceAttested`, which a
+ * closing deleted with the talent can turn off). Left out of "unchanged", with
+ * the reason.
+ */
+type Rederived = { columns: readonly string[]; why: string };
 
 /** What an operation does to a group of `Talent` columns. */
 type ColumnGroup = {
@@ -202,6 +210,10 @@ const ERASURE: Policy = {
     Participation: {
       fate: 'keep',
       why: 'De-identified enrolment once the name is gone; it backs eventsCount and every cohort figure. Kept on an event that has started, as this one has; one on an event yet to start is a plan and goes (erasedContact.integration.test.ts).',
+      rederived: {
+        columns: ['attendanceAttested'],
+        why: 'Whether the talent came, re-derived from the proofs left once the closings are gone.',
+      },
     },
     EventPresence: {
       fate: 'keep',
@@ -335,6 +347,10 @@ const RESET: Policy = {
     Participation: {
       fate: 'keep',
       why: 'The enrolments the worker wrote are part of the import.',
+      rederived: {
+        columns: ['attendanceAttested'],
+        why: 'Whether the talent came, re-derived once the émargement, closings and activities that proved it are gone.',
+      },
     },
     Schooling_YearRecord: {
       fate: 'keep',
@@ -468,6 +484,10 @@ const MERGE: Policy = {
     Participation: {
       fate: 'move',
       why: "The person's enrolments, read again by the next roster under the survivor.",
+      rederived: {
+        columns: ['attendanceAttested'],
+        why: 'Whether the person came, re-derived over the proofs the survivor now holds.',
+      },
     },
     EventPresence: {
       fate: 'move',
@@ -942,6 +962,15 @@ describe('what erasure, reset and merge do to every talent table (integration)',
     ][]) {
       const was = before.get(model) ?? new Map();
       const is = after.get(model) ?? new Map();
+      const rederived = new Set(
+        'rederived' in fate ? (fate.rederived?.columns ?? []) : [],
+      );
+      /** A row without the columns the operation re-derives. */
+      const facts = (r: Row | undefined) =>
+        r &&
+        Object.fromEntries(
+          Object.entries(r).filter(([c]) => !rederived.has(c)),
+        );
       for (const [key, row] of was) {
         const now = is.get(key);
         const owned =
@@ -969,7 +998,7 @@ describe('what erasure, reset and merge do to every talent table (integration)',
           );
           const rest = (r: Row) =>
             Object.fromEntries(
-              Object.entries(r).filter(([c]) => !talentColumns.has(c)),
+              Object.entries(facts(r)!).filter(([c]) => !talentColumns.has(c)),
             );
           const moved = [...(survivorAfter?.get(model)?.values() ?? [])].some(
             (r) => same(rest(r), rest(row)),
@@ -979,7 +1008,7 @@ describe('what erasure, reset and merge do to every talent table (integration)',
               `${model} ${key}: declared move, not on the survivor.`,
             );
         }
-        if (fate.fate === 'keep' && !same(now, row)) {
+        if (fate.fate === 'keep' && !same(facts(now), facts(row))) {
           problems.push(
             `${model} ${key}: declared keep, ${now ? 'changed' : 'gone'}.`,
           );

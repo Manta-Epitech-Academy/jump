@@ -2,6 +2,7 @@ import type { ClosingRecommendation, Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { gridQuestions, type ClosingGrid } from '$lib/domain/closing';
 import type { ClosingConductForm } from '$lib/validation/closings';
+import { recomputeAttendance } from './attendance';
 
 /**
  * Writing a closing: the transaction behind the three lifecycle actions.
@@ -106,6 +107,9 @@ export async function persistClosing(
       },
       select: { id: true },
     });
+    // A closing is a proof the talent came; the first write of one can make the
+    // event count as a visit.
+    await recomputeAttendance(tx, { eventIds: [input.eventId] });
 
     const keep: {
       questionId: string;

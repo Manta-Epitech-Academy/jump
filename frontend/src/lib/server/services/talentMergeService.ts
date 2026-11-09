@@ -24,6 +24,7 @@
  */
 
 import { Prisma } from '@prisma/client';
+import { recomputeAttendance } from './attendance';
 import { prisma } from '$lib/server/db';
 import { dropLogin } from '$lib/server/authIdentityRepairCore';
 import {
@@ -132,6 +133,9 @@ export async function mergeTalents(
   }
 
   await recomputeEventsCount(tx, survivorId);
+  // The absorbed talent's émargement, closings and activities now prove the
+  // survivor's visits, on enrolments that may be the survivor's own.
+  await recomputeAttendance(tx, { talentIds: [survivorId] });
   // The current year's record may have come from an absorbed talent, and the
   // sync only refreshes the projection when it writes one.
   await recomputeSchoolingProjection(tx, survivorId);
