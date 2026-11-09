@@ -14,7 +14,9 @@ import { sendAdminDigest } from '$lib/server/services/adminDigest';
  * fallback: set it on non-prod, or the sends are dropped by design.
  *
  * With no admin chosen to receive it, nothing is built or sent and the log says
- * so: an empty Monday is a configuration state, not a failure.
+ * so: an empty Monday is a configuration state, not a failure. A second trigger
+ * in a week whose digest already went out sends nothing either (the week is
+ * claimed on `AdminDigest_Run`), so re-running this endpoint by hand is safe.
  */
 export const POST: RequestHandler = async ({ request }) => {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
@@ -26,14 +28,15 @@ export const POST: RequestHandler = async ({ request }) => {
 
   try {
     const result = await sendAdminDigest();
-    const { summary } = result;
-    console.log(
-      summary
+    const line =
+      result.outcome === 'sent'
         ? `[Job] Admin digest: ${result.sent} sent, ${result.failed} failed ` +
-            `(${summary.eventsToPrepare} events to prepare, ` +
-            `${summary.openSyncErrors} sync errors).`
-        : '[Job] Admin digest: no recipient chosen (write_admin_digest_recipient), nothing sent.',
-    );
+          `(${result.summary.eventsToPrepare} events to prepare, ` +
+          `${result.summary.openSyncErrors} sync errors).`
+        : result.outcome === 'already_sent'
+          ? "[Job] Admin digest: this week's digest already reached somebody or is being sent, nothing sent."
+          : '[Job] Admin digest: no recipient chosen (write_admin_digest_recipient), nothing sent.';
+    console.log(line);
     return json({ success: true, ...result });
   } catch (err) {
     console.error('[Job] Admin digest failed:', err);

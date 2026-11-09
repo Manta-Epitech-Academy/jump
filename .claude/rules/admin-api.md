@@ -2,7 +2,7 @@
 paths:
   - "frontend/src/lib/server/adminApi/**"
   - "frontend/src/lib/server/services/adminStats/**"
-  - "frontend/src/lib/server/services/adminDigest.ts"
+  - "frontend/src/lib/server/services/adminDigest/**"
   - "frontend/src/routes/api/admin/**"
   - "frontend/src/routes/api/mcp/**"
   - "frontend/src/routes/**/api-tokens/**"
@@ -100,7 +100,9 @@ Pieces:
 
 `services/adminStats/cohort.ts` is where "the cohort in scope" is defined once, for every aggregate: an operation states what it measured, never who it measured it over.
 
-The weekly admin digest (`services/adminDigest.ts`, `POST /api/jobs/admin-digest`) reads those same services, so an inbox figure and an asked figure can't disagree. It goes to the admins chosen with `write_admin_digest_recipient`, never to every admin: the role grants reading the admin space, and is given to people the digest was not written for (#426).
+The weekly admin digest (`services/adminDigest/`, `POST /api/jobs/admin-digest`) reads those same services, so an inbox figure and an asked figure can't disagree. It goes to the admins chosen with `write_admin_digest_recipient`, never to every admin: the role grants reading the admin space, and is given to people the digest was not written for (#426).
+
+Three rules keep it read rather than skimmed (#493). **What it marks as new is a figure the API answers.** Each read whose figures move from week to week takes `since` (`adminStats/since.ts`), and the digest passes the moment the previous delivered digest read its figures. `config_admin_digest` reports the instant the last digest asked with as `lastSend.newSince`, re-read off the ledger rather than stored: a chat passing it reads that inbox's numbers. A figure the mail prints that no read returns (the events per horizon, a register's unkept half-days) is added to the read first, never computed in the mail. **It leads with severity, not topics.** Urgent findings open it and make its subject, because a fixed layout under a subject counting events had a dead Salesforce feed and an overdue erasure request sitting at the bottom of a mail that looked like last week's. **A week is claimed before anything is sent**, on `AdminDigest_Run`, so a second trigger mails nobody, and the same rows put adoption, a ninety-day list, in the month's first digest only.
 
 ## The API is the floor
 

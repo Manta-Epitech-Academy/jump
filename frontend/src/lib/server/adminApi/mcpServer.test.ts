@@ -284,7 +284,10 @@ const TOOL_LIST_BUDGET = [
   // Raised again for the admin pages the API replaced (#483): the transactional
   // mails and the centres d'intérêt are entities no read answered, so one read
   // each, and a feedback form's read carries the link to its preview.
-  ['core, read-only', { ...coreWriter, writeEnabled: false }, 45_500],
+  // Raised again for the weekly digest's "nouveau" (#493): five reads take a
+  // `since` instant, so the figures the inbox marks as new are the ones a chat
+  // gets by asking, rather than a count left to the model.
+  ['core, read-only', { ...coreWriter, writeEnabled: false }, 46_800],
   // Raised for the subject catalogue (#439): the domains are a new entity, so
   // one write of their own (their read is config_workshops, which already
   // answered for the activities' sibling entities), plus the level, notions and

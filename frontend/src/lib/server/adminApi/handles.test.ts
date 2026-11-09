@@ -131,6 +131,8 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'pageHeightPx',
   'onlyUpcoming',
   'days',
+  // An instant the caller picks; the digest's own comes from config_admin_digest.
+  'since',
   'limit',
   'status',
   'state',

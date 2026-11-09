@@ -1,7 +1,7 @@
 /**
  * Who receives the Monday digest: the admins chosen for it, and nobody else.
  *
- * The one rule, held here so the send (`services/adminDigest.ts`) and the answer
+ * The one rule, held here so the send (`services/adminDigest/`) and the answer
  * to "who gets it" (`config_admin_digest`) cannot disagree: an account receives
  * the digest when it is admin AND `receivesAdminDigest` is set. The role is read
  * at the moment of asking, the way `verifyToken` re-reads it for a token, so a
@@ -19,6 +19,10 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { metric } from '$lib/server/adminApi/metrics';
+import {
+  digestBaseline,
+  lastDigestRun,
+} from '$lib/server/services/adminDigest/ledger';
 
 /** Every admin account, whether it receives the digest or not. */
 const ADMIN_ACCOUNT = {
@@ -46,7 +50,7 @@ export async function adminDigestRecipients(): Promise<string[]> {
 }
 
 export async function getAdminDigestRecipients() {
-  const [rows, recipients] = await Promise.all([
+  const [rows, recipients, lastRun] = await Promise.all([
     prisma.bauth_user.findMany({
       where: ADMIN_ACCOUNT,
       orderBy: { email: 'asc' },
@@ -57,7 +61,19 @@ export async function getAdminDigestRecipients() {
       },
     }),
     prisma.bauth_user.count({ where: RECIPIENT }),
+    lastDigestRun(),
   ]);
+  // Re-read off the ledger rather than stored: no earlier week changes once it
+  // is over, so the run's own week gives back the window it counted over.
+  const lastSend = lastRun && {
+    weekOf: lastRun.weekOf.toISOString().slice(0, 10),
+    newSince: (await digestBaseline(lastRun.startedAt)).since.toISOString(),
+    readAt: lastRun.startedAt.toISOString(),
+    finishedAt: lastRun.finishedAt?.toISOString() ?? null,
+    recipients: lastRun.recipients,
+    sent: lastRun.sent,
+    failed: lastRun.failed,
+  };
 
   return {
     admins: metric(
@@ -70,6 +86,10 @@ export async function getAdminDigestRecipients() {
     recipients: metric(
       recipients,
       "Nombre d'administrateurs à qui le prochain récapitulatif du lundi sera envoyé. Zéro signifie qu'aucun récapitulatif ne part.",
+    ),
+    lastSend: metric(
+      lastSend,
+      "Dernier récapitulatif du lundi parti, ou null si aucun n'est jamais parti. « weekOf » est le lundi de la semaine qu'il couvre (heure de Paris), « newSince » l'instant à partir duquel il a compté ce qui est nouveau (passé en « since » aux lectures qui le prennent, il redonne les chiffres marqués comme nouveaux dans ce récapitulatif), « readAt » l'instant où il a lu ses chiffres, à partir duquel le récapitulatif suivant comptera ce qui est nouveau s'il a atteint quelqu'un, « finishedAt » l'heure où l'envoi s'est terminé, « recipients » le nombre d'administrateurs à qui il était adressé, « sent » le nombre de mails effectivement partis et « failed » ceux que le service d'envoi a refusés. Un « weekOf » antérieur à la semaine en cours veut dire qu'aucun récapitulatif n'est parti cette semaine : soit aucun destinataire n'est désigné, soit l'envoi n'a pas été déclenché, soit il n'a pas encore fini.",
     ),
   };
 }

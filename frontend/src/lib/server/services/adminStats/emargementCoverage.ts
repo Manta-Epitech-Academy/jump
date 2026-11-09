@@ -35,9 +35,23 @@ import { isSlotClosed } from '$lib/server/presence/slotClosure';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import { scopedEvents, scopeLabels } from './cohort';
+import { sinceLabelFr, type SinceFilter } from './since';
+import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
 
 /** Events detailed one by one before the answer stops listing them. */
 export const EMARGEMENT_EVENTS_LIMIT = 40;
+
+/**
+ * The order the per-event list is capped in: the registers with a half-day
+ * nobody filled in first, since they are what the list is read for, then the
+ * rest; each group most recent first, the order the events arrive in. Dated
+ * alone, the cap filled with upcoming events (most recent first means furthest
+ * ahead first, and `since` keeps every one of them), so the weekly digest
+ * counted last week's unkept registers and could not name them.
+ */
+function unkeptFirst(a: EventCoverage, b: EventCoverage): number {
+  return Number(b.unkeptSlots > 0) - Number(a.unkeptSlots > 0);
+}
 
 export type EventCoverage = {
   eventId: string;
@@ -48,18 +62,27 @@ export type EventCoverage = {
   slots: number;
   elapsedSlots: number;
   keptSlots: number;
+  /** Elapsed half-days with no mark at all: sheets nobody filled in. */
+  unkeptSlots: number;
   /** Percentage of this event's elapsed half-days that hold a mark. */
   keptShare: number | null;
   marks: number;
 };
 
 export type EmargementCoverage = {
-  filters: { schoolYear: string; campus: string; event: string };
+  filters: {
+    schoolYear: string;
+    campus: string;
+    event: string;
+    /** The `since` instant applied, ISO 8601, or null for every event. */
+    since: string | null;
+  };
   events: Metric;
   slots: Metric;
   elapsedSlots: Metric;
   keptSlots: Metric;
   keptShare: Metric<number | null>;
+  eventsWithUnkeptSlots: Metric;
   marks: Metric;
   byStatus: Metric<
     { status: string; label: string; count: number; share: number | null }[]
@@ -68,29 +91,52 @@ export type EmargementCoverage = {
   truncated: boolean;
 };
 
+/**
+ * `since` keeps the events still under way at that instant or after it: an
+ * event already over by then (in its campus's calendar, the rule
+ * `getEventStatus` holds) is left out, totals included. It is how the weekly
+ * digest asks about last week's registers without the whole year's.
+ */
 export async function getEmargementCoverage(
   scope: Scope = {},
+  filters: SinceFilter = {},
 ): Promise<EmargementCoverage> {
+  const { since } = filters;
   const { events } = await scopedEvents(scope);
-  const withRegister = events
-    .filter((e) => e.modules.includes(EVENT_MODULES.EMARGEMENT))
+  const withModule = events.filter((e) =>
+    e.modules.includes(EVENT_MODULES.EMARGEMENT),
+  );
+  if (withModule.length === 0) return empty(scope, since);
+
+  const allRows = await prisma.event.findMany({
+    where: { id: { in: withModule.map((e) => e.id) } },
+    select: {
+      id: true,
+      date: true,
+      endDate: true,
+      startMinutes: true,
+      campus: { select: { timezone: true } },
+      _count: { select: { eventPresences: true } },
+    },
+  });
+  const rows = since
+    ? allRows.filter(
+        (row) =>
+          getEventStatus(
+            row,
+            getLifecycleBounds(row.campus.timezone, since),
+          ) !== 'past',
+      )
+    : allRows;
+  const inWindow = new Set(rows.map((row) => row.id));
+  const withRegister = withModule
+    .filter((e) => inWindow.has(e.id))
     .sort((a, b) => b.dateTs - a.dateTs);
 
-  if (withRegister.length === 0) return empty(scope);
+  if (withRegister.length === 0) return empty(scope, since);
 
   const ids = withRegister.map((e) => e.id);
-  const [rows, closures, markedSlots, statuses] = await Promise.all([
-    prisma.event.findMany({
-      where: { id: { in: ids } },
-      select: {
-        id: true,
-        date: true,
-        endDate: true,
-        startMinutes: true,
-        campus: { select: { timezone: true } },
-        _count: { select: { eventPresences: true } },
-      },
-    }),
+  const [closures, markedSlots, statuses] = await Promise.all([
     prisma.eventPresenceClosure.findMany({
       where: { eventId: { in: ids } },
       select: { eventId: true, day: true, slot: true },
@@ -155,10 +201,14 @@ export async function getEmargementCoverage(
       slots: slots.length,
       elapsedSlots: elapsed.length,
       keptSlots: kept.length,
+      unkeptSlots: elapsed.length - kept.length,
       keptShare: share(kept.length, elapsed.length),
       marks: row?._count.eventPresences ?? 0,
     };
   });
+
+  // Stable, so the date order of `withRegister` holds within each group.
+  perEvent.sort(unkeptFirst);
 
   const totalSlots = perEvent.reduce((sum, e) => sum + e.slots, 0);
   const totalElapsed = perEvent.reduce((sum, e) => sum + e.elapsedSlots, 0);
@@ -166,10 +216,10 @@ export async function getEmargementCoverage(
   const totalMarks = statuses.reduce((sum, s) => sum + s._count._all, 0);
 
   return {
-    filters: scopeLabels(scope),
+    filters: { ...scopeLabels(scope), since: since?.toISOString() ?? null },
     events: metric(
       withRegister.length,
-      "Événements du périmètre dont la section émargement est activée. Les autres n'ont pas de feuille de présence à tenir et sont ignorés ici.",
+      `Événements du périmètre dont la section émargement est activée${since ? `, encore en cours ${sinceLabelFr(since)} ou plus tard` : ''}. Les autres n'ont pas de feuille de présence à tenir et sont ignorés ici.`,
     ),
     slots: metric(
       totalSlots,
@@ -187,6 +237,10 @@ export async function getEmargementCoverage(
       share(totalKept, totalElapsed),
       "Part des demi-journées écoulées où au moins un pointage a été enregistré, en pourcentage. Seules les demi-journées écoulées y entrent : un événement qui n'a pas encore eu lieu ne fait pas baisser ce chiffre, sauf un créneau qu'un membre de l'équipe a clôturé à l'avance.",
     ),
+    eventsWithUnkeptSlots: metric(
+      perEvent.filter((e) => e.unkeptSlots > 0).length,
+      'Événements qui ont au moins une demi-journée écoulée sans aucun pointage, comptés sur tous les événements et non sur la liste plafonnée. Sur chacun, la cohorte compte comme absente de ces demi-journées tant que personne ne remplit la feuille.',
+    ),
     marks: metric(
       totalMarks,
       "Pointages enregistrés sur ces événements, tous statuts confondus. C'est le dénominateur de la répartition ci-dessous.",
@@ -202,22 +256,24 @@ export async function getEmargementCoverage(
     ),
     perEvent: metric(
       perEvent.slice(0, EMARGEMENT_EVENTS_LIMIT),
-      `Le détail événement par événement, du plus récent au plus ancien, limité à ${EMARGEMENT_EVENTS_LIMIT} lignes. « elapsedSlots », « keptSlots » et « keptShare » s'y lisent comme les chiffres du même nom, pour cet événement seul ; « marks » est le nombre de pointages enregistrés, tous statuts confondus.`,
+      `Le détail événement par événement, limité à ${EMARGEMENT_EVENTS_LIMIT} lignes : d'abord ceux qui ont au moins une demi-journée écoulée sans aucun pointage, puis les autres, chaque groupe du plus récent au plus ancien. « elapsedSlots », « keptSlots » et « keptShare » s'y lisent comme les chiffres du même nom, pour cet événement seul ; « unkeptSlots » compte ses demi-journées écoulées sans aucun pointage ; « marks » est le nombre de pointages enregistrés, tous statuts confondus.`,
     ),
     truncated: perEvent.length > EMARGEMENT_EVENTS_LIMIT,
   };
 }
 
-function empty(scope: Scope): EmargementCoverage {
-  const none =
-    "Aucun événement du périmètre n'a la section émargement activée : il n'y a pas de feuille de présence à tenir.";
+function empty(scope: Scope, since: Date | undefined): EmargementCoverage {
+  const none = since
+    ? `Aucun événement du périmètre n'a la section émargement activée et n'était encore en cours ${sinceLabelFr(since)} ou plus tard : il n'y a pas de feuille de présence à tenir.`
+    : "Aucun événement du périmètre n'a la section émargement activée : il n'y a pas de feuille de présence à tenir.";
   return {
-    filters: scopeLabels(scope),
+    filters: { ...scopeLabels(scope), since: since?.toISOString() ?? null },
     events: metric(0, none),
     slots: metric(0, none),
     elapsedSlots: metric(0, none),
     keptSlots: metric(0, none),
     keptShare: metric(null, none),
+    eventsWithUnkeptSlots: metric(0, none),
     marks: metric(0, none),
     byStatus: metric([], none),
     perEvent: metric([], none),
