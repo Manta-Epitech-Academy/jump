@@ -109,8 +109,9 @@ const CORE_INSTRUCTIONS = [
   '',
   'A tool changes data when its description closes with "Changes data.", whatever',
   'its name: the sentence that follows says whether repeating it is safe. Every',
-  'such call is logged with what it changed and answers with the resulting state:',
-  'report that state rather than asserting success. A tool that takes a',
+  'such call is logged with what it changed and answers with the state before and',
+  'after, unless its description names another answer: report that state rather',
+  'than asserting success. A tool that takes a',
   'planDigest must first be called without it to obtain a plan; show that plan to',
   'the human, and only then call it again with the digest it returned.',
 ];

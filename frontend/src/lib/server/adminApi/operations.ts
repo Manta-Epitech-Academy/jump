@@ -956,7 +956,7 @@ export const ADMIN_API_OPERATIONS = {
     destructive: true,
     openWorld: false,
     description:
-      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses and those that count as a visit, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call. Answers with the state before and after.",
+      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses and those that count as a visit, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call.",
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
       // Unset is spelled one way, on both sides: null, as config_event_detail
@@ -1071,7 +1071,7 @@ export const ADMIN_API_OPERATIONS = {
     openWorld: true,
     twoStep: true,
     description:
-      'Create a feedback form, or replace one whole. Read it first with config_feedback_forms and its formId, change what must change, and send everything back: whatever is left out is removed. Without planDigest it answers with the form as it stands, the form that would replace it, and a planDigest; the apply is refused if the form was edited or answered in between. Once a form has responses its structure is frozen: wording and settings still change, but adding, removing or reordering a section, question or option, or changing what a question collects (key, type, required, identity field, input kind, selection bounds) is refused; copy it with write_feedback_form_copy, write the copy, then archive the original. A defect a frozen structure already carries is not refused, so wording, settings and archiving stay possible. The rules stated on the parameters are checked together and every refusal comes back at once. Retire a form by setting status to archived; nothing deletes one. Answers with the form as written, ids included, and an "apercu" sentence linking to its preview.',
+      'Create a feedback form, or replace one whole. Read it first with config_feedback_forms and its formId, change what must change, and send everything back: whatever is left out is removed. Without planDigest it answers with the form as it stands, the form that would replace it, and a planDigest; the apply is refused if the form was edited or answered in between. Once a form has responses its structure is frozen: wording and settings still change, but adding, removing or reordering a section, question or option, or changing what a question collects (key, type, required, identity field, input kind, selection bounds) is refused; copy it with write_feedback_form_copy, write the copy, then archive the original. A defect a frozen structure already carries is not refused, so wording, settings and archiving stay possible. The rules stated on the parameters are checked together and every refusal comes back at once. Nothing deletes a form. Answers with the form as written, ids included, and an "apercu" sentence linking to its preview.',
     shape: {
       formId: z
         .string()
@@ -1220,7 +1220,7 @@ export const ADMIN_API_OPERATIONS = {
     destructive: true,
     openWorld: false,
     description:
-      "Declare or update one CTFd instance, the host online activities run on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and which supervisor code the catalogue shows; what the instance serves is write_workshop. The instance's /admin/workshop/jump page prints this call filled in: run that rather than typing values. Answers with the instance before and after.",
+      "Declare or update one CTFd instance, the host online activities run on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and which supervisor code the catalogue shows; what the instance serves is write_workshop. The instance's /admin/workshop/jump page prints this call filled in: run that rather than typing values.",
     shape: {
       instance: z
         .string()
@@ -1254,7 +1254,7 @@ export const ADMIN_API_OPERATIONS = {
     repeat: { safe: true, because: 'the same call leaves the same activity' },
     destructive: true,
     openWorld: true,
-    description: `Declare or update one online activity, the content a CTFd instance serves, identified by its slug: what a talent reads (its French name), the instance serving it, whether it is offered, how it presents itself on the talent dashboard (its cover) and how the subject catalogue of the dev space files it (level, notions, domains). The catalogue shows an activity once it is offered and has a tagline, a level, a domain and a picture, and its instance a supervisor code (write_workshop_instance); config_workshops says what each one still lacks. A slug that does not exist yet creates one; on an existing one only the fields you pass change. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content. The cover is a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host: media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Answers with the activity before and after.`,
+    description: `Declare or update one online activity, the content a CTFd instance serves, identified by its slug: what a talent reads (its French name), the instance serving it, whether it is offered, how it presents itself on the talent dashboard (its cover) and how the subject catalogue of the dev space files it (level, notions, domains). The catalogue shows an activity once it is offered and has a tagline, a level, a domain and a picture, and its instance a supervisor code (write_workshop_instance); config_workshops says what each one still lacks. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content. Jump copies the cover's pictures. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why.`,
     shape: {
       slug: z
         .string()
@@ -1343,7 +1343,7 @@ export const ADMIN_API_OPERATIONS = {
     destructive: true,
     openWorld: false,
     description:
-      'Create or update one domain of the subject catalogue by its key: a new key creates one (label required), on an existing one only the fields you pass change. To remove one, archive it: no activity is filed under it any more, those that carry it keep it. There is no delete. An activity gets its domains from write_workshop. Answers with the domain before and after.',
+      'Create or update one domain of the subject catalogue by its key: a new key creates one (label required), on an existing one only the fields you pass change. To remove one, archive it: no activity is filed under it any more, those that carry it keep it. There is no delete. An activity gets its domains from write_workshop.',
     shape: {
       domainKey: z
         .string()
@@ -1378,7 +1378,7 @@ export const ADMIN_API_OPERATIONS = {
     repeat: { safe: true, because: 'the same text leaves the same note' },
     destructive: true,
     openWorld: true,
-    description: `Set or clear one campus's note on its talents' home (« le mot du campus »), the one message in the news card (« Actualités ») of every talent whose campus it is (a talent's campus is the one of their latest-dated event, upcoming ones included): welcome words, the next dates, a Discord link, pictures. The page adds no label or title of its own, so open with a heading when the message needs one. Markdown: headings, lists, emphasis, links to https:// or mailto:, and pictures written ![what it shows](https://…), at most ${TALENT_HOME_NOTE_MAX_IMAGES}. Jump copies each picture and talents see the copy, drawn whole and bounded in size in the card, larger when they open the message; the note keeps the address as written. ${PICTURE_RULES} Raw HTML is refused rather than stripped, so what is stored is exactly what talents read. At most ${TALENT_HOME_NOTE_MAX} characters, not counting the pictures' addresses. All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Pass markdown null to remove it. Answers with the note before and after.`,
+    description: `Set or clear one campus's note on its talents' home (« le mot du campus »), the one message in the news card (« Actualités ») of every talent whose campus it is (a talent's campus is the one of their latest-dated event, upcoming ones included): welcome words, the next dates, a Discord link, pictures. The page adds no label or title of its own, so open with a heading when the message needs one. Markdown: headings, lists, emphasis, links to https:// or mailto:, and pictures written ![what it shows](https://…), at most ${TALENT_HOME_NOTE_MAX_IMAGES}. Jump copies each picture and talents see the copy, drawn whole and bounded in size in the card, larger when they open the message; the note keeps the address as written. ${PICTURE_RULES} Raw HTML is refused rather than stripped, so what is stored is exactly what talents read. At most ${TALENT_HOME_NOTE_MAX} characters, not counting the pictures' addresses. All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why.`,
     shape: {
       campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
       markdown: z
@@ -1395,7 +1395,7 @@ export const ADMIN_API_OPERATIONS = {
     repeat: { safe: true, because: 'the same values leave the same highlight' },
     destructive: true,
     openWorld: true,
-    description: `Set or clear the one event a campus puts forward on its talents' home, with a button that opens the sign-up form in a new tab: a JPO, the next Coding Club, a camp. It leads the home's blue hero on any day the talent has no activity. It is chosen by hand, never taken from Salesforce. Give title, summary and url to set it, and all three null with a null date to remove it; anything in between is refused. imageUrl is optional: an https picture Jump copies. ${PICTURE_RULES} Omitted, the highlight has none, and a picture that cannot be copied refuses the whole write. A dated highlight hides itself once its day has passed on the campus clock, so nothing has to be cleaned up afterwards, and a day already past is refused. Answers with the highlight before and after.`,
+    description: `Set or clear the one event a campus puts forward on its talents' home, with a button that opens the sign-up form in a new tab: a JPO, the next Coding Club, a camp. It leads the home's blue hero on any day the talent has no activity. It is chosen by hand, never taken from Salesforce. Give title, summary and url to set it, and all three null with a null date to remove it; anything in between is refused. Jump copies its picture. ${PICTURE_RULES} A picture that cannot be copied refuses the whole write. A dated highlight hides itself once its day has passed on the campus clock, so nothing has to be cleaned up afterwards, and a day already past is refused.`,
     shape: {
       campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
       title: z
@@ -1403,14 +1403,14 @@ export const ADMIN_API_OPERATIONS = {
         .max(HIGHLIGHT_TITLE_MAX)
         .nullable()
         .describe(
-          'What the event is, in French, at most 80 characters, e.g. "Recode le jeu Snake en JS".',
+          'What the event is, in French, e.g. "Recode le jeu Snake en JS".',
         ),
       summary: z
         .string()
         .max(HIGHLIGHT_SUMMARY_MAX)
         .nullable()
         .describe(
-          'What happens there and why come, in French addressing the talent as « tu », at most 300 characters.',
+          'What happens there and why come, in French addressing the talent as « tu ».',
         ),
       date: z
         .string()
@@ -1440,7 +1440,7 @@ export const ADMIN_API_OPERATIONS = {
     destructive: true,
     openWorld: false,
     description:
-      'Create or replace one question of the closing bank, identified by its key: a key that does not exist yet creates one, an existing key replaces it. Refused, saying what is wrong, if it uses an unknown valence or pictogram, or if it changes the type or drops an option of a question students have already answered. Wording stays editable on purpose. Answers with the question before and after.',
+      'Create or replace one question of the closing bank, identified by its key: a key that does not exist yet creates one, an existing key replaces it. Refused, saying what is wrong, if it uses an unknown valence or pictogram, or if it changes the type or drops an option of a question students have already answered. Wording stays editable on purpose.',
     shape: {
       questionKey: z
         .string()
@@ -1536,7 +1536,7 @@ export const ADMIN_API_OPERATIONS = {
     openWorld: false,
     twoStep: true,
     description:
-      'Create or replace a closing grid, identified by its key: which bank questions it asks, in which sections, in what order. Call it WITHOUT planDigest first: it answers with the grid as it stands, the composition that would replace it, and a planDigest. Show that to the human, then call again with the digest to apply. The apply is refused if the grid has been recomposed in between, because a grid is replaced whole and the other edit would be lost without a trace. Refused too if it names a question that does not exist or has been retired, asks the same one twice, marks more than one as quotable, or asks nothing at all. Composing a grid never touches an answer already recorded. Answers with the composition before and after.',
+      'Create or replace a closing grid, identified by its key: which bank questions it asks, in which sections, in what order. Call it WITHOUT planDigest first: it answers with the grid as it stands, the composition that would replace it, and a planDigest. The apply is refused if the grid has been recomposed in between, because a grid is replaced whole and the other edit would be lost without a trace. Refused too if it names a question that does not exist or has been retired, asks the same one twice, marks more than one as quotable, or asks nothing at all. Composing a grid never touches an answer already recorded.',
     shape: {
       templateKey: z
         .string()
@@ -1601,7 +1601,7 @@ export const ADMIN_API_OPERATIONS = {
     destructive: true,
     openWorld: false,
     description:
-      'Create, edit or archive one event-configuration preset, by its name. It starts from the event named by eventId if given (capturing it as it stands), else from the preset as stored; the fields you pass are then laid over it, with the same patch semantics as write_event_config. So a preset can be written from values alone, or captured from an event and adjusted in one call. Creating one needs eventId or modules. To retire one, archive it: there is no delete. Answers with the preset before and after.',
+      'Create, edit or archive one event-configuration preset, by its name. It starts from the event named by eventId if given (capturing it as it stands), else from the preset as stored; the fields you pass are then laid over it, with the same patch semantics as write_event_config. So a preset can be written from values alone, or captured from an event and adjusted in one call. Creating one needs eventId or modules. To retire one, archive it: there is no delete.',
     shape: {
       name: z
         .string()
@@ -1713,7 +1713,7 @@ export const ADMIN_API_OPERATIONS = {
     destructive: true,
     openWorld: false,
     description:
-      'Create or update one event category by its key: a new key creates one (label and color required), on an existing one only the fields you pass change. To remove one, archive it: no event is given it any more, those that carry it keep it. There is no delete. An event gets its category from write_event_config or bulk_event_config. Answers with the category before and after.',
+      'Create or update one event category by its key: a new key creates one (label and color required), on an existing one only the fields you pass change. To remove one, archive it: no event is given it any more, those that carry it keep it. There is no delete. An event gets its category from write_event_config or bulk_event_config.',
     shape: {
       categoryKey: z
         .string()
@@ -1756,7 +1756,7 @@ export const ADMIN_API_OPERATIONS = {
     destructive: true,
     openWorld: false,
     description:
-      'Choose the mail template one transactional mail sends from. Refused for a template missing a variable the mail cannot do without, and for unlinking such a mail. Answers with the link before and after.',
+      'Choose the mail template one transactional mail sends from. Refused for a template missing a variable the mail cannot do without, and for unlinking such a mail.',
     shape: {
       emailAction: z
         .enum(EMAIL_ACTION_KEYS as [string, ...string[]])
@@ -1776,7 +1776,7 @@ export const ADMIN_API_OPERATIONS = {
     destructive: true,
     openWorld: false,
     description:
-      "Create, rename or archive one centre d'intérêt. Without interestId it creates one; with it, only the fields you pass change. Archived, it is no longer offered and its talents keep it; there is no delete. Answers with it before and after.",
+      "Create, rename or archive one centre d'intérêt. Without interestId it creates one; with it, only the fields you pass change. Archived, it is no longer offered and its talents keep it; there is no delete.",
     shape: {
       interestId: z
         .string()
@@ -1825,7 +1825,7 @@ export const ADMIN_API_OPERATIONS = {
     destructive: true,
     openWorld: false,
     description:
-      'Create a campus or change its configuration, by name: an unknown name creates one, otherwise only the fields you pass change. remove deletes one, refused while anything references it. Answers with the campus before and after.',
+      'Create a campus or change its configuration, by name: an unknown name creates one, otherwise only the fields you pass change. remove deletes one, refused while anything references it.',
     shape: {
       campus: z
         .string()
