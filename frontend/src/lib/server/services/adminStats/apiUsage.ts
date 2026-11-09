@@ -21,6 +21,12 @@ export const API_USAGE_DEFAULT_DAYS = 30;
 /** Operations listed in the refusal ranking. */
 export const REFUSAL_TOP_N = 10;
 /**
+ * How long after a refusal a success by the same token counts as getting past
+ * it. Five minutes is a model reading the refusal and asking again, or asking
+ * the tool the refusal pointed it to; past that it is more likely a new question.
+ */
+export const RECOVERY_WINDOW_MINUTES = 5;
+/**
  * The names a transport logs a call under when no operation is its subject (the
  * MCP endpoint refusing a request before any tool is named, the HTTP reference
  * being read). Not operations, so they are kept out of both friction lists: at
@@ -38,6 +44,10 @@ export type OperationUsage = {
   refused: number;
   /** Share of this operation's own calls that were refused. */
   refusedShare: number | null;
+  /** Refusals on it the same token got past (see {@link recoveries}). */
+  recovered: number;
+  /** Share of its judged refusals that were recovered; null when none was judged. */
+  recoveredShare: number | null;
   failed: number;
   lastCalledAt: string | null;
 };
@@ -70,6 +80,7 @@ export type ApiUsage = {
   refusedCalls: Metric;
   failedCalls: Metric;
   refusalRate: Metric<number | null>;
+  recoveryRate: Metric<number | null>;
   byOperation: Metric<OperationUsage[]>;
   byToken: Metric<TokenUsage[]>;
   byDay: Metric<DayUsage[]>;
@@ -79,6 +90,62 @@ export type ApiUsage = {
 };
 
 const iso = (date: Date | null) => date?.toISOString() ?? null;
+
+type CallRow = {
+  operation: string;
+  status: number;
+  tokenId: string | null;
+  createdAt: Date;
+};
+
+/**
+ * Which refusals the caller got past: a refusal is recovered when the same token
+ * succeeds, on any operation, within {@link RECOVERY_WINDOW_MINUTES} after it.
+ *
+ * The refusal rate says how often a caller is turned away; this says whether
+ * being turned away told it what to do next, which is the whole job of a refusal
+ * here (it lists the values that exist, the tool that returns an id, the fresh
+ * plan digest). A tool whose refusals are rarely recovered has a message that
+ * does not help, whatever its refusal rate.
+ *
+ * Only what can be judged is: a token's call, since a browser session is a
+ * person and an unidentified caller has nothing to recover with; an operation,
+ * not a transport name; and a refusal older than the window, since a recent one
+ * may still be recovered.
+ */
+function recoveries(
+  rows: CallRow[],
+  now: number,
+): { judged: Map<string, number>; recovered: Map<string, number> } {
+  const windowMs = RECOVERY_WINDOW_MINUTES * 60_000;
+  const judged = new Map<string, number>();
+  const recovered = new Map<string, number>();
+  const byToken = new Map<string, CallRow[]>();
+  for (const row of rows) {
+    if (!row.tokenId || TRANSPORT_NAMES.has(row.operation)) continue;
+    const calls = byToken.get(row.tokenId);
+    if (calls) calls.push(row);
+    else byToken.set(row.tokenId, [row]);
+  }
+  for (const calls of byToken.values()) {
+    // Newest first, so the next success after each call is known on reaching it.
+    calls.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    let nextSuccess: number | null = null;
+    for (const call of calls) {
+      const at = call.createdAt.getTime();
+      if (call.status < 400) {
+        nextSuccess = at;
+        continue;
+      }
+      if (call.status >= 500 || at > now - windowMs) continue;
+      judged.set(call.operation, (judged.get(call.operation) ?? 0) + 1);
+      if (nextSuccess !== null && nextSuccess - at <= windowMs) {
+        recovered.set(call.operation, (recovered.get(call.operation) ?? 0) + 1);
+      }
+    }
+  }
+  return { judged, recovered };
+}
 
 /**
  * `knownOperations` is passed in rather than imported from the catalogue: the
@@ -135,6 +202,8 @@ export async function getApiUsage(
       ok: 0,
       refused: 0,
       refusedShare: null,
+      recovered: 0,
+      recoveredShare: null,
       failed: 0,
       lastCalledAt: iso(row.createdAt),
     };
@@ -164,10 +233,18 @@ export async function getApiUsage(
   // Computed after the loop, once each operation has its totals: a refusal rate
   // per operation is what tells a widely-used tool with a hard filter apart from
   // one nobody can call correctly, which the global rate cannot.
+  const { judged, recovered } = recoveries(rows, Date.now());
   const operations = [...byOperation.values()].map((row) => ({
     ...row,
     refusedShare: share(row.refused, row.calls),
+    recovered: recovered.get(row.operation) ?? 0,
+    recoveredShare: share(
+      recovered.get(row.operation) ?? 0,
+      judged.get(row.operation) ?? 0,
+    ),
   }));
+  const sum = (counts: Map<string, number>) =>
+    [...counts.values()].reduce((total, count) => total + count, 0);
 
   // An operation name that is not in the catalogue, refused, was invented by a
   // caller. The envelope audit records those, so they are the questions somebody
@@ -208,9 +285,13 @@ export async function getApiUsage(
       share(refused, rows.length),
       "Part des appels refusés, en pourcentage du total de la période. Vaut null si aucun appel n'a été enregistré.",
     ),
+    recoveryRate: metric(
+      share(sum(recovered), sum(judged)),
+      `Part des refus après lesquels le même token a obtenu une réponse, sur n'importe quelle opération, dans les ${RECOVERY_WINDOW_MINUTES} minutes : un refus repris est un refus dont le message a dit quoi faire ensuite. Ne comptent que les refus d'un token (pas ceux d'une session d'administration ouverte dans le navigateur, ni ceux d'un appelant non identifié) vieux de plus de ${RECOVERY_WINDOW_MINUTES} minutes. Vaut null si aucun refus ne remplit ces conditions.`,
+    ),
     byOperation: metric(
       [...operations].sort((a, b) => b.calls - a.calls),
-      "Nombre d'appels par opération, de la plus à la moins demandée, avec le détail réussites / refus / erreurs, la part de refus de cette opération et la date du dernier appel.",
+      "Nombre d'appels par opération, de la plus à la moins demandée, avec le détail réussites / refus / erreurs, la part de refus de cette opération, les refus repris (« recovered ») et leur part (« recoveredShare », calculée comme « recoveryRate » mais sur les refus de cette seule opération) et la date du dernier appel.",
     ),
     byToken: metric(
       [...byToken.values()].sort((a, b) => b.calls - a.calls),
