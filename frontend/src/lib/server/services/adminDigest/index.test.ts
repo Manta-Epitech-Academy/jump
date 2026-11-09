@@ -37,9 +37,12 @@ const { buildAdminDigest } = await import('./index');
 /** The previous digest read its figures on Monday 2 November 2026, 08:00 Paris. */
 const PREVIOUS = new Date('2026-11-02T07:00:00.000Z');
 const baseline = { since: PREVIOUS, previous: true };
+/** An ordinary Monday: adoption is the month's first digest's alone. */
+const week = { baseline, adoption: false };
+const firstOfMonth = { baseline, adoption: true };
 const firstEver = {
-  since: new Date('2026-11-02T08:00:00.000Z'),
-  previous: false,
+  baseline: { since: new Date('2026-11-02T08:00:00.000Z'), previous: false },
+  adoption: true,
 };
 const OLD = '2026-09-01T00:00:00.000Z';
 const NEW = '2026-11-05T00:00:00.000Z';
@@ -287,7 +290,7 @@ describe('buildAdminDigest', () => {
   // The figures marked new must be the ones a chat gets by asking with the
   // same instant, so every service is asked with the baseline itself.
   it('asks every moving figure since the baseline, as the API would', async () => {
-    await buildAdminDigest(baseline);
+    await buildAdminDigest(week);
 
     expect(getEventsConfigList).toHaveBeenCalledWith(
       {},
@@ -324,7 +327,7 @@ describe('buildAdminDigest', () => {
       ]),
     );
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.text).toContain(
       'Depuis le point du lundi 2 novembre, 1 événement a laissé des demi-journées sans aucun pointage',
@@ -337,13 +340,13 @@ describe('buildAdminDigest', () => {
   });
 
   it('says nothing of the registers when every one was kept', async () => {
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(at(digest.text, 'ÉMARGEMENT')).toBe(-1);
   });
 
   it('says so in the subject when nothing is urgent, and opens on no priority block', async () => {
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.subject).toBe("Jump - point hebdomadaire, rien d'urgent");
     expect(digest.text).not.toContain('À TRAITER EN PRIORITÉ');
@@ -369,7 +372,7 @@ describe('buildAdminDigest', () => {
     );
     getDataFreshness.mockResolvedValue(freshnessPayload(9));
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.subject).toBe(
       'Jump - Salesforce muet depuis 9 h, 2 demandes de suppression hors délai et 1 autre point urgent',
@@ -409,7 +412,7 @@ describe('buildAdminDigest', () => {
       ),
     );
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.subject).toBe('Jump - 1 événement à préparer cette semaine');
     expect(digest.html).toContain('Lille-CodingClub-1');
@@ -445,7 +448,7 @@ describe('buildAdminDigest', () => {
       ]),
     );
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.text).toContain(
       'Bloque la mise en ligne : nom public ; reste : nom des participants',
@@ -461,7 +464,7 @@ describe('buildAdminDigest', () => {
       }),
     );
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.html).toContain(
       'Lille-CodingClub-1 <strong>nouveau</strong>',
@@ -493,7 +496,7 @@ describe('buildAdminDigest', () => {
       eventsPayload(capped, { byHorizon: { imminent: 120 } }),
     );
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.html).toContain('Lille-CodingClub-14');
     expect(digest.html).not.toContain('Lille-CodingClub-15<');
@@ -506,7 +509,7 @@ describe('buildAdminDigest', () => {
       syncPayload({ prunesHeld: 2, prunesHeldSince: 1 }),
     );
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.html).toContain('<strong>2</strong> événements gardent');
     expect(digest.text).toContain(
@@ -515,7 +518,7 @@ describe('buildAdminDigest', () => {
     expect(digest.summary.prunesHeldEvents).toBe(2);
 
     getSyncHealth.mockResolvedValue(syncPayload());
-    const quiet = await buildAdminDigest(baseline);
+    const quiet = await buildAdminDigest(week);
     expect(quiet.text).not.toContain('gardent des inscriptions');
   });
 
@@ -524,7 +527,7 @@ describe('buildAdminDigest', () => {
   it('says when Salesforce sends a status Jump does not know', async () => {
     getSyncHealth.mockResolvedValue(syncPayload({ unrecognised: 3 }));
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.text).toContain(
       '3 inscriptions portent un statut Salesforce que Jump ne connaît pas, sur 1 événement',
@@ -535,7 +538,7 @@ describe('buildAdminDigest', () => {
     expect(digest.summary.unrecognisedSfStatuses).toBe(3);
 
     getSyncHealth.mockResolvedValue(syncPayload());
-    const quiet = await buildAdminDigest(baseline);
+    const quiet = await buildAdminDigest(week);
     expect(quiet.text).not.toContain(
       'statut Salesforce que Jump ne connaît pas',
     );
@@ -544,7 +547,7 @@ describe('buildAdminDigest', () => {
   it('names the failed generations, the new ones counted apart', async () => {
     getPdfJobsHealth.mockResolvedValue(pdfJobsPayload(3, 1));
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     // "Non généré" reads as merely pending; the underlying rows are in the
     // `error` status and need a human to relaunch them, so the mail has to say
@@ -560,7 +563,7 @@ describe('buildAdminDigest', () => {
   it('says a single failed generation without the wrong plural', async () => {
     getPdfJobsHealth.mockResolvedValue(pdfJobsPayload(1));
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.text).toContain('1 génération de document en échec');
     expect(digest.text).toContain('le talent concerné');
@@ -571,7 +574,7 @@ describe('buildAdminDigest', () => {
       deletionsPayload({ pending: 4, pendingSince: 2 }),
     );
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.text).toContain(
       '4 demandes de suppression de compte sont en attente, encore dans les délais, dont 2 arrivées depuis',
@@ -584,7 +587,7 @@ describe('buildAdminDigest', () => {
       eventsPayload([eventStub(1, { salesforceName: 'Lille <script>' })]),
     );
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.html).toContain('Lille &lt;script&gt;');
     expect(digest.html).not.toContain('<script>');
@@ -593,7 +596,7 @@ describe('buildAdminDigest', () => {
   it('flags a stale sync with where to check it', async () => {
     getDataFreshness.mockResolvedValue(freshnessPayload(9));
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     // A stale feed is the likeliest alarm here (a dead worker), so it must say
     // where to check it rather than only that it needs checking.
@@ -603,7 +606,7 @@ describe('buildAdminDigest', () => {
   });
 
   it('leaves a healthy sync without an alarm or a link', async () => {
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.text).toContain('Aucune erreur de synchronisation ouverte');
     expect(digest.text).not.toContain('à vérifier');
@@ -612,7 +615,7 @@ describe('buildAdminDigest', () => {
   it('flags a never-synced Salesforce feed as its own severity, not as "no errors"', async () => {
     getDataFreshness.mockResolvedValue(metric(null, 'def'));
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.subject).toBe(
       'Jump - aucune synchronisation Salesforce enregistrée',
@@ -632,10 +635,28 @@ describe('buildAdminDigest', () => {
     getSyncHealth.mockResolvedValue(syncPayload({ openErrors: 4 }));
     getDataFreshness.mockResolvedValue(metric(null, 'def'));
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(week);
 
     expect(digest.text).toContain('jamais été enregistrée');
     expect(digest.text).toContain('4 erreurs de synchronisation sont ouvertes');
+  });
+
+  // The adoption list changes over months; printed every Monday, the same
+  // names taught the reader to skim the whole mail.
+  it("leaves adoption to the month's first digest, without even reading it", async () => {
+    const digest = await buildAdminDigest(week);
+
+    expect(getFeatureAdoptionGaps).not.toHaveBeenCalled();
+    expect(at(digest.text, 'ADOPTION')).toBe(-1);
+    expect(digest.includesAdoption).toBe(false);
+    expect(digest.summary.unusedFeatures).toBeNull();
+    expect(digest.text).toContain(
+      "L'adoption des fonctionnalités paraît dans le premier point de chaque mois.",
+    );
+
+    const monthly = await buildAdminDigest(firstOfMonth);
+    expect(monthly.includesAdoption).toBe(true);
+    expect(at(monthly.text, 'ADOPTION')).toBeGreaterThan(-1);
   });
 
   it('names the features nobody used, and the ones a single campus uses', async () => {
@@ -658,7 +679,7 @@ describe('buildAdminDigest', () => {
       ),
     );
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(firstOfMonth);
 
     expect(digest.text).toContain('ADOPTION');
     expect(digest.text).toContain('Signataire créé ou modifié');
@@ -668,7 +689,7 @@ describe('buildAdminDigest', () => {
   });
 
   it('says so plainly when every measured feature has served', async () => {
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(firstOfMonth);
 
     expect(digest.text).toContain('ont servi au moins une fois');
     expect(digest.summary.unusedFeatures).toBe(0);
@@ -699,7 +720,7 @@ describe('buildAdminDigest', () => {
       ),
     );
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(firstOfMonth);
 
     expect(digest.text).toContain('l’an dernier et ne sert plus');
     expect(digest.text.indexOf('Génération des badges')).toBeLessThan(
@@ -714,7 +735,7 @@ describe('buildAdminDigest', () => {
     // measurement, not an absence of use.
     getFeatureAdoptionGaps.mockResolvedValue(unmeasurableAdoptionPayload());
 
-    const digest = await buildAdminDigest(baseline);
+    const digest = await buildAdminDigest(firstOfMonth);
 
     expect(digest.text).toContain('Adoption non mesurable');
     expect(digest.text).not.toContain('ont servi au moins une fois');

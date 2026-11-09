@@ -53,7 +53,12 @@ import {
   type DigestInput,
 } from './findings';
 import { renderDigestHtml, renderDigestText } from './render';
-import { claimDigestWeek, digestBaseline, finishDigestRun } from './ledger';
+import {
+  adoptionDue,
+  claimDigestWeek,
+  digestBaseline,
+  finishDigestRun,
+} from './ledger';
 
 export type AdminDigest = {
   subject: string;
@@ -72,18 +77,32 @@ export type AdminDigest = {
     lastSyncAgeHours: number | null;
     failedPdfJobs: number;
     overdueDeletionRequests: number;
-    /** Null when the monthly cube holds no measurement for the window. */
+    /**
+     * Null when this digest carries no adoption section (it does once a month),
+     * or when the monthly cube holds no measurement for the window.
+     */
     unusedFeatures: number | null;
     abandonedFeatures: number | null;
     singleCampusFeatures: number | null;
   };
 };
 
+/** What a digest is built against, both read off the ledger. */
+export type DigestContext = {
+  /** Where "nouveau" starts (`digestBaseline`). */
+  baseline: DigestBaseline;
+  /** Whether this is the month's first digest, which carries adoption. */
+  adoption: boolean;
+};
+
 /**
  * Read every payload the digest speaks from, in parallel, each asked "since" the
  * baseline so its "nouveau" is the figure the API gives for that instant.
  */
-async function readDigestInput(baseline: DigestBaseline): Promise<DigestInput> {
+async function readDigestInput({
+  baseline,
+  adoption: adoptionDue,
+}: DigestContext): Promise<DigestInput> {
   const since = { since: baseline.since };
   const [events, sync, freshness, pdfJobs, deletions, emargement, adoption] =
     await Promise.all([
@@ -97,8 +116,11 @@ async function readDigestInput(baseline: DigestBaseline): Promise<DigestInput> {
       // Last week's registers: the events still under way at the baseline.
       getEmargementCoverage({}, since),
       // Read through the same service the API answers from, so a figure in an
-      // inbox and the same figure asked over MCP cannot disagree.
-      getFeatureAdoptionGaps({}, { days: ADOPTION_WINDOW_DAYS }),
+      // inbox and the same figure asked over MCP cannot disagree. Not read at
+      // all in a week that does not carry it.
+      adoptionDue
+        ? getFeatureAdoptionGaps({}, { days: ADOPTION_WINDOW_DAYS })
+        : null,
     ]);
   return {
     baseline,
@@ -122,29 +144,29 @@ function summarise(input: DigestInput): AdminDigest['summary'] {
     lastSyncAgeHours: input.freshness.value?.ageHours ?? null,
     failedPdfJobs: input.pdfJobs.failed.value,
     overdueDeletionRequests: input.deletions.overdue.value,
-    unusedFeatures: input.adoption.aRetirer.value,
-    abandonedFeatures: input.adoption.aSurveiller.value,
-    singleCampusFeatures: input.adoption.aFormer.value,
+    unusedFeatures: input.adoption?.aRetirer.value ?? null,
+    abandonedFeatures: input.adoption?.aSurveiller.value ?? null,
+    singleCampusFeatures: input.adoption?.aFormer.value ?? null,
   };
 }
 
 /**
- * Build the digest, "nouveau" counted from `baseline` (`digestBaseline`).
- * `baseUrl` (pass `env.ORIGIN`) turns every page link and the shell's logo into
- * an absolute URL, the way a recipient's mail client needs it; the default empty
- * string is only for tests, which assert on the relative path.
+ * Build the digest against `context` (`digestContext`). `baseUrl` (pass
+ * `env.ORIGIN`) turns every page link and the shell's logo into an absolute URL,
+ * the way a recipient's mail client needs it; the default empty string is only
+ * for tests, which assert on the relative path.
  */
 export async function buildAdminDigest(
-  baseline: DigestBaseline,
+  context: DigestContext,
   baseUrl = '',
 ): Promise<AdminDigest> {
-  const input = await readDigestInput(baseline);
+  const input = await readDigestInput(context);
   const doc = composeDigest(input);
   return {
     subject: doc.subject,
     html: renderDigestHtml(doc, baseUrl),
     text: renderDigestText(doc, baseUrl),
-    includesAdoption: true,
+    includesAdoption: input.adoption !== null,
     summary: summarise(input),
   };
 }
@@ -177,8 +199,12 @@ export async function sendAdminDigest(
   const claim = await claimDigestWeek(now, recipients.length);
   if (!claim) return { outcome: 'already_sent', recipients: recipients.length };
 
+  const [baseline, adoption] = await Promise.all([
+    digestBaseline(now),
+    adoptionDue(now),
+  ]);
   const digest = await buildAdminDigest(
-    await digestBaseline(now),
+    { baseline, adoption },
     env.ORIGIN ?? '',
   );
 

@@ -54,8 +54,9 @@ export const LISTED_EVENTS = 15;
  *
  * Wider than the weekly cadence on purpose: a feature unused for one week is
  * noise (a stage between two cohorts uses almost nothing), a feature unused for a
- * quarter is a finding. So the section repeats the same names for weeks and that
- * is the point, it is a standing list and not a news item.
+ * quarter is a finding. So the list changes slowly, and that is why it appears
+ * in the first digest of each month only (`adoptionDue`): printed every Monday,
+ * the same names week after week taught the reader to skim the whole mail.
  */
 export const ADOPTION_WINDOW_DAYS = 90;
 
@@ -75,7 +76,8 @@ export type DigestInput = {
   deletions: DeletionQueue & DeletionQueueSince;
   /** Restricted to the events still under way at the baseline or later. */
   emargement: EmargementCoverage;
-  adoption: Awaited<ReturnType<typeof getFeatureAdoptionGaps>>;
+  /** Null in a week that does not carry it: only the month's first digest does. */
+  adoption: Awaited<ReturnType<typeof getFeatureAdoptionGaps>> | null;
 };
 
 /** The admin pages a figure links to, as paths, filtered to what it counts. */
@@ -552,6 +554,7 @@ function syncFindings({
 // measured, this branch was unreachable and the first digests after deploy
 // would have named the whole catalogue as unused.
 function adoptionFindings({ adoption }: DigestInput): DigestFinding[] {
+  if (!adoption) return [];
   const info = (block: DigestBlock): DigestFinding => ({
     section: 'adoption',
     severity: 'info',
@@ -562,7 +565,7 @@ function adoptionFindings({ adoption }: DigestInput): DigestFinding[] {
     return [
       info(
         paragraph(
-          'Adoption non mesurable cette semaine : les totaux mensuels n’ont pas été calculés sur la période, ce qui n’est pas la même chose qu’une absence d’usage.',
+          'Adoption non mesurable ce mois-ci : les totaux mensuels n’ont pas été calculés sur la période, ce qui n’est pas la même chose qu’une absence d’usage.',
         ),
       ),
     ];
@@ -676,6 +679,6 @@ export function composeDigest(input: DigestInput): DigestDocument {
       ...topics,
     ],
     footer:
-      "Message automatique, envoyé chaque lundi aux administrateurs désignés par l'équipe Jump.",
+      "Message automatique, envoyé chaque lundi aux administrateurs désignés par l'équipe Jump. L'adoption des fonctionnalités paraît dans le premier point de chaque mois.",
   };
 }

@@ -148,6 +148,12 @@ describe('weekly admin digest recipients (integration)', () => {
       recipients: 1,
     });
     expect(sendEmail).toHaveBeenCalledTimes(1);
+    // The month's first digest, so it carried adoption and says so on its run.
+    expect(
+      await prisma.adminDigest_Run.findFirst({
+        select: { sent: true, includedAdoption: true },
+      }),
+    ).toEqual({ sent: 1, includedAdoption: true });
     const { payload } = await call(getRecipients, secret);
     expect((payload.lastSend as { value: unknown }).value).toMatchObject({
       recipients: 1,
