@@ -8,7 +8,7 @@
  * line is not an operation sends whoever reads it after the wrong thing.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const callFindMany = vi.fn();
 const tokenFindMany = vi.fn();
@@ -211,5 +211,50 @@ describe('recovery after a refusal', () => {
     const usage = await getApiUsage({}, KNOWN);
 
     expect(usage.recoveryRate.value).toBeNull();
+  });
+
+  // Each of these, judged, would move the figure without saying anything about
+  // a refusal message: one that may still be recovered, a failure that is ours,
+  // and a request no operation was the subject of.
+  describe('leaves out what cannot be judged', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(100 * 60_000));
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('a refusal younger than the window', async () => {
+      callFindMany.mockResolvedValue([
+        tokenCall('t1', 'stats_sync_health', 400, 100 - 1),
+      ]);
+
+      const usage = await getApiUsage({}, KNOWN);
+
+      expect(usage.recoveryRate.value).toBeNull();
+    });
+
+    it('a failure on our side', async () => {
+      callFindMany.mockResolvedValue([
+        tokenCall('t1', 'stats_sync_health', 500, 0),
+        tokenCall('t1', 'stats_sync_health', 200, 1),
+      ]);
+
+      const usage = await getApiUsage({}, KNOWN);
+
+      expect(usage.recoveryRate.value).toBeNull();
+    });
+
+    it('a transport name, even one a token was refused under', async () => {
+      callFindMany.mockResolvedValue([
+        tokenCall('t1', 'mcp_request', 400, 0),
+        tokenCall('t1', 'stats_sync_health', 200, 1),
+      ]);
+
+      const usage = await getApiUsage({}, KNOWN);
+
+      expect(usage.recoveryRate.value).toBeNull();
+    });
   });
 });
