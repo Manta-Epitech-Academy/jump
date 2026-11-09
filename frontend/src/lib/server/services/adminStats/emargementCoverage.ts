@@ -35,6 +35,8 @@ import { isSlotClosed } from '$lib/server/presence/slotClosure';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
 import type { Scope } from '$lib/server/adminApi/scope';
 import { scopedEvents, scopeLabels } from './cohort';
+import { sinceLabelFr, type SinceFilter } from './since';
+import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
 
 /** Events detailed one by one before the answer stops listing them. */
 export const EMARGEMENT_EVENTS_LIMIT = 40;
@@ -54,7 +56,13 @@ export type EventCoverage = {
 };
 
 export type EmargementCoverage = {
-  filters: { schoolYear: string; campus: string; event: string };
+  filters: {
+    schoolYear: string;
+    campus: string;
+    event: string;
+    /** The `since` instant applied, ISO 8601, or null for every event. */
+    since: string | null;
+  };
   events: Metric;
   slots: Metric;
   elapsedSlots: Metric;
@@ -68,29 +76,52 @@ export type EmargementCoverage = {
   truncated: boolean;
 };
 
+/**
+ * `since` keeps the events still under way at that instant or after it: an
+ * event already over by then (in its campus's calendar, the rule
+ * `getEventStatus` holds) is left out, totals included. It is how the weekly
+ * digest asks about last week's registers without the whole year's.
+ */
 export async function getEmargementCoverage(
   scope: Scope = {},
+  filters: SinceFilter = {},
 ): Promise<EmargementCoverage> {
+  const { since } = filters;
   const { events } = await scopedEvents(scope);
-  const withRegister = events
-    .filter((e) => e.modules.includes(EVENT_MODULES.EMARGEMENT))
+  const withModule = events.filter((e) =>
+    e.modules.includes(EVENT_MODULES.EMARGEMENT),
+  );
+  if (withModule.length === 0) return empty(scope, since);
+
+  const allRows = await prisma.event.findMany({
+    where: { id: { in: withModule.map((e) => e.id) } },
+    select: {
+      id: true,
+      date: true,
+      endDate: true,
+      startMinutes: true,
+      campus: { select: { timezone: true } },
+      _count: { select: { eventPresences: true } },
+    },
+  });
+  const rows = since
+    ? allRows.filter(
+        (row) =>
+          getEventStatus(
+            row,
+            getLifecycleBounds(row.campus.timezone, since),
+          ) !== 'past',
+      )
+    : allRows;
+  const inWindow = new Set(rows.map((row) => row.id));
+  const withRegister = withModule
+    .filter((e) => inWindow.has(e.id))
     .sort((a, b) => b.dateTs - a.dateTs);
 
-  if (withRegister.length === 0) return empty(scope);
+  if (withRegister.length === 0) return empty(scope, since);
 
   const ids = withRegister.map((e) => e.id);
-  const [rows, closures, markedSlots, statuses] = await Promise.all([
-    prisma.event.findMany({
-      where: { id: { in: ids } },
-      select: {
-        id: true,
-        date: true,
-        endDate: true,
-        startMinutes: true,
-        campus: { select: { timezone: true } },
-        _count: { select: { eventPresences: true } },
-      },
-    }),
+  const [closures, markedSlots, statuses] = await Promise.all([
     prisma.eventPresenceClosure.findMany({
       where: { eventId: { in: ids } },
       select: { eventId: true, day: true, slot: true },
@@ -166,10 +197,10 @@ export async function getEmargementCoverage(
   const totalMarks = statuses.reduce((sum, s) => sum + s._count._all, 0);
 
   return {
-    filters: scopeLabels(scope),
+    filters: { ...scopeLabels(scope), since: since?.toISOString() ?? null },
     events: metric(
       withRegister.length,
-      "Événements du périmètre dont la section émargement est activée. Les autres n'ont pas de feuille de présence à tenir et sont ignorés ici.",
+      `Événements du périmètre dont la section émargement est activée${since ? `, encore en cours ${sinceLabelFr(since)} ou plus tard` : ''}. Les autres n'ont pas de feuille de présence à tenir et sont ignorés ici.`,
     ),
     slots: metric(
       totalSlots,
@@ -208,11 +239,12 @@ export async function getEmargementCoverage(
   };
 }
 
-function empty(scope: Scope): EmargementCoverage {
-  const none =
-    "Aucun événement du périmètre n'a la section émargement activée : il n'y a pas de feuille de présence à tenir.";
+function empty(scope: Scope, since: Date | undefined): EmargementCoverage {
+  const none = since
+    ? `Aucun événement du périmètre n'a la section émargement activée et n'était encore en cours ${sinceLabelFr(since)} ou plus tard : il n'y a pas de feuille de présence à tenir.`
+    : "Aucun événement du périmètre n'a la section émargement activée : il n'y a pas de feuille de présence à tenir.";
   return {
-    filters: scopeLabels(scope),
+    filters: { ...scopeLabels(scope), since: since?.toISOString() ?? null },
     events: metric(0, none),
     slots: metric(0, none),
     elapsedSlots: metric(0, none),

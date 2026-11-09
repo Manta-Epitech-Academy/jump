@@ -22,6 +22,12 @@
 
 import { prisma } from '$lib/server/db';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
+import {
+  sinceLabelFr,
+  withSince,
+  type SinceFilter,
+  type WithSince,
+} from './since';
 import { memberStatusCatalogue } from '$lib/server/services/devSpaceVisibility';
 import { isServedToWorker } from '$lib/server/services/syncConfigService';
 import {
@@ -176,6 +182,16 @@ export type SyncHealth = {
   unrecognisedStatuses: Metric;
   unrecognisedStatusEvents: Metric<UnrecognisedStatusEvent[]>;
   unrecognisedStatusEventsTruncated: boolean;
+};
+
+/**
+ * What the sync health adds when asked `since` an instant. The unknown
+ * Salesforce statuses have no counterpart: nothing records when a word was
+ * first received, so "new since" would be a guess.
+ */
+export type SyncHealthSince = {
+  openErrorsSince: Metric;
+  prunesHeldSince: Metric;
 };
 
 /**
@@ -347,7 +363,9 @@ async function passHealth(
   };
 }
 
-export async function getSyncHealth(): Promise<SyncHealth> {
+export async function getSyncHealth<F extends SinceFilter = SinceFilter>(
+  filters?: F,
+): Promise<WithSince<SyncHealth, SyncHealthSince, F>> {
   const terms = await syncFreshnessTerms();
 
   const [
@@ -379,7 +397,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
   const fullMinutes =
     cadences.find((c) => c.mode === 'full')?.intervalMinutes ?? 0;
 
-  return {
+  const health: SyncHealth = {
     lastIncremental: metric(
       incremental,
       `Dernière passe incrémentale réussie : elle ne rapatrie que les campagnes modifiées depuis la précédente, et c'est elle qui tient la fraîcheur des données (${terms.cadenceNote}). « ageHours » est son ancienneté en heures ; « stale » vaut vrai au-delà de ${terms.staleAfterHours.incremental} h, ce qui mérite une vérification. « events », « talents » et « participations » sont ce que cette passe a poussé. Vaut null si aucune passe incrémentale n'a jamais réussi.`,
@@ -455,6 +473,19 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     unrecognisedStatusEventsTruncated:
       statuses.eventsTotal > UNRECOGNISED_STATUS_EVENTS_LIMIT,
   };
+
+  return withSince(health, filters, async (since) => ({
+    openErrorsSince: metric(
+      openErrors.filter((e) => e.firstOccurredAt >= since).length,
+      `Parmi les erreurs ouvertes, celles rencontrées pour la première fois depuis ${sinceLabelFr(since)}. Une erreur dont la cause change repart de zéro : elle compte ici comme nouvelle même si le contact était déjà en erreur pour une autre raison.`,
+    ),
+    prunesHeldSince: metric(
+      await prisma.sync_PruneHold.count({
+        where: { firstHeldAt: { gte: since } },
+      }),
+      `Parmi les événements dont des suppressions sont retenues, ceux où la retenue est apparue depuis ${sinceLabelFr(since)}.`,
+    ),
+  }));
 }
 
 /** Cap on the run history one call returns. */

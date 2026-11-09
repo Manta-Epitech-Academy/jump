@@ -140,6 +140,7 @@ export async function lastDigestRun() {
     orderBy: { startedAt: 'desc' },
     select: {
       weekOf: true,
+      startedAt: true,
       finishedAt: true,
       recipients: true,
       sent: true,

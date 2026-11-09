@@ -160,4 +160,25 @@ describe('émargement coverage (integration)', () => {
       }),
     ]);
   });
+
+  // The weekly digest asks about last week's registers, not the year's: an
+  // event over before the instant leaves the totals too, while one whose last
+  // day is the instant's day is still being kept that day.
+  it('keeps only the events still under way at the since instant or later', async () => {
+    const scope = await resolveScope({ campus: campusName });
+
+    const lastDay = await getEmargementCoverage(scope, {
+      since: new Date('2026-03-03T11:00:00Z'),
+    });
+    expect(lastDay.events.value).toBe(2);
+
+    const dayAfter = await getEmargementCoverage(scope, {
+      since: new Date('2026-03-04T07:00:00Z'),
+    });
+    expect(dayAfter.filters.since).toBe('2026-03-04T07:00:00.000Z');
+    expect(dayAfter.events.value).toBe(1);
+    expect(dayAfter.perEvent.value.map((e) => e.eventId)).toEqual([futureId]);
+    expect(dayAfter.slots.value).toBe(2);
+    expect(dayAfter.marks.value).toBe(2);
+  });
 });

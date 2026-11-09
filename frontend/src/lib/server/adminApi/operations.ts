@@ -303,6 +303,24 @@ const eventStatus = z
     'Keep only events at this point of their life: upcoming, ongoing or past. Omit for every event.',
   );
 
+/**
+ * "What is new since then", taken by the reads whose figures move from week to
+ * week (`adminStats/since.ts`). An instant rather than a day, because the
+ * instant the weekly digest compares against is the moment the previous one
+ * read its figures, and asking with that exact value is how a chat reads the
+ * numbers the inbox printed.
+ */
+const since = z.iso
+  .datetime({ offset: true })
+  .optional()
+  .describe(
+    'ISO 8601 instant with offset. Adds the "…Since" figures, counted after it. config_admin_digest lastSend.readAt is the weekly digest\'s.',
+  );
+
+const sinceFilter = (value: string | undefined) => ({
+  since: value === undefined ? undefined : new Date(value),
+});
+
 // Generated from `handles.ts`, which names the sources that return every event
 // for each tier. This describe used to name one operation that by construction
 // excludes anything already visible, which left the parameter unusable for the
@@ -635,6 +653,7 @@ export const ADMIN_API_OPERATIONS = {
     shape: {
       schoolYear,
       campus,
+      since,
       status: eventStatus,
       state: z
         .enum(EVENTS_LIST_STATES)
@@ -643,15 +662,19 @@ export const ADMIN_API_OPERATIONS = {
           'Keep only events in this configuration state: unconfigured (no section enabled), ready (configured but hidden), shown (live in the dev workspace), or to_prepare for anything not past that is not shown yet. Omit for every state.',
         ),
     },
-    run: async ({ status, state, ...scope }) =>
-      getEventsConfigList(await resolveScope(scope), { status, state }),
+    run: async ({ status, state, since: at, ...scope }) =>
+      getEventsConfigList(
+        await resolveScope(scope),
+        { status, state },
+        sinceFilter(at),
+      ),
   }),
 
   stats_sync_health: defineOperation({
     description:
-      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are open and the age of the oldest, grouped by situation with the same explanation the admin page gives (what happened, what it prevents, who can fix it or that nobody can), and every Salesforce member status Jump holds with what the dev workspace does with it, naming the events that carry a status Jump does not know. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
-    shape: {},
-    run: () => getSyncHealth(),
+      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are open and the age of the oldest, grouped by situation with the same explanation the admin page gives (what happened, what it prevents, who can fix it or that nobody can), and every Salesforce member status Jump holds with what the dev workspace does with it, naming the events that carry a status Jump does not know. The two passes are reported apart because only the full one detects a deletion in Salesforce.',
+    shape: { since },
+    run: ({ since: at }) => getSyncHealth(sinceFilter(at)),
   }),
 
   config_sync_sources: defineOperation({
@@ -2064,21 +2087,29 @@ export const ADMIN_API_OPERATIONS = {
 
   ops_emargement_coverage: defineOperation({
     description: `Whether the attendance register is being kept: for events that expose the émargement section, how many half-days exist, have elapsed and hold a mark, and the tally of recorded marks. Capped at ${EMARGEMENT_EVENTS_LIMIT} events in the per-event list.`,
-    shape: { schoolYear, campus, eventId },
-    run: async (params) => getEmargementCoverage(await resolveScope(params)),
+    shape: {
+      schoolYear,
+      campus,
+      eventId,
+      since: since.describe(
+        'ISO 8601 instant with offset: keeps only the events still under way then or later.',
+      ),
+    },
+    run: async ({ since: at, ...scope }) =>
+      getEmargementCoverage(await resolveScope(scope), sinceFilter(at)),
   }),
 
   ops_pdf_jobs_health: defineOperation({
-    description: `State of the onboarding document queue: pending, processing, failed and succeeded, plus the jobs an admin can retry with their ids and ages. A job id identifies a document, never a person. Capped at ${PDF_JOBS_LIMIT} jobs. Takes no parameter.`,
-    shape: {},
-    run: () => getPdfJobsHealth(),
+    description: `State of the onboarding document queue: pending, processing, failed and succeeded, plus the jobs an admin can retry with their ids and ages. A job id identifies a document, never a person. Capped at ${PDF_JOBS_LIMIT} jobs.`,
+    shape: { since },
+    run: ({ since: at }) => getPdfJobsHealth(sinceFilter(at)),
   }),
 
   ops_account_deletion_queue: defineOperation({
     description:
-      'Account deletion requests waiting for a decision, how many are past the delay Jump commits to, the age of the oldest, and how many were fulfilled or rejected in the last 30 days. Counts only, nobody is named. Takes no parameter.',
-    shape: {},
-    run: () => getAccountDeletionQueue(),
+      'Account deletion requests waiting for a decision, how many are past the delay Jump commits to, the age of the oldest, and how many were fulfilled or rejected in the last 30 days. Counts only, nobody is named.',
+    shape: { since },
+    run: ({ since: at }) => getAccountDeletionQueue(sinceFilter(at)),
   }),
 
   ops_sf_conflicts_summary: defineOperation({

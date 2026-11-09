@@ -21,6 +21,12 @@ import { isOnboardingPdfJobRetryable } from '$lib/server/services/onboardingPdfJ
 import { isDeletionRequestOverdue } from '$lib/server/services/talentDeletionService';
 import { listSalesforceDiffs } from '$lib/server/services/reconciliationService';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
+import {
+  sinceLabelFr,
+  withSince,
+  type SinceFilter,
+  type WithSince,
+} from './since';
 
 const DAY_MS = 86_400_000;
 const MINUTE_MS = 60_000;
@@ -51,7 +57,12 @@ export type PdfJobsHealth = {
   truncated: boolean;
 };
 
-export async function getPdfJobsHealth(): Promise<PdfJobsHealth> {
+/** What the document queue adds when asked `since` an instant. */
+export type PdfJobsSince = { failedSince: Metric };
+
+export async function getPdfJobsHealth<F extends SinceFilter = SinceFilter>(
+  filters?: F,
+): Promise<WithSince<PdfJobsHealth, PdfJobsSince, F>> {
   const [grouped, unfinished] = await Promise.all([
     prisma.onboardingPdfJob.groupBy({
       by: ['status'],
@@ -83,7 +94,7 @@ export async function getPdfJobsHealth(): Promise<PdfJobsHealth> {
     ageMinutes: ageIn(MINUTE_MS, job.updatedAt),
   }));
 
-  return {
+  const health: PdfJobsHealth = {
     pending: metric(
       countOf('pending'),
       "Documents d'inscription en attente de génération. Une file qui ne descend pas signale un worker arrêté.",
@@ -114,6 +125,18 @@ export async function getPdfJobsHealth(): Promise<PdfJobsHealth> {
     ),
     truncated: jobs.length > PDF_JOBS_LIMIT,
   };
+
+  // A failed generation is stamped `processedAt` when it fails, and a retry
+  // clears it, so this counts the failures still standing that happened in
+  // the window.
+  return withSince(health, filters, async (since) => ({
+    failedSince: metric(
+      await prisma.onboardingPdfJob.count({
+        where: { status: 'error', processedAt: { gte: since } },
+      }),
+      `Parmi les générations en échec, celles qui ont échoué depuis ${sinceLabelFr(since)}.`,
+    ),
+  }));
 }
 
 // ── RGPD deletion queue ──────────────────────────────────────────────────────
@@ -126,7 +149,15 @@ export type DeletionQueue = {
   rejectedLast30Days: Metric;
 };
 
-export async function getAccountDeletionQueue(): Promise<DeletionQueue> {
+/** What the deletion queue adds when asked `since` an instant. */
+export type DeletionQueueSince = {
+  pendingSince: Metric;
+  overdueSince: Metric;
+};
+
+export async function getAccountDeletionQueue<
+  F extends SinceFilter = SinceFilter,
+>(filters?: F): Promise<WithSince<DeletionQueue, DeletionQueueSince, F>> {
   const since = new Date(Date.now() - 30 * DAY_MS);
   const [pendingRows, fulfilled, rejected] = await Promise.all([
     prisma.talentDeletionRequest.findMany({
@@ -147,7 +178,7 @@ export async function getAccountDeletionQueue(): Promise<DeletionQueue> {
   ).length;
   const oldest = pendingRows[0]?.requestedAt ?? null;
 
-  return {
+  const queue: DeletionQueue = {
     pending: metric(
       pendingRows.length,
       "Demandes de suppression de compte en attente d'arbitrage par un administrateur.",
@@ -169,6 +200,23 @@ export async function getAccountDeletionQueue(): Promise<DeletionQueue> {
       'Demandes refusées au cours des 30 derniers jours, avec un motif communiqué au talent.',
     ),
   };
+
+  return withSince(queue, filters, (since) => ({
+    pendingSince: metric(
+      pendingRows.filter((r) => r.requestedAt >= since).length,
+      `Parmi les demandes en attente, celles arrivées depuis ${sinceLabelFr(since)}.`,
+    ),
+    // Over the delay now and not yet at `since`: the ones that crossed the line
+    // in the window, judged by the same rule as `overdue`.
+    overdueSince: metric(
+      pendingRows.filter(
+        (r) =>
+          isDeletionRequestOverdue(r.requestedAt) &&
+          !isDeletionRequestOverdue(r.requestedAt, since),
+      ).length,
+      `Parmi les demandes hors délai, celles qui ont dépassé le délai depuis ${sinceLabelFr(since)}.`,
+    ),
+  }));
 }
 
 // ── Salesforce conflicts ─────────────────────────────────────────────────────

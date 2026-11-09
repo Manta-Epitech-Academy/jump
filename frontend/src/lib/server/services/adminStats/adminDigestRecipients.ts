@@ -76,12 +76,13 @@ export async function getAdminDigestRecipients() {
     lastSend: metric(
       lastRun && {
         weekOf: lastRun.weekOf.toISOString().slice(0, 10),
-        at: lastRun.finishedAt?.toISOString() ?? null,
+        readAt: lastRun.startedAt.toISOString(),
+        finishedAt: lastRun.finishedAt?.toISOString() ?? null,
         recipients: lastRun.recipients,
         sent: lastRun.sent,
         failed: lastRun.failed,
       },
-      "Dernier récapitulatif du lundi parti, ou null si aucun n'est jamais parti. « weekOf » est le lundi de la semaine qu'il couvre (heure de Paris), « at » l'heure où l'envoi s'est terminé, « recipients » le nombre d'administrateurs à qui il était adressé, « sent » le nombre de mails effectivement partis et « failed » ceux que le service d'envoi a refusés. Une semaine sans ligne ici est une semaine où aucun récapitulatif n'est parti, soit faute de destinataire désigné, soit parce que l'envoi n'a pas été déclenché.",
+      "Dernier récapitulatif du lundi parti, ou null si aucun n'est jamais parti. « weekOf » est le lundi de la semaine qu'il couvre (heure de Paris), « readAt » l'instant où il a lu ses chiffres, à partir duquel le récapitulatif suivant compte ce qui est nouveau s'il a atteint quelqu'un, « finishedAt » l'heure où l'envoi s'est terminé, « recipients » le nombre d'administrateurs à qui il était adressé, « sent » le nombre de mails effectivement partis et « failed » ceux que le service d'envoi a refusés. Un « weekOf » antérieur à la semaine en cours veut dire qu'aucun récapitulatif n'est parti cette semaine : soit aucun destinataire n'est désigné, soit l'envoi n'a pas été déclenché, soit il n'a pas encore fini.",
     ),
   };
 }
