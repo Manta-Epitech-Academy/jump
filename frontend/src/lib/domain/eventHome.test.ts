@@ -23,7 +23,7 @@ function row(over: Partial<InscritRow> & { id: string }): InscritRow {
     schoolId: null,
     schoolName: null,
     xp: 0,
-    priorEnrolments: 0,
+    priorVisits: 0,
     techInterests: [],
     status: 'ready',
     connected: true,
@@ -124,16 +124,20 @@ describe('the talent rankings', () => {
 
   it('lists the parcours furthest along, newcomers left out', () => {
     const rows = [
-      row({ id: 'new', priorEnrolments: 0 }),
-      row({ id: 'third', priorEnrolments: 2 }),
-      row({ id: 'second', priorEnrolments: 1 }),
+      row({ id: 'new', priorVisits: 0 }),
+      row({ id: 'third', priorVisits: 2, civilite: 'femme' }),
+      row({ id: 'second', priorVisits: 1, civilite: 'homme' }),
     ];
     const { returning } = eventHomeFigures({ ...empty, rows });
     expect(returning.map((t) => [t.talentId, t.detail])).toEqual([
-      ['third', '3ᵉ inscription'],
-      ['second', '2ᵉ inscription'],
+      ['third', 'Déjà venue 2 fois'],
+      ['second', 'Déjà venu 1 fois'],
     ]);
-    expect(opened(rows, HOME_LINKS.returning.params)).toHaveLength(2);
+    // Its « Voir… » opens every inscrit, in the order the card reads.
+    const view = INSCRITS_VIEW.parse(
+      new URLSearchParams(HOME_LINKS.returning.params),
+    );
+    expect([view.sort, view.dir]).toEqual(['parcours', 'desc']);
   });
 });
 

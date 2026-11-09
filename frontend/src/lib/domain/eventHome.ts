@@ -9,8 +9,8 @@ import { CLOSINGS_VIEW } from './closingsView';
 import type { ClosingsRoster } from './closingsRoster';
 import { BILAN_VIEW } from './bilanView';
 import { seriesTone, type ChartTone } from './chartSeries';
-import { PARCOURS_BUCKETS, parcoursLabel } from './enrolmentHistory';
-import { facetTally, type InscritRow } from './inscritsRoster';
+import { parcoursLabel } from './visitHistory';
+import { compareRows, facetTally, type InscritRow } from './inscritsRoster';
 import { FACET_NONE, type FacetCount } from './listFacets';
 import { INSCRITS_NONE, INSCRITS_VIEW } from './inscritsView';
 
@@ -65,7 +65,7 @@ export type HomeTalent = {
   talentId: string;
   prenom: string;
   nom: string;
-  /** « 3ᵉ inscription », or the XP grouped by thousands (« 1 250 »). */
+  /** « Déjà venu 3 fois », or the XP grouped by thousands (« 1 250 »). */
   detail: string;
 };
 
@@ -236,11 +236,6 @@ const talent = (row: InscritRow, detail: string): HomeTalent => ({
 
 const NUMBER = new Intl.NumberFormat('fr-FR');
 
-/** The parcours bucket every returning inscrit falls in: all but the first. */
-export const RETURNING_PARCOURS = PARCOURS_BUCKETS.filter(
-  (b) => b !== 'nouveau',
-);
-
 const STATUS_TONE: Record<ClosingListStatus, ChartTone> = {
   done: 'tech',
   in_progress: 'together',
@@ -351,11 +346,12 @@ function feedbackFigures(feedback: EventHomeInput['feedback']): HomeFeedback {
 export function eventHomeFigures(input: EventHomeInput): EventHomeFigures {
   const { rows } = input;
 
+  // In the Inscrits page's parcours order, so the card is that list's top.
   const returning = rows
-    .filter((r) => r.priorEnrolments > 0)
-    .sort((a, b) => b.priorEnrolments - a.priorEnrolments || b.xp - a.xp)
+    .filter((r) => r.priorVisits > 0)
+    .sort((a, b) => compareRows(b, a, 'parcours'))
     .slice(0, TOP_TALENTS)
-    .map((r) => talent(r, parcoursLabel(r.priorEnrolments)));
+    .map((r) => talent(r, parcoursLabel(r.priorVisits, r.civilite)));
 
   const topXp = rows
     .filter((r) => r.xp > 0)
@@ -383,8 +379,6 @@ export function eventHomeFigures(input: EventHomeInput): EventHomeFigures {
 /** Where the cards' « Voir… » buttons go. */
 export const HOME_LINKS = {
   allInscrits: inscrits({}),
-  returning: inscrits(
-    INSCRITS_VIEW.facetParams('parcours', RETURNING_PARCOURS),
-  ),
+  returning: inscrits(INSCRITS_VIEW.sortParams('parcours', 'desc')),
   byXp: inscrits(INSCRITS_VIEW.sortParams('xp', 'desc')),
 } satisfies Record<string, HomeLink>;

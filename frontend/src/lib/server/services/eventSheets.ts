@@ -20,7 +20,7 @@ import {
 } from '$lib/domain/eventModules';
 import { niveauLabel } from '$lib/domain/niveau';
 import { civiliteLabel } from '$lib/domain/profile';
-import { parcoursLabel } from '$lib/domain/enrolmentHistory';
+import { parcoursLabel } from '$lib/domain/visitHistory';
 import {
   INSCRIT_STATUS_LABELS,
   RULES_STATUS_LABELS,
@@ -116,7 +116,7 @@ export async function inscritsSheet(
       r.prenom,
       r.nom,
       r.xp,
-      parcoursLabel(r.priorEnrolments),
+      parcoursLabel(r.priorVisits, r.civilite),
       r.techInterests.map((i) => i.nom).join(', '),
       r.schoolName ?? '',
       r.niveau ? niveauLabel(r.niveau) : '',

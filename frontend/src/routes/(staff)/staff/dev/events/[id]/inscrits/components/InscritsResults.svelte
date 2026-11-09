@@ -39,7 +39,7 @@
     civiliteShortTitle,
     formatGivenName,
   } from '$lib/domain/profile';
-  import { parcoursLabel } from '$lib/domain/enrolmentHistory';
+  import { parcoursLabel } from '$lib/domain/visitHistory';
   import {
     INSCRITS_SORT_DEFAULT_DIR,
     type InscritsFacet,
@@ -152,8 +152,8 @@
   );
 
   // The table holds the mockup's columns and, like the mockup, gives each one
-  // control: the names and XP sort, every other column filters from its
-  // header. It fits the content track (a roster that scrolls sideways loses
+  // control: the names, the XP and the parcours sort, every other column
+  // filters from its header. It fits the content track (a roster that scrolls sideways loses
   // the reading of a row); below `xl` the track is too narrow for these
   // columns, so the rows fold into cards there (`cardsBelow`). Fixed layout:
   // the widths below are the budget, and Lycée (`w-full`) takes what is left.
@@ -176,7 +176,7 @@
       // XP right after the name: it's the engagement signal we want the eye to
       // catch first, shown as a coloured pill (not flush grey data).
       { ...sortable('xp'), label: 'XP', class: 'w-20' },
-      filtered('parcours', 'Parcours', 'w-32'),
+      { ...sortable('parcours'), label: 'Parcours', class: 'w-36' },
       filtered('tech', 'Tech', 'w-40'),
       filtered('lycee', 'Lycée', 'w-full'),
       filtered('niveau', 'Niveau', 'w-28'),
@@ -352,8 +352,8 @@
 {/snippet}
 
 {#snippet parcoursPill(r: InscritRow)}
-  {@const label = parcoursLabel(r.priorEnrolments)}
-  {#if r.priorEnrolments === 0}
+  {@const label = parcoursLabel(r.priorVisits, r.civilite)}
+  {#if r.priorVisits === 0}
     <span
       class="inline-flex rounded-full bg-epi-tech/10 px-2 py-0.5 epi-chip whitespace-nowrap text-epi-tech-ink normal-case"
     >

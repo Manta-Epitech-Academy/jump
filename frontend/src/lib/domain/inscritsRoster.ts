@@ -7,11 +7,6 @@ import {
 } from '$lib/domain/dossierCompliance';
 import type { ImageRightsStatus } from '$lib/domain/imageRights';
 import {
-  PARCOURS_BUCKETS,
-  PARCOURS_BUCKET_LABELS,
-  parcoursBucket,
-} from '$lib/domain/enrolmentHistory';
-import {
   byCount,
   countFacet,
   FACET_NONE_LABEL,
@@ -45,9 +40,9 @@ export type InscritRow = {
   schoolName: string | null;
   // Cumulative XP, drives the sortable XP column + its explainer tooltip.
   xp: number;
-  // Enrolments on the campus at earlier events: the Parcours column
-  // (`$lib/domain/enrolmentHistory`).
-  priorEnrolments: number;
+  // Visits on the campus at earlier events: the Parcours column
+  // (`$lib/domain/visitHistory`).
+  priorVisits: number;
   // Declared tech interests, in the catalogue's own order.
   techInterests: InscritInterest[];
   // Folded three-state funnel status (jamais / en cours / prêt); see
@@ -122,13 +117,6 @@ const FACETS: Record<InscritsFacet, InscritsFacetDef> = {
       ...CIVILITE_OPTIONS.map((o): [string, string] => [o.value, o.label]),
       NOT_FILLED,
     ],
-  },
-  parcours: {
-    title: 'Parcours',
-    available: () => true,
-    valuesOf: (r) => [parcoursBucket(r.priorEnrolments)],
-    vocabulary: () =>
-      PARCOURS_BUCKETS.map((b) => [b, PARCOURS_BUCKET_LABELS[b]]),
   },
   tech: {
     title: 'Tech',
@@ -221,5 +209,9 @@ export function compareRows(
       return a.nom.localeCompare(b.nom, 'fr');
     case 'xp':
       return a.xp - b.xp;
+    // The visits, then the XP: two talents who came as often are told apart by
+    // what they did on the platform.
+    case 'parcours':
+      return a.priorVisits - b.priorVisits || a.xp - b.xp;
   }
 }

@@ -5,7 +5,7 @@ import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { rulesStatus, inscritStatus } from '$lib/domain/dossierCompliance';
 import { imageRightsStatus } from '$lib/domain/imageRights';
 import { schoolYearOf } from '$lib/domain/schoolYear';
-import { countPriorEnrolments } from '$lib/server/services/enrolmentHistory';
+import { countPriorVisits } from '$lib/server/services/visitHistory';
 import {
   loadEventDossierSignatures,
   NO_DOSSIER_SIGNATURES,
@@ -122,7 +122,7 @@ export async function loadInscritsCohort(
     }),
     loadEventDossierSignatures(db, event.id, schoolYear),
   ]);
-  const prior = await countPriorEnrolments(
+  const prior = await countPriorVisits(
     event.campusId,
     participations.map((p) => p.talentId),
     event.date,
@@ -149,7 +149,7 @@ export async function loadInscritsCohort(
       schoolId: t.school?.id ?? null,
       schoolName: t.school?.name ?? null,
       xp: t.xp,
-      priorEnrolments: prior.get(p.talentId) ?? 0,
+      priorVisits: prior.get(p.talentId) ?? 0,
       techInterests: techInterests(t.interests),
       status: inscritStatus(t.niveau, connected, rules, image),
       connected,
