@@ -155,11 +155,15 @@ describe('weekly admin digest recipients (integration)', () => {
       }),
     ).toEqual({ sent: 1, includedAdoption: true });
     const { payload } = await call(getRecipients, secret);
-    expect((payload.lastSend as { value: unknown }).value).toMatchObject({
-      recipients: 1,
-      sent: 1,
-      failed: 0,
-    });
+    const lastSend = (
+      payload.lastSend as { value: { readAt: string; newSince: string } }
+    ).value;
+    expect(lastSend).toMatchObject({ recipients: 1, sent: 1, failed: 0 });
+    // The first digest ever counted "nouveau" over the seven days before it,
+    // and newSince is the instant it asked its reads with.
+    expect(Date.parse(lastSend.newSince)).toBe(
+      Date.parse(lastSend.readAt) - 7 * 24 * 60 * 60 * 1000,
+    );
     expect((await adminRow(chosenAddress))?.receivesDigest).toBe(true);
 
     const row = await prisma.adminApi_Call.findFirst({

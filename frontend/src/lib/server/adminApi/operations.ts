@@ -314,7 +314,7 @@ const since = z.iso
   .datetime({ offset: true })
   .optional()
   .describe(
-    'ISO 8601 instant with offset. Adds the "…Since" figures, counted after it. config_admin_digest lastSend.readAt is the weekly digest\'s.',
+    'ISO 8601 instant with offset. Adds the "…Since" figures, counted after it. config_admin_digest lastSend.newSince is the one the last weekly digest used.',
   );
 
 const sinceFilter = (value: string | undefined) => ({

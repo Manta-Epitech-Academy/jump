@@ -5,8 +5,9 @@
  * part of a figure that appeared after it: the events that arrived, the sync
  * errors whose cause is new, the generations that failed. The weekly admin
  * digest marks those as new by asking exactly this, with the moment the
- * previous digest read its figures (`config_admin_digest`'s `lastSend.readAt`),
- * so a chat that passes the same instant reads the same numbers as the inbox.
+ * previous delivered digest read its figures. `config_admin_digest` reports the
+ * instant the last digest asked with as `lastSend.newSince`, so a chat that
+ * passes it reads the same numbers as that inbox.
  *
  * A read called without `since` answers as it always did: the added figures are
  * absent, not zero, and the types say so.
