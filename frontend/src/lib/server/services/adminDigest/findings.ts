@@ -278,7 +278,9 @@ function eventFindings(input: DigestInput): DigestFinding[] {
       severity: 'action',
       blocks: eventBand(input, 'soon', (n) => [
         strong(n),
-        ` ${plural(n, 'événement commence', 'événements commencent')} dans les ${SOON_WITHIN_DAYS} jours et ${plural(n, "n'est", 'ne sont')} pas encore ${plural(n, 'visible', 'visibles')} dans l'espace dev.`,
+        // The imminent band is told apart above, so this one says where it
+        // starts: « dans les 21 jours » also described the week before it.
+        ` ${plural(n, 'événement commence', 'événements commencent')} dans ${IMMINENT_WITHIN_DAYS + 1} à ${SOON_WITHIN_DAYS} jours et ${plural(n, "n'est", 'ne sont')} pas encore ${plural(n, 'visible', 'visibles')} dans l'espace dev.`,
       ]),
     });
 
@@ -316,14 +318,16 @@ function eventFindings(input: DigestInput): DigestFinding[] {
 /** How many events with unkept half-days to name before deferring to the API. */
 const LISTED_UNKEPT = 10;
 
-const capitalised = (text: string) =>
-  text.charAt(0).toUpperCase() + text.slice(1);
-
 /**
  * Last week's registers with a half-day nobody filled in. Such a half-day reads
  * as the whole cohort absent, in the attendance figures and on every talent's
  * record, and it is only cheap to put right while the team still remembers who
  * came: a week later, nobody does. Silent when every register was kept.
+ *
+ * The window bounds the events, not the half-days: an event under way since
+ * the last digest is counted with every unkept half-day it has, an older one
+ * included, since it still reads as absent. So the copy names the events as
+ * those under way in the window, never the gaps as having appeared in it.
  */
 function emargementFindings({
   emargement,
@@ -340,9 +344,8 @@ function emargementFindings({
       severity: 'action',
       blocks: [
         paragraph(
-          `${capitalised(windowFr(baseline))}, `,
           strong(n),
-          ` ${plural(n, 'événement a', 'événements ont')} laissé des demi-journées sans aucun pointage : la cohorte y compte comme absente tant que la feuille n'est pas remplie.`,
+          ` ${plural(n, 'événement en cours', 'événements en cours')} ${windowFr(baseline)} ${plural(n, 'a', 'ont')} des demi-journées écoulées sans aucun pointage : la cohorte y compte comme absente tant que la feuille n'est pas remplie.`,
         ),
         ...listed.map((e) =>
           item(

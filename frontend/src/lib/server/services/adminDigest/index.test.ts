@@ -349,7 +349,7 @@ describe('buildAdminDigest', () => {
     const digest = await buildAdminDigest(week);
 
     expect(digest.text).toContain(
-      'Depuis le point du lundi 2 novembre, 1 événement a laissé des demi-journées sans aucun pointage',
+      '1 événement en cours depuis le point du lundi 2 novembre a des demi-journées écoulées sans aucun pointage',
     );
     expect(digest.text).toContain(
       '- Stage Web (Lyon, 3 nov. 2026 → 7 nov. 2026) : 2 demi-journées sur 10 sans pointage.',
@@ -416,7 +416,7 @@ describe('buildAdminDigest', () => {
     expect(at(digest.text, 'FILES EN ATTENTE')).toBe(-1);
     // The section keeps what was not lifted.
     expect(at(digest.text, 'ÉVÉNEMENTS À PRÉPARER')).toBeGreaterThan(imminent);
-    expect(digest.text).toContain('1 événement commence dans les 21 jours');
+    expect(digest.text).toContain('1 événement commence dans 8 à 21 jours');
   });
 
   it('details the events of the next three weeks and only counts the later ones', async () => {
