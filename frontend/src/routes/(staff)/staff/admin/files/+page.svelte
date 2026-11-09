@@ -239,69 +239,64 @@
           {formatDate(file.createdAt)}
         </Table.Cell>
         <Table.Cell class="text-right">
-          <Tooltip.Provider delayDuration={300}>
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props })}
-                  <form
-                    method="POST"
-                    action="?/download&id={file.id}"
-                    class="inline"
-                    use:enhance={() => {
-                      return async ({ result }) => {
-                        if (
-                          result.type === 'success' &&
-                          result.data?.signedUrl
-                        ) {
-                          track('admin_file_downloaded', {
-                            sizeBucket: bucketBytes(file.size),
-                            kind: file.contentType,
-                          });
-                          const a = document.createElement('a');
-                          a.href = result.data.signedUrl as string;
-                          a.download = (result.data.fileName as string) || '';
-                          a.click();
-                        } else {
-                          track('admin_file_download_failed', {
-                            reason: errReason(result),
-                            sizeBucket: bucketBytes(file.size),
-                          });
-                          toast.error('Erreur lors du téléchargement');
-                        }
-                      };
-                    }}
-                  >
-                    <Button
-                      {...props}
-                      type="submit"
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Télécharger le fichier"
-                    >
-                      <Download class="h-4 w-4" />
-                    </Button>
-                  </form>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content><p>Télécharger</p></Tooltip.Content>
-            </Tooltip.Root>
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props })}
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <form
+                  method="POST"
+                  action="?/download&id={file.id}"
+                  class="inline"
+                  use:enhance={() => {
+                    return async ({ result }) => {
+                      if (result.type === 'success' && result.data?.signedUrl) {
+                        track('admin_file_downloaded', {
+                          sizeBucket: bucketBytes(file.size),
+                          kind: file.contentType,
+                        });
+                        const a = document.createElement('a');
+                        a.href = result.data.signedUrl as string;
+                        a.download = (result.data.fileName as string) || '';
+                        a.click();
+                      } else {
+                        track('admin_file_download_failed', {
+                          reason: errReason(result),
+                          sizeBucket: bucketBytes(file.size),
+                        });
+                        toast.error('Erreur lors du téléchargement');
+                      }
+                    };
+                  }}
+                >
                   <Button
                     {...props}
+                    type="submit"
                     variant="ghost"
                     size="icon"
-                    class="text-destructive hover:text-destructive"
-                    onclick={() => confirmDelete(file.id)}
+                    aria-label="Télécharger le fichier"
                   >
-                    <Trash2 class="h-4 w-4" />
+                    <Download class="h-4 w-4" />
                   </Button>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content><p>Supprimer</p></Tooltip.Content>
-            </Tooltip.Root>
-          </Tooltip.Provider>
+                </form>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content><p>Télécharger</p></Tooltip.Content>
+          </Tooltip.Root>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  variant="ghost"
+                  size="icon"
+                  class="text-destructive hover:text-destructive"
+                  onclick={() => confirmDelete(file.id)}
+                >
+                  <Trash2 class="h-4 w-4" />
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content><p>Supprimer</p></Tooltip.Content>
+          </Tooltip.Root>
         </Table.Cell>
       {/snippet}
     </SortableTable>

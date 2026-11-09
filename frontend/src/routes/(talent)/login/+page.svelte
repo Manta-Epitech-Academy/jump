@@ -2,6 +2,7 @@
   import { superForm } from 'sveltekit-superforms';
   import { resolve } from '$app/paths';
   import { untrack } from 'svelte';
+  import { stepIn, stepOut } from '$lib/motion';
 
   import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
   import LoginBrandPanel from '$lib/components/layout/LoginBrandPanel.svelte';
@@ -140,24 +141,32 @@
         </div>
       </header>
 
-      {#if step === 'email'}
-        <LoginEmailStep
-          {emailForm}
-          {emailErrors}
-          {emailEnhance}
-          {emailDelayed}
-          {emailMessage}
-        />
-      {:else}
-        <LoginOtpStep
-          {otpForm}
-          {otpErrors}
-          {otpEnhance}
-          {otpDelayed}
-          {otpMessage}
-          goBack={goBackToEmail}
-        />
-      {/if}
+      <!-- The page owns the step change, so it owns the transition too, as
+           onboarding does: the outgoing step leaves, then the next arrives. -->
+      <div class="relative">
+        {#key step}
+          <div in:stepIn|local out:stepOut|local>
+            {#if step === 'email'}
+              <LoginEmailStep
+                {emailForm}
+                {emailErrors}
+                {emailEnhance}
+                {emailDelayed}
+                {emailMessage}
+              />
+            {:else}
+              <LoginOtpStep
+                {otpForm}
+                {otpErrors}
+                {otpEnhance}
+                {otpDelayed}
+                {otpMessage}
+                goBack={goBackToEmail}
+              />
+            {/if}
+          </div>
+        {/key}
+      </div>
 
       <LoginFooter
         prompt="Vous faites partie du staff ?"

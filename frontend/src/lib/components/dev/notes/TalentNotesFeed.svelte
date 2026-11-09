@@ -4,7 +4,6 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
   import { base } from '$app/paths';
   import { cn } from '$lib/utils';
@@ -154,99 +153,94 @@
   {/if}
 {/snippet}
 
-<!-- One tooltip provider for the whole feed: the cards' edit/delete and "modifié"
-     tooltips need it, and the émargement dialog portals the feed away from the
-     roster's own provider, so the feed must carry its own. -->
-<Tooltip.Provider delayDuration={150}>
-  <!-- min-w-0: this is a grid item of the émargement Dialog.Content (display:grid).
+<!-- min-w-0: this is a grid item of the émargement Dialog.Content (display:grid).
        Without it the item keeps its min-content width and overflows the dialog on a
        narrow screen (the note cards then never get a bounded width to truncate into). -->
-  <div class="min-w-0 space-y-3">
-    {#if showComposeButton && !composing}
-      <div class="flex justify-end">
-        <Button size="sm" variant="outline" onclick={() => (composing = true)}>
-          <Plus class="mr-1.5 h-3.5 w-3.5" />
-          Ajouter une note
-        </Button>
-      </div>
-    {/if}
+<div class="min-w-0 space-y-3">
+  {#if showComposeButton && !composing}
+    <div class="flex justify-end">
+      <Button size="sm" variant="outline" onclick={() => (composing = true)}>
+        <Plus class="mr-1.5 h-3.5 w-3.5" />
+        Ajouter une note
+      </Button>
+    </div>
+  {/if}
 
-    {#if composing}
-      <div class="rounded-sm border bg-muted/20 p-3">
-        <TalentNoteEditor
-          {talentId}
-          {eventId}
-          {presenceDay}
-          {presenceSlot}
-          onSaved={(saved) => {
-            items = [saved, ...items];
-            onCountChange?.(items.length);
-            composing = false;
-          }}
-          onCancel={() => (composing = false)}
-        />
-      </div>
-    {/if}
-
-    {#if items.length === 0 && !composing}
-      <ResultsNotice
-        compact
-        icon={StickyNote}
-        title="Aucune note"
-        description="Ce que vous notez ici aide le prochain membre de l'équipe à reprendre la conversation avec ce talent."
+  {#if composing}
+    <div class="rounded-sm border bg-muted/20 p-3">
+      <TalentNoteEditor
+        {talentId}
+        {eventId}
+        {presenceDay}
+        {presenceSlot}
+        onSaved={(saved) => {
+          items = [saved, ...items];
+          onCountChange?.(items.length);
+          composing = false;
+        }}
+        onCancel={() => (composing = false)}
       />
-    {:else}
-      <!-- Every note shows (no count cap), but the list scrolls past a screenful so
+    </div>
+  {/if}
+
+  {#if items.length === 0 && !composing}
+    <ResultsNotice
+      compact
+      icon={StickyNote}
+      title="Aucune note"
+      description="Ce que vous notez ici aide le prochain membre de l'équipe à reprendre la conversation avec ce talent."
+    />
+  {:else}
+    <!-- Every note shows (no count cap), but the list scrolls past a screenful so
          a talent with many notes never blows out the dialog or the fiche rail. The
          composer and the staff-only caveat stay outside this scroll region. The cap
          lands mid-card (notes are variable height); the partial note left peeking is
          the affordance that says "more below". -->
-      <div class={cn('space-y-3 overflow-y-auto pr-1', listMaxHeightClass)}>
-        {#if slotNotes.length > 0}
-          <section
-            class="space-y-2 rounded-md bg-epi-blue/5 p-2 ring-1 ring-epi-blue/20"
-          >
-            {#if highlightLabel}
-              <h3
-                class="flex items-center gap-1.5 px-1 text-xs font-medium text-epi-blue"
-              >
-                <span class="h-1.5 w-1.5 rounded-full bg-epi-blue"></span>
-                {highlightLabel}
-              </h3>
-            {/if}
-            {#each slotNotes as note (note.id)}
-              {@render noteRow(note)}
-            {/each}
-          </section>
-          {#if otherNotes.length > 0}
-            <div class="space-y-2">
-              <h3 class="px-1 text-xs font-medium text-muted-foreground">
-                Autres
-              </h3>
-              {#each otherNotes as note (note.id)}
-                {@render noteRow(note)}
-              {/each}
-            </div>
+    <div class={cn('space-y-3 overflow-y-auto pr-1', listMaxHeightClass)}>
+      {#if slotNotes.length > 0}
+        <section
+          class="space-y-2 rounded-md bg-epi-blue/5 p-2 ring-1 ring-epi-blue/20"
+        >
+          {#if highlightLabel}
+            <h3
+              class="flex items-center gap-1.5 px-1 text-xs font-medium text-epi-blue"
+            >
+              <span class="h-1.5 w-1.5 rounded-full bg-epi-blue"></span>
+              {highlightLabel}
+            </h3>
           {/if}
-        {:else}
+          {#each slotNotes as note (note.id)}
+            {@render noteRow(note)}
+          {/each}
+        </section>
+        {#if otherNotes.length > 0}
           <div class="space-y-2">
-            {#each items as note (note.id)}
+            <h3 class="px-1 text-xs font-medium text-muted-foreground">
+              Autres
+            </h3>
+            {#each otherNotes as note (note.id)}
               {@render noteRow(note)}
             {/each}
           </div>
         {/if}
-      </div>
-    {/if}
+      {:else}
+        <div class="space-y-2">
+          {#each items as note (note.id)}
+            {@render noteRow(note)}
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/if}
 
-    <!-- Confidentiality caveat at the foot of the feed: a standing reminder, not
+  <!-- Confidentiality caveat at the foot of the feed: a standing reminder, not
        the first thing to read, so it stays quiet under the notes. -->
-    {#if showStaffOnlyHint}
-      <p class="text-xs text-muted-foreground">
-        Visible uniquement par le staff.
-      </p>
-    {/if}
-  </div>
-</Tooltip.Provider>
+  {#if showStaffOnlyHint}
+    <p class="text-xs text-muted-foreground">
+      Visible uniquement par le staff.
+    </p>
+  {/if}
+</div>
 
 <AlertDialog.Root bind:open={deleteOpen}>
   <AlertDialog.Content>

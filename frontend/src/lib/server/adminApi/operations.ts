@@ -167,6 +167,8 @@ import {
   getFeedbackForms,
   getEventTemplates,
   getEventCategories,
+  getEmailActions,
+  getInterests,
   getWorkshops,
   getTalentHomeContent,
 } from '$lib/server/services/adminStats/configuration';
@@ -182,6 +184,11 @@ import {
 } from './writes/talentHome';
 import { writeEventConfig, writeEventTemplate } from './writes/events';
 import { writeEventCategory } from './writes/eventCategories';
+import { writeEmailAction } from './writes/emailActions';
+import { writeInterest } from './writes/interests';
+import { writeCampus } from './writes/campuses';
+import { EMAIL_ACTION_KEYS } from '$lib/domain/emailActions';
+import { INTEREST_KINDS } from '$lib/domain/interests';
 import {
   retryPdfJob,
   resolveSchools,
@@ -295,6 +302,24 @@ const eventStatus = z
   .describe(
     'Keep only events at this point of their life: upcoming, ongoing or past. Omit for every event.',
   );
+
+/**
+ * "What is new since then", taken by the reads whose figures move from week to
+ * week (`adminStats/since.ts`). An instant rather than a day, because the
+ * instant the weekly digest compares against is the moment the previous one
+ * read its figures, and asking with that exact value is how a chat reads the
+ * numbers the inbox printed.
+ */
+const since = z.iso
+  .datetime({ offset: true })
+  .optional()
+  .describe(
+    'ISO 8601 instant with offset. Adds the "…Since" figures, counted after it. config_admin_digest lastSend.newSince is the one the last weekly digest used.',
+  );
+
+const sinceFilter = (value: string | undefined) => ({
+  since: value === undefined ? undefined : new Date(value),
+});
 
 // Generated from `handles.ts`, which names the sources that return every event
 // for each tier. This describe used to name one operation that by construction
@@ -578,6 +603,35 @@ const feedbackQuestion = withQuestionRules(
 /** A dev-workspace section's settings when it has no sub-option to set. */
 const noSubOptions = z.strictObject({}).optional();
 
+/**
+ * The sub-options per section, as an event and a preset both take them. Every
+ * sub-option `domain/eventModules.ts` declares must be here, which
+ * `operations.test.ts` checks against the domain.
+ */
+const moduleSettings = z
+  .strictObject({
+    [EVENT_MODULES.INSCRITS]: z
+      .strictObject({
+        showStatutColumn: z
+          .boolean()
+          .optional()
+          .describe(
+            "Show the dossier progress column (connexion, règlement, droit à l'image) on the Inscrits table.",
+          ),
+      })
+      .optional(),
+    // A section with no sub-option still has its key, holding nothing: the
+    // reads return every enabled section's settings that way, so what a preset
+    // or a write's own answer holds goes back as it is.
+    [EVENT_MODULES.EMARGEMENT]: noSubOptions,
+    [EVENT_MODULES.BILAN]: noSubOptions,
+    [EVENT_MODULES.CLOSINGS]: noSubOptions,
+  } satisfies Record<EventModuleKey, z.ZodType>)
+  .describe(
+    'Sub-options per section, only those you pass change. A section must be in the saved modules, so enable it in the same call if it is not.',
+  )
+  .meta({ id: 'EventModuleSettings' });
+
 export const ADMIN_API_OPERATIONS = {
   stats_events: defineOperation({
     leadership: true,
@@ -599,6 +653,7 @@ export const ADMIN_API_OPERATIONS = {
     shape: {
       schoolYear,
       campus,
+      since,
       status: eventStatus,
       state: z
         .enum(EVENTS_LIST_STATES)
@@ -607,15 +662,19 @@ export const ADMIN_API_OPERATIONS = {
           'Keep only events in this configuration state: unconfigured (no section enabled), ready (configured but hidden), shown (live in the dev workspace), or to_prepare for anything not past that is not shown yet. Omit for every state.',
         ),
     },
-    run: async ({ status, state, ...scope }) =>
-      getEventsConfigList(await resolveScope(scope), { status, state }),
+    run: async ({ status, state, since: at, ...scope }) =>
+      getEventsConfigList(
+        await resolveScope(scope),
+        { status, state },
+        sinceFilter(at),
+      ),
   }),
 
   stats_sync_health: defineOperation({
     description:
-      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are open and the age of the oldest, grouped by situation with the same explanation the admin page gives (what happened, what it prevents, who can fix it or that nobody can), and every Salesforce member status Jump holds with what the dev workspace does with it, naming the events that carry a status Jump does not know. The two passes are reported apart because only the full one detects a deletion in Salesforce. Takes no parameter.',
-    shape: {},
-    run: () => getSyncHealth(),
+      'Whether Salesforce is still feeding Jump: when each pass last succeeded and how old that is, the configured cadences, what the worker will do next, whether one is running, how many sync errors are open and the age of the oldest, grouped by situation with the same explanation the admin page gives (what happened, what it prevents, who can fix it or that nobody can), and every Salesforce member status Jump holds with what the dev workspace does with it, naming the events that carry a status Jump does not know. The two passes are reported apart because only the full one detects a deletion in Salesforce.',
+    shape: { since },
+    run: ({ since: at }) => getSyncHealth(sinceFilter(at)),
   }),
 
   config_sync_sources: defineOperation({
@@ -706,7 +765,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_feedback_forms: defineOperation({
     description:
-      'The feedback form catalogue: title, status (draft, published, archived), question count, response count, how many events use it, and whether it accepts public responses. Returns the form ids the other feedback operations take. Pass formId to also get that form whole, in the exact shape write_feedback_form takes, which is what you edit from rather than rewriting it, and the authoring rules a write enforces.',
+      'The feedback form catalogue: title, status (draft, published, archived), question count, response count, how many events use it, and whether it accepts public responses. Returns the form ids the other feedback operations take. Pass formId to also get that form whole, in the exact shape write_feedback_form takes, which is what you edit from rather than rewriting it, the authoring rules a write enforces, and an "apercu" sentence linking to the form as a respondent sees it: quote it whenever the reader wants to see the form, never describe it in your own words.',
     shape: {
       formId: z
         .string()
@@ -716,7 +775,7 @@ export const ADMIN_API_OPERATIONS = {
           `${handleDescribe('formId')} Pass one to also return the whole form; omit for the catalogue alone.`,
         ),
     },
-    run: (params) => getFeedbackForms(params),
+    run: (params, ctx) => getFeedbackForms({ ...params, origin: ctx.origin }),
   }),
 
   config_workshops: defineOperation({
@@ -740,7 +799,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_templates: defineOperation({
     description:
-      'Saved event-configuration presets and exactly what each one holds: sections and their sub-options, shown Salesforce statuses, public name, cohort noun, category, arrival time, and the feedback form, certificate and closing grid it points at. A preset is applied by copying its values: to write_event_config for one event, or its modules, shownStatuses and categoryKey to bulk_event_config for many.',
+      'Saved event-configuration presets, archived ones included, and exactly what each one holds: sections and their sub-options, shown Salesforce statuses, public name, cohort noun, category, arrival time, and the feedback form, certificate and closing grid it points at. A preset is applied by copying its values: to write_event_config for one event, or its modules, shownStatuses and categoryKey to bulk_event_config for many. An archived one is retired: do not apply it.',
     shape: {},
     run: () => getEventTemplates(),
   }),
@@ -752,9 +811,23 @@ export const ADMIN_API_OPERATIONS = {
     run: () => getEventCategories(),
   }),
 
+  config_email_actions: defineOperation({
+    description:
+      'Every transactional mail Jump sends (login codes, parent mails, account deletion), the template it sends from and the variables it needs, plus the mail templates one can be linked to. Takes no parameter.',
+    shape: {},
+    run: () => getEmailActions(),
+  }),
+
+  config_interests: defineOperation({
+    description:
+      "The centres d'intérêt a talent picks at onboarding, archived ones included, with how many talents picked each. Takes no parameter.",
+    shape: {},
+    run: () => getInterests(),
+  }),
+
   config_admin_digest: defineOperation({
     description:
-      'Who receives the weekly admin digest sent on Mondays: every admin account, by the address it logs in with, and whether the digest goes to it. Chosen per admin, never implied by the role; nobody chosen means no digest is sent. Takes no parameter.',
+      'Who receives the weekly admin digest sent on Mondays: every admin account, by the address it logs in with, and whether the digest goes to it. Chosen per admin, never implied by the role; nobody chosen means no digest is sent. Also when the last one went out and how many mails left. Takes no parameter.',
     shape: {},
     run: () => getAdminDigestRecipients(),
   }),
@@ -827,7 +900,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_event_config: defineWrite({
     description:
-      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
+      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses and those that count as a visit, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
       // Unset is spelled one way, on both sides: null, as config_event_detail
@@ -874,29 +947,13 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           `${handleDescribe('sfStatus')} The complete set of Salesforce member statuses whose enrolments the dev workspace shows for this event; statuses left out are masked (still synced and in Jump). Enrolments with no status at all are always shown.`,
         ),
-      moduleSettings: z
-        .strictObject({
-          [EVENT_MODULES.INSCRITS]: z
-            .strictObject({
-              showStatutColumn: z
-                .boolean()
-                .optional()
-                .describe(
-                  "Show the dossier progress column (connexion, règlement, droit à l'image) on the Inscrits table.",
-                ),
-            })
-            .optional(),
-          // A section with no sub-option still has its key, holding nothing:
-          // the reads return every enabled section's settings that way, so
-          // what a preset or this write's own answer holds goes back as it is.
-          [EVENT_MODULES.EMARGEMENT]: noSubOptions,
-          [EVENT_MODULES.BILAN]: noSubOptions,
-          [EVENT_MODULES.CLOSINGS]: noSubOptions,
-        } satisfies Record<EventModuleKey, z.ZodType>)
+      attendanceStatuses: z
+        .array(z.string())
         .optional()
         .describe(
-          'Sub-options per section, only those you pass change. A section must be in the saved modules, so enable it in the same call if it is not.',
+          `${handleDescribe('sfStatus')} The complete set of shown statuses this event counts as a visit, once it is over (« Déjà venu » in the dev workspace). Each must be shown; one hidden stops counting. An émargement present or late or a closing counts whatever the status; an activity never does.`,
         ),
+      moduleSettings: moduleSettings.optional(),
       visible: z
         .boolean()
         .optional()
@@ -951,7 +1008,7 @@ export const ADMIN_API_OPERATIONS = {
   write_feedback_form: defineWrite({
     twoStep: true,
     description:
-      'Create a feedback form, or replace one whole. Read it first with config_feedback_forms and its formId, change what must change, and send everything back: whatever is left out is removed. Without planDigest it answers with the form as it stands, the form that would replace it, and a planDigest; the apply is refused if the form was edited or answered in between. Once a form has responses its structure is frozen: wording and settings still change, but adding, removing or reordering a section, question or option, or changing what a question collects (key, type, required, identity field, input kind, selection bounds) is refused; copy it with write_feedback_form_copy, write the copy, then archive the original. A defect a frozen structure already carries is not refused, so wording, settings and archiving stay possible. The rules stated on the parameters are checked together and every refusal comes back at once. Retire a form by setting status to archived; nothing deletes one. Safe to repeat on an existing form, since a retried apply no longer matches its digest; creating (no formId) is NOT, so keep the formId it answers with. Answers with the form as written, ids included.',
+      'Create a feedback form, or replace one whole. Read it first with config_feedback_forms and its formId, change what must change, and send everything back: whatever is left out is removed. Without planDigest it answers with the form as it stands, the form that would replace it, and a planDigest; the apply is refused if the form was edited or answered in between. Once a form has responses its structure is frozen: wording and settings still change, but adding, removing or reordering a section, question or option, or changing what a question collects (key, type, required, identity field, input kind, selection bounds) is refused; copy it with write_feedback_form_copy, write the copy, then archive the original. A defect a frozen structure already carries is not refused, so wording, settings and archiving stay possible. The rules stated on the parameters are checked together and every refusal comes back at once. Retire a form by setting status to archived; nothing deletes one. Safe to repeat on an existing form, since a retried apply no longer matches its digest; creating (no formId) is NOT, so keep the formId it answers with. Answers with the form as written, ids included, and an "apercu" sentence linking to its preview.',
     shape: {
       formId: z
         .string()
@@ -974,7 +1031,7 @@ export const ADMIN_API_OPERATIONS = {
         .nullable()
         .optional()
         .describe(
-          'https address of the persona avatar. Jump downloads it and keeps a 256 px still: PNG, JPEG or WebP up to 20 MB, or a GIF up to 6 MB whose first frame is kept, from a public address. Restating the address the icon came from downloads nothing. Null puts the default mascot back. Omit to leave the icon as it is, which is the only way to keep one uploaded in the builder.',
+          'https address of the persona avatar. Jump downloads it and keeps a 256 px still: PNG, JPEG or WebP up to 20 MB, or a GIF up to 6 MB whose first frame is kept, from a public address. Restating the address the icon came from downloads nothing. Null puts the default mascot back. Omit to leave the icon as it is, which is the only way to keep one uploaded on the preview page of the form.',
         ),
       status: formFields.status.describe(
         'draft while it is being written, published to accept responses, archived to retire it.',
@@ -1018,19 +1075,19 @@ export const ADMIN_API_OPERATIONS = {
         .optional()
         .describe('Digest returned by the dry run. Omit to get a dry run.'),
     },
-    run: (params, ctx) => writeFeedbackForm(params, ctx.actorUserId),
+    run: (params, ctx) => writeFeedbackForm(params, ctx),
   }),
 
   write_feedback_form_copy: defineWrite({
     description:
-      'Copy a feedback form whole into a new draft: the same sections, questions, options, persona and icon, none of its responses. The copy starts as a draft, closed to the public, with no dashboard nudge, and its title ends in « (copie) ». NOT safe to repeat: every call makes another copy, so keep the formId it answers with. Answers with the copy, ids included.',
+      'Copy a feedback form whole into a new draft: the same sections, questions, options, persona and icon, none of its responses. The copy starts as a draft, closed to the public, with no dashboard nudge, and its title ends in « (copie) ». NOT safe to repeat: every call makes another copy, so keep the formId it answers with. Answers with the copy, ids included, and an "apercu" sentence linking to its preview.',
     shape: {
       formId: z
         .string()
         .min(1)
         .describe(`${handleDescribe('formId')} The form to copy.`),
     },
-    run: (params, ctx) => copyFeedbackForm(params, ctx.actorUserId),
+    run: (params, ctx) => copyFeedbackForm(params, ctx),
   }),
 
   write_diploma_template: defineWrite({
@@ -1437,19 +1494,109 @@ export const ADMIN_API_OPERATIONS = {
 
   write_event_template: defineWrite({
     description:
-      "Save one event's current configuration as a reusable named preset. An existing name is replaced, which is how a preset is edited. Safe to repeat: saving the same event under the same name twice leaves one preset.",
+      'Create, edit or archive one event-configuration preset, by its name. It starts from the event named by eventId if given (capturing it as it stands), else from the preset as stored; the fields you pass are then laid over it, with the same patch semantics as write_event_config. So a preset can be written from values alone, or captured from an event and adjusted in one call. Creating one needs eventId or modules. To retire one, archive it: there is no delete. Safe to repeat. Answers with the preset before and after.',
     shape: {
+      name: z
+        .string()
+        .trim()
+        .min(1)
+        .max(80)
+        .describe(
+          `${handleDescribe('templateName')} Creates one when no preset has it.`,
+        ),
       eventId: z
         .string()
         .min(1)
-        .describe('The event whose configuration is captured.'),
-      name: z
+        .optional()
+        .describe(
+          `${handleDescribe('eventId')} The event whose configuration the preset captures, before the fields below are laid over it.`,
+        ),
+      description: z
+        .string()
+        .trim()
+        .max(280)
+        .nullable()
+        .optional()
+        .describe('What the preset is for, in French. Null removes it.'),
+      publicName: z
+        .string()
+        .trim()
+        .min(1, 'Send null to remove it.')
+        .max(120)
+        .nullable()
+        .optional()
+        .describe('The friendly name it gives an event.'),
+      cohortNoun: z
+        .string()
+        .trim()
+        .min(1, 'Send null to remove it.')
+        .max(40)
+        .nullable()
+        .optional()
+        .describe('What one participant is called, e.g. "stagiaire".'),
+      categoryKey: z
         .string()
         .min(1)
+        .nullable()
+        .optional()
         .describe(
-          `${handleDescribe('templateName')} An existing one is overwritten.`,
+          `${handleDescribe('eventCategoryKey')} The category it gives an event. Null so it gives none.`,
         ),
-      description: z.string().optional(),
+      startTime: z
+        .string()
+        .refine(isWallClock, 'Use HH:MM on a 24h clock, e.g. "09:30".')
+        .nullable()
+        .optional()
+        .describe('The arrival time of day it gives an event, HH:MM.'),
+      modules: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `The complete set of dev-workspace sections it turns on. One of: ${EVENT_MODULE_KEYS.join(', ')}.`,
+        ),
+      moduleSettings: moduleSettings.optional(),
+      shownStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} The complete set of Salesforce member statuses it shows.`,
+        ),
+      attendanceStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} The complete set of shown statuses it counts as a visit. Each must be shown.`,
+        ),
+      feedbackFormId: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('formId')} The form its bilan section uses. Kept only while bilan is on.`,
+        ),
+      diplomaTemplateId: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('diplomaTemplateId')} The certificate its Inscrits export issues. Kept only while inscrits is on.`,
+        ),
+      closingTemplateId: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('closingTemplateId')} The grid its closings use. Kept only while closings is on.`,
+        ),
+      archived: z
+        .boolean()
+        .optional()
+        .describe(
+          'True to archive it, false to unarchive it. Omit to leave it as it stands.',
+        ),
     },
     run: (params) => writeEventTemplate(params),
   }),
@@ -1492,6 +1639,121 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeEventCategory(params),
+  }),
+
+  write_email_action: defineWrite({
+    description:
+      'Choose the mail template one transactional mail sends from. Refused for a template missing a variable the mail cannot do without, and for unlinking such a mail. Safe to repeat. Answers with the link before and after.',
+    shape: {
+      emailAction: z
+        .enum(EMAIL_ACTION_KEYS as [string, ...string[]])
+        .describe(handleDescribe('emailActionKey')),
+      messageTemplateId: z
+        .string()
+        .min(1)
+        .nullable()
+        .describe(`${handleDescribe('messageTemplateId')} Null unlinks it.`),
+    },
+    run: (params) =>
+      writeEmailAction(params as Parameters<typeof writeEmailAction>[0]),
+  }),
+
+  write_interest: defineWrite({
+    description:
+      "Create, rename or archive one centre d'intérêt. Without interestId it creates one; with it, only the fields you pass change. Archived, it is no longer offered and its talents keep it; there is no delete. Safe to repeat. Answers with it before and after.",
+    shape: {
+      interestId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(`${handleDescribe('interestId')}`),
+      kind: z
+        .enum(INTEREST_KINDS)
+        .optional()
+        .describe('Required to create one, never changed after.'),
+      label: z
+        .string()
+        .trim()
+        .min(1)
+        .max(80)
+        .optional()
+        .describe('Its French name. Required to create one.'),
+      shortLabel: z
+        .string()
+        .trim()
+        .min(1)
+        .max(20)
+        .optional()
+        .describe(
+          'Tech interests only, required to create one: the word the dev workspace shows, e.g. "IA" for "Intelligence artificielle".',
+        ),
+      emoji: z
+        .string()
+        .trim()
+        .max(16)
+        .nullable()
+        .optional()
+        .describe('Null removes it.'),
+      archived: z
+        .boolean()
+        .optional()
+        .describe(
+          'True to archive it, false to unarchive it. Omit to leave it as it stands.',
+        ),
+    },
+    run: (params) => writeInterest(params),
+  }),
+
+  write_campus: defineWrite({
+    description:
+      'Create a campus or change its configuration, by name: an unknown name creates one, otherwise only the fields you pass change. remove deletes one, refused while anything references it. Safe to repeat. Answers with the campus before and after.',
+    shape: {
+      campus: z
+        .string()
+        .trim()
+        .min(2)
+        .max(80)
+        .describe('Campus name, e.g. "Lille".'),
+      rename: z
+        .string()
+        .trim()
+        .min(2)
+        .max(80)
+        .optional()
+        .describe('A new name for an existing campus.'),
+      externalName: z
+        .string()
+        .trim()
+        .min(1)
+        .max(120)
+        .nullable()
+        .optional()
+        .describe(
+          'Its name in Salesforce, which lets the sync serve it. Null stops it.',
+        ),
+      timezone: z
+        .string()
+        .min(1)
+        .optional()
+        .describe('IANA time zone. Defaults to Europe/Paris.'),
+      departement: z
+        .string()
+        .trim()
+        .min(1)
+        .max(3)
+        .nullable()
+        .optional()
+        .describe(
+          'INSEE département code, e.g. "59": it sets the holidays shown.',
+        ),
+      contactAddress: z
+        .email()
+        .nullable()
+        .optional()
+        .describe('The contact address transactional mails quote.'),
+      remove: z.literal(true).optional().describe('Delete the campus.'),
+    },
+    run: (params) => writeCampus(params),
   }),
 
   write_admin_digest_recipient: defineWrite({
@@ -1555,7 +1817,7 @@ export const ADMIN_API_OPERATIONS = {
 
   write_sync_member_status: defineWrite({
     description:
-      'Add a Salesforce member status to the words Jump knows, or change whether newly created events show it. A word Jump does not know is masked everywhere and reported by stats_sync_health; adding it stops the report but shows it on no existing event: write_event_config or bulk_event_config does that. Safe to repeat: an upsert on the word. Nothing is ever deleted.',
+      'Add a Salesforce member status to the words Jump knows, or change whether newly created events show it and count it as a visit. A word Jump does not know is masked everywhere and reported by stats_sync_health; adding it stops the report but shows it on no existing event: write_event_config or bulk_event_config does that. Safe to repeat: an upsert on the word. Nothing is ever deleted.',
     shape: {
       memberStatus: z
         .string()
@@ -1568,6 +1830,12 @@ export const ADMIN_API_OPERATIONS = {
         .optional()
         .describe(
           'Whether an event the sync creates from now on starts by showing this status. Defaults to false for a new word; existing events are never changed by it.',
+        ),
+      attestsByDefault: z
+        .boolean()
+        .optional()
+        .describe(
+          'Whether an event the sync creates from now on counts this status as a visit (MET). Only a word shown by default can. Defaults to false for a new word; existing events keep theirs.',
         ),
     },
     run: (params) => writeSyncMemberStatus(params),
@@ -1643,8 +1911,16 @@ export const ADMIN_API_OPERATIONS = {
 
   bulk_event_config: defineWrite({
     twoStep: true,
-    description: `Change the configuration of every event matching a filter, in one plan: their dev-workspace sections, the Salesforce statuses they show, their category, and whether the dev workspace shows them. Patch semantics: only the fields you pass change. Call it without planDigest for the list of events that would change and how (events that cannot be shown are listed with what they lack, judged after the sections this call sets), then with the planDigest to apply it all in one transaction. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
+    description: `Change the configuration of many events in one plan, named by eventIds or matched by a filter: their dev-workspace sections, the Salesforce statuses they show, their category, and whether the dev workspace shows them. Patch semantics: only the fields you pass change. Call it without planDigest for the list of events that would change and how (events that cannot be shown are listed with what they lack, judged after the sections this call sets), then with the planDigest to apply it all in one transaction. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
     shape: {
+      eventIds: z
+        .array(z.string().min(1))
+        .min(1)
+        .max(BULK_EVENTS_LIMIT)
+        .optional()
+        .describe(
+          `${handleDescribe('eventId')} The events to change, when they are a hand-picked set rather than a filter. Not with campus, schoolYear or onlyUpcoming.`,
+        ),
       campus,
       schoolYear,
       onlyUpcoming: z
@@ -1675,7 +1951,25 @@ export const ADMIN_API_OPERATIONS = {
         .array(z.string())
         .optional()
         .describe(
-          `${handleDescribe('sfStatus')} Statuses every matching event will stop showing. Their enrolments stay synced and in Jump.`,
+          `${handleDescribe('sfStatus')} Statuses every matching event will stop showing, and stop counting. Their enrolments stay synced and in Jump.`,
+        ),
+      attendanceStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} The complete set of statuses every matching event will count as a visit, e.g. a preset's from config_event_templates. Each must be shown there once the call applies. Not with attestStatuses or unattestStatuses.`,
+        ),
+      attestStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} Statuses every matching event will count as a visit, on top of what each already counts. Each must be shown there once the call applies.`,
+        ),
+      unattestStatuses: z
+        .array(z.string())
+        .optional()
+        .describe(
+          `${handleDescribe('sfStatus')} Statuses every matching event will stop counting as a visit. They stay shown.`,
         ),
       categoryKey: z
         .string()
@@ -1838,21 +2132,29 @@ export const ADMIN_API_OPERATIONS = {
 
   ops_emargement_coverage: defineOperation({
     description: `Whether the attendance register is being kept: for events that expose the émargement section, how many half-days exist, have elapsed and hold a mark, and the tally of recorded marks. Capped at ${EMARGEMENT_EVENTS_LIMIT} events in the per-event list.`,
-    shape: { schoolYear, campus, eventId },
-    run: async (params) => getEmargementCoverage(await resolveScope(params)),
+    shape: {
+      schoolYear,
+      campus,
+      eventId,
+      since: since.describe(
+        'ISO 8601 instant with offset: keeps only the events still under way then or later.',
+      ),
+    },
+    run: async ({ since: at, ...scope }) =>
+      getEmargementCoverage(await resolveScope(scope), sinceFilter(at)),
   }),
 
   ops_pdf_jobs_health: defineOperation({
-    description: `State of the onboarding document queue: pending, processing, failed and succeeded, plus the jobs an admin can retry with their ids and ages. A job id identifies a document, never a person. Capped at ${PDF_JOBS_LIMIT} jobs. Takes no parameter.`,
-    shape: {},
-    run: () => getPdfJobsHealth(),
+    description: `State of the onboarding document queue: pending, processing, failed and succeeded, plus the jobs an admin can retry with their ids and ages. A job id identifies a document, never a person. Capped at ${PDF_JOBS_LIMIT} jobs.`,
+    shape: { since },
+    run: ({ since: at }) => getPdfJobsHealth(sinceFilter(at)),
   }),
 
   ops_account_deletion_queue: defineOperation({
     description:
-      'Account deletion requests waiting for a decision, how many are past the delay Jump commits to, the age of the oldest, and how many were fulfilled or rejected in the last 30 days. Counts only, nobody is named. Takes no parameter.',
-    shape: {},
-    run: () => getAccountDeletionQueue(),
+      'Account deletion requests waiting for a decision, how many are past the delay Jump commits to, the age of the oldest, and how many were fulfilled or rejected in the last 30 days. Counts only, nobody is named.',
+    shape: { since },
+    run: ({ since: at }) => getAccountDeletionQueue(sinceFilter(at)),
   }),
 
   ops_sf_conflicts_summary: defineOperation({
@@ -1863,7 +2165,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_broadcast_deliveries: defineOperation({
-    description: `How bulk sends landed: recipients, sent, failed, pending and opens per broadcast, with delivery and open rates. Counts only, never a recipient. Window defaults to ${BROADCASTS_DEFAULT_DAYS} days; capped at ${BROADCASTS_LIMIT} broadcasts in the list.`,
+    description: `How bulk sends landed: recipients, sent, failed, pending and opens per broadcast and its campus, with delivery and open rates, and the open rate over every mail of the window. Counts only, never a recipient. Transactional mail (login codes, parent mails) is config_email_actions. Window defaults to ${BROADCASTS_DEFAULT_DAYS} days; capped at ${BROADCASTS_LIMIT} broadcasts in the list.`,
     shape: {
       days: z.coerce
         .number()

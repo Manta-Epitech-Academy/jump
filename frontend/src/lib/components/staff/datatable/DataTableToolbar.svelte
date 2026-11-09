@@ -1,12 +1,13 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import Search from '@lucide/svelte/icons/search';
-  import { Input } from '$lib/components/ui/input';
+  import SearchBox from './SearchBox.svelte';
   import { countFilterSuffix, countNounForm } from './countLabel';
 
   // Search box + filtered-count line + a slot for page-specific filter controls.
   // Debouncing is the caller's concern: the inscrits table filters in memory on
   // every keystroke, while admin talents debounces and navigates with `?q=`.
+  // A page that puts its search on its title's line (the event lists) passes
+  // no `onSearchInput`, and the toolbar keeps the count and the filters.
   let {
     searchValue,
     onSearchInput,
@@ -22,8 +23,8 @@
     actions,
     countActions,
   }: {
-    searchValue: string;
-    onSearchInput: (value: string) => void;
+    searchValue?: string;
+    onSearchInput?: (value: string) => void;
     searchPlaceholder?: string;
     /**
      * Width utilities for the search box wrapper (a flex child of the toolbar
@@ -72,34 +73,34 @@
 </script>
 
 <div class="space-y-3">
-  <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
-    <div class="relative {searchWidthClass}">
-      <Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
-      <Input
-        placeholder={searchPlaceholder}
-        class="rounded-sm pl-9"
-        value={searchValue}
-        oninput={(e) =>
-          onSearchInput((e.currentTarget as HTMLInputElement).value)}
-      />
-    </div>
-
-    {#if filters}
-      {#if filtersAlign === 'end'}
-        <div class="ml-auto flex flex-wrap items-center gap-x-5 gap-y-3">
-          {@render filters()}
-        </div>
-      {:else}
-        {@render filters()}
+  {#if onSearchInput || filters || actions}
+    <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+      {#if onSearchInput}
+        <SearchBox
+          value={searchValue ?? ''}
+          onInput={onSearchInput}
+          placeholder={searchPlaceholder}
+          class={searchWidthClass}
+        />
       {/if}
-    {/if}
 
-    {#if actions}
-      <div class="ml-auto">
-        {@render actions()}
-      </div>
-    {/if}
-  </div>
+      {#if filters}
+        {#if filtersAlign === 'end'}
+          <div class="ml-auto flex flex-wrap items-center gap-x-5 gap-y-3">
+            {@render filters()}
+          </div>
+        {:else}
+          {@render filters()}
+        {/if}
+      {/if}
+
+      {#if actions}
+        <div class="ml-auto">
+          {@render actions()}
+        </div>
+      {/if}
+    </div>
+  {/if}
 
   <div class="flex flex-wrap items-center gap-3">
     <p class="text-xs text-muted-foreground">

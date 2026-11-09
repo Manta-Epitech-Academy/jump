@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { INSCRITS_VIEW } from '$lib/domain/inscritsView';
 import { niveauLabel } from '$lib/domain/niveau';
 import {
+  compareRows,
   matchesFacets,
+  shownInscrits,
   rosterFacets,
   type RosterContext,
   type RosterFacet,
@@ -27,7 +29,7 @@ function row(over: Partial<InscritRow> & { id: string }): InscritRow {
     schoolId: null,
     schoolName: null,
     xp: 0,
-    priorEnrolments: 0,
+    priorVisits: 0,
     techInterests: [],
     status: 'ready',
     connected: true,
@@ -40,8 +42,18 @@ function row(over: Partial<InscritRow> & { id: string }): InscritRow {
   };
 }
 
-const ia = { id: 'ia', nom: 'IA', emoji: null };
-const cyber = { id: 'cyber', nom: 'Cyber', emoji: null };
+const ia = {
+  id: 'ia',
+  nom: 'Intelligence artificielle',
+  shortLabel: 'IA',
+  emoji: null,
+};
+const cyber = {
+  id: 'cyber',
+  nom: 'Cybersécurité / Hacking',
+  shortLabel: 'Cyber',
+  emoji: null,
+};
 
 const cohort = [
   row({ id: 'a', niveau: '2nde', civilite: 'femme', techInterests: [ia] }),
@@ -49,10 +61,11 @@ const cohort = [
     id: 'b',
     niveau: '2nde',
     civilite: 'homme',
-    priorEnrolments: 2,
+    priorVisits: 2,
+    xp: 100,
     techInterests: [ia, cyber],
   }),
-  row({ id: 'c', niveau: '1ere', civilite: 'femme', priorEnrolments: 5 }),
+  row({ id: 'c', niveau: '1ere', civilite: 'femme', priorVisits: 2, xp: 900 }),
   row({
     id: 'd',
     niveau: null,
@@ -85,7 +98,6 @@ describe('the inscrits filters', () => {
 
   it('keeps only the inscrits satisfying every active filter', () => {
     expect(kept('niveau=2nde&genre=femme')).toEqual(['a']);
-    expect(kept('parcours=nouveau&genre=femme')).toEqual(['a', 'd']);
   });
 
   it('finds the inscrits with a field left blank', () => {
@@ -112,11 +124,6 @@ describe('the inscrits filters', () => {
     expect(facet(facets, 'genre')?.options.map((o) => o.value)).toEqual(
       ['homme', 'femme', 'aucun'].filter((v) => v !== 'aucun'),
     );
-    expect(facet(facets, 'parcours')?.options.map((o) => o.value)).toEqual([
-      'nouveau',
-      '2',
-      '3-et-plus',
-    ]);
   });
 
   it('ignores an address value the cohort does not carry', () => {
@@ -144,5 +151,45 @@ describe('the inscrits filters', () => {
     );
     expect(facet(facets, 'statut')).toBeUndefined();
     expect(kept('statut=never_connected', ctx)).toEqual(['a', 'b', 'c', 'd']);
+  });
+});
+
+describe('the parcours sort', () => {
+  it('puts the most loyal first, and the most XP first among equals', () => {
+    // The PO's order for « Voir tous les inscrits par parcours » (30/10).
+    const desc = [...cohort]
+      .sort((a, b) => compareRows(b, a, 'parcours'))
+      .map((r) => r.id);
+    expect(desc.slice(0, 2)).toEqual(['c', 'b']);
+  });
+});
+
+describe('the rows the page shows', () => {
+  it('applies the filters, the search and the sort of one address', () => {
+    const params = new URLSearchParams('niveau=2nde,1ere&sort=xp&q=lou');
+    const view = INSCRITS_VIEW.parse(params);
+    const shown = shownInscrits(
+      cohort,
+      rosterFacets(cohort, full, view),
+      view,
+      params.get('q') ?? '',
+    );
+    // d has no niveau; xp high to low puts c (900) before b (100) before a (0).
+    expect(shown.map((r) => r.id)).toEqual(['c', 'b', 'a']);
+  });
+});
+
+describe('the tech filter', () => {
+  it('names each interest by its short label, as the column does', () => {
+    const facets = rosterFacets(
+      cohort,
+      full,
+      INSCRITS_VIEW.parse(new URLSearchParams()),
+    );
+    expect(facet(facets, 'tech')?.options.map((o) => o.label)).toEqual([
+      'IA',
+      'Cyber',
+      'Aucun',
+    ]);
   });
 });

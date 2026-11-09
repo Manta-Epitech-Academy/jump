@@ -5,14 +5,21 @@
   // for extra game-juice; the `animate-xp-float` rise/fade keyframes live in
   // routes/layout.css. `label` is an optional kicker rendered above the amount.
   import { onMount } from 'svelte';
+  import { prefersReducedMotion } from 'svelte/motion';
   import Sparkles from '@lucide/svelte/icons/sparkles';
 
   let { amount, label }: { amount: number; label?: string } = $props();
 
   // Count up to the awarded amount with an ease-out so it decelerates into place
   // as the float pops: the rising number is the satisfying beat.
+  // Asked for less motion, the amount is simply there: layout.css already
+  // swaps the pop and the rise for a fade.
   let display = $state(0);
   onMount(() => {
+    if (prefersReducedMotion.current) {
+      display = amount;
+      return;
+    }
     const duration = 900;
     const start = performance.now();
     let raf = 0;

@@ -36,12 +36,23 @@ import {
   eventMissingConfig,
 } from '$lib/domain/eventReadiness';
 import { getStaffRoleLabel } from '$lib/domain/staff';
+import { academieOf, departementName } from '$lib/domain/school';
+import {
+  EMAIL_ACTIONS,
+  EMAIL_ACTION_KEYS,
+  missingRequiredVariables,
+  type EmailActionKey,
+} from '$lib/domain/emailActions';
 import {
   HIDDEN_PARTICIPATION_DEFINITION,
   SYNCED_PARTICIPATION_DEFINITION,
   VISIBLE_PARTICIPATION_DEFINITION,
 } from '$lib/domain/sfMemberStatus';
 import { metric, type Metric } from '$lib/server/adminApi/metrics';
+import {
+  ATTENDED_DEFINITION,
+  attendedBeforeWhere,
+} from '$lib/domain/attendance';
 import { CERTIFICATE_TOKENS } from '$lib/domain/diplomas';
 import type { WorkshopCoverKind } from '$lib/domain/workshops';
 import {
@@ -61,6 +72,7 @@ import {
   readFeedbackFormContent,
   type FeedbackFormContent,
 } from '$lib/server/feedbackForms/content';
+import { feedbackFormPreviewLink } from '$lib/server/feedbackForms';
 import { hiddenEnrolmentsByEvent, scopedEvents, scopeLabels } from './cohort';
 import {
   eventStateCounts,
@@ -218,6 +230,8 @@ export type EventDetail = {
   } | null>;
   workshops: Metric<EventWorkshopState[]>;
   shownStatuses: Metric<string[]>;
+  attendanceStatuses: Metric<string[]>;
+  attended: Metric;
   participants: Metric;
   hiddenFromDevSpace: Metric;
   syncedEnrolments: Metric;
@@ -256,6 +270,9 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
   const workshops = await eventWorkshopsOf(event.id);
 
   const hidden = (await hiddenEnrolmentsByEvent([event.id])).get(event.id) ?? 0;
+  const attended = await prisma.participation.count({
+    where: { eventId: event.id, ...attendedBeforeWhere(new Date()) },
+  });
 
   return {
     event: metric(
@@ -328,6 +345,11 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
       event.shownStatuses,
       "Les statuts Salesforce dont l'espace dev affiche les inscriptions sur cet événement. Les inscriptions aux autres statuts restent synchronisées et enregistrées dans Jump, seul l'espace dev les masque ; celles sans statut sont toujours affichées. Se règle avec write_event_config (« shownStatuses »).",
     ),
+    attendanceStatuses: metric(
+      event.attendanceStatuses,
+      "Parmi les statuts affichés, ceux que cet événement compte comme une venue : un talent qui porte l'un d'eux est venu, une fois l'événement terminé. C'est ce que compte « Déjà venu » dans l'espace dev. Se règle avec write_event_config (« attendanceStatuses »).",
+    ),
+    attended: metric(attended, `Talents ${ATTENDED_DEFINITION}.`),
     participants: metric(
       event.participations,
       `Inscriptions à cet événement, ${VISIBLE_PARTICIPATION_DEFINITION}.`,
@@ -345,7 +367,18 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
 
 // ── Where events stand, campus by campus ────────────────────────────────────
 
+/** A campus's own configuration, in the shape `write_campus` takes it. */
+export type CampusConfiguration = {
+  externalName: string | null;
+  timezone: string;
+  departement: string | null;
+  departementName: string | null;
+  academie: string | null;
+  contactAddress: string | null;
+};
+
 export type CampusRow = { campus: string } & EventStateCounts & {
+    configuration: CampusConfiguration;
     staff: { role: string; label: string; count: number }[];
     modules: ModuleRow[];
   };
@@ -368,7 +401,14 @@ export async function getCampusOverview(
     prisma.campus.findMany({
       where: scope.campus ? { id: scope.campus.id } : {},
       orderBy: { name: 'asc' },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        externalName: true,
+        timezone: true,
+        departement: true,
+        contactEmail: true,
+      },
     }),
   ]);
 
@@ -379,6 +419,14 @@ export async function getCampusOverview(
     const own = events.filter((e) => e.campusId === campus.id);
     return {
       campus: campus.name,
+      configuration: {
+        externalName: campus.externalName,
+        timezone: campus.timezone,
+        departement: campus.departement,
+        departementName: departementName(campus.departement),
+        academie: academieOf(campus.departement),
+        contactAddress: campus.contactEmail,
+      },
       ...eventStateCounts(own),
       staff: staff
         .filter((s) => s.campusId === campus.id && s.staffRole)
@@ -398,7 +446,7 @@ export async function getCampusOverview(
     ...summariseEvents(events),
     campuses: metric(
       rows,
-      `Les mêmes chiffres campus par campus, chaque campus compris, même sans événement sur le périmètre : « events » est le total, que « visible », « readyToPublish » et « unconfigured » répartissent ; « visibleShare » est la part des événements du campus visibles dans l'espace dev ; « toPrepare » compte ceux qui ne sont pas passés et pas encore visibles ; « participants » compte les participations, ${VISIBLE_PARTICIPATION_DEFINITION} ; « modules » compte les événements où chaque section est activée, sans tenir compte de l'activation. Les effectifs d'équipe (« staff ») sont ceux d'aujourd'hui, ils ne dépendent pas de l'année scolaire demandée.`,
+      `Les mêmes chiffres campus par campus, chaque campus compris, même sans événement sur le périmètre : « events » est le total, que « visible », « readyToPublish » et « unconfigured » répartissent ; « visibleShare » est la part des événements du campus visibles dans l'espace dev ; « toPrepare » compte ceux qui ne sont pas passés et pas encore visibles ; « participants » compte les participations, ${VISIBLE_PARTICIPATION_DEFINITION} ; « modules » compte les événements où chaque section est activée, sans tenir compte de l'activation. Les effectifs d'équipe (« staff ») sont ceux d'aujourd'hui, ils ne dépendent pas de l'année scolaire demandée. « configuration » est le réglage du campus, tel que write_campus le prend : « externalName » est le nom du campus dans Salesforce (null tant que la synchronisation ne le sert pas), « timezone » son fuseau horaire, « departement » son code de département, dont « departementName » et « academie » donnent le nom et l'académie (ils décident des vacances scolaires et des jours fériés du calendrier), « contactAddress » l'adresse de contact que les mails transactionnels citent.`,
     ),
   };
 }
@@ -418,6 +466,8 @@ export type FormRow = {
 export type FeedbackForms = {
   forms: Metric<FormRow[]>;
   form: Metric<FeedbackFormContent | null>;
+  /** With formId, the sentence linking to its preview, to quote as it is. */
+  apercu: string | null;
   authoring: Metric<string[]>;
 };
 
@@ -439,9 +489,10 @@ const FEEDBACK_AUTHORING_CONTRACT = [
   "Retirer un formulaire, c'est l'archiver (status archived). Aucune opération ne supprime un formulaire.",
 ];
 
-export async function getFeedbackForms(
-  params: { formId?: string } = {},
-): Promise<FeedbackForms> {
+export async function getFeedbackForms(params: {
+  formId?: string;
+  origin: string;
+}): Promise<FeedbackForms> {
   const rows = await prisma.feedback_Form.findMany({
     orderBy: [{ status: 'asc' }, { title: 'asc' }],
     select: {
@@ -479,9 +530,16 @@ export async function getFeedbackForms(
       })),
       "Les formulaires de bilan existants. « status » vaut brouillon, publié ou archivé : seul un formulaire publié peut recevoir des réponses. « attachedEvents » compte les événements qui l'utilisent, « formId » est l'identifiant à passer aux opérations qui lisent ses résultats ou le rattachent à un événement.",
     ),
+    apercu: content
+      ? feedbackFormPreviewLink({
+          formId: params.formId!,
+          title: content.title,
+          origin: params.origin,
+        }).apercu
+      : null,
     form: metric(
       content,
-      "Le formulaire demandé par « formId », en entier et dans la forme exacte que write_feedback_form accepte : ses réglages, son persona, puis ses questions hors section et ses sections, dans l'ordre où un répondant les rencontre. Null si aucun formulaire n'a été demandé. « locked » vaut vrai dès qu'il a reçu une réponse : sa structure est alors figée. « personaIcon » est null pour la mascotte par défaut ; son « sourceUrl » est l'adresse d'où l'icône a été copiée, ou null si elle a été déposée dans l'interface.",
+      "Le formulaire demandé par « formId », en entier et dans la forme exacte que write_feedback_form accepte : ses réglages, son persona, puis ses questions hors section et ses sections, dans l'ordre où un répondant les rencontre. Null si aucun formulaire n'a été demandé. « locked » vaut vrai dès qu'il a reçu une réponse : sa structure est alors figée. « personaIcon » est null pour la mascotte par défaut ; son « sourceUrl » est l'adresse d'où l'icône a été copiée, ou null si elle a été déposée sur la page d'aperçu du formulaire.",
     ),
     authoring: metric(
       FEEDBACK_AUTHORING_CONTRACT,
@@ -503,6 +561,7 @@ export type TemplateRow = {
   diplomaTemplateId: string | null;
   closingTemplateId: string | null;
   shownStatuses: string[];
+  attendanceStatuses: string[];
 };
 
 export type EventTemplates = { templates: Metric<TemplateRow[]> };
@@ -525,8 +584,10 @@ export async function getEventTemplates(): Promise<EventTemplates> {
         diplomaTemplateId: template.diplomaTemplateId,
         closingTemplateId: template.closingTemplateId,
         shownStatuses: template.shownStatuses,
+        attendanceStatuses: template.attendanceStatuses,
+        archived: template.archived,
       })),
-      "Les modèles de configuration enregistrés, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun. « categoryKey » est la clé de la catégorie qu'il donne. Une catégorie archivée depuis n'est plus donnée à un événement : write_event_config la refuse, sauf sur un événement qui la porte déjà, et bulk_event_config la refuse toujours. « publicName », « cohortNoun », « categoryKey » et « startTime » valent null quand le modèle n'en porte pas.",
+      "Les modèles de configuration enregistrés, archivés compris, et ce que chacun applique à un événement. Un modèle est une copie prise à un instant donné : l'appliquer recopie ces réglages, et l'événement ne reste pas lié au modèle ensuite. Le nom est ce qui l'identifie. « moduleSettings » porte les sous-options de chaque section du modèle, « diplomaTemplateId » et « closingTemplateId » le certificat et la grille de closing qu'il désigne, null s'il n'en désigne aucun. « categoryKey » est la clé de la catégorie qu'il donne. « attendanceStatuses » liste ceux de ses statuts affichés qu'il compte comme une venue. Une catégorie archivée depuis n'est plus donnée à un événement : write_event_config la refuse, sauf sur un événement qui la porte déjà, et bulk_event_config la refuse toujours. « publicName », « cohortNoun », « categoryKey » et « startTime » valent null quand le modèle n'en porte pas. « archived » vaut vrai pour un modèle retiré : il n'est plus à appliquer.",
     ),
   };
 }
@@ -731,6 +792,141 @@ export async function getTalentHomeContent(
         },
       })),
       "Ce que chaque campus affiche sur l'accueil de ses talents, en plus de leurs propres inscriptions. « note » est le mot du campus tel qu'il a été écrit (Markdown, ses images écrites par l'adresse d'où Jump les a copiées), affiché dans la carte Actualités, ou null s'il n'y en a pas. « highlight » est l'événement mis en avant dans le bandeau bleu de l'accueil (un jour où le talent n'a pas d'activité : le jour d'une activité, le bandeau ne montre que l'activité) : son titre, son texte, son jour (null s'il n'en a pas), le lien du formulaire d'inscription, « imageUrl », l'adresse d'où son image a été copiée (null s'il n'en a pas), et « shown », qui dit s'il est encore affiché (s'il a un jour, il disparaît seul une fois ce jour passé, à l'heure du campus ; sans jour, il reste affiché tant qu'il n'est pas réécrit ou retiré), ou null s'il n'y en a pas. Un talent voit le campus de son événement le plus tardif, à venir compris.",
+    ),
+  };
+}
+
+// ── Transactional mail ───────────────────────────────────────────────────────
+
+export type EmailActionRow = {
+  action: EmailActionKey;
+  label: string;
+  description: string;
+  variables: readonly string[];
+  requiredVariables: readonly string[];
+  template: { templateId: string; name: string } | null;
+  missingRequiredVariables: string[];
+};
+
+export type MailTemplateRow = {
+  templateId: string;
+  name: string;
+  linkedTo: string[];
+};
+
+export type EmailActions = {
+  actions: Metric<EmailActionRow[]>;
+  unlinked: Metric<number>;
+  templates: Metric<MailTemplateRow[]>;
+};
+
+/**
+ * Each transactional mail Jump sends and the template it sends it from, plus
+ * the mail templates one may be linked to. A template is checked against the
+ * action's required variables here as well as at write, so a template edited
+ * since it was linked shows up rather than failing a login in silence.
+ */
+export async function getEmailActions(): Promise<EmailActions> {
+  const [mappings, templates] = await Promise.all([
+    prisma.emailActionMapping.findMany({
+      select: {
+        actionKey: true,
+        template: {
+          select: { id: true, name: true, subject: true, body: true },
+        },
+      },
+    }),
+    prisma.messageTemplate.findMany({
+      where: { channel: 'mail' },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        emailActionMappings: { select: { actionKey: true } },
+      },
+    }),
+  ]);
+  const byAction = new Map(mappings.map((m) => [m.actionKey, m.template]));
+
+  const actions: EmailActionRow[] = EMAIL_ACTION_KEYS.map((key) => {
+    const template = byAction.get(key) ?? null;
+    return {
+      action: key,
+      label: EMAIL_ACTIONS[key].label,
+      description: EMAIL_ACTIONS[key].description,
+      variables: EMAIL_ACTIONS[key].variables,
+      requiredVariables: EMAIL_ACTIONS[key].requiredVariables,
+      template: template
+        ? { templateId: template.id, name: template.name }
+        : null,
+      missingRequiredVariables: template
+        ? missingRequiredVariables(key, template)
+        : [],
+    };
+  });
+
+  return {
+    actions: metric(
+      actions,
+      "Les mails transactionnels que Jump envoie, chacun avec le modèle dont il part. « action » est la clé que prend write_email_action. « variables » liste les variables que le modèle peut citer, « requiredVariables » celles sans lesquelles le mail manque son but (le code d'un mail de connexion, le motif d'un refus de suppression). « template » vaut null quand aucun modèle n'est lié : ce mail-là ne part pas, sans erreur visible. « missingRequiredVariables » nomme les variables indispensables que le modèle lié ne cite plus, vide quand il n'en manque aucune.",
+    ),
+    unlinked: metric(
+      actions.filter((a) => a.template === null).length,
+      "Nombre de mails transactionnels sans modèle lié : aucun d'eux ne part.",
+    ),
+    templates: metric(
+      templates.map((t) => ({
+        templateId: t.id,
+        name: t.name,
+        linkedTo: t.emailActionMappings.map((m) => m.actionKey).sort(),
+      })),
+      "Les modèles de mail auxquels une action peut être liée, par ordre alphabétique. « templateId » est l'identifiant que prend write_email_action, « linkedTo » les actions qui en partent déjà. Un modèle lié à une action n'est plus proposé aux envois groupés. Les modèles s'écrivent dans l'espace admin, page des modèles de message.",
+    ),
+  };
+}
+
+// ── The centres d'intérêt ────────────────────────────────────────────────────
+
+export type InterestRow = {
+  interestId: string;
+  kind: string;
+  label: string;
+  shortLabel: string | null;
+  emoji: string | null;
+  order: number;
+  archived: boolean;
+  talents: number;
+};
+
+export type Interests = { interests: Metric<InterestRow[]> };
+
+export async function getInterests(): Promise<Interests> {
+  const rows = await prisma.interest.findMany({
+    orderBy: [{ kind: 'asc' }, { order: 'asc' }],
+    select: {
+      id: true,
+      kind: true,
+      nom: true,
+      shortLabel: true,
+      emoji: true,
+      order: true,
+      archivedAt: true,
+      _count: { select: { talentInterests: true } },
+    },
+  });
+  return {
+    interests: metric(
+      rows.map((row) => ({
+        interestId: row.id,
+        kind: row.kind,
+        label: row.nom,
+        shortLabel: row.shortLabel,
+        emoji: row.emoji,
+        order: row.order,
+        archived: row.archivedAt !== null,
+        talents: row._count.talentInterests,
+      })),
+      "Les centres d'intérêt qu'un talent choisit à l'inscription, archivés compris, par nature puis dans l'ordre où ils lui sont proposés. « kind » vaut tech ou general, les deux questions posées séparément. « interestId » est l'identifiant que prend write_interest. « shortLabel » est le nom court d'un centre tech, celui qu'affiche l'espace dev (null pour un centre general). « archived » vaut vrai pour un centre qui n'est plus proposé ; les talents qui l'avaient choisi le gardent. « talents » compte les talents qui l'ont choisi, sur toutes les années.",
     ),
   };
 }

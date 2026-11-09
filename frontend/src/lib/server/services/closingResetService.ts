@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server/db';
+import { recomputeAttendance } from './attendance';
 
 /**
  * Reset (delete) a closing that was finalised by mistake.
@@ -28,14 +29,21 @@ export async function resetClosing(params: {
 
   const closing = await prisma.closing_Record.findUnique({
     where: { id: closingId },
-    select: { id: true, talentId: true, staffId: true, conductedAt: true },
+    select: {
+      id: true,
+      talentId: true,
+      eventId: true,
+      staffId: true,
+      conductedAt: true,
+    },
   });
   if (!closing) return null;
 
   // Audit-then-delete in one transaction so the trace can never be lost while
-  // the closing itself is gone.
-  await prisma.$transaction([
-    prisma.closing_ResetEvent.create({
+  // the closing itself is gone, and the « venu » the closing proved is
+  // re-derived from what is left in that same transaction.
+  await prisma.$transaction(async (tx) => {
+    await tx.closing_ResetEvent.create({
       data: {
         talentId: closing.talentId,
         conductedByStaffId: closing.staffId,
@@ -43,9 +51,10 @@ export async function resetClosing(params: {
         resetByStaffId,
         reason,
       },
-    }),
-    prisma.closing_Record.delete({ where: { id: closing.id } }),
-  ]);
+    });
+    await tx.closing_Record.delete({ where: { id: closing.id } });
+    await recomputeAttendance(tx, { eventIds: [closing.eventId] });
+  });
 
   return { talentId: closing.talentId };
 }

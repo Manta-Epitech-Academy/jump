@@ -12,6 +12,7 @@
  * ce qui fait qu'une réaction « retombe » avant la question suivante au lieu
  * d'être écrasée par des points qui ne s'éteignent pas.
  */
+import { prefersReducedMotion } from 'svelte/motion';
 import type {
   FormSchema,
   Question,
@@ -53,30 +54,23 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const DWELL = { open: 0, snap: 250, beat: 380, savor: 1200 } as const;
 type DwellKind = keyof typeof DWELL;
 
-/** OS "minimise animation" request; collapses every scripted delay. */
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
-  );
-}
-
-/** ±15% so the cadence never reads as a metronome. Reduced motion gets none. */
+/** ±15% so the cadence never reads as a metronome. Reduced motion gets none:
+ *  that OS request collapses every scripted delay below. */
 function jitter(ms: number): number {
-  if (ms <= 0 || prefersReducedMotion()) return ms;
+  if (ms <= 0 || prefersReducedMotion.current) return ms;
   return Math.round(ms * (0.85 + Math.random() * 0.3));
 }
 
 /** Length of the quiet beat before a message. */
 function dwellMs(kind: DwellKind): number {
-  if (prefersReducedMotion()) return kind === 'open' ? 0 : 60;
+  if (prefersReducedMotion.current) return kind === 'open' ? 0 : 60;
   return jitter(DWELL[kind]);
 }
 
 /** Length of the typing window: a one-word reaction is near-instant, a long
  *  prompt takes a beat to "type". */
 function typingMs(text: string): number {
-  if (prefersReducedMotion()) return 80;
+  if (prefersReducedMotion.current) return 80;
   return jitter(Math.min(1500, Math.max(320, 260 + text.length * 16)));
 }
 

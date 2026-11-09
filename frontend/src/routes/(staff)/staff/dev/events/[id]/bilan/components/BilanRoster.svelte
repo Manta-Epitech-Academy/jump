@@ -19,7 +19,7 @@
     setListParams,
   } from '$lib/components/staff/datatable/urlList';
   import { facetControls } from '$lib/components/staff/datatable/facetControls';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import type { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import {
     BILAN_SORT_DEFAULT_DIR,
     type BilanSortKey,
@@ -46,11 +46,14 @@
     recoOptions,
     eventId,
     cohortNoun,
+    search,
   }: {
     rows: BilanRow[];
     recoOptions: RecoOption[];
     eventId: string;
     cohortNoun: string | null;
+    /** The search box on the page's title line, as on Inscrits. */
+    search: ReturnType<typeof createUrlSearch>;
   } = $props();
 
   // Event's Jump-owned cohort noun ("stagiaire" / "participant").
@@ -59,7 +62,6 @@
   // Filters, sort and search live in the address (`$lib/domain/bilanView`), so
   // the event home's recommendation card can open this list already filtered.
   const view = $derived(BILAN_VIEW.parse(page.url.searchParams));
-  const search = createUrlSearch();
 
   // Best→worst rank and label of each option, by id.
   const recoRank = $derived(new Map(recoOptions.map((o, i) => [o.id, i])));
@@ -180,10 +182,6 @@
 
 <div class="space-y-4">
   <DataTableToolbar
-    searchValue={search.value}
-    onSearchInput={(v) => (search.value = v)}
-    searchPlaceholder={`Rechercher un ${noun.singular}…`}
-    searchWidthClass="w-full max-w-[230px]"
     count={filtered.length}
     countNoun={noun.singular}
     countNounPlural={noun.plural}

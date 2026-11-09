@@ -338,7 +338,9 @@
         <span class="masthead-kicker"
           >Synthèse de closing<span class="cursor-tech">_</span></span
         >
-        <span class="code-tag">&lt; Stage de Seconde /&gt;</span>
+        <% if (data.categoryLabel) { %>
+        <span class="code-tag">&lt; <%= data.categoryLabel %> /&gt;</span>
+        <% } %>
       </div>
     </header>
 

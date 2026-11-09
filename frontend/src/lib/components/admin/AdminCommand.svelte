@@ -133,7 +133,12 @@
 {/snippet}
 
 <!-- shouldFilter={false}: pages are filtered above, people server-side. -->
-<Command.Dialog bind:open shouldFilter={false}>
+<Command.Dialog
+  bind:open
+  shouldFilter={false}
+  title="Recherche"
+  description="Aller à une page de l'espace admin, ou chercher un talent, un parent ou un membre de l'équipe"
+>
   <Command.Input
     placeholder="Aller à une page, ou chercher un talent, un parent, un membre…"
     bind:value={inputValue}

@@ -20,7 +20,7 @@ Jump is Epitech Academy's internal platform for the events it runs for school st
 Three words read wrong from outside. The full glossary is [`JARGON.md`](.github/JARGON.md).
 
 - **`dev` is the recruitment team** (Business Development), never a software engineer: `dev` roles, `/staff/dev/` routes.
-- **A participation is not a presence.** `Participation` is an enrolment synced from Salesforce; émargement (`EventPresence`) is the only presence record, and no Salesforce status means present or absent.
+- **A participation is not a visit.** `Participation` is an enrolment synced from Salesforce. « Venu » is one proof on an event that is over: a status the event counts as attended (set per event over the API), an émargement present or late, a closing (`domain/attendance.ts`; an activity, done from anywhere, is not one). Émargement (`EventPresence`) stays the half-day presence record, and no absence is ever inferred.
 - **A masked enrolment is still in Jump.** The dev workspace shows only some Salesforce statuses: say "affichée dans l'espace dev" for that count, never "dans Jump".
 
 ## Philosophy
@@ -93,7 +93,7 @@ Each file carries its surface's rules and the incidents that set them. Read it b
 | [`.claude/rules/auth.md`](.claude/rules/auth.md) | sign-in doors, guards, role groups, `hooks.server.ts` |
 | [`.claude/rules/closings.md`](.claude/rules/closings.md) | closings: the question bank, grids, records, their figures |
 | [`.claude/rules/data-model.md`](.claude/rules/data-model.md) | `schema.prisma`, a new model or relation, a migration |
-| [`.claude/rules/event-modules.md`](.claude/rules/event-modules.md) | event modules, the config wizard, certificate designs and rendering |
+| [`.claude/rules/event-modules.md`](.claude/rules/event-modules.md) | event modules, presets, certificate designs and rendering |
 | [`.claude/rules/onboarding.md`](.claude/rules/onboarding.md) | the onboarding dossier, règlement, image rights, the parent portal |
 | [`.claude/rules/salesforce.md`](.claude/rules/salesforce.md) | the worker API, the sync, Salesforce reconciliation |
 | [`.claude/rules/seed.md`](.claude/rules/seed.md) | `bun run seed` and the generated dataset |

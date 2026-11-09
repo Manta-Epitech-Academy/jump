@@ -8,6 +8,7 @@
   import '@fontsource/space-mono/700.css';
   import './layout.css';
   import { Toaster } from '$lib/components/ui/sonner';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import { onNavigate, beforeNavigate } from '$app/navigation';
   import { ModeWatcher } from 'mode-watcher';
   import { page, updated } from '$app/state';
@@ -147,5 +148,7 @@
       {/if}
     </div>
   {/if}
-  {@render children()}
+  <Tooltip.Provider>
+    {@render children()}
+  </Tooltip.Provider>
 </div>

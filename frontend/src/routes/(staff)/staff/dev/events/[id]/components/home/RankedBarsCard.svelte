@@ -33,8 +33,10 @@
           )}
         >
           <span class="flex min-w-0 flex-1 flex-col gap-1.5">
+            <!-- One line per value, however long a lycée's name: the card is
+                 read at a glance, and the list it opens names it whole. -->
             <span class="flex items-baseline justify-between gap-3 text-sm">
-              <span class="min-w-0 leading-snug font-medium break-words"
+              <span class="min-w-0 truncate leading-snug font-medium"
                 >{bar.label}</span
               >
               <span class="shrink-0 text-xs text-muted-foreground">

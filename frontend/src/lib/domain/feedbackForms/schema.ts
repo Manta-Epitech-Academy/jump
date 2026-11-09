@@ -43,19 +43,6 @@ export const IDENTITY_FIELD_TO_RESPONDENT_COLUMN = {
 export type RespondentColumn =
   (typeof IDENTITY_FIELD_TO_RESPONDENT_COLUMN)[IdentityField];
 
-/** Identity fields with their French label, in builder display order. Single
- *  source for the badge and the builder's identity selector (mirrors the
- *  `Feedback_IdentityField` enum). */
-export const IDENTITY_FIELD_OPTIONS: { value: IdentityField; label: string }[] =
-  [
-    { value: 'email', label: 'E-mail' },
-    { value: 'phone', label: 'Téléphone' },
-    { value: 'firstName', label: 'Prénom' },
-    { value: 'lastName', label: 'Nom' },
-    { value: 'civility', label: 'Civilité' },
-    { value: 'campus', label: 'Campus' },
-  ];
-
 /**
  * Natural question type for each identity field, used to auto-configure a question
  * when an identity field is picked: text-like data becomes a short text input,
@@ -149,11 +136,9 @@ export interface FormSchema {
 }
 
 /**
- * The fields a question carries in both projections - the client editor graph
- * and the server DB graph. {@link projectQuestionToSchema} maps this plus a
- * resolved section into the flat {@link Question} the chat renderer consumes, so
- * the two projections (`projectEditorToSchema`, `toFormSchema`) share one body
- * and can't drift.
+ * The fields a question carries in the DB graph. {@link projectQuestionToSchema}
+ * maps this plus a resolved section into the flat {@link Question} the chat
+ * renderer consumes (`toFormSchema`).
  */
 export interface ProjectableQuestion {
   key: string;
@@ -237,8 +222,8 @@ export const DEFAULT_INTRO =
 /**
  * Closing line the persona speaks when a form sets no custom `outro`. There is
  * always a goodbye message; this is what "leave the outro empty" produces.
- * Single source so the chat engine (`conversation.svelte.ts`) and the builder's
- * help text can never disagree about it.
+ * Single source, so the chat engine (`conversation.svelte.ts`) and anything
+ * describing the default can never disagree about it.
  */
 export const DEFAULT_OUTRO =
   "Merci, c'est tout bon ! Je prépare ton récapitulatif. 🎉";
@@ -247,8 +232,8 @@ export const DEFAULT_OUTRO =
  * Builds the public proxy URL for a form's persona icon, or `undefined` when the
  * form has no custom icon (callers fall back to {@link DEFAULT_PERSONA}). The
  * `?v=<key>` busts the browser cache on replace: a new upload gets a new key, so
- * the URL changes even though the path (keyed by form id) is stable. Pure, so the
- * client projection and the server projection produce identical URLs.
+ * the URL changes even though the path (keyed by form id) is stable. Pure, so
+ * every projection produces the same URL.
  */
 export function buildPersonaIconUrl(
   formId: string,

@@ -141,9 +141,20 @@ describe('émargement coverage (integration)', () => {
     expect(answer.marks.value).toBe(5);
   });
 
-  it('reads each event on its own grid', async () => {
+  // The past event comes first although the future one is more recent: its
+  // unkept half-days are what the capped list is read for (the weekly digest
+  // names them from it).
+  it('reads each event on its own grid, unkept registers first', async () => {
     const { perEvent } = await coverage();
     expect(perEvent.value).toEqual([
+      expect.objectContaining({
+        eventId: pastId,
+        slots: 4,
+        elapsedSlots: 4,
+        keptSlots: 2,
+        unkeptSlots: 2,
+        keptShare: 50,
+      }),
       expect.objectContaining({
         eventId: futureId,
         slots: 2,
@@ -151,13 +162,30 @@ describe('émargement coverage (integration)', () => {
         keptSlots: 1,
         keptShare: 100,
       }),
-      expect.objectContaining({
-        eventId: pastId,
-        slots: 4,
-        elapsedSlots: 4,
-        keptSlots: 2,
-        keptShare: 50,
-      }),
     ]);
+  });
+
+  // The weekly digest asks about last week's registers, not the year's: an
+  // event over before the instant leaves the totals too, while one whose last
+  // day is the instant's day is still being kept that day.
+  it('keeps only the events still under way at the since instant or later', async () => {
+    const scope = await resolveScope({ campus: campusName });
+
+    const lastDay = await getEmargementCoverage(scope, {
+      since: new Date('2026-03-03T11:00:00Z'),
+    });
+    expect(lastDay.events.value).toBe(2);
+
+    const dayAfter = await getEmargementCoverage(scope, {
+      since: new Date('2026-03-04T07:00:00Z'),
+    });
+    expect(dayAfter.filters.since).toBe('2026-03-04T07:00:00.000Z');
+    expect(dayAfter.events.value).toBe(1);
+    expect(dayAfter.perEvent.value.map((e) => e.eventId)).toEqual([futureId]);
+    expect(dayAfter.slots.value).toBe(2);
+    expect(dayAfter.marks.value).toBe(2);
+    // The future event's only elapsed half-day was closed early and marked.
+    expect(dayAfter.eventsWithUnkeptSlots.value).toBe(0);
+    expect(lastDay.eventsWithUnkeptSlots.value).toBe(1);
   });
 });

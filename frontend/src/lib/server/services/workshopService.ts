@@ -342,7 +342,7 @@ export async function applyWorkshopProgress(
   };
   const participation = await prisma.workshop_Participation.findUnique({
     where: key,
-    select: { campusId: true },
+    select: { campusId: true, eventId: true },
   });
   if (!participation) return;
 
@@ -356,6 +356,8 @@ export async function applyWorkshopProgress(
       sourceId: workshopGrantSourceId(activity.slug, payload.talentId),
       amount: payload.points,
       campusId: participation.campusId,
+      // The event the participation is pinned to, whose activity this is.
+      eventId: participation.eventId,
     });
 
     await tx.workshop_Participation.update({

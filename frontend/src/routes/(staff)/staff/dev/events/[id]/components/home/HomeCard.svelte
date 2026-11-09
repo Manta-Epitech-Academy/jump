@@ -37,7 +37,8 @@
 </script>
 
 <Card.Root class="gap-4 p-6">
-  <h2 class="epi-overline text-muted-foreground">{title}<TitleCursor /></h2>
+  <!-- Under its section's title (`HomeFigures`), so one level below it. -->
+  <h3 class="epi-overline text-muted-foreground">{title}<TitleCursor /></h3>
   {#if empty}
     {@const Icon = empty.icon}
     <div

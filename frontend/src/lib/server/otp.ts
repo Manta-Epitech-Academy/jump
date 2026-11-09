@@ -1,10 +1,11 @@
 /**
  * Transactional mail entry points for the OTP login flows and the parent
  * welcome. All bodies + subjects now live in MessageTemplate rows bound
- * by action key in EmailActionMapping. Edit them at `/staff/admin/email-actions`.
+ * by action key in EmailActionMapping, linked over the admin API
+ * (`write_email_action`).
  *
- * When no template is mapped, the send is silently skipped: admins see
- * the warning in `/staff/admin/email-actions`. The caller (BetterAuth's
+ * When no template is mapped, the send is silently skipped: admins see it in
+ * `config_email_actions`, and the write refuses to unlink a login mail. The caller (BetterAuth's
  * sendVerificationOTP callback, the onboarding action) doesn't error.
  */
 

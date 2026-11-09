@@ -1,8 +1,7 @@
 import { z } from 'zod';
 
-// Validation for the feedback form builder (admin). The REST endpoints parse
-// request bodies with these; the list page's create form uses the superform
-// variants.
+// The fields of a feedback form, its sections, questions and options, as the
+// admin API's whole-form write (`write_feedback_form`) validates them.
 
 const QUESTION_TYPES = [
   'single',
@@ -25,8 +24,8 @@ const FORM_STATUSES = ['draft', 'published', 'archived'] as const;
 
 // A respondent column holds a single value, so an identity field answered as a
 // `multiple` choice would silently keep only the first selection and skip the
-// email/phone format check. Single-sourced so the create refine and the server
-// re-check (the PATCH path bypasses this refine) speak with one voice.
+// email/phone format check. Single-sourced so the refine below and the
+// authoring rules speak with one voice.
 export const IDENTITY_NOT_MULTIPLE_MESSAGE =
   'Une donnée d’identité ne peut pas être un choix multiple';
 
@@ -43,33 +42,14 @@ export const formFields = {
   dashboardNudge: z.boolean(),
 };
 
-export const formCreateSchema = z.object({
-  title: formFields.title,
-  intro: formFields.intro,
-});
-
-// Partial patch for the auto-saving builder (every field optional, edited inline).
-export const formMetaPatchSchema = z.object({
-  title: formFields.title.optional(),
-  intro: formFields.intro,
-  outro: formFields.outro,
-  personaName: formFields.personaName,
-  status: formFields.status.optional(),
-  allowsAuthenticatedAccess: formFields.allowsAuthenticatedAccess.optional(),
-  allowsPublicAccess: formFields.allowsPublicAccess.optional(),
-  dashboardNudge: formFields.dashboardNudge.optional(),
-});
-
 export const sectionFields = {
   title: z.string().trim().min(1).max(200),
   intro: z.string().trim().max(2000).nullish(),
 };
 
-export const sectionSchema = z.object(sectionFields);
-
 /**
- * The fields of one question, shared by the builder's create endpoint and the
- * admin API's whole-form write, so a length or the key format lives once.
+ * The fields of one question, as the admin API's whole-form write takes them, so
+ * a length or the key format lives once.
  */
 export const questionFields = {
   key: z
@@ -98,8 +78,7 @@ type QuestionRuleInput = {
 
 /**
  * The rules between the fields of one whole question, applied wherever a whole
- * question is validated. The single-field PATCH cannot carry them, which is why
- * `feedbackFormsAdmin.ts` re-checks the identity one against the merged state.
+ * question is validated.
  */
 export function withQuestionRules<T extends z.ZodType<QuestionRuleInput>>(
   schema: T,
@@ -130,41 +109,8 @@ export function withQuestionRules<T extends z.ZodType<QuestionRuleInput>>(
     );
 }
 
-export const questionSchema = withQuestionRules(
-  z.object({ ...questionFields, sectionId: z.string().nullish() }),
-);
-
-// Partial patch: every field optional (the editor PATCHes single fields).
-// `required` is restated rather than taken from `questionFields`, whose default
-// would turn an absent field into `true` and flip the question on every patch.
-export const questionPatchSchema = z.object({
-  key: questionFields.key.optional(),
-  sectionId: z.string().nullish(),
-  prompt: questionFields.prompt.optional(),
-  type: questionFields.type.optional(),
-  required: z.boolean().optional(),
-  identityField: questionFields.identityField,
-  inputKind: questionFields.inputKind,
-  minSelections: questionFields.minSelections,
-  maxSelections: questionFields.maxSelections,
-  placeholder: questionFields.placeholder,
-});
-
 export const optionFields = {
   label: z.string().trim().min(1).max(300),
   kind: z.enum(OPTION_KINDS).default('choice'),
   reaction: z.string().trim().max(500).nullish(),
 };
-
-export const optionSchema = z.object(optionFields);
-
-// `kind` restated for the same reason as `required` above.
-export const optionPatchSchema = z.object({
-  label: optionFields.label.optional(),
-  kind: z.enum(OPTION_KINDS).optional(),
-  reaction: optionFields.reaction,
-});
-
-export const reorderSchema = z.object({
-  ids: z.array(z.string()).min(1),
-});

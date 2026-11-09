@@ -168,87 +168,85 @@
   </Popover.Root>
 {/snippet}
 
-<Tooltip.Provider delayDuration={100}>
-  <div class="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
-    {#each calendar.months as month (month.key)}
-      <section
-        aria-label="{month.name} {month.year}"
-        class="flex flex-col rounded-sm border bg-card"
+<div class="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
+  {#each calendar.months as month (month.key)}
+    <section
+      aria-label="{month.name} {month.year}"
+      class="flex flex-col rounded-sm border bg-card"
+    >
+      <header
+        class="flex items-center justify-between border-b px-4 pt-3.5 pb-2.5"
       >
-        <header
-          class="flex items-center justify-between border-b px-4 pt-3.5 pb-2.5"
+        <span class="epi-overline">
+          {month.name}
+          <span class="font-normal text-muted-foreground">{month.year}</span>
+        </span>
+        <span
+          class={cn(
+            'font-mono text-xs',
+            month.isCurrent ? 'text-foreground' : 'text-muted-foreground',
+          )}
         >
-          <span class="epi-overline">
-            {month.name}
-            <span class="font-normal text-muted-foreground">{month.year}</span>
-          </span>
-          <span
-            class={cn(
-              'font-mono text-xs',
-              month.isCurrent ? 'text-foreground' : 'text-muted-foreground',
-            )}
-          >
-            {#if month.isCurrent}
-              AUJOURD'HUI
-            {:else if month.eventCount}
-              {month.eventCount} évt
-            {/if}
-          </span>
-        </header>
-        <div class="px-3 pt-2.5 pb-3.5">
-          <div
-            aria-hidden="true"
-            class="grid grid-cols-7 pb-1 text-center font-mono text-overline text-muted-foreground"
-          >
-            {#each WEEKDAYS as weekday, i (i)}<span>{weekday}</span>{/each}
-          </div>
-          <div class="grid grid-cols-7 gap-y-1">
-            {#each { length: month.leadingBlanks }, i (i)}<span></span>{/each}
-            {#each month.cells as cell (cell.day)}
-              {#if cell.painted}
-                {@render eventDay(cell, cell.painted, month.name)}
-              {:else}
-                {@const day = cell}
-                {#snippet plain(props: Record<string, unknown> = {})}
+          {#if month.isCurrent}
+            AUJOURD'HUI
+          {:else if month.eventCount}
+            {month.eventCount} évt
+          {/if}
+        </span>
+      </header>
+      <div class="px-3 pt-2.5 pb-3.5">
+        <div
+          aria-hidden="true"
+          class="grid grid-cols-7 pb-1 text-center font-mono text-overline text-muted-foreground"
+        >
+          {#each WEEKDAYS as weekday, i (i)}<span>{weekday}</span>{/each}
+        </div>
+        <div class="grid grid-cols-7 gap-y-1">
+          {#each { length: month.leadingBlanks }, i (i)}<span></span>{/each}
+          {#each month.cells as cell (cell.day)}
+            {#if cell.painted}
+              {@render eventDay(cell, cell.painted, month.name)}
+            {:else}
+              {@const day = cell}
+              {#snippet plain(props: Record<string, unknown> = {})}
+                <span
+                  {...props}
+                  class={cn(
+                    'flex h-7.5 items-center justify-center font-mono text-xs',
+                    day.off && 'bg-muted',
+                    day.off && runCorners(day.off),
+                  )}
+                >
                   <span
-                    {...props}
                     class={cn(
-                      'flex h-7.5 items-center justify-center font-mono text-xs',
-                      day.off && 'bg-muted',
-                      day.off && runCorners(day.off),
+                      'flex size-6.5 items-center justify-center rounded-full',
+                      day.today && 'bg-foreground font-bold text-background',
+                      !day.today &&
+                        day.weekend &&
+                        !day.off &&
+                        'text-muted-foreground',
                     )}
                   >
-                    <span
-                      class={cn(
-                        'flex size-6.5 items-center justify-center rounded-full',
-                        day.today && 'bg-foreground font-bold text-background',
-                        !day.today &&
-                          day.weekend &&
-                          !day.off &&
-                          'text-muted-foreground',
-                      )}
-                    >
-                      {day.dayOfMonth}
-                    </span>
+                    {day.dayOfMonth}
                   </span>
-                {/snippet}
-                {#if day.off}
-                  <Tooltip.Root>
-                    <Tooltip.Trigger>
-                      {#snippet child({ props })}
-                        {@render plain(props)}
-                      {/snippet}
-                    </Tooltip.Trigger>
-                    <Tooltip.Content>{day.off.name}</Tooltip.Content>
-                  </Tooltip.Root>
-                {:else}
-                  {@render plain()}
-                {/if}
+                </span>
+              {/snippet}
+              {#if day.off}
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      {@render plain(props)}
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>{day.off.name}</Tooltip.Content>
+                </Tooltip.Root>
+              {:else}
+                {@render plain()}
               {/if}
-            {/each}
-          </div>
+            {/if}
+          {/each}
         </div>
-      </section>
-    {/each}
-  </div>
-</Tooltip.Provider>
+      </div>
+    </section>
+  {/each}
+</div>

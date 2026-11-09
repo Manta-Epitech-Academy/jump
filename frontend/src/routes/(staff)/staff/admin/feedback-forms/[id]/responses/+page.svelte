@@ -1,11 +1,9 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { resolve } from '$app/paths';
-  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Download from '@lucide/svelte/icons/download';
   import Funnel from '@lucide/svelte/icons/funnel';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import FormTabs from '../components/FormTabs.svelte';
+  import FormHeader from '../../components/FormHeader.svelte';
   import SearchableSelect, {
     type SelectOption,
   } from '$lib/components/staff/SearchableSelect.svelte';
@@ -77,14 +75,11 @@
 <svelte:head><title>Réponses · {data.form.title}</title></svelte:head>
 
 <div class="space-y-6 pb-16">
-  <a
-    href={resolve('/staff/admin/feedback-forms')}
-    class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-  >
-    <ArrowLeft class="h-4 w-4" /> Tous les formulaires
-  </a>
-
-  <FormTabs formId={data.form.id} />
+  <FormHeader
+    formId={data.form.id}
+    title={data.form.title}
+    status={data.form.status}
+  />
 
   <div class="flex flex-wrap items-center justify-between gap-4">
     <div class="flex flex-wrap items-center gap-2">

@@ -12,7 +12,7 @@
  * The writes are idempotent and CREATE-ONLY: they insert catalogue rows that are
  * missing and leave every existing row alone. A row that has shipped, including
  * one staff later edited in production (an interest emoji renamed through
- * /staff/admin/interests, a hand-tuned template body), survives a re-run
+ * `write_interest`, a hand-tuned template body), survives a re-run
  * untouched. Fixing an already-shipped default is a deliberate manual or
  * migration step.
  *
@@ -27,16 +27,24 @@ import type { BroadcastChannel, PrismaClient } from '@prisma/client';
 /**
  * Tech-leaning interests. Order within the array is the displayed order.
  */
-export const INTEREST_TECH: { nom: string; emoji: string }[] = [
-  { nom: 'Créer des sites web', emoji: '🌐' },
-  { nom: 'Créer des apps', emoji: '📱' },
-  { nom: 'Créer des jeux vidéo', emoji: '🕹️' },
-  { nom: 'Programmation', emoji: '💻' },
-  { nom: 'Intelligence artificielle', emoji: '🤖' },
-  { nom: 'Robotique', emoji: '🦾' },
-  { nom: 'Data science / Analyse de données', emoji: '📊' },
-  { nom: 'Cloud / Infrastructure', emoji: '☁️' },
-  { nom: 'Cybersécurité / Hacking', emoji: '🔒' },
+export const INTEREST_TECH: {
+  nom: string;
+  shortLabel: string;
+  emoji: string;
+}[] = [
+  { nom: 'Créer des sites web', shortLabel: 'Web', emoji: '🌐' },
+  { nom: 'Créer des apps', shortLabel: 'Apps', emoji: '📱' },
+  { nom: 'Créer des jeux vidéo', shortLabel: 'Jeux vidéo', emoji: '🕹️' },
+  { nom: 'Programmation', shortLabel: 'Code', emoji: '💻' },
+  { nom: 'Intelligence artificielle', shortLabel: 'IA', emoji: '🤖' },
+  { nom: 'Robotique', shortLabel: 'Robotique', emoji: '🦾' },
+  {
+    nom: 'Data science / Analyse de données',
+    shortLabel: 'Data',
+    emoji: '📊',
+  },
+  { nom: 'Cloud / Infrastructure', shortLabel: 'Cloud', emoji: '☁️' },
+  { nom: 'Cybersécurité / Hacking', shortLabel: 'Cyber', emoji: '🔒' },
 ];
 
 /** General-interest options. Order within the array is the displayed order. */
@@ -72,7 +80,7 @@ export const INTEREST_GENERAL: { nom: string; emoji: string }[] = [
  * Idempotently populate the interests catalogue, CREATE-ONLY: insert each entry
  * whose unique `nom` is missing, and never touch a row that already exists. The
  * catalogue is a first-time populator, not an authority over live rows: staff
- * can rename or re-emoji an interest via `/staff/admin/interests`, and a re-seed
+ * can rename or re-emoji an interest via `write_interest`, and a re-seed
  * must not undo that. Existing `interestId`s stay stable, so the `TalentInterest`
  * rows a student selected survive a re-run.
  *
@@ -97,6 +105,31 @@ export async function seedInterests(prisma: PrismaClient): Promise<number> {
   await prisma.interest.createMany({ data: catalogue, skipDuplicates: true });
 
   return catalogue.length;
+}
+
+/**
+ * One interest the team has retired, for a generated dataset only: archived is
+ * a state `write_interest` produces and onboarding must leave out, so it needs
+ * a row. Not part of `seedInterests`, which `--catalog-only` also runs against
+ * a populated database, where a retired entry nobody asked for has no place.
+ * Create-only like the catalogue, keyed on its unique name.
+ */
+export async function seedArchivedInterest(
+  prisma: PrismaClient,
+  anchor: Date,
+): Promise<void> {
+  await prisma.interest.createMany({
+    data: [
+      {
+        nom: 'Réseaux sociaux',
+        emoji: '📲',
+        kind: 'general',
+        order: INTEREST_GENERAL.length,
+        archivedAt: anchor,
+      },
+    ],
+    skipDuplicates: true,
+  });
 }
 
 // ─── Email templates + action mappings ───

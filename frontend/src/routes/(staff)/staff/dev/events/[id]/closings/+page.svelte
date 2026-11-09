@@ -1,12 +1,19 @@
 <script lang="ts">
-  import { eventDisplayName } from '$lib/domain/event';
+  import { cohortNounForms, eventDisplayName } from '$lib/domain/event';
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import TitleLineSearch from '$lib/components/staff/datatable/TitleLineSearch.svelte';
+  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import ClosingsResults from './components/ClosingsResults.svelte';
 
+  // The search on the title's line, as on Inscrits (the event lists' canon,
+  // `.claude/rules/staff-lists.md`), held here for the list under it.
   let { data }: { data: PageData } = $props();
+
+  const search = createUrlSearch();
+  const noun = $derived(cohortNounForms(data.event.cohortNoun));
 </script>
 
 <svelte:head>
@@ -14,7 +21,20 @@
 </svelte:head>
 
 <div class="space-y-6 pb-10">
-  <PageHeader title="Closings" subtitle={eventDisplayName(data.event)} />
+  <PageHeader
+    title="Closings"
+    subtitle={eventDisplayName(data.event)}
+    class="md:items-start"
+  >
+    {#snippet actions()}
+      {#if data.rosterSize > 0}
+        <TitleLineSearch
+          {search}
+          placeholder={`Rechercher un ${noun.singular}…`}
+        />
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   {#await data.cohort}
     <ResultsSkeleton />
@@ -25,6 +45,7 @@
       cohortNoun={data.event.cohortNoun}
       timezone={data.timezone}
       currentStaffId={data.currentStaffId}
+      {search}
     />
   {:catch}
     <ResultsNotice

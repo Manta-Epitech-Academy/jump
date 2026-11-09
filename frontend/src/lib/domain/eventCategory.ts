@@ -5,7 +5,8 @@
 //
 // It is display only, and that is what separates it from the `eventType` retired
 // in July 2026: the campus calendar colours by it, a badge rule
-// counts by it, and nothing else reads it. No screen, module, gate or figure
+// counts by it, the closing synthesis PDF names it in its masthead, and nothing
+// else reads it. No screen, module, gate or figure
 // changes with it; the modules stay the one switch of an event's pages. A rule
 // that wants to branch on a category is asking for a module.
 

@@ -8,16 +8,18 @@ import {
   parseModuleSettings,
   type EventModuleKey,
 } from '$lib/domain/eventModules';
-import { resolveKnownStatuses } from '$lib/server/services/devSpaceVisibility';
+import {
+  refuseAttendingNotShown,
+  resolveKnownStatuses,
+} from '$lib/server/services/devSpaceVisibility';
 
 /**
  * Service for `EventConfig_Template` - reusable, named, global event-config
- * presets, all created by staff from the config wizard. Applying one is a
- * point-in-time SEED into an event (the wizard prefills from `summary`, the save
- * writes the event's own rows); there is no live link back. Saving snapshots a
- * config, the wizard's or an event's over `write_event_template`; the name is
- * globally unique, so saving with an existing name UPDATES that template (that's
- * how a template is edited). The shape mirrors
+ * presets, authored over `write_event_template`. Applying one is a point-in-time
+ * SEED into an event (its values copied into `write_event_config`); there is no
+ * live link back. The name is globally unique, so saving with an existing name
+ * UPDATES that template (that's how a template is edited). Archived, never
+ * deleted. The shape mirrors
  * `EventConfig_Module` (presence + `settings`), so both directions are a plain
  * row copy. See src/lib/domain/eventModules.ts.
  */
@@ -44,6 +46,10 @@ type EventConfigTemplateSummary = {
   moduleSettings: Record<string, unknown>;
   /** The Salesforce statuses the dev space shows, sorted. */
   shownStatuses: string[];
+  /** Those of them that count as a visit, sorted. */
+  attendanceStatuses: string[];
+  /** Retired: no longer one to apply. */
+  archived: boolean;
 };
 
 type TemplateRow = {
@@ -57,13 +63,14 @@ type TemplateRow = {
   feedbackFormId: string | null;
   diplomaTemplateId: string | null;
   closingTemplateId: string | null;
+  archivedAt: Date | null;
   modules: { moduleKey: string; settings: Prisma.JsonValue }[];
-  shownStatuses: { status: string }[];
+  shownStatuses: { status: string; attestsAttendance: boolean }[];
 };
 
 const TEMPLATE_INCLUDE = {
   modules: { select: { moduleKey: true, settings: true } },
-  shownStatuses: { select: { status: true } },
+  shownStatuses: { select: { status: true, attestsAttendance: true } },
 } satisfies Prisma.EventConfig_TemplateInclude;
 
 function toSummary(t: TemplateRow): EventConfigTemplateSummary {
@@ -88,6 +95,11 @@ function toSummary(t: TemplateRow): EventConfigTemplateSummary {
     moduleSettings,
     // Sorted in code, like the event's own list (`buildAdminEventVMs`).
     shownStatuses: t.shownStatuses.map((row) => row.status).sort(),
+    attendanceStatuses: t.shownStatuses
+      .filter((row) => row.attestsAttendance)
+      .map((row) => row.status)
+      .sort(),
+    archived: t.archivedAt !== null,
   };
 }
 
@@ -161,7 +173,7 @@ function moduleCreateRows(
 }
 
 export const EventConfigTemplateService = {
-  /** All templates, alphabetical - the global catalogue the wizard offers. */
+  /** All templates, archived ones included, alphabetical. */
   async list(): Promise<EventConfigTemplateSummary[]> {
     const rows = await prisma.eventConfig_Template.findMany({
       orderBy: { name: 'asc' },
@@ -173,7 +185,8 @@ export const EventConfigTemplateService = {
   /**
    * Snapshot a config as a template. UPSERT by name: a new name creates one, an
    * existing name replaces that template's config in place (its id stays), so
-   * re-saving under the same name is how staff edit a template. Answers with the
+   * re-saving under the same name is how a template is edited. `archivedAt` is
+   * left alone when undefined. Answers with the
    * template as stored, so a caller lists what the server kept rather than
    * rebuilding it from what it sent.
    */
@@ -190,6 +203,8 @@ export const EventConfigTemplateService = {
     diplomaTemplateId: string;
     closingTemplateId: string;
     shownStatuses: string[];
+    attendanceStatuses: string[];
+    archivedAt?: Date | null;
     actorId: string | null;
   }): Promise<{ template: EventConfigTemplateSummary; updated: boolean }> {
     const name = input.name.trim();
@@ -199,7 +214,7 @@ export const EventConfigTemplateService = {
     // preset is saved from may keep a form, grid or certificate whose section is
     // off, and copying it would attach one nobody chose to every event the preset
     // is later applied to (and, for a grid or certificate, keep it from being
-    // deleted). Both doors save through here, the wizard and the API alike.
+    // deleted).
     const enables = (key: EventModuleKey) =>
       moduleRows.some((m) => m.moduleKey === key);
     const feedbackFormId = enables(EVENT_MODULES.BILAN)
@@ -216,9 +231,13 @@ export const EventConfigTemplateService = {
     const cohortNoun = input.cohortNoun.trim() || null;
     const categoryKey = await resolveCategoryKey(input.categoryKey);
     const startMinutes = hhmmToMinutes(input.startTime);
-    const shownRows = (await resolveKnownStatuses(input.shownStatuses)).map(
-      (status) => ({ status }),
-    );
+    const shown = await resolveKnownStatuses(input.shownStatuses);
+    const attending = await resolveKnownStatuses(input.attendanceStatuses);
+    refuseAttendingNotShown(attending, shown);
+    const shownRows = shown.map((status) => ({
+      status,
+      attestsAttendance: attending.includes(status),
+    }));
 
     const existing = await prisma.eventConfig_Template.findUnique({
       where: { name },
@@ -245,6 +264,7 @@ export const EventConfigTemplateService = {
             feedbackFormId,
             diplomaTemplateId,
             closingTemplateId,
+            archivedAt: input.archivedAt,
             modules: { create: moduleRows },
             shownStatuses: { create: shownRows },
           },
@@ -265,6 +285,7 @@ export const EventConfigTemplateService = {
         feedbackFormId,
         diplomaTemplateId,
         closingTemplateId,
+        archivedAt: input.archivedAt ?? null,
         createdById: input.actorId,
         modules: { create: moduleRows },
         shownStatuses: { create: shownRows },
@@ -272,10 +293,5 @@ export const EventConfigTemplateService = {
       include: TEMPLATE_INCLUDE,
     });
     return { template: toSummary(created), updated: false };
-  },
-
-  /** Delete a template. Events keep their own config (a template is never a live link). */
-  async remove(id: string): Promise<void> {
-    await prisma.eventConfig_Template.delete({ where: { id } });
   },
 };

@@ -9,7 +9,6 @@
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import Zap from '@lucide/svelte/icons/zap';
-  import FlaskConical from '@lucide/svelte/icons/flask-conical';
   import Dices from '@lucide/svelte/icons/dices';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import Trophy from '@lucide/svelte/icons/trophy';
@@ -112,23 +111,6 @@
     if (forceGame)
       $forceForm.level = Math.floor(Math.random() * forceGame.levelCount) + 1;
   }
-
-  // ── Test a level ──
-  let testGame = $state('');
-  let testLevel = $state(1);
-  const gameOptions: SelectOption[] = $derived(
-    data.games.map((g) => ({ value: g.name, label: g.displayName })),
-  );
-  const testMeta = $derived(
-    data.games.find((g) => g.name === testGame) ?? null,
-  );
-  const testHref = $derived(
-    testGame &&
-      testLevel >= 1 &&
-      (!testMeta || testLevel <= testMeta.levelCount)
-      ? `/staff/admin/minigames/test?game=${encodeURIComponent(testGame)}&level=${testLevel}`
-      : '',
-  );
 
   function formatChrono(ms: number | null): string {
     return ms === null ? '-' : `${(ms / 1000).toFixed(1)}s`;
@@ -363,55 +345,6 @@
           {$forceErrors.level}
         </p>{/if}
     </form>
-  </section>
-
-  <!-- ── Tester un niveau ── -->
-  <section class="space-y-3">
-    <h2 class="flex items-center gap-2 text-lg font-bold uppercase">
-      <FlaskConical class="h-5 w-5" /> Tester un niveau
-    </h2>
-    <div class="rounded-sm border bg-card p-4">
-      <p class="mb-3 text-xs text-muted-foreground">
-        Lance n'importe quel jeu/niveau dans une iframe sans créer de tentative.
-        Aucun callback n'est enregistré.
-      </p>
-      <div class="flex flex-wrap items-end gap-3">
-        <div class="space-y-1">
-          <Label>Jeu</Label>
-          <SearchableSelect
-            clearable={false}
-            options={gameOptions}
-            value={testGame}
-            onChange={(v) => {
-              testGame = v ?? '';
-              testLevel = 1;
-            }}
-            placeholder="Choisir un jeu"
-            searchPlaceholder="Rechercher un jeu…"
-            emptyLabel="Aucun jeu."
-            triggerClass="min-w-[220px]"
-          />
-        </div>
-        <div class="space-y-1">
-          <Label>Niveau</Label>
-          <Input
-            type="number"
-            min="1"
-            max={testMeta?.levelCount}
-            class="w-24"
-            bind:value={testLevel}
-          />
-          {#if testMeta}
-            <p class="text-xs text-muted-foreground">
-              1-{testMeta.levelCount}
-            </p>
-          {/if}
-        </div>
-        <Button href={testHref || undefined} disabled={!testHref}>
-          Tester
-        </Button>
-      </div>
-    </div>
   </section>
 
   <!-- ── Historique ── -->

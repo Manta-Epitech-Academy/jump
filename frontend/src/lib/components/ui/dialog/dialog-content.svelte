@@ -13,13 +13,24 @@
     portalProps,
     children,
     showCloseButton = true,
+    instant = false,
     onOpenAutoFocus,
     ...restProps
   }: WithoutChildrenOrChild<DialogPrimitive.ContentProps> & {
     portalProps?: WithoutChildrenOrChild<ComponentProps<typeof DialogPortal>>;
     children: Snippet;
     showCloseButton?: boolean;
+    /**
+     * Open and close without animating, for a dialog summoned from the
+     * keyboard many times a day (the admin ⌘K search): there, any entrance
+     * reads as lag between the keystroke and the answer (DESIGN.md § Motion).
+     */
+    instant?: boolean;
   } = $props();
+
+  /** Grows in at `base`, leaves at `fast`. */
+  const MOTION =
+    'duration-(--dur-base) data-[state=closed]:animate-out data-[state=closed]:duration-(--dur-fast) data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95';
 
   /**
    * A dialog opens on the first thing you can act on.
@@ -48,12 +59,13 @@
 </script>
 
 <DialogPortal {...portalProps}>
-  <Dialog.Overlay />
+  <Dialog.Overlay {instant} />
   <DialogPrimitive.Content
     bind:ref
     data-slot="dialog-content"
     class={cn(
-      'fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-overlay duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg',
+      'fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-overlay sm:max-w-lg',
+      !instant && MOTION,
       className,
     )}
     onOpenAutoFocus={focusFirstControl}
@@ -65,7 +77,7 @@
         class="absolute end-4 top-4 cursor-pointer rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
       >
         <XIcon />
-        <span class="sr-only">Close</span>
+        <span class="sr-only">Fermer</span>
       </DialogPrimitive.Close>
     {/if}
   </DialogPrimitive.Content>

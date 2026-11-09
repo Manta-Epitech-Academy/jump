@@ -4,8 +4,6 @@
   import LogOut from '@lucide/svelte/icons/log-out';
   import Users from '@lucide/svelte/icons/users';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import Menu from '@lucide/svelte/icons/menu';
-  import X from '@lucide/svelte/icons/x';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
@@ -15,15 +13,14 @@
   import LayoutGrid from '@lucide/svelte/icons/layout-grid';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import { page } from '$app/state';
-  import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { track, secondsBetween } from '$lib/analytics';
-  import { fly, fade } from 'svelte/transition';
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
+  import StaffMobileNav from '$lib/components/staff/StaffMobileNav.svelte';
   import SchoolYearMenu from '$lib/components/dev/SchoolYearMenu.svelte';
   import {
     eventSurfacePath,
@@ -181,14 +178,6 @@
     const target = defaultEventOfYear(workspace.events, year);
     if (target) openEvent(target);
   }
-
-  let mobileMenuOpen = $state(false);
-
-  $effect(() => {
-    if (page.url.pathname) {
-      mobileMenuOpen = false;
-    }
-  });
 
   // Links carry resolved hrefs, so a page nested under an entry keeps it lit.
   const isActive = (link: NavLink) =>
@@ -474,24 +463,16 @@
            stays readable while you work, émargement included, and so it needs no
            second skin for the navy rail. -->
       <div class="flex min-w-0 items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          class="relative h-10 w-10 shrink-0"
-          onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-        >
-          <Menu
-            class="absolute h-6! w-6! transition-ui duration-300 {mobileMenuOpen
-              ? 'scale-0 opacity-0'
-              : 'scale-100 opacity-100'}"
-          />
-          <X
-            class="absolute h-6! w-6! transition-ui duration-300 {mobileMenuOpen
-              ? 'scale-100 rotate-0 opacity-100'
-              : 'scale-0 -rotate-90 opacity-0'}"
-          />
-          <span class="sr-only">Toggle menu</span>
-        </Button>
+        <StaffMobileNav>
+          <div class="border-b border-chrome-border">
+            {@render sidebarBrand()}
+          </div>
+          <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
+            {@render navMenu()}
+          </div>
+          <ImpersonationCard />
+          {@render sidebarFooter()}
+        </StaffMobileNav>
         {@render campusBadge()}
       </div>
       <SchoolYearMenu
@@ -500,30 +481,6 @@
         onselect={changeSchoolYear}
       />
     </header>
-
-    {#if mobileMenuOpen}
-      <div
-        class="absolute inset-0 z-40 bg-black/50 md:hidden"
-        transition:fade={{ duration: 200 }}
-        onclick={() => (mobileMenuOpen = false)}
-        role="button"
-        tabindex="0"
-        onkeydown={(e) => e.key === 'Escape' && (mobileMenuOpen = false)}
-      ></div>
-      <aside
-        class="on-dark absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-75 flex-col border-r border-chrome-border bg-chrome text-chrome-foreground shadow-overlay md:hidden"
-        transition:fly={{ x: -300, duration: 300 }}
-      >
-        <div class="border-b border-chrome-border">
-          {@render sidebarBrand()}
-        </div>
-        <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
-          {@render navMenu()}
-        </div>
-        <ImpersonationCard />
-        {@render sidebarFooter()}
-      </aside>
-    {/if}
 
     <main
       class="flex-1 overflow-y-auto bg-background p-4 md:p-8"

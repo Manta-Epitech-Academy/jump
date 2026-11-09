@@ -12,6 +12,7 @@ import {
   loadInscritsCohort,
 } from '$lib/server/services/inscritsCohort';
 import { loadClosingsRoster } from '$lib/server/services/closingsRoster';
+import { loadEventXp } from '$lib/server/services/eventXp';
 import { loadFeedbackRoster } from '$lib/server/services/feedbackRoster';
 import {
   planEventWorkbook,
@@ -73,8 +74,9 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
     const reco = workbook.feedbackForm
       ? recoQuestionOf(workbook.feedbackForm)
       : null;
-    const [cohort, closings, feedback] = await Promise.all([
+    const [cohort, eventXp, closings, feedback] = await Promise.all([
       loadInscritsCohort(db, event, timezone),
+      loadEventXp(event.id),
       workbook.closings ? loadClosingsRoster(db, event.id) : null,
       workbook.feedbackForm
         ? loadFeedbackRoster(db, event.id, workbook.feedbackForm.id, reco)
@@ -82,6 +84,8 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
     ]);
     return eventHomeFigures({
       rows: cohort.rows,
+      eventXp: eventXp.byTalent,
+      hasActivities: eventXp.hasActivities,
       closings,
       feedback: feedback && {
         ...feedback,

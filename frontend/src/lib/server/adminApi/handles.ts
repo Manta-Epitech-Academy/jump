@@ -49,7 +49,10 @@ export type HandleKind =
   | 'eventCategoryKey'
   | 'workshopDomainKey'
   | 'usageFeatureKey'
-  | 'adminAddress';
+  | 'adminAddress'
+  | 'emailActionKey'
+  | 'messageTemplateId'
+  | 'interestId';
 
 /**
  * Deliberately only the operation and the slice it covers, never where the value
@@ -104,6 +107,27 @@ type Handle = {
 };
 
 export const HANDLES: Record<HandleKind, Handle> = {
+  emailActionKey: {
+    what: 'Transactional mail action key, the stable name of one mail Jump sends on its own (a login code, a parent mail).',
+    frNoun: 'clés de mail transactionnel',
+    frGender: 'f',
+    producedBy: [{ operation: 'config_email_actions' }],
+  },
+
+  messageTemplateId: {
+    what: 'Mail template id, the template a transactional mail is sent from.',
+    frNoun: 'identifiants de modèle de mail',
+    frGender: 'm',
+    producedBy: [{ operation: 'config_email_actions' }],
+  },
+
+  interestId: {
+    what: "Centre d'intérêt id, one of the interests a talent picks at onboarding.",
+    frNoun: "identifiants de centre d'intérêt",
+    frGender: 'm',
+    producedBy: [{ operation: 'config_interests' }],
+  },
+
   usageFeatureKey: {
     what: 'Usage feature key, the catalogue name of a measurable feature of Jump.',
     frNoun: 'clés de fonctionnalité',
@@ -363,6 +387,8 @@ export const HANDLES: Record<HandleKind, Handle> = {
 export const PARAM_HANDLES: Record<string, HandleKind> = {
   feature: 'usageFeatureKey',
   eventId: 'eventId',
+  // A hand-picked set of events for the bulk write, the list form of `eventId`.
+  eventIds: 'eventId',
   formId: 'formId',
   // The event configuration names each reference after the column it sets, so
   // the three sit side by side unambiguously in one write.
@@ -388,6 +414,11 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   memberStatus: 'sfStatus',
   showStatuses: 'sfStatus',
   hideStatuses: 'sfStatus',
+  // The same words, as the ones an event counts as a visit: the complete set
+  // and the two halves of a bulk add/remove.
+  attendanceStatuses: 'sfStatus',
+  attestStatuses: 'sfStatus',
+  unattestStatuses: 'sfStatus',
   // The event configuration takes an id, like the certificate one beside it;
   // authoring takes a key, like `write_diploma_template`'s `code`. Both are produced by the
   // same configuration read, which returns a grid's id and its key together.
@@ -418,6 +449,10 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // complete set of them an activity is filed under.
   domainKey: 'workshopDomainKey',
   domains: 'workshopDomainKey',
+  // A transactional mail by its action key, and the template it is sent from.
+  emailAction: 'emailActionKey',
+  messageTemplateId: 'messageTemplateId',
+  interestId: 'interestId',
 };
 
 const list = (parts: string[]) =>

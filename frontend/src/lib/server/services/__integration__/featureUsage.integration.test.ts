@@ -194,7 +194,7 @@ describe('getFeatureUsage', () => {
       data: [
         // Two distinct members, three uses: the ranking must read people, not uses.
         ...[0, 1, 2].map((i) => ({
-          feature: USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+          feature: USAGE_FEATURES.DEV_EVENT_EXPORT,
           occurredAt: RECORDED_AT,
           actorKind: 'staff' as const,
           staffProfileId: staffIds[i === 2 ? 0 : i],
@@ -221,7 +221,7 @@ describe('getFeatureUsage', () => {
       { space: 'dev' },
     );
     const row = answer.fonctionnalites.value.find(
-      (r) => r.feature === USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+      (r) => r.feature === USAGE_FEATURES.DEV_EVENT_EXPORT,
     );
     expect(row?.utilisations).toBe(3);
     expect(row?.acteursDistinctsMoisDePointe).toBe(2);
@@ -261,7 +261,7 @@ describe('getFeatureUsage', () => {
     // Three staff on campus A, two of whom exported.
     expect(answer.populationConcernee.value.staff).toBe(3);
     const row = answer.fonctionnalites.value.find(
-      (r) => r.feature === USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+      (r) => r.feature === USAGE_FEATURES.DEV_EVENT_EXPORT,
     );
     expect(row?.partDeLaPopulation).toBeCloseTo(66.7, 1);
   });
@@ -342,7 +342,7 @@ describe('getFeatureAdoptionGaps', () => {
     await prisma.usage_FeatureUse.createMany({
       data: [
         {
-          feature: USAGE_FEATURES.DEV_EMARGEMENT_EXPORT,
+          feature: USAGE_FEATURES.DEV_DIPLOMAS_RENDER,
           occurredAt: RECORDED_AT,
           actorKind: 'staff' as const,
           staffProfileId: staffIds[0],
@@ -350,7 +350,7 @@ describe('getFeatureAdoptionGaps', () => {
           eventId: eventA,
         },
         {
-          feature: USAGE_FEATURES.DEV_EMARGEMENT_EXPORT,
+          feature: USAGE_FEATURES.DEV_DIPLOMAS_RENDER,
           occurredAt: RECORDED_AT,
           actorKind: 'staff' as const,
           staffProfileId: staffIds[2],
@@ -364,11 +364,11 @@ describe('getFeatureAdoptionGaps', () => {
     const answer = await getFeatureAdoptionGaps({});
     const single = answer.unSeulCampus.value.map((f) => f.feature);
     // Seeded on campus A only.
-    expect(single).toContain(USAGE_FEATURES.DEV_INSCRITS_EXPORT);
+    expect(single).toContain(USAGE_FEATURES.DEV_EVENT_EXPORT);
     // Seeded on both, so it is adopted rather than confined.
-    expect(single).not.toContain(USAGE_FEATURES.DEV_EMARGEMENT_EXPORT);
+    expect(single).not.toContain(USAGE_FEATURES.DEV_DIPLOMAS_RENDER);
     const never = answer.jamaisUtilisees.value.map((f) => f.feature);
-    expect(never).not.toContain(USAGE_FEATURES.DEV_INSCRITS_EXPORT);
+    expect(never).not.toContain(USAGE_FEATURES.DEV_EVENT_EXPORT);
     expect(answer.aRetirer.value).toBe(never.length);
     expect(answer.aFormer.value).toBe(single.length);
   });
@@ -383,17 +383,17 @@ describe('getFeatureAdoptionGaps', () => {
       campus: { id: campusA, name: CAMPUS_A },
     });
     const single = answer.unSeulCampus.value.map((f) => f.feature);
-    expect(single).not.toContain(USAGE_FEATURES.DEV_EMARGEMENT_EXPORT);
-    expect(single).toContain(USAGE_FEATURES.DEV_INSCRITS_EXPORT);
+    expect(single).not.toContain(USAGE_FEATURES.DEV_DIPLOMAS_RENDER);
+    expect(single).toContain(USAGE_FEATURES.DEV_EVENT_EXPORT);
 
     // The other two lists ARE campus questions and must stay narrowed. Only
-    // campus A ever exported the inscrits, so asking about campus B has to list
+    // campus A ever exported the event, so asking about campus B has to list
     // that feature as never used there, whatever campus A did with it.
     const scoped = await getFeatureAdoptionGaps({
       campus: { id: campusB, name: CAMPUS_B },
     });
     expect(scoped.jamaisUtilisees.value.map((f) => f.feature)).toContain(
-      USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+      USAGE_FEATURES.DEV_EVENT_EXPORT,
     );
   });
 });
@@ -405,7 +405,7 @@ describe('the rollup', () => {
       { space: 'dev' },
     );
     const raw = before.fonctionnalites.value.find(
-      (r) => r.feature === USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+      (r) => r.feature === USAGE_FEATURES.DEV_EVENT_EXPORT,
     );
 
     const first = await rollUpUsage();
@@ -413,7 +413,7 @@ describe('the rollup', () => {
 
     const folded = await prisma.usage_FeatureMonthly.findFirst({
       where: {
-        feature: USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+        feature: USAGE_FEATURES.DEV_EVENT_EXPORT,
         campusId: campusA,
         month: usageMonth(RECORDED_AT),
       },
@@ -427,7 +427,7 @@ describe('the rollup', () => {
     expect(second.rowsWritten).toBe(first.rowsWritten);
     const again = await prisma.usage_FeatureMonthly.findFirst({
       where: {
-        feature: USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+        feature: USAGE_FEATURES.DEV_EVENT_EXPORT,
         campusId: campusA,
         month: usageMonth(RECORDED_AT),
       },
@@ -702,7 +702,7 @@ describe('the figures the two stores must agree on', () => {
     expect(gaps.aRetirer.value).not.toBeNull();
     expect(
       gaps.jamaisUtilisees.value.some(
-        (g) => g.feature === USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+        (g) => g.feature === USAGE_FEATURES.DEV_EVENT_EXPORT,
       ),
     ).toBe(false);
   });
@@ -862,7 +862,7 @@ describe('the figures the two stores must agree on', () => {
     // the school year under test, the reference period went unmeasured, and the
     // case went red overnight with nothing in the module changed. The row is for
     // ANOTHER feature on purpose, and `hasAnyRow` is deliberately not filtered by
-    // feature, so the period reads as measured while `DEV_INSCRITS_EXPORT` still
+    // feature, so the period reads as measured while `DEV_EVENT_EXPORT` still
     // has nothing over it. That pair is the whole subject here.
     await prisma.usage_FeatureMonthly.create({
       data: {
@@ -883,7 +883,7 @@ describe('the figures the two stores must agree on', () => {
     );
     // A feature nobody used over a period that WAS measured is a genuine zero.
     const measured = answer.fonctionnalites.value.find(
-      (r) => r.feature === USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+      (r) => r.feature === USAGE_FEATURES.DEV_EVENT_EXPORT,
     );
     expect(measured?.evolutionUtilisations?.previous).toBe(0);
 
@@ -895,7 +895,7 @@ describe('the figures the two stores must agree on', () => {
     });
     const after = await getFeatureUsage({ schoolYear: SCHOOL_YEAR }, {}, LATER);
     const unmeasured = after.fonctionnalites.value.find(
-      (r) => r.feature === USAGE_FEATURES.DEV_INSCRITS_EXPORT,
+      (r) => r.feature === USAGE_FEATURES.DEV_EVENT_EXPORT,
     );
     expect(unmeasured?.evolutionUtilisations?.previous).toBeNull();
   });

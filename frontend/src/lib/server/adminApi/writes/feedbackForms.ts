@@ -1,15 +1,15 @@
 // Authoring feedback forms over the API: writing one whole, and copying one.
 //
-// The builder at /staff/admin/feedback-forms edits a form one field at a time;
-// this states it whole, which is the shape a conversation produces ("the same
-// form as last year, with these two questions reworded"). Both doors apply the
-// same rules, read from `domain/feedbackForms/authoring.ts`: once a form has
+// This is the one door a form is written through: it states the form whole,
+// which is the shape a conversation produces ("the same form as last year, with
+// these two questions reworded"). The field-by-field builder it replaced went in
+// #483. The rules live in `domain/feedbackForms/authoring.ts`: once a form has
 // responses, what its questions MEAN is frozen and what they READ is not.
 //
 // There is deliberately no delete. The catalogue read returns form ids, so a
 // delete tool would be something a model could aim on its own, which is class C.
-// A form is retired by archiving it; deleting an unanswered draft stays in the
-// builder, a click away.
+// A form is retired by archiving it; deleting an unanswered draft stays on the
+// admin list, a click away.
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import {
@@ -37,6 +37,7 @@ import {
   newPersonaIconKey,
 } from '$lib/server/feedbackForms/personaIcon';
 import { createForm, duplicateForm } from '$lib/server/feedbackFormsAdmin';
+import { feedbackFormPreviewLink } from '$lib/server/feedbackForms';
 import {
   RemoteImageRefusal,
   swapStoredImages,
@@ -149,8 +150,8 @@ function refuse(opening: string, problems: string[]): never {
 
 /**
  * The staff profile behind the call, for the form's author and last editor. Null
- * when the token belongs to no profile: those two columns are a courtesy shown
- * in the builder, and the audit row names the caller whatever happens here.
+ * when the token belongs to no profile: those two columns are a courtesy, and
+ * the audit row names the caller whatever happens here.
  */
 async function staffIdOf(actorUserId: string): Promise<string | null> {
   const staff = await prisma.staffProfile.findUnique({
@@ -224,7 +225,7 @@ async function buildFormPlan(
  * Write the form's settings and structure to exactly `wanted`, inside the
  * caller's transaction. Rows are matched by identity (a question by its key, a
  * section and an option by their id); positions are recomputed from the order
- * of the arrays, the way the builder lays a form out.
+ * of the arrays, the order a respondent is asked them.
  */
 async function writeContent(
   tx: Prisma.TransactionClient,
@@ -355,7 +356,7 @@ async function writeContent(
  */
 export async function writeFeedbackForm(
   params: FeedbackFormWrite,
-  actorUserId: string,
+  { actorUserId, origin }: { actorUserId: string; origin: string },
 ): Promise<WriteOutcome> {
   const wanted = authoredForm(params);
   return runTwoStep({
@@ -396,10 +397,7 @@ export async function writeFeedbackForm(
             // again under the form's lock. Recording a response takes a key
             // share on this row, so one arriving in the gap either committed
             // already, and the re-read sees it, or waits for this write: either
-            // way no structural edit lands on an answered form. The builder's
-            // field edits lock only their own rows, so one committing after
-            // this re-read is overwritten, last writer wins, as between two
-            // builder tabs.
+            // way no structural edit lands on an answered form.
             await tx.$executeRaw`SELECT 1 FROM "Feedback_Form" WHERE id = ${formId} FOR UPDATE`;
             const live = (await readFeedbackFormContent(tx, formId))!;
             if (
@@ -437,7 +435,15 @@ export async function writeFeedbackForm(
         return {
           before: plan.replaces,
           after,
-          answer: { formId, form: after },
+          answer: {
+            formId,
+            form: after,
+            apercu: feedbackFormPreviewLink({
+              formId,
+              title: after.title,
+              origin,
+            }).apercu,
+          },
         };
       } catch (err) {
         if (created) {
@@ -458,12 +464,12 @@ export async function writeFeedbackForm(
 
 /**
  * Copy a form whole into a new draft, persona icon included, with none of its
- * responses. What the builder's « Dupliquer » does, and the way out of the
- * structural lock: a copy has no responses, so it can be restructured freely.
+ * responses. The way out of the structural lock: a copy has no responses, so it
+ * can be restructured freely.
  */
 export async function copyFeedbackForm(
   params: { formId: string },
-  actorUserId: string,
+  { actorUserId, origin }: { actorUserId: string; origin: string },
 ): Promise<WriteOutcome> {
   const source = await prisma.feedback_Form.findUnique({
     where: { id: params.formId },
@@ -482,6 +488,15 @@ export async function copyFeedbackForm(
     applied: true,
     before: null,
     after,
-    answer: { formId: copy.id, copiedFrom: source.id, form: after },
+    answer: {
+      formId: copy.id,
+      copiedFrom: source.id,
+      form: after,
+      apercu: feedbackFormPreviewLink({
+        formId: copy.id,
+        title: after.title,
+        origin,
+      }).apercu,
+    },
   };
 }

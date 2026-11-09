@@ -363,27 +363,25 @@
             subText={talent.email}
             courtesyTitle={civiliteCourtesyTitle(talent.civilite)}
           />
-          <Tooltip.Provider delayDuration={300}>
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props })}
-                  <Button
-                    {...props}
-                    variant="ghost"
-                    size="icon"
-                    class="h-8 w-8 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
-                    onclick={() => openContact(talent)}
-                    aria-label={`Coordonnées de ${formatPersonName(talent.prenom, talent.nom)}`}
-                  >
-                    <Phone class="h-4 w-4" />
-                  </Button>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content>
-                <p>Coordonnées</p>
-              </Tooltip.Content>
-            </Tooltip.Root>
-          </Tooltip.Provider>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                  onclick={() => openContact(talent)}
+                  aria-label={`Coordonnées de ${formatPersonName(talent.prenom, talent.nom)}`}
+                >
+                  <Phone class="h-4 w-4" />
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content>
+              <p>Coordonnées</p>
+            </Tooltip.Content>
+          </Tooltip.Root>
         </div>
       </Table.Cell>
       <Table.Cell>
@@ -420,27 +418,25 @@
           {:else}
             <span class="text-sm text-muted-foreground">Aucun parent</span>
           {/if}
-          <Tooltip.Provider delayDuration={300}>
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props })}
-                  <Button
-                    {...props}
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
-                    onclick={() => openEditParent(talent)}
-                    aria-label="Modifier l'email du parent"
-                  >
-                    <Pencil class="h-3.5 w-3.5" />
-                  </Button>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content>
-                <p>Modifier l'email de connexion du parent</p>
-              </Tooltip.Content>
-            </Tooltip.Root>
-          </Tooltip.Provider>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                  onclick={() => openEditParent(talent)}
+                  aria-label="Modifier l'email du parent"
+                >
+                  <Pencil class="h-3.5 w-3.5" />
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content>
+              <p>Modifier l'email de connexion du parent</p>
+            </Tooltip.Content>
+          </Tooltip.Root>
         </div>
       </Table.Cell>
       <Table.Cell>
@@ -460,23 +456,21 @@
       <Table.Cell>
         <div class="flex flex-col items-start gap-0.5">
           {#if talent.status === 'no_dossier'}
-            <Tooltip.Provider delayDuration={300}>
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  {#snippet child({ props })}
-                    <span
-                      {...props}
-                      class="inline-flex rounded-sm border px-2 py-0.5 epi-chip {STATUS_CLASS[
-                        talent.status
-                      ]}"
-                    >
-                      {TALENT_STATUS_LABELS[talent.status]}
-                    </span>
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content>{NO_DOSSIER_HINT}</Tooltip.Content>
-              </Tooltip.Root>
-            </Tooltip.Provider>
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <span
+                    {...props}
+                    class="inline-flex rounded-sm border px-2 py-0.5 epi-chip {STATUS_CLASS[
+                      talent.status
+                    ]}"
+                  >
+                    {TALENT_STATUS_LABELS[talent.status]}
+                  </span>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content>{NO_DOSSIER_HINT}</Tooltip.Content>
+            </Tooltip.Root>
           {:else}
             <span
               class="inline-flex rounded-sm border px-2 py-0.5 epi-chip {STATUS_CLASS[
@@ -498,59 +492,55 @@
       </Table.Cell>
       <Table.Cell class="text-right">
         <div class="flex items-center justify-end gap-1">
-          <Tooltip.Provider delayDuration={300}>
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props })}
-                  <Button
-                    {...props}
-                    variant="ghost"
-                    size="icon"
-                    class="text-muted-foreground hover:text-destructive"
-                    onclick={() => askWipe(talent)}
-                    aria-label="Réinitialiser {talent.prenom} {talent.nom} à l'état import"
-                  >
-                    <Bomb class="h-4 w-4" />
-                  </Button>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content>
-                <p>Réinitialiser complètement (état import)</p>
-              </Tooltip.Content>
-            </Tooltip.Root>
-          </Tooltip.Provider>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  variant="ghost"
+                  size="icon"
+                  class="text-muted-foreground hover:text-destructive"
+                  onclick={() => askWipe(talent)}
+                  aria-label="Réinitialiser {talent.prenom} {talent.nom} à l'état import"
+                >
+                  <Bomb class="h-4 w-4" />
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content>
+              <p>Réinitialiser complètement (état import)</p>
+            </Tooltip.Content>
+          </Tooltip.Root>
 
-          <Tooltip.Provider delayDuration={300}>
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props })}
-                  <Button
-                    {...props}
-                    variant="ghost"
-                    size="sm"
-                    class="gap-1.5 text-muted-foreground hover:text-epi-tomorrow"
-                    disabled={impersonating === talent.id ||
-                      (!talent.email && !talent.userId)}
-                    onclick={() => impersonate(talent.id)}
-                  >
-                    <LogIn class="h-4 w-4" />
-                    <span class="text-xs font-bold uppercase">
-                      Se connecter
-                    </span>
-                  </Button>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content>
-                <p>
-                  {talent.email || talent.userId
-                    ? talent.status === 'never'
-                      ? 'Crée un compte puis ouvre sa session'
-                      : 'Ouvre la session de ce talent'
-                    : 'Aucun email : impossible de se connecter'}
-                </p>
-              </Tooltip.Content>
-            </Tooltip.Root>
-          </Tooltip.Provider>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  variant="ghost"
+                  size="sm"
+                  class="gap-1.5 text-muted-foreground hover:text-epi-tomorrow"
+                  disabled={impersonating === talent.id ||
+                    (!talent.email && !talent.userId)}
+                  onclick={() => impersonate(talent.id)}
+                >
+                  <LogIn class="h-4 w-4" />
+                  <span class="text-xs font-bold uppercase">
+                    Se connecter
+                  </span>
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content>
+              <p>
+                {talent.email || talent.userId
+                  ? talent.status === 'never'
+                    ? 'Crée un compte puis ouvre sa session'
+                    : 'Ouvre la session de ce talent'
+                  : 'Aucun email : impossible de se connecter'}
+              </p>
+            </Tooltip.Content>
+          </Tooltip.Root>
         </div>
       </Table.Cell>
     {/snippet}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { fly } from 'svelte/transition';
+  import { enter, stagger } from '$lib/motion';
   import { cn } from '$lib/utils';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
@@ -184,7 +184,7 @@
     <!-- Hero: current XP total + stats -->
     <div
       class="mb-8 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
-      in:fly={{ y: -20, duration: 400 }}
+      in:enter={{ y: -12 }}
     >
       <div class="flex items-center gap-4 px-5 py-4 sm:gap-5 sm:px-6">
         <!-- XP badge -->
@@ -213,7 +213,7 @@
     {#if data.toDoActivities.length > 0}
       <!-- What is left to walk, first: the home suggests one activity at a
            time, and this is where the talent finds every other one. -->
-      <div class="mb-8" in:fly={{ y: 20, duration: 400, delay: 50 }}>
+      <div class="mb-8" in:enter={{ delay: stagger(1) }}>
         <ActivitiesCard
           title="Activités à faire"
           activities={data.toDoActivities}
@@ -232,7 +232,7 @@
             data.pastEvents.length > 0 &&
             'md:grid-cols-2',
         )}
-        in:fly={{ y: 20, duration: 400, delay: 100 }}
+        in:enter={{ delay: stagger(2) }}
       >
         {#if data.finishedActivities.length > 0}
           <ActivitiesCard
@@ -252,7 +252,7 @@
 
     <!-- Timeline -->
     {#if groupedDays.length > 0}
-      <div class="relative" in:fly={{ y: 20, duration: 400, delay: 200 }}>
+      <div class="relative" in:enter={{ delay: stagger(3) }}>
         <!-- Vertical line -->
         <div
           class="absolute top-0 bottom-0 left-5 w-px bg-gradient-to-b from-epi-blue/40 via-epi-together/20 to-transparent sm:left-6"
@@ -287,11 +287,7 @@
                 )}
                 <div
                   class="group relative overflow-hidden rounded-xl border {config.borderClass} bg-card p-4 shadow-raised transition-ui hover:shadow-raised"
-                  in:fly={{
-                    x: -10,
-                    duration: 300,
-                    delay: Math.min(60 * grantIndex + 120 * dayIndex, 360),
-                  }}
+                  in:enter={{ x: -12, delay: stagger(grantIndex + dayIndex) }}
                 >
                   <!-- Subtle gradient accent on the left -->
                   <div

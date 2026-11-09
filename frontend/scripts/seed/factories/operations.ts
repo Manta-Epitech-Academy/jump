@@ -13,6 +13,7 @@ import type { World, TalentRef, StaffRef, CampusRef, EventRef } from '../world';
 import { id, seedSalesforceId, seq } from '../ids';
 import { withGuaranteed } from '../rng';
 import { COHORT_NOUNS } from '../../../src/lib/domain/event';
+import { digestWeekOf } from '../../../src/lib/domain/adminDigestCalendar';
 import { isShownInDevSpace } from '../../../src/lib/domain/sfMemberStatus';
 import {
   USAGE_FEATURES,
@@ -160,6 +161,57 @@ export function addSyncRuns(world: World): void {
       mode: 'incremental',
       status: 'running',
       startedAt: clock.at(-2, 9),
+    },
+  );
+}
+
+/**
+ * The Monday admin digest's ledger, three weeks of it.
+ *
+ * A fact, not an instruction: the only thing that reads these rows is the send
+ * claiming its own week, and a claimed week can only stop a mail, never cause
+ * one. The weeks are all before the anchor's, so a digest the application sends
+ * on a generated environment (which needs somebody to choose a recipient there,
+ * since none is seeded) claims a week the generator never writes.
+ *
+ * One of each branch the readers have: a delivered digest that opened its month
+ * and so carried adoption, a later one where a mail did not leave, and one whose
+ * send died before finishing, which is why `finishedAt` is nullable. The open
+ * one is the most recent on purpose: `config_admin_digest` reports the last
+ * FINISHED run, so the reader still sees the ordinary state, and the next
+ * digest's "nouveau" still starts at the last one that reached somebody.
+ */
+export function addDigestRuns(world: World): void {
+  const clock = world.ctx.clock;
+  const monday = (weeksBack: number) =>
+    digestWeekOf(clock.at(-7 * weeksBack, 12));
+
+  world.buffer.adminDigest_Run.push(
+    {
+      id: id('adr', 'delivered-adoption'),
+      weekOf: monday(3),
+      startedAt: clock.at(-21, 8),
+      finishedAt: clock.at(-21, 8, 1),
+      recipients: 2,
+      sent: 2,
+      failed: 0,
+      includedAdoption: true,
+    },
+    {
+      id: id('adr', 'delivered-partly'),
+      weekOf: monday(2),
+      startedAt: clock.at(-14, 8),
+      finishedAt: clock.at(-14, 8, 1),
+      recipients: 2,
+      sent: 1,
+      failed: 1,
+      includedAdoption: false,
+    },
+    {
+      id: id('adr', 'interrupted'),
+      weekOf: monday(1),
+      startedAt: clock.at(-7, 8),
+      recipients: 2,
     },
   );
 }

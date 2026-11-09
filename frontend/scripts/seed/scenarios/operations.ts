@@ -25,6 +25,7 @@ import {
   addIdentityRepair,
   addSyncErrors,
   addSyncRuns,
+  addDigestRuns,
   addUsage,
   foldUsageMonthly,
 } from '../factories/operations';
@@ -249,6 +250,7 @@ export const operations: Scenario = {
       rng.sample(world.talents, Math.min(12, world.talents.length)),
     );
     addSyncRuns(world);
+    addDigestRuns(world);
     if (team[0]) {
       // Three: the fulfilled request's talent is an erased one the factory
       // places itself, since fulfilling is what erases.

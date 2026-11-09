@@ -294,18 +294,23 @@ async function pruneHoldState(eventId: string) {
   };
 }
 
-type MemberStatusState = { memberStatus: string; shownByDefault: boolean };
+type MemberStatusState = {
+  memberStatus: string;
+  shownByDefault: boolean;
+  attestsByDefault: boolean;
+};
 
 /**
- * Add a Salesforce member status to the words Jump knows, or change whether a
- * newly created event shows it. Bounded to one catalogue row and changes no
- * event: the rule and the write are `upsertMemberStatus`'s, shared with the
- * « Membres Salesforce » dialog. There is no delete: events and templates
- * reference the word, and old enrolments still carry it.
+ * Add a Salesforce member status to the words Jump knows, or change what a
+ * newly created event does with it: show it, count it as a visit. Bounded to
+ * one catalogue row and changes no event: the rule and the write are
+ * `upsertMemberStatus`'s. There is no delete: events and templates reference
+ * the word, and old enrolments still carry it.
  */
 export async function writeSyncMemberStatus(params: {
   memberStatus: string;
   shownByDefault?: boolean;
+  attestsByDefault?: boolean;
 }): Promise<WriteOutcome> {
   const status = normalizeSfStatus(params.memberStatus);
   if (status === null)
@@ -314,14 +319,21 @@ export async function writeSyncMemberStatus(params: {
   const stateOf = async (): Promise<MemberStatusState | null> => {
     const row = await prisma.sync_MemberStatus.findUnique({
       where: { status },
-      select: { status: true, shownByDefault: true },
+      select: { status: true, shownByDefault: true, attestsByDefault: true },
     });
     return row
-      ? { memberStatus: row.status, shownByDefault: row.shownByDefault }
+      ? {
+          memberStatus: row.status,
+          shownByDefault: row.shownByDefault,
+          attestsByDefault: row.attestsByDefault,
+        }
       : null;
   };
 
   const before = await stateOf();
-  await upsertMemberStatus(status, params.shownByDefault);
+  await upsertMemberStatus(status, {
+    shownByDefault: params.shownByDefault,
+    attestsByDefault: params.attestsByDefault,
+  });
   return { applied: true, before, after: await stateOf() };
 }

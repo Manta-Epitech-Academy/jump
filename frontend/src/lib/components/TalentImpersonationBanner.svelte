@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import { fly } from 'svelte/transition';
+  import { enter } from '$lib/motion';
   import { stopImpersonating } from '$lib/impersonation';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import LogOut from '@lucide/svelte/icons/log-out';
@@ -64,7 +64,7 @@
 {#if isImpersonating}
   <div class="pointer-events-none fixed bottom-3 left-3 z-[60]">
     <div
-      in:fly={{ y: 80, duration: 320, opacity: 0 }}
+      in:enter
       class="pointer-events-auto flex max-w-xs flex-col gap-2 rounded-xl border border-black/5 bg-card p-2.5 opacity-65 shadow-raised ring-1 ring-black/5 transition-opacity duration-200 focus-within:opacity-100 hover:opacity-100 dark:border-white/10 dark:ring-white/10"
       role="alert"
     >

@@ -40,7 +40,11 @@ import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { addMinigamePublications, addXpRewards } from '../factories/engagement';
 import { addAdminApiTokens, addInvitations } from '../factories/operations';
 import { id, seq } from '../ids';
-import { DEFAULT_SHOWN_STATUSES, SF_STATUSES } from '../world';
+import {
+  DEFAULT_SHOWN_STATUSES,
+  SF_STATUSES,
+  attestsByDefault,
+} from '../world';
 import type { Scenario } from './types';
 
 export const platform: Scenario = {
@@ -303,7 +307,9 @@ export const platform: Scenario = {
       // The bare preset is the one worth holding: a preset is allowed to carry
       // nothing but its modules, its author can have left since, and the wizard
       // has to render all of that. Every field being filled on every row is what
-      // hid the « aucune description » and « ancien membre » cases.
+      // hid the « aucune description » and « ancien membre » cases. It is also
+      // the archived one: the open-day category it would give is archived too
+      // (`sfStatuses.ts`), and a retired preset still has to read back.
       const bare = preset.name === 'Portes ouvertes';
       world.buffer.eventConfig_Template.push({
         id: templateId,
@@ -321,6 +327,7 @@ export const platform: Scenario = {
         feedbackFormId: preset.withFeedbackForm ? stageFormId : null,
         diplomaTemplateId: preset.withDiploma ? world.diplomaTemplateId : null,
         createdById: bare ? null : admin.id,
+        archivedAt: bare ? clock.days(-30) : null,
       });
       for (const moduleKey of preset.modules) {
         world.buffer.eventConfig_TemplateModule.push({
@@ -356,6 +363,7 @@ export const platform: Scenario = {
         world.buffer.eventConfig_TemplateShownStatus.push({
           templateId,
           status,
+          attestsAttendance: attestsByDefault(status),
         });
       }
     }

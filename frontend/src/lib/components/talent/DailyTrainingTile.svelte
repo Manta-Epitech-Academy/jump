@@ -71,7 +71,7 @@
 
 <a
   {href}
-  class="group @container block cursor-pointer rounded-xl border border-border bg-card px-6 py-4 shadow-raised transition-ui hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.99]"
+  class="group @container block cursor-pointer rounded-xl border border-border bg-card px-6 py-4 shadow-raised transition-ui hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px"
 >
   <div class="flex flex-col gap-3 @sm:flex-row @sm:items-center @sm:gap-4">
     <div class="flex min-w-0 flex-1 items-start gap-3">

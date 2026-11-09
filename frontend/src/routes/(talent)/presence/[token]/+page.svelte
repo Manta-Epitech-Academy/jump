@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { prefersReducedMotion } from 'svelte/motion';
   import { resolve } from '$app/paths';
   import PartyPopper from '@lucide/svelte/icons/party-popper';
   import CalendarCheck from '@lucide/svelte/icons/calendar-check';
@@ -84,10 +85,7 @@
   onMount(() => {
     if (data.state !== 'present') return;
     // Respect reduced-motion for both the confetti and the haptic buzz.
-    const reduce = window.matchMedia?.(
-      '(prefers-reduced-motion: reduce)',
-    ).matches;
-    if (reduce) return;
+    if (prefersReducedMotion.current) return;
     triggerConfetti();
     // Android only; a silent no-op on iOS Safari (no Vibration API there).
     navigator.vibrate?.([25, 40, 25]);

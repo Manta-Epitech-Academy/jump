@@ -5,23 +5,15 @@
     searchTokens,
   } from '$lib/components/staff/datatable/search';
   import Database from '@lucide/svelte/icons/database';
-  import Pencil from '@lucide/svelte/icons/pencil';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import CircleDot from '@lucide/svelte/icons/circle-dot';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import ListChecks from '@lucide/svelte/icons/list-checks';
-  import Eye from '@lucide/svelte/icons/eye';
-  import EyeOff from '@lucide/svelte/icons/eye-off';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import { Switch } from '$lib/components/ui/switch';
-  import * as Dialog from '$lib/components/ui/dialog';
   import * as Table from '$lib/components/ui/table';
   import EventModulesCell from '$lib/components/events/EventModulesCell.svelte';
-  import EventModuleIcon from '$lib/components/events/EventModuleIcon.svelte';
   import EventStateBadge from '$lib/components/events/EventStateBadge.svelte';
-  import EventConfigWizard from '$lib/components/events/EventConfigWizard.svelte';
   import AdminSfStatusInspectorDialog from '$lib/components/events/AdminSfStatusInspectorDialog.svelte';
   import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
   import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
@@ -47,23 +39,12 @@
     type EventPeriod,
     type EventsSortKey,
   } from './view';
-  import { toast } from 'svelte-sonner';
-  import {
-    EVENT_MODULE_DEFS,
-    EVENT_MODULE_KEYS,
-    type EventModuleKey,
-  } from '$lib/domain/eventModules';
   import {
     isEventToPrepare,
     type EventConfigState,
   } from '$lib/domain/eventReadiness';
-  import { enhance as formEnhance } from '$app/forms';
-  import type { SubmitFunction } from '@sveltejs/kit';
-  import { SvelteSet } from 'svelte/reactivity';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import { page } from '$app/state';
-  import { replaceState } from '$app/navigation';
-  import { untrack } from 'svelte';
   import type { AdminEventVM } from './+page.server';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { nextSort } from '$lib/components/staff/datatable/sort';
@@ -129,7 +110,7 @@
         align: 'right',
         class: 'w-24',
       },
-      { key: 'actions', label: '', align: 'right', class: 'w-24' },
+      { key: 'actions', label: '', align: 'right', class: 'w-12' },
     ];
   });
 
@@ -291,28 +272,9 @@
     );
   }
 
-  // ─── Edit dialog ─────────────────────────────────────────────────────────
-  // The config wizard (EventConfigWizard) owns the superform, the two steps and
-  // all the per-module sub-options; the page only opens it on the chosen row.
-  let open = $state(false);
-  let editing = $state<AdminEventVM | null>(null);
-
-  function openEdit(e: AdminEventVM) {
-    editing = e;
-    open = true;
-  }
-
   // ─── Inspector dialog ───────────────────────────────────────────────────
-  // The Salesforce status catalogue, as a local mirror: « Membres Salesforce »
-  // can add a word from here or from inside the config wizard, and the wizard's
-  // checkboxes must offer it at once. Grown in place rather than re-read with
-  // `invalidateAll`, which would reset a wizard form somebody is still editing.
-  let sfStatuses = $state<string[]>(untrack(() => [...data.sfStatuses]));
-  function addSfStatus(status: string) {
-    if (!sfStatuses.includes(status))
-      sfStatuses = [...sfStatuses, status].sort();
-  }
-
+  // Who an event shows and masks, by Salesforce status: names and schools, so a
+  // read that stays on a screen (the admin API answers with counts only).
   let inspectorOpen = $state(false);
   let inspectingEventId = $state<string | null>(null);
   let inspectingEventTitle = $state<string>('');
@@ -322,119 +284,6 @@
     inspectingEventTitle = e.displayName;
     inspectorOpen = true;
   }
-
-  // Deep-link from the admin dashboard: `?event=<id>` opens that event's config
-  // wizard straight away, then the param is stripped so a reload (or closing the
-  // dialog) doesn't reopen it. The dashboard's recent-events feed links here.
-  $effect(() => {
-    const id = page.url.searchParams.get('event');
-    if (!id) return;
-    const match = untrack(() => data.events.find((e) => e.id === id));
-    if (match) untrack(() => openEdit(match));
-    const url = new URL(page.url);
-    url.searchParams.delete('event');
-    replaceState(url, page.state);
-  });
-
-  // ─── Bulk module edit (over the list selection) ──────────────────────────
-  const selected = new SvelteSet<string>();
-  let bulkOpen = $state(false);
-  let bulkSubmitting = $state(false);
-  let bulkModules = $state<EventModuleKey[]>([...EVENT_MODULE_KEYS]);
-
-  // How many selected events can actually be shown in the dev space (≥1 module).
-  // Activating a section-less event is a no-op there, so this drives both the
-  // disabled "Activer" button and the pre-warning when the selection is mixed.
-  const selectedActivatable = $derived.by(() => {
-    let n = 0;
-    for (const e of data.events) {
-      if (selected.has(e.id) && e.modules.length > 0) n++;
-    }
-    return n;
-  });
-  const selectedNoModules = $derived(selected.size - selectedActivatable);
-
-  function openBulk() {
-    // Start from "all on" (the creation preset) each time, so the dialog is a
-    // fresh decision rather than carrying the last batch's choice.
-    bulkModules = [...EVENT_MODULE_KEYS];
-    bulkOpen = true;
-  }
-
-  function toggleBulkModule(key: EventModuleKey, checked: boolean) {
-    if (checked) {
-      if (!bulkModules.includes(key)) bulkModules = [...bulkModules, key];
-    } else {
-      bulkModules = bulkModules.filter((k) => k !== key);
-    }
-  }
-
-  const submitBulk: SubmitFunction = () => {
-    const count = selected.size;
-    bulkSubmitting = true;
-    return async ({ result, update }) => {
-      bulkSubmitting = false;
-      if (result.type === 'success') {
-        toast.success(
-          `Modules appliqués à ${count} événement${count > 1 ? 's' : ''}.`,
-        );
-        bulkOpen = false;
-        selected.clear();
-      } else if (result.type === 'failure') {
-        toast.error(
-          (result.data?.bulkError as string | undefined) ??
-            'Erreur lors de la mise à jour groupée.',
-        );
-      }
-      // Re-run load so the rows reflect the new module sets (and statuses/prep).
-      await update();
-    };
-  };
-
-  // Bulk show/hide in the dev workspace (the activation gate). Binary, so no
-  // dialog: two buttons in the selection bar, one SubmitFunction each.
-  function bulkActivation(activate: boolean): SubmitFunction {
-    return () => {
-      const count = selected.size;
-      bulkSubmitting = true;
-      return async ({ result, update }) => {
-        bulkSubmitting = false;
-        if (result.type === 'success') {
-          const s = (n: number) => (n > 1 ? 's' : '');
-          if (!activate) {
-            toast.success(
-              `${count} événement${s(count)} retiré${s(count)} de l'espace dev.`,
-            );
-          } else {
-            // Section-less events are skipped server-side (activating them shows
-            // nothing), so report the real split rather than the click count.
-            const activated = (result.data?.bulkActivated as number) ?? 0;
-            const skipped = (result.data?.bulkSkipped as number) ?? 0;
-            if (activated === 0) {
-              toast.error(
-                `Aucun événement activé : ${skipped} sans section à afficher.`,
-              );
-            } else if (skipped > 0) {
-              toast.success(
-                `${activated} événement${s(activated)} activé${s(activated)} · ${skipped} ignoré${s(skipped)} (aucune section).`,
-              );
-            } else {
-              toast.success(
-                `${activated} événement${s(activated)} activé${s(activated)} dans l'espace dev.`,
-              );
-            }
-          }
-          selected.clear();
-        } else if (result.type === 'failure') {
-          toast.error(
-            (result.data?.bulkError as string | undefined) ??
-              'Erreur lors de la mise à jour groupée.',
-          );
-        }
-        await update();
-      };
-    };
-  }
 </script>
 
 <svelte:head><title>Événements</title></svelte:head>
@@ -443,7 +292,7 @@
   <div>
     <PageHeader
       accent="Événements"
-      subtitle="Configurer les modules, le nom public et les détails de chaque événement"
+      subtitle="Où en est chaque événement, de sa configuration à sa publication"
     />
   </div>
 
@@ -508,80 +357,6 @@
 
   <ActiveFilterChips {chips} {search} onReset={resetFilters} />
 
-  {#if selected.size > 0}
-    <div
-      class="flex flex-wrap items-center gap-3 rounded-sm border bg-card px-4 py-2 shadow-raised"
-    >
-      <span class="text-sm font-bold">
-        {selected.size} événement{selected.size > 1 ? 's' : ''} sélectionné{selected.size >
-        1
-          ? 's'
-          : ''}
-      </span>
-      <Button size="sm" onclick={openBulk} class="rounded-sm">
-        <ListChecks class="mr-1.5 h-4 w-4" />
-        Modifier les modules
-      </Button>
-      <form
-        method="POST"
-        action="?/bulkActivation"
-        use:formEnhance={bulkActivation(true)}
-      >
-        <input type="hidden" name="ids" value={[...selected].join(',')} />
-        <input type="hidden" name="activate" value="true" />
-        <Button
-          type="submit"
-          variant="outline"
-          size="sm"
-          disabled={bulkSubmitting || selectedActivatable === 0}
-          title={selectedActivatable === 0
-            ? "Aucun événement sélectionné n'a de section activée."
-            : undefined}
-          class="rounded-sm"
-        >
-          <Eye class="mr-1.5 h-4 w-4" />
-          Activer dans l'espace dev
-        </Button>
-      </form>
-      <form
-        method="POST"
-        action="?/bulkActivation"
-        use:formEnhance={bulkActivation(false)}
-      >
-        <input type="hidden" name="ids" value={[...selected].join(',')} />
-        <input type="hidden" name="activate" value="false" />
-        <Button
-          type="submit"
-          variant="outline"
-          size="sm"
-          disabled={bulkSubmitting}
-          class="rounded-sm"
-        >
-          <EyeOff class="mr-1.5 h-4 w-4" />
-          Retirer
-        </Button>
-      </form>
-      <Button
-        variant="ghost"
-        size="sm"
-        onclick={() => selected.clear()}
-        class="text-muted-foreground hover:text-foreground"
-      >
-        Tout désélectionner
-      </Button>
-      {#if selectedNoModules > 0}
-        <span
-          class="flex w-full items-center gap-1.5 text-xs font-medium text-warning"
-        >
-          <TriangleAlert class="h-3.5 w-3.5 shrink-0" />
-          {selectedNoModules} sans section ne {selectedNoModules > 1
-            ? 'seront pas activés'
-            : 'sera pas activé'} (rien à afficher côté dev).
-        </span>
-      {/if}
-    </div>
-  {/if}
-
   <SortableTable
     onResetFilters={anyFiltersApplied ? resetFilters : undefined}
     {columns}
@@ -590,9 +365,7 @@
     sortDir={view.dir}
     onSort={toggleSort}
     rowKey={(e) => e.id}
-    onRowClick={(e) => openEdit(e)}
-    selectable
-    {selected}
+    onRowClick={(e) => openInspector(e)}
     stickyHeader
   >
     {#snippet row(e: AdminEventVM)}
@@ -642,18 +415,6 @@
           >
             <Database class="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="text-muted-foreground opacity-60 transition-opacity group-hover/row:opacity-100"
-            onclick={(ev) => {
-              ev.stopPropagation();
-              openEdit(e);
-            }}
-            aria-label="Configurer {e.displayName}"
-          >
-            <Pencil class="h-4 w-4" />
-          </Button>
         </div>
       </Table.Cell>
     {/snippet}
@@ -690,18 +451,6 @@
           >
             <Database class="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="relative z-10 shrink-0 text-muted-foreground"
-            onclick={(ev) => {
-              ev.stopPropagation();
-              openEdit(e);
-            }}
-            aria-label="Configurer {e.displayName}"
-          >
-            <Pencil class="h-4 w-4" />
-          </Button>
         </div>
       </div>
       <div class="mt-3 flex items-center gap-2">
@@ -714,95 +463,9 @@
     {/snippet}
   </SortableTable>
 
-  <EventConfigWizard
-    bind:open
-    {editing}
-    formData={data.form}
-    feedbackForms={data.feedbackForms}
-    certificates={data.certificates}
-    closingGrids={data.closingGrids}
-    formPreviews={data.formPreviews}
-    templates={data.templates}
-    {sfStatuses}
-    categories={data.categories}
-    onSfStatusAdded={addSfStatus}
-  />
-
   <AdminSfStatusInspectorDialog
     bind:open={inspectorOpen}
     eventId={inspectingEventId}
     eventTitle={inspectingEventTitle}
-    onStatusAdded={addSfStatus}
   />
-
-  <Dialog.Root bind:open={bulkOpen}>
-    <Dialog.Content class="flex max-h-[90dvh] flex-col gap-0 p-0 sm:max-w-lg">
-      <Dialog.Header class="border-b px-4 py-4 text-start sm:px-6">
-        <Dialog.Title class="flex items-center gap-2">
-          <ListChecks class="h-5 w-5 text-epi-tomorrow" />
-          Modules en masse
-        </Dialog.Title>
-        <Dialog.Description>
-          {selected.size} événement{selected.size > 1 ? 's' : ''} sélectionné{selected.size >
-          1
-            ? 's'
-            : ''}.
-        </Dialog.Description>
-      </Dialog.Header>
-      <form
-        method="POST"
-        action="?/bulkModules"
-        use:formEnhance={submitBulk}
-        class="flex min-h-0 flex-1 flex-col"
-      >
-        <input type="hidden" name="ids" value={[...selected].join(',')} />
-        <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-6">
-          <p class="text-xs text-muted-foreground">
-            Les événements sélectionnés exposeront <strong>exactement</strong> les
-            sections cochées. Cela remplace leur configuration de modules actuelle.
-          </p>
-          <div class="divide-y rounded-sm border">
-            {#each EVENT_MODULE_KEYS as key (key)}
-              {@const def = EVENT_MODULE_DEFS[key]}
-              {@const checked = bulkModules.includes(key)}
-              <label
-                for="bulk-{key}"
-                class="flex cursor-pointer items-start gap-3 p-3 transition-colors select-none hover:bg-muted/40"
-              >
-                <span
-                  class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-sm border bg-muted/40 text-muted-foreground"
-                >
-                  <EventModuleIcon module={key} class="size-4" />
-                </span>
-                <div class="flex-1 space-y-1">
-                  <span class="text-sm font-bold">{def.label}</span>
-                  <p class="text-xs text-muted-foreground">{def.description}</p>
-                </div>
-                <Switch
-                  id="bulk-{key}"
-                  name="modules"
-                  value={key}
-                  {checked}
-                  onCheckedChange={(v) => toggleBulkModule(key, v === true)}
-                  class="mt-0.5"
-                />
-              </label>
-            {/each}
-          </div>
-        </div>
-        <Dialog.Footer class="gap-2 border-t px-4 py-4 sm:px-6">
-          <Button
-            type="button"
-            variant="outline"
-            onclick={() => (bulkOpen = false)}
-          >
-            Annuler
-          </Button>
-          <Button type="submit" disabled={bulkSubmitting}>
-            {bulkSubmitting ? 'Application…' : 'Appliquer'}
-          </Button>
-        </Dialog.Footer>
-      </form>
-    </Dialog.Content>
-  </Dialog.Root>
 </div>

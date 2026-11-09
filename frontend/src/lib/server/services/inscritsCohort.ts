@@ -5,7 +5,7 @@ import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { rulesStatus, inscritStatus } from '$lib/domain/dossierCompliance';
 import { imageRightsStatus } from '$lib/domain/imageRights';
 import { schoolYearOf } from '$lib/domain/schoolYear';
-import { countPriorEnrolments } from '$lib/server/services/enrolmentHistory';
+import { countPriorVisits } from '$lib/server/services/visitHistory';
 import {
   loadEventDossierSignatures,
   NO_DOSSIER_SIGNATURES,
@@ -19,7 +19,7 @@ import type {
 // The talent columns the roster shows and filters on, and nothing else: the
 // cohort fetch (~200 rows) must not drag the full Talent row (Salesforce-mirror
 // columns). Contact details are not here either: the page never shows them, so
-// the XLSX export reads them on its own (`inscrits/export/+server.ts`) and they never
+// the event's XLSX export reads them on its own (`inscritsSheet`) and they never
 // reach the page's payload.
 const INSCRIT_TALENT_SELECT = {
   id: true,
@@ -54,7 +54,15 @@ const INSCRIT_TALENT_SELECT = {
   interests: {
     where: { interest: { kind: 'tech' } },
     select: {
-      interest: { select: { id: true, nom: true, emoji: true, order: true } },
+      interest: {
+        select: {
+          id: true,
+          nom: true,
+          shortLabel: true,
+          emoji: true,
+          order: true,
+        },
+      },
     },
   },
 } satisfies Prisma.TalentSelect;
@@ -66,14 +74,28 @@ const INSCRIT_PARTICIPATION_SELECT = {
   sfMemberStatus: true,
 } satisfies Prisma.ParticipationSelect;
 
-type InterestLink = { interest: InscritInterest & { order: number } };
+type InterestLink = {
+  interest: Omit<InscritInterest, 'shortLabel'> & {
+    shortLabel: string | null;
+    order: number;
+  };
+};
 
 /** A talent's tech interests in the catalogue's own order. */
 function techInterests(links: InterestLink[]): InscritInterest[] {
-  return links
-    .map((l) => l.interest)
-    .sort((a, b) => a.order - b.order)
-    .map(({ id, nom, emoji }) => ({ id, nom, emoji }));
+  return (
+    links
+      .map((l) => l.interest)
+      .sort((a, b) => a.order - b.order)
+      // A tech interest always has its short label (the table's CHECK); `nom`
+      // only satisfies the column's type.
+      .map(({ id, nom, shortLabel, emoji }) => ({
+        id,
+        nom,
+        shortLabel: shortLabel ?? nom,
+        emoji,
+      }))
+  );
 }
 
 /**
@@ -91,19 +113,18 @@ export async function countShownCohort(
 }
 
 /**
- * The event's roster as the Inscrits page and its export show it: one row per
- * enrolment the dev space shows, with everything a column displays or filters
- * on. One builder for both, so the downloaded sheet can never describe a talent
- * differently from the line it was exported from.
+ * The event's roster as the Inscrits page and the event's export show it: one
+ * row per enrolment the dev space shows, with everything a column displays or
+ * filters on. One builder for both, so the downloaded sheet can never describe
+ * a talent differently from the line on screen.
  *
- * `talentIds` narrows it to the rows the export was asked for; the page takes
- * the whole cohort, ordered by nom as the table first shows it.
+ * The whole cohort, ordered by nom as the table first shows it; the page
+ * narrows it (`shownInscrits`).
  */
 export async function loadInscritsCohort(
   db: ScopedPrismaClient,
   event: EventRecord,
   timezone: string,
-  { talentIds }: { talentIds?: readonly string[] } = {},
 ): Promise<InscritsCohort> {
   // The règlement applying to this event is the one of the event's own school
   // year, so that is the dossier the statut column reads (see
@@ -115,14 +136,13 @@ export async function loadInscritsCohort(
       where: {
         eventId: event.id,
         ...visibleParticipationWhere,
-        ...(talentIds ? { talentId: { in: [...talentIds] } } : {}),
       },
       select: INSCRIT_PARTICIPATION_SELECT,
       orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
     }),
     loadEventDossierSignatures(db, event.id, schoolYear),
   ]);
-  const prior = await countPriorEnrolments(
+  const prior = await countPriorVisits(
     event.campusId,
     participations.map((p) => p.talentId),
     event.date,
@@ -149,7 +169,7 @@ export async function loadInscritsCohort(
       schoolId: t.school?.id ?? null,
       schoolName: t.school?.name ?? null,
       xp: t.xp,
-      priorEnrolments: prior.get(p.talentId) ?? 0,
+      priorVisits: prior.get(p.talentId) ?? 0,
       techInterests: techInterests(t.interests),
       status: inscritStatus(t.niveau, connected, rules, image),
       connected,

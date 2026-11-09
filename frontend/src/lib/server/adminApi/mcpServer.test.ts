@@ -281,14 +281,30 @@ const TOOL_LIST_BUDGET = [
   ['leadership', leadership, 23_200],
   // Raised for the event categories (#438): a new entity, so one read and one
   // write of its own, plus the category as a field of the two event writes.
-  ['core, read-only', { ...coreWriter, writeEnabled: false }, 43_400],
+  // Raised again for the admin pages the API replaced (#483): the transactional
+  // mails and the centres d'intérêt are entities no read answered, so one read
+  // each, and a feedback form's read carries the link to its preview.
+  // Raised again for the weekly digest's "nouveau" (#493): five reads take a
+  // `since` instant, so the figures the inbox marks as new are the ones a chat
+  // gets by asking, rather than a count left to the model.
+  ['core, read-only', { ...coreWriter, writeEnabled: false }, 46_800],
   // Raised for the subject catalogue (#439): the domains are a new entity, so
   // one write of their own (their read is config_workshops, which already
   // answered for the activities' sibling entities), plus the level, notions and
   // domains as fields of write_workshop. Raised again for the supervisor code
   // (#459), a field of write_workshop_instance rather than a tool, since it is
   // the host's, and a condition of the catalogue write_workshop states.
-  ['core, write-enabled', coreWriter, 93_700],
+  // Raised for the admin pages the API replaced (#483): the transactional mails,
+  // the centres d'intérêt and the campus are three entities whose only write was
+  // a page, so one write each (plus the two reads above); the preset's values,
+  // its archiving and the bulk write's eventIds are fields of existing writes.
+  // Raised for « venu » (#491): which statuses count as a visit is a field of
+  // the event, preset and bulk writes and of the catalogue word, no new tool,
+  // but five new status lists, each naming where its words come from as every
+  // handle must (`handles.test.ts`); a tech interest's short label is a field
+  // of write_interest. Measured at 101 982 once merged with the weekly digest
+  // (#493), after cutting what the new descriptions restated.
+  ['core, write-enabled', coreWriter, 103_000],
 ] as const;
 
 describe('what a client loads up front', () => {

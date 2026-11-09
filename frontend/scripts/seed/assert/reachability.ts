@@ -28,7 +28,11 @@ import {
 } from '../../../src/lib/domain/eventModules';
 import { schoolYearOf } from '../../../src/lib/domain/schoolYear';
 import { classifySfStatus } from '../../../src/lib/domain/sfMemberStatus';
-import { DEFAULT_SHOWN_STATUSES, SF_STATUSES } from '../world';
+import {
+  DEFAULT_ATTENDING_STATUSES,
+  DEFAULT_SHOWN_STATUSES,
+  SF_STATUSES,
+} from '../world';
 import {
   ACTIVATION_BLOCKERS,
   activationBlockerKeys,
@@ -375,7 +379,7 @@ export async function reachabilityFailures(
       },
     }),
     prisma.sync_MemberStatus.findMany({
-      select: { status: true, shownByDefault: true },
+      select: { status: true, shownByDefault: true, attestsByDefault: true },
     }),
     prisma.eventConfig_ShownStatus.findMany({
       where: { eventId: { startsWith: 'sd_' } },
@@ -409,6 +413,17 @@ export async function reachabilityFailures(
   if (byDefault.join(',') !== [...DEFAULT_SHOWN_STATUSES].sort().join(','))
     failures.push(
       `Les statuts affichés par défaut du générateur (${DEFAULT_SHOWN_STATUSES.join(', ')}) ne sont pas ceux du catalogue (${byDefault.join(', ')})`,
+    );
+  const attendingByDefault = catalogue
+    .filter((row) => row.attestsByDefault)
+    .map((row) => row.status)
+    .sort();
+  if (
+    attendingByDefault.join(',') !==
+    [...DEFAULT_ATTENDING_STATUSES].sort().join(',')
+  )
+    failures.push(
+      `Les statuts comptés comme une venue par défaut du générateur (${DEFAULT_ATTENDING_STATUSES.join(', ')}) ne sont pas ceux du catalogue (${attendingByDefault.join(', ')})`,
     );
 
   const shownBy = new Map<string, Set<string>>();

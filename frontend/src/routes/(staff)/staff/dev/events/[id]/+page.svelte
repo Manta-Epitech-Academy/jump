@@ -1,15 +1,12 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
-  import { Button } from '$lib/components/ui/button';
   import { Skeleton } from '$lib/components/ui/skeleton';
-  import * as Tooltip from '$lib/components/ui/tooltip';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
   import EventCategoryChip from '$lib/components/events/EventCategoryChip.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
-  import { ACTION_TILE_CLASS } from '$lib/components/events/actionTile';
+  import ExcelExportTile from '$lib/components/events/ExcelExportTile.svelte';
   import { EVENT_MODULES } from '$lib/domain/eventModules';
   import type { PageData } from './$types';
   import EventCountdown from './components/EventCountdown.svelte';
@@ -41,78 +38,62 @@
 </svelte:head>
 
 <div class="space-y-8 pb-10">
-  <Tooltip.Provider delayDuration={150}>
-    <!-- Top-aligned: the action tiles are taller than the title block, and
+  <!-- Top-aligned: the action tiles are taller than the title block, and
          the shared bottom alignment would push the title below where every
          other page sets it. -->
-    <PageHeader title={data.event.name} class="md:items-start">
-      {#snippet meta()}
-        <div class="flex flex-col gap-2">
-          <p
-            class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted-foreground"
-          >
-            {#if data.event.category}
-              <EventCategoryChip category={data.event.category} />
-              <span aria-hidden="true">·</span>
-            {/if}
-            <span>{data.event.days}</span>
-            <!-- Labelled here, unlike on the calendar card: right under a
+  <PageHeader title={data.event.name} class="md:items-start">
+    {#snippet meta()}
+      <div class="flex flex-col gap-2">
+        <p
+          class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted-foreground"
+        >
+          {#if data.event.category}
+            <EventCategoryChip category={data.event.category} />
+            <span aria-hidden="true">·</span>
+          {/if}
+          <span>{data.event.days}</span>
+          <!-- Labelled here, unlike on the calendar card: right under a
                  countdown in days and hours, a bare « 12 jours » reads as the
                  time left. -->
-            <span aria-hidden="true">·</span>
-            <span>Durée : {data.event.length}</span>
-          </p>
-          <EventCountdown
-            status={data.countdown.status}
-            openDate={data.countdown.openDate}
+          <span aria-hidden="true">·</span>
+          <span>Durée : {data.event.length}</span>
+        </p>
+        <EventCountdown
+          status={data.countdown.status}
+          openDate={data.countdown.openDate}
+        />
+      </div>
+    {/snippet}
+    {#snippet actions()}
+      <div class="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto">
+        {#if printsCohort}
+          <EventBadgesAction
+            eventId={data.event.id}
+            eventName={data.event.name}
+            count={data.rosterSize}
           />
-        </div>
-      {/snippet}
-      {#snippet actions()}
-        <div class="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto">
-          {#if printsCohort}
-            <EventBadgesAction
+          {#if data.diploma}
+            <EventCertificatesAction
               eventId={data.event.id}
               eventName={data.event.name}
+              label={data.diploma.label}
               count={data.rosterSize}
             />
-            {#if data.diploma}
-              <EventCertificatesAction
-                eventId={data.event.id}
-                eventName={data.event.name}
-                label={data.diploma.label}
-                count={data.rosterSize}
-              />
-            {/if}
           {/if}
-          <EventSalesforceButton externalId={data.event.externalId} />
-          {#if hasCohort && data.exportSections.length > 0}
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props })}
-                  <Button
-                    {...props}
-                    href={resolve(`/staff/dev/events/${data.event.id}/export`)}
-                    download
-                    variant="outline"
-                    class={ACTION_TILE_CLASS}
-                  >
-                    <FileSpreadsheet />
-                    Exporter Excel
-                  </Button>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content class="max-w-64">
-                Tout l'événement, une feuille par section : {data.exportSections.join(
-                  ', ',
-                )}.
-              </Tooltip.Content>
-            </Tooltip.Root>
-          {/if}
-        </div>
-      {/snippet}
-    </PageHeader>
-  </Tooltip.Provider>
+        {/if}
+        <EventSalesforceButton externalId={data.event.externalId} />
+        {#if hasCohort && data.exportSections.length > 0}
+          <ExcelExportTile
+            href={resolve(`/staff/dev/events/${data.event.id}/export`)}
+          >
+            Tout l'événement, une feuille par section : {data.exportSections.join(
+              ', ',
+            )}.
+          </ExcelExportTile>
+        {/if}
+      </div>
+    {/snippet}
+  </PageHeader>
 
   {#await data.figures}
     <ResultsSkeleton>

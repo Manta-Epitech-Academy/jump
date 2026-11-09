@@ -17,8 +17,7 @@ import { USAGE_FEATURES } from '$lib/domain/usage';
 
 /**
  * The whole event as one workbook, from its home: one sheet per section the
- * event has (`planEventWorkbook`), each the very sheet its page's own export
- * downloads. Gated like a home page (no module of its own), then sheet by
+ * event has (`planEventWorkbook`), the event's only export. Gated like a home page (no module of its own), then sheet by
  * sheet like the section it comes from.
  */
 export const GET: RequestHandler = async ({ params, locals }) => {

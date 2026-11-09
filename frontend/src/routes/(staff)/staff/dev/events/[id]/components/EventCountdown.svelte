@@ -1,9 +1,13 @@
 <script lang="ts">
   import Timer from '@lucide/svelte/icons/timer';
-  import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
+  import {
+    openingCountdownLine,
+    type EventLifecycleStatus,
+  } from '$lib/domain/eventLifecycle';
 
   // Where the event stands, as one line of its home's header, the mockup's:
-  // « Ouverture dans 12 j 04 h », then « En cours », then « Terminé ».
+  // « Ouverture dans 12 j 4 h » (`openingCountdownLine`), then « En cours »,
+  // then « Terminé ».
   //
   // The opening is the effective one (`effectiveStartMinutes`): the hour a human
   // confirmed, else the default. Staff see that hour either way; only talents
@@ -30,15 +34,15 @@
     return () => clearInterval(id);
   });
 
-  const remaining = $derived(Math.max(0, new Date(openDate).getTime() - now));
-  const days = $derived(Math.floor(remaining / 86_400_000));
-  const hours = $derived(Math.floor((remaining % 86_400_000) / 3_600_000));
+  const opening = $derived(
+    openingCountdownLine(new Date(openDate).getTime() - now),
+  );
 </script>
 
 <p class="flex items-center gap-2 text-sm font-bold text-primary">
   <Timer class="size-4" aria-hidden="true" />
   {#if status === 'upcoming'}
-    Ouverture dans {days}&nbsp;j {String(hours).padStart(2, '0')}&nbsp;h
+    {opening}
   {:else if status === 'ongoing'}
     En cours
   {:else}

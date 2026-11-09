@@ -70,7 +70,7 @@ type Rule = {
   pattern: RegExp;
   message: string;
   /**
-   * Skip when this matches the offending line or the two after it. The window
+   * Skip when this matches the offending line or the five after it. The window
    * exists because the thing that makes a pattern acceptable is often on the
    * next line: an input suppressing its own outline is fine when its wrapper
    * draws a `focus-within` border.
@@ -161,6 +161,39 @@ const rules: Rule[] = [
       '320 ms est le plafond pour une transition d’état (DESIGN.md § Motion)',
   },
   {
+    name: 'Aucune transition Svelte hors de $lib/motion',
+    /**
+     * A Svelte transition picks its duration, distance and delay in
+     * JavaScript, where neither the tokens nor the duration rule above can see
+     * them. Nineteen files did, drifted to 400ms, 300px and uncapped staggers,
+     * and one of them honoured prefers-reduced-motion. `$lib/motion` names what
+     * moves and owns how, so it is the only file allowed to import the
+     * primitives. `from` closes every import, single-line or not, so a
+     * multi-line specifier list cannot slip past a line-based linter here.
+     */
+    pattern: /from\s+['"]svelte\/(?:transition|easing)['"]/,
+    files: /^(?!.*lib[/\\]motion[/\\])/,
+    message:
+      'transition Svelte directe : passer par $lib/motion (enter, stagger, stepIn, stepOut, fade), qui porte les durées et la variante reduced-motion (DESIGN.md § Motion)',
+  },
+  {
+    name: 'Un seul fournisseur d’infobulles, à la racine',
+    /**
+     * bits-ui skips the hover delay only between tooltips of one provider, so
+     * every local provider is a wall the "next tooltip opens at once" rule
+     * cannot cross. Twenty-seven of them had grown, with four different
+     * delays. The one in `routes/+layout.svelte` reaches every page, portals
+     * included, since a Svelte context follows the component tree and not the
+     * DOM.
+     */
+    pattern:
+      /<(?:Tooltip\.Provider|TooltipProvider|TooltipPrimitive\.Provider)\b/,
+    files:
+      /^(?!.*(?:routes[/\\]\+layout\.svelte$|components[/\\]ui[/\\]tooltip[/\\]))/,
+    message:
+      'Tooltip.Provider local : celui de routes/+layout.svelte couvre déjà toute l’application, et un second casse l’ouverture immédiate de l’infobulle voisine (DESIGN.md § Motion)',
+  },
+  {
     name: 'Aucune boucle d’animation pour qui demande moins de mouvement',
     /**
      * A loop carries no meaning a still frame does not (a halo that breathes,
@@ -175,19 +208,30 @@ const rules: Rule[] = [
       'boucle sans garde : écrire motion-safe:animate-… (DESIGN.md § Motion, toute animation non triviale respecte prefers-reduced-motion)',
   },
   {
-    name: 'Aucun agrandissement au survol ni à l’appui dans les espaces staff',
+    name: 'Aucun agrandissement au survol ni à l’appui',
     /**
-     * DESIGN.md says it of the whole app (« no scale on press »), and the
-     * staff spaces are where the PO ruled for a sober tool: a press is marked
-     * by `active:translate-y-px`, as the buttons do. Scoped to staff because
-     * the talent and parent spaces still carry press scales of their own, a
-     * decision that belongs to those spaces rather than to this rule.
+     * DESIGN.md says it of the whole app (« no scale on press »): a press is
+     * marked by `active:translate-y-px`, which every `Button` carries in its
+     * base. The rule once stopped at the staff spaces while the talent and
+     * parent ones kept ten press scales of their own, each a slightly different
+     * size; they now press the way the buttons do, so the rule covers them too.
      */
     pattern: /\b(?:hover|active):scale-/,
-    files:
-      /routes[/\\]\(staff\)[/\\]|lib[/\\]components[/\\](?:staff|dev|admin)[/\\]/,
     message:
-      'pas de changement d’échelle dans un espace staff : un appui se marque par active:translate-y-px (DESIGN.md § Motion)',
+      'pas de changement d’échelle au survol ni à l’appui : un appui se marque par active:translate-y-px, déjà dans la base de Button (DESIGN.md § Motion)',
+  },
+  {
+    name: 'Rien ne grandit depuis moins de 0,9',
+    /**
+     * Nothing in a room appears out of nothing, so an element that grows in
+     * from `scale-0` reads as a glitch rather than an arrival: the staff
+     * menu's icon did, and the theme toggle grew from 0.75. A brand reveal
+     * that needs a bigger pop (the XP float) states it in its own keyframes.
+     */
+    pattern:
+      /\b(?:scale|zoom-in|zoom-out)-(?:0|5|10|25|50|75)\b|\bscale-\[0?\.[0-8]\d*\]/,
+    message:
+      'une entrée part d’au moins 0,9 avec un fondu (zoom-in-90, zoom-in-95) : rien n’apparaît à partir de zéro (DESIGN.md § Motion)',
   },
   {
     name: 'Aucun `overline` nu (la décoration Tailwind)',

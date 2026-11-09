@@ -22,7 +22,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   const form = await prisma.feedback_Form.findUnique({
     where: { id: params.id },
-    select: { id: true, slug: true, title: true, allowsPublicAccess: true },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      status: true,
+      allowsPublicAccess: true,
+    },
   });
   if (!form) throw error(404, 'Formulaire introuvable');
 

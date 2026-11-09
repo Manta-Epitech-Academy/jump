@@ -57,6 +57,7 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'description',
   'reason',
   'label',
+  'shortLabel',
   // The address of a CTFd instance, typed once when it is deployed, and its
   // supervisor code, copied from the instance.
   'baseUrl',
@@ -108,6 +109,15 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'questions',
   // An event category's colour, a #rrggbb an admin picks.
   'color',
+  // A centre d'intérêt's emoji, and a campus's configuration: free values an
+  // admin types, the new name of a campus, and the flag that removes one.
+  'emoji',
+  'rename',
+  'externalName',
+  'timezone',
+  'departement',
+  'contactAddress',
+  'remove',
   // Flags, windows and sizes.
   'intervalMinutes',
   'enabled',
@@ -118,10 +128,13 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   // spells out: the section has to be in the same call's `modules` anyway.
   'moduleSettings',
   'shownByDefault',
+  'attestsByDefault',
   'pageWidthPx',
   'pageHeightPx',
   'onlyUpcoming',
   'days',
+  // An instant the caller picks; the digest's own comes from config_admin_digest.
+  'since',
   'limit',
   'status',
   'state',

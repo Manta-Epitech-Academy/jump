@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { noMatchLine } from '$lib/domain/devVoice';
+  import type { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { invalidate } from '$app/navigation';
   import { enhance as formEnhance, deserialize } from '$app/forms';
@@ -59,7 +60,8 @@
   // picked here; `dialogOpen` is reported up so the shell can pause polling while
   // an edit dialog is open. This component owns all filter/sort/optimistic state,
   // so it stays mounted across the 5s reload (the shell swaps `rows`/`presences`
-  // in place) and never loses an in-flight edit or the current search.
+  // in place) and never loses an in-flight edit. The search is the page's, on
+  // its title's line, and filters these rows as it is typed.
   let {
     rows,
     presences,
@@ -72,6 +74,7 @@
     eventId,
     cohortNoun,
     timezone,
+    search,
     activeSlotKey = $bindable(),
     dialogOpen = $bindable(false),
   }: EmargementCohort & {
@@ -86,6 +89,7 @@
     cohortNoun: string | null;
     /** Campus IANA timezone, forwarded to the notes dialog for byline times. */
     timezone: string;
+    search: ReturnType<typeof createUrlSearch>;
     activeSlotKey: string;
     dialogOpen?: boolean;
   } = $props();
@@ -124,8 +128,7 @@
     );
   }
 
-  // ── Filters (status + search only) ──────────────────────────────────────
-  let searchQuery = $state('');
+  // ── Filters (status + the page's search) ────────────────────────────────
   let statusFilter = $state<'all' | CellStatus>('all');
   let sortKey = $state<PresenceSortKey>('nom');
   let sortDir = $state<SortDir>('asc');
@@ -149,7 +152,7 @@
   }
 
   const filtered = $derived.by(() => {
-    const tokens = searchTokens(searchQuery);
+    const tokens = searchTokens(search.value);
     const out = rows.filter((r) => {
       if (statusFilter !== 'all' && rowStatus(r) !== statusFilter) return false;
       return matchesAllTokens(haystack(r), tokens);
@@ -162,7 +165,7 @@
   });
 
   const anyFilter = $derived(
-    searchQuery.trim().length > 0 || statusFilter !== 'all',
+    search.value.trim().length > 0 || statusFilter !== 'all',
   );
 
   function toggleSort(key: string) {
@@ -171,7 +174,7 @@
     sortDir = next.dir;
   }
   function resetFilters() {
-    searchQuery = '';
+    search.value = '';
     statusFilter = 'all';
   }
 
@@ -334,83 +337,172 @@
   }
 </script>
 
-<!-- One tooltip context for the roster: the per-row contact/notes icons and the
-     slot-lifecycle controls all surface tooltips from here. -->
-<Tooltip.Provider delayDuration={150}>
-  {#if rows.length === 0}
-    <EmptyCohortNotice {cohortNoun} />
-  {:else}
-    <ResultsLayout
-      railClass="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-1"
-    >
-      {#snippet main()}
-        <DataTableToolbar
-          searchValue={searchQuery}
-          onSearchInput={(v) => (searchQuery = v)}
-          searchPlaceholder={`Rechercher un ${noun.singular}…`}
-          searchWidthClass="flex-1 min-w-0 max-w-[230px]"
-          filtersAlign="end"
-          count={filtered.length}
-          countNoun={noun.singular}
-          countNounPlural={noun.plural}
-          filtersApplied={anyFilter}
-        >
-          {#snippet filters()}
-            <SlotNavigator {slots} bind:value={activeSlotKey} />
-            <div class="flex items-center gap-2">
-              <span class="hidden epi-overline text-muted-foreground sm:inline">
-                Statut
-              </span>
-              <FilterSelect
-                ariaLabel="Filtrer par statut de présence"
-                options={statusOptions}
-                value={statusFilter}
-                onChange={(v) => (statusFilter = v as typeof statusFilter)}
-                triggerClass="w-32"
-              />
-            </div>
-          {/snippet}
+{#if rows.length === 0}
+  <EmptyCohortNotice {cohortNoun} />
+{:else}
+  <ResultsLayout
+    railClass="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-1"
+  >
+    {#snippet main()}
+      <DataTableToolbar
+        count={filtered.length}
+        countNoun={noun.singular}
+        countNounPlural={noun.plural}
+        filtersApplied={anyFilter}
+      >
+        {#snippet filters()}
+          <SlotNavigator {slots} bind:value={activeSlotKey} />
+          <div class="flex items-center gap-2">
+            <span class="hidden epi-overline text-muted-foreground sm:inline">
+              Statut
+            </span>
+            <FilterSelect
+              ariaLabel="Filtrer par statut de présence"
+              options={statusOptions}
+              value={statusFilter}
+              onChange={(v) => (statusFilter = v as typeof statusFilter)}
+              triggerClass="w-32"
+            />
+          </div>
+        {/snippet}
 
-          {#snippet countActions()}
-            {#if anyFilter}
-              <Button
-                variant="ghost"
-                size="sm"
-                onclick={resetFilters}
-                class="h-7 rounded-sm px-2 text-muted-foreground hover:text-foreground"
-              >
-                <FilterX class="mr-1.5 h-4 w-4" />
-                Réinitialiser
-              </Button>
-            {/if}
-          {/snippet}
-        </DataTableToolbar>
+        {#snippet countActions()}
+          {#if anyFilter}
+            <Button
+              variant="ghost"
+              size="sm"
+              onclick={resetFilters}
+              class="h-7 rounded-sm px-2 text-muted-foreground hover:text-foreground"
+            >
+              <FilterX class="mr-1.5 h-4 w-4" />
+              Réinitialiser
+            </Button>
+          {/if}
+        {/snippet}
+      </DataTableToolbar>
 
-        <SortableTable
-          onResetFilters={anyFilter ? resetFilters : undefined}
-          noMatchHint={noMatchLine(page.url.pathname)}
-          {columns}
-          rows={filtered}
-          {sortKey}
-          {sortDir}
-          onSort={toggleSort}
-          rowKey={(r) => r.talentId}
-          stickyHeader
-          layout="fixed"
-        >
-          {#snippet row(r: PresenceRow)}
-            <!-- The avatar is the only fiche link: a small, conventional
+      <SortableTable
+        onResetFilters={anyFilter ? resetFilters : undefined}
+        noMatchHint={noMatchLine(page.url.pathname)}
+        {columns}
+        rows={filtered}
+        {sortKey}
+        {sortDir}
+        onSort={toggleSort}
+        rowKey={(r) => r.talentId}
+        stickyHeader
+        layout="fixed"
+      >
+        {#snippet row(r: PresenceRow)}
+          <!-- The avatar is the only fiche link: a small, conventional
                  target that reuses an element already in the row, so it adds
                  no surface to mis-tap while marking presence. New tab keeps
                  staff anchored in the émargement flow (presence toggles,
                  filters, scroll position) instead of navigating away
                  mid-attendance. -->
-            <Table.Cell>
+          <Table.Cell>
+            <a
+              href={talentFicheHref(r.talentId, eventId)}
+              target="_blank"
+              rel="noopener"
+              class="inline-flex align-middle"
+              title="Voir la fiche"
+              aria-label={`Ouvrir la fiche de ${r.prenom} ${r.nom} (nouvel onglet)`}
+            >
+              <TalentAvatar
+                talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
+                size="sm"
+              />
+            </a>
+          </Table.Cell>
+          <Table.Cell class="font-medium">
+            <span class="block truncate" title={r.prenom}>{r.prenom}</span>
+          </Table.Cell>
+          <Table.Cell class="font-bold uppercase">
+            <span class="block truncate" title={r.nom}>{r.nom}</span>
+          </Table.Cell>
+          <Table.Cell>
+            <PresenceSwitch
+              status={rowStatus(r)}
+              disabled={!canEdit}
+              onset={(s) => setStatus(r, s)}
+            />
+          </Table.Cell>
+          <!-- Notes icon, always present (every talent can have notes). State
+                 reads from the icon's own colour, never a count badge (which
+                 looked like a notification): muted at rest, blue once a note
+                 exists, lit when the latest note falls in the active créneau. The
+                 tint, not the bodies, lives on the roster. -->
+          <Table.Cell class="text-right">
+            {@const count = rowNoteCount(r)}
+            {@const live = rowNoteInActiveSlot(r)}
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="ghost"
+                    size="icon"
+                    class={noteTriggerClass(r)}
+                    onclick={() => openNotes(r)}
+                    aria-label={`Notes de ${r.prenom} ${r.nom}`}
+                  >
+                    <NotebookPen class="h-4 w-4" />
+                  </Button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content class="max-w-72">
+                {#if live}
+                  Noté sur ce créneau · cliquer pour voir
+                {:else if count > 0}
+                  {count} note{count > 1 ? 's' : ''} · cliquer pour voir
+                {:else}
+                  Ajouter une note
+                {/if}
+              </Tooltip.Content>
+            </Tooltip.Root>
+          </Table.Cell>
+          <!-- Icon-only to cut the per-row noise of 200+ rows: quiet at rest,
+               brightening when the row is hovered or focused. Kept visible
+               (not display:none) so it stays tappable on a touch device where
+               there is no hover, which is how émargement is run on the floor. -->
+          <Table.Cell class="text-right">
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8 rounded-sm text-muted-foreground/40 transition-colors group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                    onclick={() => openContact(r)}
+                    aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
+                  >
+                    <Phone class="h-4 w-4" />
+                  </Button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content>Coordonnées</Tooltip.Content>
+            </Tooltip.Root>
+          </Table.Cell>
+        {/snippet}
+
+        <!-- Mobile card (below lg): name + contact on top, then the présence
+               switch full-width beneath as the row's primary control. No `rowHref`
+               on this table, so the switch and contact button stay directly
+               tappable (no stretched-link overlay), which is how émargement is run
+               on the floor from a phone. -->
+        {#snippet mobileRow(r: PresenceRow)}
+          <div class="space-y-2.5">
+            <div class="flex items-center gap-3">
+              <!-- Avatar is the fiche link here too (new tab); the name and
+                     action buttons stay non-navigating so they're safe to tap
+                     on the floor. -->
               <a
                 href={talentFicheHref(r.talentId, eventId)}
                 target="_blank"
                 rel="noopener"
-                class="inline-flex align-middle"
+                class="inline-flex shrink-0"
                 title="Voir la fiche"
                 aria-label={`Ouvrir la fiche de ${r.prenom} ${r.nom} (nouvel onglet)`}
               >
@@ -419,264 +511,165 @@
                   size="sm"
                 />
               </a>
-            </Table.Cell>
-            <Table.Cell class="font-medium">
-              <span class="block truncate" title={r.prenom}>{r.prenom}</span>
-            </Table.Cell>
-            <Table.Cell class="font-bold uppercase">
-              <span class="block truncate" title={r.nom}>{r.nom}</span>
-            </Table.Cell>
-            <Table.Cell>
-              <PresenceSwitch
-                status={rowStatus(r)}
-                disabled={!canEdit}
-                onset={(s) => setStatus(r, s)}
-              />
-            </Table.Cell>
-            <!-- Notes icon, always present (every talent can have notes). State
-                 reads from the icon's own colour, never a count badge (which
-                 looked like a notification): muted at rest, blue once a note
-                 exists, lit when the latest note falls in the active créneau. The
-                 tint, not the bodies, lives on the roster. -->
-            <Table.Cell class="text-right">
-              {@const count = rowNoteCount(r)}
-              {@const live = rowNoteInActiveSlot(r)}
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  {#snippet child({ props })}
-                    <Button
-                      {...props}
-                      variant="ghost"
-                      size="icon"
-                      class={noteTriggerClass(r)}
-                      onclick={() => openNotes(r)}
-                      aria-label={`Notes de ${r.prenom} ${r.nom}`}
-                    >
-                      <NotebookPen class="h-4 w-4" />
-                    </Button>
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content class="max-w-72">
-                  {#if live}
-                    Noté sur ce créneau · cliquer pour voir
-                  {:else if count > 0}
-                    {count} note{count > 1 ? 's' : ''} · cliquer pour voir
-                  {:else}
-                    Ajouter une note
-                  {/if}
-                </Tooltip.Content>
-              </Tooltip.Root>
-            </Table.Cell>
-            <!-- Icon-only to cut the per-row noise of 200+ rows: quiet at rest,
-               brightening when the row is hovered or focused. Kept visible
-               (not display:none) so it stays tappable on a touch device where
-               there is no hover, which is how émargement is run on the floor. -->
-            <Table.Cell class="text-right">
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  {#snippet child({ props })}
-                    <Button
-                      {...props}
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8 rounded-sm text-muted-foreground/40 transition-colors group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
-                      onclick={() => openContact(r)}
-                      aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
-                    >
-                      <Phone class="h-4 w-4" />
-                    </Button>
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content>Coordonnées</Tooltip.Content>
-              </Tooltip.Root>
-            </Table.Cell>
-          {/snippet}
-
-          <!-- Mobile card (below lg): name + contact on top, then the présence
-               switch full-width beneath as the row's primary control. No `rowHref`
-               on this table, so the switch and contact button stay directly
-               tappable (no stretched-link overlay), which is how émargement is run
-               on the floor from a phone. -->
-          {#snippet mobileRow(r: PresenceRow)}
-            <div class="space-y-2.5">
-              <div class="flex items-center gap-3">
-                <!-- Avatar is the fiche link here too (new tab); the name and
-                     action buttons stay non-navigating so they're safe to tap
-                     on the floor. -->
-                <a
-                  href={talentFicheHref(r.talentId, eventId)}
-                  target="_blank"
-                  rel="noopener"
-                  class="inline-flex shrink-0"
-                  title="Voir la fiche"
-                  aria-label={`Ouvrir la fiche de ${r.prenom} ${r.nom} (nouvel onglet)`}
-                >
-                  <TalentAvatar
-                    talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
-                    size="sm"
-                  />
-                </a>
-                <p class="min-w-0 flex-1 truncate text-sm">
-                  <span class="font-medium">{r.prenom}</span>
-                  <span class="font-bold uppercase">{r.nom}</span>
-                </p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class={noteTriggerClass(r, true)}
-                  onclick={() => openNotes(r)}
-                  aria-label={`Notes de ${r.prenom} ${r.nom}`}
-                >
-                  <NotebookPen class="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="h-8 w-8 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
-                  onclick={() => openContact(r)}
-                  aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
-                >
-                  <Phone class="h-4 w-4" />
-                </Button>
-              </div>
-              <PresenceSwitch
-                block
-                status={rowStatus(r)}
-                disabled={!canEdit}
-                onset={(s) => setStatus(r, s)}
-              />
+              <p class="min-w-0 flex-1 truncate text-sm">
+                <span class="font-medium">{r.prenom}</span>
+                <span class="font-bold uppercase">{r.nom}</span>
+              </p>
+              <Button
+                variant="ghost"
+                size="icon"
+                class={noteTriggerClass(r, true)}
+                onclick={() => openNotes(r)}
+                aria-label={`Notes de ${r.prenom} ${r.nom}`}
+              >
+                <NotebookPen class="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                onclick={() => openContact(r)}
+                aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
+              >
+                <Phone class="h-4 w-4" />
+              </Button>
             </div>
-          {/snippet}
-        </SortableTable>
-      {/snippet}
+            <PresenceSwitch
+              block
+              status={rowStatus(r)}
+              disabled={!canEdit}
+              onset={(s) => setStatus(r, s)}
+            />
+          </div>
+        {/snippet}
+      </SortableTable>
+    {/snippet}
 
-      {#snippet rail()}
-        {#if activeSlot}
-          <!-- The active slot's open/close control, rendered into the SYNTHÈSE
+    {#snippet rail()}
+      {#if activeSlot}
+        <!-- The active slot's open/close control, rendered into the SYNTHÈSE
                card footer so it sits with the Clôturé badge it toggles. Edit-only
                (passed as the card `footer` when canEdit); read-only staff still
                see the badge, just no control. -->
-          {#snippet slotLifecycle()}
-            {#if activeSlot}
-              {#if isActivePastCutoff}
-                <!-- Auto-closed by the clock (past 11h / 15h) and not reopenable.
+        {#snippet slotLifecycle()}
+          {#if activeSlot}
+            {#if isActivePastCutoff}
+              <!-- Auto-closed by the clock (past 11h / 15h) and not reopenable.
                      Clôturer is spent, so it sits disabled in its usual spot
                      while Tout présent stays live and same-width: staff are often
                      émargeant late and per-row marking already works on a closed
                      slot, so the bulk shortcut should too. -->
-                <div class="@container space-y-2">
-                  <div class="grid grid-cols-1 gap-2 @[21rem]:grid-cols-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="w-full rounded-sm whitespace-nowrap"
-                      onclick={() => (presentConfirmOpen = true)}
-                    >
-                      <CheckCheck class="mr-1.5 h-4 w-4" />
-                      Tout présent
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled
-                      class="w-full rounded-sm whitespace-nowrap"
-                    >
-                      <Lock class="mr-1.5 h-4 w-4" />
-                      Clôturé
-                    </Button>
-                  </div>
-                  <p class="text-xs leading-snug text-muted-foreground">
-                    Clôturé automatiquement passé {slotLabelFr(
-                      activeSlot.slot,
-                    ) === 'Matin'
-                      ? '11h'
-                      : '15h'}. Le marquage reste possible.
-                  </p>
-                </div>
-              {:else if isActiveClosed}
-                <form
-                  method="POST"
-                  action="?/reopenSlot"
-                  use:formEnhance={() => {
-                    slotBusy = true;
-                    return async ({ result, update }) => {
-                      await settleSlotAction(result, update, {
-                        success: 'Créneau rouvert.',
-                        failure:
-                          "Le créneau n'a pas pu être rouvert. Réessayez.",
-                      });
-                    };
-                  }}
-                >
-                  <input type="hidden" name="day" value={activeSlot.day} />
-                  <input type="hidden" name="slot" value={activeSlot.slot} />
+              <div class="@container space-y-2">
+                <div class="grid grid-cols-1 gap-2 @[21rem]:grid-cols-2">
                   <Button
-                    type="submit"
                     variant="outline"
                     size="sm"
-                    class="w-full rounded-sm"
-                    disabled={slotBusy}
+                    class="w-full rounded-sm whitespace-nowrap"
+                    onclick={() => (presentConfirmOpen = true)}
                   >
-                    <LockOpen class="mr-1.5 h-4 w-4" />
-                    Rouvrir le créneau
+                    <CheckCheck class="mr-1.5 h-4 w-4" />
+                    Tout présent
                   </Button>
-                </form>
-              {:else}
-                <!-- The two end-of-créneau bulk actions, paired so they read as
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled
+                    class="w-full rounded-sm whitespace-nowrap"
+                  >
+                    <Lock class="mr-1.5 h-4 w-4" />
+                    Clôturé
+                  </Button>
+                </div>
+                <p class="text-xs leading-snug text-muted-foreground">
+                  Clôturé automatiquement passé {slotLabelFr(
+                    activeSlot.slot,
+                  ) === 'Matin'
+                    ? '11h'
+                    : '15h'}. Le marquage reste possible.
+                </p>
+              </div>
+            {:else if isActiveClosed}
+              <form
+                method="POST"
+                action="?/reopenSlot"
+                use:formEnhance={() => {
+                  slotBusy = true;
+                  return async ({ result, update }) => {
+                    await settleSlotAction(result, update, {
+                      success: 'Créneau rouvert.',
+                      failure: "Le créneau n'a pas pu être rouvert. Réessayez.",
+                    });
+                  };
+                }}
+              >
+                <input type="hidden" name="day" value={activeSlot.day} />
+                <input type="hidden" name="slot" value={activeSlot.slot} />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  class="w-full rounded-sm"
+                  disabled={slotBusy}
+                >
+                  <LockOpen class="mr-1.5 h-4 w-4" />
+                  Rouvrir le créneau
+                </Button>
+              </form>
+            {:else}
+              <!-- The two end-of-créneau bulk actions, paired so they read as
                      a choice: mark everyone present, or clôturer (which marks the
                      still-en-attente members absent and cuts the QR). The
                      caption spells out the clôture effect, the part staff missed. -->
-                <div class="@container space-y-2">
-                  <!-- Side by side when the card is wide enough, stacked when
+              <div class="@container space-y-2">
+                <!-- Side by side when the card is wide enough, stacked when
                        it is not. The threshold tracks the card, not the
                        viewport: the rail makes this card full-width at xl but
                        half-width in the sm two-up, where a 2-col grid clips
                        "Tout présent" onto two lines with the icon stranded. -->
-                  <div class="grid grid-cols-1 gap-2 @[21rem]:grid-cols-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="w-full rounded-sm whitespace-nowrap"
-                      onclick={() => (presentConfirmOpen = true)}
-                    >
-                      <CheckCheck class="mr-1.5 h-4 w-4" />
-                      Tout présent
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="w-full rounded-sm whitespace-nowrap"
-                      onclick={() => (closeConfirmOpen = true)}
-                    >
-                      <Lock class="mr-1.5 h-4 w-4" />
-                      Clôturer
-                    </Button>
-                  </div>
-                  <p class="text-xs leading-snug text-muted-foreground">
-                    En fin de créneau : marquez tout le monde présent, ou
-                    clôturez pour noter absents ceux qui restent « en attente ».
-                  </p>
+                <div class="grid grid-cols-1 gap-2 @[21rem]:grid-cols-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="w-full rounded-sm whitespace-nowrap"
+                    onclick={() => (presentConfirmOpen = true)}
+                  >
+                    <CheckCheck class="mr-1.5 h-4 w-4" />
+                    Tout présent
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="w-full rounded-sm whitespace-nowrap"
+                    onclick={() => (closeConfirmOpen = true)}
+                  >
+                    <Lock class="mr-1.5 h-4 w-4" />
+                    Clôturer
+                  </Button>
                 </div>
-              {/if}
+                <p class="text-xs leading-snug text-muted-foreground">
+                  En fin de créneau : marquez tout le monde présent, ou clôturez
+                  pour noter absents ceux qui restent « en attente ».
+                </p>
+              </div>
             {/if}
-          {/snippet}
+          {/if}
+        {/snippet}
 
-          <!-- Same rail pattern as Inscrits: side by side below xl (the aside is
+        <!-- Same rail pattern as Inscrits: side by side below xl (the aside is
              full width there), folding to a sticky single column at xl. -->
-          <SlotStatsCard
-            slotLabel={slotLabelFr(activeSlot.slot)}
-            slotKey={`${activeSlot.day}:${activeSlot.slot}`}
-            stats={activeStats}
-            closed={isActiveClosed}
-            stageRate={attendanceRate}
-            footer={canEdit ? slotLifecycle : undefined}
-          />
-          <PresenceHelpCard {cohortNoun} />
-        {/if}
-      {/snippet}
-    </ResultsLayout>
-  {/if}
-</Tooltip.Provider>
+        <SlotStatsCard
+          slotLabel={slotLabelFr(activeSlot.slot)}
+          slotKey={`${activeSlot.day}:${activeSlot.slot}`}
+          stats={activeStats}
+          closed={isActiveClosed}
+          stageRate={attendanceRate}
+          footer={canEdit ? slotLifecycle : undefined}
+        />
+        <PresenceHelpCard {cohortNoun} />
+      {/if}
+    {/snippet}
+  </ResultsLayout>
+{/if}
 
 <!-- Contact card: phones to reach the member, then the family if no answer -->
 <ContactDialog

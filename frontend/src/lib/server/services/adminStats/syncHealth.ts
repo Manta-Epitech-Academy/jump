@@ -22,6 +22,12 @@
 
 import { prisma } from '$lib/server/db';
 import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
+import {
+  sinceLabelFr,
+  withSince,
+  type SinceFilter,
+  type WithSince,
+} from './since';
 import { memberStatusCatalogue } from '$lib/server/services/devSpaceVisibility';
 import { isServedToWorker } from '$lib/server/services/syncConfigService';
 import {
@@ -136,6 +142,8 @@ type MemberStatusRow = {
   known: boolean;
   /** Null for a word the catalogue does not hold, and for the missing status. */
   shownByDefault: boolean | null;
+  /** Likewise. */
+  attestsByDefault: boolean | null;
   count: number;
   share: number | null;
   shownCount: number;
@@ -179,6 +187,16 @@ export type SyncHealth = {
 };
 
 /**
+ * What the sync health adds when asked `since` an instant. The unknown
+ * Salesforce statuses have no counterpart: nothing records when a word was
+ * first received, so "new since" would be a guess.
+ */
+export type SyncHealthSince = {
+  openErrorsSince: Metric;
+  prunesHeldSince: Metric;
+};
+
+/**
  * Every Salesforce member status Jump holds, over every enrolment it stores, and
  * where the ones it does not know are.
  *
@@ -199,6 +217,9 @@ async function memberStatusReport(): Promise<MemberStatusReport> {
   ]);
   const shownByDefaultOf = new Map(
     catalogue.map((row) => [row.status, row.shownByDefault]),
+  );
+  const attestsByDefaultOf = new Map(
+    catalogue.map((row) => [row.status, row.attestsByDefault]),
   );
 
   // Every word of the catalogue starts at zero, so a word nothing carries yet is
@@ -235,6 +256,8 @@ async function memberStatusReport(): Promise<MemberStatusReport> {
       known: status !== null && shownByDefaultOf.has(status),
       shownByDefault:
         status === null ? null : (shownByDefaultOf.get(status) ?? null),
+      attestsByDefault:
+        status === null ? null : (attestsByDefaultOf.get(status) ?? null),
       count: tally.count,
       share: share(tally.count, total),
       shownCount: tally.shown,
@@ -347,7 +370,9 @@ async function passHealth(
   };
 }
 
-export async function getSyncHealth(): Promise<SyncHealth> {
+export async function getSyncHealth<F extends SinceFilter = SinceFilter>(
+  filters?: F,
+): Promise<WithSince<SyncHealth, SyncHealthSince, F>> {
   const terms = await syncFreshnessTerms();
 
   const [
@@ -379,7 +404,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
   const fullMinutes =
     cadences.find((c) => c.mode === 'full')?.intervalMinutes ?? 0;
 
-  return {
+  const health: SyncHealth = {
     lastIncremental: metric(
       incremental,
       `Dernière passe incrémentale réussie : elle ne rapatrie que les campagnes modifiées depuis la précédente, et c'est elle qui tient la fraîcheur des données (${terms.cadenceNote}). « ageHours » est son ancienneté en heures ; « stale » vaut vrai au-delà de ${terms.staleAfterHours.incremental} h, ce qui mérite une vérification. « events », « talents » et « participations » sont ce que cette passe a poussé. Vaut null si aucune passe incrémentale n'a jamais réussi.`,
@@ -442,7 +467,7 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     prunesHeldTruncated: prunesHeldEvents > PRUNES_HELD_LIMIT,
     memberStatuses: metric(
       statuses.rows,
-      "Le vocabulaire Salesforce de Jump : chaque statut de son catalogue et chaque statut effectivement reçu, du plus au moins fréquent. « count » est le nombre d'inscriptions qui le portent et « share » leur part du total. « known » dit si le statut figure au catalogue ; « shownByDefault » s'il est affiché d'emblée sur un événement nouvellement créé (null pour un statut hors catalogue). « shownCount » est le nombre de ces inscriptions que l'espace dev affiche : chaque événement règle lui-même les statuts qu'il affiche (« shownStatuses » dans config_event_detail), un même statut peut donc être affiché sur un événement et masqué sur un autre. Aucune inscription n'est absente de Jump. La ligne dont « status » vaut null regroupe les inscriptions importées avant que Jump n'enregistre le statut, toujours affichées.",
+      "Le vocabulaire Salesforce de Jump : chaque statut de son catalogue et chaque statut effectivement reçu, du plus au moins fréquent. « count » est le nombre d'inscriptions qui le portent et « share » leur part du total. « known » dit si le statut figure au catalogue ; « shownByDefault » s'il est affiché d'emblée sur un événement nouvellement créé, « attestsByDefault » s'il y compte d'emblée comme une venue (null pour un statut hors catalogue, dans les deux cas). « shownCount » est le nombre de ces inscriptions que l'espace dev affiche : chaque événement règle lui-même les statuts qu'il affiche (« shownStatuses » dans config_event_detail), un même statut peut donc être affiché sur un événement et masqué sur un autre. Aucune inscription n'est absente de Jump. La ligne dont « status » vaut null regroupe les inscriptions importées avant que Jump n'enregistre le statut, toujours affichées.",
     ),
     unrecognisedStatuses: metric(
       statuses.unrecognised,
@@ -455,6 +480,19 @@ export async function getSyncHealth(): Promise<SyncHealth> {
     unrecognisedStatusEventsTruncated:
       statuses.eventsTotal > UNRECOGNISED_STATUS_EVENTS_LIMIT,
   };
+
+  return withSince(health, filters, async (since) => ({
+    openErrorsSince: metric(
+      openErrors.filter((e) => e.firstOccurredAt >= since).length,
+      `Parmi les erreurs ouvertes, celles rencontrées pour la première fois depuis ${sinceLabelFr(since)}. Une erreur dont la cause change repart de zéro : elle compte ici comme nouvelle même si le contact était déjà en erreur pour une autre raison.`,
+    ),
+    prunesHeldSince: metric(
+      await prisma.sync_PruneHold.count({
+        where: { firstHeldAt: { gte: since } },
+      }),
+      `Parmi les événements dont des suppressions sont retenues, ceux où la retenue est apparue depuis ${sinceLabelFr(since)}.`,
+    ),
+  }));
 }
 
 /** Cap on the run history one call returns. */

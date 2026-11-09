@@ -11,7 +11,7 @@ import { prisma } from '$lib/server/db';
 import { syncEvents, syncParticipations, syncTalents } from '../syncService';
 import {
   defaultShownStatuses,
-  setEventShownStatuses,
+  setEventStatusPolicy,
 } from '../devSpaceVisibility';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import {
@@ -115,14 +115,17 @@ describe('per-event dev-space visibility (integration)', () => {
       });
       eventIds[key] = event.id;
       expect(event.shownStatuses.map((row) => row.status).sort()).toEqual(
-        await defaultShownStatuses(),
+        (await defaultShownStatuses()).map((row) => row.status),
       );
     }
   });
 
   it('shows a word on the event that shows it, and masks it on the one that does not', async () => {
     await prisma.$transaction((tx) =>
-      setEventShownStatuses(tx, eventIds.club, ['ready', 'MET', 'Connected']),
+      setEventStatusPolicy(tx, eventIds.club, {
+        shown: ['ready', 'MET', 'Connected'],
+        attending: [],
+      }),
     );
     await syncTalents(talents);
     const roster = { [ready]: 'READY', [connected]: 'CONNECTED', [legacy]: '' };
@@ -137,7 +140,10 @@ describe('per-event dev-space visibility (integration)', () => {
 
   it('recomputes the enrolments already there when an event changes what it shows', async () => {
     await prisma.$transaction((tx) =>
-      setEventShownStatuses(tx, eventIds.stage, ['CONNECTED']),
+      setEventStatusPolicy(tx, eventIds.stage, {
+        shown: ['CONNECTED'],
+        attending: [],
+      }),
     );
     expect(await shownOn('stage')).toEqual([connected, legacy].sort());
 
@@ -168,14 +174,20 @@ describe('per-event dev-space visibility (integration)', () => {
     expect(await shownOn('stage')).toEqual([connected, legacy, ready].sort());
 
     await prisma.$transaction((tx) =>
-      setEventShownStatuses(tx, eventIds.stage, ['CONNECTED']),
+      setEventStatusPolicy(tx, eventIds.stage, {
+        shown: ['CONNECTED'],
+        attending: [],
+      }),
     );
   });
 
   it('refuses a word the catalogue does not hold, naming the ones it does', async () => {
     await expect(
       prisma.$transaction((tx) =>
-        setEventShownStatuses(tx, eventIds.stage, ['MEET']),
+        setEventStatusPolicy(tx, eventIds.stage, {
+          shown: ['MEET'],
+          attending: [],
+        }),
       ),
     ).rejects.toMatchObject({
       status: 400,

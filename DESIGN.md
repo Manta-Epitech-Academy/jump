@@ -10,6 +10,13 @@ colors:
   epiTomorrow: '#ff1ef7'
   epiDark: '#181818'
   epiLavender: '#b8c0e8'
+  # ---- Chart series: each accent at 70 % over white, then the charte's mid
+  #      grey. Fills only, see § Chart series. ----
+  epiBlueTint: '#4d75fc'
+  epiTomorrowTint: '#ff62f9'
+  epiTechTint: '#4dffb6'
+  epiTogetherTint: '#ff8f75'
+  epiGreyMid: '#6b7189'
   # ---- Ink variants: same hues, legible as small text on light surfaces ----
   epiTechInk: '#007a46'
   epiTogetherInk: '#b5361a'
@@ -391,8 +398,8 @@ defines four status colors, all traced back to a brand hue:
 - `destructive` = `epiTogetherInk`. The charte already assigns orange to alerts.
 - info = `primary`.
 
-There is **no fifth status color and no separate palette for charts**. A hue that
-is not in this list does not appear in the product.
+There is **no fifth status color**. A hue that is not in this list does not
+appear in the product.
 
 One hue comes from data rather than from this file, and it is the exception
 this rule allows: an **event category's colour**, which the team authors over the
@@ -407,10 +414,28 @@ more). Everything else stays on the tokens: on the campus calendar an event
 without a category is a `mutedForeground` fill, and a day without school is a
 `muted` ground, so neither can pass for a category.
 
+### Chart series
+
+A chart's parts take their colours in the charte's order, never a palette of
+their own: `epiBlue`, `epiTomorrow`, `epiTech`, `epiTogether`, then the same
+four at 70 % (`epiBlueTint`, `epiTomorrowTint`, `epiTechTint`,
+`epiTogetherTint`, each accent mixed 70 % with white), then `epiGreyMid`. The
+first part is the largest or the first in its own order, so blue carries the
+most. The PO set that order on 29/10/2026 so the staff read Jump's charts as
+the house's: an « Autres » in lavender and an orange that never appeared read
+as somebody else's tool. The order lives in `CHART_SERIES`
+(`lib/domain/chartSeries.ts`); a chart picks a rank, never a colour.
+
+The tints are fills, like the accents they come from, and never text. Two tones
+stay outside the series because they mean something rather than rank: the
+closing verdict « Indécis », and what is missing (« Non renseigné »), painted in
+`epiGreyMid`. Every part is painted: a part left blank read as a hole in the
+chart.
+
 ### Neutrals: one ramp, and it is blue-tinted
 
 The charte neutrals are lavender-tinted, not grey: `#f6f7fb`, `#eceef5`,
-`#d9dce8`, `#b8c0e8`, `#0b0e1a`. That is the ramp, for all four spaces. Warm or
+`#d9dce8`, `#b8c0e8`, `#6b7189`, `#0b0e1a`. That is the ramp, for all four spaces. Warm or
 pure greys read as a different product next to the brand blue.
 
 | Role | Light | Dark | On its own surface |
@@ -633,8 +658,8 @@ pair, not an accent pressed into service; it stays white in either theme because
 the surface stays blue. Any other action on that surface takes the translucent
 `overlay`, which reads as secondary next to it, and which is what made the
 catalogue's main action look disabled until the 2027 mockup's white button was
-restored (#459). Destructive is `destructive` filled. Press
-translates 1px down, no scale change.
+restored (#459). Destructive is `destructive` filled. Every variant presses 1px
+down, from the `Button` base, and none changes scale (see Motion).
 
 **A raw accent is never a button fill.** `epiTomorrow` with white text is 3.10:1
 and `epiTogether` is 3.02:1, so a magenta "Ajouter" button fails AA on its own
@@ -727,7 +752,7 @@ logo equals the height of its `{`.
 - Don't fill a button with a raw accent. `bg-epi-tomorrow text-white` is 3.10:1; the primary action is `primary`.
 - Don't use emoji outside the talent voice. They are allowed in talent copy (rewards, greetings, feedback faces) where they do real work with a 15-year-old reader, and nowhere else: not in staff or parent copy, not in the brand chrome. The charte's position is that `_`, `< />`, `{ }` and `/` are the brand's emoji.
 - Don't blur, glow, or gradient a surface.
-- Don't animate longer than 320ms, and don't use `transition-all`.
+- Don't animate a state change longer than 320ms, don't change scale on press or hover, and don't use `transition-all`.
 - Don't hand-roll a card, a header, a badge or a dialog that already exists in `ui/`.
 - Don't put an overline on a control or on a per-row value: those are `epi-chip` and the body face.
 - Don't fill anything with an ink token. It is a text colour, and it inverts under `.on-dark`.
@@ -766,11 +791,29 @@ Short, direct, purposeful. The brand is flat and confident: it does not bounce.
 | `ease-standard` | `cubic-bezier(0.2, 0, 0, 1)` |
 | `ease-emphatic` | `cubic-bezier(0.2, 0, 0.2, 1.2)` |
 
-- **320ms is the ceiling for a state transition.** `duration-500` and `duration-700` are in the code today and read as lag. A one-shot celebration animation is a different thing and states its own duration (the XP float runs 2.2s on purpose); the ceiling governs anything that answers an interaction.
-- Name the properties you animate: `transition-ui` is the interactive-state transition and carries the standard easing and duration with it. `transition-all` animates layout properties too, and a width or a top that animates is a jank source nobody asked for.
-- Fades and 8px to 16px slides. No parallax, no spring, no scale on press.
-- `ease-emphatic` is for brand reveals only: the XP float, the diploma ceremony, the first-login welcome. These are the talent space's licence to overshoot, and they stay rare.
-- Every non-trivial animation respects `prefers-reduced-motion`.
+`layout.css` declares them for CSS (`--dur-*`, `--motion-ease-*`) and `frontend/src/lib/motion/tokens.ts` restates them for Svelte, which cannot read a custom property; the contract test fails when the two disagree.
+
+**How long.**
+
+- **Answering a gesture takes `base` at most:** a press, a tooltip, a menu, a popover, a select. Changing place takes `slow` at most: a dialog, a wizard step, a block entering a page. `duration-500` and `duration-700` used to be in the code and read as lag. A one-shot celebration is a different thing and states its own duration (the XP float runs 2.2s on purpose).
+- **Leaving is faster than arriving.** An exit takes `fast`: the person has already decided, and the interface should get out of the way. A wizard step leaves in 120ms, then the next one arrives in 200ms, so the whole change stays within the 320ms ceiling.
+- **What opens from the keyboard does not animate.** A shortcut is used many times a day, and any entrance reads as lag between the keystroke and the answer: the admin ⌘K search opens at once (`instant` on `Dialog.Content`).
+- **A page does not make anyone wait for its content.** The first block enters with no delay. A list that enters together staggers 40ms per item and stops at 160ms, however long the list is: the interest chips once waited 50ms each, without a cap.
+
+**How it moves.**
+
+- Fades and 8px to 16px slides. No parallax, no spring.
+- **Nothing grows from below 0.9.** Something that appears from `scale-0` reads as a glitch, not an arrival; an entrance starts at 0.9 or 0.95, with a fade. A popover, a menu or a tooltip grows from its trigger (`origin-(--bits-*-transform-origin)`); a modal grows from the centre, because nothing on the page anchors it.
+- **No scale on press or hover.** Every `Button` presses 1px down (`active:translate-y-px` in its base), and a card link that answers a press answers it the same way. Staff surfaces do not lift on hover either: the colour change is the hover.
+- **A tooltip waits once.** The first one in a row waits 300ms, so a pointer crossing the screen does not set them off; the next one, opened within 300ms of it, opens at once and without its entrance. That only works within one provider, so there is one, in `routes/+layout.svelte`.
+- **A drawer you can drag keeps vaul's physics** (500ms, `cubic-bezier(0.32, 0.72, 0, 1)`). It follows a finger, and its speed belongs to that gesture rather than to the ceiling above.
+- `ease-emphatic` is for brand reveals only: the XP float, the diploma ceremony, the first-login welcome. These are the talent space's licence to overshoot, and they stay rare. A chat bubble is not one: bubbles arrive one after another all along a form.
+
+**Less motion, not none.** Every non-trivial animation respects `prefers-reduced-motion`, and respecting it means moving less, not freezing: what moves stops moving, and what fades keeps fading, because a dialog that appears softly is still easier to follow than one that snaps in. Spinners and progress keep turning, since they carry a state. Confetti, being pure movement with nothing to read in it, does not fire at all. Where each part lives:
+
+- **Svelte transitions** go through `$lib/motion` (`enter`, `stagger`, `stepIn`, `stepOut`, `fade`), which owns the durations and the reduced variant. `lint:design` refuses `svelte/transition` anywhere else.
+- **The `ui/` primitives and vaul** are covered by one block in `layout.css`, which zeroes their offsets and swaps vaul's slide for its fade.
+- **A loop** (`animate-ping`, `pulse`, `bounce`) carries `motion-safe:`, and a component's own keyframes sit behind a `prefers-reduced-motion` query.
 
 ## Accessibility
 
