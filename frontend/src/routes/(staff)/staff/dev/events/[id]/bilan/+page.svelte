@@ -12,7 +12,7 @@
   import QrProjectionDialog from '$lib/components/staff/QrProjectionDialog.svelte';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import { cohortNounForms, eventDisplayName } from '$lib/domain/event';
-  import SearchBox from '$lib/components/staff/datatable/SearchBox.svelte';
+  import TitleLineSearch from '$lib/components/staff/datatable/TitleLineSearch.svelte';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import type { PageData } from './$types';
   import BilanRoster from './components/BilanRoster.svelte';
@@ -32,20 +32,42 @@
   <title>{data.form.title} · {eventDisplayName(data.event)}</title>
 </svelte:head>
 
+{#snippet qrButton()}
+  <Tooltip.Root>
+    <Tooltip.Trigger>
+      {#snippet child({ props })}
+        <Button
+          {...props}
+          variant="outline"
+          size="sm"
+          onclick={() => (qrOpen = true)}
+          class="rounded-sm"
+        >
+          <QrCode class="mr-1.5 h-4 w-4" />
+          Afficher le QR code
+        </Button>
+      {/snippet}
+    </Tooltip.Trigger>
+    <Tooltip.Content class="max-w-56">
+      Projetez le QR code : les talents le scannent pour donner leur avis.
+    </Tooltip.Content>
+  </Tooltip.Root>
+{/snippet}
+
 <div class="space-y-6 pb-10">
-  <PageHeader title={data.form.title} subtitle={eventDisplayName(data.event)}>
+  <PageHeader
+    title={data.form.title}
+    subtitle={eventDisplayName(data.event)}
+    class="md:items-start"
+  >
     {#snippet actions()}
-      <div class="flex w-full flex-wrap items-center gap-2 md:w-auto">
-        {#if data.rosterSize > 0}
-          <SearchBox
-            value={search.value}
-            onInput={(v) => (search.value = v)}
-            placeholder={`Rechercher un ${noun.singular}…`}
-            class="w-full md:w-60"
-          />
-        {/if}
-        <!-- With no one in the event, the export is an empty workbook. -->
-        {#if data.rosterSize > 0}
+      <!-- With no one in the event, there is nothing to search and the export
+           is an empty workbook: the QR code alone, which brings the first answer. -->
+      {#if data.rosterSize > 0}
+        <TitleLineSearch
+          {search}
+          placeholder={`Rechercher un ${noun.singular}…`}
+        >
           <Button
             href={`${page.url.pathname}/export`}
             download
@@ -56,27 +78,11 @@
             <Download class="mr-1.5 h-4 w-4" />
             Exporter XLSX
           </Button>
-        {/if}
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <Button
-                {...props}
-                variant="outline"
-                size="sm"
-                onclick={() => (qrOpen = true)}
-                class="rounded-sm"
-              >
-                <QrCode class="mr-1.5 h-4 w-4" />
-                Afficher le QR code
-              </Button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content class="max-w-56">
-            Projetez le QR code : les talents le scannent pour donner leur avis.
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </div>
+          {@render qrButton()}
+        </TitleLineSearch>
+      {:else}
+        {@render qrButton()}
+      {/if}
     {/snippet}
   </PageHeader>
 

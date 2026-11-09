@@ -4,7 +4,7 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import SearchBox from '$lib/components/staff/datatable/SearchBox.svelte';
+  import TitleLineSearch from '$lib/components/staff/datatable/TitleLineSearch.svelte';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import ClosingsResults from './components/ClosingsResults.svelte';
 
@@ -21,14 +21,16 @@
 </svelte:head>
 
 <div class="space-y-6 pb-10">
-  <PageHeader title="Closings" subtitle={eventDisplayName(data.event)}>
+  <PageHeader
+    title="Closings"
+    subtitle={eventDisplayName(data.event)}
+    class="md:items-start"
+  >
     {#snippet actions()}
       {#if data.rosterSize > 0}
-        <SearchBox
-          value={search.value}
-          onInput={(v) => (search.value = v)}
+        <TitleLineSearch
+          {search}
           placeholder={`Rechercher un ${noun.singular}…`}
-          class="w-full md:w-60"
         />
       {/if}
     {/snippet}

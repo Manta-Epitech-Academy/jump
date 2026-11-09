@@ -69,13 +69,17 @@
   }: Props = $props();
 </script>
 
+<!-- From md up the title and the controls share a line while both fit, and
+     the controls move under the title when they do not: the title keeps its
+     width, never squeezed to a word per line by a search box and a tile, which
+     the side menu made happen on any laptop narrower than the page. -->
 <div
   class={cn(
-    'flex flex-col gap-4 border-b pb-4 md:flex-row md:items-end md:justify-between md:border-b-0 md:pb-0',
+    'flex flex-col gap-4 border-b pb-4 md:flex-row md:flex-wrap md:items-end md:justify-between md:border-b-0 md:pb-0',
     className,
   )}
 >
-  <div class="min-w-0">
+  <div class="max-w-full min-w-0 md:shrink-0">
     <h1
       class="font-heading text-display-l"
       style:view-transition-name={titleViewTransitionName}

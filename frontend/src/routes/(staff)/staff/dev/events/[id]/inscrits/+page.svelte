@@ -5,7 +5,7 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import SearchBox from '$lib/components/staff/datatable/SearchBox.svelte';
+  import TitleLineSearch from '$lib/components/staff/datatable/TitleLineSearch.svelte';
   import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
   import ExcelExportTile from '$lib/components/events/ExcelExportTile.svelte';
   import InscritsResults from './components/InscritsResults.svelte';
@@ -35,20 +35,17 @@
   >
     {#snippet actions()}
       {#if data.rosterSize > 0}
-        <div class="flex w-full flex-wrap items-center gap-3 md:w-auto">
-          <SearchBox
-            value={search.value}
-            onInput={(v) => (search.value = v)}
-            placeholder={`Rechercher un ${noun.singular}…`}
-            class="w-full md:w-60"
-          />
+        <TitleLineSearch
+          {search}
+          placeholder={`Rechercher un ${noun.singular}…`}
+        >
           <ExcelExportTile
             href={`${page.url.pathname}/export${page.url.search}`}
           >
             Les {noun.plural} tels que la liste les affiche : filtres, tri et recherche
             appliqués.
           </ExcelExportTile>
-        </div>
+        </TitleLineSearch>
       {/if}
     {/snippet}
   </PageHeader>

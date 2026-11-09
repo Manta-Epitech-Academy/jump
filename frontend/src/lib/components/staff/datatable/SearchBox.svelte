@@ -4,7 +4,7 @@
   import { cn } from '$lib/utils';
 
   // A list's search box, alone: `DataTableToolbar` renders it above a table,
-  // and the event lists put it on their title's line (`ListHeaderSearch`).
+  // and the event lists put it on their title's line (`TitleLineSearch`).
   let {
     value,
     onInput,
