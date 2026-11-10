@@ -177,8 +177,8 @@ lisait plus que les deux tiers.
 
 Le budget (`AGENTS_BUDGET_BYTES`) est la taille d'après la cure plus une marge,
 pas un idéal. Le relever est une décision prise dans la pull request qui en a
-besoin, avec sa raison, comme `TOOL_LIST_BUDGET` dans `mcpServer.test.ts` ; ce
-qui ne concerne qu'une surface va dans son fichier de `.claude/rules/`. Le
+besoin, avec sa raison ; ce qui ne concerne qu'une surface va dans son fichier
+de `.claude/rules/`. Le
 plafond de Codex ne se relève pas : un budget qui le dépasse est lui-même une
 violation.
 

@@ -400,10 +400,36 @@ export type AdminApiOperation = {
   untrustedText: boolean;
   /** Bulk: a dry run first, then an apply echoing that plan's digest. */
   twoStep: boolean;
+  /** What a write does to the world, as `defineWrite` requires it; null for a read. */
+  effect: WriteEffect | null;
   run: (
     params: Record<string, unknown>,
     ctx: OperationContext,
   ) => Promise<unknown>;
+};
+
+/**
+ * What a write does beyond changing a row, declared by its author rather than
+ * guessed from its name: the five `ops_*` writes, a hard delete among them, are
+ * the proof that a prefix says nothing about an effect.
+ *
+ * Each transport reads it in its own terms (MCP turns it into tool annotations),
+ * and the model reads the part it needs in the description `defineWrite`
+ * composes from it, since a client does not hand annotations to the model.
+ */
+export type WriteEffect = {
+  /**
+   * A second identical call has no further effect: it lands on the same state,
+   * or it is refused. A model retries on timeout, so this is what it needs to
+   * know before it does. Irreversibility is a different fact: a hard delete
+   * whose retry is refused is safe to repeat, and says it cannot be undone in
+   * its own description.
+   */
+  repeatSafe: boolean;
+  /** It may overwrite or delete what exists; false only for a purely additive write. */
+  destructive: boolean;
+  /** The call itself reaches outside Jump: a caller-given address it downloads, a public directory it queries. */
+  openWorld: boolean;
 };
 
 /**
@@ -446,6 +472,7 @@ function defineOperation<Shape extends z.ZodRawShape>(op: {
     leadership,
     untrustedText: op.untrustedText ?? false,
     twoStep: false,
+    effect: null,
     run: async (params, ctx) => {
       const answer = await op.run(params as z.output<z.ZodObject<Shape>>, ctx);
       return leadership ? withDataFreshness(answer) : answer;
@@ -485,28 +512,50 @@ async function withDataFreshness(answer: unknown): Promise<unknown> {
  * must return a {@link WriteOutcome}, so recording what changed is not something
  * an author can forget.
  *
- * Every write description states its idempotency, because a model retries on
- * timeout and has to know whether that is safe.
+ * Its effect is required for the same reason: a write cannot be added without
+ * its author deciding whether a retry is safe, whether it overwrites, and
+ * whether it reaches outside Jump (see {@link WriteEffect}).
  */
 function defineWrite<Shape extends z.ZodRawShape>(op: {
+  /** What it changes, without its repeat verdict: that sentence is composed from `repeat`. */
   description: string;
   shape: Shape;
   /** Bulk: dry run, then apply with the plan digest (see `plan.ts`). */
   twoStep?: true;
+  /** Whether a second identical call is harmless, and why when the reason is not obvious. */
+  repeat: { safe: boolean; because?: string };
+  destructive: boolean;
+  openWorld: boolean;
   run: (
     params: z.output<z.ZodObject<Shape>>,
     ctx: OperationContext,
   ) => Promise<WriteOutcome>;
 }): AdminApiOperation {
   return {
-    description: op.description,
+    description: `${op.description} ${repeatSentence(op.repeat)}`,
     schema: z.strictObject(op.shape),
     kind: 'write',
     leadership: false,
     untrustedText: false,
     twoStep: op.twoStep ?? false,
+    effect: {
+      repeatSafe: op.repeat.safe,
+      destructive: op.destructive,
+      openWorld: op.openWorld,
+    },
     run: (params, ctx) => op.run(params as z.output<z.ZodObject<Shape>>, ctx),
   };
+}
+
+/**
+ * The sentence every write description ends with, composed rather than written
+ * by hand so that no write can lack it and none can word it differently. It
+ * opens with "Changes data.", which is how the server instructions tell a model
+ * which tools change data: the name's prefix does not (an `ops_*` tool can).
+ */
+function repeatSentence(repeat: { safe: boolean; because?: string }): string {
+  const verdict = repeat.safe ? 'Safe to repeat' : 'NOT safe to repeat';
+  return `Changes data. ${verdict}${repeat.because ? `: ${repeat.because}.` : '.'}`;
 }
 
 /**
@@ -895,12 +944,19 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   // ── Writes ─────────────────────────────────────────────────────────────────
-  // Idempotency is stated in every description below, because a model retries
-  // on timeout and has to know whether that is safe.
+  // Each declares its effect (`repeat`, `destructive`, `openWorld`): the repeat
+  // verdict closes its description, because a model retries on timeout and has
+  // to know whether that is safe.
 
   write_event_config: defineWrite({
+    repeat: {
+      safe: true,
+      because: 'it sets values rather than adjusting them',
+    },
+    destructive: true,
+    openWorld: false,
     description:
-      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses and those that count as a visit, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call. Safe to repeat, it sets values rather than adjusting them. Answers with the state before and after.",
+      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses and those that count as a visit, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call.",
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
       // Unset is spelled one way, on both sides: null, as config_event_detail
@@ -1006,9 +1062,16 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_feedback_form: defineWrite({
+    repeat: {
+      safe: false,
+      because:
+        'creating one (no formId) makes another form each time, so keep the formId it answers with; on an existing form a retried apply no longer matches its digest',
+    },
+    destructive: true,
+    openWorld: true,
     twoStep: true,
     description:
-      'Create a feedback form, or replace one whole. Read it first with config_feedback_forms and its formId, change what must change, and send everything back: whatever is left out is removed. Without planDigest it answers with the form as it stands, the form that would replace it, and a planDigest; the apply is refused if the form was edited or answered in between. Once a form has responses its structure is frozen: wording and settings still change, but adding, removing or reordering a section, question or option, or changing what a question collects (key, type, required, identity field, input kind, selection bounds) is refused; copy it with write_feedback_form_copy, write the copy, then archive the original. A defect a frozen structure already carries is not refused, so wording, settings and archiving stay possible. The rules stated on the parameters are checked together and every refusal comes back at once. Retire a form by setting status to archived; nothing deletes one. Safe to repeat on an existing form, since a retried apply no longer matches its digest; creating (no formId) is NOT, so keep the formId it answers with. Answers with the form as written, ids included, and an "apercu" sentence linking to its preview.',
+      'Create a feedback form, or replace one whole. Read it first with config_feedback_forms and its formId, change what must change, and send everything back: whatever is left out is removed. Without planDigest it answers with the form as it stands, the form that would replace it, and a planDigest; the apply is refused if the form was edited or answered in between. Once a form has responses its structure is frozen: wording and settings still change, but adding, removing or reordering a section, question or option, or changing what a question collects (key, type, required, identity field, input kind, selection bounds) is refused; copy it with write_feedback_form_copy, write the copy, then archive the original. A defect a frozen structure already carries is not refused, so wording, settings and archiving stay possible. The rules stated on the parameters are checked together and every refusal comes back at once. Nothing deletes a form. Answers with the form as written, ids included, and an "apercu" sentence linking to its preview.',
     shape: {
       formId: z
         .string()
@@ -1079,8 +1142,15 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_feedback_form_copy: defineWrite({
+    repeat: {
+      safe: false,
+      because:
+        'every call makes another copy, so keep the formId it answers with',
+    },
+    destructive: false,
+    openWorld: false,
     description:
-      'Copy a feedback form whole into a new draft: the same sections, questions, options, persona and icon, none of its responses. The copy starts as a draft, closed to the public, with no dashboard nudge, and its title ends in « (copie) ». NOT safe to repeat: every call makes another copy, so keep the formId it answers with. Answers with the copy, ids included, and an "apercu" sentence linking to its preview.',
+      'Copy a feedback form whole into a new draft: the same sections, questions, options, persona and icon, none of its responses. The copy starts as a draft, closed to the public, with no dashboard nudge, and its title ends in « (copie) ». Answers with the copy, ids included, and an "apercu" sentence linking to its preview.',
     shape: {
       formId: z
         .string()
@@ -1091,8 +1161,14 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_diploma_template: defineWrite({
+    repeat: {
+      safe: true,
+      because: 'the same code and the same design leave one certificate',
+    },
+    destructive: true,
+    openWorld: false,
     description:
-      'Create or replace a certificate design, identified by its code: a code that does not exist yet creates one, an existing code replaces it. Refused, saying what is wrong, if it uses an unknown placeholder, references anything remote, carries markup that cannot be printed, or does not render. Safe to repeat: the same code and the same design leave one certificate. Answers with what was stored (code, label, page size), whether anything changed, what a printed page weighs (reported, never refused), and an "apercu" sentence carrying a link to its preview, to quote as the preview operation says. The design itself is not repeated: config_diploma_templates returns it.',
+      'Create or replace a certificate design, identified by its code: a code that does not exist yet creates one, an existing code replaces it. Refused, saying what is wrong, if it uses an unknown placeholder, references anything remote, carries markup that cannot be printed, or does not render. Answers with what was stored (code, label, page size), whether anything changed, what a printed page weighs (reported, never refused), and an "apercu" sentence carrying a link to its preview, to quote as the preview operation says. The design itself is not repeated: config_diploma_templates returns it.',
     shape: {
       code: z
         .string()
@@ -1140,8 +1216,11 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_workshop_instance: defineWrite({
+    repeat: { safe: true, because: 'the same call leaves the same instance' },
+    destructive: true,
+    openWorld: false,
     description:
-      "Declare or update one CTFd instance, the host online activities run on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and which supervisor code the catalogue shows; what the instance serves is write_workshop. The instance's /admin/workshop/jump page prints this call filled in: run that rather than typing values. Safe to repeat: the same call leaves the same instance. Answers with the instance before and after.",
+      "Declare or update one CTFd instance, the host online activities run on, identified by its slug: a slug that does not exist yet creates one, an existing slug updates its address. It says where Jump sends a talent and which supervisor code the catalogue shows; what the instance serves is write_workshop. The instance's /admin/workshop/jump page prints this call filled in: run that rather than typing values.",
     shape: {
       instance: z
         .string()
@@ -1172,7 +1251,10 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_workshop: defineWrite({
-    description: `Declare or update one online activity, the content a CTFd instance serves, identified by its slug: what a talent reads (its French name), the instance serving it, whether it is offered, how it presents itself on the talent dashboard (its cover) and how the subject catalogue of the dev space files it (level, notions, domains). The catalogue shows an activity once it is offered and has a tagline, a level, a domain and a picture, and its instance a supervisor code (write_workshop_instance); config_workshops says what each one still lacks. A slug that does not exist yet creates one; on an existing one only the fields you pass change. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content. The cover is a tagline (the one line its hero leads with, in place of the activity's name) and up to three pictures given as https addresses, which Jump downloads and copies so a talent's browser never loads anything from another host: media is the main visual, poster an optional still shown in its place to talents who reduce motion (without one, an animated visual shows its own first frame), mascot the subject's character. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Safe to repeat: the same call leaves the same activity. Answers with the activity before and after.`,
+    repeat: { safe: true, because: 'the same call leaves the same activity' },
+    destructive: true,
+    openWorld: true,
+    description: `Declare or update one online activity, the content a CTFd instance serves, identified by its slug: what a talent reads (its French name), the instance serving it, whether it is offered, how it presents itself on the talent dashboard (its cover) and how the subject catalogue of the dev space files it (level, notions, domains). The catalogue shows an activity once it is offered and has a tagline, a level, a domain and a picture, and its instance a supervisor code (write_workshop_instance); config_workshops says what each one still lacks. When an instance moves on to another content, declare that content as a new activity on the same instance and retire the old one with enabled false: every talent keeps the XP of the content they walked, filed under its own slug. It authors no subject content. Jump copies the cover's pictures. ${PICTURE_RULES} All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why.`,
     shape: {
       slug: z
         .string()
@@ -1257,8 +1339,11 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_workshop_domain: defineWrite({
+    repeat: { safe: true },
+    destructive: true,
+    openWorld: false,
     description:
-      'Create or update one domain of the subject catalogue by its key: a new key creates one (label required), on an existing one only the fields you pass change. To remove one, archive it: no activity is filed under it any more, those that carry it keep it. There is no delete. An activity gets its domains from write_workshop. Safe to repeat. Answers with the domain before and after.',
+      'Create or update one domain of the subject catalogue by its key: a new key creates one (label required), on an existing one only the fields you pass change. To remove one, archive it: no activity is filed under it any more, those that carry it keep it. There is no delete. An activity gets its domains from write_workshop.',
     shape: {
       domainKey: z
         .string()
@@ -1290,7 +1375,10 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_talent_home_note: defineWrite({
-    description: `Set or clear one campus's note on its talents' home (« le mot du campus »), the one message in the news card (« Actualités ») of every talent whose campus it is (a talent's campus is the one of their latest-dated event, upcoming ones included): welcome words, the next dates, a Discord link, pictures. The page adds no label or title of its own, so open with a heading when the message needs one. Markdown: headings, lists, emphasis, links to https:// or mailto:, and pictures written ![what it shows](https://…), at most ${TALENT_HOME_NOTE_MAX_IMAGES}. Jump copies each picture and talents see the copy, drawn whole and bounded in size in the card, larger when they open the message; the note keeps the address as written. ${PICTURE_RULES} Raw HTML is refused rather than stripped, so what is stored is exactly what talents read. At most ${TALENT_HOME_NOTE_MAX} characters, not counting the pictures' addresses. All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why. Pass markdown null to remove it. Safe to repeat: the same text leaves the same note. Answers with the note before and after.`,
+    repeat: { safe: true, because: 'the same text leaves the same note' },
+    destructive: true,
+    openWorld: true,
+    description: `Set or clear one campus's note on its talents' home (« le mot du campus »), the one message in the news card (« Actualités ») of every talent whose campus it is (a talent's campus is the one of their latest-dated event, upcoming ones included): welcome words, the next dates, a Discord link, pictures. The page adds no label or title of its own, so open with a heading when the message needs one. Markdown: headings, lists, emphasis, links to https:// or mailto:, and pictures written ![what it shows](https://…), at most ${TALENT_HOME_NOTE_MAX_IMAGES}. Jump copies each picture and talents see the copy, drawn whole and bounded in size in the card, larger when they open the message; the note keeps the address as written. ${PICTURE_RULES} Raw HTML is refused rather than stripped, so what is stored is exactly what talents read. At most ${TALENT_HOME_NOTE_MAX} characters, not counting the pictures' addresses. All or nothing: if one picture cannot be copied, nothing changes and the refusal says which and why.`,
     shape: {
       campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
       markdown: z
@@ -1304,7 +1392,10 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_talent_home_highlight: defineWrite({
-    description: `Set or clear the one event a campus puts forward on its talents' home, with a button that opens the sign-up form in a new tab: a JPO, the next Coding Club, a camp. It leads the home's blue hero on any day the talent has no activity. It is chosen by hand, never taken from Salesforce. Give title, summary and url to set it, and all three null with a null date to remove it; anything in between is refused. imageUrl is optional: an https picture Jump copies. ${PICTURE_RULES} Omitted, the highlight has none, and a picture that cannot be copied refuses the whole write. A dated highlight hides itself once its day has passed on the campus clock, so nothing has to be cleaned up afterwards, and a day already past is refused. Safe to repeat: the same values leave the same highlight. Answers with the highlight before and after.`,
+    repeat: { safe: true, because: 'the same values leave the same highlight' },
+    destructive: true,
+    openWorld: true,
+    description: `Set or clear the one event a campus puts forward on its talents' home, with a button that opens the sign-up form in a new tab: a JPO, the next Coding Club, a camp. It leads the home's blue hero on any day the talent has no activity. It is chosen by hand, never taken from Salesforce. Give title, summary and url to set it, and all three null with a null date to remove it; anything in between is refused. Jump copies its picture. ${PICTURE_RULES} A picture that cannot be copied refuses the whole write. A dated highlight hides itself once its day has passed on the campus clock, so nothing has to be cleaned up afterwards, and a day already past is refused.`,
     shape: {
       campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
       title: z
@@ -1312,14 +1403,14 @@ export const ADMIN_API_OPERATIONS = {
         .max(HIGHLIGHT_TITLE_MAX)
         .nullable()
         .describe(
-          'What the event is, in French, at most 80 characters, e.g. "Recode le jeu Snake en JS".',
+          'What the event is, in French, e.g. "Recode le jeu Snake en JS".',
         ),
       summary: z
         .string()
         .max(HIGHLIGHT_SUMMARY_MAX)
         .nullable()
         .describe(
-          'What happens there and why come, in French addressing the talent as « tu », at most 300 characters.',
+          'What happens there and why come, in French addressing the talent as « tu ».',
         ),
       date: z
         .string()
@@ -1342,8 +1433,14 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_closing_question: defineWrite({
+    repeat: {
+      safe: true,
+      because: 'the same key and the same content leave one question',
+    },
+    destructive: true,
+    openWorld: false,
     description:
-      'Create or replace one question of the closing bank, identified by its key: a key that does not exist yet creates one, an existing key replaces it. Refused, saying what is wrong, if it uses an unknown valence or pictogram, or if it changes the type or drops an option of a question students have already answered. Wording stays editable on purpose. Safe to repeat: the same key and the same content leave one question. Answers with the question before and after.',
+      'Create or replace one question of the closing bank, identified by its key: a key that does not exist yet creates one, an existing key replaces it. Refused, saying what is wrong, if it uses an unknown valence or pictogram, or if it changes the type or drops an option of a question students have already answered. Wording stays editable on purpose.',
     shape: {
       questionKey: z
         .string()
@@ -1430,9 +1527,16 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_closing_template: defineWrite({
+    repeat: {
+      safe: true,
+      because:
+        'an apply retried after it has landed is refused, since the digest no longer matches the world',
+    },
+    destructive: true,
+    openWorld: false,
     twoStep: true,
     description:
-      'Create or replace a closing grid, identified by its key: which bank questions it asks, in which sections, in what order. Call it WITHOUT planDigest first: it answers with the grid as it stands, the composition that would replace it, and a planDigest. Show that to the human, then call again with the digest to apply. The apply is refused if the grid has been recomposed in between, because a grid is replaced whole and the other edit would be lost without a trace. Refused too if it names a question that does not exist or has been retired, asks the same one twice, marks more than one as quotable, or asks nothing at all. Composing a grid never touches an answer already recorded. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world. Answers with the composition before and after.',
+      'Create or replace a closing grid, identified by its key: which bank questions it asks, in which sections, in what order. Call it WITHOUT planDigest first: it answers with the grid as it stands, the composition that would replace it, and a planDigest. The apply is refused if the grid has been recomposed in between, because a grid is replaced whole and the other edit would be lost without a trace. Refused too if it names a question that does not exist or has been retired, asks the same one twice, marks more than one as quotable, or asks nothing at all. Composing a grid never touches an answer already recorded.',
     shape: {
       templateKey: z
         .string()
@@ -1493,8 +1597,11 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_event_template: defineWrite({
+    repeat: { safe: true },
+    destructive: true,
+    openWorld: false,
     description:
-      'Create, edit or archive one event-configuration preset, by its name. It starts from the event named by eventId if given (capturing it as it stands), else from the preset as stored; the fields you pass are then laid over it, with the same patch semantics as write_event_config. So a preset can be written from values alone, or captured from an event and adjusted in one call. Creating one needs eventId or modules. To retire one, archive it: there is no delete. Safe to repeat. Answers with the preset before and after.',
+      'Create, edit or archive one event-configuration preset, by its name. It starts from the event named by eventId if given (capturing it as it stands), else from the preset as stored; the fields you pass are then laid over it, with the same patch semantics as write_event_config. So a preset can be written from values alone, or captured from an event and adjusted in one call. Creating one needs eventId or modules. To retire one, archive it: there is no delete.',
     shape: {
       name: z
         .string()
@@ -1602,8 +1709,11 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_event_category: defineWrite({
+    repeat: { safe: true },
+    destructive: true,
+    openWorld: false,
     description:
-      'Create or update one event category by its key: a new key creates one (label and color required), on an existing one only the fields you pass change. To remove one, archive it: no event is given it any more, those that carry it keep it. There is no delete. An event gets its category from write_event_config or bulk_event_config. Safe to repeat. Answers with the category before and after.',
+      'Create or update one event category by its key: a new key creates one (label and color required), on an existing one only the fields you pass change. To remove one, archive it: no event is given it any more, those that carry it keep it. There is no delete. An event gets its category from write_event_config or bulk_event_config.',
     shape: {
       categoryKey: z
         .string()
@@ -1642,8 +1752,11 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_email_action: defineWrite({
+    repeat: { safe: true },
+    destructive: true,
+    openWorld: false,
     description:
-      'Choose the mail template one transactional mail sends from. Refused for a template missing a variable the mail cannot do without, and for unlinking such a mail. Safe to repeat. Answers with the link before and after.',
+      'Choose the mail template one transactional mail sends from. Refused for a template missing a variable the mail cannot do without, and for unlinking such a mail.',
     shape: {
       emailAction: z
         .enum(EMAIL_ACTION_KEYS as [string, ...string[]])
@@ -1659,8 +1772,11 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_interest: defineWrite({
+    repeat: { safe: true },
+    destructive: true,
+    openWorld: false,
     description:
-      "Create, rename or archive one centre d'intérêt. Without interestId it creates one; with it, only the fields you pass change. Archived, it is no longer offered and its talents keep it; there is no delete. Safe to repeat. Answers with it before and after.",
+      "Create, rename or archive one centre d'intérêt. Without interestId it creates one; with it, only the fields you pass change. Archived, it is no longer offered and its talents keep it; there is no delete.",
     shape: {
       interestId: z
         .string()
@@ -1705,8 +1821,11 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_campus: defineWrite({
+    repeat: { safe: true },
+    destructive: true,
+    openWorld: false,
     description:
-      'Create a campus or change its configuration, by name: an unknown name creates one, otherwise only the fields you pass change. remove deletes one, refused while anything references it. Safe to repeat. Answers with the campus before and after.',
+      'Create a campus or change its configuration, by name: an unknown name creates one, otherwise only the fields you pass change. remove deletes one, refused while anything references it.',
     shape: {
       campus: z
         .string()
@@ -1757,8 +1876,11 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_admin_digest_recipient: defineWrite({
+    repeat: { safe: true },
+    destructive: true,
+    openWorld: false,
     description:
-      'Choose whether one admin receives the weekly admin digest, from the next Monday on. Only an admin account can, since its links need a staff session; one who loses the role stops receiving it with nothing to undo. Safe to repeat.',
+      'Choose whether one admin receives the weekly admin digest, from the next Monday on. Only an admin account can, since its links need a staff session; one who loses the role stops receiving it with nothing to undo.',
     shape: {
       address: z.string().min(1).describe(handleDescribe('adminAddress')),
       receivesDigest: z
@@ -1769,8 +1891,14 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_retry_pdf_job: defineWrite({
+    repeat: {
+      safe: true,
+      because: 'a document already generated is refused rather than rebuilt',
+    },
+    destructive: true,
+    openWorld: false,
     description:
-      'Regenerate one onboarding document that failed or got stuck. Sends no message to anyone, it only rebuilds a file. Safe to repeat: a document already generated is refused rather than rebuilt. Answers with the resulting state, including the error if it failed again.',
+      'Regenerate one onboarding document that failed or got stuck. Sends no message to anyone, it only rebuilds a file. Answers with the resulting state, including the error if it failed again.',
     shape: {
       jobId: z.string().min(1).describe(handleDescribe('pdfJobId')),
     },
@@ -1778,7 +1906,14 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_sync_source: defineWrite({
-    description: `Add a Salesforce campaign to the synchronised perimeter, move it to another campus, rename it, or switch it off. Switching off sets a flag, it deletes nothing, so it can be switched back on. Safe to repeat: this is an upsert on the campaign id, so the same call twice leaves the same row. Adding one requires both campus and kind; changing an existing one only sends what changes. Takes effect at ${NEXT_WORKER_WAKE_UP}.`,
+    repeat: {
+      safe: true,
+      because:
+        'this is an upsert on the campaign id, so the same call twice leaves the same row',
+    },
+    destructive: true,
+    openWorld: false,
+    description: `Add a Salesforce campaign to the synchronised perimeter, move it to another campus, rename it, or switch it off. Switching off sets a flag, it deletes nothing, so it can be switched back on. Adding one requires both campus and kind; changing an existing one only sends what changes. Takes effect at ${NEXT_WORKER_WAKE_UP}.`,
     shape: {
       salesforceCampaignId: z
         .string()
@@ -1816,8 +1951,11 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_sync_member_status: defineWrite({
+    repeat: { safe: true, because: 'an upsert on the word' },
+    destructive: true,
+    openWorld: false,
     description:
-      'Add a Salesforce member status to the words Jump knows, or change whether newly created events show it and count it as a visit. A word Jump does not know is masked everywhere and reported by stats_sync_health; adding it stops the report but shows it on no existing event: write_event_config or bulk_event_config does that. Safe to repeat: an upsert on the word. Nothing is ever deleted.',
+      'Add a Salesforce member status to the words Jump knows, or change whether newly created events show it and count it as a visit. A word Jump does not know is masked everywhere and reported by stats_sync_health; adding it stops the report but shows it on no existing event: write_event_config or bulk_event_config does that. Nothing is ever deleted.',
     shape: {
       memberStatus: z
         .string()
@@ -1842,7 +1980,10 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_sync_cadence: defineWrite({
-    description: `How often one synchronisation pass runs, in minutes. The incremental pass keeps data fresh; the full pass is the only one that detects a member removed in Salesforce, so spacing it out delays deletions. For one pass now, use ops_request_sync: a lowered cadence stays until someone raises it. Safe to repeat: the same value twice is the same row. Takes effect at ${NEXT_WORKER_WAKE_UP}.`,
+    repeat: { safe: true, because: 'the same value twice is the same row' },
+    destructive: true,
+    openWorld: false,
+    description: `How often one synchronisation pass runs, in minutes. The incremental pass keeps data fresh; the full pass is the only one that detects a member removed in Salesforce, so spacing it out delays deletions. For one pass now, use ops_request_sync: a lowered cadence stays until someone raises it. Takes effect at ${NEXT_WORKER_WAKE_UP}.`,
     shape: {
       mode: z
         .enum(['full', 'incremental'])
@@ -1862,7 +2003,13 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_request_sync: defineWrite({
-    description: `Ask the synchronisation worker for one pass of the given kind at ${NEXT_WORKER_WAKE_UP}, without changing any cadence. Use it when someone needs a change made in Salesforce to reach Jump now rather than at the next scheduled pass. The request is satisfied by the first successful pass that starts after it, after which the configured cadences apply again with nothing to restore; a pass that fails leaves it pending. stats_sync_health shows whether a request is pending and what the worker will do next. Safe to repeat: asking again before it runs still yields one pass.`,
+    repeat: {
+      safe: true,
+      because: 'asking again before it runs still yields one pass',
+    },
+    destructive: true,
+    openWorld: false,
+    description: `Ask the synchronisation worker for one pass of the given kind at ${NEXT_WORKER_WAKE_UP}, without changing any cadence. Use it when someone needs a change made in Salesforce to reach Jump now rather than at the next scheduled pass. The request is satisfied by the first successful pass that starts after it, after which the configured cadences apply again with nothing to restore; a pass that fails leaves it pending. stats_sync_health shows whether a request is pending and what the worker will do next.`,
     shape: {
       mode: z
         .enum(['full', 'incremental'])
@@ -1874,7 +2021,13 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_release_prune_hold: defineWrite({
-    description: `Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted once those contacts are completed in Salesforce, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to ${NEXT_WORKER_WAKE_UP}. Safe to repeat: releasing an already released hold changes nothing. Refused when the event has no held deletions, or when the held roster was not empty.`,
+    repeat: {
+      safe: true,
+      because: 'releasing an already released hold changes nothing',
+    },
+    destructive: true,
+    openWorld: false,
+    description: `Confirm that the enrolments a full synchronisation pass held back on one event really are gone, so the next full pass deletes them. A full pass only deletes enrolments missing from Salesforce when the roster it received is complete; otherwise it keeps them and lists the event in stats_sync_health (prunesHeld). Use this when the campaign was genuinely emptied in Salesforce. Only a hold over an empty roster can be released: one over members Jump could not match is lifted once those contacts are completed in Salesforce, after which the next full pass prunes by itself. It deletes nothing by itself: the next full pass applies the deletions if the roster it receives is still empty. That pass comes at the full cadence; ops_request_sync with mode "full" brings it forward to ${NEXT_WORKER_WAKE_UP}. Refused when the event has no held deletions, or when the held roster was not empty.`,
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },
@@ -1882,7 +2035,14 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_resolve_schools: defineWrite({
-    description: `Retry the national directory lookup for high schools Jump only knows by a fallback name, so they stop being invisible in the reach figures. Touches at most ${SCHOOL_RESOLVE_LIMIT} per call. Safe to repeat: a school that resolves drops out of the queue, one the directory still does not know is simply retried.`,
+    repeat: {
+      safe: true,
+      because:
+        'a school that resolves drops out of the queue, one the directory still does not know is simply retried',
+    },
+    destructive: true,
+    openWorld: true,
+    description: `Retry the national directory lookup for high schools Jump only knows by a fallback name, so they stop being invisible in the reach figures. Touches at most ${SCHOOL_RESOLVE_LIMIT} per call.`,
     shape: {
       limit: z.coerce
         .number()
@@ -1896,8 +2056,14 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_reset_closing: defineWrite({
+    repeat: {
+      safe: true,
+      because: 'a second call finds no closing and is refused',
+    },
+    destructive: true,
+    openWorld: false,
     description:
-      'Discard one closing so a fresh one can be conducted. NOT safe to repeat and NOT reversible: the answers are deleted, not archived. The closing id is read off the admin closings page; no operation returns one. A reason is required and is kept in the trail.',
+      'Discard one closing so a fresh one can be conducted. Not reversible: the answers are deleted, not archived. The closing id is read off the admin closings page; no operation returns one. A reason is required and is kept in the trail.',
     shape: {
       closingId: z.string().min(1).describe(handleDescribe('closingId')),
       reason: z
@@ -1910,8 +2076,15 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   bulk_event_config: defineWrite({
+    repeat: {
+      safe: true,
+      because:
+        'an apply retried after it has landed is refused, since the digest no longer matches the world',
+    },
+    destructive: true,
+    openWorld: false,
     twoStep: true,
-    description: `Change the configuration of many events in one plan, named by eventIds or matched by a filter: their dev-workspace sections, the Salesforce statuses they show, their category, and whether the dev workspace shows them. Patch semantics: only the fields you pass change. Call it without planDigest for the list of events that would change and how (events that cannot be shown are listed with what they lack, judged after the sections this call sets), then with the planDigest to apply it all in one transaction. At most ${BULK_EVENTS_LIMIT} events per call. Retrying an apply after it has landed is refused rather than repeated, since the digest no longer matches the world.`,
+    description: `Change the configuration of many events in one plan, named by eventIds or matched by a filter: their dev-workspace sections, the Salesforce statuses they show, their category, and whether the dev workspace shows them. Patch semantics: only the fields you pass change. Call it without planDigest for the list of events that would change and how (events that cannot be shown are listed with what they lack, judged after the sections this call sets), then with the planDigest to apply it all in one transaction. At most ${BULK_EVENTS_LIMIT} events per call.`,
     shape: {
       eventIds: z
         .array(z.string().min(1))
@@ -1994,7 +2167,7 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   ops_api_usage: defineOperation({
-    description: `This API's own call log, aggregated: how many calls over the window, how many were refused or failed, and the breakdown per operation, per token and per day. Also lists the catalogue operations nobody called, the ones with the highest refusal rate, and the operation names callers reached for that do not exist - the last two being where a question this API answers badly, or not at all, shows up. Window defaults to ${API_USAGE_DEFAULT_DAYS} days, ${API_USAGE_MAX_DAYS} maximum.`,
+    description: `This API's own call log, aggregated: how many calls over the window, how many were refused or failed, and the breakdown per operation, per token and per day. Also lists the catalogue operations nobody called, the ones with the highest refusal rate, and the operation names callers reached for that do not exist - the last two being where a question this API answers badly, or not at all, shows up - and how often a refused token got an answer within minutes, overall and per operation, which says whether a refusal's message told it what to do next. Window defaults to ${API_USAGE_DEFAULT_DAYS} days, ${API_USAGE_MAX_DAYS} maximum.`,
     shape: {
       days: z.coerce
         .number()

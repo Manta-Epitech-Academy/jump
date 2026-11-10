@@ -30,9 +30,11 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
 import {
   ADMIN_API_OPERATIONS,
   operationsOfferedTo,
+  type AdminApiOperation,
   type AdminApiOperationName,
   type AdminApiTier,
 } from './operations';
@@ -41,7 +43,7 @@ import { executeOperation } from './execute';
 import { type AdminApiCredential } from './guard';
 
 export const MCP_SERVER_NAME = 'jump-admin';
-export const MCP_SERVER_VERSION = '3.0.0';
+export const MCP_SERVER_VERSION = '3.1.0';
 
 /**
  * The standing instructions, declared once for the whole server instead of
@@ -105,13 +107,13 @@ const CORE_INSTRUCTIONS = [
   '',
   ...SHARED_INSTRUCTIONS,
   '',
-  'Tools whose name starts with write_ or bulk_ change data. Every one of them is',
-  'logged with what it changed, each states in its description whether repeating',
-  'it is safe, and each answers with the resulting state: report that state rather',
-  'than asserting success. A tool that takes a planDigest (every bulk_ tool, and',
-  'the writes that replace a whole structure) must first be called without it to',
-  'obtain a plan; show that plan to the human, and only then call it again with',
-  'the digest it returned.',
+  'A tool changes data when its description contains the sentence "Changes data.",',
+  'whatever its name; the sentence after it says whether repeating it is safe.',
+  'Every such call is logged with what it changed and answers with the state',
+  'before and after, unless its description names another answer: report that',
+  'state rather than asserting success. A tool that takes a planDigest must first',
+  'be called without it to obtain a plan; show that plan to the human, and only',
+  'then call it again with the digest it returned.',
 ];
 
 const LEADERSHIP_INSTRUCTIONS = [
@@ -186,6 +188,34 @@ function toolContent(
   ];
 }
 
+/**
+ * The effect of a tool in the terms the protocol gives a client.
+ *
+ * Every hint is set, never left to its default: the spec defaults a tool to
+ * neither read-only nor idempotent, destructive and open-world, so a tool that
+ * says nothing reads to a client as the most dangerous kind there is. A read
+ * stops at Jump's own data; a write says what its author declared on its entry.
+ * These go to the client, which decides what to confirm with them, not to the
+ * model: the model reads the same facts in the description `defineWrite`
+ * composes.
+ */
+export function toolAnnotations(operation: AdminApiOperation): ToolAnnotations {
+  if (!operation.effect) {
+    return {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    };
+  }
+  return {
+    readOnlyHint: false,
+    destructiveHint: operation.effect.destructive,
+    idempotentHint: operation.effect.repeatSafe,
+    openWorldHint: operation.effect.openWorld,
+  };
+}
+
 export function buildAdminMcpServer(
   credential: AdminApiCredential,
   /** Origin of the JSON-RPC request, so an answer can link back to this instance. */
@@ -204,7 +234,11 @@ export function buildAdminMcpServer(
   })) {
     server.registerTool(
       name,
-      { description: operation.description, inputSchema: operation.schema },
+      {
+        description: operation.description,
+        inputSchema: operation.schema,
+        annotations: toolAnnotations(operation),
+      },
       // Authorisation (per call, because what a tier may reach is a property
       // of the operation and not of the connection; a token revoked or an
       // owner demoted mid-conversation is caught a layer up, by the

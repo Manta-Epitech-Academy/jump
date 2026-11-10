@@ -101,8 +101,11 @@ describe('the admin MCP server (integration)', () => {
     const names = tools.map((t) => t.name);
 
     expect(names).toContain('stats_sync_health');
-    expect(names.some((n) => n.startsWith('write_'))).toBe(false);
-    expect(names.some((n) => n.startsWith('bulk_'))).toBe(false);
+    // As the transport declares it, not as the names suggest: an ops_* tool can
+    // be a write, and a read-only hint is what a client acts on.
+    for (const tool of tools) {
+      expect(tool.annotations?.readOnlyHint, tool.name).toBe(true);
+    }
   });
 
   // The strict schema is not just enforced, it is advertised: a model is told up

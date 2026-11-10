@@ -4,8 +4,8 @@
  *
  * Each delegates to the service the admin pages already use, so a repair made
  * from a chat is the same repair a human would have made from the screen.
- * Idempotency is stated per write below, because a model retries on timeout and
- * has to know whether that is safe.
+ * Whether retrying each one is safe is declared on its catalogue entry
+ * (`repeat` in `operations.ts`); the comments below say why it holds.
  */
 
 import { prisma } from '$lib/server/db';
@@ -122,9 +122,10 @@ export async function resolveSchools(params: {
 // ── Reset a closing ──────────────────────────────────────────────────────────
 
 /**
- * NOT safe to repeat, and the only write here that destroys anything: the
- * closing row is deleted so the talent returns to "à faire" and a fresh one can
- * be conducted. The answers do not come back.
+ * The only write here that destroys anything: the closing row is deleted so the
+ * talent returns to "à faire" and a fresh one can be conducted. The answers do
+ * not come back. Safe to repeat all the same, since repeating is not undoing: a
+ * second call finds no closing under that id and is refused below.
  *
  * Two things keep that defensible. The id can only come from the admin closings
  * page, since no operation in this tier returns one, so a model cannot pick a
