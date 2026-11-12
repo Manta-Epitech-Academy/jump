@@ -129,18 +129,15 @@
 
             {#if activity.totalSteps > 0}
               <!-- The 2027 mockup's step panel: a darker inset on the blue,
-                   the count in mono neon, one segment per step. Past
-                   `MAX_SEGMENTS` a segment is too thin to read as a step, so
-                   the bar is drawn whole. -->
+                   the count in mono neon opening the sentence, one segment
+                   per step. Past `MAX_SEGMENTS` a segment is too thin to read
+                   as a step, so the bar is drawn whole. -->
               <div class="max-w-md rounded-lg bg-epi-dark/35 px-4 py-3">
-                <p
-                  class="flex items-baseline justify-between gap-3 text-sm text-white"
-                >
-                  Étapes validées
+                <p class="text-sm text-white">
                   <span
                     class="font-mono font-bold whitespace-nowrap text-epi-tech"
                     >{activity.solvedSteps} / {activity.totalSteps}</span
-                  >
+                  > étapes validées
                 </p>
                 <div
                   class="mt-2 flex h-2 gap-1"
