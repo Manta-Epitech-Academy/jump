@@ -2298,7 +2298,7 @@ export const ADMIN_API_OPERATIONS = {
 
   stats_engagement: defineOperation({
     description:
-      'How much the cohort uses the platform: how many earned experience points and their median, the split by internal XP tier, minigame attempts and how many talents ever played, plus which games are in the daily rotation.',
+      'How much the cohort uses the platform: how many earned experience points and their median, the split across the five Jump levels a talent sees (Explorer to Expert), minigame attempts and how many talents ever played, plus which games are in the daily rotation.',
     shape: { schoolYear, campus, eventId },
     run: async (params) => getEngagement(await resolveScope(params)),
   }),

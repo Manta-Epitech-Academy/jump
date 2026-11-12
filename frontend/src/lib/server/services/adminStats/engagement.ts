@@ -6,10 +6,9 @@
  * from), and which games are in rotation (without which the attempt counts are
  * unreadable, since a game nobody plays may simply never have been published).
  *
- * XP tiers are read from `domain/xp`, so the bands here are the bands the app
- * uses. The tier names are deliberately not translated or dressed up: they are
- * internal vocabulary, never shown to a talent, and this operation is core-team
- * only.
+ * Levels are read from `domain/xp`, so the bands here are the ones a talent
+ * sees on their own progress. Their names are kept as they are, untranslated,
+ * because they are the names the talent reads.
  */
 
 import { prisma } from '$lib/server/db';
@@ -145,7 +144,7 @@ export async function getEngagement(scope: Scope = {}): Promise<Engagement> {
         talents: count,
         share: share(count, cohort),
       })),
-      "Répartition des talents du périmètre par palier d'XP, avec les bornes de chaque palier. Ce sont des paliers internes, jamais affichés aux élèves ; tout le monde y figure, y compris à zéro XP.",
+      "Répartition des talents du périmètre entre les cinq niveaux Jump, d'Explorer à Expert, avec les bornes en XP de chaque niveau. C'est le niveau que chaque talent voit sur sa progression ; tout le monde y figure, y compris à zéro XP.",
     ),
     attempts: metric(
       attempts,
