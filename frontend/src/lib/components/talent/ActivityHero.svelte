@@ -16,7 +16,7 @@
   // Club is designed for them to carry on at home (`continue`). A talent
   // arriving on an event day should have no doubt about where to click, so this
   // is the one full-bleed blue surface of the page and the one neon button, and
-  // it looks like nothing else on it: the daily training is a small tile
+  // it looks like nothing else on it: the daily training is a white card
   // among the talent's own cards. Nor does anything share it on the day: the
   // campus's highlighted event waits for a day without an activity.
   //
@@ -61,6 +61,8 @@
   }
 
   const started = (a: WorkshopActivity) => a.startedAt !== null;
+  // Beyond this many steps, a segment per step stops reading as one.
+  const MAX_SEGMENTS = 12;
   const progress = (a: WorkshopActivity) =>
     a.totalSteps > 0 ? Math.round((a.solvedSteps / a.totalSteps) * 100) : 0;
 </script>
@@ -126,23 +128,50 @@
             </div>
 
             {#if activity.totalSteps > 0}
-              <div class="max-w-sm">
+              <!-- The 2027 mockup's step panel: a darker inset on the blue,
+                   the count in mono neon, one segment per step. Past
+                   `MAX_SEGMENTS` a segment is too thin to read as a step, so
+                   the bar is drawn whole. -->
+              <div class="max-w-md rounded-lg bg-epi-dark/35 px-4 py-3">
+                <p
+                  class="flex items-baseline justify-between gap-3 text-sm text-white"
+                >
+                  Étapes validées
+                  <span
+                    class="font-mono font-bold whitespace-nowrap text-epi-tech"
+                    >{activity.solvedSteps} / {activity.totalSteps}</span
+                  >
+                </p>
                 <div
-                  class="h-2 w-full bg-white/20"
+                  class="mt-2 flex h-2 gap-1"
                   role="progressbar"
                   aria-valuemin={0}
                   aria-valuemax={activity.totalSteps}
                   aria-valuenow={activity.solvedSteps}
                   aria-label="Étapes validées"
                 >
-                  <div
-                    class="h-full bg-epi-tech transition-ui duration-300"
-                    style:width="{progress(activity)}%"
-                  ></div>
+                  {#if activity.totalSteps <= MAX_SEGMENTS}
+                    {#each Array.from({ length: activity.totalSteps }, (_, i) => i) as step (step)}
+                      <span
+                        class={cn(
+                          'flex-1 rounded-full transition-ui',
+                          step < activity.solvedSteps
+                            ? 'bg-epi-tech'
+                            : 'bg-white/25',
+                        )}
+                      ></span>
+                    {/each}
+                  {:else}
+                    <span
+                      class="flex-1 overflow-hidden rounded-full bg-white/25"
+                    >
+                      <span
+                        class="block h-full w-(--progress) bg-epi-tech transition-ui"
+                        style:--progress="{progress(activity)}%"
+                      ></span>
+                    </span>
+                  {/if}
                 </div>
-                <p class="mt-2 text-sm font-semibold text-white">
-                  {activity.solvedSteps} / {activity.totalSteps} étapes validées
-                </p>
               </div>
             {:else}
               <p class="text-sm text-white/80">
