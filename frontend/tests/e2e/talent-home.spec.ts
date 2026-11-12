@@ -23,7 +23,7 @@ test.describe('un talent dont l’événement a lieu aujourd’hui', () => {
     await page.goto('/');
 
     // The campus's message stands on its own words: no label of the page's.
-    const news = page.getByRole('region', { name: /Actualités/ });
+    const news = page.getByRole('region', { name: /Actualité/ });
     await expectLeavesSafely(
       news.getByRole('link', { name: 'le Discord du campus' }),
       E2E.homeNoteLink,
@@ -46,9 +46,14 @@ test.describe('un talent dont l’événement a lieu aujourd’hui', () => {
     // counts what is left and leads to the list.
     await expect(page.getByText('Mes activités')).toHaveCount(0);
 
-    await page
-      .getByRole('link', { name: /Mon parcours.*1 activité à faire/ })
-      .click();
+    const parcours = page.getByRole('link', {
+      name: /Mon parcours.*1 activité à faire/,
+    });
+    // The card carries the level Jump computes from the XP, whatever it is.
+    await expect(
+      parcours.getByRole('img', { name: /^Badge du niveau / }),
+    ).toBeVisible();
+    await parcours.click();
     await expect(page).toHaveURL(/\/parcours$/);
     await expect(
       page.getByRole('heading', { name: 'Mon parcours' }),
