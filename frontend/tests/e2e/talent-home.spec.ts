@@ -46,9 +46,14 @@ test.describe('un talent dont l’événement a lieu aujourd’hui', () => {
     // counts what is left and leads to the list.
     await expect(page.getByText('Mes activités')).toHaveCount(0);
 
-    await page
-      .getByRole('link', { name: /Mon parcours.*1 activité à faire/ })
-      .click();
+    const parcours = page.getByRole('link', {
+      name: /Mon parcours.*1 activité à faire/,
+    });
+    // The card carries the level Jump computes from the XP, whatever it is.
+    await expect(
+      parcours.getByRole('img', { name: /^Badge du niveau / }),
+    ).toBeVisible();
+    await parcours.click();
     await expect(page).toHaveURL(/\/parcours$/);
     await expect(
       page.getByRole('heading', { name: 'Mon parcours' }),
