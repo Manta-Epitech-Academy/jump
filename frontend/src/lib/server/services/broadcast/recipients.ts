@@ -11,7 +11,7 @@ import type {
   RecipientExclusionReason,
   RecipientRole,
 } from '$lib/domain/broadcasts';
-import { xpRangeForLevel } from '$lib/domain/xp';
+import { levelXpFilter } from '$lib/domain/xp';
 import {
   parentBlockedWhere,
   parentCompleteWhere,
@@ -221,17 +221,10 @@ function talentWhere(spec: RecipientSpec): Prisma.TalentWhereInput {
   const and: Prisma.TalentWhereInput[] = [];
 
   if (f.niveau?.length) and.push({ niveau: { in: f.niveau } });
-  // Level is derived from xp (no stored column): translate each chosen tier
+  // Level is derived from xp (no stored column): translate each chosen level
   // into its xp range and OR them together.
   if (f.jumpLevel?.length) {
-    and.push({
-      OR: f.jumpLevel.map((lvl) => {
-        const { min, maxExclusive } = xpRangeForLevel(lvl);
-        return maxExclusive === null
-          ? { xp: { gte: min } }
-          : { xp: { gte: min, lt: maxExclusive } };
-      }),
-    });
+    and.push({ OR: f.jumpLevel.map((lvl) => ({ xp: levelXpFilter(lvl) })) });
   }
   if (f.charterSigned === 'yes') and.push({ charterAcceptedAt: { not: null } });
   if (f.charterSigned === 'no') and.push({ charterAcceptedAt: null });

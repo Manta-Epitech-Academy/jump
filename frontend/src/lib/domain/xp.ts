@@ -96,14 +96,18 @@ export function minigameRankBonus(rank: number, fieldSize: number): number {
 }
 
 /**
- * Talent level tiers, derived purely from XP. Single source of truth: the
- * `Talent.level` column was dropped (it was never written and always read
- * 'Novice'). `JUMP_LEVELS` (used by the broadcast audience filter),
- * `computeLevel`, `levelProgress` and `xpRangeForLevel` all read the table
- * below, so display, filtering and DB stay consistent and a threshold is
- * written once.
+ * The five Jump levels, lowest first, derived purely from XP and never stored
+ * (`Talent.level` was dropped), and never shown in the dev workspace. This
+ * tuple fixes their order; it stays a literal because `z.enum` needs one for
+ * the broadcast audience filter.
  */
-export const JUMP_LEVELS = ['Novice', 'Apprentice', 'Expert'] as const;
+export const JUMP_LEVELS = [
+  'Explorer',
+  'Maker',
+  'Hacker',
+  'Builder',
+  'Expert',
+] as const;
 export type JumpLevel = (typeof JUMP_LEVELS)[number];
 
 /**
@@ -115,75 +119,112 @@ export type JumpLevel = (typeof JUMP_LEVELS)[number];
 export type LevelTone = 'tech' | 'together' | 'tomorrow' | 'blue' | 'dark';
 
 /**
- * Ordered by `min`, the first at 0: a tier runs up to the next one's `min`, and
- * the last is open-ended. The tones are the mockup's first, second and last
- * levels, so the lowest and the highest tier look the way they will once the
- * five levels land (#446).
+ * Where each level starts, its colour, and the line a talent reads under its
+ * name. The only place a threshold is written: every bound, the level of an XP
+ * total and the progress towards the next one are read off this table, keyed
+ * by level so that a level without its row does not compile. Thresholds, tones
+ * and lines come from the 2027 mockup (#446); the PO set them on 27/10/2026.
+ * They count every XP alike, whatever earned it.
  */
-const XP_LEVEL_TIERS: { level: JumpLevel; min: number; tone: LevelTone }[] = [
-  { level: 'Novice', min: 0, tone: 'tech' },
-  { level: 'Apprentice', min: 200, tone: 'together' },
-  { level: 'Expert', min: 500, tone: 'dark' },
-];
+const JUMP_LEVEL_TIERS: Record<
+  JumpLevel,
+  { min: number; tone: LevelTone; tagline: string }
+> = {
+  Explorer: {
+    min: 0,
+    tone: 'tech',
+    tagline: 'Tu découvres le code et le campus.',
+  },
+  Maker: {
+    min: 2500,
+    tone: 'together',
+    tagline: 'Tu crées tes premiers projets.',
+  },
+  Hacker: {
+    min: 10000,
+    tone: 'tomorrow',
+    tagline: 'Tu relèves des défis techniques.',
+  },
+  Builder: {
+    min: 25000,
+    tone: 'blue',
+    tagline: 'Tu mènes des projets ambitieux.',
+  },
+  Expert: {
+    min: 50000,
+    tone: 'dark',
+    tagline: 'Tu maîtrises et tu transmets.',
+  },
+};
 
-/** Index of the tier an XP total falls in. A negative total is the first. */
-function tierIndex(xp: number): number {
-  let index = 0;
-  XP_LEVEL_TIERS.forEach((tier, i) => {
-    if (xp >= tier.min) index = i;
-  });
-  return index;
+/** The level after `level`, or null at the top. */
+function nextLevel(level: JumpLevel): JumpLevel | null {
+  return JUMP_LEVELS[JUMP_LEVELS.indexOf(level) + 1] ?? null;
 }
 
-/**
- * Maps an XP total to its level tier. The only place levels are decided.
- */
+/** The level an XP total has reached. A negative total is the first. */
 export function computeLevel(xp: number): JumpLevel {
-  return XP_LEVEL_TIERS[tierIndex(xp)].level;
+  let reached: JumpLevel = JUMP_LEVELS[0];
+  for (const level of JUMP_LEVELS) {
+    if (xp >= JUMP_LEVEL_TIERS[level].min) reached = level;
+  }
+  return reached;
 }
 
-/**
- * Where an XP total stands in its level: the level and its badge, the level
- * after it (null at the top), and how far along towards it, from 0 to 1 (1 at
- * the top, where there is nothing left to reach).
- */
-export function levelProgress(xp: number): {
+export type LevelProgress = {
   level: JumpLevel;
   tone: LevelTone;
+  tagline: string;
   min: number;
-  next: { level: JumpLevel; min: number } | null;
+  /** Null at the top level: there is nothing further to announce. */
+  next: { level: JumpLevel; min: number; xpToGo: number } | null;
+  /** How far through the current level, from 0 to 1; 1 at the top. */
   ratio: number;
-} {
-  const index = tierIndex(xp);
-  const { level, tone, min } = XP_LEVEL_TIERS[index];
-  const following = XP_LEVEL_TIERS[index + 1];
-  if (!following) return { level, tone, min, next: null, ratio: 1 };
-  const ratio = (xp - min) / (following.min - min);
+};
+
+/**
+ * Where an XP total stands in its level: the level with its badge and line,
+ * the level after it (null at the top) with the XP left to reach it, and how
+ * far along towards it. Talent-facing only: the dev workspace never shows a
+ * level.
+ */
+export function levelProgress(xp: number): LevelProgress {
+  const level = computeLevel(xp);
+  const { min, tone, tagline } = JUMP_LEVEL_TIERS[level];
+  const following = nextLevel(level);
+  if (!following) return { level, tone, tagline, min, next: null, ratio: 1 };
+  const nextMin = JUMP_LEVEL_TIERS[following].min;
   return {
     level,
     tone,
+    tagline,
     min,
-    next: { level: following.level, min: following.min },
-    ratio: Math.min(1, Math.max(0, ratio)),
+    next: { level: following, min: nextMin, xpToGo: nextMin - xp },
+    ratio: Math.min(1, Math.max(0, (xp - min) / (nextMin - min))),
   };
 }
 
 /**
- * Resolves a level name back to its XP bounds, used by the broadcast filter to
- * translate a chosen tier into an `xp` range query now that `level` is no
- * longer a column. Falls back to the first tier for unknown names.
- * `maxExclusive: null` marks the open-ended top tier.
+ * The XP bounds of a level: from its own threshold up to the next level's,
+ * open-ended at the top (`maxExclusive: null`).
  */
-export function xpRangeForLevel(level: string): {
+export function xpRangeForLevel(level: JumpLevel): {
   min: number;
   maxExclusive: number | null;
 } {
-  const index = Math.max(
-    0,
-    XP_LEVEL_TIERS.findIndex((t) => t.level === level),
-  );
+  const following = nextLevel(level);
   return {
-    min: XP_LEVEL_TIERS[index].min,
-    maxExclusive: XP_LEVEL_TIERS[index + 1]?.min ?? null,
+    min: JUMP_LEVEL_TIERS[level].min,
+    maxExclusive: following ? JUMP_LEVEL_TIERS[following].min : null,
   };
+}
+
+/**
+ * A level's bounds as a filter on `Talent.xp`. A plain shape that Prisma's
+ * `IntFilter` accepts, so the broadcast audience and the engagement figures
+ * count a level with the same bounds.
+ */
+export function levelXpFilter(level: JumpLevel): { gte: number; lt?: number } {
+  const { min, maxExclusive } = xpRangeForLevel(level);
+  return maxExclusive === null ? { gte: min } : { gte: min, lt: maxExclusive };
 }

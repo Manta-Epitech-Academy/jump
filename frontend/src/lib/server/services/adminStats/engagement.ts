@@ -13,7 +13,7 @@
  */
 
 import { prisma } from '$lib/server/db';
-import { JUMP_LEVELS, xpRangeForLevel } from '$lib/domain/xp';
+import { JUMP_LEVELS, levelXpFilter, xpRangeForLevel } from '$lib/domain/xp';
 import {
   metric,
   share,
@@ -68,24 +68,11 @@ export async function getEngagement(scope: Scope = {}): Promise<Engagement> {
       }),
       Promise.all(
         JUMP_LEVELS.map(async (level) => {
-          const range = xpRangeForLevel(level);
           return {
             level,
-            range,
+            range: xpRangeForLevel(level),
             count: await prisma.talent.count({
-              where: {
-                AND: [
-                  where,
-                  {
-                    xp: {
-                      gte: range.min,
-                      ...(range.maxExclusive != null
-                        ? { lt: range.maxExclusive }
-                        : {}),
-                    },
-                  },
-                ],
-              },
+              where: { AND: [where, { xp: levelXpFilter(level) }] },
             }),
           };
         }),

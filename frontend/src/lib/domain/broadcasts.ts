@@ -331,8 +331,9 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
   },
 ] as const;
 
-// Canonical level catalogue lives in domain/xp.ts (derived from XP_LEVEL_TIERS),
-// re-exported here so broadcast filter consumers keep their import path.
+// The level catalogue lives in domain/xp.ts (JUMP_LEVELS fixes the order,
+// JUMP_LEVEL_TIERS the bounds), re-exported here so broadcast filter consumers
+// keep their import path.
 export { JUMP_LEVELS, type JumpLevel };
 
 export type TristateFilter = 'yes' | 'no' | 'any';
