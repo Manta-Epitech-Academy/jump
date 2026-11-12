@@ -228,3 +228,14 @@ export function levelXpFilter(level: JumpLevel): { gte: number; lt?: number } {
   const { min, maxExclusive } = xpRangeForLevel(level);
   return maxExclusive === null ? { gte: min } : { gte: min, lt: maxExclusive };
 }
+
+/**
+ * The sentence under a level's bar, in the 2027 mockup's words: the XP left
+ * before the next level, or that there is none. One function, so the home card
+ * and Mon parcours say the same thing.
+ */
+export function levelToNext(progress: LevelProgress): string {
+  return progress.next
+    ? `${progress.next.xpToGo.toLocaleString('fr-FR')} XP avant le niveau ${progress.next.level}`
+    : 'Niveau maximum atteint';
+}
