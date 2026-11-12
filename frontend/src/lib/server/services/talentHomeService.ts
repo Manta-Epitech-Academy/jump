@@ -1,6 +1,6 @@
 /**
  * What a talent's home shows of their campus (« le mot du campus », the one
- * message of its Actualités card, and the highlighted event to sign up for).
+ * message of its Actualité card, and the highlighted event to sign up for).
  *
  * Both are authored campus by campus over the admin API
  * (`adminApi/writes/talentHome.ts`), never derived; this reads them for the

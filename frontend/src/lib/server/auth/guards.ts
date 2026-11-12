@@ -102,7 +102,7 @@ export async function applyRouteGuards(
     // this short-circuits on every later request. Gated purely on talent state
     // (never seen it AND still has onboarding to do), not on any event: the
     // splash copy is generic and owned by the page. The CMS `welcome` row feeds
-    // only the dashboard's Actualités card, a separate surface.
+    // only the dashboard's Actualité card, a separate surface.
     if (
       event.locals.talent &&
       !event.locals.talent.welcomeSeenAt &&

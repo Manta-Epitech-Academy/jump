@@ -23,7 +23,7 @@ test.describe('un talent dont l’événement a lieu aujourd’hui', () => {
     await page.goto('/');
 
     // The campus's message stands on its own words: no label of the page's.
-    const news = page.getByRole('region', { name: /Actualités/ });
+    const news = page.getByRole('region', { name: /Actualité/ });
     await expectLeavesSafely(
       news.getByRole('link', { name: 'le Discord du campus' }),
       E2E.homeNoteLink,
