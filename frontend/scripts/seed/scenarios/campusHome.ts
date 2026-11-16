@@ -105,7 +105,7 @@ export const campusHome: Scenario = {
       publicName: codingClubPublicName(days[0]!),
       campus,
       days,
-      // Confirmed, so the session card gives the hour as well as the day.
+      // Confirmed, so the hero gives the arrival hour as well as the day.
       startMinutes: 14 * 60,
     });
 

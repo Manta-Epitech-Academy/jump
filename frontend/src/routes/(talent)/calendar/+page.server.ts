@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
   // Every event the talent participates in, past and future: the calendar is
   // their full personal timeline, not a single-event view. Non-orga activities
   // only, sorted by start so the grid's per-day packer gets ordered input. The
-  // enrolments the dev space shows, as the home's session card: a withdrawn
+  // enrolments the dev space shows, as the home's hero: a withdrawn
   // talent's event is not on their timeline.
   const participations = await prisma.participation.findMany({
     where: { talentId: locals.talent.id, ...visibleParticipationWhere },

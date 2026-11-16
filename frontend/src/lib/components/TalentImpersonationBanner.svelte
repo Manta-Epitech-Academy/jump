@@ -6,8 +6,6 @@
   import UserCheck from '@lucide/svelte/icons/user-check';
   import LogOut from '@lucide/svelte/icons/log-out';
   import { toast } from 'svelte-sonner';
-  import PlanningPreviewToggle from '$lib/components/talent/PlanningPreviewToggle.svelte';
-  import type { PlanningPreview } from '$lib/server/talentPlanningPreview';
 
   // Shown to an admin impersonating a talent. The talent portal is a light,
   // sidebar-less layout, so the staff-rail ImpersonationCard doesn't fit here.
@@ -30,13 +28,6 @@
   const isImpersonating = $derived(Boolean(session?.impersonatedBy));
   const name = $derived(
     [talent?.prenom, talent?.nom].filter(Boolean).join(' ') || 'ce talent',
-  );
-  // Dev-tooling: cycle the talent home's session card through its
-  // states. Resolved by the root layout load; only true while impersonating a
-  // talent, so the toggle never shows on a real student's session.
-  const canPreviewPlanning = $derived(Boolean(page.data.canPreviewPlanning));
-  const planningPreview = $derived(
-    (page.data.planningPreview ?? null) as PlanningPreview | null,
   );
 
   async function returnToAdmin() {
@@ -92,9 +83,6 @@
           Revenir
         </button>
       </div>
-      {#if canPreviewPlanning}
-        <PlanningPreviewToggle current={planningPreview} />
-      {/if}
     </div>
   </div>
 {/if}

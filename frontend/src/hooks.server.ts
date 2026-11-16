@@ -17,7 +17,6 @@ import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { resolveTalentCampus } from '$lib/server/services/talentCampus';
 import { recordSignInDay } from '$lib/server/services/signInStreak';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
-import { readPlanningPreview } from '$lib/server/talentPlanningPreview';
 import { runWithRequestContext } from '$lib/server/requestContext';
 import { readArmedState, effectiveUserId } from '$lib/server/armRealSends';
 import { readDevRedirectPin } from '$lib/server/devRedirectPin';
@@ -173,7 +172,6 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.staffProfile = null;
   event.locals.talent = null;
   event.locals.stagePhaseOverride = null;
-  event.locals.planningPreview = null;
   event.locals.impersonator = null;
   event.locals.talentCampusName = null;
   event.locals.talentCampusId = null;
@@ -255,7 +253,6 @@ export const handle: Handle = async ({ event, resolve }) => {
     }
 
     event.locals.stagePhaseOverride = readDevPhaseOverride(event);
-    event.locals.planningPreview = readPlanningPreview(event);
 
     // 2.5 Stamp the talent's activity projections (fire-and-forget). Three
     // durable facts derived from this real request:
