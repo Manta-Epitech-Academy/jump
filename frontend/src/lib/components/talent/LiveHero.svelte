@@ -58,7 +58,11 @@
        `target="_blank"` leaves this tab alive for the talent to come back to,
        which is where the XP are celebrated. -->
   <form method="POST" action={`/activites/${subject.slug}`} target="_blank">
-    <Button type="submit" variant="neon" class="h-11 w-full px-5 sm:w-auto">
+    <Button
+      type="submit"
+      variant="neon"
+      class={cn('h-11 w-full px-5', header.subjectIsHeader && 'sm:w-auto')}
+    >
       {buttonLabel}
       <ArrowRight class="size-4" aria-hidden="true" />
       <span class="sr-only">{subject.label} (nouvel onglet)</span>
@@ -115,22 +119,25 @@
         </div>
       {:else}
         {#if subjects.length > 0}
-          <ul
-            class={cn(
-              'grid gap-4',
-              subjects.length > 1 && 'sm:grid-cols-2',
-              subjects.length > 2 && 'lg:grid-cols-3',
-            )}
-          >
+          <!-- One row per subject, stacked: the same width and the same way in
+               for each, whatever their number. Side by side, three cards in
+               the home's column came out narrower than their own button. -->
+          <ul class="flex flex-col gap-3">
             {#each subjects as subject (subject.slug)}
-              <li class="flex flex-col gap-3 rounded-lg bg-epi-dark/35 p-4">
-                <h4 class="font-heading text-display-s text-white">
-                  {subject.label}
-                </h4>
-                {#if subject.cover.tagline}
-                  <p class="text-sm text-white/80">{subject.cover.tagline}</p>
-                {/if}
-                <div class="mt-auto flex flex-col gap-3">
+              <li
+                class="flex flex-col gap-4 rounded-lg border border-white/15 p-4 sm:flex-row sm:items-center sm:gap-6"
+              >
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <h4 class="font-heading text-display-s text-white">
+                    {subject.label}
+                  </h4>
+                  {#if subject.cover.tagline}
+                    <p class="text-sm text-white/80">
+                      {subject.cover.tagline}
+                    </p>
+                  {/if}
+                </div>
+                <div class="flex shrink-0 flex-col gap-3 sm:w-64">
                   <StepProgress activity={subject} />
                   {@render enter(subject)}
                 </div>

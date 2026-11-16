@@ -41,8 +41,10 @@
 
 <div class="rounded-lg bg-epi-dark/35 px-4 py-3">
   {#if activity.totalSteps > 0}
-    <p class="flex items-baseline justify-between gap-3 text-sm text-white">
-      <span>Ta progression</span>
+    <p
+      class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm text-white"
+    >
+      <span class="whitespace-nowrap">Ta progression</span>
       <span
         class="font-mono font-bold whitespace-nowrap text-epi-tech uppercase"
       >
