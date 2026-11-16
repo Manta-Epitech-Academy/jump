@@ -19,8 +19,10 @@
 import { prisma } from '$lib/server/db';
 import type { Prisma } from '@prisma/client';
 import {
+  isOfferedNow,
   selectWorkshopOfferings,
   workshopCoverUrl,
+  type CampusClockReading,
   workshopGrantSourceId,
   type TalentWorkshops,
   type WorkshopActivity,
@@ -32,6 +34,8 @@ import {
   type LifecycleBounds,
 } from '$lib/domain/eventLifecycle';
 import { eventDisplayName } from '$lib/domain/event';
+import { dbDateToKey } from '$lib/domain/eventPresence';
+import { campusClock, toDateKey } from '$lib/domain/planningTime';
 import { formatDateFr } from '$lib/utils';
 import {
   workshopSessionLabel,
@@ -56,7 +60,12 @@ export type WorkshopEntry = {
  * `selectWorkshopOfferings` resolves it to.
  *
  * Each event's status is read on its OWN campus clock, so "today" for a Réunion
- * event is Réunion's today, whatever the browser says.
+ * event is Réunion's today, whatever the browser says, and so is the moment an
+ * activity is offered at (`isOfferedNow`). An activity is offered NOW only
+ * through an enrolment the dev space shows (`shownInDevSpace`), the rule that
+ * says who is at an event (#491): a withdrawn talent is not offered the day's
+ * subjects. The list itself still reads every enrolment, so what a talent
+ * started stays theirs to carry on.
  */
 async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
   const activityWhere: Prisma.Workshop_ActivityWhereInput = {
@@ -73,6 +82,7 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
       select: {
         eventId: true,
         campusId: true,
+        shownInDevSpace: true,
         event: {
           select: {
             date: true,
@@ -83,6 +93,8 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
               select: {
                 position: true,
                 labelOverride: true,
+                day: true,
+                slot: true,
                 activity: {
                   select: {
                     id: true,
@@ -114,15 +126,36 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
     return bounds;
   };
 
+  const clockByTimezone = new Map<string, CampusClockReading>();
+  const clockFor = (timezone: string) => {
+    let clock = clockByTimezone.get(timezone);
+    if (!clock) {
+      const { hour, minute } = campusClock(now, timezone);
+      clock = { today: toDateKey(now, timezone), minutes: hour * 60 + minute };
+      clockByTimezone.set(timezone, clock);
+    }
+    return clock;
+  };
+
   return selectWorkshopOfferings(
     enrolments.flatMap((enrolment) => {
       const { event } = enrolment;
-      const status = getEventStatus(event, boundsFor(event.campus.timezone));
+      const timezone = event.campus.timezone;
+      const status = getEventStatus(event, boundsFor(timezone));
       return event.workshops.map((link) => ({
         activityId: link.activity.id,
         eventDate: event.date,
         position: link.position,
         status,
+        offeredNow:
+          enrolment.shownInDevSpace &&
+          isOfferedNow(
+            {
+              day: link.day === null ? null : dbDateToKey(link.day),
+              slot: link.slot,
+            },
+            clockFor(timezone),
+          ),
         eventId: enrolment.eventId,
         campusId: enrolment.campusId,
         labelOverride: link.labelOverride,

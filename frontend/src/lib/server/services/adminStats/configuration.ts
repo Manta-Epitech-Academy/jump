@@ -339,7 +339,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
     ),
     workshops: metric(
       workshops,
-      "Les activités en ligne que cet événement propose, dans l'ordre où un talent les voit, sous la forme exacte que prend write_event_config (« workshops ») : cette liste y remplace la liste entière, donc pour en ajouter ou en retirer une, renvoyez celle-ci modifiée. « labelOverride » est le nom qu'il lui donne à la place de celui du catalogue (null s'il garde ce dernier). Le nom du catalogue et l'instance qui la sert sont dans config_workshops. Liste vide si l'événement n'en propose aucune.",
+      "Les activités en ligne que cet événement propose, dans l'ordre où un talent les voit, sous la forme exacte que prend write_event_config (« workshops ») : cette liste y remplace la liste entière, donc pour en ajouter ou en retirer une, renvoyez celle-ci modifiée. « labelOverride » est le nom qu'il lui donne à la place de celui du catalogue (null s'il garde ce dernier). « day » est le seul jour de l'événement où il la propose (AAAA-MM-JJ, null pour tous ses jours) et « slot » la demi-journée de ce jour (morning, afternoon à partir de 13 h, null pour la journée entière) : des activités proposées au même moment sont présentées au talent comme un choix. Le nom du catalogue et l'instance qui la sert sont dans config_workshops. Liste vide si l'événement n'en propose aucune.",
     ),
     shownStatuses: metric(
       event.shownStatuses,

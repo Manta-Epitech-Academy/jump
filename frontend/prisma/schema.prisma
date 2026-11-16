@@ -2828,7 +2828,18 @@ model EventConfig_Workshop {
   /// does not fit the format. Copies `Closing_TemplateQuestion.labelOverride`: the
   /// wording may follow the event, the identity never moves.
   labelOverride String?
-  createdAt     DateTime @default(now())
+  /// The one campus day of the event this activity is offered on, when it is
+  /// not offered for the whole event: a stage de seconde gives each morning or
+  /// day its own subjects to choose from. Null offers it on every day of the
+  /// event, as before. A day is a moment, not a gate: the talent home's hero
+  /// puts forward what is offered NOW, while an activity of another moment of
+  /// a running event stays enterable from the list of activities.
+  day           DateTime?     @db.Date
+  /// The half-day of `day` it is offered on (morning before 13:00 on the campus
+  /// clock, afternoon from it, `AFTERNOON_START_MINUTES`). Null offers it the
+  /// whole day. Only with a day: a `CHECK` refuses a half-day without one.
+  slot          PresenceSlot?
+  createdAt     DateTime      @default(now())
 
   event    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   /// Restrict, like `Event.diplomaTemplateId`: deleting a catalogue row events

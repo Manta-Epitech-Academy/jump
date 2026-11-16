@@ -45,6 +45,14 @@ import {
 } from '$lib/domain/eventModules';
 import { EVENT_CONFIG_STATE_LABELS } from '$lib/domain/eventReadiness';
 import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
+import {
+  eventCalendarDays,
+  halfDayAt,
+  slotLabelFr,
+  toDateKey,
+  type PresenceSlot,
+} from '$lib/domain/eventPresence';
+import type { EventWorkshopMoment } from '$lib/domain/workshops';
 import { UnknownScopeError } from '../scope';
 import { archivedAtFor } from './catalogue';
 import { OperationRefusedError } from '../errors';
@@ -124,6 +132,8 @@ export type EventConfigPatch = {
   workshops?: {
     slug: string;
     labelOverride?: string | null;
+    day?: string | null;
+    slot?: PresenceSlot | null;
   }[];
 };
 
@@ -252,6 +262,7 @@ function patched(
 
 /** The activities as the service stores them, slugs resolved to their rows. */
 async function resolvedWorkshops(
+  eventId: string,
   workshops: NonNullable<EventConfigPatch['workshops']>,
 ): Promise<EventWorkshopLink[]> {
   const slugs = workshops.map((w) => w.slug.trim());
@@ -274,10 +285,68 @@ async function resolvedWorkshops(
       `Activités introuvables : ${unknown.join(', ')}. ${handleProvenanceFr('workshopSlug')}`,
     );
   }
+  const moments = await checkedMoments(eventId, workshops, slugs);
   return workshops.map((workshop, index) => ({
     activityId: idBySlug.get(slugs[index])!,
     labelOverride: workshop.labelOverride?.trim() || null,
+    ...moments[index],
   }));
+}
+
+/**
+ * The moment each activity is offered at, refused when it names no moment of
+ * the event: a day outside its campus days, or the morning of a first day the
+ * event only starts in the afternoon (its start time, as émargement reads it).
+ * Weekends count: a camp running over a Saturday offers subjects on it, even
+ * though émargement leaves it out.
+ */
+async function checkedMoments(
+  eventId: string,
+  workshops: NonNullable<EventConfigPatch['workshops']>,
+  slugs: readonly string[],
+): Promise<EventWorkshopMoment[]> {
+  const moments = workshops.map((w) => ({
+    day: w.day ?? null,
+    slot: w.slot ?? null,
+  }));
+  if (moments.every((m) => m.day === null && m.slot === null)) return moments;
+
+  const event = await prisma.event.findUniqueOrThrow({
+    where: { id: eventId },
+    select: {
+      date: true,
+      endDate: true,
+      startMinutes: true,
+      campus: { select: { timezone: true } },
+    },
+  });
+  const timezone = event.campus.timezone;
+  const days = eventCalendarDays(event, timezone);
+  const startDay = toDateKey(event.date, timezone);
+  const startsInAfternoon =
+    event.startMinutes !== null &&
+    halfDayAt(event.startMinutes) === 'afternoon';
+
+  moments.forEach(({ day, slot }, index) => {
+    const slug = slugs[index];
+    if (slot !== null && day === null) {
+      throw new OperationRefusedError(
+        `Activité ${slug} : une demi-journée se donne avec son jour (day). Envoyez day, ou slot à null pour la proposer sur tout l'événement.`,
+      );
+    }
+    if (day === null) return;
+    if (!days.includes(day)) {
+      throw new OperationRefusedError(
+        `Activité ${slug} : le ${day} n'est pas un jour de cet événement. Jours possibles : ${days.join(', ')}.`,
+      );
+    }
+    if (slot === 'morning' && startsInAfternoon && day === startDay) {
+      throw new OperationRefusedError(
+        `Activité ${slug} : l'événement ne commence que l'après-midi du ${day}, il n'y a pas de ${slotLabelFr(slot).toLowerCase()} ce jour-là.`,
+      );
+    }
+  });
+  return moments;
 }
 
 /**
@@ -348,7 +417,8 @@ export async function writeEventConfig(
       event.closingTemplateId,
     ),
     ...statusPolicyFor(params, event),
-    workshops: params.workshops && (await resolvedWorkshops(params.workshops)),
+    workshops:
+      params.workshops && (await resolvedWorkshops(event.id, params.workshops)),
   });
 
   return {

@@ -13,6 +13,8 @@ import {
   type EventModuleKey,
 } from '$lib/domain/eventModules';
 import { toDateKey } from '$lib/domain/planningTime';
+import { dateKeyToDbDate, dbDateToKey } from '$lib/domain/eventPresence';
+import type { EventWorkshopMoment } from '$lib/domain/workshops';
 import {
   getEventStatus,
   getLifecycleBounds,
@@ -329,7 +331,7 @@ async function applyModuleDiff(
 export type EventWorkshopLink = {
   activityId: string;
   labelOverride: string | null;
-};
+} & EventWorkshopMoment;
 
 /**
  * Replaces the activities ONE event offers with `links`, in that order, inside an
@@ -348,7 +350,13 @@ async function replaceEventWorkshops(
   await tx.eventConfig_Workshop.deleteMany({ where: { eventId } });
   if (links.length === 0) return;
   await tx.eventConfig_Workshop.createMany({
-    data: links.map((link, position) => ({ eventId, position, ...link })),
+    data: links.map(({ day, slot, ...link }, position) => ({
+      eventId,
+      position,
+      ...link,
+      day: day === null ? null : dateKeyToDbDate(day),
+      slot,
+    })),
   });
 }
 
@@ -356,7 +364,7 @@ async function replaceEventWorkshops(
 export type EventWorkshopState = {
   slug: string;
   labelOverride: string | null;
-};
+} & EventWorkshopMoment;
 
 /**
  * What {@link replaceEventWorkshops} stored for ONE event, in order, named by
@@ -373,12 +381,16 @@ export async function eventWorkshopsOf(
     orderBy: { position: 'asc' },
     select: {
       labelOverride: true,
+      day: true,
+      slot: true,
       activity: { select: { slug: true } },
     },
   });
   return links.map((link) => ({
     slug: link.activity.slug,
     labelOverride: link.labelOverride,
+    day: link.day === null ? null : dbDateToKey(link.day),
+    slot: link.slot,
   }));
 }
 

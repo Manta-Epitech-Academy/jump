@@ -1,4 +1,5 @@
 import type { EventLifecycleStatus } from './eventLifecycle';
+import { halfDayAt, type DateKey, type PresenceSlot } from './eventPresence';
 import type { ShownPicture } from './pictures';
 
 /**
@@ -107,8 +108,43 @@ export function supervisorJoinUrl(baseUrl: string): string {
 export const SUPERVISOR_CODE_MAX = 128;
 
 /**
+ * When an event offers one of its activities: the whole event (no day), one of
+ * its campus days, or one half-day of that day. A stage de seconde gives some
+ * mornings three subjects to choose from and the afternoon another one, which
+ * is why a moment is finer than the event (#501).
+ */
+export type EventWorkshopMoment = {
+  day: DateKey | null;
+  slot: PresenceSlot | null;
+};
+
+/** The campus wall clock a moment is read against. */
+export type CampusClockReading = {
+  /** The campus calendar day. */
+  today: DateKey;
+  /** Minutes since the campus's local midnight. */
+  minutes: number;
+};
+
+/**
+ * Whether an activity of a RUNNING event is offered at this moment of the
+ * campus clock: always without a day, on its day only with one, and on that
+ * day's half of it with a half-day (the afternoon starts at
+ * `AFTERNOON_START_MINUTES`, as for émargement). Whether the event is running
+ * is the caller's question, read on the same campus clock.
+ */
+export function isOfferedNow(
+  moment: EventWorkshopMoment,
+  clock: CampusClockReading,
+): boolean {
+  if (moment.day === null) return true;
+  if (moment.day !== clock.today) return false;
+  return moment.slot === null || moment.slot === halfDayAt(clock.minutes);
+}
+
+/**
  * Which activities a talent is offered, through which enrolment, and which of
- * them are today's.
+ * them are offered right now.
  *
  * An activity is offered once the event offering it has STARTED (its first
  * campus day), and from then on for good: a Coding Club is designed never to
@@ -118,13 +154,19 @@ export const SUPERVISOR_CODE_MAX = 128;
  * it: what they started stays theirs, even when the only enrolment still
  * offering it is for an event to come.
  *
+ * `today` is narrower than "the event is running": the row must also be
+ * offered now (`offeredNow`, which the caller reads off the activity's moment
+ * and the enrolment, see `isOfferedNow`). An activity of a running event
+ * offered at another moment stays in the list, enterable, and is simply not
+ * the one the hero puts forward.
+ *
  * An activity offered by several of a talent's enrolments resolves to ONE
  * offering: the event running today when there is one (that is the one the
- * day's hero is about), otherwise the most recent that has started, and only
- * failing both a future one the talent is already walking it through. The chosen
- * enrolment is what a first entry pins its event and campus on, so two events of
- * the same day and phase are told apart by id rather than left to whatever
- * order the rows arrived in.
+ * day's hero is about, and among those the one offering it now), otherwise the
+ * most recent that has started, and only failing both a future one the talent
+ * is already walking it through. The chosen enrolment is what a first entry
+ * pins its event and campus on, so two events of the same day and phase are
+ * told apart by id rather than left to whatever order the rows arrived in.
  *
  * Ordered newest event first, then by the event's own order, which is the order
  * a talent reads them in. Two events of the same day are kept apart, by id, so
@@ -139,6 +181,7 @@ export function selectWorkshopOfferings<
     eventDate: Date;
     position: number;
     status: EventLifecycleStatus;
+    offeredNow: boolean;
   },
 >(
   rows: readonly T[],
@@ -152,7 +195,10 @@ export function selectWorkshopOfferings<
     if (!current || outranks(row, current)) chosen.set(row.activityId, row);
   }
   return [...chosen.values()]
-    .map((row) => ({ ...row, today: row.status === 'ongoing' }))
+    .map((row) => ({
+      ...row,
+      today: row.status === 'ongoing' && row.offeredNow,
+    }))
     .sort(
       (a, b) =>
         b.eventDate.getTime() - a.eventDate.getTime() ||
@@ -176,11 +222,13 @@ type Ranked = {
   eventId: string;
   eventDate: Date;
   status: EventLifecycleStatus;
+  offeredNow: boolean;
 };
 
 function outranks(a: Ranked, b: Ranked): boolean {
   const byPhase = PHASE_RANK[a.status] - PHASE_RANK[b.status];
   if (byPhase !== 0) return byPhase > 0;
+  if (a.offeredNow !== b.offeredNow) return a.offeredNow;
   const byDate = a.eventDate.getTime() - b.eventDate.getTime();
   if (byDate !== 0) return byDate > 0;
   return a.eventId < b.eventId;
@@ -240,8 +288,10 @@ export function activitiesToDo(
 
 export type TalentWorkshops = {
   /**
-   * The activities of the events running today, for the dashboard's hero.
-   * Empty on any day none of the talent's events offering one is running.
+   * The activities offered right now by the events running today, through an
+   * enrolment the dev space shows, for the dashboard's hero. Empty on any day
+   * none of the talent's events offering one is running, and at any moment of
+   * it none is offered at (`isOfferedNow`).
    */
   today: WorkshopActivity[];
   /** Every other activity the talent has been offered, newest event first. */

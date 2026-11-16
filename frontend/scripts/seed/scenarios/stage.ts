@@ -35,6 +35,7 @@
 
 import type { ClosingRecommendation } from '@prisma/client';
 import { STAGE_PLANNING } from '../catalog/planning';
+import { WORKSHOPS } from '../catalog/workshops';
 import {
   RETIRED_QUESTION,
   STAGE_TEMPLATE_QUESTION_KEYS,
@@ -299,6 +300,21 @@ export const stage: Scenario = {
   },
 };
 
+/** The flagship stage's subjects, each offered at one moment of the stage. */
+const STAGE_SUBJECTS = (
+  [
+    { slug: 'pacman-ia', dayIndex: 0, slot: 'morning' },
+    { slug: 'babel-ship', dayIndex: 0, slot: 'morning' },
+    { slug: 'rayban', dayIndex: 0, slot: 'afternoon' },
+    { slug: 'santa-shooter', dayIndex: 1 },
+  ] as const
+).map((subject) => {
+  if (!WORKSHOPS.some((w) => w.slug === subject.slug && w.enabled)) {
+    throw new Error(`Sujet de stage inconnu ou désactivé : ${subject.slug}`);
+  }
+  return subject;
+});
+
 /**
  * One campus's stage, at the depth its plan declares.
  *
@@ -358,6 +374,11 @@ function addStageAt(
     closingTemplateId: stageTemplateId,
     feedbackFormId: world.feedbackForms.get(STAGE_FORM_SLUG)?.id ?? null,
     diplomaTemplateId: instrumented ? world.diplomaTemplateId : null,
+    // The flagship stage offers its subjects by moment, as a stage de seconde
+    // does: two to choose from on its first morning, another that afternoon,
+    // and one for the whole of its second day. The only seeded event that sets
+    // a moment, so `EventConfig_Workshop.day` and `.slot` each have a value.
+    workshops: flagship ? STAGE_SUBJECTS : undefined,
   });
 
   // The cohort's size and its instrumentation are the point of this event, so

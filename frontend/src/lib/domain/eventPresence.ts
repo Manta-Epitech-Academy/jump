@@ -126,6 +126,18 @@ function eventDays(
   return days;
 }
 
+/**
+ * Every calendar day an event spans on its campus clock, weekends included:
+ * the days it can offer something on (an activity's moment), where
+ * `presenceDays` is the narrower set émargement keeps.
+ */
+export function eventCalendarDays(
+  event: { date: Date; endDate: Date | null },
+  timezone: string,
+): DateKey[] {
+  return eventDays(event, timezone);
+}
+
 /** One émargement créneau: a (day, half-day) pair, the unit staff pick to pointer. */
 export interface EventSlot {
   day: DateKey;

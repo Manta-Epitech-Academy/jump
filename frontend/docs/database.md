@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **84** modèles · **33** enums · **117** relations
+- **85** modèles · **33** enums · **118** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -22,7 +22,7 @@
 | Contenus & Centres d'intérêt | 5 |
 | Analytique d'usage | 2 |
 | Configuration & Système | 12 |
-| Autres | 4 |
+| Autres | 5 |
 
 ## 1 · Authentification & Profils
 
@@ -381,6 +381,7 @@ erDiagram
     String feedbackFormId FK
     String diplomaTemplateId FK
     String closingTemplateId FK
+    DateTime archivedAt
     String createdById FK
     DateTime createdAt
     DateTime updatedAt
@@ -397,6 +398,7 @@ erDiagram
     String campusId FK
     String sfMemberStatus
     Boolean shownInDevSpace
+    Boolean attendanceAttested
     DateTime createdAt
     DateTime updatedAt
   }
@@ -617,6 +619,8 @@ erDiagram
     String activityId PK,FK
     Int position
     String labelOverride
+    DateTime day
+    PresenceSlot slot
     DateTime createdAt
   }
   Workshop_Participation {
@@ -681,6 +685,7 @@ erDiagram
     XpGrantSource source UK
     String sourceId UK
     Int amount
+    String eventId FK
     DateTime createdAt
     DateTime updatedAt
   }
@@ -698,9 +703,12 @@ erDiagram
   }
   Campus {
   }
+  Event {
+  }
   Talent ||--o{ XpGrant : "xpGrants"
   Campus |o--o{ XpGrant : "xpGrants"
   Campus |o--o{ XpReward : "xpRewards"
+  Event |o--o{ XpGrant : "xpGrants"
 ```
 
 ## 7 · Minijeux
@@ -972,9 +980,11 @@ erDiagram
   Interest {
     String id PK
     String nom UK
+    String shortLabel
     String emoji
     String kind
     Int order
+    DateTime archivedAt
   }
   TalentInterest {
     String talentId PK,FK
@@ -1165,16 +1175,29 @@ erDiagram
   EventConfig_ShownStatus {
     String eventId PK,FK
     String status PK,FK
+    Boolean attestsAttendance
   }
   EventConfig_TemplateShownStatus {
     String templateId PK,FK
     String status PK,FK
+    Boolean attestsAttendance
   }
   Sync_MemberStatus {
     String status PK
     Boolean shownByDefault
+    Boolean attestsByDefault
     DateTime createdAt
     DateTime updatedAt
+  }
+  AdminDigest_Run {
+    String id PK
+    DateTime weekOf UK
+    DateTime startedAt
+    DateTime finishedAt
+    Int recipients
+    Int sent
+    Int failed
+    Boolean includedAdoption
   }
   TalentHome_Note {
   }

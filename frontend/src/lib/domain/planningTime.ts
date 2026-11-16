@@ -69,17 +69,21 @@ export function toDateKey(instant: Date | string, tz: string): DateKey {
 }
 
 /**
- * The campus's wall clock at an instant: the hour (0 to 23) and the ISO weekday
- * (1 Monday to 7 Sunday). What anything said "by time of day" reads, a
+ * The campus's wall clock at an instant: the hour (0 to 23), the minute and the
+ * ISO weekday (1 Monday to 7 Sunday). What anything said "by time of day" reads, a
  * greeting first: `Date.getHours()` would answer in the server's timezone on
  * the server render and in the browser's on the client.
  */
 export function campusClock(
   instant: Date | string,
   tz: string,
-): { hour: number; weekday: number } {
+): { hour: number; minute: number; weekday: number } {
   const z = fromDate(asDate(instant), tz);
-  return { hour: z.hour, weekday: getDayOfWeek(z, 'fr-FR') + 1 };
+  return {
+    hour: z.hour,
+    minute: z.minute,
+    weekday: getDayOfWeek(z, 'fr-FR') + 1,
+  };
 }
 
 /**

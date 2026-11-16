@@ -37,6 +37,7 @@ import {
 } from '../../src/lib/domain/xp';
 import { workshopGrantSourceId } from '../../src/lib/domain/workshops';
 import { eventEndInstant, eventStartInstant } from '../../src/lib/domain/event';
+import { dateKeyToDbDate } from '../../src/lib/domain/eventPresence';
 import {
   CIVILITE_OPTIONS,
   PARENT_TYPE_OPTIONS,
@@ -1206,6 +1207,13 @@ export class World {
     workshops?: readonly {
       slug: string;
       labelOverride?: string;
+      /**
+       * The moment it is offered at: the index of one of `days`, and with it
+       * optionally a half-day. Omitted, it is offered for the whole event,
+       * which is what most events do.
+       */
+      dayIndex?: number;
+      slot?: 'morning' | 'afternoon';
     }[];
     /** Events with no Salesforce origin do not exist in production. */
     externalId?: string | null;
@@ -1308,6 +1316,11 @@ export class World {
         activityId: workshopActivityId(workshop.slug),
         position: index,
         labelOverride: workshop.labelOverride ?? null,
+        day:
+          workshop.dayIndex === undefined
+            ? null
+            : dateKeyToDbDate(clock.dateKey(days[workshop.dayIndex]!)),
+        slot: workshop.slot ?? null,
         createdAt: clock.days(-30),
       });
     }

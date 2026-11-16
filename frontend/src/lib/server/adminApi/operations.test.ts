@@ -97,6 +97,14 @@ describe('the operation catalogue', () => {
     expect(day.safeParse('2026-06-31').success).toBe(false);
     expect(day.safeParse('2026-02-30').success).toBe(false);
     expect(day.safeParse('2026-06-30').success).toBe(true);
+
+    const offeredOn = (value: string) =>
+      ADMIN_API_OPERATIONS.write_event_config.schema.safeParse({
+        eventId: 'evt',
+        workshops: [{ slug: 'pacman', day: value, slot: 'morning' }],
+      }).success;
+    expect(offeredOn('2026-06-31')).toBe(false);
+    expect(offeredOn('2026-06-30')).toBe(true);
   });
 
   // Unset has one spelling on the admin API, the one the event read returns

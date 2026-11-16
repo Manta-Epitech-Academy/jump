@@ -1051,11 +1051,26 @@ export const ADMIN_API_OPERATIONS = {
               .describe(
                 'The words this event reads the activity aloud with, when the catalogue name does not fit the format. Wording only: every figure keeps the catalogue label.',
               ),
+            day: z
+              .string()
+              .refine(isCalendarDay, 'A real calendar day, e.g. "2026-10-07".')
+              .nullable()
+              .optional()
+              .describe(
+                'YYYY-MM-DD, one day of the event to offer it on only; null or omitted offers it on every day.',
+              ),
+            slot: z
+              .enum(['morning', 'afternoon'])
+              .nullable()
+              .optional()
+              .describe(
+                'With day, the half of it to offer it on (afternoon from 13:00, campus time); null or omitted, the whole day.',
+              ),
           }),
         )
         .optional()
         .describe(
-          'The complete ordered list of online activities this event offers, in the order a talent sees them, as config_event_detail returns it; anything left out is no longer offered, an empty list offers none.',
+          'The complete ordered list of online activities this event offers, in the order a talent sees them, as config_event_detail returns it; anything left out is no longer offered, an empty list offers none. Activities offered at the same moment are presented to talents as a choice.',
         ),
     },
     run: (params) => writeEventConfig(params),
