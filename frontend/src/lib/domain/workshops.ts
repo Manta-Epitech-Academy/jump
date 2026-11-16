@@ -242,6 +242,11 @@ export type WorkshopCoverImage = ShownPicture;
 
 export type WorkshopActivity = {
   slug: string;
+  /**
+   * The event it is offered through (`selectWorkshopOfferings`), so the hero
+   * can show an event's subjects of the moment under that event's name.
+   */
+  eventId: string;
   /** What the talent reads: the event's own wording when it set one. */
   label: string;
   solvedSteps: number;

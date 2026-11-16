@@ -21,12 +21,8 @@ import { resolveEventNudgeForm } from '$lib/server/feedbackForms';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
 import { toPlanningView } from '$lib/domain/talentPlanning';
 import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
-import {
-  getUnseenWorkshopReward,
-  listTalentWorkshops,
-} from '$lib/server/services/workshopService';
-import { getTalentHome } from '$lib/server/services/talentHomeService';
-import { pickHomeHero } from '$lib/domain/talentHome';
+import { getUnseenWorkshopReward } from '$lib/server/services/workshopService';
+import { loadHomeHero } from '$lib/server/services/talentHomeHero';
 import { activitiesToDo } from '$lib/domain/workshops';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
@@ -138,20 +134,14 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     const minigameRankReward = await getUnseenMinigameRankReward(studentId);
 
     // The CTFd activities the talent's own events offer, with whatever CTFd last
-    // reported about each. An activity appears on its event's first campus day
-    // and stays from then on, because a Coding Club is designed never to finish
-    // and the students carry on at home (`selectWorkshopOfferings` holds the
-    // rule).
-    const workshops = await listTalentWorkshops(studentId);
-    // What the talent's campus puts on their home: its note, its highlighted
-    // event.
-    const home = await getTalentHome(locals.talentCampusId ?? null);
-    // The one thing the blue hero suggests doing now (`pickHomeHero`).
-    const hero = pickHomeHero({
-      today: workshops.today,
-      highlight: home.highlight,
-      activities: workshops.activities,
-    });
+    // reported about each, what their campus puts on their home (its note, what
+    // it puts forward), and the one thing the blue hero shows from all of it
+    // with their own enrolments (`pickHomeHero`), each read on its event's
+    // campus clock.
+    const { hero, workshops, home } = await loadHomeHero(
+      studentId,
+      locals.talentCampusId ?? null,
+    );
     // How many activities are left to walk, counted on the « Mon parcours »
     // pill: the list itself lives on that page, the home only suggests one.
     const toDoCount = activitiesToDo([

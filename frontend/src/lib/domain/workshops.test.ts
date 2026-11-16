@@ -197,6 +197,7 @@ describe('activitiesToDo', () => {
     startedAt: string | null = null,
   ): WorkshopActivity => ({
     slug,
+    eventId: 'club',
     label: slug,
     solvedSteps: solved,
     totalSteps: total,

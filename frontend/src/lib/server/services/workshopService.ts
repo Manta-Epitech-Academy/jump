@@ -216,6 +216,7 @@ export async function listTalentWorkshops(
     };
     return {
       slug: o.activity.slug,
+      eventId: o.eventId,
       label: o.labelOverride ?? o.activity.label,
       solvedSteps: entry?.solvedSteps ?? 0,
       totalSteps: entry?.totalSteps ?? 0,

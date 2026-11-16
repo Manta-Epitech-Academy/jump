@@ -108,6 +108,7 @@ export async function getTalentHome(
               startMinutes: true,
               signupUrl: true,
               campusId: true,
+              category: { select: { color: true } },
               heroes: {
                 where: { stage: 'invitation' },
                 select: {
@@ -145,6 +146,7 @@ export async function getTalentHome(
       startMinutes: pointed.startMinutes,
       campusName: campus.name,
       timezone: campus.timezone,
+      categoryColor: pointed.category?.color ?? null,
       signupUrl: pointed.signupUrl,
       copy: written && {
         title: written.title,
