@@ -16,13 +16,15 @@ import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { eventDisplayName } from '$lib/domain/event';
 import { toDateKey } from '$lib/domain/planningTime';
 import {
+  arrivalLabel,
   heroEventPhase,
   pickHomeHero,
   type EnrolledEvent,
   type HomeHero,
   type TalentHome,
 } from '$lib/domain/talentHome';
-import type { HeroCopyWritten } from '$lib/domain/eventHero';
+import { eventPlace, type HeroCopyWritten } from '$lib/domain/eventHero';
+import type { IcsEvent } from '$lib/domain/ics';
 import type { TalentWorkshops } from '$lib/domain/workshops';
 import { listTalentWorkshops } from './workshopService';
 import { getTalentHome } from './talentHomeService';
@@ -148,4 +150,44 @@ export async function loadHomeHero(
     activities: workshops.activities,
   });
   return { hero, workshops, home };
+}
+
+/**
+ * The calendar entry behind the hero's « Ajouter à mon agenda », for an event
+ * this talent is enrolled in (an enrolment the dev space shows, the rule the
+ * hero offers it under); null for any other event, so nobody downloads an
+ * event they are not expected at. Read on the event's campus clock.
+ */
+export async function enrolledEventCalendar(
+  talentId: string,
+  eventId: string,
+): Promise<IcsEvent | null> {
+  const participation = await prisma.participation.findFirst({
+    where: { talentId, eventId, ...visibleParticipationWhere },
+    select: {
+      event: {
+        select: {
+          id: true,
+          titre: true,
+          publicName: true,
+          date: true,
+          endDate: true,
+          startMinutes: true,
+          campus: { select: { name: true, timezone: true } },
+        },
+      },
+    },
+  });
+  if (!participation) return null;
+  const { event } = participation;
+  const timezone = event.campus.timezone;
+  const arrival = arrivalLabel(event.startMinutes);
+  return {
+    id: event.id,
+    name: eventDisplayName(event),
+    date: toDateKey(event.date, timezone),
+    endDate: event.endDate && toDateKey(event.endDate, timezone),
+    location: eventPlace(event.campus.name),
+    description: arrival ? `Accueil à ${arrival}` : null,
+  };
 }

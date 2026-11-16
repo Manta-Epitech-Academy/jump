@@ -149,6 +149,7 @@ describe('pickHomeHero', () => {
   ): WorkshopActivity => ({
     slug,
     eventId,
+    slot: null,
     label: slug,
     solvedSteps: progress.solved,
     totalSteps: progress.total,

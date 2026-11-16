@@ -133,6 +133,7 @@ export const USAGE_FEATURES = {
   TALENT_LEADERBOARD_VIEW: 'talent_leaderboard_view',
   TALENT_SETTINGS_VIEW: 'talent_settings_view',
   TALENT_DOCUMENT_VIEW: 'talent_document_view',
+  TALENT_AGENDA_ADD: 'talent_agenda_add',
   TALENT_MINIGAME_OPEN: 'talent_minigame_open',
   TALENT_WORKSHOP_OPEN: 'talent_workshop_open',
   TALENT_FEEDBACK_OPEN: 'talent_feedback_open',
@@ -1195,6 +1196,17 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
     space: 'talent',
     kind: 'document',
     scope: 'campus',
+    dedupe: 'each',
+  }),
+  [USAGE_FEATURES.TALENT_AGENDA_ADD]: def({
+    key: USAGE_FEATURES.TALENT_AGENDA_ADD,
+    label: 'L’ajout d’un événement à son agenda',
+    definition:
+      'Téléchargements du fichier d’agenda d’un événement où le talent est inscrit, depuis le bandeau de l’accueil. Une par téléchargement. Rien d’autre ne dit si un talent garde la date de son événement : c’est ce chiffre qui dira si un rappel la veille vaut d’être construit.',
+    audience: 'talent',
+    space: 'talent',
+    kind: 'action',
+    scope: 'event',
     dedupe: 'each',
   }),
   [USAGE_FEATURES.TALENT_MINIGAME_OPEN]: def({

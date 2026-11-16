@@ -1,4 +1,6 @@
 import type { EventConfig_HeroStage } from '@prisma/client';
+import { contrastRatio, FILL_INKS } from '../design/color';
+import type { PresenceSlot } from './eventPresence';
 
 // What one event says on the talent home's blue hero (#501). The PO asked, on
 // the call of 13/10/2026, for every stage of the hero to be written per event,
@@ -106,6 +108,95 @@ export function heroCopy(
         buttonLabel,
       };
   }
+}
+
+/**
+ * What the hero says while an event runs and it has written nothing: the
+ * subjects of the moment are a choice, never a ranking (#501, AC2), so the
+ * header names the choice and the subjects come under it as equals. A stage de
+ * seconde gives three subjects for a morning: the talent does one or two,
+ * whichever they like.
+ */
+export const HERO_DEFAULT_CHOICE_TITLE = 'À toi de choisir';
+
+/**
+ * « 3 sujets te sont proposés ce matin : commence par celui qui te tente. »
+ * The moment is the half-day the subjects share; any other mix, a whole day
+ * or the whole event, is « aujourd’hui ».
+ */
+export function heroChoiceText(slots: (PresenceSlot | null)[]): string {
+  const moment =
+    slots.length > 0 && slots.every((s) => s === 'morning')
+      ? 'ce matin'
+      : slots.length > 0 && slots.every((s) => s === 'afternoon')
+        ? 'cet après-midi'
+        : 'aujourd’hui';
+  return `${slots.length} sujets te sont proposés ${moment} : commence par celui qui te tente.`;
+}
+
+/** What the header of a running event's hero says, and whether a lone
+ * subject's own name and line are that header (the mockup's drawing) or come
+ * in its card under a header the event wrote. */
+export type LiveHeroHeader = {
+  title: string;
+  text: string | null;
+  /** True when the one subject titles the hero, so its card repeats neither. */
+  subjectIsHeader: boolean;
+};
+
+/**
+ * The header of a running event's hero. What the event wrote leads; failing
+ * that, one subject titles the hero with its name and line (the mockup), a
+ * choice is named as a choice, and with nothing offered at this moment the
+ * event's own name stands.
+ */
+export function liveHeroHeader(
+  copy: Pick<HeroCopy, 'title' | 'text'>,
+  eventName: string,
+  subjects: {
+    label: string;
+    slot: PresenceSlot | null;
+    cover: { tagline: string | null };
+  }[],
+): LiveHeroHeader {
+  if (copy.title !== null) {
+    return { title: copy.title, text: copy.text, subjectIsHeader: false };
+  }
+  if (subjects.length === 1) {
+    const [subject] = subjects;
+    return {
+      title: subject.label,
+      text: copy.text ?? subject.cover.tagline,
+      subjectIsHeader: true,
+    };
+  }
+  if (subjects.length > 1) {
+    return {
+      title: HERO_DEFAULT_CHOICE_TITLE,
+      text: copy.text ?? heroChoiceText(subjects.map((s) => s.slot)),
+      subjectIsHeader: false,
+    };
+  }
+  return { title: eventName, text: copy.text, subjectIsHeader: false };
+}
+
+/** Where an event takes place, as the hero and the calendar file say it. */
+export function eventPlace(campusName: string): string {
+  return `Epitech ${campusName}`;
+}
+
+/**
+ * The colour of the last line of an event's generated visual: its category's,
+ * when that reads on the visual's dark ground at display size (3:1), else
+ * null so the brand neon takes it. A category colour is the team's choice and
+ * outside the palette on purpose (`EventConfig_Category`), so its legibility is
+ * the screen's job, never a refusal at write.
+ */
+export function eventVisualAccent(categoryColor: string | null): string | null {
+  if (!categoryColor) return null;
+  return contrastRatio(categoryColor, FILL_INKS.dark) >= 3
+    ? categoryColor
+    : null;
 }
 
 /**

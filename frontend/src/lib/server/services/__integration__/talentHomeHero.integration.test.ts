@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { fromWallClock } from '$lib/domain/planningTime';
 import {
+  enrolledEventCalendar,
   listEnrolledHeroEvents,
   loadHomeHero,
 } from '$lib/server/services/talentHomeHero';
@@ -176,6 +177,20 @@ describe('the talent home hero (integration)', () => {
         signupUrl: 'https://www.epitech.invalid/inscription',
       },
     });
+  });
+
+  // AC4: « Ajouter à mon agenda » serves the talent's own event, and only one
+  // they are expected at: a masked enrolment downloads nothing.
+  it('builds the calendar entry of an event the talent is expected at only', async () => {
+    expect(await enrolledEventCalendar(enrolledTalent, campId)).toEqual({
+      id: campId,
+      name: 'Halloween Camp',
+      date: '2026-11-27',
+      endDate: '2026-11-28',
+      location: `Epitech Test Hero ${stamp}`,
+      description: 'Accueil à 10h00',
+    });
+    expect(await enrolledEventCalendar(enrolledTalent, stageId)).toBeNull();
   });
 
   it('switches to « enrolled » once Salesforce sends the enrolment', async () => {

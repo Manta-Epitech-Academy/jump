@@ -157,6 +157,7 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
             clockFor(timezone),
           ),
         eventId: enrolment.eventId,
+        slot: link.slot,
         campusId: enrolment.campusId,
         labelOverride: link.labelOverride,
         activity: link.activity,
@@ -217,6 +218,7 @@ export async function listTalentWorkshops(
     return {
       slug: o.activity.slug,
       eventId: o.eventId,
+      slot: o.slot,
       label: o.labelOverride ?? o.activity.label,
       solvedSteps: entry?.solvedSteps ?? 0,
       totalSteps: entry?.totalSteps ?? 0,

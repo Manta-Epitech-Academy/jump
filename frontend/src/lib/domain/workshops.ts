@@ -247,6 +247,11 @@ export type WorkshopActivity = {
    * can show an event's subjects of the moment under that event's name.
    */
   eventId: string;
+  /**
+   * The half-day that event offers it on, null for a whole day or the whole
+   * event: the hero says « ce matin » to a choice made for the morning.
+   */
+  slot: PresenceSlot | null;
   /** What the talent reads: the event's own wording when it set one. */
   label: string;
   solvedSteps: number;

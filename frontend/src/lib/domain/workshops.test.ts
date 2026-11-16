@@ -198,6 +198,7 @@ describe('activitiesToDo', () => {
   ): WorkshopActivity => ({
     slug,
     eventId: 'club',
+    slot: null,
     label: slug,
     solvedSteps: solved,
     totalSteps: total,
