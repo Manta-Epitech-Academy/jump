@@ -1,23 +1,25 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import Brain from '@lucide/svelte/icons/brain';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import Trophy from '@lucide/svelte/icons/trophy';
   import { cn } from '$lib/utils';
+  import { Card } from '$lib/components/ui/card';
+  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
 
-  // The day's brain training, as one tile among the talent's own cards (XP,
-  // next session) rather than a section of its own: being on the home already
-  // says « today », so the tile names the training once, the game and its
-  // level, and what there is to do about it. The whole tile is the link: to
-  // the game before playing, to its leaderboard after.
+  // The day's brain training, as one card among the talent's own (XP, next
+  // session) rather than a section of its own: being on the home already says
+  // « today », so the card names the training once, then the game (in the
+  // 2027 mockup's large title) and its level or today's result, and what there
+  // is to do about it. The whole card is the link: to the game before playing,
+  // to its leaderboard after.
   //
-  // It is training, never play: the PO's word, and the reason the title, the
-  // icon and the action all say so. And its action is a secondary link, in the
+  // It is training, never play: the PO's word, and the reason the title and
+  // the action both say so. And its action is a secondary link, in the
   // tone of its state like « Classement », never a filled button: the home
   // has one action that weighs more than the others, and it is in the hero.
   //
   // A day without a training renders nothing at all, which the home handles by
-  // not mounting this: an empty tile would only fill space.
+  // not mounting this: an empty card would only fill space.
   //
   // A finished attempt is either a win (`done`: ranked, XP earned) or a loss
   // (played, no XP, absent from the board). The two must not read alike: a loss
@@ -39,10 +41,6 @@
     attempt === null ? 'playable' : attempt.status === 'done' ? 'won' : 'lost',
   );
 
-  const game = $derived(
-    `${publication.gameName} · niveau ${publication.level}`,
-  );
-
   const result = $derived.by(() => {
     if (!attempt) return null;
     const parts = [
@@ -62,7 +60,7 @@
 
   const tone = $derived(
     {
-      playable: 'text-epi-blue',
+      playable: 'text-primary',
       won: 'text-epi-tech-ink',
       lost: 'text-warning',
     }[outcome],
@@ -71,39 +69,33 @@
 
 <a
   {href}
-  class="group @container block cursor-pointer rounded-xl border border-border bg-card px-6 py-4 shadow-raised transition-ui hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px"
+  class="group block cursor-pointer rounded-xl transition-ui active:translate-y-px"
 >
-  <div class="flex flex-col gap-3 @sm:flex-row @sm:items-center @sm:gap-4">
-    <div class="flex min-w-0 flex-1 items-start gap-3">
-      <Brain class={cn('mt-0.5 size-4 shrink-0', tone)} aria-hidden="true" />
-      <div class="min-w-0">
-        <h2 class="text-sm font-bold text-foreground">Entraîner mon cerveau</h2>
+  <Card class="h-full gap-3 p-6 transition-ui group-hover:bg-muted/40">
+    <h2 class="epi-overline text-muted-foreground">Entraîner mon cerveau</h2>
+
+    <div class="min-w-0">
+      <p class="font-heading text-display-l text-foreground">
+        {publication.gameName}<TitleCursor />
+      </p>
+      <p class="mt-1 text-sm text-foreground-secondary">
         {#if outcome === 'playable'}
-          <p class="mt-1 text-sm text-foreground-secondary">{game}</p>
+          Niveau {publication.level}
+        {:else if outcome === 'won'}
+          <span class="font-semibold">Défi relevé</span>{#if result}{' '}<span
+              class="text-muted-foreground">· {result}</span
+            >{/if}
         {:else}
-          <p class="mt-1 text-sm text-foreground-secondary">
-            {#if outcome === 'won'}
-              <span class="font-semibold">Défi relevé</span
-              >{#if result}{' '}<span class="text-muted-foreground"
-                  >· {result}</span
-                >{/if}
-            {:else}
-              <span class="font-semibold">Pas validé</span>{' '}<span
-                class="text-muted-foreground">· retente demain</span
-              >
-            {/if}
-          </p>
-          <p class="mt-0.5 truncate text-xs text-muted-foreground">{game}</p>
+          <span class="font-semibold">Pas validé</span>{' '}<span
+            class="text-muted-foreground">· retente demain</span
+          >
         {/if}
-      </div>
+      </p>
     </div>
 
     {#if outcome === 'playable'}
       <span
-        class={cn(
-          'inline-flex shrink-0 items-center gap-1 text-sm font-semibold',
-          tone,
-        )}
+        class={cn('inline-flex items-center gap-1 text-sm font-semibold', tone)}
       >
         C’est parti
         <ArrowRight
@@ -114,7 +106,7 @@
     {:else}
       <span
         class={cn(
-          'inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold',
+          'inline-flex items-center gap-1.5 text-sm font-semibold',
           tone,
         )}
       >
@@ -122,5 +114,5 @@
         Classement
       </span>
     {/if}
-  </div>
+  </Card>
 </a>

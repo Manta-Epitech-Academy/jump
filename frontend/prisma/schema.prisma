@@ -776,7 +776,7 @@ model Campus {
 }
 
 /// « Le mot du campus »: free text a campus puts on its talents' home, in the
-/// Actualités card. Authored over the admin API (`write_talent_home_note`), so
+/// Actualité card. Authored over the admin API (`write_talent_home_note`), so
 /// current state, one row per campus, and no row means no note. Who wrote it
 /// and what it said before is in `AdminApi_Call`, which is why there is no
 /// `updatedBy` here.

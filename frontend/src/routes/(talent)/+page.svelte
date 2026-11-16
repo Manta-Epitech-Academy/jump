@@ -2,16 +2,13 @@
   import type { PageData } from './$types';
   import { dev } from '$app/environment';
   import { enhance } from '$app/forms';
-  import { resolve } from '$app/paths';
   import { invalidateAll } from '$app/navigation';
   import { enter, stagger } from '$lib/motion';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
-  import Trophy from '@lucide/svelte/icons/trophy';
-  import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import Route from '@lucide/svelte/icons/route';
   import FeedbackBanner from '$lib/components/feedback/FeedbackBanner.svelte';
   import NewsCard from '$lib/components/talent/NewsCard.svelte';
+  import XpCard from '$lib/components/talent/XpCard.svelte';
   import TalentHomeHero from '$lib/components/talent/TalentHomeHero.svelte';
   import SessionCard from '$lib/components/talent/SessionCard.svelte';
   import DailyTrainingTile from '$lib/components/talent/DailyTrainingTile.svelte';
@@ -204,7 +201,7 @@
            empty.
            Below `lg` every wrapper collapses (display: contents) so the cards
            join the outer grid as siblings and `max-lg:order-*` interleaves
-           them: hero, XP, training, Actualités, session. From `lg` the columns
+           them: hero, XP, training, Actualité, session. From `lg` the columns
            read in source order, which is why every `order` stops there. -->
       <div
         class={cn(
@@ -215,50 +212,14 @@
         )}
         in:enter={{ x: -12 }}
       >
-        <a
-          href={resolve('/parcours')}
+        <div
           class={cn(
-            'group block cursor-pointer rounded-xl border border-border bg-card p-6 shadow-raised transition-ui active:translate-y-px max-lg:order-2',
+            'max-lg:order-2',
             ownCards ? 'lg:col-span-4' : 'lg:col-span-12',
           )}
         >
-          <div class="flex flex-col items-center text-center">
-            <div
-              class="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-epi-together-ink/10"
-            >
-              <Trophy class="h-7 w-7 text-epi-together" />
-            </div>
-
-            <div>
-              <span class="text-5xl font-bold tracking-tighter text-foreground">
-                {student?.xp || 0}
-              </span>
-              <span class="text-lg font-bold text-epi-together">XP</span>
-            </div>
-            <!-- The way into everything the home no longer lists: the
-                 activities left to do (counted here), the finished ones, the
-                 events attended, the XP history. -->
-            <span
-              class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground transition-ui group-hover:bg-epi-blue/10 group-hover:text-epi-blue dark:group-hover:bg-epi-blue/20"
-            >
-              <Route class="h-3 w-3" />
-              Mon parcours
-              {#if data.toDoCount > 0}
-                <span
-                  class="inline-flex min-w-5 items-center justify-center rounded-full bg-epi-blue px-1.5 text-xs font-bold text-white"
-                  aria-hidden="true">{data.toDoCount}</span
-                >
-                <span class="sr-only">
-                  , {data.toDoCount}
-                  {data.toDoCount > 1 ? 'activités' : 'activité'} à faire
-                </span>
-              {/if}
-              <ArrowRight
-                class="h-3 w-3 transition-transform group-hover:translate-x-0.5"
-              />
-            </span>
-          </div>
-        </a>
+          <XpCard xp={student?.xp ?? 0} toDoCount={data.toDoCount} />
+        </div>
 
         {#if ownCards}
           <div

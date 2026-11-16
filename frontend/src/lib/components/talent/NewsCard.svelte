@@ -1,16 +1,15 @@
 <script lang="ts">
   import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
   import { Button } from '$lib/components/ui/button';
-  import Newspaper from '@lucide/svelte/icons/newspaper';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import { Card } from '$lib/components/ui/card';
   import { cn } from '$lib/utils';
   import { hideBrokenPictures } from '$lib/actions/hideBrokenPictures';
 
   // The campus's word to its talents (`write_talent_home_note`), already
-  // rendered and sanitised server-side. The page frames it with « Actualités »
-  // and adds no label of its own: what the message is about, and how it is
-  // titled, is the author's to say. A long one shows a clamped preview and
+  // rendered and sanitised server-side. The card frames it with « Actualité »,
+  // the 2027 mockup's small label, and adds no label of its own: what the
+  // message is about, and how it is titled, is the author's to say. A long one shows a clamped preview and
   // opens whole in a dialog.
   let { html }: { html: string } = $props();
 
@@ -60,52 +59,36 @@
   </div>
 {/snippet}
 
-<section
-  aria-labelledby="news-card-title"
-  class="overflow-hidden rounded-xl border border-border bg-card shadow-raised"
->
-  <div
-    class="flex items-center gap-2 border-b border-border bg-background/50 px-6 py-4"
-  >
-    <Newspaper class="h-4 w-4 shrink-0 text-epi-blue" />
-    <h2
-      id="news-card-title"
-      class="font-heading text-display-s text-foreground"
-    >
-      Actualités<TitleCursor />
-    </h2>
-  </div>
+<Card role="region" aria-labelledby="news-card-title" class="gap-3 p-6">
+  <h2 id="news-card-title" class="epi-overline text-muted-foreground">
+    Actualité
+  </h2>
 
-  <div class="p-6">
-    <!-- Clamped preview: fades out when cut, full content in the dialog. -->
-    <div class="relative max-h-[20rem] overflow-hidden" use:measure>
-      {@render message('prose-sm prose-img:max-h-64')}
-      {#if clipped}
-        <div
-          class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent"
-        ></div>
-      {/if}
-    </div>
-
+  <!-- Clamped preview: fades out when cut, full content in the dialog. -->
+  <div class="relative max-h-[20rem] overflow-hidden" use:measure>
+    {@render message('prose-sm prose-img:max-h-64')}
     {#if clipped}
-      <Button
-        variant="outline"
-        onclick={() => (open = true)}
-        class="mt-4 w-full cursor-pointer gap-2 rounded-xl border-border transition-colors hover:border-epi-blue hover:bg-epi-blue hover:text-white dark:hover:border-epi-blue dark:hover:bg-epi-blue dark:hover:text-white"
-      >
-        Lire la suite <ArrowRight class="h-4 w-4" />
-      </Button>
+      <div
+        class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent"
+      ></div>
     {/if}
   </div>
-</section>
+
+  {#if clipped}
+    <Button
+      variant="outline"
+      onclick={() => (open = true)}
+      class="mt-1 w-full cursor-pointer gap-2 rounded-xl border-border transition-colors hover:border-epi-blue hover:bg-epi-blue hover:text-white dark:hover:border-epi-blue dark:hover:bg-epi-blue dark:hover:text-white"
+    >
+      Lire la suite <ArrowRight class="h-4 w-4" />
+    </Button>
+  {/if}
+</Card>
 
 <ResponsiveDialog.Root bind:open>
   <ResponsiveDialog.Content class="sm:max-w-2xl">
     <ResponsiveDialog.Header>
-      <ResponsiveDialog.Title class="flex items-center gap-2">
-        <Newspaper class="h-5 w-5 text-epi-blue" />
-        Actualités
-      </ResponsiveDialog.Title>
+      <ResponsiveDialog.Title>Actualité</ResponsiveDialog.Title>
     </ResponsiveDialog.Header>
     <ResponsiveDialog.Body bind:ref={bodyRef}>
       {@render message('prose-img:max-h-[60svh]')}
