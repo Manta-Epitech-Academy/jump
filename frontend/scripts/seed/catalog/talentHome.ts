@@ -6,7 +6,7 @@
  * state the home has to render exists even in CI:
  *
  *   - Paris writes both, the highlight with an animated picture (stored with
- *     its still), so a talent there sees the note in Actualités and the
+ *     its still), so a talent there sees the note in Actualité and the
  *     invitation leading the home's hero on a day without an activity (the
  *     picture is a key without bytes, since the generator stores the bytes of
  *     the activities' pictures only (`storage.ts`), so the hero's fallback is
