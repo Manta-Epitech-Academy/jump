@@ -421,6 +421,20 @@
   @apply text-[0.6875rem] leading-[1.2] font-bold tracking-[0.04em] uppercase;
 }
 
+/* A one-line Anton title that ends on an ellipsis when it runs out of room.
+   `truncate` alone clips it: it is overflow-hidden, and the condensed uppercase
+   face carries its accents (Ê, É, Ô) above the cap line, outside the tight line
+   box the display tokens set, so « CÔME » lost its circumflex in the home
+   greeting. The padding grows the clip box by the accents' height and the
+   negative margin gives it back, so the line keeps its outer size and its
+   vertical centring against whatever sits beside it. In em, so it follows
+   every display size. */
+@utility display-truncate {
+  @apply truncate;
+  padding-block: 0.25em;
+  margin-block: -0.25em;
+}
+
 /* Terminal cursor ending a title: TITRE_ . Decorative, so it is generated
    rather than a DOM node, and assistive tech does not read it. The neon green
    is 1.33:1 on white, so on a light surface the signature would simply be
