@@ -2,6 +2,7 @@
   import { resolve } from '$app/paths';
   import X from '@lucide/svelte/icons/x';
   import PersonaAvatar from './PersonaAvatar.svelte';
+  import CardAction from '$lib/components/talent/CardAction.svelte';
 
   let {
     eventId,
@@ -19,12 +20,13 @@
     <p class="flex-1 text-sm font-medium text-foreground">
       Ton avis compte ! Dis-nous ce que tu en as pensé, ça prend deux minutes.
     </p>
-    <a
+    <!-- The talent cards' one secondary voice (`CardAction`), not a filled
+         button: the home's heavy action is the hero's. Not « C'est parti »
+         either, which the training card beside it already says. -->
+    <CardAction
       href={resolve(`/feedback/${eventId}/${formId}`)}
-      class="shrink-0 rounded-xl bg-epi-blue px-4 py-2 text-sm font-bold text-white hover:bg-epi-blue/90"
+      class="shrink-0 self-center">Donner mon avis</CardAction
     >
-      C'est parti !
-    </a>
     <button
       type="button"
       onclick={() => (dismissed = true)}

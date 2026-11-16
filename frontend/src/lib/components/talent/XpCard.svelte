@@ -1,7 +1,7 @@
 <!--
   The talent's XP on the home, and the way into « Mon parcours », where
   everything the home no longer lists lives: the activities left to do (counted
-  on the pill), the finished ones, the events attended, the XP history.
+  beside its link), the finished ones, the events attended, the XP history.
 
   Drawn as the 2027 mockup's « Mon parcours » card: the total, the level Jump
   computes from it (`levelProgress`, whatever the levels are) with its badge,
@@ -12,7 +12,7 @@
   import { Card } from '$lib/components/ui/card';
   import LevelBadge from '$lib/components/talent/LevelBadge.svelte';
   import { levelProgress, levelToNext } from '$lib/domain/xp';
-  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import CardAction from '$lib/components/talent/CardAction.svelte';
 
   let { xp, toDoCount }: { xp: number; toDoCount: number } = $props();
 
@@ -54,24 +54,13 @@
     </div>
     <span class="sr-only">{toNext}.</span>
 
-    <span
-      class="inline-flex items-center gap-1.5 self-start rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary transition-ui group-hover:bg-primary/20"
+    <CardAction
+      count={toDoCount}
+      countLabel="{toDoCount} {toDoCount > 1
+        ? 'activités'
+        : 'activité'} à faire"
     >
       Profil complet
-      {#if toDoCount > 0}
-        <span
-          class="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-bold text-primary-foreground"
-          aria-hidden="true">{toDoCount}</span
-        >
-        <span class="sr-only">
-          , {toDoCount}
-          {toDoCount > 1 ? 'activités' : 'activité'} à faire
-        </span>
-      {/if}
-      <ArrowRight
-        class="size-4 transition-transform group-hover:translate-x-0.5"
-        aria-hidden="true"
-      />
-    </span>
+    </CardAction>
   </Card>
 </a>

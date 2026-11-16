@@ -668,6 +668,24 @@ accents), and identity is not the same thing as a call to action: the action is
 `primary`. The single exception is `buttonNeon`, and it is one because its text is
 `epiBlue` rather than white.
 
+**Actions on a talent screen: one heavy, the rest light, two shapes in all.**
+The PO's rule (13/10/2026): only the most important action of a screen is
+heavy, and every secondary one looks the same, so it reads as clickable without
+competing. Concretely:
+
+- the screen's heavy action is `buttonNeon` in the hero, in the button's shape
+  (`sm` radius, which the talent skin resolves to 12px). Several subjects
+  offered at once each carry one, because none may outrank another;
+- any other action on the blue hero is `overlay`, in the same shape;
+- an action on a card (Mon parcours, the training, the news, the feedback
+  banner) is `CardAction`: Plex semibold `primary` text with its arrow, no box,
+  so no radius to disagree about. A count rides along as a small badge, never
+  as a pill of its own, and a state's colour goes on the state's words, not on
+  the action.
+
+A filled, outlined or pill-shaped action on a card is the drift this replaced:
+four cards had four shapes.
+
 **Segmented control** (`SegmentedFilter`). The 2027 mockup's: a `card` ground
 with a 1px `border`, 36px tall like a button so it sits level with a toolbar's
 fields, and the chosen segment an inverse fill (`foreground` ground, `background`

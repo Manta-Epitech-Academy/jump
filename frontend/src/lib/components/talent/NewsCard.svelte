@@ -1,7 +1,6 @@
 <script lang="ts">
   import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
-  import { Button } from '$lib/components/ui/button';
-  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import CardAction from '$lib/components/talent/CardAction.svelte';
   import { Card } from '$lib/components/ui/card';
   import { cn } from '$lib/utils';
   import { hideBrokenPictures } from '$lib/actions/hideBrokenPictures';
@@ -75,13 +74,7 @@
   </div>
 
   {#if clipped}
-    <Button
-      variant="outline"
-      onclick={() => (open = true)}
-      class="mt-1 w-full cursor-pointer gap-2 rounded-xl border-border transition-colors hover:border-epi-blue hover:bg-epi-blue hover:text-white dark:hover:border-epi-blue dark:hover:bg-epi-blue dark:hover:text-white"
-    >
-      Lire la suite <ArrowRight class="h-4 w-4" />
-    </Button>
+    <CardAction onclick={() => (open = true)}>Lire la suite</CardAction>
   {/if}
 </Card>
 
