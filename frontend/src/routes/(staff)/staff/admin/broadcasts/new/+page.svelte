@@ -32,6 +32,7 @@
     type IncludedRecipient,
     type ExcludedRecipient,
   } from '$lib/domain/broadcasts';
+  import { broadcastFiltersSchema } from '$lib/validation/broadcasts';
   import { cn } from '$lib/utils';
 
   let { data } = $props();
@@ -214,7 +215,11 @@
         ? (draft.sourceBroadcastId ?? '')
         : '';
       $form.sourceFilter = sourceValid ? draft.sourceFilter : undefined;
-      $form.filters = draft.filters ?? {};
+      // Filters are checked the same way: a value the composer no longer
+      // offers (a Jump level renamed since the draft was saved) would fail the
+      // preview, blocking the send, with no chip left on screen to untick.
+      const filters = broadcastFiltersSchema.safeParse(draft.filters ?? {});
+      $form.filters = filters.success ? filters.data : {};
       $form.subject = draft.subject ?? '';
       $form.body = draft.body ?? '';
       // Mark the (possibly edited) draft content as already seeded so the
@@ -222,7 +227,11 @@
       seededFor = $form.templateId ?? '';
       const t = data.templates.find((x) => x.id === $form.templateId);
       if (t) channelChoice = t.channel;
-      toast.info('Brouillon restauré');
+      toast.info(
+        filters.success
+          ? 'Brouillon restauré'
+          : 'Brouillon restauré sans ses filtres : choisissez-les à nouveau',
+      );
     } catch {
       localStorage.removeItem(DRAFT_KEY);
     }

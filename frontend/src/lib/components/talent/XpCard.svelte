@@ -11,7 +11,7 @@
   import { resolve } from '$app/paths';
   import { Card } from '$lib/components/ui/card';
   import LevelBadge from '$lib/components/talent/LevelBadge.svelte';
-  import { levelProgress } from '$lib/domain/xp';
+  import { levelProgress, levelToNext } from '$lib/domain/xp';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
 
   let { xp, toDoCount }: { xp: number; toDoCount: number } = $props();
@@ -20,11 +20,7 @@
   const fr = (n: number) => n.toLocaleString('fr-FR');
 
   // The bar is drawn for the eye; this sentence is what it says.
-  const toNext = $derived(
-    progress.next
-      ? `Encore ${fr(progress.next.min - xp)} XP avant le niveau ${progress.next.level}`
-      : 'Tu as atteint le plus haut niveau',
-  );
+  const toNext = $derived(levelToNext(progress));
 </script>
 
 <a

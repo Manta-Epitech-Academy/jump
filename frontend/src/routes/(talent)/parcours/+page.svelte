@@ -6,6 +6,7 @@
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import ActivitiesCard from '$lib/components/talent/ActivitiesCard.svelte';
   import PastEventsCard from '$lib/components/talent/PastEventsCard.svelte';
+  import JumpLevelProgress from '$lib/components/talent/JumpLevelProgress.svelte';
   import Route from '@lucide/svelte/icons/route';
   import { xpHistoryLabel } from '$lib/domain/xpStory';
   import { toDateKey } from '$lib/domain/eventPresence';
@@ -181,7 +182,7 @@
   <TalentPageHeader title="Mon parcours" icon={Route} />
 
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
-    <!-- Hero: current XP total + stats -->
+    <!-- Hero: current XP total and Jump level -->
     <div
       class="mb-8 overflow-hidden rounded-xl border border-border bg-card shadow-raised"
       in:enter={{ y: -12 }}
@@ -199,14 +200,7 @@
           </div>
         </div>
 
-        <div class="min-w-0 flex-1">
-          <h2 class="text-base font-bold text-foreground">
-            Points d'expérience
-          </h2>
-          <p class="text-sm text-muted-foreground">
-            Chaque activité, entraînement et défi te rapproche du sommet.
-          </p>
-        </div>
+        <JumpLevelProgress xp={totalXp} class="flex-1" />
       </div>
     </div>
 

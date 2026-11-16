@@ -17,6 +17,7 @@ import { minigames } from './minigames';
 import { careers } from './careers';
 import { sfStatuses } from './sfStatuses';
 import { operations } from './operations';
+import { levels } from './levels';
 import type { Scenario } from './types';
 
 export const SCENARIOS: readonly Scenario[] = [
@@ -39,6 +40,7 @@ export const SCENARIOS: readonly Scenario[] = [
   // so inserting here leaves every existing enrolment at the position it had.
   sfStatuses,
   operations,
+  levels,
 ];
 
 export type { Scenario };

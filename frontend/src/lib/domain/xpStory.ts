@@ -3,8 +3,8 @@
 // Pure + shared (client medallion/dialog + server builder); the server builder
 // lives in `server/services/xpStoryService.ts`.
 //
-// Reconstructed from the XpGrant ledger (facts-as-rows). Tier-free on purpose (no
-// Novice/Apprenti/Expert): the dev space surfaces the story, not a ladder.
+// Reconstructed from the XpGrant ledger (facts-as-rows). Level-free on purpose (no
+// Jump level, Explorer to Expert): the dev space surfaces the story, not a ladder.
 
 import { MINIGAME_XP_REWARD } from './xp';
 

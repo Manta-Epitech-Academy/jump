@@ -24,6 +24,12 @@ const MIN_TOP_CLOSINGS = 3;
 const ASSIDUOUS_EVENTS = 5;
 /** What « a lot of XP » means. Production's 95th percentile is 1 767. */
 const HIGH_XP = 2000;
+/**
+ * What « a daily player » means: enough games that the XP is theirs. Without
+ * it the level ladder (`niveaux`), whose talents hold their XP from a
+ * scoreboard and attend nothing, would pass for the joueur on its own.
+ */
+const PLAYER_GAMES = 10;
 
 export async function careerFailures(prisma: PrismaClient): Promise<string[]> {
   const failures: string[] = [];
@@ -88,10 +94,13 @@ export async function careerFailures(prisma: PrismaClient): Promise<string[]> {
       AND (
         SELECT COUNT(*) FROM "Participation" p WHERE p."talentId" = t."id"
       ) < 3
+      AND (
+        SELECT COUNT(*) FROM "MinigameAttempt" m WHERE m."talentId" = t."id"
+      ) >= ${PLAYER_GAMES}
   `;
   if ((player?.n ?? 0) === 0) {
     failures.push(
-      `Aucun talent au-dessus de ${HIGH_XP} XP avec moins de 3 inscriptions : en production le sommet du classement est un joueur quotidien à deux événements, pas le plus assidu`,
+      `Aucun talent au-dessus de ${HIGH_XP} XP avec moins de 3 inscriptions et au moins ${PLAYER_GAMES} parties : en production le sommet du classement est un joueur quotidien à deux événements, pas le plus assidu`,
     );
   }
 

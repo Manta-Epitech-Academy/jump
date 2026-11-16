@@ -109,7 +109,7 @@ Data is **campus-scoped**: staff and themes belong to a specific campus.
 
 Core entities: `Campus` > `Theme` > `Subject` > `Event` > `Participation`
 
-Students earn XP based on subject difficulty (20 / 45 / 75 XP) and progress through levels (Novice, Apprentice, Expert).
+Students earn XP into a ledger (onboarding, the daily minigame, online activities, events) and progress through five levels derived from it, Explorer to Expert (`src/lib/domain/xp.ts`).
 
 ### Key Patterns
 

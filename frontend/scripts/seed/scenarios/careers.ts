@@ -401,7 +401,7 @@ export const careers: Scenario = {
       covers: [
         `un assidu à ${assiduWalk.attended.length} événements et ${assiduWalk.closed.length} closings, 0 XP, jamais connecté`,
         `un tryharder à ${tryharderWalk.attended.length} événements, ${tryharderWalk.closed.length} closings, ${TRYHARDER_GAMES} parties et ${TRYHARDER_WINS} premières places`,
-        `un joueur à 2 événements et ${joueurRuns.length} parties, premier ${JOUEUR_WINS} fois : le sommet du classement XP`,
+        `un joueur à 2 événements et ${joueurRuns.length} parties, premier ${JOUEUR_WINS} fois : le maximum d’XP de la production`,
         `un board bondé de ${crowdedField.length} finisseurs, seul endroit où le palier hors podium (10 XP) se paie`,
         'des closings sur sept séances sur dix, avec les trous entre elles',
         'trois récompenses de tableau sur un seul talent',
@@ -420,7 +420,7 @@ export const careers: Scenario = {
         {
           role: 'talent (joueur quotidien)',
           email: joueur.email,
-          note: 'deux événements, le haut du classement XP',
+          note: 'deux événements, le maximum d’XP de la production',
         },
       ],
     });

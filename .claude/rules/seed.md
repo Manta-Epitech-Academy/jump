@@ -46,6 +46,19 @@ Nine rules, and each is enforced rather than hoped for:
   is printed on every run as a number that only goes down. Moving a line between
   the two is possible and meant to be; doing it by accident is not.
 
+  **And a state the domain derives needs a row too, which no schema check can
+  see.** The Jump level is computed from `Talent.xp` and stored nowhere. #446
+  brought five levels, the seed reached two (production's maximum is 9 190 XP,
+  so no realistic volume reaches Hacker), and every check stayed green while
+  three levels and « Niveau maximum atteint » existed in no generated dataset.
+  The pull request's « Development data » box was ticked with « the unit tests
+  cover it », which confuses a computation being right with a state existing to
+  be looked at. `assert/derivedStates.ts` declares each derived vocabulary by
+  hand, its values and bounds imported from the domain, and the `niveaux`
+  scenario places one talent per level. The tell that one is missing is a
+  database edited by hand to see a screen: #446 and #444 were both validated
+  that way, and each edit was a scenario nobody wrote.
+
   A rare state is **placed, never drawn.** A few per cent of the `ci` profile's
   couple of dozen dossiers rounds to none, so a failure rate makes coverage depend
   on the profile rather than on the generator. The PDF renders that fail and the
