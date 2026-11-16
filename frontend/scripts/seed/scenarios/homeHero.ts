@@ -121,7 +121,7 @@ export const homeHero: Scenario = {
       ],
       hero: {
         live: {
-          title: 'Trois sujets, à toi de jouer',
+          title: 'Trois sujets, à toi de choisir',
           text: 'Choisis celui qui te tente : tu pourras passer à un autre une fois le premier terminé.',
         },
       },

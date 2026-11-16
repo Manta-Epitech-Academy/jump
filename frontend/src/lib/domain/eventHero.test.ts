@@ -57,11 +57,11 @@ describe('heroCopy', () => {
     expect(
       heroCopy(
         'live',
-        { title: 'À toi de jouer', text: null, buttonLabel: null },
+        { title: 'Trois sujets au choix', text: null, buttonLabel: null },
         event,
       ),
     ).toEqual({
-      title: 'À toi de jouer',
+      title: 'Trois sujets au choix',
       text: null,
       buttonLabel: 'Accéder au sujet',
     });
