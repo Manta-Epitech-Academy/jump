@@ -27,15 +27,32 @@
  * after a timeout lands on the same state.
  */
 
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import {
   EventService,
+  eventHeroOf,
   eventWorkshopsOf,
   jumpOwnedFields,
+  replaceEventHero,
+  storedEventHeroPictures,
   type AdminEventVM,
+  type EventHeroStageWrite,
+  type EventHeroState,
   type EventWorkshopLink,
   type EventWorkshopState,
 } from '$lib/server/services/events';
+import { replacePictures } from '$lib/server/images/remote';
+import {
+  EVENT_HERO_STAGES,
+  HERO_BUTTON_MAX,
+  HERO_TEXT_MAX,
+  HERO_TITLE_MAX,
+  eventHeroImageKey,
+  heroStageHasPicture,
+  type EventHeroStage,
+} from '$lib/domain/eventHero';
+import { checkSignupUrl } from './talentHome';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
 import {
   isEventModuleKey,
@@ -74,6 +91,8 @@ type EventState = {
   diplomaTemplateId: string | null;
   closingTemplateId: string | null;
   workshops: EventWorkshopState[];
+  signupUrl: string | null;
+  hero: EventHeroState;
   visibleInDevWorkspace: boolean;
   configState: string;
 };
@@ -93,6 +112,10 @@ async function stateOf(event: AdminEventVM): Promise<EventState> {
     diplomaTemplateId: event.diplomaTemplateId || null,
     closingTemplateId: event.closingTemplateId || null,
     workshops: await eventWorkshopsOf(event.id),
+    // Not on `AdminEventVM` either, for the same reason: only the event's own
+    // configuration reads what it says on the talent home.
+    signupUrl: await eventSignupUrlOf(event.id),
+    hero: await eventHeroOf(event.id),
     visibleInDevWorkspace: event.configState === 'shown',
     configState: EVENT_CONFIG_STATE_LABELS[event.configState],
   };
@@ -135,6 +158,16 @@ export type EventConfigPatch = {
     day?: string | null;
     slot?: PresenceSlot | null;
   }[];
+  signupUrl?: string | null;
+  hero?: Partial<Record<EventHeroStage, HeroStagePatch | null>>;
+};
+
+/** One stage of the hero as a call gives it: `imageUrl` omitted is none. */
+type HeroStagePatch = {
+  title: string | null;
+  text: string | null;
+  buttonLabel: string | null;
+  imageUrl?: string | null;
 };
 
 function refuseUnknownModules(modules: string[]) {
@@ -373,6 +406,114 @@ function statusPolicyFor(
   };
 }
 
+async function eventSignupUrlOf(eventId: string): Promise<string | null> {
+  const { signupUrl } = await prisma.event.findUniqueOrThrow({
+    where: { id: eventId },
+    select: { signupUrl: true },
+  });
+  return signupUrl;
+}
+
+/** Longest stored edge of a hero picture: the hero's picture slot. */
+const HERO_IMAGE_MAX_EDGE = 1280;
+
+const HERO_STAGE_LABELS: Record<EventHeroStage, string> = {
+  invitation: 'invitation',
+  enrolled: 'inscrit',
+  live: 'pendant',
+};
+
+/** One written field of a stage: absent or within its limit, never blank. */
+function checkedHeroField(
+  stage: EventHeroStage,
+  label: string,
+  value: string | null,
+  max: number,
+): string | null {
+  if (value === null) return null;
+  if (value.trim() === '' || value.length > max) {
+    throw new OperationRefusedError(
+      `Bandeau « ${HERO_STAGE_LABELS[stage]} » : ${label} doit faire entre 1 et ${max} caractères (reçu : ${value.length}). Pour garder les mots de la maquette, passez-le à null.`,
+    );
+  }
+  return value;
+}
+
+/**
+ * One stage as the call writes it, refused when it holds nothing: a stage left
+ * to the mockup's words is cleared with `null`, not written empty, so there is
+ * one way to say it.
+ */
+function checkedHeroStage(
+  stage: EventHeroStage,
+  given: HeroStagePatch,
+): EventHeroStageWrite {
+  const imageUrl = given.imageUrl ?? null;
+  if (imageUrl !== null && !heroStageHasPicture(stage)) {
+    throw new OperationRefusedError(
+      `Le bandeau « ${HERO_STAGE_LABELS[stage]} » n'a pas d'image : pendant l'événement, il présente les sujets.`,
+    );
+  }
+  const written = {
+    title: checkedHeroField(stage, 'le titre', given.title, HERO_TITLE_MAX),
+    text: checkedHeroField(stage, 'le texte', given.text, HERO_TEXT_MAX),
+    buttonLabel: checkedHeroField(
+      stage,
+      'le bouton',
+      given.buttonLabel,
+      HERO_BUTTON_MAX,
+    ),
+    imageUrl,
+  };
+  if (Object.values(written).every((value) => value === null)) {
+    throw new OperationRefusedError(
+      `Le bandeau « ${HERO_STAGE_LABELS[stage]} » ne dit rien. Pour lui rendre les mots de la maquette, passez-le à null.`,
+    );
+  }
+  return written;
+}
+
+/**
+ * Every stage of the hero once the patch is laid over what is stored: a stage
+ * the call names is taken as given (a stage is sent whole), one it leaves out
+ * keeps its words and its picture.
+ */
+function mergedHero(
+  stored: EventHeroState,
+  patch: NonNullable<EventConfigPatch['hero']>,
+): Record<EventHeroStage, EventHeroStageWrite | null> {
+  const merged = {} as Record<EventHeroStage, EventHeroStageWrite | null>;
+  for (const stage of EVENT_HERO_STAGES) {
+    const given = patch[stage];
+    if (given === undefined) {
+      const kept = stored[stage];
+      merged[stage] = kept && {
+        imageUrl: null,
+        ...kept,
+      };
+    } else {
+      merged[stage] = given && checkedHeroStage(stage, given);
+    }
+  }
+  return merged;
+}
+
+/** Lock the event row, so two writes of its hero pictures serialise. */
+async function lockEvent(tx: Prisma.TransactionClient, eventId: string) {
+  await tx.$executeRaw`SELECT 1 FROM "Event" WHERE id = ${eventId} FOR NO KEY UPDATE`;
+}
+
+/** The sign-up form to save: `''` for none, the service's spelling. */
+function checkedSignupUrl(
+  given: string | null | undefined,
+  stored: string | null,
+): string {
+  if (given === undefined) return stored ?? '';
+  if (given === null) return '';
+  checkSignupUrl(given);
+  return given;
+}
+
 export async function writeEventConfig(
   params: EventConfigPatch,
 ): Promise<WriteOutcome> {
@@ -382,7 +523,7 @@ export async function writeEventConfig(
   if (params.modules) refuseUnknownModules(params.modules);
   const modules = params.modules ?? event.modules;
 
-  await EventService.updateEventConfig(event.id, {
+  const config = {
     publicName: patched(params.publicName, event.publicName),
     cohortNoun: patched(params.cohortNoun, event.cohortNoun),
     startTime: patched(params.startTime, event.startTime),
@@ -417,9 +558,45 @@ export async function writeEventConfig(
       event.closingTemplateId,
     ),
     ...statusPolicyFor(params, event),
+    signupUrl: checkedSignupUrl(params.signupUrl, before.signupUrl),
     workshops:
       params.workshops && (await resolvedWorkshops(event.id, params.workshops)),
-  });
+  };
+
+  if (!params.hero) {
+    await EventService.updateEventConfig(event.id, config);
+  } else {
+    // The hero's pictures are copied before anything is saved, and the
+    // configuration lands in the transaction that points at them: a picture
+    // that cannot be copied refuses the whole call, and a refused
+    // configuration leaves no picture behind.
+    const stages = mergedHero(before.hero, params.hero);
+    await replacePictures({
+      requests: EVENT_HERO_STAGES.flatMap((stage) => {
+        const sourceUrl = stages[stage]?.imageUrl;
+        return sourceUrl
+          ? [{ slot: stage, sourceUrl, maxEdge: HERO_IMAGE_MAX_EDGE }]
+          : [];
+      }),
+      keyFor: (request, writeId, extension) =>
+        eventHeroImageKey(
+          event.id,
+          request.slot as EventHeroStage,
+          writeId,
+          extension,
+        ),
+      refusal: (request, why) =>
+        new OperationRefusedError(
+          `L'image du bandeau « ${HERO_STAGE_LABELS[request.slot as EventHeroStage]} » (${request.sourceUrl}) ${why}. L'événement n'a pas changé.`,
+        ),
+      readStored: (db) => storedEventHeroPictures(db, event.id),
+      lock: (tx) => lockEvent(tx, event.id),
+      commit: async (tx, pictures) => {
+        await EventService.updateEventConfig(event.id, config, tx);
+        await replaceEventHero(tx, event.id, stages, pictures);
+      },
+    });
+  }
 
   return {
     applied: true,

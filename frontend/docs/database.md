@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **85** modèles · **33** enums · **118** relations
+- **87** modèles · **34** enums · **120** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -19,7 +19,7 @@
 | Minijeux | 3 |
 | Feedback | 7 |
 | Communication & Support | 5 |
-| Contenus & Centres d'intérêt | 5 |
+| Contenus & Centres d'intérêt | 7 |
 | Analytique d'usage | 2 |
 | Configuration & Système | 12 |
 | Autres | 5 |
@@ -351,6 +351,7 @@ erDiagram
     String feedbackFormId FK
     String diplomaTemplateId FK
     String closingTemplateId FK
+    String signupUrl
     String externalId UK
     DateTime devActivatedAt
     DateTime createdAt
@@ -977,6 +978,24 @@ erDiagram
     Int width
     Int height
   }
+  EventConfig_Hero {
+    String eventId PK,FK
+    EventConfig_HeroStage stage PK
+    String title
+    String text
+    String buttonLabel
+    DateTime updatedAt
+  }
+  EventConfig_HeroImage {
+    String eventId PK,FK
+    EventConfig_HeroStage stage PK,FK
+    String sourceUrl
+    String key UK
+    String stillKey UK
+    String contentType
+    Int width
+    Int height
+  }
   Interest {
     String id PK
     String nom UK
@@ -994,11 +1013,15 @@ erDiagram
   }
   Campus {
   }
+  Event {
+  }
   Talent ||--o{ TalentInterest : "interests"
   Campus ||--|| TalentHome_Note : "homeNote"
   Campus ||--|| TalentHome_Highlight : "homeHighlight"
   TalentHome_Highlight ||--|| TalentHome_HighlightImage : "image"
+  Event ||--o{ EventConfig_Hero : "heroes"
   Interest ||--o{ TalentInterest : "talentInterests"
+  EventConfig_Hero ||--|| EventConfig_HeroImage : "image"
 ```
 
 ## 11 · Analytique d'usage

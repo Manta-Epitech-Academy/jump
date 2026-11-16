@@ -82,6 +82,11 @@ import {
 } from '$lib/domain/workshopCatalogue';
 import { SUPERVISOR_CODE_MAX } from '$lib/domain/workshops';
 import {
+  HERO_BUTTON_MAX,
+  HERO_TEXT_MAX,
+  HERO_TITLE_MAX,
+} from '$lib/domain/eventHero';
+import {
   SYNC_CADENCE_MAX_MINUTES,
   SYNC_CADENCE_MIN_MINUTES,
   SYNC_WORKER_TICK_MINUTES,
@@ -584,6 +589,28 @@ function pictureUrl(describe: string) {
 }
 
 /**
+ * The words of one stage of an event's hero (#501), each null for the mockup's
+ * own. Named once, so the three stages share one definition.
+ */
+const heroWords = z
+  .strictObject({
+    title: z.string().max(HERO_TITLE_MAX).nullable(),
+    text: z.string().max(HERO_TEXT_MAX).nullable(),
+    buttonLabel: z.string().max(HERO_BUTTON_MAX).nullable(),
+  })
+  .describe('French, « tu »; null: the default.')
+  .meta({ id: 'EventHeroWords' });
+
+const heroStage = heroWords
+  .extend({
+    imageUrl: httpsPictureUrl
+      .nullable()
+      .optional()
+      .describe("Picture; null for the event's own visual."),
+  })
+  .meta({ id: 'EventHeroStage' });
+
+/**
  * One answer option of a feedback form, as `write_feedback_form` takes it and
  * `config_feedback_forms` returns it. Strict at every depth: a misspelt
  * `optionId` silently dropped would turn a rename into a new option.
@@ -954,9 +981,10 @@ export const ADMIN_API_OPERATIONS = {
       because: 'it sets values rather than adjusting them',
     },
     destructive: true,
-    openWorld: false,
+    // It copies the pictures of the event's hero from the addresses it is given.
+    openWorld: true,
     description:
-      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses and those that count as a visit, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call.",
+      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses and those that count as a visit, the feedback form, certificate and closing grid it uses, the online activities it offers, its talents' home hero and sign-up form, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call.",
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
       // Unset is spelled one way, on both sides: null, as config_event_detail
@@ -1071,6 +1099,39 @@ export const ADMIN_API_OPERATIONS = {
         .optional()
         .describe(
           'The complete ordered list of online activities this event offers, in the order a talent sees them, as config_event_detail returns it; anything left out is no longer offered, an empty list offers none. Activities offered at the same moment are presented to talents as a choice.',
+        ),
+      signupUrl: z
+        .string()
+        .min(1, 'Send null to remove it.')
+        .nullable()
+        .optional()
+        .describe(
+          "https sign-up form behind « Je m'inscris ». Null removes it.",
+        ),
+      hero: z
+        .strictObject({
+          invitation: heroStage
+            .nullable()
+            .optional()
+            .describe(
+              'Not enrolled, while the campus puts it forward. Defaults: event name, an invitation, « Je m’inscris ».',
+            ),
+          enrolled: heroStage
+            .nullable()
+            .optional()
+            .describe(
+              'Enrolled, until it starts. Defaults: « On a hâte de te voir », « Ajouter à mon agenda ».',
+            ),
+          live: heroWords
+            .nullable()
+            .optional()
+            .describe(
+              'Heads the subjects while it runs. Defaults: the subject name if only one, « Accéder au sujet ».',
+            ),
+        })
+        .optional()
+        .describe(
+          "Its talents' home hero per stage: sent whole, null restores the mockup's words, left out untouched. Pictures copied like write_workshop's cover.",
         ),
     },
     run: (params) => writeEventConfig(params),

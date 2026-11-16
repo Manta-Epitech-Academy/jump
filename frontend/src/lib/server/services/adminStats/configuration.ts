@@ -18,8 +18,10 @@ import type { WorkshopLevel } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import {
   EventService,
+  eventHeroOf,
   eventWorkshopsOf,
   jumpOwnedFields,
+  type EventHeroState,
   type EventWorkshopState,
 } from '$lib/server/services/events';
 import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
@@ -229,6 +231,8 @@ export type EventDetail = {
     label: string;
   } | null>;
   workshops: Metric<EventWorkshopState[]>;
+  signupUrl: Metric<string | null>;
+  hero: Metric<EventHeroState>;
   shownStatuses: Metric<string[]>;
   attendanceStatuses: Metric<string[]>;
   attended: Metric;
@@ -268,6 +272,11 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
     : null;
 
   const workshops = await eventWorkshopsOf(event.id);
+  const hero = await eventHeroOf(event.id);
+  const { signupUrl } = await prisma.event.findUniqueOrThrow({
+    where: { id: event.id },
+    select: { signupUrl: true },
+  });
 
   const hidden = (await hiddenEnrolmentsByEvent([event.id])).get(event.id) ?? 0;
   const attended = await prisma.participation.count({
@@ -340,6 +349,14 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
     workshops: metric(
       workshops,
       "Les activités en ligne que cet événement propose, dans l'ordre où un talent les voit, sous la forme exacte que prend write_event_config (« workshops ») : cette liste y remplace la liste entière, donc pour en ajouter ou en retirer une, renvoyez celle-ci modifiée. « labelOverride » est le nom qu'il lui donne à la place de celui du catalogue (null s'il garde ce dernier). « day » est le seul jour de l'événement où il la propose (AAAA-MM-JJ, null pour tous ses jours) et « slot » la demi-journée de ce jour (morning, afternoon à partir de 13 h, null pour la journée entière) : des activités proposées au même moment sont présentées au talent comme un choix. Le nom du catalogue et l'instance qui la sert sont dans config_workshops. Liste vide si l'événement n'en propose aucune.",
+    ),
+    signupUrl: metric(
+      signupUrl,
+      "Le formulaire d'inscription de l'événement, vers lequel mène « Je m'inscris » quand un campus le met en avant sur l'accueil de ses talents, ou null s'il n'en a pas. Se règle avec write_event_config (« signupUrl »).",
+    ),
+    hero: metric(
+      hero,
+      "Ce que l'événement dit sur l'accueil de ses talents, étape par étape, sous la forme exacte que prend write_event_config (« hero ») : « invitation » pour un talent pas inscrit quand le campus le met en avant, « enrolled » pour un talent inscrit jusqu'au début de l'événement, « live » pendant l'événement, au-dessus des sujets proposés. Chaque étape vaut null quand elle garde les mots de la maquette ; sinon « title », « text » et « buttonLabel » valent null quand ils gardent les leurs, et « imageUrl » est l'adresse d'où son image a été copiée (null sans image, et absente pendant l'événement, qui n'en a pas).",
     ),
     shownStatuses: metric(
       event.shownStatuses,

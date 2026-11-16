@@ -107,6 +107,22 @@ describe('the operation catalogue', () => {
     expect(offeredOn('2026-06-30')).toBe(true);
   });
 
+  // The mockup draws no picture while the event runs: the live stage heads the
+  // subjects, which carry their own, so the schema has nowhere to put one.
+  it('takes no picture on the live stage of an event hero', () => {
+    const config = ADMIN_API_OPERATIONS.write_event_config.schema;
+    const words = { title: null, text: 'Bienvenue', buttonLabel: null };
+    const hero = (stage: string, imageUrl: string | null) =>
+      config.safeParse({
+        eventId: 'e',
+        hero: { [stage]: { ...words, imageUrl } },
+      }).success;
+
+    expect(hero('invitation', 'https://example.com/a.png')).toBe(true);
+    expect(hero('live', 'https://example.com/a.png')).toBe(false);
+    expect(hero('invitation', 'http://example.com/a.png')).toBe(false);
+  });
+
   // Unset has one spelling on the admin API, the one the event read returns
   // (#402): null clears a field, and an empty string is refused rather than
   // accepted as a second way of saying it.
@@ -118,6 +134,7 @@ describe('the operation catalogue', () => {
       'cohortNoun',
       'startTime',
       'categoryKey',
+      'signupUrl',
     ]) {
       expect(config.safeParse({ eventId: 'e', [field]: null }).success).toBe(
         true,

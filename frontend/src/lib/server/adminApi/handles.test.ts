@@ -77,6 +77,10 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'date',
   'url',
   'imageUrl',
+  // What one event says on its talents' home at each stage, and its own sign-up
+  // form: authored words and an address typed once, naming nothing Jump holds.
+  'hero',
+  'signupUrl',
   // A certificate design. Authored rather than picked from anywhere, which is the
   // whole point of the table it is stored in.
   'styleCss',

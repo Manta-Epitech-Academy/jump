@@ -186,10 +186,13 @@ const DOMAINS: { title: string; models: string[] }[] = [
     title: "Contenus & Centres d'intérêt",
     models: [
       // What a campus puts on its talents' home: its note, its highlight and the
-      // highlight's picture.
+      // highlight's picture; and what one event says on that home at each stage,
+      // with the picture of the stages before it.
       'TalentHome_Note',
       'TalentHome_Highlight',
       'TalentHome_HighlightImage',
+      'EventConfig_Hero',
+      'EventConfig_HeroImage',
       'Interest',
       'TalentInterest',
     ],

@@ -379,6 +379,30 @@ function addStageAt(
     // and one for the whole of its second day. The only seeded event that sets
     // a moment, so `EventConfig_Workshop.day` and `.slot` each have a value.
     workshops: flagship ? STAGE_SUBJECTS : undefined,
+    // The flagship stage writes what it says on its talents' home, as a campus
+    // does before a stage: every stage its own words, a picture before it, an
+    // animated one once enrolled. The other stages keep the mockup's words, so
+    // both states exist.
+    signupUrl: flagship
+      ? `https://www.epitech.invalid/inscription-stage-seconde/?CampaignId=${campus.name.toLowerCase()}`
+      : null,
+    hero: flagship
+      ? {
+          invitation: {
+            text: 'Une semaine pour coder ton premier jeu, rencontrer des étudiants et découvrir Epitech. Gratuit, inscris-toi !',
+            picture: { width: 1280, height: 720 },
+          },
+          enrolled: {
+            text: 'Prépare ta curiosité : on s’occupe du reste.',
+            buttonLabel: 'Je le note',
+            picture: { width: 1280, height: 720, animated: true },
+          },
+          live: {
+            title: 'Choisis ton sujet',
+            text: 'Plusieurs sujets t’attendent : lance-toi sur celui qui te tente.',
+          },
+        }
+      : undefined,
   });
 
   // The cohort's size and its instrumentation are the point of this event, so

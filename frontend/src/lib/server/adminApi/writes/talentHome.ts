@@ -244,7 +244,12 @@ async function storedHighlightPicture(
  */
 const HIGHLIGHT_IMAGE_MAX_EDGE = 1280;
 
-function checkSignupUrl(url: string): void {
+/**
+ * A sign-up link a talent is sent to: a whole address, over https. Shared by
+ * the campus's highlight and an event's own sign-up form (`write_event_config`),
+ * so both refuse the same thing in the same words.
+ */
+export function checkSignupUrl(url: string): void {
   let parsed: URL;
   try {
     parsed = new URL(url);

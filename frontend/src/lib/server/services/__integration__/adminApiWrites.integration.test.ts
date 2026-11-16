@@ -828,6 +828,8 @@ describe('admin API writes (integration)', () => {
       diplomaTemplateId: (d) => d.certificate.value?.templateId ?? null,
       closingTemplateId: (d) => d.closingGrid.value?.templateId ?? null,
       workshops: (d) => d.workshops.value,
+      signupUrl: (d) => d.signupUrl.value,
+      hero: (d) => d.hero.value,
     };
     const writable = Object.keys(
       ADMIN_API_OPERATIONS.write_event_config.schema.shape,
@@ -934,6 +936,17 @@ describe('admin API writes (integration)', () => {
           slot: 'afternoon',
         },
       ],
+      signupUrl: 'https://www.epitech.invalid/inscription/?CampaignId=relu',
+      hero: {
+        invitation: {
+          title: 'Viens au camp',
+          text: null,
+          buttonLabel: 'Je viens',
+          imageUrl: null,
+        },
+        enrolled: null,
+        live: { title: null, text: 'Choisis ton sujet', buttonLabel: null },
+      },
     };
     expect(Object.keys(written).sort()).toEqual([...writable].sort());
     const configured = await call(postConfig, writeSecret, {
@@ -955,11 +968,20 @@ describe('admin API writes (integration)', () => {
       startTime: null,
     });
     expect(blankDetail.category.value).toBeNull();
+    expect(blankDetail.signupUrl.value).toBeNull();
+    expect(blankDetail.hero.value).toEqual({
+      invitation: null,
+      enrolled: null,
+      live: null,
+    });
 
     await prisma.eventConfig_Workshop.deleteMany({
       where: { eventId: event.id },
     });
     await prisma.eventConfig_Module.deleteMany({
+      where: { eventId: event.id },
+    });
+    await prisma.eventConfig_Hero.deleteMany({
       where: { eventId: event.id },
     });
     await prisma.event.deleteMany({

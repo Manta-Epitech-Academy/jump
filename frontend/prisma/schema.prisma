@@ -967,6 +967,12 @@ model Event {
   // reason as the certificate: nothing deletes a template through the app, so a
   // hand-deletion should fail loudly rather than silently empty every grid.
   closingTemplateId String?
+  // The event's own sign-up form, https only: where the talent home's « Je
+  // m'inscris » leads when a campus puts this event forward (#501). Jump-owned
+  // and typed over the admin API; the Salesforce sync never writes it, so a
+  // campaign update cannot clobber it. Null = no sign-up link yet, and a campus
+  // cannot put the event forward until it has one.
+  signupUrl         String?
   externalId        String?   @unique
   // Explicit admin gate for the dev workspace, decoupled from modules: an event
   // appears in the dev sidebar/switcher only once an admin activates it here.
@@ -995,6 +1001,7 @@ model Event {
   modules             EventConfig_Module[]
   shownStatuses       EventConfig_ShownStatus[]
   workshops           EventConfig_Workshop[]
+  heroes              EventConfig_Hero[]
   workshopEntries     Workshop_Participation[]
   syncPruneHold       Sync_PruneHold?
 
@@ -2848,6 +2855,71 @@ model EventConfig_Workshop {
 
   @@id([eventId, activityId])
   @@index([activityId])
+}
+
+/// The three moments of an event on a talent's home, each with its own words
+/// (#501): `invitation` asks a talent who is not enrolled to sign up, `enrolled`
+/// tells one who is that they are expected, `live` heads the subjects offered
+/// while it runs.
+enum EventConfig_HeroStage {
+  invitation
+  enrolled
+  live
+}
+
+/// What one event says on the talent home's blue hero at one stage: its title,
+/// its text and its button's label, each optional. The PO asked for every stage
+/// to be written per event (call of 13/10/2026: « on t'invite à un événement,
+/// pas à une activité », and a button label is a marketing choice), so the words
+/// belong to the event and not to the subjects it offers. A field left null shows
+/// the 2027 mockup's own words (`heroCopy` in `domain/eventHero.ts`), so an event
+/// nobody wrote for still reads as the mockup does. The limits that keep the
+/// hero's layout are the writer's (`HERO_*_MAX`), not the column's.
+///
+/// One row per written stage, and none for a stage left to its defaults: the
+/// writer deletes a row that ends up holding nothing, picture included.
+model EventConfig_Hero {
+  eventId     String
+  stage       EventConfig_HeroStage
+  title       String?
+  text        String?
+  buttonLabel String?
+  updatedAt   DateTime              @updatedAt
+
+  event Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  image EventConfig_HeroImage?
+
+  @@id([eventId, stage])
+}
+
+/// The picture of one stage of an event's hero, given as an https address and
+/// COPIED into storage, never linked to (`$lib/server/images/remote.ts`, the
+/// circuit the highlight's picture uses): a minor's browser fetches nothing from
+/// another host. Only the two stages before the event have one, as the mockup
+/// draws it (a CHECK in the migration says so); without it the hero draws the
+/// event's own visual. A child row rather than columns on the stage, so it can
+/// never hold half an image, and it goes with its stage.
+model EventConfig_HeroImage {
+  eventId     String
+  stage       EventConfig_HeroStage
+  /// The address it was copied from, handed back by `config_event_detail` so the
+  /// admin can restate the stage. A write restating it keeps this copy rather
+  /// than downloading it again (`replacePictures`).
+  sourceUrl   String
+  /// Storage key, `event-hero/<eventId>/<stage>-<writeId>.<ext>`: minted by the
+  /// write that copied it, so only the write that replaces it deletes it.
+  key         String                @unique
+  /// For an animated GIF, its first frame as a WebP, what a talent who asked
+  /// for reduced motion sees instead. Null for a still.
+  stillKey    String?               @unique
+  contentType String
+  /// Intrinsic size, so the hero reserves the box before the bytes land.
+  width       Int
+  height      Int
+
+  hero EventConfig_Hero @relation(fields: [eventId, stage], references: [eventId, stage], onDelete: Cascade)
+
+  @@id([eventId, stage])
 }
 
 /// What CTFd says one talent has done on one activity.
