@@ -24,7 +24,7 @@ the PR ready for review.
 
 - [ ] **Technical:** `bun run verify` green (it is the CI gate: script bits, lint, design lint, test lint, prose lint, check, unit, integration, schema drift, seed, E2E), migration named and squashed into one.
 - [ ] **Automated testing:** new behaviours are covered by unit, integration or Playwright tests, not by manual testing alone. Human verification is welcome for visual polish, but core functional contracts need automated coverage.
-- [ ] **Development data:** a new behaviour has an example in the seed generator (`frontend/scripts/seed/`). A new enum value fails `test:seed` until a scenario produces one; a new screen needs a case that exercises its empty, full and broken states, or nobody will ever see them.
+- [ ] **Development data:** a new behaviour has an example in the seed generator (`frontend/scripts/seed/`), and this line names it: for each state the change's screens render, the account of the « Où trouver quoi » manifest that shows it. The manifest is generated from the scenarios, so a state with no account is a state nobody can validate on `staging`. A state you had to write into a database by hand to see is a missing scenario, not a test step.
 - [ ] **Schema changes:** the integration suite and `test:schema-drift` ran (both are inside `bun run verify`), so the schema is proven against a real PostgreSQL and against its own migration trail.
 - [ ] **Space conventions:** rounded corners, title colors, button placement; square dialogs in the dev space, rounded in the talent space; `cursor-pointer` on every interactive element; existing UI components reused.
 - [ ] **Audience:** admin space is operational and direct, dev space is functional with no XP tiers or confetti, talent space is welcoming and gamified.
