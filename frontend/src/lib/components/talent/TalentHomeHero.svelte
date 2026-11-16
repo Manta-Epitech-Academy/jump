@@ -12,7 +12,7 @@
 {#if hero.kind === 'activity'}
   <ActivityHero activities={hero.activities} context="today" />
 {:else if hero.kind === 'highlight'}
-  <HighlightHero highlight={hero.highlight} />
+  <HighlightHero invitation={hero.invitation} />
 {:else}
   <ActivityHero activities={[hero.activity]} context="continue" />
 {/if}

@@ -1,53 +1,53 @@
 import { describe, it, expect } from 'vitest';
 import {
-  formatHighlightDay,
-  isHighlightOpen,
+  isInvitationOpen,
   pickHomeHero,
   type TalentHomeHighlight,
 } from './talentHome';
 import type { WorkshopActivity } from './workshops';
 
-const day = (key: string) => new Date(`${key}T00:00:00.000Z`);
+// An event's first day as the sync stores it: midnight on the campus clock.
+const startsOn = (instant: string) => ({ date: new Date(instant) });
 
-describe('isHighlightOpen', () => {
-  it('stays open all of its own day, and closes the next', () => {
-    // 23:30 in Paris on 7 October (CEST, UTC+2).
+describe('isInvitationOpen', () => {
+  // 14 October at 00:00 in Paris (CEST, UTC+2).
+  const event = startsOn('2026-10-13T22:00:00Z');
+
+  it('invites until the end of the first day, and stops the next', () => {
+    // 23:30 in Paris on 14 October.
     expect(
-      isHighlightOpen(
-        day('2026-10-07'),
-        'Europe/Paris',
-        new Date('2026-10-07T21:30:00Z'),
-      ),
+      isInvitationOpen(event, 'Europe/Paris', new Date('2026-10-14T21:30:00Z')),
     ).toBe(true);
-    // 00:30 in Paris on 8 October.
+    // 00:30 in Paris on 15 October: the event is under way.
     expect(
-      isHighlightOpen(
-        day('2026-10-07'),
-        'Europe/Paris',
-        new Date('2026-10-07T22:30:00Z'),
-      ),
+      isInvitationOpen(event, 'Europe/Paris', new Date('2026-10-14T22:30:00Z')),
     ).toBe(false);
   });
 
-  it('reads the day on the campus clock, not on the server’s', () => {
-    // 20:30 UTC on 7 October is already 8 October in La Réunion (UTC+4).
-    const now = new Date('2026-10-07T20:30:00Z');
-    expect(isHighlightOpen(day('2026-10-07'), 'Indian/Reunion', now)).toBe(
-      false,
-    );
-    expect(isHighlightOpen(day('2026-10-07'), 'Europe/Paris', now)).toBe(true);
-  });
-
-  it('never closes an invitation that has no day', () => {
+  it('invites to an event still to come', () => {
     expect(
-      isHighlightOpen(null, 'Europe/Paris', new Date('2030-01-01T12:00:00Z')),
+      isInvitationOpen(event, 'Europe/Paris', new Date('2026-10-01T08:00:00Z')),
     ).toBe(true);
   });
-});
 
-describe('formatHighlightDay', () => {
-  it('names the day itself, whatever the reader’s timezone', () => {
-    expect(formatHighlightDay('2026-10-07')).toBe('mercredi 7 octobre');
+  it('reads the day on the campus clock, not on the server’s', () => {
+    // 14 October at 00:00 in La Réunion (UTC+4).
+    const reunion = startsOn('2026-10-13T20:00:00Z');
+    // 20:30 UTC on 14 October is already 15 October in La Réunion.
+    expect(
+      isInvitationOpen(
+        reunion,
+        'Indian/Reunion',
+        new Date('2026-10-14T20:30:00Z'),
+      ),
+    ).toBe(false);
+    expect(
+      isInvitationOpen(
+        reunion,
+        'Indian/Reunion',
+        new Date('2026-10-14T19:30:00Z'),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -63,13 +63,14 @@ describe('pickHomeHero', () => {
     startedAt: progress.startedAt ? new Date(progress.startedAt) : null,
     cover: { tagline: null, media: null, poster: null, mascot: null },
   });
-  const highlight: TalentHomeHighlight = {
-    title: 'Recode le jeu Snake en JS',
-    summary: 'Deux heures pour coder ton propre Snake.',
-    date: '2026-10-14',
-    url: 'https://www.epitech.invalid/inscription',
+  const invitation = {
+    title: 'Les Ateliers TECH',
+    text: 'Toute l’année, des ateliers gratuits : inscris-toi !',
+    url: 'https://www.epitech.invalid/agenda',
+    buttonLabel: null,
     image: null,
   };
+  const highlight: TalentHomeHighlight = { event: null, invitation };
   const pacman = activity('pacman', {
     solved: 3,
     total: 10,
@@ -93,10 +94,10 @@ describe('pickHomeHero', () => {
     ).toEqual({ kind: 'activity', activities: [pacman] });
   });
 
-  it('leads with the campus’s highlight on a day without an activity', () => {
+  it('leads with the campus’s invitation on a day without an activity', () => {
     expect(
       pickHomeHero({ today: [], highlight, activities: [pacman] }),
-    ).toEqual({ kind: 'highlight', highlight });
+    ).toEqual({ kind: 'highlight', invitation });
   });
 
   it('suggests carrying on the most recently started unfinished activity', () => {

@@ -4,15 +4,12 @@
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import { Button } from '$lib/components/ui/button';
   import ExternalLink from '@lucide/svelte/icons/external-link';
-  import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import { cn } from '$lib/utils';
-  import {
-    formatHighlightDay,
-    type TalentHomeHighlight,
-  } from '$lib/domain/talentHome';
+  import { HERO_DEFAULT_BUTTON } from '$lib/domain/eventHero';
+  import type { CampusInvitation } from '$lib/domain/talentHome';
 
-  // The event the talent's campus invites them to, leading the home's hero on a
-  // day they have no activity (`pickHomeHero`). Same surface and same shape as
+  // The campus's generic invitation, leading the home's hero on a day the
+  // talent has no activity (`pickHomeHero`). Same surface and same shape as
   // an activity in the hero, so the blue zone always reads as « where Jump tells
   // you what to do », whatever it holds that day; its button leaves Jump for
   // the outside sign-up form, which the trailing glyph says before the click
@@ -21,10 +18,12 @@
   // The picture is optional and may fail to load (a seeded environment has no
   // bytes behind its key): the hero then stands on its words and the brand
   // ground, which has to read as finished, not as broken.
-  let { highlight }: { highlight: TalentHomeHighlight } = $props();
+  let { invitation }: { invitation: CampusInvitation } = $props();
 
   let broken = $state(false);
-  const picture = $derived(highlight.image && !broken ? highlight.image : null);
+  const picture = $derived(
+    invitation.image && !broken ? invitation.image : null,
+  );
 </script>
 
 <section aria-labelledby="highlight-hero-title">
@@ -52,33 +51,20 @@
             id="highlight-hero-title"
             class="mt-2 font-heading text-display-m text-white sm:text-display-l"
           >
-            {highlight.title}<TitleCursor />
+            {invitation.title}<TitleCursor />
           </h2>
-          <!-- The fact a sign-up turns on, so it is read as a line of its
-               own rather than in the overline's small capitals. An invitation
-               with no day shows none, rather than one made up to fill it. -->
-          {#if highlight.date}
-            <p
-              class="mt-2 flex items-center gap-1.5 text-sm font-semibold text-white"
-            >
-              <CalendarDays class="size-4 shrink-0" aria-hidden="true" />
-              <span class="first-letter:uppercase"
-                >{formatHighlightDay(highlight.date)}</span
-              >
-            </p>
-          {/if}
         </div>
 
-        <p class="max-w-prose text-sm text-white/80">{highlight.summary}</p>
+        <p class="max-w-prose text-sm text-white/80">{invitation.text}</p>
 
         <Button
-          href={highlight.url}
+          href={invitation.url}
           target="_blank"
           rel="noopener noreferrer"
           variant="neon"
           class="w-full sm:w-auto sm:self-start"
         >
-          Je m’inscris
+          {invitation.buttonLabel ?? HERO_DEFAULT_BUTTON.invitation}
           <ExternalLink class="size-4" aria-hidden="true" />
           <span class="sr-only">(nouvel onglet)</span>
         </Button>

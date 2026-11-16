@@ -92,8 +92,6 @@ import {
   SYNC_WORKER_TICK_MINUTES,
 } from '$lib/domain/syncSchedule';
 import {
-  HIGHLIGHT_SUMMARY_MAX,
-  HIGHLIGHT_TITLE_MAX,
   TALENT_HOME_NOTE_MAX,
   TALENT_HOME_NOTE_MAX_IMAGES,
 } from '$lib/domain/talentHome';
@@ -863,7 +861,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_talent_home: defineOperation({
     description:
-      "What each campus shows on its talents' home besides their own enrolments: the campus note (Markdown, in the news card) and the highlighted event to sign up for (title, text, day if any, sign-up link, the address its picture was copied from if it has one, and whether it is still shown, since a dated one hides itself once its day has passed). Lists every campus, including those with neither, so it answers which campuses are still empty. Pass campus to read one. This is what to read before rewriting either with write_talent_home_note or write_talent_home_highlight.",
+      "What each campus shows on its talents' home besides their own enrolments: the campus note (Markdown, in the news card) and what it puts forward: the event it points at (whether it still shows, and why not) and its generic invitation (title, text, sign-up link, button label, the address its picture was copied from), with which of the two the hero shows today. Lists every campus, including empty ones. Pass campus to read one. Read it before write_talent_home_note or write_talent_home_highlight.",
     shape: {
       campus: z
         .string()
@@ -1468,42 +1466,50 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_talent_home_highlight: defineWrite({
-    repeat: { safe: true, because: 'the same values leave the same highlight' },
+    repeat: { safe: true, because: 'the same values leave the same row' },
     destructive: true,
     openWorld: true,
-    description: `Set or clear the one event a campus puts forward on its talents' home, with a button that opens the sign-up form in a new tab: a JPO, the next Coding Club, a camp. It leads the home's blue hero on any day the talent has no activity. It is chosen by hand, never taken from Salesforce. Give title, summary and url to set it, and all three null with a null date to remove it; anything in between is refused. Jump copies its picture. ${PICTURE_RULES} A picture that cannot be copied refuses the whole write. A dated highlight hides itself once its day has passed on the campus clock, so nothing has to be cleaned up afterwards, and a day already past is refused.`,
+    description: `Set or clear what a campus puts forward on its talents' home. Two halves, patch semantics (omitted: unchanged, null: cleared). eventId: one of the campus's own events, not past its first day, with a signupUrl; the hero invites talents not enrolled in it until the end of its first day, in the event's own words and picture (write_event_config hero.invitation), and tells enrolled ones they are expected. invitation: the generic invitation, the fallback when no event shows (e.g. « Les Ateliers TECH », all year). There is no date. Jump copies the invitation's picture. ${PICTURE_RULES} A picture that cannot be copied refuses the whole write.`,
     shape: {
       campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
-      title: z
+      eventId: z
         .string()
-        .max(HIGHLIGHT_TITLE_MAX)
+        .min(1)
         .nullable()
+        .optional()
         .describe(
-          'What the event is, in French, e.g. "Recode le jeu Snake en JS".',
+          `${handleDescribe('eventId')} Null stops putting it forward.`,
         ),
-      summary: z
-        .string()
-        .max(HIGHLIGHT_SUMMARY_MAX)
+      invitation: z
+        .strictObject({
+          title: z
+            .string()
+            .max(HERO_TITLE_MAX)
+            .describe('French, e.g. "Les Ateliers TECH".'),
+          text: z
+            .string()
+            .max(HERO_TEXT_MAX)
+            .describe(
+              'What happens and why come, in French addressing the talent as « tu ».',
+            ),
+          url: z
+            .string()
+            .describe('The sign-up form or agenda page, https only.'),
+          buttonLabel: z
+            .string()
+            .max(HERO_BUTTON_MAX)
+            .nullable()
+            .optional()
+            .describe('Null for « Je m’inscris ».'),
+          imageUrl: pictureUrl(
+            'https address of a picture shown beside the title. Omit for none.',
+          ),
+        })
         .nullable()
+        .optional()
         .describe(
-          'What happens there and why come, in French addressing the talent as « tu ».',
+          'The whole generic invitation; null removes it and its picture.',
         ),
-      date: z
-        .string()
-        .refine(isCalendarDay, 'A real calendar day, e.g. "2026-10-07".')
-        .nullable()
-        .describe(
-          "The event's day, YYYY-MM-DD, shown on the hero until the end of that day. null for an invitation with no day: none is shown and it stays until rewritten. Never omitted.",
-        ),
-      url: z
-        .string()
-        .nullable()
-        .describe(
-          'The sign-up form, https only, e.g. "https://www.epitech.eu/inscription-atelier-programmation-informatique/?CampaignId=701Sm00000xAuQMIA0".',
-        ),
-      imageUrl: pictureUrl(
-        'https address of a picture of the event, shown in the hero beside its title. Omit for none, and always omit it when clearing.',
-      ),
     },
     run: (params) => writeTalentHomeHighlight(params),
   }),

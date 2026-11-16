@@ -1,27 +1,29 @@
 /**
- * What a talent's home shows of their campus (« le mot du campus », the one
- * message of its Actualité card, and the highlighted event to sign up for).
+ * What a talent's home shows of their campus: « le mot du campus », the one
+ * message of its Actualité card, and what the campus puts forward (an event of
+ * its own to sign up for, and a generic invitation).
  *
- * Both are authored campus by campus over the admin API
- * (`adminApi/writes/talentHome.ts`), never derived; this reads them for the
- * campus the request hooks resolved, renders the note through
- * `renderAuthoredMarkdown`, drawing each picture it names from Jump's copy and
- * never from the address written, and drops a highlight whose day has passed on
- * the campus clock (one with no day stands until it is rewritten). What the
- * home's blue hero then suggests (the day's activity, else the open highlight,
- * else an activity to carry on at home, else nothing) is one pure rule,
- * `pickHomeHero` in `domain/talentHome.ts`, so the hero never holds two
- * suggestions of the same weight.
+ * All are authored campus by campus over the admin API
+ * (`adminApi/writes/talentHome.ts`, `write_event_config` for the event's own
+ * words), never derived; this reads them for the campus the request hooks
+ * resolved, renders the note through `renderAuthoredMarkdown`, drawing each
+ * picture it names from Jump's copy and never from the address written, and
+ * keeps the highlighted event only while it still invites (`isInvitationOpen`)
+ * and only if it is still this campus's. What the home's blue hero then
+ * suggests is one pure rule, `pickHomeHero` in `domain/talentHome.ts`.
  */
 import { prisma } from '$lib/server/db';
 import type { ShownPicture } from '$lib/domain/pictures';
 import { renderAuthoredMarkdown } from '$lib/markdown';
-import { dbDateToKey } from '$lib/domain/eventPresence';
+import { toDateKey } from '$lib/domain/planningTime';
+import { eventDisplayName } from '$lib/domain/event';
 import {
   talentHomeImageUrl,
-  isHighlightOpen,
+  isInvitationOpen,
+  type HighlightedEvent,
   type TalentHome,
 } from '$lib/domain/talentHome';
+import { shownEventHeroPicture } from './eventHeroImages';
 
 /** A copied picture of the campus's home, as a page draws it. */
 function shownPicture(image: {
@@ -56,9 +58,16 @@ export async function findTalentHomeImage(
   return image.key === key ? image : { key, contentType: 'image/webp' };
 }
 
+const PICTURE_SELECT = {
+  key: true,
+  stillKey: true,
+  width: true,
+  height: true,
+} as const;
+
 /**
- * What a talent's home shows of their campus: its note, rendered, and its
- * highlighted event while it is open (`isHighlightOpen`).
+ * What a talent's home shows of their campus: its note, rendered, and what it
+ * puts forward: its event while it still invites, its generic invitation.
  *
  * Takes the talent's effective campus, which the request hooks already resolve
  * into `locals.talentCampusId` (`resolveTalentCampus`, the campus of their
@@ -74,35 +83,87 @@ export async function getTalentHome(
   const campus = await prisma.campus.findUnique({
     where: { id: campusId },
     select: {
+      name: true,
       timezone: true,
       homeNote: {
         select: {
           markdown: true,
-          images: {
-            select: {
-              sourceUrl: true,
-              key: true,
-              stillKey: true,
-              width: true,
-              height: true,
-            },
-          },
+          images: { select: { sourceUrl: true, ...PICTURE_SELECT } },
         },
       },
       homeHighlight: {
         select: {
           title: true,
-          summary: true,
-          date: true,
+          text: true,
           url: true,
-          image: {
-            select: { key: true, stillKey: true, width: true, height: true },
+          buttonLabel: true,
+          image: { select: PICTURE_SELECT },
+          event: {
+            select: {
+              id: true,
+              titre: true,
+              publicName: true,
+              date: true,
+              endDate: true,
+              startMinutes: true,
+              signupUrl: true,
+              campusId: true,
+              heroes: {
+                where: { stage: 'invitation' },
+                select: {
+                  title: true,
+                  text: true,
+                  buttonLabel: true,
+                  image: { select: PICTURE_SELECT },
+                },
+              },
+            },
           },
         },
       },
     },
   });
-  const highlight = campus?.homeHighlight;
+  const row = campus?.homeHighlight;
+
+  let event: HighlightedEvent | null = null;
+  const pointed = row?.event;
+  // The event's campus is checked here rather than bound by a key
+  // (`TalentHome_Highlight.eventId`): Salesforce may have moved it since.
+  if (
+    campus &&
+    pointed &&
+    pointed.campusId === campusId &&
+    pointed.signupUrl &&
+    isInvitationOpen(pointed, campus.timezone, now)
+  ) {
+    const written = pointed.heroes[0] ?? null;
+    event = {
+      id: pointed.id,
+      name: eventDisplayName(pointed),
+      date: toDateKey(pointed.date, campus.timezone),
+      endDate: pointed.endDate && toDateKey(pointed.endDate, campus.timezone),
+      startMinutes: pointed.startMinutes,
+      campusName: campus.name,
+      timezone: campus.timezone,
+      signupUrl: pointed.signupUrl,
+      copy: written && {
+        title: written.title,
+        text: written.text,
+        buttonLabel: written.buttonLabel,
+      },
+      image: written?.image ? shownEventHeroPicture(written.image) : null,
+    };
+  }
+  const invitation =
+    row?.title != null && row.text != null && row.url != null
+      ? {
+          title: row.title,
+          text: row.text,
+          url: row.url,
+          buttonLabel: row.buttonLabel,
+          image: row.image && shownPicture(row.image),
+        }
+      : null;
 
   return {
     note: campus?.homeNote
@@ -116,13 +177,6 @@ export async function getTalentHome(
           ),
         )
       : null,
-    highlight:
-      highlight && isHighlightOpen(highlight.date, campus.timezone, now)
-        ? {
-            ...highlight,
-            date: highlight.date && dbDateToKey(highlight.date),
-            image: highlight.image && shownPicture(highlight.image),
-          }
-        : null,
+    highlight: event || invitation ? { event, invitation } : null,
   };
 }

@@ -65,8 +65,9 @@ import {
   WorkshopCatalogueService,
   type WorkshopDomainListItem,
 } from '$lib/server/services/workshopCatalogue';
-import { dbDateToKey } from '$lib/domain/eventPresence';
-import { isHighlightOpen } from '$lib/domain/talentHome';
+import { toDateKey } from '$lib/domain/planningTime';
+import { eventDisplayName } from '$lib/domain/event';
+import { isInvitationOpen } from '$lib/domain/talentHome';
 import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
 import { handleProvenanceFr } from '$lib/server/adminApi/handles';
 import { STRUCTURE_LOCKED_MESSAGE } from '$lib/domain/feedbackForms/authoring';
@@ -232,6 +233,7 @@ export type EventDetail = {
   } | null>;
   workshops: Metric<EventWorkshopState[]>;
   signupUrl: Metric<string | null>;
+  highlightedBy: Metric<string[]>;
   hero: Metric<EventHeroState>;
   shownStatuses: Metric<string[]>;
   attendanceStatuses: Metric<string[]>;
@@ -273,9 +275,15 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
 
   const workshops = await eventWorkshopsOf(event.id);
   const hero = await eventHeroOf(event.id);
-  const { signupUrl } = await prisma.event.findUniqueOrThrow({
+  const { signupUrl, highlightedBy } = await prisma.event.findUniqueOrThrow({
     where: { id: event.id },
-    select: { signupUrl: true },
+    select: {
+      signupUrl: true,
+      highlightedBy: {
+        select: { campus: { select: { name: true } } },
+        orderBy: { campus: { name: 'asc' } },
+      },
+    },
   });
 
   const hidden = (await hiddenEnrolmentsByEvent([event.id])).get(event.id) ?? 0;
@@ -353,6 +361,10 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
     signupUrl: metric(
       signupUrl,
       "Le formulaire d'inscription de l'événement, vers lequel mène « Je m'inscris » quand un campus le met en avant sur l'accueil de ses talents, ou null s'il n'en a pas. Se règle avec write_event_config (« signupUrl »).",
+    ),
+    highlightedBy: metric(
+      highlightedBy.map((row) => row.campus.name),
+      "Les campus qui mettent cet événement en avant sur l'accueil de leurs talents (write_talent_home_highlight, « eventId »), liste vide sinon. Tant qu'il y figure, son formulaire d'inscription ne peut pas être retiré.",
     ),
     hero: metric(
       hero,
@@ -765,9 +777,30 @@ export async function getWorkshops(): Promise<Workshops> {
 // ─── Talent home content ───────────────────────────────────────────────────
 
 /**
- * What each campus puts on its talents' home, as written: the note's Markdown
- * and the highlighted event. Campuses with neither are listed too, because the
- * question this answers is usually « which campuses are still empty ».
+ * Why the event a campus points at does not show on its talents' home, or
+ * null when it shows. The same checks the talent's reader makes
+ * (`getTalentHome`), so the answer cannot claim an event the home hides.
+ */
+function eventNotShownBecause(
+  campusId: string,
+  timezone: string,
+  event: { campusId: string; date: Date; signupUrl: string | null },
+  now: Date,
+): string | null {
+  if (event.campusId !== campusId)
+    return "L'événement a été déplacé sur un autre campus dans Salesforce.";
+  if (!event.signupUrl)
+    return "L'événement n'a plus de formulaire d'inscription (signupUrl).";
+  if (!isInvitationOpen(event, timezone, now))
+    return 'Son premier jour est passé : on ne peut plus s’y inscrire.';
+  return null;
+}
+
+/**
+ * What each campus puts on its talents' home, as written: the note's Markdown,
+ * the event it points at and its generic invitation. Campuses with none are
+ * listed too, because the question this answers is usually « which campuses
+ * are still empty ».
  */
 export async function getTalentHomeContent(
   scope: Scope,
@@ -777,17 +810,28 @@ export async function getTalentHomeContent(
     where: scope.campus ? { id: scope.campus.id } : undefined,
     orderBy: { name: 'asc' },
     select: {
+      id: true,
       name: true,
       timezone: true,
       homeNote: { select: { markdown: true, updatedAt: true } },
       homeHighlight: {
         select: {
           title: true,
-          summary: true,
-          date: true,
+          text: true,
           url: true,
+          buttonLabel: true,
           updatedAt: true,
           image: { select: { sourceUrl: true } },
+          event: {
+            select: {
+              id: true,
+              titre: true,
+              publicName: true,
+              date: true,
+              campusId: true,
+              signupUrl: true,
+            },
+          },
         },
       },
     },
@@ -795,20 +839,49 @@ export async function getTalentHomeContent(
 
   return {
     campuses: metric(
-      rows.map(({ name, timezone, homeNote, homeHighlight }) => ({
-        campus: name,
-        note: homeNote,
-        highlight: homeHighlight && {
-          title: homeHighlight.title,
-          summary: homeHighlight.summary,
-          date: homeHighlight.date && dbDateToKey(homeHighlight.date),
-          url: homeHighlight.url,
-          imageUrl: homeHighlight.image?.sourceUrl ?? null,
-          updatedAt: homeHighlight.updatedAt,
-          shown: isHighlightOpen(homeHighlight.date, timezone, now),
-        },
-      })),
-      "Ce que chaque campus affiche sur l'accueil de ses talents, en plus de leurs propres inscriptions. « note » est le mot du campus tel qu'il a été écrit (Markdown, ses images écrites par l'adresse d'où Jump les a copiées), affiché dans la carte Actualité, ou null s'il n'y en a pas. « highlight » est l'événement mis en avant dans le bandeau bleu de l'accueil (un jour où le talent n'a pas d'activité : le jour d'une activité, le bandeau ne montre que l'activité) : son titre, son texte, son jour (null s'il n'en a pas), le lien du formulaire d'inscription, « imageUrl », l'adresse d'où son image a été copiée (null s'il n'en a pas), et « shown », qui dit s'il est encore affiché (s'il a un jour, il disparaît seul une fois ce jour passé, à l'heure du campus ; sans jour, il reste affiché tant qu'il n'est pas réécrit ou retiré), ou null s'il n'y en a pas. Un talent voit le campus de son événement le plus tardif, à venir compris.",
+      rows.map(({ id, name, timezone, homeNote, homeHighlight }) => {
+        const pointed = homeHighlight?.event ?? null;
+        const notShownBecause =
+          pointed && eventNotShownBecause(id, timezone, pointed, now);
+        const event = pointed && {
+          eventId: pointed.id,
+          name: eventDisplayName(pointed),
+          firstDay: toDateKey(pointed.date, timezone),
+          shown: notShownBecause === null,
+          notShownBecause,
+        };
+        const invitation =
+          homeHighlight &&
+          homeHighlight.title !== null &&
+          homeHighlight.text !== null &&
+          homeHighlight.url !== null
+            ? {
+                title: homeHighlight.title,
+                text: homeHighlight.text,
+                url: homeHighlight.url,
+                buttonLabel: homeHighlight.buttonLabel,
+                imageUrl: homeHighlight.image?.sourceUrl ?? null,
+                updatedAt: homeHighlight.updatedAt,
+              }
+            : null;
+        return {
+          campus: name,
+          note: homeNote,
+          highlight:
+            event || invitation
+              ? {
+                  event,
+                  invitation,
+                  showing: event?.shown
+                    ? ('event' as const)
+                    : invitation
+                      ? ('invitation' as const)
+                      : null,
+                }
+              : null,
+        };
+      }),
+      "Ce que chaque campus affiche sur l'accueil de ses talents, en plus de leurs propres inscriptions. « note » est le mot du campus tel qu'il a été écrit (Markdown, ses images écrites par l'adresse d'où Jump les a copiées), affiché dans la carte Actualité, ou null s'il n'y en a pas. « highlight » est ce que le campus met en avant dans le bandeau bleu de l'accueil, ou null s'il ne met rien en avant. « event » est l'événement du campus qu'il met en avant : son nom, son premier jour, et « shown », qui dit si l'accueil invite encore à s'y inscrire (jusqu'à la fin de son premier jour, à l'heure du campus, s'il a un formulaire d'inscription et est toujours sur ce campus), avec « notShownBecause » qui dit pourquoi sinon. Un talent déjà inscrit à cet événement n'est pas invité à s'y inscrire : l'accueil lui dit qu'il est inscrit. « invitation » est l'invitation générique du campus (titre, texte, lien d'inscription, libellé du bouton, null pour « Je m'inscris », et « imageUrl », l'adresse d'où son image a été copiée), affichée quand l'événement ne l'est pas. « showing » dit laquelle des deux l'accueil montre aujourd'hui (« event », « invitation », ou null). Le jour où le talent a un sujet ou un événement en cours, le bandeau montre celui-ci à la place. Un talent voit le campus de son événement le plus tardif, à venir compris.",
     ),
   };
 }

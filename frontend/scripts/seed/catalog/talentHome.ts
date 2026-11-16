@@ -1,40 +1,38 @@
 /**
  * What the first three campuses put on their talents' home: « le mot du
- * campus » and the event they invite talents to sign up for.
+ * campus », their generic invitation, and the event one of them puts forward.
  *
  * Placed, never drawn, and on the three campuses every profile has, so each
  * state the home has to render exists even in CI:
  *
- *   - Paris writes both, the highlight with an animated picture (stored with
- *     its still), so a talent there sees the note in Actualité and the
- *     invitation leading the home's hero on a day without an activity (the
- *     picture is a key without bytes, since the generator stores the bytes of
- *     the activities' pictures only (`storage.ts`), so the hero's fallback is
- *     what shows);
- *   - Marseille writes a note and put forward an event whose day has passed,
- *     which the home must no longer show and `config_talent_home` must report
- *     as no longer shown. Its picture is a still, the case of a picture with no
- *     still of its own. With nothing open to lead its hero, it is a campus the
- *     club's regulars can carry an activity on at home from;
- *   - Lyon writes an invitation with no day, the shape most campuses actually
- *     put forward (« toute l'année »): its hero shows no day and never retires
- *     it.
+ *   - Paris writes a note, a generic invitation with an animated picture
+ *     (stored with its still), and points at an upcoming camp of its own
+ *     (`HIGHLIGHTED_EVENT`, created by `campusHome`, which has the events): a
+ *     talent there who is not enrolled in it is invited to it, the generic
+ *     invitation waiting behind. The pictures are keys without bytes, since the
+ *     generator stores the bytes of the activities' pictures only
+ *     (`storage.ts`), so the hero's fallback is what shows;
+ *   - Marseille writes a note and still points at an open day that has since
+ *     taken place (`PAST_HIGHLIGHTED_EVENT`): the home no longer shows it and
+ *     `config_talent_home` says why. With nothing to lead its hero, it is a
+ *     campus the club's regulars can carry an activity on at home from;
+ *   - Lyon writes a generic invitation only, the shape every campus actually
+ *     put forward in November 2026 (« toute l'année »), with its own button
+ *     label and a still picture, the case of a picture with no still of its own.
  *
  * The sign-up links point at `.invalid` (RFC 2606), for the reason
  * `catalog/workshops.ts` gives: a validation environment must not send anybody
  * to a live form.
  */
 
-export type HighlightSpec = {
+/** A campus's generic invitation, as `write_talent_home_highlight` stores it. */
+export type InvitationSpec = {
   readonly title: string;
-  readonly summary: string;
-  /**
-   * Days from the anchor. Negative is an event already past; null is an
-   * invitation that has no day.
-   */
-  readonly dayOffset: number | null;
+  readonly text: string;
   readonly url: string;
-  /** Its picture as copied, or null for a highlight without one. */
+  /** Null for the mockup's « Je m'inscris ». */
+  readonly buttonLabel: string | null;
+  /** Its picture as copied, or null for an invitation without one. */
   readonly image: {
     readonly width: number;
     readonly height: number;
@@ -99,40 +97,57 @@ export const TALENT_HOME_NOTE_IMAGES: Readonly<
   ],
 };
 
-export const TALENT_HOME_HIGHLIGHTS: Readonly<Record<string, HighlightSpec>> = {
-  Paris: {
-    title: 'Recode le jeu Snake en JS',
-    summary:
-      'Deux heures pour coder ton propre Snake avec des étudiants Epitech, sans rien avoir installé avant. Viens avec un ami, on fournit les ordinateurs.',
-    dayOffset: 9,
-    url: 'https://www.epitech.invalid/inscription-atelier-programmation-informatique/?CampaignId=sd-snake',
-    image: { width: 1280, height: 720, animated: true },
-  },
-  Marseille: {
-    title: 'Journée portes ouvertes',
-    summary:
-      'Visite le campus, rencontre les étudiants et découvre les projets de première année.',
-    dayOffset: -4,
-    url: 'https://www.epitech.invalid/journees-portes-ouvertes/?CampaignId=sd-jpo',
-    image: { width: 1080, height: 1350, animated: false },
-  },
-  Lyon: {
-    title: 'Les ateliers de la tech',
-    summary:
-      'Toute l’année, Epitech organise des ateliers gratuits : IA, code, robotique, cybersécurité. Pour y participer, inscris-toi !',
-    dayOffset: null,
-    url: 'https://www.epitech.invalid/agenda',
-    image: null,
-  },
-};
+export const TALENT_HOME_INVITATIONS: Readonly<Record<string, InvitationSpec>> =
+  {
+    Paris: {
+      title: 'Les Ateliers TECH',
+      text: 'Toute l’année, Epitech Paris organise des ateliers gratuits : IA, code, robotique, cybersécurité. Pour y participer, rien de plus simple : inscris-toi !',
+      url: 'https://www.epitech.invalid/agenda-paris',
+      buttonLabel: null,
+      image: { width: 1280, height: 720, animated: true },
+    },
+    Lyon: {
+      title: 'Les ateliers de la tech',
+      text: 'Toute l’année, Epitech organise des ateliers gratuits : IA, code, robotique, cybersécurité. Pour y participer, inscris-toi !',
+      url: 'https://www.epitech.invalid/agenda',
+      buttonLabel: 'Voir l’agenda',
+      image: { width: 1080, height: 1350, animated: false },
+    },
+  };
 
 /**
- * The campuses whose highlight the home still shows on the anchor day: an
- * undated invitation always, a dated one until its day has passed. Its hero
- * leads with it for every talent of the campus with no activity that day.
+ * The event a campus points at: a camp of its own a little after the anchor,
+ * with its sign-up form, invited to until the end of its first day.
  */
-export const OPEN_HIGHLIGHT_CAMPUSES: ReadonlySet<string> = new Set(
-  Object.entries(TALENT_HOME_HIGHLIGHTS)
-    .filter(([, { dayOffset }]) => dayOffset === null || dayOffset >= 0)
-    .map(([campus]) => campus),
-);
+export const HIGHLIGHTED_EVENT = {
+  campus: 'Paris',
+  dayOffset: 9,
+  days: 4,
+  publicName: 'Halloween Camp',
+  signupUrl:
+    'https://www.epitech.invalid/inscription-camp/?CampaignId=sd-halloween',
+} as const;
+
+/**
+ * An event a campus pointed at while it was still to come, and which has since
+ * started: the pointer stays until somebody rewrites it, and shows nothing.
+ */
+export const PAST_HIGHLIGHTED_EVENT = {
+  campus: 'Marseille',
+  dayOffset: -4,
+  days: 1,
+  publicName: 'Journée portes ouvertes',
+  signupUrl:
+    'https://www.epitech.invalid/journees-portes-ouvertes/?CampaignId=sd-jpo',
+} as const;
+
+/**
+ * The campuses whose home leads a talent's hero with something it puts
+ * forward on the anchor day: every campus with an invitation (it never
+ * retires). Its hero leads with it for every talent of the campus with no
+ * activity and no enrolment that day.
+ */
+export const OPEN_HIGHLIGHT_CAMPUSES: ReadonlySet<string> = new Set([
+  ...Object.keys(TALENT_HOME_INVITATIONS),
+  HIGHLIGHTED_EVENT.campus,
+]);

@@ -56,3 +56,39 @@ ALTER TABLE "EventConfig_HeroImage" ADD CONSTRAINT "EventConfig_HeroImage_eventI
 ALTER TABLE "EventConfig_HeroImage"
     ADD CONSTRAINT "EventConfig_HeroImage_not_live"
     CHECK ("stage" <> 'live');
+
+-- What a campus puts forward on its talents' home (#501) becomes an event it
+-- points at and/or a generic invitation, the standing fallback once the event
+-- is over. Every row in production on 16/11/2026 was a generic invitation
+-- (15 campuses, read through config_talent_home), so every row keeps its words
+-- and becomes the generic half: the summary is renamed, not copied.
+ALTER TABLE "TalentHome_Highlight" RENAME COLUMN "summary" TO "text";
+ALTER TABLE "TalentHome_Highlight" ALTER COLUMN "title" DROP NOT NULL,
+ALTER COLUMN "text" DROP NOT NULL,
+ALTER COLUMN "url" DROP NOT NULL,
+ADD COLUMN "buttonLabel" TEXT,
+ADD COLUMN "eventId" TEXT;
+
+-- Warnings:
+--   The column `date` is dropped, with its data. No backfill is owed: all 15
+--   production rows held `date = NULL` on 16/11/2026 (read through
+--   config_talent_home), the undated « toute l'année » invitation. A dated
+--   invitation was an invitation to one event, which is now the event itself
+--   (`eventId`), shown until the end of its first day.
+ALTER TABLE "TalentHome_Highlight" DROP COLUMN "date";
+
+CREATE INDEX "TalentHome_Highlight_eventId_idx" ON "TalentHome_Highlight"("eventId");
+
+-- SetNull, so the generic invitation outlives an event Salesforce deletes.
+ALTER TABLE "TalentHome_Highlight" ADD CONSTRAINT "TalentHome_Highlight_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- The generic invitation is whole or absent: an invitation with no link
+-- invites to nothing, and a link with no words says nothing. Hand-written,
+-- Prisma cannot express a CHECK. No "at least one half" check: SetNull on
+-- `eventId` would break it, so the write deletes a row left with neither.
+ALTER TABLE "TalentHome_Highlight"
+    ADD CONSTRAINT "TalentHome_Highlight_invitation_whole"
+    CHECK (
+        ("title" IS NULL AND "text" IS NULL AND "url" IS NULL)
+        OR ("title" IS NOT NULL AND "text" IS NOT NULL AND "url" IS NOT NULL)
+    );

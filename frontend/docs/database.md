@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **87** modèles · **34** enums · **120** relations
+- **87** modèles · **34** enums · **121** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -963,10 +963,11 @@ erDiagram
   }
   TalentHome_Highlight {
     String campusId PK,FK
+    String eventId FK
     String title
-    String summary
-    DateTime date
+    String text
     String url
+    String buttonLabel
     DateTime updatedAt
   }
   TalentHome_HighlightImage {
@@ -1018,6 +1019,7 @@ erDiagram
   Talent ||--o{ TalentInterest : "interests"
   Campus ||--|| TalentHome_Note : "homeNote"
   Campus ||--|| TalentHome_Highlight : "homeHighlight"
+  Event |o--o{ TalentHome_Highlight : "highlightedBy"
   TalentHome_Highlight ||--|| TalentHome_HighlightImage : "image"
   Event ||--o{ EventConfig_Hero : "heroes"
   Interest ||--o{ TalentInterest : "talentInterests"

@@ -4,7 +4,7 @@
  *
  * The writes go through the wrapper, as in `adminApiWrites.integration.test.ts`,
  * so the refusals are the ones a caller actually receives and the audit row is
- * the one that makes « remettre l'ancien texte » possible. The highlight's
+ * the one that makes « remettre l'ancien texte » possible. The invitation's
  * picture is the exception: the wrapper takes https only, so the copy is driven
  * through the write itself against a picture host on a local socket, with
  * storage and the image pipeline stubbed as in `workshopCover.integration.test.ts`.
@@ -25,7 +25,6 @@ import {
   writeTalentHomeNote,
 } from '$lib/server/adminApi/writes/talentHome';
 import { getTalentHome } from '$lib/server/services/talentHomeService';
-import { toDateKey } from '$lib/domain/planningTime';
 import { OperationRefusedError } from '$lib/server/adminApi/errors';
 import { GET as imageProxy } from '../../../../routes/api/talent-home/images/[campusId]/[file]/+server';
 
@@ -141,9 +140,7 @@ async function read(
   return response.json();
 }
 
-/** The day `offset` days from today, as the API takes it. */
-const dayFromToday = (offset: number) =>
-  toDateKey(new Date(Date.now() + offset * 86_400_000), 'Europe/Paris');
+const DAY = 86_400_000;
 
 describe('the campus content on a talent’s home (integration)', () => {
   const stamp = Date.now();
@@ -151,14 +148,24 @@ describe('the campus content on a talent’s home (integration)', () => {
   let adminUserId = '';
   let secret = '';
   let campusId = '';
+  let otherCampusId = '';
+  /** Upcoming, with a sign-up form: the event a campus may put forward. */
+  let campEventId = '';
+  /** Upcoming, without a sign-up form. */
+  let formlessEventId = '';
+  /** Started yesterday. */
+  let pastEventId = '';
+  /** Upcoming, on another campus. */
+  let elsewhereEventId = '';
 
-  const highlight = {
-    campus: campusName,
-    title: 'Recode le jeu Snake en JS',
-    summary: 'Deux heures pour coder ton propre Snake.',
-    date: dayFromToday(10),
-    url: 'https://www.epitech.invalid/inscription-atelier-programmation-informatique/?CampaignId=701Sm00000xAuQMIA0',
+  const words = {
+    title: 'Les Ateliers TECH',
+    text: 'Toute l’année, Epitech organise des ateliers gratuits : inscris-toi !',
+    url: 'https://www.epitech.invalid/agenda',
   };
+  const invitation = { campus: campusName, invitation: words };
+  const signupUrl =
+    'https://www.epitech.invalid/inscription/?CampaignId=701Sm00000xAuQMIA0';
 
   beforeAll(async () => {
     assertTestDatabase();
@@ -172,6 +179,50 @@ describe('the campus content on a talent’s home (integration)', () => {
         data: { name: campusName, timezone: 'Europe/Paris' },
       })
     ).id;
+    otherCampusId = (
+      await prisma.campus.create({
+        data: { name: `Ailleurs-${stamp}`, timezone: 'Europe/Paris' },
+      })
+    ).id;
+    const event = async (data: {
+      titre: string;
+      offset: number;
+      campusId: string;
+      signupUrl?: string;
+    }) =>
+      (
+        await prisma.event.create({
+          data: {
+            titre: data.titre,
+            date: new Date(Date.now() + data.offset * DAY),
+            campusId: data.campusId,
+            signupUrl: data.signupUrl,
+          },
+        })
+      ).id;
+    campEventId = await event({
+      titre: `Halloween Camp ${stamp}`,
+      offset: 10,
+      campusId,
+      signupUrl,
+    });
+    formlessEventId = await event({
+      titre: `Sans formulaire ${stamp}`,
+      offset: 10,
+      campusId,
+    });
+    pastEventId = await event({
+      titre: `Déjà commencé ${stamp}`,
+      offset: -1,
+      campusId,
+      signupUrl,
+    });
+    elsewhereEventId = await event({
+      titre: `Ailleurs ${stamp}`,
+      offset: 10,
+      campusId: otherCampusId,
+      signupUrl,
+    });
   });
 
   afterAll(async () => {
@@ -179,7 +230,12 @@ describe('the campus content on a talent’s home (integration)', () => {
       await prisma.adminApi_Call.deleteMany({
         where: { actorUserId: adminUserId },
       });
-      await prisma.campus.deleteMany({ where: { id: campusId } });
+      await prisma.event.deleteMany({
+        where: { campusId: { in: [campusId, otherCampusId] } },
+      });
+      await prisma.campus.deleteMany({
+        where: { id: { in: [campusId, otherCampusId] } },
+      });
       await prisma.bauth_user.delete({ where: { id: adminUserId } });
     } catch {
       // ignore - the test database is disposable
@@ -240,84 +296,77 @@ describe('the campus content on a talent’s home (integration)', () => {
     expect(String(payload.error)).toContain(campusName);
   });
 
-  it('sets the highlight, and refuses an http link, a past day, a missing day or a half-filled one', async () => {
-    const set = await post(postHighlight, secret, highlight);
+  it('sets the generic invitation, and refuses an http link or a half-filled one', async () => {
+    const set = await post(postHighlight, secret, invitation);
     expect(set.status).toBe(200);
-    expect(set.payload.after).toEqual({ ...highlight, imageUrl: null });
+    expect(set.payload.after).toEqual({
+      campus: campusName,
+      eventId: null,
+      invitation: { ...words, buttonLabel: null, imageUrl: null },
+    });
 
-    const { date: _date, ...withoutDay } = highlight;
+    const { url: _url, ...withoutLink } = words;
     for (const body of [
-      { ...highlight, url: 'http://www.epitech.invalid/form' },
-      { ...highlight, date: dayFromToday(-1) },
-      // Left out rather than nulled: a forgotten day must not turn a dated
-      // camp into a standing invitation.
-      withoutDay,
-      { ...highlight, url: null },
-      // A day on its own dates nothing.
+      { ...invitation, invitation: { ...words, url: 'http://x.invalid/f' } },
+      { ...invitation, invitation: withoutLink },
+      { ...invitation, invitation: { ...words, text: 'x'.repeat(281) } },
+      { ...invitation, invitation: { ...words, buttonLabel: 'x'.repeat(25) } },
       {
-        campus: campusName,
-        title: null,
-        summary: null,
-        url: null,
-        date: highlight.date,
+        ...invitation,
+        invitation: { ...words, imageUrl: 'http://x.invalid/affiche.png' },
       },
-      { ...highlight, summary: 'x'.repeat(301) },
-      { ...highlight, imageUrl: 'http://www.epitech.invalid/affiche.png' },
+      // A date is no longer part of it: a dated invitation is an event.
+      { ...invitation, invitation: { ...words, date: '2026-12-01' } },
+      { campus: campusName },
     ]) {
       const { status } = await post(postHighlight, secret, body);
       expect(status).toBe(400);
     }
   });
 
-  it('shows the rendered note and the open highlight on the campus home', async () => {
+  it('shows the rendered note and the invitation on the campus home', async () => {
     const home = await getTalentHome(campusId);
     expect(home.note).toContain('<h2>Bonne rentrée</h2>');
     expect(home.note).toContain('rel="noopener noreferrer"');
     expect(home.highlight).toEqual({
-      title: highlight.title,
-      summary: highlight.summary,
-      date: highlight.date,
-      url: highlight.url,
-      image: null,
+      event: null,
+      invitation: { ...words, buttonLabel: null, image: null },
     });
-  });
-
-  it('stops showing the highlight once its day has passed', async () => {
-    const afterTheDay = new Date(Date.now() + 12 * 86_400_000);
-    expect((await getTalentHome(campusId, afterTheDay)).highlight).toBeNull();
-
-    // Still before its day by the real clock, so the admin read says shown.
-    const payload = await read(
-      secret,
-      `campus=${encodeURIComponent(campusName)}`,
+    // No day: it stands for as long as it is not rewritten.
+    const yearsLater = new Date(Date.now() + 4 * 365 * DAY);
+    expect((await getTalentHome(campusId, yearsLater)).highlight).toEqual(
+      home.highlight,
     );
-    const [row] = (payload.campuses as { value: { highlight: unknown }[] })
-      .value;
-    expect(row?.highlight).toMatchObject({ shown: true });
   });
 
-  it('refuses a day already past on the campus clock', async () => {
-    const tomorrowMorning = new Date(
-      new Date(`${highlight.date}T00:00:00Z`).getTime() + 86_400_000,
-    );
-    await expect(
-      writeTalentHomeHighlight(highlight, tomorrowMorning),
-    ).rejects.toThrow(/déjà passé/);
-  });
-
-  it('shows an invitation with no day, without one and for as long as it stands', async () => {
-    const undated = { ...highlight, date: null };
-    const set = await post(postHighlight, secret, undated);
+  it('points at one of the campus’s own events, until the end of its first day', async () => {
+    const set = await post(postHighlight, secret, {
+      campus: campusName,
+      eventId: campEventId,
+    });
     expect(set.status).toBe(200);
-    expect(set.payload.after).toEqual({ ...undated, imageUrl: null });
+    // The invitation was left out, so it is left as it is.
+    expect(set.payload.after).toMatchObject({
+      eventId: campEventId,
+      invitation: { title: words.title },
+    });
 
-    const yearsLater = new Date(Date.now() + 4 * 365 * 86_400_000);
-    expect((await getTalentHome(campusId, yearsLater)).highlight).toEqual({
-      title: highlight.title,
-      summary: highlight.summary,
-      date: null,
-      url: highlight.url,
+    const home = await getTalentHome(campusId);
+    expect(home.highlight?.event).toMatchObject({
+      id: campEventId,
+      name: `Halloween Camp ${stamp}`,
+      campusName,
+      signupUrl,
+      copy: null,
       image: null,
+    });
+    expect(home.highlight?.invitation?.title).toBe(words.title);
+
+    // Two days in, the camp no longer invites: the generic invitation is left.
+    const underWay = new Date(Date.now() + 12 * DAY);
+    expect((await getTalentHome(campusId, underWay)).highlight).toMatchObject({
+      event: null,
+      invitation: { title: words.title },
     });
 
     const payload = await read(
@@ -326,27 +375,87 @@ describe('the campus content on a talent’s home (integration)', () => {
     );
     const [row] = (payload.campuses as { value: { highlight: unknown }[] })
       .value;
-    expect(row?.highlight).toMatchObject({ date: null, shown: true });
+    expect(row?.highlight).toMatchObject({
+      event: { eventId: campEventId, shown: true, notShownBecause: null },
+      invitation: { title: words.title },
+      showing: 'event',
+    });
   });
 
-  it('clears both blocks with nulls', async () => {
+  it('refuses an event of another campus, one already started, or one with no sign-up form', async () => {
+    for (const eventId of [elsewhereEventId, pastEventId, formlessEventId]) {
+      const { status, payload } = await post(postHighlight, secret, {
+        campus: campusName,
+        eventId,
+      });
+      expect(status).toBe(400);
+      expect(String(payload.error)).not.toBe('');
+    }
+    const { status } = await post(postHighlight, secret, {
+      campus: campusName,
+      eventId: 'evt_inconnu',
+    });
+    expect(status).toBe(400);
+    // Still the camp.
+    expect(
+      (await prisma.talentHome_Highlight.findUnique({ where: { campusId } }))
+        ?.eventId,
+    ).toBe(campEventId);
+  });
+
+  it('refuses to take the sign-up form from an event a campus puts forward', async () => {
+    const refused = await post(adminApiWrite('write_event_config'), secret, {
+      eventId: campEventId,
+      signupUrl: null,
+    });
+    expect(refused.status).toBe(400);
+    expect(String(refused.payload.error)).toContain(campusName);
+  });
+
+  it('keeps the invitation when Salesforce deletes the event', async () => {
+    const doomed = await prisma.event.create({
+      data: {
+        titre: `Supprimé ${stamp}`,
+        date: new Date(Date.now() + 10 * DAY),
+        campusId,
+        signupUrl,
+      },
+    });
+    await writeTalentHomeHighlight({ campus: campusName, eventId: doomed.id });
+    await prisma.event.delete({ where: { id: doomed.id } });
+    expect((await getTalentHome(campusId)).highlight).toEqual({
+      event: null,
+      invitation: { ...words, buttonLabel: null, image: null },
+    });
+    await writeTalentHomeHighlight({
+      campus: campusName,
+      eventId: campEventId,
+    });
+  });
+
+  it('deletes the row once it holds neither half', async () => {
     await post(postNote, secret, { campus: campusName, markdown: null });
+    const noEvent = await post(postHighlight, secret, {
+      campus: campusName,
+      eventId: null,
+    });
+    expect(noEvent.payload.after).toMatchObject({ eventId: null });
     const cleared = await post(postHighlight, secret, {
       campus: campusName,
-      title: null,
-      summary: null,
-      date: null,
-      url: null,
+      invitation: null,
     });
     expect(cleared.status).toBe(200);
     expect(cleared.payload.after).toBeNull();
+    expect(
+      await prisma.talentHome_Highlight.findUnique({ where: { campusId } }),
+    ).toBeNull();
     expect(await getTalentHome(campusId)).toEqual({
       note: null,
       highlight: null,
     });
   });
 
-  describe('the highlight’s picture', () => {
+  describe('the invitation’s picture', () => {
     let server: Server;
     let host = '';
     const files = new Map<string, Uint8Array>([
@@ -379,16 +488,18 @@ describe('the campus content on a talent’s home (integration)', () => {
     it('copies it, shows it on the home, and serves it to a signed-in user only', async () => {
       pictureSize = { width: 1280, height: 720 };
       const outcome = await writeTalentHomeHighlight({
-        ...highlight,
-        imageUrl: `${host}/snake.png`,
+        campus: campusName,
+        invitation: { ...words, imageUrl: `${host}/snake.png` },
       });
       expect(outcome.applied && outcome.after).toMatchObject({
-        imageUrl: `${host}/snake.png`,
+        invitation: { imageUrl: `${host}/snake.png` },
       });
 
       const image = (await storedImage())!;
       expect(objects.has(image.key)).toBe(true);
-      expect((await getTalentHome(campusId)).highlight?.image).toEqual({
+      expect(
+        (await getTalentHome(campusId)).highlight?.invitation?.image,
+      ).toEqual({
         url: `/api/talent-home/images/${campusId}/${image.key.split('/').pop()}`,
         width: 1280,
         height: 720,
@@ -411,14 +522,17 @@ describe('the campus content on a talent’s home (integration)', () => {
       expect(await serve(null)).toBe(401);
     });
 
-    it('keeps its copy when the highlight is restated, even once the host stops answering', async () => {
+    it('keeps its copy when the invitation is restated, even once the host stops answering', async () => {
       const before = await storedImage();
       files.delete('/snake.png');
       try {
         await writeTalentHomeHighlight({
-          ...highlight,
-          summary: 'Un autre texte',
-          imageUrl: `${host}/snake.png`,
+          campus: campusName,
+          invitation: {
+            ...words,
+            text: 'Un autre texte',
+            imageUrl: `${host}/snake.png`,
+          },
         });
       } finally {
         files.set('/snake.png', png(1));
@@ -437,8 +551,8 @@ describe('the campus content on a talent’s home (integration)', () => {
       for (const [path, size] of attempts) {
         pictureSize = size;
         await writeTalentHomeHighlight({
-          ...highlight,
-          imageUrl: `${host}${path}`,
+          campus: campusName,
+          invitation: { ...words, imageUrl: `${host}${path}` },
         });
         expect((await storedImage())?.sourceUrl).toBe(`${host}${path}`);
       }
@@ -452,12 +566,14 @@ describe('the campus content on a talent’s home (integration)', () => {
     it('serves an animation with its still for reduced motion', async () => {
       pictureSize = { width: 1280, height: 720 };
       await writeTalentHomeHighlight({
-        ...highlight,
-        imageUrl: `${host}/snake.gif`,
+        campus: campusName,
+        invitation: { ...words, imageUrl: `${host}/snake.gif` },
       });
       const image = (await storedImage())!;
       expect(image.stillKey).not.toBeNull();
-      expect((await getTalentHome(campusId)).highlight?.image?.stillUrl).toBe(
+      expect(
+        (await getTalentHome(campusId)).highlight?.invitation?.image?.stillUrl,
+      ).toBe(
         `/api/talent-home/images/${campusId}/${image.stillKey!.split('/').pop()}`,
       );
       const response = (await imageProxy({
@@ -471,8 +587,8 @@ describe('the campus content on a talent’s home (integration)', () => {
       const before = await storedImage();
       files.set('/logo.svg', new TextEncoder().encode('<svg xmlns="x">'));
       const refusal = await writeTalentHomeHighlight({
-        ...highlight,
-        imageUrl: `${host}/logo.svg`,
+        campus: campusName,
+        invitation: { ...words, imageUrl: `${host}/logo.svg` },
       }).catch((err) => err);
       expect(refusal).toBeInstanceOf(OperationRefusedError);
       expect((refusal as Error).message).toMatch(/est un SVG/);
@@ -577,28 +693,32 @@ describe('the campus content on a talent’s home (integration)', () => {
 
     it('drops the picture and its bytes when a write leaves it out', async () => {
       const before = (await storedImage())!;
-      await writeTalentHomeHighlight(highlight);
+      await writeTalentHomeHighlight({ campus: campusName, invitation: words });
       expect(await storedImage()).toBeNull();
       expect(objects.has(before.key)).toBe(false);
       if (before.stillKey) expect(objects.has(before.stillKey)).toBe(false);
     });
 
-    it('drops the picture and its bytes with the highlight', async () => {
+    it('keeps the picture when only the event changes', async () => {
       pictureSize = { width: 1280, height: 720 };
       files.set('/other.png', png(2));
       await writeTalentHomeHighlight({
-        ...highlight,
-        imageUrl: `${host}/other.png`,
+        campus: campusName,
+        invitation: { ...words, imageUrl: `${host}/other.png` },
       });
       const image = (await storedImage())!;
-
       await writeTalentHomeHighlight({
         campus: campusName,
-        title: null,
-        summary: null,
-        date: null,
-        url: null,
+        eventId: campEventId,
       });
+      await writeTalentHomeHighlight({ campus: campusName, eventId: null });
+      expect(await storedImage()).toEqual(image);
+      expect(objects.has(image.key)).toBe(true);
+    });
+
+    it('drops the picture and its bytes with the invitation', async () => {
+      const image = (await storedImage())!;
+      await writeTalentHomeHighlight({ campus: campusName, invitation: null });
       expect(await storedImage()).toBeNull();
       expect(objects.has(image.key)).toBe(false);
     });

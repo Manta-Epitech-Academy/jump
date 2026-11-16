@@ -110,8 +110,6 @@ const MODEL_ORDER = [
   'staffProfile',
   'signatory',
   'talentHome_Note',
-  'talentHome_Highlight',
-  'talentHome_HighlightImage',
   'talentHome_NoteImage',
   'staffInvitation',
   'adminApi_Token',
@@ -141,6 +139,9 @@ const MODEL_ORDER = [
   'eventConfig_Workshop',
   'eventConfig_Hero',
   'eventConfig_HeroImage',
+  // After the events: the campus's highlight may point at one of them.
+  'talentHome_Highlight',
+  'talentHome_HighlightImage',
   'participation',
   'planning_Slot',
   'eventPresence',

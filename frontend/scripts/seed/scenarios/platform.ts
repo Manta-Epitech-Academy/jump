@@ -16,7 +16,7 @@ import {
   XP_REWARDS,
 } from '../catalog/platform';
 import {
-  TALENT_HOME_HIGHLIGHTS,
+  TALENT_HOME_INVITATIONS,
   TALENT_HOME_NOTES,
   TALENT_HOME_NOTE_IMAGES,
 } from '../catalog/talentHome';
@@ -166,19 +166,17 @@ export const platform: Scenario = {
           });
         });
       }
-      const highlight = TALENT_HOME_HIGHLIGHTS[campus.name];
+      // The generic half. The event a campus points at is set by
+      // `campusHome`, once the events exist.
+      const highlight = TALENT_HOME_INVITATIONS[campus.name];
       if (highlight)
         world.buffer.talentHome_Highlight.push({
           campusId: campus.id,
+          eventId: null,
           title: highlight.title,
-          summary: highlight.summary,
-          date:
-            highlight.dayOffset === null
-              ? null
-              : new Date(
-                  `${clock.dateKey(clock.days(highlight.dayOffset))}T00:00:00.000Z`,
-                ),
+          text: highlight.text,
           url: highlight.url,
+          buttonLabel: highlight.buttonLabel,
           updatedAt: clock.today,
         });
       if (highlight?.image) {

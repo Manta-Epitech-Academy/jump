@@ -19,10 +19,7 @@ import { E2E, E2E_DOMAIN } from './identities';
 // the rule the guard reads.
 import { currentSchoolYearLabel } from '../../../src/lib/domain/schoolYear';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
-import {
-  dateKeyToDbDate,
-  toDateKey,
-} from '../../../src/lib/domain/eventPresence';
+import { toDateKey } from '../../../src/lib/domain/eventPresence';
 import {
   eventEndInstant,
   eventStartInstant,
@@ -107,14 +104,11 @@ export async function seedE2eData(): Promise<void> {
           markdown: `## Bienvenue\n\nRejoins [le Discord du campus](${E2E.homeNoteLink}).`,
         },
       },
-      // A week out, so the highlight is still open whenever the suite runs.
+      // The generic invitation, which never retires.
       homeHighlight: {
         create: {
           title: E2E.homeHighlightTitle,
-          summary: 'Deux heures pour coder ton propre Snake.',
-          date: dateKeyToDbDate(
-            toDateKey(new Date(Date.now() + 7 * 86_400_000), CAMPUS_TIMEZONE),
-          ),
+          text: 'Deux heures pour coder ton propre Snake.',
           url: E2E.homeHighlightUrl,
         },
       },

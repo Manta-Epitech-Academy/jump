@@ -91,19 +91,13 @@ describe('the operation catalogue', () => {
   // over to March, which would save a day nobody asked for. The regression the
   // caller has to see is a refusal naming the problem.
   it('refuses a date that does not exist on the calendar', () => {
-    const day =
-      ADMIN_API_OPERATIONS.write_talent_home_highlight.schema.shape.date;
-
-    expect(day.safeParse('2026-06-31').success).toBe(false);
-    expect(day.safeParse('2026-02-30').success).toBe(false);
-    expect(day.safeParse('2026-06-30').success).toBe(true);
-
     const offeredOn = (value: string) =>
       ADMIN_API_OPERATIONS.write_event_config.schema.safeParse({
         eventId: 'evt',
         workshops: [{ slug: 'pacman', day: value, slot: 'morning' }],
       }).success;
     expect(offeredOn('2026-06-31')).toBe(false);
+    expect(offeredOn('2026-02-30')).toBe(false);
     expect(offeredOn('2026-06-30')).toBe(true);
   });
 

@@ -820,40 +820,57 @@ model TalentHome_NoteImage {
   @@unique([campusId, sourceUrl])
 }
 
-/// The one event a campus invites its talents to sign up for, with a link to an
-/// outside sign-up form. The talent home's blue hero leads with it on a day the
-/// talent has no activity, and leaves the day of an activity to that activity
-/// (`pickHomeHero`). Chosen by hand per campus (`write_talent_home_highlight`), never derived from
-/// Salesforce: a JPO or a camp is not something the talent is enrolled in yet.
+/// What one campus puts forward on its talents' home (#501): an event of its
+/// own, and a generic invitation, each optional. The talent home's blue hero
+/// (`pickHomeHero`) invites a talent to the event while it is open (until the
+/// end of its first day on the campus clock) and the talent is not enrolled in
+/// it; an enrolled talent is told « Tu es inscrit » instead, from their own
+/// enrolment. Once the event is over, or for a campus that has planned none,
+/// the generic invitation (« Les Ateliers TECH, toute l'année ») is the
+/// standing fallback. Chosen by hand per campus (`write_talent_home_highlight`),
+/// never derived from Salesforce.
 ///
-/// Its own table rather than columns beside the note, so a half-written
-/// highlight cannot exist: a row has its title, its text and its link, or is
-/// not there.
+/// The event's words are its own (`EventConfig_Hero`, stage `invitation`) and
+/// so is its sign-up form (`Event.signupUrl`): « on t'invite à un événement »,
+/// so what invites to it is written once, on it. This row only points at it.
+///
+/// Its own table rather than columns beside the note, since the note and what
+/// the campus puts forward are separate entities with separate writes.
 model TalentHome_Highlight {
-  campusId  String    @id
-  title     String
-  summary   String
-  /// The event's calendar day, shown on the hero. The reader stops showing the
-  /// highlight once that day has passed on the campus clock, so a camp's
-  /// invitation does not outlive the camp. Null for an invitation that has no
-  /// day (« les ateliers de la tech, toute l'année »): no day is shown, and it
-  /// stays until it is rewritten or removed. One column for both, because a
-  /// day hidden from the talent that still retired the hero would be a rule
-  /// nobody could see.
-  date      DateTime? @db.Date
+  campusId    String   @id
+  /// The event the campus puts forward. Not bound to the campus by a composite
+  /// key: the event's campus is checked by the write and again by every reader,
+  /// because Salesforce does move a campaign to another campus and a composite
+  /// key would cascade that move into this row's own primary key. SetNull, so
+  /// the generic invitation outlives an event Salesforce deletes; a row left
+  /// with neither is shown as nothing, and the next write on it deletes it.
+  eventId     String?
+  /// The generic invitation: its title, its text and its sign-up link, all
+  /// three or none (`TalentHome_Highlight_invitation_whole`, hand-written in
+  /// the migration), since an invitation with no link invites to nothing.
+  /// The limits are the hero's own (`HERO_TITLE_MAX`, `HERO_TEXT_MAX`).
+  title       String?
+  text        String?
   /// The sign-up form, https only.
-  url       String
-  updatedAt DateTime  @updatedAt
+  url         String?
+  /// The invitation's button, when « Je m'inscris » does not fit
+  /// (`HERO_BUTTON_MAX`). Null shows the default.
+  buttonLabel String?
+  updatedAt   DateTime @updatedAt
 
   campus Campus                     @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  event  Event?                     @relation(fields: [eventId], references: [id], onDelete: SetNull)
   image  TalentHome_HighlightImage?
+
+  @@index([eventId])
 }
 
-/// The optional picture of a highlighted event, given as an https address and
-/// COPIED into storage, never linked to (`$lib/server/images/remote.ts`, the
-/// circuit an activity's cover uses). A child row rather than nullable columns
-/// on the highlight, so it can never hold half an image, and it goes with its
-/// highlight.
+/// The optional picture of a campus's generic invitation, given as an https
+/// address and COPIED into storage, never linked to
+/// (`$lib/server/images/remote.ts`, the circuit an activity's cover uses). A
+/// child row rather than nullable columns on the highlight, so it can never
+/// hold half an image, and it goes with the invitation: the event a campus
+/// points at shows its own picture (`EventConfig_HeroImage`).
 model TalentHome_HighlightImage {
   campusId    String @id
   /// The address it was copied from, handed back by `config_talent_home` so
@@ -1002,6 +1019,8 @@ model Event {
   shownStatuses       EventConfig_ShownStatus[]
   workshops           EventConfig_Workshop[]
   heroes              EventConfig_Hero[]
+  /// The campuses that put this event forward on their talents' home.
+  highlightedBy       TalentHome_Highlight[]
   workshopEntries     Workshop_Participation[]
   syncPruneHold       Sync_PruneHold?
 

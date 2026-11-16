@@ -504,12 +504,26 @@ async function lockEvent(tx: Prisma.TransactionClient, eventId: string) {
 }
 
 /** The sign-up form to save: `''` for none, the service's spelling. */
-function checkedSignupUrl(
+async function checkedSignupUrl(
+  eventId: string,
   given: string | null | undefined,
   stored: string | null,
-): string {
+): Promise<string> {
   if (given === undefined) return stored ?? '';
-  if (given === null) return '';
+  if (given === null) {
+    // A campus pointing at the event sends its talents to this form: taking it
+    // away would leave the hero's button leading nowhere.
+    const pointing = await prisma.talentHome_Highlight.findMany({
+      where: { eventId },
+      select: { campus: { select: { name: true } } },
+      orderBy: { campus: { name: 'asc' } },
+    });
+    if (stored !== null && pointing.length > 0)
+      throw new OperationRefusedError(
+        `${pointing.map((row) => row.campus.name).join(', ')} met cet événement en avant sur l'accueil de ses talents, dont le bouton mène à ce formulaire. Retirez-le d'abord avec write_talent_home_highlight (eventId à null), ou donnez un autre signupUrl.`,
+      );
+    return '';
+  }
   checkSignupUrl(given);
   return given;
 }
@@ -558,7 +572,11 @@ export async function writeEventConfig(
       event.closingTemplateId,
     ),
     ...statusPolicyFor(params, event),
-    signupUrl: checkedSignupUrl(params.signupUrl, before.signupUrl),
+    signupUrl: await checkedSignupUrl(
+      event.id,
+      params.signupUrl,
+      before.signupUrl,
+    ),
     workshops:
       params.workshops && (await resolvedWorkshops(event.id, params.workshops)),
   };
