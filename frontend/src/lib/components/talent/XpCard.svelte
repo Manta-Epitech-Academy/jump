@@ -44,7 +44,7 @@
         </p>
         <p class="mt-1 font-bold text-foreground">{progress.level}</p>
       </div>
-      <LevelBadge level={progress.level} tone={progress.tone} />
+      <LevelBadge level={progress.level} tone={progress.tone} decorative />
     </div>
 
     <div

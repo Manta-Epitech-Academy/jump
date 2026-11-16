@@ -7,6 +7,7 @@
  */
 import { test, expect, type Locator } from '@playwright/test';
 import { E2E, storageStatePath } from './fixtures/identities';
+import { JUMP_LEVELS } from '../../src/lib/domain/xp';
 
 async function expectLeavesSafely(link: Locator, href: string) {
   await expect(link).toHaveAttribute('href', href);
@@ -51,7 +52,7 @@ test.describe('un talent dont l’événement a lieu aujourd’hui', () => {
     });
     // The card carries the level Jump computes from the XP, whatever it is.
     await expect(
-      parcours.getByRole('img', { name: /^Badge du niveau / }),
+      parcours.getByText(new RegExp(`^(${JUMP_LEVELS.join('|')})$`)),
     ).toBeVisible();
     await parcours.click();
     await expect(page).toHaveURL(/\/parcours$/);

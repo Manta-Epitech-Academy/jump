@@ -7,6 +7,9 @@
   white on the coral, the magenta and the blue, neon on the near-black of the
   top level. The badge is drawn in brand colours that do not change with the
   theme: it is an emblem, like the logo, not a surface.
+
+  It names the level to a screen reader unless `decorative`: set it where the
+  level is already written beside the badge, or the level is read twice.
 -->
 <script lang="ts">
   import type { LevelTone } from '$lib/domain/xp';
@@ -15,8 +18,14 @@
   let {
     level,
     tone,
+    decorative = false,
     class: className,
-  }: { level: string; tone: LevelTone; class?: string } = $props();
+  }: {
+    level: string;
+    tone: LevelTone;
+    decorative?: boolean;
+    class?: string;
+  } = $props();
 
   const colours: Record<
     LevelTone,
@@ -54,8 +63,9 @@
 
 <svg
   viewBox="14 6 60 68"
-  role="img"
-  aria-label="Badge du niveau {level}"
+  role={decorative ? undefined : 'img'}
+  aria-label={decorative ? undefined : `Badge du niveau ${level}`}
+  aria-hidden={decorative || undefined}
   class={cn('h-16 w-auto shrink-0', className)}
 >
   <path d="M44 8l28 16v32L44 72 16 56V24z" class={colour.fill} />
