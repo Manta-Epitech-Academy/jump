@@ -197,8 +197,15 @@
    Ink inversion.
 
    The ink variants exist only to survive a light background. On a dark one the
-   raw brand hues are the legible ones (tech 13.69:1 on --card, together
-   8.70:1), so the two sets swap.
+   raw brand hues are the legible ones (on the dark --card: tech 13.69:1,
+   together 6.04:1, tomorrow 5.89:1, all past AA), so the two sets swap and the
+   charte's own orange and magenta are what a dark screen shows. They once
+   lifted to tints of their own (#ff9878, #ff7ef6), lighter than they needed to
+   be and in no charte. Warning has no brand hue to swap to: it stays Jump's.
+
+   Not on the brand blue. A blue `.on-dark` surface (a hero, a pressed tile)
+   takes the swap too, and there the raw orange is 2.32:1: no component paints
+   an ink as text on blue today, and none should, white is the text there.
 
    `.dark` is the theme. `.on-dark` is a surface that is dark whatever the theme
    is: the sidebar, the staff top bar, a brand-blue hero, a pressed tile. Put it
@@ -210,8 +217,8 @@
 .dark,
 .on-dark {
   --epi-tech-ink: var(--epi-tech);
-  --epi-together-ink: #ff9878; /* 8.70:1 */
-  --epi-tomorrow-ink: #ff7ef6; /* 8.31:1 */
+  --epi-together-ink: var(--epi-together); /* 6.04:1 */
+  --epi-tomorrow-ink: var(--epi-tomorrow); /* 5.89:1 */
   --epi-warning-ink: #ffd15c; /* 12.62:1 */
 
   /* Every role derived from an ink is re-declared here, and has to be.

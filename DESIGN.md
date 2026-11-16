@@ -53,7 +53,7 @@ colors:
   # The status roles name an ink variant, so they invert with it, and the text
   # painted on a status fill inverts the other way. Both halves are declared so
   # the contrast test can hold the dark pair to the same floor as the light one.
-  darkDestructive: '#ff9878'
+  darkDestructive: '{colors.epiTogether}'
   darkSuccess: '#00ff97'
   darkWarning: '#ffd15c'
   darkStatusForeground: '{colors.epiDark}'
@@ -468,10 +468,13 @@ dark is arguably more Epitech than light. Five rules make it cheap:
    borders. Redefining `epiBlue` per theme puts a non-brand blue in the wordmark.
 3. **The ink variants invert on dark.** They exist only to survive a light
    background; on a dark surface the raw brand hues are the legible ones
-   (`epiTech` 13.7:1 on `darkCard`). So `epiTechInk` resolves to `epiTech` there,
-   and `epiTogetherInk` / `epiTomorrowInk` / the warning lift to `#ff9878` /
-   `#ff7ef6` / `#ffd15c`. A component therefore names the ink token once and is
-   correct in both themes.
+   (on `darkCard`: `epiTech` 13.7:1, `epiTogether` 6.0:1, `epiTomorrow` 5.9:1,
+   all past AA). So each ink resolves to its own raw hue there, the charte's
+   orange and magenta included, rather than to a lighter tint no charte has; only
+   the warning, which is Jump's and has no brand hue, lifts to `#ffd15c`. A
+   component therefore names the ink token once and is correct in both themes.
+   The swap also runs on a brand-blue `.on-dark` surface, where the raw orange
+   is 2.3:1: text on blue is white, never an ink.
 
    **Which is why an ink token is a text colour and never a fill.** The swap is
    what makes text legible; used as a background it inverts the meaning, and a
