@@ -11,13 +11,19 @@
   // of scope): only how many are validated. A subject not started shows an
   // empty bar, which is how a started one stands apart among equal choices
   // (AC2), and one whose step count CTFd has not reported yet stands on a line.
+  //
+  // `compact` is the same reading inside one tile among several choices,
+  // where the panel and its sentences would outweigh the subject itself: the
+  // bar and the figure only, or one short word when CTFd has no count yet.
   let {
     activity,
+    compact = false,
   }: {
     activity: Pick<
       WorkshopActivity,
       'solvedSteps' | 'totalSteps' | 'startedAt'
     >;
+    compact?: boolean;
   } = $props();
 
   // Beyond this many steps, a segment per step stops reading as one.
@@ -39,12 +45,14 @@
   );
 </script>
 
-<div class="rounded-lg bg-epi-dark/35 px-4 py-3">
+<div class={compact ? 'flex flex-col' : 'rounded-lg bg-epi-dark/35 px-4 py-3'}>
   {#if activity.totalSteps > 0}
     <p
       class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm text-white"
     >
-      <span class="whitespace-nowrap">Ta progression</span>
+      <span class={compact ? 'sr-only' : 'whitespace-nowrap'}
+        >Ta progression</span
+      >
       <span
         class="font-mono font-bold whitespace-nowrap text-epi-tech uppercase"
       >
@@ -77,6 +85,10 @@
         </span>
       {/if}
     </div>
+  {:else if compact}
+    <p class="font-mono text-sm font-bold text-white/80 uppercase">
+      {started ? 'Commencé' : 'Pas encore commencé'}
+    </p>
   {:else}
     <p class="text-sm text-white/80">
       {started

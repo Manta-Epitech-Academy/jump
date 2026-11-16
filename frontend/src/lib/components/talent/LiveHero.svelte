@@ -1,7 +1,9 @@
 <script lang="ts">
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import CopiedPicture from '$lib/components/talent/CopiedPicture.svelte';
   import StepProgress from '$lib/components/talent/StepProgress.svelte';
+  import SubjectVisual from '$lib/components/talent/SubjectVisual.svelte';
   import { Button } from '$lib/components/ui/button';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
@@ -47,22 +49,50 @@
     hero.kind === 'live' ? hero.copy.buttonLabel : HERO_DEFAULT_BUTTON.live,
   );
   const planning = $derived(hero.kind === 'live' && hero.event.hasPlanning);
+  const categoryColor = $derived(
+    hero.kind === 'live' ? hero.event.categoryColor : null,
+  );
+  // One subject gets the hero's two columns; several share it as tiles.
+  const lone = $derived(subjects.length === 1 ? subjects[0] : null);
+
+  let mascotBroken = $state<Record<string, true>>({});
+
   const regionName = $derived(
     hero.kind === 'live' ? 'En ce moment' : 'À continuer chez toi',
   );
 </script>
 
-{#snippet enter(subject: WorkshopActivity)}
+{#snippet heading()}
+  <div class="flex flex-col gap-2">
+    <h3 class="font-heading text-display-m text-white sm:text-display-l">
+      {header.title}<TitleCursor />
+    </h3>
+    {#if header.text}
+      <p class="max-w-prose text-sm text-white/80">{header.text}</p>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet mascotOf(subject: WorkshopActivity)}
+  {@const mascot = subject.cover.mascot}
+  {#if mascot && !mascotBroken[mascot.url]}
+    <!-- The subject's character, above its line, drawn no larger than a
+         small sprite needs. Decorative: the words carry the meaning. -->
+    <CopiedPicture
+      picture={mascot}
+      layout="sprite"
+      onBroken={() => (mascotBroken = { ...mascotBroken, [mascot.url]: true })}
+    />
+  {/if}
+{/snippet}
+
+{#snippet enter(subject: WorkshopActivity, width: string)}
   <!-- A form and not a link: entering mints a ticket and opens a
        participation, and `load` runs on speculative hover-preload.
        `target="_blank"` leaves this tab alive for the talent to come back to,
        which is where the XP are celebrated. -->
   <form method="POST" action={`/activites/${subject.slug}`} target="_blank">
-    <Button
-      type="submit"
-      variant="neon"
-      class={cn('h-11 w-full px-5', header.subjectIsHeader && 'sm:w-auto')}
-    >
+    <Button type="submit" variant="neon" class={cn('h-11 w-full px-5', width)}>
       {buttonLabel}
       <ArrowRight class="size-4" aria-hidden="true" />
       <span class="sr-only">{subject.label} (nouvel onglet)</span>
@@ -97,49 +127,69 @@
         <p class="epi-overline text-white/80">À continuer chez toi</p>
       {/if}
 
-      <div class="flex flex-col gap-2">
-        <h3 class="font-heading text-display-m text-white sm:text-display-l">
-          {header.title}<TitleCursor />
-        </h3>
-        {#if header.text}
-          <p class="max-w-prose text-sm text-white/80">{header.text}</p>
-        {/if}
-      </div>
-
-      {#if header.subjectIsHeader}
-        <!-- One subject, already the header: its progress and its way in. -->
-        <div class="max-w-md">
-          <StepProgress activity={subjects[0]} />
-        </div>
-        <div class="flex flex-col gap-3 sm:flex-row">
-          {@render enter(subjects[0])}
-          {#if planning}
-            {@render planningLink()}
-          {/if}
+      {#if lone}
+        <!-- One subject: its words and its way in on the left, its cover on
+             the right, as the invitation draws an event. -->
+        <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+          <div class="flex min-w-0 flex-1 flex-col gap-4">
+            {@render mascotOf(lone)}
+            {@render heading()}
+            {#if !header.subjectIsHeader}
+              <!-- The event wrote the header: the subject still says its
+                   name, since the button opens that one. -->
+              <div class="flex flex-col gap-1">
+                <p class="font-bold text-white">{lone.label}</p>
+                {#if lone.cover.tagline}
+                  <p class="text-sm text-white/80">{lone.cover.tagline}</p>
+                {/if}
+              </div>
+            {/if}
+            <StepProgress activity={lone} />
+            <div class="flex flex-col gap-3 sm:flex-row">
+              {@render enter(lone, 'sm:w-auto')}
+              {#if planning}
+                {@render planningLink()}
+              {/if}
+            </div>
+          </div>
+          <SubjectVisual activity={lone} {categoryColor} layout="hero" />
         </div>
       {:else}
+        {@render heading()}
         {#if subjects.length > 0}
-          <!-- One row per subject, stacked: the same width and the same way in
-               for each, whatever their number. Side by side, three cards in
-               the home's column came out narrower than their own button. -->
+          <!-- Equal tiles, one per row, each with its cover, its line, its
+               progress and the same way in: a choice, never a ranking (AC2).
+               Side by side, the home's column held two at best, so a third
+               fell alone under them and read as left over, or as the one
+               that mattered once stretched across the row; one per row keeps
+               every subject the same shape whatever their number. -->
           <ul class="flex flex-col gap-3">
             {#each subjects as subject (subject.slug)}
               <li
-                class="flex flex-col gap-4 rounded-lg border border-white/15 p-4 sm:flex-row sm:items-center sm:gap-6"
+                class="flex flex-col gap-3 rounded-lg border border-white/15 bg-epi-dark/35 p-3 sm:flex-row sm:items-center sm:gap-5"
               >
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <h4 class="font-heading text-display-s text-white">
-                    {subject.label}
-                  </h4>
-                  {#if subject.cover.tagline}
-                    <p class="text-sm text-white/80">
-                      {subject.cover.tagline}
-                    </p>
-                  {/if}
+                <div class="sm:w-2/5 sm:shrink-0">
+                  <SubjectVisual
+                    activity={subject}
+                    {categoryColor}
+                    layout="tile"
+                  />
                 </div>
-                <div class="flex shrink-0 flex-col gap-3 sm:w-64">
-                  <StepProgress activity={subject} />
-                  {@render enter(subject)}
+                <div class="flex min-w-0 flex-1 flex-col gap-3">
+                  <div class="flex flex-col gap-1">
+                    <h4 class="font-heading text-display-s text-white">
+                      {subject.label}
+                    </h4>
+                    {#if subject.cover.tagline}
+                      <p class="line-clamp-2 text-sm text-white/80">
+                        {subject.cover.tagline}
+                      </p>
+                    {/if}
+                  </div>
+                  <div class="mt-auto flex flex-col gap-3">
+                    <StepProgress activity={subject} compact />
+                    {@render enter(subject, '')}
+                  </div>
                 </div>
               </li>
             {/each}
