@@ -148,7 +148,7 @@ export const campusHome: Scenario = {
         {
           role: 'talent (accueil du campus)',
           email: talent.email,
-          note: `le mot du campus dans Actualité, et sa prochaine séance`,
+          note: `le mot du campus dans Actualité, et sa prochaine séance dans le bandeau (« Tu es inscrit »)`,
         },
       ],
     });

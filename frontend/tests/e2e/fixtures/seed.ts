@@ -3,7 +3,7 @@
  *
  * Deliberately NOT the seed generator (`scripts/seed/`): that builds a dataset
  * shaped like production, and a spec anchored to it breaks the next time
- * somebody adjusts a scenario. This seeds the accounts and the three events
+ * somebody adjusts a scenario. This seeds the accounts and the few events
  * the specs actually assert on. Who those accounts are is declared in
  * `./identities.ts`, which the config and the specs share.
  *
@@ -54,7 +54,16 @@ export async function purgeE2eData(): Promise<void> {
   // closures all cascade off it.
   await prisma.event.deleteMany({
     where: {
-      id: { in: [E2E.eventId, E2E.upcomingEventId, E2E.rosterEventId] },
+      id: {
+        in: [
+          E2E.eventId,
+          E2E.upcomingEventId,
+          E2E.rosterEventId,
+          E2E.highlightedEventId,
+          E2E.pastEventId,
+          E2E.genericPastEventId,
+        ],
+      },
     },
   });
   // Then the talents. Talent -> bauth_user is SetNull, not Cascade, so deleting
@@ -84,7 +93,21 @@ export async function purgeE2eData(): Promise<void> {
   await prisma.workshop_Instance.deleteMany({
     where: { id: E2E.workshopInstanceId },
   });
-  await prisma.campus.deleteMany({ where: { id: E2E.campusId } });
+  await prisma.campus.deleteMany({
+    where: { id: { in: [E2E.campusId, E2E.genericCampusId] } },
+  });
+}
+
+/** A day `offset` days from today on the campus clock, stored as the sync does. */
+function campusDay(offset: number): { date: Date; endDate: Date } {
+  const key = toDateKey(
+    new Date(Date.now() + offset * 86_400_000),
+    CAMPUS_TIMEZONE,
+  );
+  return {
+    date: eventStartInstant(key, CAMPUS_TIMEZONE),
+    endDate: eventEndInstant(key, CAMPUS_TIMEZONE),
+  };
 }
 
 export async function seedE2eData(): Promise<void> {
@@ -104,12 +127,21 @@ export async function seedE2eData(): Promise<void> {
           markdown: `## Bienvenue\n\nRejoins [le Discord du campus](${E2E.homeNoteLink}).`,
         },
       },
-      // The generic invitation, which never retires.
+    },
+  });
+  // A campus that invites « toute l'année » and points at no event: the
+  // generic invitation, which never retires.
+  await prisma.campus.create({
+    data: {
+      id: E2E.genericCampusId,
+      name: 'E2E Campus Ateliers',
+      externalName: 'E2E_CAMPUS_GENERIC',
+      timezone: CAMPUS_TIMEZONE,
       homeHighlight: {
         create: {
-          title: E2E.homeHighlightTitle,
+          title: E2E.homeInvitationTitle,
           text: 'Deux heures pour coder ton propre Snake.',
-          url: E2E.homeHighlightUrl,
+          url: E2E.homeInvitationUrl,
         },
       },
     },
@@ -145,11 +177,18 @@ export async function seedE2eData(): Promise<void> {
       slug: E2E.workshopInstanceSlug,
       baseUrl: 'https://e2e.ctfd.invalid',
       activities: {
-        create: {
-          id: E2E.workshopActivityId,
-          slug: E2E.workshopSlug,
-          label: E2E.workshopLabel,
-        },
+        create: [
+          {
+            id: E2E.workshopActivityId,
+            slug: E2E.workshopSlug,
+            label: E2E.workshopLabel,
+          },
+          {
+            id: E2E.secondWorkshopActivityId,
+            slug: E2E.secondWorkshopSlug,
+            label: E2E.secondWorkshopLabel,
+          },
+        ],
       },
     },
   });
@@ -171,11 +210,49 @@ export async function seedE2eData(): Promise<void> {
       // What the dev space shows, as the worker gives a new event: the READY
       // members below are on the roster because this row says so.
       shownStatuses: { create: [{ status: 'READY' }, { status: 'MET' }] },
+      // Two subjects for the whole event: the day's hero lays them out as a
+      // choice, neither ahead of the other.
       workshops: {
-        create: { activityId: E2E.workshopActivityId, position: 0 },
+        create: [
+          { activityId: E2E.workshopActivityId, position: 0 },
+          { activityId: E2E.secondWorkshopActivityId, position: 1 },
+        ],
       },
     },
   });
+
+  // ── What the home's hero is drawn from beyond a talent's own day ─────────
+  // The camp the campus points at, twelve days out with its sign-up form, and
+  // an event weeks ago on each campus, which is what makes the campus the
+  // home of a talent whose only enrolment it is.
+  await prisma.event.create({
+    data: {
+      id: E2E.highlightedEventId,
+      titre: 'E2E-Camp',
+      publicName: E2E.highlightedEventName,
+      ...campusDay(12),
+      campusId: E2E.campusId,
+      signupUrl: E2E.highlightedSignupUrl,
+    },
+  });
+  await prisma.talentHome_Highlight.create({
+    data: { campusId: E2E.campusId, eventId: E2E.highlightedEventId },
+  });
+  for (const [id, campusId] of [
+    [E2E.pastEventId, E2E.campusId],
+    [E2E.genericPastEventId, E2E.genericCampusId],
+  ] as const) {
+    await prisma.event.create({
+      data: {
+        id,
+        titre: `E2E-Passe-${campusId}`,
+        publicName: 'Coding Club passé E2E',
+        ...campusDay(-20),
+        campusId,
+        shownStatuses: { create: [{ status: 'READY' }] },
+      },
+    });
+  }
 
   // ── The roster the Inscrits filters run on ───────────────────────────────
   // Ten days out: off today's calendar cell, which the calendar spec reads.
@@ -275,8 +352,8 @@ export async function seedE2eData(): Promise<void> {
   });
 
   // Signed like the talent above, but enrolled only in a session three days
-  // out: the home has no activity to lead with, so it leads with the campus's
-  // highlight, and the session card has a date (and a confirmed hour) to give.
+  // out: no subject today, so the hero says they are expected, with the day
+  // and the confirmed arrival hour, ahead of the camp the campus points at.
   await prisma.event.create({
     data: {
       id: E2E.upcomingEventId,
@@ -334,6 +411,53 @@ export async function seedE2eData(): Promise<void> {
       },
     },
   });
+
+  // Signed like the two above, each enrolled only in an event weeks ago on
+  // their campus: nothing of their own to come, so the hero speaks for the
+  // campus, the camp it points at for one, the « toute l'année » invitation
+  // for the other.
+  for (const [account, eventId, campusId] of [
+    [E2E.talentInvited, E2E.pastEventId, E2E.campusId],
+    [E2E.talentGeneric, E2E.genericPastEventId, E2E.genericCampusId],
+  ] as const) {
+    await prisma.bauth_user.create({
+      data: {
+        id: account.userId,
+        email: account.email,
+        emailVerified: true,
+        role: 'student',
+        name: `${account.prenom} ${account.nom}`,
+        talent: {
+          create: {
+            id: account.talentId,
+            nom: account.nom,
+            prenom: account.prenom,
+            niveau: 'Seconde',
+            ...dossierComplete,
+            charterAcceptedAt: now,
+            welcomeSeenAt: now,
+            onboardingSchoolYear: schoolYear,
+            parentEmail: `parent-${account.talentId}${E2E_DOMAIN}`,
+            parentRulesSignedAt: now,
+            imageRightsDecision: 'accepted',
+            imageRightsDecidedAt: now,
+            onboardingRecords: {
+              create: {
+                schoolYear,
+                ...dossierComplete,
+                parentRulesSignedAt: now,
+                imageRightsDecision: 'accepted',
+                imageRightsDecidedAt: now,
+              },
+            },
+            participations: {
+              create: { eventId, campusId, sfMemberStatus: 'READY' },
+            },
+          },
+        },
+      },
+    });
+  }
 
   // Every rung but the signature, and no charte: the step then renders both of
   // the boxes it can render, which is what makes "exactly two" an assertion

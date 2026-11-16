@@ -28,10 +28,30 @@ export const E2E = {
   workshopActivityId: 'e2e-workshop-activity',
   workshopSlug: 'e2e-atelier',
   workshopLabel: 'Atelier E2E',
-  /** What the campus puts on its talents' home: its note and its highlight. */
+  /**
+   * A second activity on the same host, offered by the same event, so the
+   * day's hero has a choice to lay out rather than a single subject.
+   */
+  secondWorkshopActivityId: 'e2e-workshop-activity-2',
+  secondWorkshopSlug: 'e2e-atelier-2',
+  secondWorkshopLabel: 'Second atelier E2E',
+  /** What the campus puts on its talents' home: its note and its event. */
   homeNoteLink: 'https://discord.invalid/e2e',
-  homeHighlightTitle: 'Recode le jeu Snake en JS',
-  homeHighlightUrl: 'https://www.epitech.invalid/inscription/?CampaignId=e2e',
+  /** The camp the campus points at, still to come, and its sign-up form. */
+  highlightedEventId: 'e2e-event-highlighted',
+  highlightedEventName: 'Camp E2E',
+  highlightedSignupUrl:
+    'https://www.epitech.invalid/inscription-camp/?CampaignId=e2e',
+  /** An event weeks ago on that campus, the only one of `talentInvited`. */
+  pastEventId: 'e2e-event-past',
+  /**
+   * A second campus that only invites « toute l'année », with no event to
+   * point at, and the event weeks ago that makes `talentGeneric` one of its own.
+   */
+  genericCampusId: 'e2e-campus-generic',
+  genericPastEventId: 'e2e-event-past-generic',
+  homeInvitationTitle: 'Recode le jeu Snake en JS',
+  homeInvitationUrl: 'https://www.epitech.invalid/inscription/?CampaignId=e2e',
   /** A session three days out, the only event of `talentIdle`. */
   upcomingEventId: 'e2e-event-upcoming',
   upcomingEventName: 'Coding Club E2E',
@@ -82,8 +102,7 @@ export const E2E = {
   },
   /**
    * Onboarded like `talentReady`, but whose only event is three days out: no
-   * activity today, so the home's hero leads with the campus's highlighted
-   * event, and the session card shows the date.
+   * subject today, so the home's hero says they are expected, and when.
    */
   talentIdle: {
     userId: 'e2e-user-talent-idle',
@@ -91,6 +110,25 @@ export const E2E = {
     email: `talent-idle${E2E_DOMAIN}`,
     nom: 'IDLETEST',
     prenom: 'Noa',
+  },
+  /**
+   * Onboarded, came to an event weeks ago, enrolled in nothing to come: the
+   * hero invites them to the event their campus points at.
+   */
+  talentInvited: {
+    userId: 'e2e-user-talent-invited',
+    talentId: 'e2e-talent-invited',
+    email: `talent-invited${E2E_DOMAIN}`,
+    nom: 'INVITEDTEST',
+    prenom: 'Lou',
+  },
+  /** The same, on the campus that only invites « toute l'année ». */
+  talentGeneric: {
+    userId: 'e2e-user-talent-generic',
+    talentId: 'e2e-talent-generic',
+    email: `talent-generic${E2E_DOMAIN}`,
+    nom: 'GENERICTEST',
+    prenom: 'Eden',
   },
   /** Nothing signed: belongs in the welcome / onboarding funnel. */
   talentFresh: {
@@ -131,6 +169,8 @@ export const E2E_ACCOUNTS = [
   E2E.admin,
   E2E.talentReady,
   E2E.talentIdle,
+  E2E.talentInvited,
+  E2E.talentGeneric,
   E2E.talentFresh,
   E2E.talentRules,
   E2E.parentPending,

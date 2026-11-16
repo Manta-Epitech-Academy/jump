@@ -207,6 +207,44 @@ export type HomeHero =
     }
   | { kind: 'continue'; activity: WorkshopActivity };
 
+/**
+ * The states the hero is drawn in, as a screen tells them apart: each kind,
+ * and within `live` and `enrolled` the variants that lay out differently (a
+ * choice of subjects, a single one, none at this moment; an arrival time or
+ * the day alone). Named so a generated dataset can be held to place a talent
+ * in every one of them (`scripts/seed/assert/derivedStates.ts`).
+ */
+export const HOME_HERO_STATES = [
+  'live-choice',
+  'live-one',
+  'live-none',
+  'enrolled-arrival',
+  'enrolled-day',
+  'invitation',
+  'generic',
+  'continue',
+  'none',
+] as const;
+export type HomeHeroState = (typeof HOME_HERO_STATES)[number];
+
+export function homeHeroState(hero: HomeHero | null): HomeHeroState {
+  if (!hero) return 'none';
+  switch (hero.kind) {
+    case 'live':
+      return hero.subjects.length > 1
+        ? 'live-choice'
+        : hero.subjects.length === 1
+          ? 'live-one'
+          : 'live-none';
+    case 'enrolled':
+      return hero.event.startMinutes === null
+        ? 'enrolled-day'
+        : 'enrolled-arrival';
+    default:
+      return hero.kind;
+  }
+}
+
 /** Where an event stands for the hero at an instant, on its campus clock. */
 export type HeroEventPhase = 'upcoming' | 'live' | 'ended';
 

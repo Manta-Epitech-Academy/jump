@@ -45,11 +45,11 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     ).not.toBe('');
 
     await page.goto('/');
-    // The event runs today, so its activity is the hero, not a row further
+    // The event runs today, so its activities are the hero, not a row further
     // down.
-    const hero = page.getByRole('region', { name: 'Ton activité du jour' });
+    const hero = page.getByRole('region', { name: 'En ce moment' });
     await expect(hero).toBeVisible();
-    const enter = hero.locator('form[action^="/activites/"]');
+    const enter = hero.locator(`form[action="/activites/${E2E.workshopSlug}"]`);
     await expect(enter).toBeVisible();
     // A new tab, which is what leaves this one alive to come back to.
     await expect(enter).toHaveAttribute('target', '_blank');
@@ -143,12 +143,12 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
       { upTo: [{ activityId: E2E.workshopActivityId, amount: 300 }] },
     ]);
     await expect(page.getByText('Activité en cours')).toBeVisible();
-    await expect(hero).toContainText('5 / 10 étapes validées');
+    await expect(hero).toContainText('Étape 6 / 10');
 
     // And it is owed once. A second return celebrates nothing, because the
     // acknowledgement went out with the first.
     await page.reload();
-    await expect(hero).toContainText('5 / 10 étapes validées');
+    await expect(hero).toContainText('Étape 6 / 10');
     await page.evaluate(() =>
       document.dispatchEvent(new Event('visibilitychange')),
     );

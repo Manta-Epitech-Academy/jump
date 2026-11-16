@@ -18,6 +18,7 @@ import { careers } from './careers';
 import { sfStatuses } from './sfStatuses';
 import { operations } from './operations';
 import { levels } from './levels';
+import { homeHero } from './homeHero';
 import type { Scenario } from './types';
 
 export const SCENARIOS: readonly Scenario[] = [
@@ -41,6 +42,9 @@ export const SCENARIOS: readonly Scenario[] = [
   sfStatuses,
   operations,
   levels,
+  // Last, for the reason `niveaux` gives: it places a talent in each state of
+  // the home's hero, and the draws it takes move nothing before it.
+  homeHero,
 ];
 
 export type { Scenario };
