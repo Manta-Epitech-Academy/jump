@@ -4,11 +4,16 @@
   import { cn } from '$lib/utils';
 
   // The one secondary action of a talent card (DESIGN.md, « Actions on a
-  // talent screen »): a light link with its arrow, whatever the card. The
-  // screen's one heavy action is the hero's neon button; every other thing a
-  // talent can open from a card says so in this same voice, so it reads as
-  // clickable without competing with it (the PO, 13/10: « tous les liens
-  // secondaires sont du même style … c'est pas envahissant »).
+  // talent screen »): the 2027 mockup's tinted pill with its arrow, whatever
+  // the card. The screen's one heavy action is the hero's neon button; every
+  // other thing a talent can open from a card says so in this same shape, so
+  // it reads as clickable without competing with it (the PO, 13/10: « tous les
+  // liens secondaires sont du même style … c'est pas envahissant »).
+  //
+  // The pill is ~28px tall, under the talent space's 44px touch target, so a
+  // link or a button grows an invisible hit area around it (`before:`): the
+  // eye gets the mockup's size, the thumb gets the target. Inside a card that
+  // is itself the link, the card is the target and nothing is added.
   //
   // Three elements, one look:
   //   - inside a card that is itself the link (`XpCard`, `DailyTrainingTile`),
@@ -38,12 +43,14 @@
     children: Snippet;
   } = $props();
 
-  const classes = $derived(
-    cn(
-      'group/action inline-flex cursor-pointer items-center gap-1.5 self-start text-sm font-semibold text-primary underline-offset-4 hover:underline',
-      className,
-    ),
-  );
+  const pill =
+    'group/action inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary transition-ui hover:bg-primary/20 group-hover:bg-primary/20';
+  // Only what is its own target: a span inside a linked card is not.
+  const hitArea =
+    "relative before:absolute before:-inset-x-1 before:-inset-y-2 before:content-['']";
+
+  const classes = $derived(cn(pill, className));
+  const targetClasses = $derived(cn(pill, hitArea, className));
 </script>
 
 {#snippet content()}
@@ -51,7 +58,7 @@
   {@render children()}
   {#if count}
     <span
-      class="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-bold text-primary-foreground no-underline"
+      class="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-bold text-primary-foreground"
       aria-hidden="true">{count}</span
     >
     {#if countLabel}<span class="sr-only">, {countLabel}</span>{/if}
@@ -65,9 +72,11 @@
 {/snippet}
 
 {#if href}
-  <a {href} class={classes}>{@render content()}</a>
+  <a {href} class={targetClasses}>{@render content()}</a>
 {:else if onclick}
-  <button type="button" {onclick} class={classes}>{@render content()}</button>
+  <button type="button" {onclick} class={targetClasses}
+    >{@render content()}</button
+  >
 {:else}
   <span class={classes}>{@render content()}</span>
 {/if}

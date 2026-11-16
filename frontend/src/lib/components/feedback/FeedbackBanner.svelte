@@ -14,10 +14,12 @@
 
 {#if !dismissed}
   <div
-    class="flex items-center gap-3 rounded-xl border border-epi-blue/20 bg-epi-blue/5 p-4"
+    class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-epi-blue/20 bg-epi-blue/5 p-4"
   >
     <PersonaAvatar iconUrl={personaIconUrl} class="h-8 w-8 shrink-0" />
-    <p class="flex-1 text-sm font-medium text-foreground">
+    <!-- basis-56: on a phone the sentence keeps a readable width and the
+         action wraps under it, instead of the pill squeezing it to a column. -->
+    <p class="min-w-0 flex-1 basis-56 text-sm font-medium text-foreground">
       Ton avis compte ! Dis-nous ce que tu en as pensé, ça prend deux minutes.
     </p>
     <!-- The talent cards' one secondary voice (`CardAction`), not a filled

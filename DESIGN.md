@@ -678,12 +678,15 @@ competing. Concretely:
   offered at once each carry one, because none may outrank another;
 - any other action on the blue hero is `overlay`, in the same shape;
 - an action on a card (Mon parcours, the training, the news, the feedback
-  banner) is `CardAction`: Plex semibold `primary` text with its arrow, no box,
-  so no radius to disagree about. A count rides along as a small badge, never
-  as a pill of its own, and a state's colour goes on the state's words, not on
-  the action.
+  banner) is `CardAction`: the 2027 mockup's tinted pill, `primary` at 10% under
+  Plex semibold `primary` text and its arrow, fully rounded. The mockup draws
+  every card action this way, the tint says « clickable » better than bare
+  text, and a link or button grows an invisible hit area to the talent space's
+  44px target while the pill keeps the mockup's size. A count rides along as a
+  small badge inside the pill, and a state's colour goes on the state's words,
+  not on the action.
 
-A filled, outlined or pill-shaped action on a card is the drift this replaced:
+A filled, outlined or bare-text action on a card is the drift this replaced:
 four cards had four shapes.
 
 **Segmented control** (`SegmentedFilter`). The 2027 mockup's: a `card` ground
