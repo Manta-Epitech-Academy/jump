@@ -4,7 +4,6 @@
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import LevelCard from '$lib/components/talent/LevelCard.svelte';
-  import LevelLadderHelp from '$lib/components/talent/LevelLadderHelp.svelte';
   import ParcoursTimeline from '$lib/components/talent/ParcoursTimeline.svelte';
 
   // « Mon parcours » after the 2027 mockup (#445): the level, then the journey
@@ -19,11 +18,7 @@
 </svelte:head>
 
 <div class="flex min-h-screen flex-col">
-  <TalentPageHeader title="Mon parcours" backLabel="Retour à l'accueil">
-    {#snippet actions()}
-      <LevelLadderHelp {xp} />
-    {/snippet}
-  </TalentPageHeader>
+  <TalentPageHeader title="Mon parcours" backLabel="Retour à l'accueil" />
 
   <div
     class="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:py-8 md:px-8"

@@ -18,65 +18,99 @@
   import { Card } from '$lib/components/ui/card';
   import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
   import LevelBadge from '$lib/components/talent/LevelBadge.svelte';
-  import { levelProgress, levelToNext } from '$lib/domain/xp';
+  import { levelLadder, levelProgress, levelToNext } from '$lib/domain/xp';
   import { cn } from '$lib/utils';
 
-  // A talent's Jump level at the head of Mon parcours, as the 2027 mockup draws
-  // it: the badge, the level's name, the bar, the XP earned and the next level.
-  // The total counts every XP, the ones earned outside an event too, which the
-  // journey below does not list. The home shows the level in its own card
-  // (`XpCard`).
+  // A talent's Jump level at the head of Mon parcours: the badge, the level's
+  // name and line, the bar, the XP earned and what is left to the next one,
+  // then the five levels in a row, so the way ahead is in sight rather than
+  // behind a button. The reached ones in colour, the current one marked, the
+  // others faded with the XP they start at. Nothing hides on hover: talents
+  // are on a phone. The total counts every XP, those earned outside an event
+  // too, which the journey below does not list. The home shows the level in
+  // its own card (`XpCard`).
   let { xp, class: className }: { xp: number; class?: string } = $props();
 
   const progress = $derived(levelProgress(xp));
+  const ladder = levelLadder();
   const fr = (n: number) => n.toLocaleString('fr-FR');
 </script>
 
-<Card
-  class={cn('flex-row flex-wrap items-center gap-6 p-6 sm:gap-8', className)}
->
-  <LevelBadge
-    level={progress.level}
-    tone={progress.tone}
-    decorative
-    class="h-24 sm:h-26"
-  />
-  <div class="flex min-w-0 flex-[1_1_16rem] flex-col gap-3">
-    <h2 class="font-heading text-display-xl text-foreground">
-      {progress.level}<TitleCursor />
-    </h2>
-    <div
-      class="h-2.5 w-full overflow-hidden rounded-full bg-muted"
-      role="progressbar"
-      aria-label={levelToNext(progress)}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={Math.round(progress.ratio * 100)}
-    >
+<Card class={cn('gap-6 p-6', className)}>
+  <div class="flex flex-wrap items-center gap-6 sm:gap-8">
+    <LevelBadge
+      level={progress.level}
+      tone={progress.tone}
+      decorative
+      class="h-24 sm:h-26"
+    />
+    <div class="flex min-w-0 flex-[1_1_16rem] flex-col gap-3">
+      <div>
+        <h2 class="font-heading text-display-xl text-foreground">
+          {progress.level}<TitleCursor />
+        </h2>
+        <p class="mt-1 text-sm text-muted-foreground">{progress.tagline}</p>
+      </div>
       <div
-        class={cn(
-          'h-full w-(--level-progress) rounded-full',
-          TONE_FILL[progress.tone],
-        )}
-        style:--level-progress="{progress.ratio * 100}%"
-      ></div>
-    </div>
-    <p
-      class="flex flex-wrap justify-between gap-x-4 gap-y-1 text-sm text-muted-foreground"
-    >
-      <span
-        ><strong class="font-bold text-foreground">{fr(xp)} XP</strong> gagnés</span
+        class="h-2.5 w-full overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-label={levelToNext(progress)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress.ratio * 100)}
       >
-      {#if progress.next}
+        <div
+          class={cn(
+            'h-full w-(--level-progress) rounded-full',
+            TONE_FILL[progress.tone],
+          )}
+          style:--level-progress="{progress.ratio * 100}%"
+        ></div>
+      </div>
+      <p
+        class="flex flex-wrap justify-between gap-x-4 gap-y-1 text-sm text-muted-foreground"
+      >
         <span
-          >Prochain niveau : <strong class="font-bold text-foreground"
-            >{progress.next.level}</strong
-          >
-          à {fr(progress.next.min)} XP</span
+          ><strong class="font-bold text-foreground">{fr(xp)} XP</strong> gagnés</span
         >
-      {:else}
-        <span>Niveau maximum atteint</span>
-      {/if}
-    </p>
+        <span>{levelToNext(progress)}</span>
+      </p>
+    </div>
   </div>
+
+  <ol
+    class="relative grid grid-cols-5 border-t border-border pt-5"
+    aria-label="Les niveaux"
+  >
+    {#each ladder as step (step.level)}
+      {@const reached = xp >= step.min}
+      {@const current = step.level === progress.level}
+      <li
+        class="flex flex-col items-center gap-1 text-center"
+        aria-current={current ? 'step' : undefined}
+      >
+        <LevelBadge
+          level={step.level}
+          tone={step.tone}
+          decorative
+          class={cn('h-9', !reached && 'opacity-30 grayscale')}
+        />
+        <span
+          class={cn(
+            'text-xs',
+            current
+              ? 'font-bold text-foreground'
+              : reached
+                ? 'font-semibold text-foreground'
+                : 'text-muted-foreground',
+          )}
+        >
+          {step.level}
+        </span>
+        <span class="text-xs text-muted-foreground">
+          {fr(step.min)} XP
+        </span>
+      </li>
+    {/each}
+  </ol>
 </Card>

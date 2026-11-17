@@ -166,7 +166,7 @@ export type LevelStep = {
 
 /**
  * Every level, lowest first, with where it starts, its colour and its line:
- * what Mon parcours lists when a talent asks what the levels are.
+ * the row of levels Mon parcours keeps in sight under the talent's own.
  */
 export function levelLadder(): LevelStep[] {
   return JUMP_LEVELS.map((level) => ({ level, ...JUMP_LEVEL_TIERS[level] }));
