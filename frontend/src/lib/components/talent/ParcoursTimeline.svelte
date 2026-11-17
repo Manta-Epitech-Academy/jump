@@ -13,10 +13,10 @@
   import { cn } from '$lib/utils';
 
   // A talent's journey as the 2027 mockup draws it: one step per event down a
-  // line, its kind's colour as the marker (a star for a key event), its name
-  // and its days, and under it the activities done there. What is running or
-  // coming sits on top; what is over follows under the year it began, so a
-  // date never has to repeat its year.
+  // line, newest first, under the year it begins in, its kind's colour as the
+  // marker (a star for a key event), its name and its days, and under it the
+  // activities done there. What is running or coming is marked where it falls
+  // (« En ce moment », « À venir »), as the mockup's fiche does, not set apart.
   //
   // An activity is drawn by what it is to the talent. Finished, it is a memory:
   // one compact line with the XP it earned. Still to walk, it is an
@@ -36,9 +36,7 @@
   } = $props();
 
   const titleId = $props.id();
-  const empty = $derived(
-    parcours.ahead.length === 0 && parcours.past.length === 0,
-  );
+  const empty = $derived(parcours.length === 0);
 
   const PHASE_LABEL: Record<ParcoursEvent['phase'], string | null> = {
     live: 'En ce moment',
@@ -210,12 +208,7 @@
          page, so the page scrolls; a box inside it would cut an activity in
          half on a phone and scroll inside a scroll. -->
     <div class="flex flex-col gap-2">
-      {#if parcours.ahead.length > 0}
-        <section aria-label="À venir">
-          {@render steps(parcours.ahead)}
-        </section>
-      {/if}
-      {#each parcours.past as stretch (stretch.year)}
+      {#each parcours as stretch (stretch.year)}
         {@const yearId = `${titleId}-${stretch.year}`}
         <section aria-labelledby={yearId} class="flex flex-col gap-3">
           <h3 id={yearId} class="font-heading text-display-s text-foreground">

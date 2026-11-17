@@ -134,9 +134,9 @@ describe('loadTalentParcours', () => {
   });
 
   it('tells the visits the dev space counts, and the events of an activity, never a non-activated one', async () => {
-    const past = (await loadTalentParcours(talentId, NOW)).past.flatMap(
-      (stretch) => stretch.events,
-    );
+    const past = (await loadTalentParcours(talentId, NOW))
+      .flatMap((stretch) => stretch.events)
+      .filter((e) => e.phase === 'past');
     expect(past.map((e) => e.id)).toEqual([ids.club, ids.stage]);
     expect(past[0].activities).toEqual([
       { slug, label: 'PyPong', xp: 60, next: null },
@@ -149,8 +149,10 @@ describe('loadTalentParcours', () => {
     });
   });
 
-  it('puts ahead the event the talent is enrolled in, not the one they withdrew from', async () => {
-    const { ahead } = await loadTalentParcours(talentId, NOW);
+  it('marks as to come the event the talent is enrolled in, not the one they withdrew from', async () => {
+    const ahead = (await loadTalentParcours(talentId, NOW))
+      .flatMap((stretch) => stretch.events)
+      .filter((e) => e.phase !== 'past');
     expect(ahead.map((e) => [e.id, e.phase])).toEqual([[ids.camp, 'upcoming']]);
   });
 });

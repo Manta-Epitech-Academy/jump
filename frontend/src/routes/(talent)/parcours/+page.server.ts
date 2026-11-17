@@ -16,7 +16,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   // A journey that has not begun points to the one event the campus puts
   // forward, the home hero's rule (`pointedEventShown`), and to nothing else.
-  const empty = parcours.ahead.length === 0 && parcours.past.length === 0;
+  const empty = parcours.length === 0;
   const highlighted =
     empty && locals.talentCampusId
       ? (await getTalentHome(locals.talentCampusId, now)).highlight?.event

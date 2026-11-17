@@ -1,6 +1,6 @@
 import { dateKeyParts } from './eventPresence';
 import { eventPublicName, UNNAMED_EVENT_NAME } from './event';
-import { toDateKey, type DateKey } from './planningTime';
+import type { DateKey } from './planningTime';
 import { eventDaysLabel, heroEventPhase } from './talentHome';
 import { isActivityFinished, type WorkshopActivity } from './workshops';
 
@@ -68,8 +68,7 @@ export type ParcoursEvent = {
   name: string;
   /**
    * Its days in the talent's words (`eventDaysLabel`): the year only when it
-   * is not the one the reader has in mind, the current one for what is ahead
-   * and the heading's for what is over.
+   * is not the heading's, the weekday only for what is still to live.
    */
   days: string;
   phase: ParcoursPhase;
@@ -82,12 +81,13 @@ export type ParcoursEvent = {
 /** A stretch of the journey under one year's heading. */
 export type ParcoursYear = { year: number; events: ParcoursEvent[] };
 
-export type Parcours = {
-  /** What is running, then what comes next, soonest first. */
-  ahead: ParcoursEvent[];
-  /** What is over, by year, newest first, each event under the year it began. */
-  past: ParcoursYear[];
-};
+/**
+ * The journey as one chronology, newest first, each event under the year it
+ * begins in: what is to come sits at the top because it is the latest, marked
+ * by its phase rather than set apart. A list sorted two ways at once (state,
+ * then date) left an event of the current year above that year's heading.
+ */
+export type Parcours = ParcoursYear[];
 
 /**
  * Arrange a talent's journey.
@@ -157,14 +157,12 @@ export function buildParcours({
     const facts = events.get(id);
     if (!facts) continue;
     const phase = heroEventPhase(facts, now, false);
-    const started = dateKeyParts(facts.date).year;
-    const thisYear = dateKeyParts(toDateKey(now, facts.timezone)).year;
     steps.push({
       facts,
       id,
       name: eventPublicName(facts) ?? UNNAMED_EVENT_NAME,
       days: eventDaysLabel(facts.date, facts.endDate, {
-        knownYear: phase === 'ended' ? started : thisYear,
+        knownYear: dateKeyParts(facts.date).year,
         weekday: phase !== 'ended',
       }),
       phase: phase === 'ended' ? 'past' : phase,
@@ -180,30 +178,12 @@ export function buildParcours({
     a.id.localeCompare(b.id);
   const strip = ({ facts: _facts, ...step }: (typeof steps)[number]) => step;
 
-  return {
-    ahead: steps
-      .filter((s) => s.phase !== 'past')
-      .sort(
-        (a, b) =>
-          Number(b.phase === 'live') - Number(a.phase === 'live') ||
-          byStart(a.facts, b.facts),
-      )
-      .map(strip),
-    past: byYear(
-      steps
-        .filter((s) => s.phase === 'past')
-        .sort((a, b) => byStart(b.facts, a.facts)),
-    ),
-  };
-
-  function byYear(sorted: typeof steps): ParcoursYear[] {
-    const years: ParcoursYear[] = [];
-    for (const step of sorted) {
-      const year = dateKeyParts(step.facts.date).year;
-      const last = years.at(-1);
-      if (last?.year === year) last.events.push(strip(step));
-      else years.push({ year, events: [strip(step)] });
-    }
-    return years;
+  const years: ParcoursYear[] = [];
+  for (const step of steps.sort((a, b) => byStart(b.facts, a.facts))) {
+    const year = dateKeyParts(step.facts.date).year;
+    const last = years.at(-1);
+    if (last?.year === year) last.events.push(strip(step));
+    else years.push({ year, events: [strip(step)] });
   }
+  return years;
 }
