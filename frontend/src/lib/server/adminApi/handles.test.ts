@@ -69,14 +69,14 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   // out, and notions an admin writes. The domains it names are a handle.
   'level',
   'notions',
-  // What a campus puts on its talents' home: its note, and the event it puts
-  // forward with the address of that event's outside sign-up form.
+  // What a campus puts on its talents' home: its note, and its generic
+  // invitation (the event it points at is an `eventId`, a handle).
   'markdown',
-  'title',
-  'summary',
-  'date',
-  'url',
-  'imageUrl',
+  'invitation',
+  // What one event says on its talents' home at each stage, and its own sign-up
+  // form: authored words and an address typed once, naming nothing Jump holds.
+  'hero',
+  'signupUrl',
   // A certificate design. Authored rather than picked from anywhere, which is the
   // whole point of the table it is stored in.
   'styleCss',
@@ -99,6 +99,7 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   // the picture Jump downloads for it, and its questions. Authored, like a
   // closing grid; the section and option ids nested inside are handles, and are
   // returned by config_feedback_forms with the form they belong to.
+  'title',
   'intro',
   'outro',
   'personaName',

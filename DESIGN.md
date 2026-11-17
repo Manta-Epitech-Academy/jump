@@ -53,7 +53,7 @@ colors:
   # The status roles name an ink variant, so they invert with it, and the text
   # painted on a status fill inverts the other way. Both halves are declared so
   # the contrast test can hold the dark pair to the same floor as the light one.
-  darkDestructive: '#ff9878'
+  darkDestructive: '{colors.epiTogether}'
   darkSuccess: '#00ff97'
   darkWarning: '#ffd15c'
   darkStatusForeground: '{colors.epiDark}'
@@ -468,10 +468,13 @@ dark is arguably more Epitech than light. Five rules make it cheap:
    borders. Redefining `epiBlue` per theme puts a non-brand blue in the wordmark.
 3. **The ink variants invert on dark.** They exist only to survive a light
    background; on a dark surface the raw brand hues are the legible ones
-   (`epiTech` 13.7:1 on `darkCard`). So `epiTechInk` resolves to `epiTech` there,
-   and `epiTogetherInk` / `epiTomorrowInk` / the warning lift to `#ff9878` /
-   `#ff7ef6` / `#ffd15c`. A component therefore names the ink token once and is
-   correct in both themes.
+   (on `darkCard`: `epiTech` 13.7:1, `epiTogether` 6.0:1, `epiTomorrow` 5.9:1,
+   all past AA). So each ink resolves to its own raw hue there, the charte's
+   orange and magenta included, rather than to a lighter tint no charte has; only
+   the warning, which is Jump's and has no brand hue, lifts to `#ffd15c`. A
+   component therefore names the ink token once and is correct in both themes.
+   The swap also runs on a brand-blue `.on-dark` surface, where the raw orange
+   is 2.3:1: text on blue is white, never an ink.
 
    **Which is why an ink token is a text colour and never a fill.** The swap is
    what makes text legible; used as a background it inverts the meaning, and a
@@ -667,6 +670,27 @@ label. Magenta is the admin space's identity (page titles, active nav, tile
 accents), and identity is not the same thing as a call to action: the action is
 `primary`. The single exception is `buttonNeon`, and it is one because its text is
 `epiBlue` rather than white.
+
+**Actions on a talent screen: one heavy, the rest light, two shapes in all.**
+The PO's rule (13/10/2026): only the most important action of a screen is
+heavy, and every secondary one looks the same, so it reads as clickable without
+competing. Concretely:
+
+- the screen's heavy action is `buttonNeon` in the hero, in the button's shape
+  (`sm` radius, which the talent skin resolves to 12px). Several subjects
+  offered at once each carry one, because none may outrank another;
+- any other action on the blue hero is `overlay`, in the same shape;
+- an action on a card (Mon parcours, the training, the news, the feedback
+  banner) is `CardAction`: the 2027 mockup's tinted pill, `primary` at 10% under
+  Plex semibold `primary` text and its arrow, fully rounded. The mockup draws
+  every card action this way, the tint says « clickable » better than bare
+  text, and a link or button grows an invisible hit area to the talent space's
+  44px target while the pill keeps the mockup's size. A count rides along as a
+  small badge inside the pill, and a state's colour goes on the state's words,
+  not on the action.
+
+A filled, outlined or bare-text action on a card is the drift this replaced:
+four cards had four shapes.
 
 **Segmented control** (`SegmentedFilter`). The 2027 mockup's: a `card` ground
 with a 1px `border`, 36px tall like a button so it sits level with a toolbar's

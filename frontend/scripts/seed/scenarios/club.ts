@@ -185,6 +185,20 @@ export const club: Scenario = {
         // drawing printed.
         diplomaTemplateId: id('dpl', CLUB_CERTIFICATE.code),
         workshops: activitiesFor(session, upcoming),
+        // The upcoming session is the one a campus invites to, so it carries
+        // the sign-up form and its own invitation words; the past ones keep
+        // the mockup's.
+        signupUrl: upcoming
+          ? `https://www.epitech.invalid/inscription-atelier-programmation-informatique/?CampaignId=${campus.name.toLowerCase()}-${session + 1}`
+          : null,
+        hero: upcoming
+          ? {
+              invitation: {
+                title: 'Le Coding Club',
+                buttonLabel: 'Je réserve ma place',
+              },
+            }
+          : undefined,
       });
       sessionEvents.push(event);
       // Two sessions of the season carry a planning, not all ten. Production

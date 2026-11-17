@@ -91,12 +91,30 @@ describe('the operation catalogue', () => {
   // over to March, which would save a day nobody asked for. The regression the
   // caller has to see is a refusal naming the problem.
   it('refuses a date that does not exist on the calendar', () => {
-    const day =
-      ADMIN_API_OPERATIONS.write_talent_home_highlight.schema.shape.date;
+    const offeredOn = (value: string) =>
+      ADMIN_API_OPERATIONS.write_event_config.schema.safeParse({
+        eventId: 'evt',
+        workshops: [{ slug: 'pacman', day: value, slot: 'morning' }],
+      }).success;
+    expect(offeredOn('2026-06-31')).toBe(false);
+    expect(offeredOn('2026-02-30')).toBe(false);
+    expect(offeredOn('2026-06-30')).toBe(true);
+  });
 
-    expect(day.safeParse('2026-06-31').success).toBe(false);
-    expect(day.safeParse('2026-02-30').success).toBe(false);
-    expect(day.safeParse('2026-06-30').success).toBe(true);
+  // The mockup draws no picture while the event runs: the live stage heads the
+  // subjects, which carry their own, so the schema has nowhere to put one.
+  it('takes no picture on the live stage of an event hero', () => {
+    const config = ADMIN_API_OPERATIONS.write_event_config.schema;
+    const words = { title: null, text: 'Bienvenue', buttonLabel: null };
+    const hero = (stage: string, imageUrl: string | null) =>
+      config.safeParse({
+        eventId: 'e',
+        hero: { [stage]: { ...words, imageUrl } },
+      }).success;
+
+    expect(hero('invitation', 'https://example.com/a.png')).toBe(true);
+    expect(hero('live', 'https://example.com/a.png')).toBe(false);
+    expect(hero('invitation', 'http://example.com/a.png')).toBe(false);
   });
 
   // Unset has one spelling on the admin API, the one the event read returns
@@ -110,6 +128,7 @@ describe('the operation catalogue', () => {
       'cohortNoun',
       'startTime',
       'categoryKey',
+      'signupUrl',
     ]) {
       expect(config.safeParse({ eventId: 'e', [field]: null }).success).toBe(
         true,

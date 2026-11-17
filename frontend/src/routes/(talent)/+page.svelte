@@ -10,9 +10,7 @@
   import NewsCard from '$lib/components/talent/NewsCard.svelte';
   import XpCard from '$lib/components/talent/XpCard.svelte';
   import TalentHomeHero from '$lib/components/talent/TalentHomeHero.svelte';
-  import SessionCard from '$lib/components/talent/SessionCard.svelte';
   import DailyTrainingTile from '$lib/components/talent/DailyTrainingTile.svelte';
-  import { showsSessionCard } from '$lib/domain/talentPlanning';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
@@ -69,13 +67,11 @@
   });
 
   let student = $derived(data.student);
-  // The talent's own session (server-derived, or a dev preview when an admin
-  // impersonates this talent): a small card, and only when it has something to
-  // say (`showsSessionCard`).
-  let planning = $derived(data.planning);
 
-  // The one thing the blue hero suggests doing now, or null on a day with
-  // nothing to suggest (`pickHomeHero`, server-side).
+  // The one thing the blue hero suggests doing now, with the talent's own
+  // enrolment reflected in it (« Tu es inscrit », « En ce moment »), or null
+  // on a day with nothing to suggest (`pickHomeHero`, server-side). It took
+  // over the « Ta prochaine session » card (#501): the hero says it whole.
   let hero = $derived(data.hero);
   // Whether Jump has anything to suggest (the hero, the campus's news). When
   // it has not, the talent's own cards take the whole width rather than leave
@@ -97,7 +93,7 @@
 
   // Whether the talent has a card of their own beside the XP one. Without
   // one, the XP card is alone in its row and takes the whole of it.
-  let ownCards = $derived(!!training || showsSessionCard(planning));
+  let ownCards = $derived(!!training);
 
   // An activity is walked in a SECOND TAB, so coming back here reloads nothing on
   // its own and the XP earned meanwhile would only appear on the next navigation.
@@ -146,7 +142,7 @@
   <TalentPageHeader>
     {#snippet lead()}
       <h1
-        class="truncate font-heading text-display-s text-foreground sm:text-display-m"
+        class="display-truncate font-heading text-display-s text-foreground sm:text-display-m"
       >
         Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
       </h1>
@@ -191,17 +187,16 @@
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
       <!-- LEFT COLUMN: what is the talent's own (XP and the way into « Mon
-           parcours », the day's training that feeds it, their next session).
+           parcours », the day's training that feeds it).
            RIGHT COLUMN: what Jump suggests (the hero, the campus's news).
            Two columns from `lg` only: at a tablet's width a third of the
            page is too narrow for the XP card.
            On a day Jump suggests nothing, there is no right column: the
-           talent's cards take the width, the XP card beside the training and
-           the session, or alone across the page, rather than a column left
-           empty.
+           talent's cards take the width, the XP card beside the training,
+           or alone across the page, rather than a column left empty.
            Below `lg` every wrapper collapses (display: contents) so the cards
            join the outer grid as siblings and `max-lg:order-*` interleaves
-           them: hero, XP, training, Actualité, session. From `lg` the columns
+           them: hero, XP, training, Actualité. From `lg` the columns
            read in source order, which is why every `order` stops there. -->
       <div
         class={cn(
@@ -229,15 +224,6 @@
             )}
           >
             {@render dailyTraining()}
-
-            {#if showsSessionCard(planning)}
-              <!-- The talent's own next session, or the way into a running
-                   stage's schedule. Last on a phone: the hero already says
-                   what to do today. -->
-              <div class="max-lg:order-5">
-                <SessionCard {planning} timeZone={data.timeZone} />
-              </div>
-            {/if}
           </div>
         {/if}
       </div>

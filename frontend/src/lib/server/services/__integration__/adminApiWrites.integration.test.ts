@@ -23,6 +23,7 @@ import {
   type EventDetail,
 } from '$lib/server/services/adminStats/configuration';
 import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
+import { toDateKey } from '$lib/domain/eventPresence';
 
 const postConfig = adminApiWrite('write_event_config');
 const postBulk = adminApiWrite('bulk_event_config');
@@ -738,11 +739,33 @@ describe('admin API writes (integration)', () => {
     expect(status).toBe(200);
     expect(payload.after).toMatchObject({
       workshops: [
-        { slug: snake.slug, labelOverride: null },
-        { slug: pacman.slug, labelOverride: 'Pacman' },
+        { slug: snake.slug, labelOverride: null, day: null, slot: null },
+        { slug: pacman.slug, labelOverride: 'Pacman', day: null, slot: null },
       ],
     });
 
+    // A moment is a moment of THIS event: a day it does not run on, or a
+    // half-day without its day, is refused rather than stored to never show.
+    const { timezone } = await prisma.campus.findUniqueOrThrow({
+      where: { id: campusId },
+      select: { timezone: true },
+    });
+    const eventDay = toDateKey(event.date, timezone);
+    const offDay = toDateKey(
+      new Date(event.date.getTime() + 2 * 86_400_000),
+      timezone,
+    );
+    const outside = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      workshops: [{ slug: pacman.slug, day: offDay, slot: 'morning' }],
+    });
+    expect(outside.status).toBe(400);
+    expect(String(outside.payload.error)).toContain(eventDay);
+    const halfDayAlone = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      workshops: [{ slug: pacman.slug, slot: 'morning' }],
+    });
+    expect(halfDayAlone.status).toBe(400);
     const untouched = await call(postConfig, writeSecret, {
       eventId: event.id,
       cohortNoun: 'participant',
@@ -750,6 +773,52 @@ describe('admin API writes (integration)', () => {
     expect(
       (untouched.payload.after as { workshops: unknown[] }).workshops,
     ).toHaveLength(2);
+
+    // Its first day has no morning once it starts in the afternoon, judged on
+    // the arrival time the same call saves.
+    const noMorning = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      startTime: '14:00',
+      workshops: [{ slug: pacman.slug, day: eventDay, slot: 'morning' }],
+    });
+    expect(noMorning.status).toBe(400);
+    expect(String(noMorning.payload.error)).toContain('après-midi');
+
+    // Salesforce moves the event a week later: the moment stored no longer
+    // falls on it. The read says so, sending it back is not refused, and only
+    // a moment the call changes is judged.
+    const offered = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      workshops: [{ slug: pacman.slug, day: eventDay, slot: 'afternoon' }],
+    });
+    expect(offered.status).toBe(200);
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { date: new Date(event.date.getTime() + 7 * 86_400_000) },
+    });
+    const detail = await getEventDetail(event.id);
+    expect(detail.workshopsOutsideEvent.value).toEqual([
+      {
+        slug: pacman.slug,
+        day: eventDay,
+        slot: 'afternoon',
+        because: expect.stringContaining(eventDay),
+      },
+    ]);
+    const sentBack = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      workshops: detail.workshops.value,
+    });
+    expect(sentBack.status).toBe(200);
+    const moved = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      workshops: [{ slug: pacman.slug, day: eventDay, slot: 'morning' }],
+    });
+    expect(moved.status).toBe(400);
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { date: event.date },
+    });
 
     const unknown = await call(postConfig, writeSecret, {
       eventId: event.id,
@@ -804,6 +873,8 @@ describe('admin API writes (integration)', () => {
       diplomaTemplateId: (d) => d.certificate.value?.templateId ?? null,
       closingTemplateId: (d) => d.closingGrid.value?.templateId ?? null,
       workshops: (d) => d.workshops.value,
+      signupUrl: (d) => d.signupUrl.value,
+      hero: (d) => d.hero.value,
     };
     const writable = Object.keys(
       ADMIN_API_OPERATIONS.write_event_config.schema.shape,
@@ -884,6 +955,10 @@ describe('admin API writes (integration)', () => {
       ),
     );
 
+    const { timezone } = await prisma.campus.findUniqueOrThrow({
+      where: { id: campusId },
+      select: { timezone: true },
+    });
     const written = {
       publicName: 'Camp relu',
       cohortNoun: 'campeur',
@@ -898,9 +973,25 @@ describe('admin API writes (integration)', () => {
       diplomaTemplateId: certificate.id,
       closingTemplateId: grid.id,
       workshops: [
-        { slug: snake.slug, labelOverride: null },
-        { slug: pacman.slug, labelOverride: 'Pacman' },
+        { slug: snake.slug, labelOverride: null, day: null, slot: null },
+        {
+          slug: pacman.slug,
+          labelOverride: 'Pacman',
+          day: toDateKey(event.date, timezone),
+          slot: 'afternoon',
+        },
       ],
+      signupUrl: 'https://www.epitech.invalid/inscription/?CampaignId=relu',
+      hero: {
+        invitation: {
+          title: 'Viens au camp',
+          text: null,
+          buttonLabel: 'Je viens',
+          imageUrl: null,
+        },
+        enrolled: null,
+        live: { title: null, text: 'Choisis ton sujet', buttonLabel: null },
+      },
     };
     expect(Object.keys(written).sort()).toEqual([...writable].sort());
     const configured = await call(postConfig, writeSecret, {
@@ -922,11 +1013,20 @@ describe('admin API writes (integration)', () => {
       startTime: null,
     });
     expect(blankDetail.category.value).toBeNull();
+    expect(blankDetail.signupUrl.value).toBeNull();
+    expect(blankDetail.hero.value).toEqual({
+      invitation: null,
+      enrolled: null,
+      live: null,
+    });
 
     await prisma.eventConfig_Workshop.deleteMany({
       where: { eventId: event.id },
     });
     await prisma.eventConfig_Module.deleteMany({
+      where: { eventId: event.id },
+    });
+    await prisma.eventConfig_Hero.deleteMany({
       where: { eventId: event.id },
     });
     await prisma.event.deleteMany({

@@ -40,7 +40,7 @@ export async function runChecks(
     ['cohérence des usages', await usageCoherenceFailures(prisma)],
     ['parcours et classement', await careerFailures(prisma)],
     ['certificats semés', await designFailures(prisma)],
-    ['états dérivés', await derivedStateFailures(prisma)],
+    ['états dérivés', await derivedStateFailures(prisma, clock)],
   ];
 
   let failed = 0;

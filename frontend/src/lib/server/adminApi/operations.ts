@@ -82,13 +82,16 @@ import {
 } from '$lib/domain/workshopCatalogue';
 import { SUPERVISOR_CODE_MAX } from '$lib/domain/workshops';
 import {
+  HERO_BUTTON_MAX,
+  HERO_TEXT_MAX,
+  HERO_TITLE_MAX,
+} from '$lib/domain/eventHero';
+import {
   SYNC_CADENCE_MAX_MINUTES,
   SYNC_CADENCE_MIN_MINUTES,
   SYNC_WORKER_TICK_MINUTES,
 } from '$lib/domain/syncSchedule';
 import {
-  HIGHLIGHT_SUMMARY_MAX,
-  HIGHLIGHT_TITLE_MAX,
   TALENT_HOME_NOTE_MAX,
   TALENT_HOME_NOTE_MAX_IMAGES,
 } from '$lib/domain/talentHome';
@@ -584,6 +587,28 @@ function pictureUrl(describe: string) {
 }
 
 /**
+ * The words of one stage of an event's hero (#501), each null for the mockup's
+ * own. Named once, so the three stages share one definition.
+ */
+const heroWords = z
+  .strictObject({
+    title: z.string().max(HERO_TITLE_MAX).nullable(),
+    text: z.string().max(HERO_TEXT_MAX).nullable(),
+    buttonLabel: z.string().max(HERO_BUTTON_MAX).nullable(),
+  })
+  .describe('French, « tu »; null: the default.')
+  .meta({ id: 'EventHeroWords' });
+
+const heroStage = heroWords
+  .extend({
+    imageUrl: httpsPictureUrl
+      .nullable()
+      .optional()
+      .describe("Picture; null for the event's own visual."),
+  })
+  .meta({ id: 'EventHeroStage' });
+
+/**
  * One answer option of a feedback form, as `write_feedback_form` takes it and
  * `config_feedback_forms` returns it. Strict at every depth: a misspelt
  * `optionId` silently dropped would turn a rename into a new option.
@@ -751,7 +776,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_detail: defineOperation({
     description:
-      'Everything configured on one event: its Salesforce and public names, category, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form, certificate and closing grid it uses, the online activities it offers, and how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks.',
+      'Everything configured on one event: its Salesforce and public names, category, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form, certificate and closing grid it uses, the online activities it offers (and any whose day no longer falls on the event), and how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks.',
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },
@@ -836,7 +861,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_talent_home: defineOperation({
     description:
-      "What each campus shows on its talents' home besides their own enrolments: the campus note (Markdown, in the news card) and the highlighted event to sign up for (title, text, day if any, sign-up link, the address its picture was copied from if it has one, and whether it is still shown, since a dated one hides itself once its day has passed). Lists every campus, including those with neither, so it answers which campuses are still empty. Pass campus to read one. This is what to read before rewriting either with write_talent_home_note or write_talent_home_highlight.",
+      "What each campus shows on its talents' home besides their own enrolments: the campus note (Markdown, in the news card) and what it puts forward: the event it points at (whether it still shows, and why not) and its generic invitation (title, text, sign-up link, button label, the address its picture was copied from), with which of the two the hero shows today. Lists every campus, including empty ones. Pass campus to read one. Read it before write_talent_home_note or write_talent_home_highlight.",
     shape: {
       campus: z
         .string()
@@ -954,9 +979,10 @@ export const ADMIN_API_OPERATIONS = {
       because: 'it sets values rather than adjusting them',
     },
     destructive: true,
-    openWorld: false,
+    // It copies the pictures of the event's hero from the addresses it is given.
+    openWorld: true,
     description:
-      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses and those that count as a visit, the feedback form, certificate and closing grid it uses, the online activities it offers, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call.",
+      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses and those that count as a visit, the feedback form, certificate and closing grid it uses, the online activities it offers, its talents' home hero and sign-up form, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call.",
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
       // Unset is spelled one way, on both sides: null, as config_event_detail
@@ -1051,11 +1077,59 @@ export const ADMIN_API_OPERATIONS = {
               .describe(
                 'The words this event reads the activity aloud with, when the catalogue name does not fit the format. Wording only: every figure keeps the catalogue label.',
               ),
+            day: z
+              .string()
+              .refine(isCalendarDay, 'A real calendar day, e.g. "2026-10-07".')
+              .nullable()
+              .optional()
+              .describe(
+                'YYYY-MM-DD, one day of the event to offer it on only; null or omitted offers it on every day.',
+              ),
+            slot: z
+              .enum(['morning', 'afternoon'])
+              .nullable()
+              .optional()
+              .describe(
+                'With day, the half of it to offer it on (afternoon from 13:00, campus time); null or omitted, the whole day.',
+              ),
           }),
         )
         .optional()
         .describe(
-          'The complete ordered list of online activities this event offers, in the order a talent sees them, as config_event_detail returns it; anything left out is no longer offered, an empty list offers none.',
+          'The complete ordered list of online activities this event offers, in the order a talent sees them, as config_event_detail returns it; anything left out is no longer offered, an empty list offers none. Activities offered at the same moment are presented to talents as a choice.',
+        ),
+      signupUrl: z
+        .string()
+        .min(1, 'Send null to remove it.')
+        .nullable()
+        .optional()
+        .describe(
+          "https sign-up form behind « Je m'inscris ». Null removes it.",
+        ),
+      hero: z
+        .strictObject({
+          invitation: heroStage
+            .nullable()
+            .optional()
+            .describe(
+              'Not enrolled, while the campus puts it forward. Defaults: event name, an invitation, « Je m’inscris ».',
+            ),
+          enrolled: heroStage
+            .nullable()
+            .optional()
+            .describe(
+              'Enrolled, until it starts. Defaults: « On a hâte de te voir », « Ajouter à mon agenda ».',
+            ),
+          live: heroWords
+            .nullable()
+            .optional()
+            .describe(
+              'Heads the subjects while it runs. Defaults: the subject name if only one, « Accéder au sujet ».',
+            ),
+        })
+        .optional()
+        .describe(
+          "Its talents' home hero per stage: sent whole, null restores the mockup's words, left out untouched. Pictures copied like write_workshop's cover.",
         ),
     },
     run: (params) => writeEventConfig(params),
@@ -1392,42 +1466,50 @@ export const ADMIN_API_OPERATIONS = {
   }),
 
   write_talent_home_highlight: defineWrite({
-    repeat: { safe: true, because: 'the same values leave the same highlight' },
+    repeat: { safe: true, because: 'the same values leave the same row' },
     destructive: true,
     openWorld: true,
-    description: `Set or clear the one event a campus puts forward on its talents' home, with a button that opens the sign-up form in a new tab: a JPO, the next Coding Club, a camp. It leads the home's blue hero on any day the talent has no activity. It is chosen by hand, never taken from Salesforce. Give title, summary and url to set it, and all three null with a null date to remove it; anything in between is refused. Jump copies its picture. ${PICTURE_RULES} A picture that cannot be copied refuses the whole write. A dated highlight hides itself once its day has passed on the campus clock, so nothing has to be cleaned up afterwards, and a day already past is refused.`,
+    description: `Set or clear what a campus puts forward on its talents' home. Two halves, patch semantics (omitted: unchanged, null: cleared). eventId: one of the campus's own events, not past its first day, with a publicName and a signupUrl, which the event then keeps until the campus stops pointing at it (an event already pointed at is accepted again as it is); the hero invites talents not enrolled in it until the end of its first day, in the event's own words and picture (write_event_config hero.invitation), and tells enrolled ones they are expected. invitation: the generic invitation, the fallback when no event shows (e.g. « Les Ateliers TECH », all year). There is no date. Jump copies the invitation's picture. ${PICTURE_RULES} A picture that cannot be copied refuses the whole write.`,
     shape: {
       campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
-      title: z
+      eventId: z
         .string()
-        .max(HIGHLIGHT_TITLE_MAX)
+        .min(1)
         .nullable()
+        .optional()
         .describe(
-          'What the event is, in French, e.g. "Recode le jeu Snake en JS".',
+          `${handleDescribe('eventId')} Null stops putting it forward.`,
         ),
-      summary: z
-        .string()
-        .max(HIGHLIGHT_SUMMARY_MAX)
+      invitation: z
+        .strictObject({
+          title: z
+            .string()
+            .max(HERO_TITLE_MAX)
+            .describe('French, e.g. "Les Ateliers TECH".'),
+          text: z
+            .string()
+            .max(HERO_TEXT_MAX)
+            .describe(
+              'What happens and why come, in French addressing the talent as « tu ».',
+            ),
+          url: z
+            .string()
+            .describe('The sign-up form or agenda page, https only.'),
+          buttonLabel: z
+            .string()
+            .max(HERO_BUTTON_MAX)
+            .nullable()
+            .optional()
+            .describe('Null for « Je m’inscris ».'),
+          imageUrl: pictureUrl(
+            'https address of a picture shown beside the title. Omit for none.',
+          ),
+        })
         .nullable()
+        .optional()
         .describe(
-          'What happens there and why come, in French addressing the talent as « tu ».',
+          'The whole generic invitation; null removes it and its picture.',
         ),
-      date: z
-        .string()
-        .refine(isCalendarDay, 'A real calendar day, e.g. "2026-10-07".')
-        .nullable()
-        .describe(
-          "The event's day, YYYY-MM-DD, shown on the hero until the end of that day. null for an invitation with no day: none is shown and it stays until rewritten. Never omitted.",
-        ),
-      url: z
-        .string()
-        .nullable()
-        .describe(
-          'The sign-up form, https only, e.g. "https://www.epitech.eu/inscription-atelier-programmation-informatique/?CampaignId=701Sm00000xAuQMIA0".',
-        ),
-      imageUrl: pictureUrl(
-        'https address of a picture of the event, shown in the hero beside its title. Omit for none, and always omit it when clearing.',
-      ),
     },
     run: (params) => writeTalentHomeHighlight(params),
   }),

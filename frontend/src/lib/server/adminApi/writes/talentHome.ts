@@ -1,6 +1,7 @@
 /**
  * The class A writes that fill a campus's talent home: « le mot du campus »
- * and the one event it invites its talents to sign up for.
+ * and what the campus puts forward (an event of its own to sign up for, and a
+ * generic invitation, the standing fallback).
  *
  * Each is bounded to the one row of one named campus, reversible by writing the
  * previous value back (the audit row keeps it), and sends nothing to anybody:
@@ -11,7 +12,7 @@
  *
  * Content is refused rather than repaired: what is stored is what was written,
  * so the author never discovers on a talent's screen that part of it vanished.
- * The one thing a write fetches is a picture (the highlight's, those the note
+ * The one thing a write fetches is a picture (the invitation's, those the note
  * names), from the https address it is given, before anything is stored, and
  * only when the campus does not already hold a copy of that address: a picture
  * that cannot be copied refuses the whole write, and the class does not move,
@@ -20,16 +21,21 @@
 
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import { lockEvent } from '$lib/server/services/events';
 import {
   authoredImageSources,
   authoredMarkdownProblems,
   authoredTextLength,
 } from '$lib/markdown';
-import { isCalendarDay, toDateKey } from '$lib/domain/planningTime';
-import { dateKeyToDbDate, dbDateToKey } from '$lib/domain/eventPresence';
+import { toDateKey } from '$lib/domain/planningTime';
+import { eventDisplayName, eventPublicName } from '$lib/domain/event';
 import {
-  HIGHLIGHT_SUMMARY_MAX,
-  HIGHLIGHT_TITLE_MAX,
+  HERO_BUTTON_MAX,
+  HERO_TEXT_MAX,
+  HERO_TITLE_MAX,
+} from '$lib/domain/eventHero';
+import {
+  isInvitationOpen,
   TALENT_HOME_NOTE_MAX,
   TALENT_HOME_NOTE_MAX_IMAGES,
   highlightImageKey,
@@ -41,8 +47,9 @@ import {
   type StoredPicture,
 } from '$lib/server/images/remote';
 import { OperationRefusedError } from '../errors';
+import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';
-import { resolveScope, type ResolvedCampus } from '../scope';
+import { resolveScope, UnknownScopeError, type ResolvedCampus } from '../scope';
 
 async function namedCampus(name: string): Promise<ResolvedCampus> {
   const { campus } = await resolveScope({ campus: name });
@@ -182,41 +189,60 @@ export async function writeTalentHomeNote(params: {
   return { applied: true, before, after: await noteState(campus) };
 }
 
-// ─── L'événement mis en avant ───
+// ─── Ce que le campus met en avant ───
 
 const HIGHLIGHT_SELECT = {
+  eventId: true,
   title: true,
-  summary: true,
-  date: true,
+  text: true,
   url: true,
+  buttonLabel: true,
   image: { select: { sourceUrl: true, key: true, stillKey: true } },
 } as const;
 
-async function highlightRow(campus: ResolvedCampus) {
-  return prisma.talentHome_Highlight.findUnique({
-    where: { campusId: campus.id },
-    select: HIGHLIGHT_SELECT,
-  });
-}
+type HighlightRow = {
+  eventId: string | null;
+  title: string | null;
+  text: string | null;
+  url: string | null;
+  buttonLabel: string | null;
+  image: { sourceUrl: string; key: string; stillKey: string | null } | null;
+};
 
-type HighlightRow = NonNullable<Awaited<ReturnType<typeof highlightRow>>>;
-
+/**
+ * What the write reports, before and after, in the shape it takes: the event
+ * pointed at, and the generic invitation with the address its picture was
+ * copied from.
+ */
 function presentHighlight(campus: ResolvedCampus, row: HighlightRow | null) {
   if (!row) return null;
-  const { image, ...fields } = row;
   return {
     campus: campus.name,
-    ...fields,
-    date: row.date && dbDateToKey(row.date),
-    imageUrl: image?.sourceUrl ?? null,
+    eventId: row.eventId,
+    invitation:
+      row.title !== null && row.text !== null && row.url !== null
+        ? {
+            title: row.title,
+            text: row.text,
+            url: row.url,
+            buttonLabel: row.buttonLabel,
+            imageUrl: row.image?.sourceUrl ?? null,
+          }
+        : null,
   };
 }
 
 async function highlightState(campus: ResolvedCampus) {
-  return presentHighlight(campus, await highlightRow(campus));
+  return presentHighlight(
+    campus,
+    await prisma.talentHome_Highlight.findUnique({
+      where: { campusId: campus.id },
+      select: HIGHLIGHT_SELECT,
+    }),
+  );
 }
 
-/** The highlight's picture as `replacePictures` reads it, in its one slot. */
+/** The invitation's picture as `replacePictures` reads it, in its one slot. */
 const HIGHLIGHT_SLOT = 'highlight';
 
 async function storedHighlightPicture(
@@ -238,13 +264,18 @@ async function storedHighlightPicture(
 }
 
 /**
- * Longest stored edge of a highlight's picture: the hero's picture slot. Any
+ * Longest stored edge of an invitation's picture: the hero's picture slot. Any
  * proportion and any format Jump can show are taken, an animation included;
  * the hero lays out whatever it is given.
  */
 const HIGHLIGHT_IMAGE_MAX_EDGE = 1280;
 
-function checkSignupUrl(url: string): void {
+/**
+ * A sign-up link a talent is sent to: a whole address, over https. Shared by
+ * the campus's invitation and an event's own sign-up form
+ * (`write_event_config`), so both refuse the same thing in the same words.
+ */
+export function checkSignupUrl(url: string): void {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -259,40 +290,96 @@ function checkSignupUrl(url: string): void {
     );
 }
 
-/** A highlight's day: a real one, and not already past on the campus clock. */
-async function checkHighlightDay(
+/**
+ * The event a campus may put forward: one of its own, still inviting (until
+ * the end of its first day on the campus clock), named, and with a sign-up
+ * form for the hero's button to open: what `pointedEventShown` reads back on
+ * the talent's home. Checked inside the write's transaction, under the event's
+ * lock, which a save of its configuration takes too before it clears either
+ * field (`EventService.updateEventConfig`).
+ */
+async function checkHighlightedEvent(
+  tx: Prisma.TransactionClient,
   campus: ResolvedCampus,
-  date: string,
+  eventId: string,
   now: Date,
 ): Promise<void> {
-  if (!isCalendarDay(date))
-    throw new OperationRefusedError(
-      `« ${date} » n'est pas un jour du calendrier. Format attendu : AAAA-MM-JJ.`,
-    );
-  const { timezone } = await prisma.campus.findUniqueOrThrow({
-    where: { id: campus.id },
-    select: { timezone: true },
+  await lockEvent(tx, eventId);
+  const event = await tx.event.findUnique({
+    where: { id: eventId },
+    select: {
+      titre: true,
+      publicName: true,
+      date: true,
+      signupUrl: true,
+      campus: { select: { id: true, name: true, timezone: true } },
+    },
   });
-  const today = toDateKey(now, timezone);
-  if (date < today)
+  if (!event)
+    throw new UnknownScopeError(
+      `Événement « ${eventId} » introuvable. ${handleProvenanceFr('eventId')}`,
+    );
+  const name = eventDisplayName(event);
+  if (event.campus.id !== campus.id)
     throw new OperationRefusedError(
-      `Le ${date} est déjà passé à ${campus.name} (nous sommes le ${today}) : l'accueil ne l'afficherait jamais.`,
+      `« ${name} » est un événement de ${event.campus.name}, pas de ${campus.name} : un campus ne met en avant que ses propres événements.`,
+    );
+  if (!isInvitationOpen(event, event.campus.timezone, now))
+    throw new OperationRefusedError(
+      `« ${name} » a commencé le ${toDateKey(event.date, event.campus.timezone)} : l'accueil n'invite plus à s'y inscrire. Mettez en avant un événement à venir, ou retirez-le avec eventId à null.`,
+    );
+  if (!eventPublicName(event))
+    throw new OperationRefusedError(
+      `« ${name} » n'a pas de nom public, et l'accueil n'annonce jamais un événement sous son titre Salesforce. Donnez-lui d'abord son publicName avec write_event_config.`,
+    );
+  if (!event.signupUrl)
+    throw new OperationRefusedError(
+      `« ${name} » n'a pas de formulaire d'inscription, et le bouton de l'accueil n'aurait nulle part où mener. Donnez-lui d'abord son signupUrl avec write_event_config.`,
     );
 }
 
+type InvitationParams = {
+  title: string;
+  text: string;
+  url: string;
+  buttonLabel?: string | null;
+  imageUrl?: string;
+};
+
+function checkInvitation(invitation: InvitationParams): void {
+  const { title, text, url, buttonLabel } = invitation;
+  if (title.trim() === '' || title.length > HERO_TITLE_MAX)
+    throw new OperationRefusedError(
+      `Le titre de l'invitation doit faire entre 1 et ${HERO_TITLE_MAX} caractères (reçu : ${title.length}).`,
+    );
+  if (text.trim() === '' || text.length > HERO_TEXT_MAX)
+    throw new OperationRefusedError(
+      `Le texte de l'invitation doit faire entre 1 et ${HERO_TEXT_MAX} caractères (reçu : ${text.length}).`,
+    );
+  if (
+    buttonLabel != null &&
+    (buttonLabel.trim() === '' || buttonLabel.length > HERO_BUTTON_MAX)
+  )
+    throw new OperationRefusedError(
+      `Le libellé du bouton doit faire entre 1 et ${HERO_BUTTON_MAX} caractères (reçu : ${buttonLabel.length}). Passez null pour garder « Je m’inscris ».`,
+    );
+  checkSignupUrl(url);
+}
+
 /**
- * Set or clear the event one campus puts forward.
+ * Set or clear what one campus puts forward: the event it points at, its
+ * generic invitation, or both, with patch semantics (an omitted half is left
+ * as it is, `null` clears it).
  *
- * Its title, its text and its link together set it, the three null clear it,
- * and anything in between is refused: a highlight with no link would invite
- * talents to nothing. The day is the one field a highlight may go without: a
- * null day is an invitation that has none (« toute l'année »), which shows no
- * day and stands until it is rewritten. It is never left out, only given or
- * nulled, so that forgetting it cannot turn a dated camp into a standing
- * invitation; and clearing nulls it too, since a day on its own dates nothing.
- * A day already past is refused, since the home would never show it. The
- * picture is optional and goes with the highlight: omitted, the highlight has
- * none, and clearing the highlight removes it.
+ * The event must be one of the campus's own, not past its first day, named and
+ * with a sign-up form; its words and picture are its own (`write_event_config`).
+ * It is checked only when it changes: the one the campus already points at is
+ * accepted again as it is, even past its first day, so a call repeated or a
+ * read sent back is never refused for an event the write did not move; the read
+ * (`config_talent_home`) says why it no longer shows.
+ * The invitation is whole or absent (title, text and link), with an optional
+ * button label and picture; omitting the picture removes it, and clearing the
+ * invitation removes it too. A row left with neither half is deleted.
  *
  * Safe to repeat: the same values leave the same row, and a picture whose
  * address has not changed keeps the copy already stored (`replacePictures`).
@@ -300,78 +387,100 @@ async function checkHighlightDay(
 export async function writeTalentHomeHighlight(
   params: {
     campus: string;
-    title: string | null;
-    summary: string | null;
-    date: string | null;
-    url: string | null;
-    imageUrl?: string;
+    eventId?: string | null;
+    invitation?: InvitationParams | null;
   },
   now: Date = new Date(),
 ): Promise<WriteOutcome> {
   const campus = await namedCampus(params.campus);
-  const { title, summary, date, url } = params;
-  const given = [title, summary, url].filter((v) => v !== null).length;
+  const { eventId, invitation } = params;
 
-  if (given !== 0 && given !== 3)
+  if (eventId === undefined && invitation === undefined)
     throw new OperationRefusedError(
-      "L'événement mis en avant demande son titre, son texte et son lien (title, summary, url). Pour le retirer, passez les trois à null, ainsi que date.",
+      "Rien à changer : passez eventId (l'événement mis en avant, null pour le retirer), invitation (l'invitation générique, null pour la retirer), ou les deux.",
     );
+  if (invitation) checkInvitation(invitation);
 
-  if (title === null || summary === null || url === null) {
-    if (date !== null)
-      throw new OperationRefusedError(
-        "Un jour ne peut pas être donné sans l'événement qu'il date. Pour retirer l'événement mis en avant, passez title, summary, url et date à null.",
-      );
-    if (params.imageUrl)
-      throw new OperationRefusedError(
-        "Une image ne peut pas être donnée sans l'événement qu'elle illustre. Pour retirer l'événement mis en avant, passez title, summary, url et date à null, sans image.",
-      );
-    // The picture row goes with the highlight (cascade); its bytes go after.
-    const { before } = await swapStoredImages({
+  /**
+   * Write the row as this call leaves it, inside the caller's transaction, and
+   * delete it when it holds neither half. Answers the row as it was.
+   */
+  const commitRow = async (tx: Prisma.TransactionClient) => {
+    const before = await tx.talentHome_Highlight.findUnique({
+      where: { campusId: campus.id },
+      select: HIGHLIGHT_SELECT,
+    });
+    if (typeof eventId === 'string' && eventId !== before?.eventId)
+      await checkHighlightedEvent(tx, campus, eventId, now);
+    const nextEventId =
+      eventId === undefined ? (before?.eventId ?? null) : eventId;
+    const words =
+      invitation === undefined
+        ? before && {
+            title: before.title,
+            text: before.text,
+            url: before.url,
+            buttonLabel: before.buttonLabel,
+          }
+        : invitation && {
+            title: invitation.title,
+            text: invitation.text,
+            url: invitation.url,
+            buttonLabel: invitation.buttonLabel ?? null,
+          };
+    const values = {
+      eventId: nextEventId,
+      title: words?.title ?? null,
+      text: words?.text ?? null,
+      url: words?.url ?? null,
+      buttonLabel: words?.buttonLabel ?? null,
+    };
+    if (values.eventId === null && values.title === null) {
+      // Its picture's row goes with it (cascade); the bytes after the commit.
+      await tx.talentHome_Highlight.deleteMany({
+        where: { campusId: campus.id },
+      });
+    } else {
+      await tx.talentHome_Highlight.upsert({
+        where: { campusId: campus.id },
+        create: { campusId: campus.id, ...values },
+        update: values,
+      });
+    }
+    return before;
+  };
+
+  if (invitation === undefined) {
+    // Only the event moves: the invitation and its picture stay as they are,
+    // unless the row ends up empty, whose picture then goes with it.
+    const before = await swapStoredImages({
       next: [],
       commit: async (tx) => {
         await lockCampus(tx, campus);
-        const before = await tx.talentHome_Highlight.findUnique({
+        const before = await commitRow(tx);
+        const after = await tx.talentHome_Highlight.findUnique({
           where: { campusId: campus.id },
-          select: HIGHLIGHT_SELECT,
-        });
-        await tx.talentHome_Highlight.deleteMany({
-          where: { campusId: campus.id },
+          select: { campusId: true },
         });
         return {
-          replaced: [before?.image?.key, before?.image?.stillKey].filter(
-            (key): key is string => !!key,
-          ),
-          result: { before: presentHighlight(campus, before) },
+          replaced: after
+            ? []
+            : [before?.image?.key, before?.image?.stillKey].filter(
+                (key): key is string => !!key,
+              ),
+          result: presentHighlight(campus, before),
         };
       },
     });
     return { applied: true, before, after: await highlightState(campus) };
   }
 
-  if (title.trim() === '' || title.length > HIGHLIGHT_TITLE_MAX)
-    throw new OperationRefusedError(
-      `Le titre doit faire entre 1 et ${HIGHLIGHT_TITLE_MAX} caractères (reçu : ${title.length}).`,
-    );
-  if (summary.trim() === '' || summary.length > HIGHLIGHT_SUMMARY_MAX)
-    throw new OperationRefusedError(
-      `Le texte doit faire entre 1 et ${HIGHLIGHT_SUMMARY_MAX} caractères (reçu : ${summary.length}).`,
-    );
-  if (date !== null) await checkHighlightDay(campus, date, now);
-  checkSignupUrl(url);
-
-  const values = {
-    title,
-    summary,
-    date: date && dateKeyToDbDate(date),
-    url,
-  };
   const before = await replacePictures({
-    requests: params.imageUrl
+    requests: invitation?.imageUrl
       ? [
           {
             slot: HIGHLIGHT_SLOT,
-            sourceUrl: params.imageUrl,
+            sourceUrl: invitation.imageUrl,
             maxEdge: HIGHLIGHT_IMAGE_MAX_EDGE,
           },
         ]
@@ -380,27 +489,21 @@ export async function writeTalentHomeHighlight(
       highlightImageKey(campus.id, writeId, extension),
     refusal: (request, why) =>
       new OperationRefusedError(
-        `L'image (${request.sourceUrl}) ${why}. L'événement mis en avant n'a pas changé.`,
+        `L'image (${request.sourceUrl}) ${why}. La mise en avant n'a pas changé.`,
       ),
     readStored: (db) => storedHighlightPicture(db, campus),
     lock: (tx) => lockCampus(tx, campus),
     commit: async (tx, pictures) => {
-      const before = await tx.talentHome_Highlight.findUnique({
-        where: { campusId: campus.id },
-        select: HIGHLIGHT_SELECT,
-      });
-      await tx.talentHome_Highlight.upsert({
-        where: { campusId: campus.id },
-        create: { campusId: campus.id, ...values },
-        update: values,
-      });
+      const before = await commitRow(tx);
       await tx.talentHome_HighlightImage.deleteMany({
         where: { campusId: campus.id },
       });
-      for (const { slot: _slot, ...picture } of pictures) {
-        await tx.talentHome_HighlightImage.create({
-          data: { campusId: campus.id, ...picture },
-        });
+      if (invitation) {
+        for (const { slot: _slot, ...picture } of pictures) {
+          await tx.talentHome_HighlightImage.create({
+            data: { campusId: campus.id, ...picture },
+          });
+        }
       }
       return presentHighlight(campus, before);
     },

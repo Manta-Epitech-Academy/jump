@@ -1,6 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import CardAction from '$lib/components/talent/CardAction.svelte';
   import Trophy from '@lucide/svelte/icons/trophy';
   import { cn } from '$lib/utils';
   import { Card } from '$lib/components/ui/card';
@@ -14,9 +14,9 @@
   // to its leaderboard after.
   //
   // It is training, never play: the PO's word, and the reason the title and
-  // the action both say so. And its action is a secondary link, in the
-  // tone of its state like « Classement », never a filled button: the home
-  // has one action that weighs more than the others, and it is in the hero.
+  // the action both say so. And its action is the cards' one secondary link
+  // (`CardAction`), never a filled button: the home has one action that weighs
+  // more than the others, and it is in the hero.
   //
   // A day without a training renders nothing at all, which the home handles by
   // not mounting this: an empty card would only fill space.
@@ -58,12 +58,10 @@
       : resolve(`/minigames/${publication.id}/leaderboard`),
   );
 
+  // The state's colour, on the state's own words: the action below stays in
+  // the one voice every card action has (`CardAction`).
   const tone = $derived(
-    {
-      playable: 'text-primary',
-      won: 'text-epi-tech-ink',
-      lost: 'text-warning',
-    }[outcome],
+    outcome === 'won' ? 'text-epi-tech-ink' : 'text-warning',
   );
 </script>
 
@@ -82,11 +80,11 @@
         {#if outcome === 'playable'}
           Niveau {publication.level}
         {:else if outcome === 'won'}
-          <span class="font-semibold">Défi relevé</span>{#if result}{' '}<span
-              class="text-muted-foreground">· {result}</span
+          <span class={cn('font-semibold', tone)}>Défi relevé</span
+          >{#if result}{' '}<span class="text-muted-foreground">· {result}</span
             >{/if}
         {:else}
-          <span class="font-semibold">Pas validé</span>{' '}<span
+          <span class={cn('font-semibold', tone)}>Pas validé</span>{' '}<span
             class="text-muted-foreground">· retente demain</span
           >
         {/if}
@@ -94,25 +92,12 @@
     </div>
 
     {#if outcome === 'playable'}
-      <span
-        class={cn('inline-flex items-center gap-1 text-sm font-semibold', tone)}
-      >
-        C’est parti
-        <ArrowRight
-          class="size-4 transition-transform group-hover:translate-x-0.5"
-          aria-hidden="true"
-        />
-      </span>
+      <CardAction>C’est parti</CardAction>
     {:else}
-      <span
-        class={cn(
-          'inline-flex items-center gap-1.5 text-sm font-semibold',
-          tone,
-        )}
-      >
-        <Trophy class="size-4" aria-hidden="true" />
+      <CardAction>
+        {#snippet icon()}<Trophy class="size-4" aria-hidden="true" />{/snippet}
         Classement
-      </span>
+      </CardAction>
     {/if}
   </Card>
 </a>

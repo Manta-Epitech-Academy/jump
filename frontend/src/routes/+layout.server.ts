@@ -1,5 +1,4 @@
 import type { LayoutServerLoad } from './$types';
-import { isTalentImpersonation } from '$lib/server/talentPlanningPreview';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   return {
@@ -16,9 +15,5 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     // Drives the global "login mail redirected to me" banner, shown on
     // logged-out pages too (the pin is for testing the logged-out OTP flow).
     devRedirectPin: locals.devRedirectPin,
-    // Dev-tooling: the talent impersonation banner reads these to render its
-    // planning-preview toggle (active state + whether the toggle applies).
-    planningPreview: locals.planningPreview,
-    canPreviewPlanning: isTalentImpersonation(locals),
   };
 };

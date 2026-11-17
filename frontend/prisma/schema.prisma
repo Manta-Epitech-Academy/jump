@@ -820,40 +820,57 @@ model TalentHome_NoteImage {
   @@unique([campusId, sourceUrl])
 }
 
-/// The one event a campus invites its talents to sign up for, with a link to an
-/// outside sign-up form. The talent home's blue hero leads with it on a day the
-/// talent has no activity, and leaves the day of an activity to that activity
-/// (`pickHomeHero`). Chosen by hand per campus (`write_talent_home_highlight`), never derived from
-/// Salesforce: a JPO or a camp is not something the talent is enrolled in yet.
+/// What one campus puts forward on its talents' home (#501): an event of its
+/// own, and a generic invitation, each optional. The talent home's blue hero
+/// (`pickHomeHero`) invites a talent to the event while it is open (until the
+/// end of its first day on the campus clock) and the talent is not enrolled in
+/// it; an enrolled talent is told « Tu es inscrit » instead, from their own
+/// enrolment. Once the event is over, or for a campus that has planned none,
+/// the generic invitation (« Les Ateliers TECH, toute l'année ») is the
+/// standing fallback. Chosen by hand per campus (`write_talent_home_highlight`),
+/// never derived from Salesforce.
 ///
-/// Its own table rather than columns beside the note, so a half-written
-/// highlight cannot exist: a row has its title, its text and its link, or is
-/// not there.
+/// The event's words are its own (`EventConfig_Hero`, stage `invitation`) and
+/// so is its sign-up form (`Event.signupUrl`): « on t'invite à un événement »,
+/// so what invites to it is written once, on it. This row only points at it.
+///
+/// Its own table rather than columns beside the note, since the note and what
+/// the campus puts forward are separate entities with separate writes.
 model TalentHome_Highlight {
-  campusId  String    @id
-  title     String
-  summary   String
-  /// The event's calendar day, shown on the hero. The reader stops showing the
-  /// highlight once that day has passed on the campus clock, so a camp's
-  /// invitation does not outlive the camp. Null for an invitation that has no
-  /// day (« les ateliers de la tech, toute l'année »): no day is shown, and it
-  /// stays until it is rewritten or removed. One column for both, because a
-  /// day hidden from the talent that still retired the hero would be a rule
-  /// nobody could see.
-  date      DateTime? @db.Date
+  campusId    String   @id
+  /// The event the campus puts forward. Not bound to the campus by a composite
+  /// key: the event's campus is checked by the write and again by every reader,
+  /// because Salesforce does move a campaign to another campus and a composite
+  /// key would cascade that move into this row's own primary key. SetNull, so
+  /// the generic invitation outlives an event Salesforce deletes; a row left
+  /// with neither is shown as nothing, and the next write on it deletes it.
+  eventId     String?
+  /// The generic invitation: its title, its text and its sign-up link, all
+  /// three or none (`TalentHome_Highlight_invitation_whole`, hand-written in
+  /// the migration), since an invitation with no link invites to nothing.
+  /// The limits are the hero's own (`HERO_TITLE_MAX`, `HERO_TEXT_MAX`).
+  title       String?
+  text        String?
   /// The sign-up form, https only.
-  url       String
-  updatedAt DateTime  @updatedAt
+  url         String?
+  /// The invitation's button, when « Je m'inscris » does not fit
+  /// (`HERO_BUTTON_MAX`). Null shows the default.
+  buttonLabel String?
+  updatedAt   DateTime @updatedAt
 
   campus Campus                     @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  event  Event?                     @relation(fields: [eventId], references: [id], onDelete: SetNull)
   image  TalentHome_HighlightImage?
+
+  @@index([eventId])
 }
 
-/// The optional picture of a highlighted event, given as an https address and
-/// COPIED into storage, never linked to (`$lib/server/images/remote.ts`, the
-/// circuit an activity's cover uses). A child row rather than nullable columns
-/// on the highlight, so it can never hold half an image, and it goes with its
-/// highlight.
+/// The optional picture of a campus's generic invitation, given as an https
+/// address and COPIED into storage, never linked to
+/// (`$lib/server/images/remote.ts`, the circuit an activity's cover uses). A
+/// child row rather than nullable columns on the highlight, so it can never
+/// hold half an image, and it goes with the invitation: the event a campus
+/// points at shows its own picture (`EventConfig_HeroImage`).
 model TalentHome_HighlightImage {
   campusId    String @id
   /// The address it was copied from, handed back by `config_talent_home` so
@@ -967,6 +984,12 @@ model Event {
   // reason as the certificate: nothing deletes a template through the app, so a
   // hand-deletion should fail loudly rather than silently empty every grid.
   closingTemplateId String?
+  // The event's own sign-up form, https only: where the talent home's « Je
+  // m'inscris » leads when a campus puts this event forward (#501). Jump-owned
+  // and typed over the admin API; the Salesforce sync never writes it, so a
+  // campaign update cannot clobber it. Null = no sign-up link yet, and a campus
+  // cannot put the event forward until it has one.
+  signupUrl         String?
   externalId        String?   @unique
   // Explicit admin gate for the dev workspace, decoupled from modules: an event
   // appears in the dev sidebar/switcher only once an admin activates it here.
@@ -995,6 +1018,9 @@ model Event {
   modules             EventConfig_Module[]
   shownStatuses       EventConfig_ShownStatus[]
   workshops           EventConfig_Workshop[]
+  heroes              EventConfig_Hero[]
+  /// The campuses that put this event forward on their talents' home.
+  highlightedBy       TalentHome_Highlight[]
   workshopEntries     Workshop_Participation[]
   syncPruneHold       Sync_PruneHold?
 
@@ -2828,7 +2854,18 @@ model EventConfig_Workshop {
   /// does not fit the format. Copies `Closing_TemplateQuestion.labelOverride`: the
   /// wording may follow the event, the identity never moves.
   labelOverride String?
-  createdAt     DateTime @default(now())
+  /// The one campus day of the event this activity is offered on, when it is
+  /// not offered for the whole event: a stage de seconde gives each morning or
+  /// day its own subjects to choose from. Null offers it on every day of the
+  /// event, as before. A day is a moment, not a gate: the talent home's hero
+  /// puts forward what is offered NOW, while an activity of another moment of
+  /// a running event stays enterable from the list of activities.
+  day           DateTime?     @db.Date
+  /// The half-day of `day` it is offered on (morning before 13:00 on the campus
+  /// clock, afternoon from it, `AFTERNOON_START_MINUTES`). Null offers it the
+  /// whole day. Only with a day: a `CHECK` refuses a half-day without one.
+  slot          PresenceSlot?
+  createdAt     DateTime      @default(now())
 
   event    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   /// Restrict, like `Event.diplomaTemplateId`: deleting a catalogue row events
@@ -2837,6 +2874,71 @@ model EventConfig_Workshop {
 
   @@id([eventId, activityId])
   @@index([activityId])
+}
+
+/// The three moments of an event on a talent's home, each with its own words
+/// (#501): `invitation` asks a talent who is not enrolled to sign up, `enrolled`
+/// tells one who is that they are expected, `live` heads the subjects offered
+/// while it runs.
+enum EventConfig_HeroStage {
+  invitation
+  enrolled
+  live
+}
+
+/// What one event says on the talent home's blue hero at one stage: its title,
+/// its text and its button's label, each optional. The PO asked for every stage
+/// to be written per event (call of 13/10/2026: « on t'invite à un événement,
+/// pas à une activité », and a button label is a marketing choice), so the words
+/// belong to the event and not to the subjects it offers. A field left null shows
+/// the 2027 mockup's own words (`heroCopy` in `domain/eventHero.ts`), so an event
+/// nobody wrote for still reads as the mockup does. The limits that keep the
+/// hero's layout are the writer's (`HERO_*_MAX`), not the column's.
+///
+/// One row per written stage, and none for a stage left to its defaults: the
+/// writer deletes a row that ends up holding nothing, picture included.
+model EventConfig_Hero {
+  eventId     String
+  stage       EventConfig_HeroStage
+  title       String?
+  text        String?
+  buttonLabel String?
+  updatedAt   DateTime              @updatedAt
+
+  event Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  image EventConfig_HeroImage?
+
+  @@id([eventId, stage])
+}
+
+/// The picture of one stage of an event's hero, given as an https address and
+/// COPIED into storage, never linked to (`$lib/server/images/remote.ts`, the
+/// circuit the highlight's picture uses): a minor's browser fetches nothing from
+/// another host. Only the two stages before the event have one, as the mockup
+/// draws it (a CHECK in the migration says so); without it the hero draws the
+/// event's own visual. A child row rather than columns on the stage, so it can
+/// never hold half an image, and it goes with its stage.
+model EventConfig_HeroImage {
+  eventId     String
+  stage       EventConfig_HeroStage
+  /// The address it was copied from, handed back by `config_event_detail` so the
+  /// admin can restate the stage. A write restating it keeps this copy rather
+  /// than downloading it again (`replacePictures`).
+  sourceUrl   String
+  /// Storage key, `event-hero/<eventId>/<stage>-<writeId>.<ext>`: minted by the
+  /// write that copied it, so only the write that replaces it deletes it.
+  key         String                @unique
+  /// For an animated GIF, its first frame as a WebP, what a talent who asked
+  /// for reduced motion sees instead. Null for a still.
+  stillKey    String?               @unique
+  contentType String
+  /// Intrinsic size, so the hero reserves the box before the bytes land.
+  width       Int
+  height      Int
+
+  hero EventConfig_Hero @relation(fields: [eventId, stage], references: [eventId, stage], onDelete: Cascade)
+
+  @@id([eventId, stage])
 }
 
 /// What CTFd says one talent has done on one activity.

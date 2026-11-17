@@ -56,6 +56,7 @@ The protocol is [`CONTRIBUTING.md`](.github/CONTRIBUTING.md), and parts of it ar
 - **Language:** UI text is French, identifiers are English. For a string no human reads directly, ask whether it reaches a French speaker, even through a machine: an API error an MCP client paraphrases and every `metric()` definition are French; a log line and anything a model reads as instruction (tool descriptions, Zod `.describe()`, MCP instructions) stay English. The reasoning, and why `token` stays `token`, is in [`admin-api.md`](.claude/rules/admin-api.md#language-and-vocabulary-of-machine-facing-strings).
 - **Register:** staff-facing copy uses _vous_, talent-facing copy uses _tu_, parents get _vous_. Match the audience of the screen: one feature can span both, like émargement.
 - **No developer jargon in copy a person reads** ("scan", "QR", "flag", "mini games"): describe what they experience.
+- **Talents and parents read « Epitech », never « Epitech Academy »,** as Jump's default mails sign: they do not know the second name and nothing needs to teach it (`onboardingDocumentGenerator.test.ts` holds one document to it).
 - **Forms:** sveltekit-superforms with Zod, never raw `<form>` handling.
 - **Database:** import `prisma` from `$lib/server/db` (a singleton, never passed as a parameter) and scope staff and student data by `campusId`.
 - **Auth:** never call BetterAuth in a `load`; `hooks.server.ts` already hydrates `locals.{user, staffProfile, talent}`.

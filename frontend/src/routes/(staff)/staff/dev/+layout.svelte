@@ -267,7 +267,7 @@
               <!-- The cursor rides inside the truncated text, so a long name
                    ends on its ellipsis rather than on a cursor left floating
                    after it. -->
-              <span class="block truncate font-heading text-display-s"
+              <span class="display-truncate block font-heading text-display-s"
                 >{eventDisplayName(ev)}<TitleCursor /></span
               >
               <span

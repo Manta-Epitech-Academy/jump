@@ -50,7 +50,7 @@ export const CAMPUS_REFERENCES = {
   syncSources: 'sources de synchronisation',
   workshopEntries: 'participations aux activités',
   homeNote: 'mot du campus',
-  homeHighlight: 'événement mis en avant',
+  homeHighlight: 'mise en avant de l’accueil',
 } as const;
 
 type CampusState = {

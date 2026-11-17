@@ -17,6 +17,9 @@
   //     definite width lets the browser reserve the box before the bytes land:
   //     bounded in height with both sides `auto`, the image is 0 x 0 until it
   //     loads and the hero jumps when it does.
+  //   - `tile`: the cover of one choice among several, as wide as its tile and
+  //     cut to 16:9 so a row of choices lines up whatever each picture's
+  //     proportion. The box is fixed by the ratio, so nothing jumps either.
   //   - `sprite`: a character drawn small beside a line of text, at a fixed
   //     height. A tiny one is pixel art, kept crisp rather than blurred.
   //
@@ -32,7 +35,7 @@
   }: {
     picture: ShownPicture;
     still?: ShownPicture | null;
-    layout: 'hero' | 'sprite';
+    layout: 'hero' | 'tile' | 'sprite';
     /** Called when the picture cannot be shown, so the host can drop it. */
     onBroken: () => void;
   } = $props();
@@ -43,7 +46,9 @@
 <picture
   class={layout === 'hero'
     ? 'flex shrink-0 justify-center sm:w-2/5'
-    : 'self-start'}
+    : layout === 'tile'
+      ? 'block'
+      : 'self-start'}
 >
   {#if motionless}
     <source media="(prefers-reduced-motion: reduce)" srcset={motionless} />
@@ -61,9 +66,11 @@
     style:--picture-ratio={picture.width / picture.height}
     class={layout === 'hero'
       ? 'block h-auto w-full max-w-[min(var(--picture-width),calc(40svh*var(--picture-ratio)))] ring-1 ring-white/20 sm:max-w-[min(var(--picture-width),calc(20rem*var(--picture-ratio)))]'
-      : cn(
-          'h-12 w-auto max-w-full',
-          picture.width < 128 && '[image-rendering:pixelated]',
-        )}
+      : layout === 'tile'
+        ? 'block aspect-video w-full object-cover ring-1 ring-white/20'
+        : cn(
+            'h-12 w-auto max-w-full',
+            picture.width < 128 && '[image-rendering:pixelated]',
+          )}
   />
 </picture>

@@ -2,10 +2,13 @@ import { describe, it, expect } from 'vitest';
 import type { EventLifecycleStatus } from './eventLifecycle';
 import {
   activitiesToDo,
+  isOfferedNow,
   selectWorkshopOfferings,
   workshopGrantSourceId,
   workshopSlugFromSourceId,
   type WorkshopActivity,
+  eventMoments,
+  momentOutsideEvent,
 } from './workshops';
 
 const offering = (
@@ -14,12 +17,14 @@ const offering = (
   status: EventLifecycleStatus,
   position = 0,
   eventId = `${activityId}@${day}`,
+  offeredNow = true,
 ) => ({
   activityId,
   eventDate: new Date(`${day}T00:00:00Z`),
   status,
   position,
   eventId,
+  offeredNow,
 });
 
 const none = new Set<string>();
@@ -113,6 +118,24 @@ describe('selectWorkshopOfferings', () => {
     }
   });
 
+  it('keeps a running event’s activity offered at another moment off today, but in the list', () => {
+    const [later] = selectWorkshopOfferings(
+      [offering('pacman', '2026-10-28', 'ongoing', 0, 'camp', false)],
+      none,
+    );
+    expect(later).toMatchObject({ activityId: 'pacman', today: false });
+  });
+
+  it('resolves an activity two running events offer to the one offering it now', () => {
+    const rows = [
+      offering('pacman', '2026-10-28', 'ongoing', 0, 'evt-a', false),
+      offering('pacman', '2026-10-28', 'ongoing', 0, 'evt-b', true),
+    ];
+    expect(selectWorkshopOfferings(rows, none)).toEqual([
+      expect.objectContaining({ eventId: 'evt-b', today: true }),
+    ]);
+  });
+
   it('keeps two events of the same day apart, in the same order every time', () => {
     const rows = [
       offering('santa', '2026-10-28', 'ongoing', 0, 'evt-b'),
@@ -131,6 +154,77 @@ describe('selectWorkshopOfferings', () => {
   });
 });
 
+describe('momentOutsideEvent', () => {
+  // Wednesday 28 to Friday 30 October 2026, arriving at 14:00 on the first day.
+  const camp = eventMoments(
+    {
+      date: new Date('2026-10-27T23:00:00Z'),
+      endDate: new Date('2026-10-30T22:59:00Z'),
+      startMinutes: 14 * 60,
+    },
+    'Europe/Paris',
+  );
+
+  it('lets a moment with no day, or on one of its days, fall on the event', () => {
+    expect(momentOutsideEvent({ day: null, slot: null }, camp)).toBeNull();
+    expect(
+      momentOutsideEvent({ day: '2026-10-29', slot: 'morning' }, camp),
+    ).toBeNull();
+    expect(
+      momentOutsideEvent({ day: '2026-10-28', slot: 'afternoon' }, camp),
+    ).toBeNull();
+  });
+
+  it('finds a day the event does not span', () => {
+    expect(momentOutsideEvent({ day: '2026-11-02', slot: null }, camp)).toBe(
+      'day',
+    );
+  });
+
+  it('finds the morning of a first day that starts in the afternoon', () => {
+    expect(
+      momentOutsideEvent({ day: '2026-10-28', slot: 'morning' }, camp),
+    ).toBe('morning');
+  });
+});
+
+describe('isOfferedNow', () => {
+  const at = (today: string, hhmm: string) => {
+    const [h, m] = hhmm.split(':').map(Number);
+    return { today, minutes: h * 60 + m };
+  };
+
+  it('offers an activity with no day at every moment of the event', () => {
+    expect(
+      isOfferedNow({ day: null, slot: null }, at('2026-10-28', '08:00')),
+    ).toBe(true);
+  });
+
+  it('offers a day-bound activity on that campus day only', () => {
+    const moment = { day: '2026-10-28', slot: null };
+    expect(isOfferedNow(moment, at('2026-10-28', '17:30'))).toBe(true);
+    expect(isOfferedNow(moment, at('2026-10-29', '09:00'))).toBe(false);
+  });
+
+  it('turns the morning into the afternoon at 13:00, as émargement does', () => {
+    const morning = { day: '2026-10-28', slot: 'morning' as const };
+    const afternoon = { day: '2026-10-28', slot: 'afternoon' as const };
+    expect(isOfferedNow(morning, at('2026-10-28', '12:59'))).toBe(true);
+    expect(isOfferedNow(afternoon, at('2026-10-28', '12:59'))).toBe(false);
+    expect(isOfferedNow(morning, at('2026-10-28', '13:00'))).toBe(false);
+    expect(isOfferedNow(afternoon, at('2026-10-28', '13:00'))).toBe(true);
+  });
+
+  it('never offers a half-day on another day', () => {
+    expect(
+      isOfferedNow(
+        { day: '2026-10-28', slot: 'afternoon' },
+        at('2026-10-29', '14:00'),
+      ),
+    ).toBe(false);
+  });
+});
+
 describe('activitiesToDo', () => {
   const activity = (
     slug: string,
@@ -139,6 +233,8 @@ describe('activitiesToDo', () => {
     startedAt: string | null = null,
   ): WorkshopActivity => ({
     slug,
+    eventId: 'club',
+    slot: null,
     label: slug,
     solvedSteps: solved,
     totalSteps: total,

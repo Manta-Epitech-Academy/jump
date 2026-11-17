@@ -1,10 +1,7 @@
 import type { Actions, PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { dev } from '$app/environment';
-import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { getBrowserTimezone } from '$lib/server/db/scoped';
 import { revokeXp } from '$lib/server/services/xpService';
 import { consumeArrivalCelebration } from '$lib/server/talent/arrivalCelebration';
 import { env } from '$env/dynamic/private';
@@ -19,14 +16,8 @@ import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
 import { resolveEventNudgeForm } from '$lib/server/feedbackForms';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
-import { toPlanningView } from '$lib/domain/talentPlanning';
-import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
-import {
-  getUnseenWorkshopReward,
-  listTalentWorkshops,
-} from '$lib/server/services/workshopService';
-import { getTalentHome } from '$lib/server/services/talentHomeService';
-import { pickHomeHero } from '$lib/domain/talentHome';
+import { getUnseenWorkshopReward } from '$lib/server/services/workshopService';
+import { loadHomeHero } from '$lib/server/services/talentHomeHero';
 import { activitiesToDo } from '$lib/domain/workshops';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
@@ -36,82 +27,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 
   try {
     const studentId = locals.talent.id;
-
-    // Calculate boundaries for "Today" in the user's browser timezone
-    const tz = getBrowserTimezone(cookies);
-    const tzNow = now(tz);
-    const startOfDay = tzNow
-      .set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
-      .toDate();
-    const endOfDay = tzNow.set({
-      hour: 23,
-      minute: 59,
-      second: 59,
-      millisecond: 999,
-    });
-    const filterDateEnd = endOfDay.toDate();
-
-    // The session card's state, collapsed to a single view-model. When an
-    // admin impersonating this talent has armed a preview, we substitute the
-    // view-model wholesale and skip the queries entirely (there's no real state
-    // to recompute once we're faking it), mirroring the dev space's phase
-    // override. Otherwise we derive it from the talent's actual participations,
-    // reading only the fields the card shows: never the Salesforce `titre`.
-    const eventSelect = {
-      event: {
-        select: {
-          publicName: true,
-          date: true,
-          startMinutes: true,
-          planningSlots: {
-            where: { activityType: { not: 'orga' } },
-            select: { id: true },
-            take: 1,
-          },
-        },
-      },
-    } as const;
-
-    let planning;
-    if (locals.planningPreview) {
-      planning = buildPreviewPlanningView(locals.planningPreview);
-    } else {
-      // Event whose date range covers today (ongoing multi-day or single-day today).
-      // Only an enrolment the dev space shows: a talent who withdrew, or whose
-      // Salesforce status the event masks, is not expected there, and the card
-      // used to invite them anyway (PO, 02/11/2026). The same truth as the
-      // team's own lists, set event by event.
-      const activeParticipation = await prisma.participation.findFirst({
-        where: {
-          talentId: studentId,
-          ...visibleParticipationWhere,
-          event: {
-            date: { lte: filterDateEnd },
-            OR: [
-              { endDate: { gte: startOfDay } },
-              { endDate: null, date: { gte: startOfDay } },
-            ],
-          },
-        },
-        select: eventSelect,
-        orderBy: { event: { date: 'asc' } },
-      });
-
-      // The NEXT upcoming participation (if any), only when not in an active event.
-      const upcomingParticipation = activeParticipation
-        ? null
-        : await prisma.participation.findFirst({
-            where: {
-              talentId: studentId,
-              ...visibleParticipationWhere,
-              event: { date: { gt: filterDateEnd } },
-            },
-            select: eventSelect,
-            orderBy: { event: { date: 'asc' } },
-          });
-
-      planning = toPlanningView(activeParticipation, upcomingParticipation);
-    }
 
     // Minigames are intrinsic but require the games backend to be wired up.
     // No backend configured → no card (can't play). An absent/already-played
@@ -138,20 +53,14 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     const minigameRankReward = await getUnseenMinigameRankReward(studentId);
 
     // The CTFd activities the talent's own events offer, with whatever CTFd last
-    // reported about each. An activity appears on its event's first campus day
-    // and stays from then on, because a Coding Club is designed never to finish
-    // and the students carry on at home (`selectWorkshopOfferings` holds the
-    // rule).
-    const workshops = await listTalentWorkshops(studentId);
-    // What the talent's campus puts on their home: its note, its highlighted
-    // event.
-    const home = await getTalentHome(locals.talentCampusId ?? null);
-    // The one thing the blue hero suggests doing now (`pickHomeHero`).
-    const hero = pickHomeHero({
-      today: workshops.today,
-      highlight: home.highlight,
-      activities: workshops.activities,
-    });
+    // reported about each, what their campus puts on their home (its note, what
+    // it puts forward), and the one thing the blue hero shows from all of it
+    // with their own enrolments (`pickHomeHero`), each read on its event's
+    // campus clock.
+    const { hero, workshops, home } = await loadHomeHero(
+      studentId,
+      locals.talentCampusId ?? null,
+    );
     // How many activities are left to walk, counted on the « Mon parcours »
     // pill: the list itself lives on that page, the home only suggests one.
     const toDoCount = activitiesToDo([
@@ -245,7 +154,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 
     return {
       student: locals.talent,
-      planning,
       minigame,
       minigameReward,
       minigameRankReward,
@@ -256,7 +164,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       workshopReward,
       onboardingArrival,
       note: home.note,
-      timeZone: tz,
       pendingFeedback,
     };
   } catch (err) {

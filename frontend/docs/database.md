@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **84** modèles · **33** enums · **117** relations
+- **87** modèles · **34** enums · **121** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -19,10 +19,10 @@
 | Minijeux | 3 |
 | Feedback | 7 |
 | Communication & Support | 5 |
-| Contenus & Centres d'intérêt | 5 |
+| Contenus & Centres d'intérêt | 7 |
 | Analytique d'usage | 2 |
 | Configuration & Système | 12 |
-| Autres | 4 |
+| Autres | 5 |
 
 ## 1 · Authentification & Profils
 
@@ -351,6 +351,7 @@ erDiagram
     String feedbackFormId FK
     String diplomaTemplateId FK
     String closingTemplateId FK
+    String signupUrl
     String externalId UK
     DateTime devActivatedAt
     DateTime createdAt
@@ -381,6 +382,7 @@ erDiagram
     String feedbackFormId FK
     String diplomaTemplateId FK
     String closingTemplateId FK
+    DateTime archivedAt
     String createdById FK
     DateTime createdAt
     DateTime updatedAt
@@ -397,6 +399,7 @@ erDiagram
     String campusId FK
     String sfMemberStatus
     Boolean shownInDevSpace
+    Boolean attendanceAttested
     DateTime createdAt
     DateTime updatedAt
   }
@@ -617,6 +620,8 @@ erDiagram
     String activityId PK,FK
     Int position
     String labelOverride
+    DateTime day
+    PresenceSlot slot
     DateTime createdAt
   }
   Workshop_Participation {
@@ -681,6 +686,7 @@ erDiagram
     XpGrantSource source UK
     String sourceId UK
     Int amount
+    String eventId FK
     DateTime createdAt
     DateTime updatedAt
   }
@@ -698,9 +704,12 @@ erDiagram
   }
   Campus {
   }
+  Event {
+  }
   Talent ||--o{ XpGrant : "xpGrants"
   Campus |o--o{ XpGrant : "xpGrants"
   Campus |o--o{ XpReward : "xpRewards"
+  Event |o--o{ XpGrant : "xpGrants"
 ```
 
 ## 7 · Minijeux
@@ -954,10 +963,11 @@ erDiagram
   }
   TalentHome_Highlight {
     String campusId PK,FK
+    String eventId FK
     String title
-    String summary
-    DateTime date
+    String text
     String url
+    String buttonLabel
     DateTime updatedAt
   }
   TalentHome_HighlightImage {
@@ -969,12 +979,32 @@ erDiagram
     Int width
     Int height
   }
+  EventConfig_Hero {
+    String eventId PK,FK
+    EventConfig_HeroStage stage PK
+    String title
+    String text
+    String buttonLabel
+    DateTime updatedAt
+  }
+  EventConfig_HeroImage {
+    String eventId PK,FK
+    EventConfig_HeroStage stage PK,FK
+    String sourceUrl
+    String key UK
+    String stillKey UK
+    String contentType
+    Int width
+    Int height
+  }
   Interest {
     String id PK
     String nom UK
+    String shortLabel
     String emoji
     String kind
     Int order
+    DateTime archivedAt
   }
   TalentInterest {
     String talentId PK,FK
@@ -984,11 +1014,16 @@ erDiagram
   }
   Campus {
   }
+  Event {
+  }
   Talent ||--o{ TalentInterest : "interests"
   Campus ||--|| TalentHome_Note : "homeNote"
   Campus ||--|| TalentHome_Highlight : "homeHighlight"
+  Event |o--o{ TalentHome_Highlight : "highlightedBy"
   TalentHome_Highlight ||--|| TalentHome_HighlightImage : "image"
+  Event ||--o{ EventConfig_Hero : "heroes"
   Interest ||--o{ TalentInterest : "talentInterests"
+  EventConfig_Hero ||--|| EventConfig_HeroImage : "image"
 ```
 
 ## 11 · Analytique d'usage
@@ -1165,16 +1200,29 @@ erDiagram
   EventConfig_ShownStatus {
     String eventId PK,FK
     String status PK,FK
+    Boolean attestsAttendance
   }
   EventConfig_TemplateShownStatus {
     String templateId PK,FK
     String status PK,FK
+    Boolean attestsAttendance
   }
   Sync_MemberStatus {
     String status PK
     Boolean shownByDefault
+    Boolean attestsByDefault
     DateTime createdAt
     DateTime updatedAt
+  }
+  AdminDigest_Run {
+    String id PK
+    DateTime weekOf UK
+    DateTime startedAt
+    DateTime finishedAt
+    Int recipients
+    Int sent
+    Int failed
+    Boolean includedAdoption
   }
   TalentHome_Note {
   }

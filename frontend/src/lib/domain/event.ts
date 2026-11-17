@@ -78,6 +78,19 @@ export function eventDisplayName(e: {
   return e.publicName?.trim() || e.titre;
 }
 
+/**
+ * The event's name on a talent's home: its `publicName`, or null when it has
+ * none, and never the Salesforce `titre`. A campaign title is an internal label
+ * (« Paris-2026-11-27-CodingClub »), and a home card falling back to it is how
+ * one reached a talent's screen (8de24153): with no public name, the home says
+ * what the event is without naming it.
+ */
+export function eventPublicName(e: {
+  publicName?: string | null;
+}): string | null {
+  return e.publicName?.trim() || null;
+}
+
 // ─── Event days (`Event.date` / `Event.endDate`) ───────────────────────────
 // Salesforce owns both days: the sync copies the campaign's `StartDate` and
 // `EndDate`, which are calendar days with no time and no zone. They are stored

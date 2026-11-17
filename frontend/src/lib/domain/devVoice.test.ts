@@ -57,10 +57,12 @@ describe('campusClock', () => {
     // 07:30 UTC is 08:30 in Paris in winter and 09:30 in summer.
     expect(campusClock('2026-01-12T07:30:00Z', 'Europe/Paris')).toEqual({
       hour: 8,
+      minute: 30,
       weekday: MONDAY,
     });
     expect(campusClock('2026-07-13T07:30:00Z', 'Europe/Paris')).toEqual({
       hour: 9,
+      minute: 30,
       weekday: MONDAY,
     });
   });
@@ -69,6 +71,7 @@ describe('campusClock', () => {
     // 22:30 UTC on a Thursday is already Friday 00:30 in Paris (summer).
     expect(campusClock('2026-07-16T22:30:00Z', 'Europe/Paris')).toEqual({
       hour: 0,
+      minute: 30,
       weekday: FRIDAY,
     });
   });

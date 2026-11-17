@@ -37,6 +37,12 @@ import {
 } from '../../src/lib/domain/xp';
 import { workshopGrantSourceId } from '../../src/lib/domain/workshops';
 import { eventEndInstant, eventStartInstant } from '../../src/lib/domain/event';
+import { dateKeyToDbDate } from '../../src/lib/domain/eventPresence';
+import {
+  eventHeroImageKey,
+  type EventHeroStage,
+} from '../../src/lib/domain/eventHero';
+import { stillKeyOf } from '../../src/lib/domain/pictures';
 import {
   CIVILITE_OPTIONS,
   PARENT_TYPE_OPTIONS,
@@ -1206,9 +1212,34 @@ export class World {
     workshops?: readonly {
       slug: string;
       labelOverride?: string;
+      /**
+       * The moment it is offered at: the index of one of `days`, and with it
+       * optionally a half-day. Omitted, it is offered for the whole event,
+       * which is what most events do.
+       */
+      dayIndex?: number;
+      slot?: 'morning' | 'afternoon';
     }[];
     /** Events with no Salesforce origin do not exist in production. */
     externalId?: string | null;
+    /** Its own sign-up form, where « Je m'inscris » leads on the home. */
+    signupUrl?: string | null;
+    /**
+     * What it says on its talents' home at each stage, as `write_event_config`
+     * would store it: a field left out keeps the mockup's words, and a picture
+     * (the stages before the event only) is a copy Jump would have made.
+     */
+    hero?: Partial<
+      Record<
+        EventHeroStage,
+        {
+          title?: string;
+          text?: string;
+          buttonLabel?: string;
+          picture?: { width: number; height: number; animated?: boolean };
+        }
+      >
+    >;
   }): EventRef {
     const eventId = id('evt', opts.campus.name, opts.key);
     const clock = this.ctx.clock;
@@ -1277,7 +1308,40 @@ export class World {
       closingTemplateId: opts.closingTemplateId ?? null,
       feedbackFormId: opts.feedbackFormId ?? null,
       diplomaTemplateId: opts.diplomaTemplateId ?? null,
+      signupUrl: opts.signupUrl ?? null,
     });
+
+    for (const [stage, written] of Object.entries(opts.hero ?? {}) as [
+      EventHeroStage,
+      NonNullable<NonNullable<typeof opts.hero>[EventHeroStage]>,
+    ][]) {
+      this.buffer.eventConfig_Hero.push({
+        eventId,
+        stage,
+        title: written.title ?? null,
+        text: written.text ?? null,
+        buttonLabel: written.buttonLabel ?? null,
+        updatedAt: clock.days(-30),
+      });
+      if (!written.picture) continue;
+      const { animated, width, height } = written.picture;
+      const key = eventHeroImageKey(
+        eventId,
+        stage,
+        '0000seed',
+        animated ? 'gif' : 'webp',
+      );
+      this.buffer.eventConfig_HeroImage.push({
+        eventId,
+        stage,
+        sourceUrl: `https://assets.seed.invalid/event-hero/${opts.key}-${stage}.${animated ? 'gif' : 'png'}`,
+        key,
+        stillKey: animated ? stillKeyOf(key) : null,
+        contentType: animated ? 'image/gif' : 'image/webp',
+        width,
+        height,
+      });
+    }
 
     for (const moduleKey of opts.modules ?? []) {
       this.buffer.eventConfig_Module.push({
@@ -1308,6 +1372,11 @@ export class World {
         activityId: workshopActivityId(workshop.slug),
         position: index,
         labelOverride: workshop.labelOverride ?? null,
+        day:
+          workshop.dayIndex === undefined
+            ? null
+            : dateKeyToDbDate(clock.dateKey(days[workshop.dayIndex]!)),
+        slot: workshop.slot ?? null,
         createdAt: clock.days(-30),
       });
     }

@@ -35,6 +35,7 @@
 
 import type { ClosingRecommendation } from '@prisma/client';
 import { STAGE_PLANNING } from '../catalog/planning';
+import { WORKSHOPS } from '../catalog/workshops';
 import {
   RETIRED_QUESTION,
   STAGE_TEMPLATE_QUESTION_KEYS,
@@ -299,6 +300,21 @@ export const stage: Scenario = {
   },
 };
 
+/** The flagship stage's subjects, each offered at one moment of the stage. */
+const STAGE_SUBJECTS = (
+  [
+    { slug: 'pacman-ia', dayIndex: 0, slot: 'morning' },
+    { slug: 'babel-ship', dayIndex: 0, slot: 'morning' },
+    { slug: 'rayban', dayIndex: 0, slot: 'afternoon' },
+    { slug: 'santa-shooter', dayIndex: 1 },
+  ] as const
+).map((subject) => {
+  if (!WORKSHOPS.some((w) => w.slug === subject.slug && w.enabled)) {
+    throw new Error(`Sujet de stage inconnu ou désactivé : ${subject.slug}`);
+  }
+  return subject;
+});
+
 /**
  * One campus's stage, at the depth its plan declares.
  *
@@ -358,6 +374,35 @@ function addStageAt(
     closingTemplateId: stageTemplateId,
     feedbackFormId: world.feedbackForms.get(STAGE_FORM_SLUG)?.id ?? null,
     diplomaTemplateId: instrumented ? world.diplomaTemplateId : null,
+    // The flagship stage offers its subjects by moment, as a stage de seconde
+    // does: two to choose from on its first morning, another that afternoon,
+    // and one for the whole of its second day. The only seeded event that sets
+    // a moment, so `EventConfig_Workshop.day` and `.slot` each have a value.
+    workshops: flagship ? STAGE_SUBJECTS : undefined,
+    // The flagship stage writes what it says on its talents' home, as a campus
+    // does before a stage: every stage its own words, a picture before it, an
+    // animated one once enrolled. The other stages keep the mockup's words, so
+    // both states exist.
+    signupUrl: flagship
+      ? `https://www.epitech.invalid/inscription-stage-seconde/?CampaignId=${campus.name.toLowerCase()}`
+      : null,
+    hero: flagship
+      ? {
+          invitation: {
+            text: 'Une semaine pour coder ton premier jeu, rencontrer des étudiants et découvrir Epitech. Gratuit, inscris-toi !',
+            picture: { width: 1280, height: 720 },
+          },
+          enrolled: {
+            text: 'Prépare ta curiosité : on s’occupe du reste.',
+            buttonLabel: 'Je le note',
+            picture: { width: 1280, height: 720, animated: true },
+          },
+          live: {
+            title: 'Choisis ton sujet',
+            text: 'Plusieurs sujets t’attendent : lance-toi sur celui qui te tente.',
+          },
+        }
+      : undefined,
   });
 
   // The cohort's size and its instrumentation are the point of this event, so

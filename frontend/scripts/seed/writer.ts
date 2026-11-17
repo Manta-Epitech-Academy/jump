@@ -71,6 +71,8 @@ export type Buffered = {
   eventConfig_Module: Prisma.EventConfig_ModuleCreateManyInput[];
   eventConfig_ShownStatus: Prisma.EventConfig_ShownStatusCreateManyInput[];
   eventConfig_Workshop: Prisma.EventConfig_WorkshopCreateManyInput[];
+  eventConfig_Hero: Prisma.EventConfig_HeroCreateManyInput[];
+  eventConfig_HeroImage: Prisma.EventConfig_HeroImageCreateManyInput[];
   participation: Prisma.ParticipationCreateManyInput[];
   planning_Slot: Prisma.Planning_SlotCreateManyInput[];
   eventPresence: Prisma.EventPresenceCreateManyInput[];
@@ -108,8 +110,6 @@ const MODEL_ORDER = [
   'staffProfile',
   'signatory',
   'talentHome_Note',
-  'talentHome_Highlight',
-  'talentHome_HighlightImage',
   'talentHome_NoteImage',
   'staffInvitation',
   'adminApi_Token',
@@ -137,6 +137,11 @@ const MODEL_ORDER = [
   'eventConfig_Module',
   'eventConfig_ShownStatus',
   'eventConfig_Workshop',
+  'eventConfig_Hero',
+  'eventConfig_HeroImage',
+  // After the events: the campus's highlight may point at one of them.
+  'talentHome_Highlight',
+  'talentHome_HighlightImage',
   'participation',
   'planning_Slot',
   'eventPresence',
@@ -447,6 +452,12 @@ export async function wipe(
   );
   await drop('eventConfig_Workshop', () =>
     prisma.eventConfig_Workshop.deleteMany({ where: { eventId: seeded } }),
+  );
+  await drop('eventConfig_HeroImage', () =>
+    prisma.eventConfig_HeroImage.deleteMany({ where: { eventId: seeded } }),
+  );
+  await drop('eventConfig_Hero', () =>
+    prisma.eventConfig_Hero.deleteMany({ where: { eventId: seeded } }),
   );
   await drop('eventConfig_Module', () =>
     prisma.eventConfig_Module.deleteMany({ where: { eventId: seeded } }),

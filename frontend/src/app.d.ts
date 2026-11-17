@@ -2,7 +2,6 @@ import type { User, Session } from '$lib/server/auth';
 import type { StaffProfile, Talent, Campus } from '@prisma/client';
 import type { StaffGroup } from '$lib/domain/permissions';
 import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
-import type { PlanningPreview } from '$lib/server/talentPlanningPreview';
 
 declare global {
   namespace App {
@@ -38,13 +37,6 @@ declare global {
        * event dates. See {@link readDevPhaseOverride}.
        */
       stagePhaseOverride: EventLifecycleStatus | null;
-      /**
-       * Dev-tooling preview of the talent home's session card.
-       * Only set when an admin is impersonating a talent. Lets staff cycle the
-       * card through its states (event en cours / prochaine session / rien)
-       * without seeding events. See {@link readPlanningPreview}.
-       */
-      planningPreview: PlanningPreview | null;
       /**
        * The real admin behind an impersonated session. Set only when
        * `session.impersonatedBy` is present and that user is still an admin:

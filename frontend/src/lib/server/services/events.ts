@@ -13,6 +13,10 @@ import {
   type EventModuleKey,
 } from '$lib/domain/eventModules';
 import { toDateKey } from '$lib/domain/planningTime';
+import { dateKeyToDbDate, dbDateToKey } from '$lib/domain/eventPresence';
+import type { EventWorkshopMoment } from '$lib/domain/workshops';
+import { EVENT_HERO_STAGES, type EventHeroStage } from '$lib/domain/eventHero';
+import type { StoredPicture } from '$lib/server/images/remote';
 import {
   getEventStatus,
   getLifecycleBounds,
@@ -329,7 +333,7 @@ async function applyModuleDiff(
 export type EventWorkshopLink = {
   activityId: string;
   labelOverride: string | null;
-};
+} & EventWorkshopMoment;
 
 /**
  * Replaces the activities ONE event offers with `links`, in that order, inside an
@@ -348,7 +352,13 @@ async function replaceEventWorkshops(
   await tx.eventConfig_Workshop.deleteMany({ where: { eventId } });
   if (links.length === 0) return;
   await tx.eventConfig_Workshop.createMany({
-    data: links.map((link, position) => ({ eventId, position, ...link })),
+    data: links.map(({ day, slot, ...link }, position) => ({
+      eventId,
+      position,
+      ...link,
+      day: day === null ? null : dateKeyToDbDate(day),
+      slot,
+    })),
   });
 }
 
@@ -356,7 +366,7 @@ async function replaceEventWorkshops(
 export type EventWorkshopState = {
   slug: string;
   labelOverride: string | null;
-};
+} & EventWorkshopMoment;
 
 /**
  * What {@link replaceEventWorkshops} stored for ONE event, in order, named by
@@ -373,13 +383,147 @@ export async function eventWorkshopsOf(
     orderBy: { position: 'asc' },
     select: {
       labelOverride: true,
+      day: true,
+      slot: true,
       activity: { select: { slug: true } },
     },
   });
   return links.map((link) => ({
     slug: link.activity.slug,
     labelOverride: link.labelOverride,
+    day: link.day === null ? null : dbDateToKey(link.day),
+    slot: link.slot,
   }));
+}
+
+/** One stage of an event's hero as the admin API reads and writes it. */
+export type EventHeroTextState = {
+  title: string | null;
+  text: string | null;
+  buttonLabel: string | null;
+};
+
+/** A stage that carries a picture: the address it was copied from, if any. */
+export type EventHeroPictureState = EventHeroTextState & {
+  imageUrl: string | null;
+};
+
+/**
+ * What an event says on the talent home at each stage, in the shape
+ * `write_event_config` takes it: `null` for a stage left to the mockup's words.
+ * The live stage has no picture, so it has no `imageUrl` either.
+ */
+export type EventHeroState = {
+  invitation: EventHeroPictureState | null;
+  enrolled: EventHeroPictureState | null;
+  live: EventHeroTextState | null;
+};
+
+/** A stage's words and, for a stage before the event, its picture's source. */
+export type EventHeroStageWrite = EventHeroTextState & {
+  imageUrl: string | null;
+};
+
+const HERO_STAGE_SELECT = {
+  stage: true,
+  title: true,
+  text: true,
+  buttonLabel: true,
+  image: { select: { sourceUrl: true } },
+} as const satisfies Prisma.EventConfig_HeroSelect;
+
+/**
+ * The hero {@link replaceEventHero} stored for ONE event, as the event write
+ * reports it and `config_event_detail` returns it, so a stage can be read,
+ * changed and sent back as it came.
+ */
+export async function eventHeroOf(
+  eventId: string,
+  db: Prisma.TransactionClient = prisma,
+): Promise<EventHeroState> {
+  const rows = await db.eventConfig_Hero.findMany({
+    where: { eventId },
+    select: HERO_STAGE_SELECT,
+  });
+  const byStage = new Map(rows.map((row) => [row.stage, row]));
+  const words = (stage: EventHeroStage): EventHeroTextState | null => {
+    const row = byStage.get(stage);
+    return row
+      ? { title: row.title, text: row.text, buttonLabel: row.buttonLabel }
+      : null;
+  };
+  const withPicture = (stage: EventHeroStage) => {
+    const row = byStage.get(stage);
+    const copy = words(stage);
+    return copy && { ...copy, imageUrl: row?.image?.sourceUrl ?? null };
+  };
+  return {
+    invitation: withPicture('invitation'),
+    enrolled: withPicture('enrolled'),
+    live: words('live'),
+  };
+}
+
+/**
+ * The hero pictures one event holds, as `replacePictures` reads them: one slot
+ * per stage, named by the stage.
+ */
+export async function storedEventHeroPictures(
+  db: Prisma.TransactionClient,
+  eventId: string,
+): Promise<StoredPicture[]> {
+  const images = await db.eventConfig_HeroImage.findMany({
+    where: { eventId },
+    select: {
+      stage: true,
+      sourceUrl: true,
+      key: true,
+      stillKey: true,
+      contentType: true,
+      width: true,
+      height: true,
+    },
+  });
+  return images.map(({ stage, ...image }) => ({ slot: stage, ...image }));
+}
+
+/**
+ * Replaces what ONE event says on the talent home with `stages`, inside an open
+ * transaction, each stage pointing at the picture `pictures` holds for its slot.
+ * A stage left to the mockup's words has no row, so a `null` stage deletes it,
+ * its picture row with it (the bytes are the caller's, `replacePictures`).
+ */
+export async function replaceEventHero(
+  tx: Prisma.TransactionClient,
+  eventId: string,
+  stages: Record<EventHeroStage, EventHeroStageWrite | null>,
+  pictures: readonly StoredPicture[],
+) {
+  await tx.eventConfig_HeroImage.deleteMany({ where: { eventId } });
+  for (const stage of EVENT_HERO_STAGES) {
+    const written = stages[stage];
+    if (!written) {
+      await tx.eventConfig_Hero.deleteMany({ where: { eventId, stage } });
+      continue;
+    }
+    const words = {
+      title: written.title,
+      text: written.text,
+      buttonLabel: written.buttonLabel,
+    };
+    await tx.eventConfig_Hero.upsert({
+      where: { eventId_stage: { eventId, stage } },
+      create: { eventId, stage, ...words },
+      update: words,
+    });
+    const picture = pictures.find((p) => p.slot === stage);
+    if (picture) {
+      const { slot: _slot, ...image } = picture;
+      await tx.eventConfig_HeroImage.create({
+        data: { eventId, stage, ...image },
+      });
+    }
+  }
 }
 
 /**
@@ -481,6 +625,53 @@ export async function setActivationForEvents(
 }
 
 /**
+ * Lock one event's row until the transaction ends, so the writes that read
+ * what it must keep serialise on it: two saves of its hero pictures
+ * (`replacePictures`), and a save of its configuration against a campus
+ * pointing at it (`write_talent_home_highlight`), whichever comes first.
+ * `FOR NO KEY UPDATE`, so a row merely referencing the event still goes in.
+ */
+export async function lockEvent(tx: Prisma.TransactionClient, eventId: string) {
+  await tx.$executeRaw`SELECT 1 FROM "Event" WHERE id = ${eventId} FOR NO KEY UPDATE`;
+}
+
+/**
+ * What a campus pointing at an event shows its talents of it, and so what a
+ * save of its configuration may not take away while one does: its public name,
+ * which the invitation is titled with, and its sign-up form, which the
+ * invitation's button opens (`pointedEventShown`). Read under the event's
+ * lock, which the write pointing a campus at it takes too, so neither can slip
+ * in between the other's check and its save. Only a field being cleared is
+ * refused: saving one already empty again (sending back what was read) is not
+ * a change.
+ */
+async function refuseUnpointingEvent(
+  tx: Prisma.TransactionClient,
+  eventId: string,
+  next: { publicName: string | null; signupUrl: string | null },
+) {
+  const stored = await tx.event.findUniqueOrThrow({
+    where: { id: eventId },
+    select: { publicName: true, signupUrl: true },
+  });
+  const cleared = [
+    stored.publicName?.trim() && !next.publicName ? 'publicName' : null,
+    stored.signupUrl && !next.signupUrl ? 'signupUrl' : null,
+  ].filter((field): field is string => field !== null);
+  if (cleared.length === 0) return;
+  const pointing = await tx.talentHome_Highlight.findMany({
+    where: { eventId },
+    select: { campus: { select: { name: true } } },
+    orderBy: { campus: { name: 'asc' } },
+  });
+  if (pointing.length === 0) return;
+  throw error(
+    400,
+    `${pointing.map((row) => row.campus.name).join(', ')} met cet événement en avant sur l'accueil de ses talents, qui l'annonce sous son nom public et dont le bouton mène à son formulaire d'inscription. Retirez-le d'abord avec write_talent_home_highlight (eventId à null), ou gardez son ${cleared.join(' et son ')}.`,
+  );
+}
+
+/**
  * Gives many events one category, or none, inside an open transaction. The bulk
  * write's counterpart of the field `updateEventConfig` saves; the caller has
  * already refused an archived target, since none of these events is asked to
@@ -524,6 +715,11 @@ export const EventService = {
    * `workshops` is optional: omitted, the event's activities stay as they are;
    * given, they are replaced in this same transaction, so a refused save leaves
    * them untouched too.
+   *
+   * `tx` is the caller's transaction when the save is one part of a larger
+   * one: the event write copies the pictures of its hero first and lands the
+   * configuration in the transaction that points at them (`replacePictures`),
+   * so a refused configuration leaves no picture behind and the reverse.
    */
   async updateEventConfig(
     eventId: string,
@@ -541,13 +737,21 @@ export const EventService = {
       shownStatuses: string[];
       /** Which of `shownStatuses` count as a visit; each must be shown. */
       attendanceStatuses: string[];
+      /**
+       * The event's sign-up form, https, checked by the caller; `''` = none.
+       * Neither it nor `publicName` may be cleared while a campus points at the
+       * event (`refuseUnpointingEvent`).
+       */
+      signupUrl: string;
       workshops?: readonly EventWorkshopLink[];
     },
+    tx?: Prisma.TransactionClient,
   ) {
+    const db = tx ?? prisma;
     // Surfaces a clean 404 (rather than a transaction-level throw) if the event
     // vanished between the page load and the save. `devActivatedAt` is read to
     // preserve the original activation instant across edits that keep it on.
-    const event = await prisma.event.findUniqueOrThrow({
+    const event = await db.event.findUniqueOrThrow({
       where: { id: eventId },
       select: { devActivatedAt: true, categoryKey: true },
     });
@@ -581,7 +785,7 @@ export const EventService = {
     // transaction so a bad id 400s cleanly.
     const feedbackFormId = data.feedbackFormId.trim() || null;
     if (feedbackFormId) {
-      const form = await prisma.feedback_Form.findUnique({
+      const form = await db.feedback_Form.findUnique({
         where: { id: feedbackFormId },
         select: { id: true },
       });
@@ -592,7 +796,7 @@ export const EventService = {
     // the transaction for the same reason.
     const diplomaTemplateId = data.diplomaTemplateId.trim() || null;
     if (diplomaTemplateId) {
-      const template = await prisma.diploma_Template.findUnique({
+      const template = await db.diploma_Template.findUnique({
         where: { id: diplomaTemplateId },
         select: { id: true },
       });
@@ -602,7 +806,7 @@ export const EventService = {
     // surface stays hidden, exactly as a null feedback form hides the bilan.
     const closingTemplateId = data.closingTemplateId.trim() || null;
     if (closingTemplateId) {
-      const grid = await prisma.closing_Template.findUnique({
+      const grid = await db.closing_Template.findUnique({
         where: { id: closingTemplateId },
         select: { id: true },
       });
@@ -614,7 +818,7 @@ export const EventService = {
     // sending back what the admin API read, must not fail on it.
     const categoryKey = data.categoryKey.trim() || null;
     if (categoryKey && categoryKey !== event.categoryKey) {
-      const category = await prisma.eventConfig_Category.findUnique({
+      const category = await db.eventConfig_Category.findUnique({
         where: { key: categoryKey },
         select: { label: true, archivedAt: true },
       });
@@ -624,7 +828,11 @@ export const EventService = {
       }
     }
 
-    await prisma.$transaction(async (tx) => {
+    const publicName = data.publicName.trim() || null;
+    const signupUrl = data.signupUrl.trim() || null;
+    const save = async (tx: Prisma.TransactionClient) => {
+      await lockEvent(tx, eventId);
+      await refuseUnpointingEvent(tx, eventId, { publicName, signupUrl });
       await applyModuleDiff(tx, eventId, data.modules, data.moduleSettings);
       // Refuses a word the catalogue does not hold, which rolls the whole save
       // back: a configuration is saved entirely or not at all.
@@ -638,7 +846,7 @@ export const EventService = {
       await tx.event.update({
         where: { id: eventId },
         data: {
-          publicName: data.publicName.trim() || null,
+          publicName,
           // Blank → NULL ("not named yet"); the UI falls back to the neutral
           // default, so the column never asserts an unmade choice.
           cohortNoun: data.cohortNoun.trim() || null,
@@ -648,8 +856,11 @@ export const EventService = {
           feedbackFormId,
           diplomaTemplateId,
           closingTemplateId,
+          signupUrl,
         },
       });
-    });
+    };
+    if (tx) await save(tx);
+    else await prisma.$transaction(save);
   },
 };
