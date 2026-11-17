@@ -63,14 +63,13 @@ import {
 } from '$lib/domain/eventModules';
 import { EVENT_CONFIG_STATE_LABELS } from '$lib/domain/eventReadiness';
 import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
+import { slotLabelFr, type PresenceSlot } from '$lib/domain/eventPresence';
+import { hhmmToMinutes } from '$lib/domain/event';
 import {
-  eventCalendarDays,
-  halfDayAt,
-  slotLabelFr,
-  toDateKey,
-  type PresenceSlot,
-} from '$lib/domain/eventPresence';
-import type { EventWorkshopMoment } from '$lib/domain/workshops';
+  eventMoments,
+  momentOutsideEvent,
+  type EventWorkshopMoment,
+} from '$lib/domain/workshops';
 import { UnknownScopeError } from '../scope';
 import { archivedAtFor } from './catalogue';
 import { OperationRefusedError } from '../errors';
@@ -298,6 +297,7 @@ function patched(
 async function resolvedWorkshops(
   eventId: string,
   workshops: NonNullable<EventConfigPatch['workshops']>,
+  startMinutes: number | null,
 ): Promise<EventWorkshopLink[]> {
   const slugs = workshops.map((w) => w.slug.trim());
   const duplicates = slugs.filter(
@@ -319,7 +319,7 @@ async function resolvedWorkshops(
       `Activités introuvables : ${unknown.join(', ')}. ${handleProvenanceFr('workshopSlug')}`,
     );
   }
-  const moments = await checkedMoments(eventId, workshops, slugs);
+  const moments = await checkedMoments(eventId, workshops, slugs, startMinutes);
   return workshops.map((workshop, index) => ({
     activityId: idBySlug.get(slugs[index])!,
     labelOverride: workshop.labelOverride?.trim() || null,
@@ -328,16 +328,19 @@ async function resolvedWorkshops(
 }
 
 /**
- * The moment each activity is offered at, refused when it names no moment of
- * the event: a day outside its campus days, or the morning of a first day the
- * event only starts in the afternoon (its start time, as émargement reads it).
- * Weekends count: a camp running over a Saturday offers subjects on it, even
- * though émargement leaves it out.
+ * The moment each activity is offered at, refused when the call gives one that
+ * names no moment of the event (`momentOutsideEvent`), judged on the arrival
+ * time this same call saves. Only a moment the call changes is judged: one sent
+ * back exactly as stored is accepted even if it no longer falls on the event
+ * (Salesforce moved its days), so the read sent back is never refused for
+ * something the call did not touch; `config_event_detail` lists it
+ * (`workshopsOutsideEvent`).
  */
 async function checkedMoments(
   eventId: string,
   workshops: NonNullable<EventConfigPatch['workshops']>,
   slugs: readonly string[],
+  startMinutes: number | null,
 ): Promise<EventWorkshopMoment[]> {
   const moments = workshops.map((w) => ({
     day: w.day ?? null,
@@ -345,21 +348,19 @@ async function checkedMoments(
   }));
   if (moments.every((m) => m.day === null && m.slot === null)) return moments;
 
-  const event = await prisma.event.findUniqueOrThrow({
-    where: { id: eventId },
-    select: {
-      date: true,
-      endDate: true,
-      startMinutes: true,
-      campus: { select: { timezone: true } },
-    },
-  });
-  const timezone = event.campus.timezone;
-  const days = eventCalendarDays(event, timezone);
-  const startDay = toDateKey(event.date, timezone);
-  const startsInAfternoon =
-    event.startMinutes !== null &&
-    halfDayAt(event.startMinutes) === 'afternoon';
+  const [event, stored] = await Promise.all([
+    prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+      select: {
+        date: true,
+        endDate: true,
+        campus: { select: { timezone: true } },
+      },
+    }),
+    eventWorkshopsOf(eventId),
+  ]);
+  const frame = eventMoments({ ...event, startMinutes }, event.campus.timezone);
+  const storedBySlug = new Map(stored.map((link) => [link.slug, link]));
 
   moments.forEach(({ day, slot }, index) => {
     const slug = slugs[index];
@@ -368,16 +369,17 @@ async function checkedMoments(
         `Activité ${slug} : une demi-journée se donne avec son jour (day). Envoyez day, ou slot à null pour la proposer sur tout l'événement.`,
       );
     }
-    if (day === null) return;
-    if (!days.includes(day)) {
-      throw new OperationRefusedError(
-        `Activité ${slug} : le ${day} n'est pas un jour de cet événement. Jours possibles : ${days.join(', ')}.`,
-      );
-    }
-    if (slot === 'morning' && startsInAfternoon && day === startDay) {
-      throw new OperationRefusedError(
-        `Activité ${slug} : l'événement ne commence que l'après-midi du ${day}, il n'y a pas de ${slotLabelFr(slot).toLowerCase()} ce jour-là.`,
-      );
+    const before = storedBySlug.get(slug);
+    if (before && before.day === day && before.slot === slot) return;
+    switch (momentOutsideEvent({ day, slot }, frame)) {
+      case 'day':
+        throw new OperationRefusedError(
+          `Activité ${slug} : le ${day} n'est pas un jour de cet événement. Jours possibles : ${frame.days.join(', ')}.`,
+        );
+      case 'morning':
+        throw new OperationRefusedError(
+          `Activité ${slug} : l'événement ne commence que l'après-midi du ${day}, il n'y a pas de ${slotLabelFr('morning').toLowerCase()} ce jour-là.`,
+        );
     }
   });
   return moments;
@@ -523,10 +525,11 @@ export async function writeEventConfig(
   if (params.modules) refuseUnknownModules(params.modules);
   const modules = params.modules ?? event.modules;
 
+  const startTime = patched(params.startTime, event.startTime);
   const config = {
     publicName: patched(params.publicName, event.publicName),
     cohortNoun: patched(params.cohortNoun, event.cohortNoun),
-    startTime: patched(params.startTime, event.startTime),
+    startTime,
     // Whether an archived one may be given is the service's rule, the wizard's
     // too: refused as a new choice, kept on an event that already carries it.
     categoryKey: await resolvedReference(
@@ -560,7 +563,12 @@ export async function writeEventConfig(
     ...statusPolicyFor(params, event),
     signupUrl: checkedSignupUrl(params.signupUrl, before.signupUrl),
     workshops:
-      params.workshops && (await resolvedWorkshops(event.id, params.workshops)),
+      params.workshops &&
+      (await resolvedWorkshops(
+        event.id,
+        params.workshops,
+        hhmmToMinutes(startTime),
+      )),
   };
 
   if (!params.hero) {

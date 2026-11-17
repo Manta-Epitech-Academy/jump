@@ -56,7 +56,11 @@ import {
   attendedBeforeWhere,
 } from '$lib/domain/attendance';
 import { CERTIFICATE_TOKENS } from '$lib/domain/diplomas';
-import type { WorkshopCoverKind } from '$lib/domain/workshops';
+import {
+  eventMoments,
+  momentOutsideEvent,
+  type WorkshopCoverKind,
+} from '$lib/domain/workshops';
 import {
   catalogueGaps,
   type CatalogueGap,
@@ -232,6 +236,9 @@ export type EventDetail = {
     label: string;
   } | null>;
   workshops: Metric<EventWorkshopState[]>;
+  workshopsOutsideEvent: Metric<
+    { slug: string; day: string; slot: string | null; because: string }[]
+  >;
   signupUrl: Metric<string | null>;
   highlightedBy: Metric<string[]>;
   hero: Metric<EventHeroState>;
@@ -275,15 +282,37 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
 
   const workshops = await eventWorkshopsOf(event.id);
   const hero = await eventHeroOf(event.id);
-  const { signupUrl, highlightedBy } = await prisma.event.findUniqueOrThrow({
-    where: { id: event.id },
-    select: {
-      signupUrl: true,
-      highlightedBy: {
-        select: { campus: { select: { name: true } } },
-        orderBy: { campus: { name: 'asc' } },
+  const { signupUrl, highlightedBy, ...days } =
+    await prisma.event.findUniqueOrThrow({
+      where: { id: event.id },
+      select: {
+        signupUrl: true,
+        date: true,
+        endDate: true,
+        startMinutes: true,
+        campus: { select: { timezone: true } },
+        highlightedBy: {
+          select: { campus: { select: { name: true } } },
+          orderBy: { campus: { name: 'asc' } },
+        },
       },
-    },
+    });
+  const moments = eventMoments(days, days.campus.timezone);
+  const workshopsOutsideEvent = workshops.flatMap(({ slug, day, slot }) => {
+    const outside = momentOutsideEvent({ day, slot }, moments);
+    return outside && day
+      ? [
+          {
+            slug,
+            day,
+            slot,
+            because:
+              outside === 'day'
+                ? `Le ${day} n'est plus un jour de l'événement.`
+                : `L'événement ne commence plus que l'après-midi du ${day}.`,
+          },
+        ]
+      : [];
   });
 
   const hidden = (await hiddenEnrolmentsByEvent([event.id])).get(event.id) ?? 0;
@@ -303,7 +332,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
         status: event.status,
         syncedFromSalesforce: event.synced,
       },
-      "Identité de l'événement. « salesforceName » est le nom de la campagne Salesforce, « publicName » celui que voient les équipes et les talents ; null, ce dernier laisse place au premier. « dateLabel » donne les jours de début et de fin, ceux de la campagne Salesforce : ils se corrigent dans Salesforce, pas dans Jump. « startTime », l'heure d'arrivée, appartient à Jump : Salesforce ne la fournit pas. « publicName », « cohortNoun » et « startTime » valent null quand ils ne sont pas renseignés, et c'est null qui les retire dans write_event_config.",
+      "Identité de l'événement. « salesforceName » est le nom de la campagne Salesforce, « publicName » celui que voient les équipes et les talents ; null, ce dernier laisse place au premier pour les équipes, et l'accueil d'un talent ne nomme pas l'événement. « dateLabel » donne les jours de début et de fin, ceux de la campagne Salesforce : ils se corrigent dans Salesforce, pas dans Jump. « startTime », l'heure d'arrivée, appartient à Jump : Salesforce ne la fournit pas. « publicName », « cohortNoun » et « startTime » valent null quand ils ne sont pas renseignés, et c'est null qui les retire dans write_event_config.",
     ),
     category: metric(
       event.category,
@@ -357,6 +386,10 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
     workshops: metric(
       workshops,
       "Les activités en ligne que cet événement propose, dans l'ordre où un talent les voit, sous la forme exacte que prend write_event_config (« workshops ») : cette liste y remplace la liste entière, donc pour en ajouter ou en retirer une, renvoyez celle-ci modifiée. « labelOverride » est le nom qu'il lui donne à la place de celui du catalogue (null s'il garde ce dernier). « day » est le seul jour de l'événement où il la propose (AAAA-MM-JJ, null pour tous ses jours) et « slot » la demi-journée de ce jour (morning, afternoon à partir de 13 h, null pour la journée entière) : des activités proposées au même moment sont présentées au talent comme un choix. Le nom du catalogue et l'instance qui la sert sont dans config_workshops. Liste vide si l'événement n'en propose aucune.",
+    ),
+    workshopsOutsideEvent: metric(
+      workshopsOutsideEvent,
+      "Les activités de « workshops » dont le moment (« day », « slot ») ne tombe plus sur l'événement, parce que Salesforce a déplacé ses jours ou que son heure d'arrivée est passée à l'après-midi, avec « because » qui dit lequel : l'accueil des talents ne les propose jamais à ce moment-là. write_event_config les accepte renvoyées telles quelles ; donnez-leur un jour de l'événement, ou day à null pour tous ses jours. Liste vide si toutes tombent sur l'événement.",
     ),
     signupUrl: metric(
       signupUrl,

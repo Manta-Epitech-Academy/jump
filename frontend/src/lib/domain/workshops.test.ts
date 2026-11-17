@@ -7,6 +7,8 @@ import {
   workshopGrantSourceId,
   workshopSlugFromSourceId,
   type WorkshopActivity,
+  eventMoments,
+  momentOutsideEvent,
 } from './workshops';
 
 const offering = (
@@ -149,6 +151,40 @@ describe('selectWorkshopOfferings', () => {
         (o) => o.activityId,
       ),
     ).toEqual(expected);
+  });
+});
+
+describe('momentOutsideEvent', () => {
+  // Wednesday 28 to Friday 30 October 2026, arriving at 14:00 on the first day.
+  const camp = eventMoments(
+    {
+      date: new Date('2026-10-27T23:00:00Z'),
+      endDate: new Date('2026-10-30T22:59:00Z'),
+      startMinutes: 14 * 60,
+    },
+    'Europe/Paris',
+  );
+
+  it('lets a moment with no day, or on one of its days, fall on the event', () => {
+    expect(momentOutsideEvent({ day: null, slot: null }, camp)).toBeNull();
+    expect(
+      momentOutsideEvent({ day: '2026-10-29', slot: 'morning' }, camp),
+    ).toBeNull();
+    expect(
+      momentOutsideEvent({ day: '2026-10-28', slot: 'afternoon' }, camp),
+    ).toBeNull();
+  });
+
+  it('finds a day the event does not span', () => {
+    expect(momentOutsideEvent({ day: '2026-11-02', slot: null }, camp)).toBe(
+      'day',
+    );
+  });
+
+  it('finds the morning of a first day that starts in the afternoon', () => {
+    expect(
+      momentOutsideEvent({ day: '2026-10-28', slot: 'morning' }, camp),
+    ).toBe('morning');
   });
 });
 

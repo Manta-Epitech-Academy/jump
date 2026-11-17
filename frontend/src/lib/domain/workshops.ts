@@ -1,5 +1,11 @@
 import type { EventLifecycleStatus } from './eventLifecycle';
-import { halfDayAt, type DateKey, type PresenceSlot } from './eventPresence';
+import {
+  eventCalendarDays,
+  halfDayAt,
+  type DateKey,
+  type PresenceSlot,
+} from './eventPresence';
+import { toDateKey } from './planningTime';
 import type { ShownPicture } from './pictures';
 
 /**
@@ -117,6 +123,51 @@ export type EventWorkshopMoment = {
   day: DateKey | null;
   slot: PresenceSlot | null;
 };
+
+/**
+ * The moments an event has to offer an activity at, on its campus clock: every
+ * day it spans, weekends included (a camp running over a Saturday offers
+ * subjects on it, though émargement leaves it out), and its first day when it
+ * only starts in the afternoon, which has no morning (its arrival time, read
+ * as émargement reads it).
+ */
+export type EventMoments = {
+  days: DateKey[];
+  afternoonOnly: DateKey | null;
+};
+
+export function eventMoments(
+  event: { date: Date; endDate: Date | null; startMinutes: number | null },
+  timezone: string,
+): EventMoments {
+  return {
+    days: eventCalendarDays(event, timezone),
+    afternoonOnly:
+      event.startMinutes !== null &&
+      halfDayAt(event.startMinutes) === 'afternoon'
+        ? toDateKey(event.date, timezone)
+        : null,
+  };
+}
+
+/**
+ * Why an activity's moment falls on no moment of its event: a day the event
+ * does not span, or the morning of a first day it only starts in the
+ * afternoon. Null when it falls on one, which a moment with no day always
+ * does. Shared by the write that refuses such a moment and by the read that
+ * shows one stranded since (Salesforce moved the event's days, or its arrival
+ * time moved), which `isOfferedNow` would never offer.
+ */
+export function momentOutsideEvent(
+  moment: EventWorkshopMoment,
+  event: EventMoments,
+): 'day' | 'morning' | null {
+  if (moment.day === null) return null;
+  if (!event.days.includes(moment.day)) return 'day';
+  if (moment.slot === 'morning' && moment.day === event.afternoonOnly)
+    return 'morning';
+  return null;
+}
 
 /** The campus wall clock a moment is read against. */
 export type CampusClockReading = {

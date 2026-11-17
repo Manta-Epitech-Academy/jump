@@ -776,7 +776,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_event_detail: defineOperation({
     description:
-      'Everything configured on one event: its Salesforce and public names, category, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form, certificate and closing grid it uses, the online activities it offers, and how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks.',
+      'Everything configured on one event: its Salesforce and public names, category, dates, campus, readiness state and what it is still missing, every dev-workspace section with its sub-options, the feedback form, certificate and closing grid it uses, the online activities it offers (and any whose day no longer falls on the event), and how many enrolments Jump holds, how many of them the dev workspace shows and how many it masks.',
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
     },

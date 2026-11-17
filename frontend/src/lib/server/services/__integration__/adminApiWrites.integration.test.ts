@@ -766,7 +766,6 @@ describe('admin API writes (integration)', () => {
       workshops: [{ slug: pacman.slug, slot: 'morning' }],
     });
     expect(halfDayAlone.status).toBe(400);
-
     const untouched = await call(postConfig, writeSecret, {
       eventId: event.id,
       cohortNoun: 'participant',
@@ -774,6 +773,52 @@ describe('admin API writes (integration)', () => {
     expect(
       (untouched.payload.after as { workshops: unknown[] }).workshops,
     ).toHaveLength(2);
+
+    // Its first day has no morning once it starts in the afternoon, judged on
+    // the arrival time the same call saves.
+    const noMorning = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      startTime: '14:00',
+      workshops: [{ slug: pacman.slug, day: eventDay, slot: 'morning' }],
+    });
+    expect(noMorning.status).toBe(400);
+    expect(String(noMorning.payload.error)).toContain('après-midi');
+
+    // Salesforce moves the event a week later: the moment stored no longer
+    // falls on it. The read says so, sending it back is not refused, and only
+    // a moment the call changes is judged.
+    const offered = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      workshops: [{ slug: pacman.slug, day: eventDay, slot: 'afternoon' }],
+    });
+    expect(offered.status).toBe(200);
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { date: new Date(event.date.getTime() + 7 * 86_400_000) },
+    });
+    const detail = await getEventDetail(event.id);
+    expect(detail.workshopsOutsideEvent.value).toEqual([
+      {
+        slug: pacman.slug,
+        day: eventDay,
+        slot: 'afternoon',
+        because: expect.stringContaining(eventDay),
+      },
+    ]);
+    const sentBack = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      workshops: detail.workshops.value,
+    });
+    expect(sentBack.status).toBe(200);
+    const moved = await call(postConfig, writeSecret, {
+      eventId: event.id,
+      workshops: [{ slug: pacman.slug, day: eventDay, slot: 'morning' }],
+    });
+    expect(moved.status).toBe(400);
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { date: event.date },
+    });
 
     const unknown = await call(postConfig, writeSecret, {
       eventId: event.id,
