@@ -1469,7 +1469,7 @@ export const ADMIN_API_OPERATIONS = {
     repeat: { safe: true, because: 'the same values leave the same row' },
     destructive: true,
     openWorld: true,
-    description: `Set or clear what a campus puts forward on its talents' home. Two halves, patch semantics (omitted: unchanged, null: cleared). eventId: one of the campus's own events, not past its first day, with a signupUrl; the hero invites talents not enrolled in it until the end of its first day, in the event's own words and picture (write_event_config hero.invitation), and tells enrolled ones they are expected. invitation: the generic invitation, the fallback when no event shows (e.g. « Les Ateliers TECH », all year). There is no date. Jump copies the invitation's picture. ${PICTURE_RULES} A picture that cannot be copied refuses the whole write.`,
+    description: `Set or clear what a campus puts forward on its talents' home. Two halves, patch semantics (omitted: unchanged, null: cleared). eventId: one of the campus's own events, not past its first day, with a publicName and a signupUrl, which the event then keeps until the campus stops pointing at it (an event already pointed at is accepted again as it is); the hero invites talents not enrolled in it until the end of its first day, in the event's own words and picture (write_event_config hero.invitation), and tells enrolled ones they are expected. invitation: the generic invitation, the fallback when no event shows (e.g. « Les Ateliers TECH », all year). There is no date. Jump copies the invitation's picture. ${PICTURE_RULES} A picture that cannot be copied refuses the whole write.`,
     shape: {
       campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
       eventId: z

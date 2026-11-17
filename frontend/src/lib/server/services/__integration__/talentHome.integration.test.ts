@@ -153,6 +153,8 @@ describe('the campus content on a talent’s home (integration)', () => {
   let campEventId = '';
   /** Upcoming, without a sign-up form. */
   let formlessEventId = '';
+  /** Upcoming, with a sign-up form, but no public name. */
+  let unnamedEventId = '';
   /** Started yesterday. */
   let pastEventId = '';
   /** Upcoming, on another campus. */
@@ -189,13 +191,14 @@ describe('the campus content on a talent’s home (integration)', () => {
       offset: number;
       campusId: string;
       signupUrl?: string;
+      unnamed?: true;
     }) =>
       (
         await prisma.event.create({
           data: {
             // Named the way an event a campus puts forward has to be.
             titre: data.titre,
-            publicName: data.titre,
+            publicName: data.unnamed ? null : data.titre,
             date: new Date(Date.now() + data.offset * DAY),
             campusId: data.campusId,
             signupUrl: data.signupUrl,
@@ -212,6 +215,13 @@ describe('the campus content on a talent’s home (integration)', () => {
       titre: `Sans formulaire ${stamp}`,
       offset: 10,
       campusId,
+    });
+    unnamedEventId = await event({
+      titre: `Paris-CodingClub-${stamp}`,
+      offset: 10,
+      campusId,
+      signupUrl,
+      unnamed: true,
     });
     pastEventId = await event({
       titre: `Déjà commencé ${stamp}`,
@@ -384,8 +394,13 @@ describe('the campus content on a talent’s home (integration)', () => {
     });
   });
 
-  it('refuses an event of another campus, one already started, or one with no sign-up form', async () => {
-    for (const eventId of [elsewhereEventId, pastEventId, formlessEventId]) {
+  it('refuses an event of another campus, one already started, one with no public name, or one with no sign-up form', async () => {
+    for (const eventId of [
+      elsewhereEventId,
+      pastEventId,
+      unnamedEventId,
+      formlessEventId,
+    ]) {
       const { status, payload } = await post(postHighlight, secret, {
         campus: campusName,
         eventId,
@@ -405,19 +420,46 @@ describe('the campus content on a talent’s home (integration)', () => {
     ).toBe(campEventId);
   });
 
-  it('refuses to take the sign-up form from an event a campus puts forward', async () => {
-    const refused = await post(adminApiWrite('write_event_config'), secret, {
-      eventId: campEventId,
-      signupUrl: null,
-    });
-    expect(refused.status).toBe(400);
-    expect(String(refused.payload.error)).toContain(campusName);
+  it('refuses to take the public name or the sign-up form from an event a campus puts forward', async () => {
+    for (const field of ['publicName', 'signupUrl']) {
+      const refused = await post(adminApiWrite('write_event_config'), secret, {
+        eventId: campEventId,
+        [field]: null,
+      });
+      expect(refused.status).toBe(400);
+      expect(String(refused.payload.error)).toContain(campusName);
+      expect(String(refused.payload.error)).toContain(field);
+    }
+    expect(
+      await prisma.event.findUnique({
+        where: { id: campEventId },
+        select: { publicName: true, signupUrl: true },
+      }),
+    ).toEqual({ publicName: `Halloween Camp ${stamp}`, signupUrl });
+  });
+
+  // Only a change is checked: a call repeated, or the read sent back, is never
+  // refused for the event the campus already points at.
+  it('accepts the event it already points at again, even once under way', async () => {
+    const underWay = new Date(Date.now() + 12 * DAY);
+    const outcome = await writeTalentHomeHighlight(
+      { campus: campusName, eventId: campEventId },
+      underWay,
+    );
+    expect(outcome).toMatchObject({ after: { eventId: campEventId } });
+    await expect(
+      writeTalentHomeHighlight(
+        { campus: campusName, eventId: pastEventId },
+        underWay,
+      ),
+    ).rejects.toThrow(/a commencé/);
   });
 
   it('keeps the invitation when Salesforce deletes the event', async () => {
     const doomed = await prisma.event.create({
       data: {
         titre: `Supprimé ${stamp}`,
+        publicName: `Supprimé ${stamp}`,
         date: new Date(Date.now() + 10 * DAY),
         campusId,
         signupUrl,

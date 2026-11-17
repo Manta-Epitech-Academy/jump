@@ -34,6 +34,7 @@ import {
   eventHeroOf,
   eventWorkshopsOf,
   jumpOwnedFields,
+  lockEvent,
   replaceEventHero,
   storedEventHeroPictures,
   type AdminEventVM,
@@ -498,32 +499,17 @@ function mergedHero(
   return merged;
 }
 
-/** Lock the event row, so two writes of its hero pictures serialise. */
-async function lockEvent(tx: Prisma.TransactionClient, eventId: string) {
-  await tx.$executeRaw`SELECT 1 FROM "Event" WHERE id = ${eventId} FOR NO KEY UPDATE`;
-}
-
-/** The sign-up form to save: `''` for none, the service's spelling. */
-async function checkedSignupUrl(
-  eventId: string,
+/**
+ * The sign-up form to save: `''` for none, the service's spelling. Whether a
+ * campus pointing at the event lets it go is the save's own check
+ * (`EventService.updateEventConfig`), made under the event's lock.
+ */
+function checkedSignupUrl(
   given: string | null | undefined,
   stored: string | null,
-): Promise<string> {
+): string {
   if (given === undefined) return stored ?? '';
-  if (given === null) {
-    // A campus pointing at the event sends its talents to this form: taking it
-    // away would leave the hero's button leading nowhere.
-    const pointing = await prisma.talentHome_Highlight.findMany({
-      where: { eventId },
-      select: { campus: { select: { name: true } } },
-      orderBy: { campus: { name: 'asc' } },
-    });
-    if (stored !== null && pointing.length > 0)
-      throw new OperationRefusedError(
-        `${pointing.map((row) => row.campus.name).join(', ')} met cet événement en avant sur l'accueil de ses talents, dont le bouton mène à ce formulaire. Retirez-le d'abord avec write_talent_home_highlight (eventId à null), ou donnez un autre signupUrl.`,
-      );
-    return '';
-  }
+  if (given === null) return '';
   checkSignupUrl(given);
   return given;
 }
@@ -572,11 +558,7 @@ export async function writeEventConfig(
       event.closingTemplateId,
     ),
     ...statusPolicyFor(params, event),
-    signupUrl: await checkedSignupUrl(
-      event.id,
-      params.signupUrl,
-      before.signupUrl,
-    ),
+    signupUrl: checkedSignupUrl(params.signupUrl, before.signupUrl),
     workshops:
       params.workshops && (await resolvedWorkshops(event.id, params.workshops)),
   };

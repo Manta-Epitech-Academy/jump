@@ -625,6 +625,53 @@ export async function setActivationForEvents(
 }
 
 /**
+ * Lock one event's row until the transaction ends, so the writes that read
+ * what it must keep serialise on it: two saves of its hero pictures
+ * (`replacePictures`), and a save of its configuration against a campus
+ * pointing at it (`write_talent_home_highlight`), whichever comes first.
+ * `FOR NO KEY UPDATE`, so a row merely referencing the event still goes in.
+ */
+export async function lockEvent(tx: Prisma.TransactionClient, eventId: string) {
+  await tx.$executeRaw`SELECT 1 FROM "Event" WHERE id = ${eventId} FOR NO KEY UPDATE`;
+}
+
+/**
+ * What a campus pointing at an event shows its talents of it, and so what a
+ * save of its configuration may not take away while one does: its public name,
+ * which the invitation is titled with, and its sign-up form, which the
+ * invitation's button opens (`pointedEventShown`). Read under the event's
+ * lock, which the write pointing a campus at it takes too, so neither can slip
+ * in between the other's check and its save. Only a field being cleared is
+ * refused: saving one already empty again (sending back what was read) is not
+ * a change.
+ */
+async function refuseUnpointingEvent(
+  tx: Prisma.TransactionClient,
+  eventId: string,
+  next: { publicName: string | null; signupUrl: string | null },
+) {
+  const stored = await tx.event.findUniqueOrThrow({
+    where: { id: eventId },
+    select: { publicName: true, signupUrl: true },
+  });
+  const cleared = [
+    stored.publicName?.trim() && !next.publicName ? 'publicName' : null,
+    stored.signupUrl && !next.signupUrl ? 'signupUrl' : null,
+  ].filter((field): field is string => field !== null);
+  if (cleared.length === 0) return;
+  const pointing = await tx.talentHome_Highlight.findMany({
+    where: { eventId },
+    select: { campus: { select: { name: true } } },
+    orderBy: { campus: { name: 'asc' } },
+  });
+  if (pointing.length === 0) return;
+  throw error(
+    400,
+    `${pointing.map((row) => row.campus.name).join(', ')} met cet événement en avant sur l'accueil de ses talents, qui l'annonce sous son nom public et dont le bouton mène à son formulaire d'inscription. Retirez-le d'abord avec write_talent_home_highlight (eventId à null), ou gardez son ${cleared.join(' et son ')}.`,
+  );
+}
+
+/**
  * Gives many events one category, or none, inside an open transaction. The bulk
  * write's counterpart of the field `updateEventConfig` saves; the caller has
  * already refused an archived target, since none of these events is asked to
@@ -690,7 +737,11 @@ export const EventService = {
       shownStatuses: string[];
       /** Which of `shownStatuses` count as a visit; each must be shown. */
       attendanceStatuses: string[];
-      /** The event's sign-up form, https, checked by the caller; `''` = none. */
+      /**
+       * The event's sign-up form, https, checked by the caller; `''` = none.
+       * Neither it nor `publicName` may be cleared while a campus points at the
+       * event (`refuseUnpointingEvent`).
+       */
       signupUrl: string;
       workshops?: readonly EventWorkshopLink[];
     },
@@ -777,7 +828,11 @@ export const EventService = {
       }
     }
 
+    const publicName = data.publicName.trim() || null;
+    const signupUrl = data.signupUrl.trim() || null;
     const save = async (tx: Prisma.TransactionClient) => {
+      await lockEvent(tx, eventId);
+      await refuseUnpointingEvent(tx, eventId, { publicName, signupUrl });
       await applyModuleDiff(tx, eventId, data.modules, data.moduleSettings);
       // Refuses a word the catalogue does not hold, which rolls the whole save
       // back: a configuration is saved entirely or not at all.
@@ -791,7 +846,7 @@ export const EventService = {
       await tx.event.update({
         where: { id: eventId },
         data: {
-          publicName: data.publicName.trim() || null,
+          publicName,
           // Blank → NULL ("not named yet"); the UI falls back to the neutral
           // default, so the column never asserts an unmade choice.
           cohortNoun: data.cohortNoun.trim() || null,
@@ -801,7 +856,7 @@ export const EventService = {
           feedbackFormId,
           diplomaTemplateId,
           closingTemplateId,
-          signupUrl: data.signupUrl.trim() || null,
+          signupUrl,
         },
       });
     };

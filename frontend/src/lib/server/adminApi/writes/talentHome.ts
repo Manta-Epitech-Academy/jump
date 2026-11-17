@@ -21,13 +21,14 @@
 
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import { lockEvent } from '$lib/server/services/events';
 import {
   authoredImageSources,
   authoredMarkdownProblems,
   authoredTextLength,
 } from '$lib/markdown';
 import { toDateKey } from '$lib/domain/planningTime';
-import { eventDisplayName } from '$lib/domain/event';
+import { eventDisplayName, eventPublicName } from '$lib/domain/event';
 import {
   HERO_BUTTON_MAX,
   HERO_TEXT_MAX,
@@ -291,15 +292,20 @@ export function checkSignupUrl(url: string): void {
 
 /**
  * The event a campus may put forward: one of its own, still inviting (until
- * the end of its first day on the campus clock), with a sign-up form for the
- * hero's button to open.
+ * the end of its first day on the campus clock), named, and with a sign-up
+ * form for the hero's button to open: what `pointedEventShown` reads back on
+ * the talent's home. Checked inside the write's transaction, under the event's
+ * lock, which a save of its configuration takes too before it clears either
+ * field (`EventService.updateEventConfig`).
  */
 async function checkHighlightedEvent(
+  tx: Prisma.TransactionClient,
   campus: ResolvedCampus,
   eventId: string,
   now: Date,
 ): Promise<void> {
-  const event = await prisma.event.findUnique({
+  await lockEvent(tx, eventId);
+  const event = await tx.event.findUnique({
     where: { id: eventId },
     select: {
       titre: true,
@@ -321,6 +327,10 @@ async function checkHighlightedEvent(
   if (!isInvitationOpen(event, event.campus.timezone, now))
     throw new OperationRefusedError(
       `« ${name} » a commencé le ${toDateKey(event.date, event.campus.timezone)} : l'accueil n'invite plus à s'y inscrire. Mettez en avant un événement à venir, ou retirez-le avec eventId à null.`,
+    );
+  if (!eventPublicName(event))
+    throw new OperationRefusedError(
+      `« ${name} » n'a pas de nom public, et l'accueil n'annonce jamais un événement sous son titre Salesforce. Donnez-lui d'abord son publicName avec write_event_config.`,
     );
   if (!event.signupUrl)
     throw new OperationRefusedError(
@@ -361,8 +371,12 @@ function checkInvitation(invitation: InvitationParams): void {
  * generic invitation, or both, with patch semantics (an omitted half is left
  * as it is, `null` clears it).
  *
- * The event must be one of the campus's own, not past its first day, and carry
- * a sign-up form; its words and picture are its own (`write_event_config`).
+ * The event must be one of the campus's own, not past its first day, named and
+ * with a sign-up form; its words and picture are its own (`write_event_config`).
+ * It is checked only when it changes: the one the campus already points at is
+ * accepted again as it is, even past its first day, so a call repeated or a
+ * read sent back is never refused for an event the write did not move; the read
+ * (`config_talent_home`) says why it no longer shows.
  * The invitation is whole or absent (title, text and link), with an optional
  * button label and picture; omitting the picture removes it, and clearing the
  * invitation removes it too. A row left with neither half is deleted.
@@ -385,8 +399,6 @@ export async function writeTalentHomeHighlight(
     throw new OperationRefusedError(
       "Rien à changer : passez eventId (l'événement mis en avant, null pour le retirer), invitation (l'invitation générique, null pour la retirer), ou les deux.",
     );
-  if (typeof eventId === 'string')
-    await checkHighlightedEvent(campus, eventId, now);
   if (invitation) checkInvitation(invitation);
 
   /**
@@ -398,6 +410,8 @@ export async function writeTalentHomeHighlight(
       where: { campusId: campus.id },
       select: HIGHLIGHT_SELECT,
     });
+    if (typeof eventId === 'string' && eventId !== before?.eventId)
+      await checkHighlightedEvent(tx, campus, eventId, now);
     const nextEventId =
       eventId === undefined ? (before?.eventId ?? null) : eventId;
     const words =
