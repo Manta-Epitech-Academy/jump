@@ -50,3 +50,15 @@ export function inkOn(fill: string): FillInk {
     ? 'light'
     : 'dark';
 }
+
+/**
+ * How an event with no category is painted wherever events wear their
+ * category's colour (the campus calendar, the talent's parcours): the theme's
+ * muted ink, so it reads as « no kind chosen » rather than as one more kind,
+ * with the background as the ink on it. Theme tokens, unlike a category's
+ * `#rrggbb`, so it follows dark mode.
+ */
+export const UNCATEGORISED_FILL = {
+  color: 'var(--muted-foreground)',
+  ink: 'var(--background)',
+} as const;
