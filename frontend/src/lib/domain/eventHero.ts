@@ -81,17 +81,31 @@ export const HERO_DEFAULT_BUTTON: Record<EventHeroStage, string> = {
 };
 export const HERO_DEFAULT_ENROLLED_TITLE = 'On a hâte de te voir';
 
-/** The words one stage of an event's hero shows, written or by default. */
+/**
+ * The words one stage of an event's hero shows, written or by default. Only the
+ * invitation titles itself with the event's name by default, so only it takes
+ * one: an invitation is always to a named event (`HighlightedEvent`), while an
+ * event a talent is enrolled in may have no public name.
+ */
+export function heroCopy(
+  stage: 'invitation',
+  written: HeroCopyWritten | null,
+  event: { name: string },
+): HeroCopy;
+export function heroCopy(
+  stage: 'enrolled' | 'live',
+  written: HeroCopyWritten | null,
+): HeroCopy;
 export function heroCopy(
   stage: EventHeroStage,
   written: HeroCopyWritten | null,
-  event: { name: string },
+  event?: { name: string },
 ): HeroCopy {
   const buttonLabel = written?.buttonLabel ?? HERO_DEFAULT_BUTTON[stage];
   switch (stage) {
     case 'invitation':
       return {
-        title: written?.title ?? event.name,
+        title: written?.title ?? event?.name ?? null,
         text: written?.text ?? HERO_DEFAULT_INVITATION_TEXT,
         buttonLabel,
       };
@@ -118,6 +132,12 @@ export function heroCopy(
  * whichever they like.
  */
 export const HERO_DEFAULT_CHOICE_TITLE = 'À toi de choisir';
+
+/**
+ * The title of a running event's hero when it wrote none, offers no subject at
+ * this moment, and has no public name to stand in their place.
+ */
+export const HERO_DEFAULT_LIVE_TITLE = 'C’est le jour J';
 
 /**
  * « 3 sujets te sont proposés ce matin : commence par celui qui te tente. »
@@ -148,11 +168,11 @@ export type LiveHeroHeader = {
  * The header of a running event's hero. What the event wrote leads; failing
  * that, one subject titles the hero with its name and line (the mockup), a
  * choice is named as a choice, and with nothing offered at this moment the
- * event's own name stands.
+ * event's public name stands, or the day itself when it has none.
  */
 export function liveHeroHeader(
   copy: Pick<HeroCopy, 'title' | 'text'>,
-  eventName: string,
+  eventName: string | null,
   subjects: {
     label: string;
     slot: PresenceSlot | null;
@@ -177,7 +197,11 @@ export function liveHeroHeader(
       subjectIsHeader: false,
     };
   }
-  return { title: eventName, text: copy.text, subjectIsHeader: false };
+  return {
+    title: eventName ?? HERO_DEFAULT_LIVE_TITLE,
+    text: copy.text,
+    subjectIsHeader: false,
+  };
 }
 
 /** Where an event takes place, as the hero and the calendar file say it. */

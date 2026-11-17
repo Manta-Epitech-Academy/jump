@@ -121,7 +121,7 @@
             class="size-2 shrink-0 rounded-full bg-epi-tech ring-3 ring-epi-tech/25"
             aria-hidden="true"
           ></span>
-          En ce moment · {hero.event.name}
+          En ce moment{hero.event.name ? ` · ${hero.event.name}` : ''}
         </p>
       {:else}
         <p class="epi-overline text-white/80">À continuer chez toi</p>

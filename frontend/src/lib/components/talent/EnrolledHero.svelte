@@ -14,8 +14,10 @@
   // « inscris-toi » to someone already expected, but how many days are left,
   // the day and time they are expected, where, and a way to put it in their
   // own calendar that goes through no outside service (the calendar file is
-  // Jump's own, `routes/(talent)/agenda/[eventId]`). Its name is always shown
-  // (AC4), under the words the event wrote for this stage or the mockup's.
+  // Jump's own, `routes/(talent)/agenda/[eventId]`). Its public name is shown
+  // (AC4) under the words the event wrote for this stage or the mockup's; an
+  // event with none is not named, never by its Salesforce title, and its drawn
+  // visual names the campus instead.
   let { hero }: { hero: Extract<HomeHero, { kind: 'enrolled' }> } = $props();
 
   let broken = $state(false);
@@ -43,7 +45,9 @@
           >
             {hero.copy.title}<TitleCursor />
           </h2>
-          <p class="text-base font-bold text-white">{hero.event.name}</p>
+          {#if hero.event.name}
+            <p class="text-base font-bold text-white">{hero.event.name}</p>
+          {/if}
           {#if hero.copy.text}
             <p class="max-w-prose text-sm text-white/80">{hero.copy.text}</p>
           {/if}
@@ -58,7 +62,7 @@
           />
         {:else}
           <EventVisual
-            name={hero.event.name}
+            name={hero.event.name ?? hero.event.campusName}
             categoryColor={hero.event.categoryColor}
           />
         {/if}

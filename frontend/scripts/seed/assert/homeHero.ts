@@ -8,7 +8,7 @@
  * rows in bulk with the client the check pass is given, and hands them to the
  * same domain functions the services do: `selectWorkshopOfferings` and
  * `isOfferedNow` for the subjects, `heroEventPhase` for what is over,
- * `isInvitationOpen` for the campus's event, and `pickHomeHero` for the
+ * `pointedEventShown` for the campus's event, and `pickHomeHero` for the
  * choice. What it restates is the selection of rows, not a rule.
  *
  * Only what decides the KIND of hero is read: words and pictures change how a
@@ -16,7 +16,7 @@
  */
 
 import type { PrismaClient } from '@prisma/client';
-import { eventDisplayName } from '../../../src/lib/domain/event';
+import { eventPublicName } from '../../../src/lib/domain/event';
 import {
   getEventStatus,
   getLifecycleBounds,
@@ -26,7 +26,7 @@ import { campusClock, toDateKey } from '../../../src/lib/domain/planningTime';
 import {
   heroEventPhase,
   homeHeroState,
-  isInvitationOpen,
+  pointedEventShown,
   pickHomeHero,
   type EnrolledEvent,
   type HomeHeroState,
@@ -107,14 +107,15 @@ export async function seededHomeHeroStates(
   const highlightByCampus = new Map<string, TalentHomeHighlight>();
   for (const row of highlights) {
     const pointed = row.event;
-    const event =
+    const shown =
       pointed &&
-      pointed.campusId === row.campusId &&
-      pointed.signupUrl &&
-      isInvitationOpen(pointed, row.campus.timezone, now)
+      pointedEventShown(row.campusId, row.campus.timezone, pointed, now);
+    const event =
+      pointed && shown && shown.shown
         ? {
             ...heroEvent(pointed),
-            signupUrl: pointed.signupUrl,
+            name: shown.name,
+            signupUrl: shown.signupUrl,
             copy: null,
             image: null,
           }
@@ -235,7 +236,7 @@ function heroEvent(event: {
   const timezone = event.campus.timezone;
   return {
     id: event.id,
-    name: eventDisplayName(event),
+    name: eventPublicName(event),
     date: toDateKey(event.date, timezone),
     endDate: event.endDate && toDateKey(event.endDate, timezone),
     startMinutes: event.startMinutes,

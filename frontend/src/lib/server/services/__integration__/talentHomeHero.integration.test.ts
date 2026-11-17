@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { fromWallClock } from '$lib/domain/planningTime';
 import {
+  UNNAMED_EVENT_CALENDAR_NAME,
   enrolledEventCalendar,
   listEnrolledHeroEvents,
   loadHomeHero,
@@ -191,6 +192,36 @@ describe('the talent home hero (integration)', () => {
       description: 'Accueil à 10h00',
     });
     expect(await enrolledEventCalendar(enrolledTalent, stageId)).toBeNull();
+  });
+
+  // A campaign title is an internal label (8de24153): an event with no public
+  // name is not named on the home, nor in the talent's calendar.
+  it('never names an event by its Salesforce title', async () => {
+    const talentId = (
+      await prisma.talent.create({ data: { prenom: 'Noa', nom: 'Hero' } })
+    ).id;
+    const unnamedId = (
+      await prisma.event.create({
+        data: {
+          titre: `Paris-2026-11-20-CodingClub-${stamp}`,
+          campusId,
+          date: parisDay('2026-11-20'),
+        },
+      })
+    ).id;
+    try {
+      await enrol(talentId, unnamedId);
+      const { hero } = await loadHomeHero(talentId, campusId, NOW);
+      expect(hero).toMatchObject({
+        kind: 'enrolled',
+        event: { id: unnamedId, name: null },
+      });
+      expect(await enrolledEventCalendar(talentId, unnamedId)).toMatchObject({
+        name: UNNAMED_EVENT_CALENDAR_NAME,
+      });
+    } finally {
+      await prisma.talent.deleteMany({ where: { id: talentId } });
+    }
   });
 
   it('switches to « enrolled » once Salesforce sends the enrolment', async () => {

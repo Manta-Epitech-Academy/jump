@@ -8,18 +8,17 @@
  * words), never derived; this reads them for the campus the request hooks
  * resolved, renders the note through `renderAuthoredMarkdown`, drawing each
  * picture it names from Jump's copy and never from the address written, and
- * keeps the highlighted event only while it still invites (`isInvitationOpen`)
- * and only if it is still this campus's. What the home's blue hero then
+ * keeps the highlighted event only while it still shows (`pointedEventShown`:
+ * still this campus's, named, with a sign-up form, and still inviting). What the home's blue hero then
  * suggests is one pure rule, `pickHomeHero` in `domain/talentHome.ts`.
  */
 import { prisma } from '$lib/server/db';
 import type { ShownPicture } from '$lib/domain/pictures';
 import { renderAuthoredMarkdown } from '$lib/markdown';
 import { toDateKey } from '$lib/domain/planningTime';
-import { eventDisplayName } from '$lib/domain/event';
 import {
   talentHomeImageUrl,
-  isInvitationOpen,
+  pointedEventShown,
   type HighlightedEvent,
   type TalentHome,
 } from '$lib/domain/talentHome';
@@ -101,7 +100,6 @@ export async function getTalentHome(
           event: {
             select: {
               id: true,
-              titre: true,
               publicName: true,
               date: true,
               endDate: true,
@@ -130,24 +128,22 @@ export async function getTalentHome(
   const pointed = row?.event;
   // The event's campus is checked here rather than bound by a key
   // (`TalentHome_Highlight.eventId`): Salesforce may have moved it since.
-  if (
-    campus &&
-    pointed &&
-    pointed.campusId === campusId &&
-    pointed.signupUrl &&
-    isInvitationOpen(pointed, campus.timezone, now)
-  ) {
+  const shown =
+    campus && pointed
+      ? pointedEventShown(campusId, campus.timezone, pointed, now)
+      : null;
+  if (campus && pointed && shown?.shown) {
     const written = pointed.heroes[0] ?? null;
     event = {
       id: pointed.id,
-      name: eventDisplayName(pointed),
+      name: shown.name,
       date: toDateKey(pointed.date, campus.timezone),
       endDate: pointed.endDate && toDateKey(pointed.endDate, campus.timezone),
       startMinutes: pointed.startMinutes,
       campusName: campus.name,
       timezone: campus.timezone,
       categoryColor: pointed.category?.color ?? null,
-      signupUrl: pointed.signupUrl,
+      signupUrl: shown.signupUrl,
       copy: written && {
         title: written.title,
         text: written.text,

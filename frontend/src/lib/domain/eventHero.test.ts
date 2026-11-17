@@ -7,6 +7,7 @@ import {
   eventHeroImageKeyFromPath,
   eventHeroImageUrl,
   HERO_DEFAULT_CHOICE_TITLE,
+  HERO_DEFAULT_LIVE_TITLE,
   eventPlace,
   eventVisualAccent,
   heroChoiceText,
@@ -25,12 +26,12 @@ describe('heroCopy', () => {
       text: HERO_DEFAULT_INVITATION_TEXT,
       buttonLabel: HERO_DEFAULT_BUTTON.invitation,
     });
-    expect(heroCopy('enrolled', null, event)).toEqual({
+    expect(heroCopy('enrolled', null)).toEqual({
       title: HERO_DEFAULT_ENROLLED_TITLE,
       text: null,
       buttonLabel: 'Ajouter à mon agenda',
     });
-    expect(heroCopy('live', null, event)).toEqual({
+    expect(heroCopy('live', null)).toEqual({
       title: null,
       text: null,
       buttonLabel: 'Accéder au sujet',
@@ -55,11 +56,11 @@ describe('heroCopy', () => {
       buttonLabel: 'Je viens',
     });
     expect(
-      heroCopy(
-        'live',
-        { title: 'Trois sujets au choix', text: null, buttonLabel: null },
-        event,
-      ),
+      heroCopy('live', {
+        title: 'Trois sujets au choix',
+        text: null,
+        buttonLabel: null,
+      }),
     ).toEqual({
       title: 'Trois sujets au choix',
       text: null,
@@ -140,6 +141,15 @@ describe('liveHeroHeader', () => {
   it('stands on the event name when nothing is offered at this moment', () => {
     expect(liveHeroHeader(unwritten, 'Halloween Camp', [])).toEqual({
       title: 'Halloween Camp',
+      text: null,
+      subjectIsHeader: false,
+    });
+  });
+
+  // Never the Salesforce title in its place (8de24153).
+  it('names the day when the event has no public name', () => {
+    expect(liveHeroHeader(unwritten, null, [])).toEqual({
+      title: HERO_DEFAULT_LIVE_TITLE,
       text: null,
       subjectIsHeader: false,
     });

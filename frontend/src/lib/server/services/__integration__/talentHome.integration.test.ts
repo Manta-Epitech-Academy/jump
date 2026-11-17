@@ -193,7 +193,9 @@ describe('the campus content on a talent’s home (integration)', () => {
       (
         await prisma.event.create({
           data: {
+            // Named the way an event a campus puts forward has to be.
             titre: data.titre,
+            publicName: data.titre,
             date: new Date(Date.now() + data.offset * DAY),
             campusId: data.campusId,
             signupUrl: data.signupUrl,

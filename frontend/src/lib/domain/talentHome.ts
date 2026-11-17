@@ -1,6 +1,6 @@
 import { fromWallClock, toDateKey, type DateKey } from './planningTime';
 import { dateKeyParts, dateKeyToDbDate } from './eventPresence';
-import { minutesToHHMM } from './event';
+import { eventPublicName, minutesToHHMM } from './event';
 import { isActivityFinished, type WorkshopActivity } from './workshops';
 import {
   heroCopy,
@@ -37,8 +37,11 @@ export const TALENT_HOME_NOTE_MAX_IMAGES = 10;
  */
 export type HeroEvent = {
   id: string;
-  /** `eventDisplayName`: its public name, else its Salesforce one. */
-  name: string;
+  /**
+   * `eventPublicName`: its public name, or null when it has none, in which case
+   * the hero does not name it. Never its Salesforce `titre`.
+   */
+  name: string | null;
   /** Its first and last day on the campus clock; `endDate` null for one day. */
   date: DateKey;
   endDate: DateKey | null;
@@ -58,6 +61,8 @@ export type HeroEvent = {
  * question, not this one's.
  */
 export type HighlightedEvent = HeroEvent & {
+  /** Always named: a campus only puts forward an event with a public name. */
+  name: string;
   signupUrl: string;
   /** What the event wrote for its invitation stage, null for the defaults. */
   copy: HeroCopyWritten | null;
@@ -113,6 +118,52 @@ export function isInvitationOpen(
   now: Date,
 ): boolean {
   return toDateKey(event.date, timezone) >= toDateKey(now, timezone);
+}
+
+/**
+ * Whether the event a campus points at shows on its talents' home, with what
+ * it shows under, or why it does not. One rule for the talent's home
+ * (`getTalentHome`) and for the admin read of it (`config_talent_home`), so
+ * the answer cannot claim an event the home hides. Each condition is checked
+ * when the campus points at the event (`write_talent_home_highlight`); this
+ * reads what has moved since: Salesforce may move the event to another campus,
+ * and its first day passes.
+ */
+export function pointedEventShown(
+  campusId: string,
+  timezone: string,
+  event: {
+    campusId: string;
+    date: Date;
+    publicName: string | null;
+    signupUrl: string | null;
+  },
+  now: Date,
+):
+  | { shown: true; name: string; signupUrl: string }
+  | { shown: false; because: string } {
+  const name = eventPublicName(event);
+  if (event.campusId !== campusId)
+    return {
+      shown: false,
+      because: "L'événement a été déplacé sur un autre campus dans Salesforce.",
+    };
+  if (!name)
+    return {
+      shown: false,
+      because: "L'événement n'a plus de nom public (publicName).",
+    };
+  if (!event.signupUrl)
+    return {
+      shown: false,
+      because: "L'événement n'a plus de formulaire d'inscription (signupUrl).",
+    };
+  if (!isInvitationOpen(event, timezone, now))
+    return {
+      shown: false,
+      because: 'Son premier jour est passé : on ne peut plus s’y inscrire.',
+    };
+  return { shown: true, name, signupUrl: event.signupUrl };
 }
 
 /**
@@ -380,7 +431,7 @@ export function pickHomeHero({
     return {
       kind: 'live',
       event: live.event,
-      copy: heroCopy('live', live.event.live.copy, live.event),
+      copy: heroCopy('live', live.event.live.copy),
       subjects: live.subjects,
     };
   }
@@ -393,7 +444,7 @@ export function pickHomeHero({
     return {
       kind: 'enrolled',
       event,
-      copy: heroCopy('enrolled', event.enrolled.copy, event),
+      copy: heroCopy('enrolled', event.enrolled.copy),
       image: event.enrolled.image,
       countdownDays: calendarDaysBetween(
         toDateKey(now, event.timezone),

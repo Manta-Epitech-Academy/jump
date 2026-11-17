@@ -13,7 +13,7 @@
  */
 import { prisma } from '$lib/server/db';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { eventDisplayName } from '$lib/domain/event';
+import { eventPublicName } from '$lib/domain/event';
 import { toDateKey } from '$lib/domain/planningTime';
 import {
   arrivalLabel,
@@ -61,7 +61,6 @@ export async function listEnrolledHeroEvents(
       event: {
         select: {
           id: true,
-          titre: true,
           publicName: true,
           date: true,
           endDate: true,
@@ -109,7 +108,7 @@ export async function listEnrolledHeroEvents(
       const picture = stage('enrolled')?.image;
       return {
         id: event.id,
-        name: eventDisplayName(event),
+        name: eventPublicName(event),
         date: toDateKey(event.date, timezone),
         endDate: event.endDate && toDateKey(event.endDate, timezone),
         startMinutes: event.startMinutes,
@@ -153,6 +152,13 @@ export async function loadHomeHero(
 }
 
 /**
+ * What a talent's calendar calls an event that has no public name: the hero
+ * does not name it, and the calendar cannot leave it blank. « Epitech », as
+ * Jump's mails sign, never « Epitech Academy », which talents do not know.
+ */
+export const UNNAMED_EVENT_CALENDAR_NAME = 'Événement Epitech';
+
+/**
  * The calendar entry behind the hero's « Ajouter à mon agenda », for an event
  * this talent is enrolled in (an enrolment the dev space shows, the rule the
  * hero offers it under); null for any other event, so nobody downloads an
@@ -168,7 +174,6 @@ export async function enrolledEventCalendar(
       event: {
         select: {
           id: true,
-          titre: true,
           publicName: true,
           date: true,
           endDate: true,
@@ -184,7 +189,7 @@ export async function enrolledEventCalendar(
   const arrival = arrivalLabel(event.startMinutes);
   return {
     id: event.id,
-    name: eventDisplayName(event),
+    name: eventPublicName(event) ?? UNNAMED_EVENT_CALENDAR_NAME,
     date: toDateKey(event.date, timezone),
     endDate: event.endDate && toDateKey(event.endDate, timezone),
     location: eventPlace(event.campus.name),

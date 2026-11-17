@@ -7,6 +7,7 @@ import {
   heroEventPhase,
   isInvitationOpen,
   pickHomeHero,
+  pointedEventShown,
   type EnrolledEvent,
   type HighlightedEvent,
   type TalentHomeHighlight,
@@ -55,6 +56,41 @@ describe('isInvitationOpen', () => {
         new Date('2026-10-14T19:30:00Z'),
       ),
     ).toBe(true);
+  });
+});
+
+describe('pointedEventShown', () => {
+  const pointed = {
+    campusId: 'paris',
+    ...startsOn('2026-10-13T22:00:00Z'),
+    publicName: 'Halloween Camp',
+    signupUrl: 'https://www.epitech.invalid/inscription',
+  };
+  const before = new Date('2026-10-01T08:00:00Z');
+
+  it('shows a named event of the campus, with a form, still inviting', () => {
+    expect(pointedEventShown('paris', 'Europe/Paris', pointed, before)).toEqual(
+      {
+        shown: true,
+        name: 'Halloween Camp',
+        signupUrl: 'https://www.epitech.invalid/inscription',
+      },
+    );
+  });
+
+  // An unnamed event would invite under its Salesforce title (8de24153).
+  it('hides an event with no public name, and says so', () => {
+    expect(
+      pointedEventShown(
+        'paris',
+        'Europe/Paris',
+        { ...pointed, publicName: '  ' },
+        before,
+      ),
+    ).toEqual({
+      shown: false,
+      because: "L'événement n'a plus de nom public (publicName).",
+    });
   });
 });
 
