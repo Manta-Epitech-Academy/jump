@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { fromWallClock } from '$lib/domain/planningTime';
+import { UNNAMED_EVENT_NAME } from '$lib/domain/event';
 import {
-  UNNAMED_EVENT_CALENDAR_NAME,
   enrolledEventCalendar,
   listEnrolledHeroEvents,
   loadHomeHero,
@@ -217,7 +217,7 @@ describe('the talent home hero (integration)', () => {
         event: { id: unnamedId, name: null },
       });
       expect(await enrolledEventCalendar(talentId, unnamedId)).toMatchObject({
-        name: UNNAMED_EVENT_CALENDAR_NAME,
+        name: UNNAMED_EVENT_NAME,
       });
     } finally {
       await prisma.talent.deleteMany({ where: { id: talentId } });

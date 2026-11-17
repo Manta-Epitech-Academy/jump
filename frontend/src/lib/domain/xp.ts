@@ -157,6 +157,21 @@ const JUMP_LEVEL_TIERS: Record<
   },
 };
 
+export type LevelStep = {
+  level: JumpLevel;
+  min: number;
+  tone: LevelTone;
+  tagline: string;
+};
+
+/**
+ * Every level, lowest first, with where it starts, its colour and its line:
+ * what Mon parcours lists when a talent asks what the levels are.
+ */
+export function levelLadder(): LevelStep[] {
+  return JUMP_LEVELS.map((level) => ({ level, ...JUMP_LEVEL_TIERS[level] }));
+}
+
 /** The level after `level`, or null at the top. */
 function nextLevel(level: JumpLevel): JumpLevel | null {
   return JUMP_LEVELS[JUMP_LEVELS.indexOf(level) + 1] ?? null;
