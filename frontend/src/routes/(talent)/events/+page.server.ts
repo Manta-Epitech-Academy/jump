@@ -1,17 +1,10 @@
 import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
-import { getBrowserTimezone } from '$lib/server/db/scoped';
-import { listAttendedEvents } from '$lib/server/talent/attendedEvents';
+import { redirect } from '@sveltejs/kit';
+import { resolve } from '$app/paths';
 
-export const load: PageServerLoad = async ({ locals, cookies }) => {
-  if (!locals.talent) {
-    throw error(401, 'Non autorisé');
-  }
-
-  // Resolve the talent's own zone (`tz` cookie, Europe/Paris fallback) and hand
-  // it to the page so SSR and the browser group the timeline by the same month.
-  const timeZone = getBrowserTimezone(cookies);
-  const pastEvents = await listAttendedEvents(locals.talent.id, { timeZone });
-
-  return { pastEvents, timeZone };
+// Legacy path. The list of past events became part of « Mon parcours », which
+// tells every event with its activities and XP (#445). Kept as a permanent
+// redirect so bookmarks and links already sent keep working.
+export const load: PageServerLoad = async () => {
+  throw redirect(301, resolve('/parcours'));
 };

@@ -524,14 +524,14 @@ describe('the figures the two stores must agree on', () => {
     await prisma.usage_FeatureUse.createMany({
       data: [
         {
-          feature: USAGE_FEATURES.TALENT_EVENTS_VIEW,
+          feature: USAGE_FEATURES.TALENT_LEADERBOARD_VIEW,
           actorKind: 'talent' as const,
           actorHash: hashFor(300),
           campusId: campusB,
           occurredAt: RECORDED_AT,
         },
         {
-          feature: USAGE_FEATURES.TALENT_EVENTS_VIEW,
+          feature: USAGE_FEATURES.TALENT_LEADERBOARD_VIEW,
           actorKind: 'talent' as const,
           actorHash: hashFor(301),
           campusId: campusB,
@@ -542,7 +542,7 @@ describe('the figures the two stores must agree on', () => {
 
     const answer = await getFeatureUsage({}, { days: 90 });
     const row = answer.fonctionnalites.value.find(
-      (r) => r.feature === USAGE_FEATURES.TALENT_EVENTS_VIEW,
+      (r) => r.feature === USAGE_FEATURES.TALENT_LEADERBOARD_VIEW,
     );
     expect(row?.utilisations).toBe(2);
     expect(row?.acteursDistinctsMoisDePointe).toBe(1);
@@ -563,10 +563,10 @@ describe('the figures the two stores must agree on', () => {
     // This operation answered unmasked because the floor sat at one call site.
     const answer = await getFeatureUsage(
       { campus: { id: campusB, name: CAMPUS_B } },
-      { days: 90, feature: USAGE_FEATURES.TALENT_EVENTS_VIEW },
+      { days: 90, feature: USAGE_FEATURES.TALENT_LEADERBOARD_VIEW },
     );
     const row = answer.fonctionnalites.value.find(
-      (r) => r.feature === USAGE_FEATURES.TALENT_EVENTS_VIEW,
+      (r) => r.feature === USAGE_FEATURES.TALENT_LEADERBOARD_VIEW,
     );
     expect(row?.acteursDistinctsMoisDePointe).toBeNull();
     // Masked with the count, or it would hand the count straight back.
@@ -710,7 +710,7 @@ describe('the figures the two stores must agree on', () => {
   it('applies the disclosure floor on the cube path too', async () => {
     const answer = await getCampusFeatureCoverage(
       { schoolYear: SCHOOL_YEAR },
-      { feature: USAGE_FEATURES.TALENT_EVENTS_VIEW },
+      { feature: USAGE_FEATURES.TALENT_LEADERBOARD_VIEW },
       LATER,
     );
     const b = answer.campus.value.find((r) => r.campus === CAMPUS_B);
@@ -866,7 +866,7 @@ describe('the figures the two stores must agree on', () => {
     // has nothing over it. That pair is the whole subject here.
     await prisma.usage_FeatureMonthly.create({
       data: {
-        feature: USAGE_FEATURES.TALENT_EVENTS_VIEW,
+        feature: USAGE_FEATURES.TALENT_LEADERBOARD_VIEW,
         actorKind: 'talent',
         campusId: campusA,
         month: reference[0],

@@ -11,6 +11,7 @@
  * Every day and hour is read on the event's own campus clock, never on the
  * browser's.
  */
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import { eventPublicName, UNNAMED_EVENT_NAME } from '$lib/domain/event';
@@ -38,6 +39,30 @@ import { shownEventHeroPicture } from './eventHeroImages';
 const ENDED_SLACK_MS = 36 * 60 * 60 * 1000;
 
 /**
+ * The talent's enrolments that count as « inscrit » (shown in the dev space)
+ * on an event that may not be over yet. Coarse on purpose: whether it is over
+ * is read on the event's campus clock (`heroEventPhase`), which a `where`
+ * cannot do. Shared by the home hero and Mon parcours, so both say « inscrit »
+ * about the same events.
+ */
+export function enrolledNotOverWhere(
+  talentId: string,
+  now: Date,
+): Prisma.ParticipationWhereInput {
+  const since = new Date(now.getTime() - ENDED_SLACK_MS);
+  return {
+    talentId,
+    ...visibleParticipationWhere,
+    event: {
+      OR: [
+        { endDate: { gte: since } },
+        { endDate: null, date: { gte: since } },
+      ],
+    },
+  };
+}
+
+/**
  * The talent's shown enrolments whose event is not over on its campus clock,
  * with what each event wrote for the stages an enrolled talent sees.
  */
@@ -45,18 +70,8 @@ export async function listEnrolledHeroEvents(
   talentId: string,
   now: Date = new Date(),
 ): Promise<EnrolledEvent[]> {
-  const since = new Date(now.getTime() - ENDED_SLACK_MS);
   const enrolments = await prisma.participation.findMany({
-    where: {
-      talentId,
-      ...visibleParticipationWhere,
-      event: {
-        OR: [
-          { endDate: { gte: since } },
-          { endDate: null, date: { gte: since } },
-        ],
-      },
-    },
+    where: enrolledNotOverWhere(talentId, now),
     select: {
       event: {
         select: {

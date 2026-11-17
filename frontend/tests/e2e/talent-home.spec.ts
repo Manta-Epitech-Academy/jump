@@ -79,9 +79,14 @@ test.describe('un talent dont l’événement a lieu aujourd’hui', () => {
     await expect(
       page.getByRole('heading', { name: 'Mon parcours' }),
     ).toBeVisible();
+    // Every activity offered sits under its event, with its way in (#445).
+    const journey = page.getByRole('region', { name: 'Tes événements' });
+    await expect(journey).toContainText(E2E.workshopLabel);
     await expect(
-      page.getByRole('region', { name: /Activités à faire/ }),
-    ).toContainText(E2E.workshopLabel);
+      journey.getByRole('button', {
+        name: new RegExp(`${E2E.workshopLabel} \\(nouvel onglet\\)`),
+      }),
+    ).toBeVisible();
   });
 });
 
