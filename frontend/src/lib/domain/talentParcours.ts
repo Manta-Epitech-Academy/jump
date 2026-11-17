@@ -1,7 +1,7 @@
 import { dateKeyParts } from './eventPresence';
 import { eventPublicName, UNNAMED_EVENT_NAME } from './event';
-import type { DateKey } from './planningTime';
-import { heroEventPhase } from './talentHome';
+import { toDateKey, type DateKey } from './planningTime';
+import { eventDaysLabel, heroEventPhase } from './talentHome';
 import { isActivityFinished, type WorkshopActivity } from './workshops';
 
 // « Mon parcours » (#445): a talent's journey told event by event, newest
@@ -38,13 +38,23 @@ export type ParcoursEarned = {
 /** What the talent can do with an activity from the parcours. */
 export type ParcoursActivityAction = 'start' | 'continue';
 
+/**
+ * An activity the talent can still walk, with what makes it worth walking:
+ * the offering itself (`WorkshopActivity`: its cover, its tagline, its steps)
+ * and the way in. A finished one is a memory and carries none.
+ */
+export type ParcoursActivityNext = {
+  action: ParcoursActivityAction;
+  activity: WorkshopActivity;
+};
+
 export type ParcoursActivity = {
   slug: string;
   label: string;
   /** XP it earned; null for an activity not started yet. */
   xp: number | null;
   /** Null once finished, or when it is no longer offered. */
-  action: ParcoursActivityAction | null;
+  next: ParcoursActivityNext | null;
 };
 
 /**
@@ -56,7 +66,11 @@ export type ParcoursPhase = 'past' | 'live' | 'upcoming';
 export type ParcoursEvent = {
   id: string;
   name: string;
-  /** « 04/04/26 », « 15-26/06/26 » (`parcoursDaysLabel`). */
+  /**
+   * Its days in the talent's words (`eventDaysLabel`): the year only when it
+   * is not the one the reader has in mind, the current one for what is ahead
+   * and the heading's for what is over.
+   */
   days: string;
   phase: ParcoursPhase;
   /** Its category's `#rrggbb`; null when it has none. */
@@ -65,35 +79,15 @@ export type ParcoursEvent = {
   activities: ParcoursActivity[];
 };
 
+/** A stretch of the journey under one year's heading. */
+export type ParcoursYear = { year: number; events: ParcoursEvent[] };
+
 export type Parcours = {
   /** What is running, then what comes next, soonest first. */
   ahead: ParcoursEvent[];
-  /** What is over, newest first. */
-  past: ParcoursEvent[];
+  /** What is over, by year, newest first, each event under the year it began. */
+  past: ParcoursYear[];
 };
-
-/**
- * The days an event ran, short, as the mockup writes them down a timeline:
- * « 04/04/26 », « 15-26/06/26 », « 30/06-02/07/26 », « 29/12/26-02/01/27 ».
- * Read off the keys, so no clock can shift a day.
- */
-export function parcoursDaysLabel(
-  date: DateKey,
-  endDate: DateKey | null,
-): string {
-  const two = (n: number) => String(n).padStart(2, '0');
-  const from = dateKeyParts(date);
-  const day = (p: { day: number }) => two(p.day);
-  const dayMonth = (p: { day: number; month: number }) =>
-    `${two(p.day)}/${two(p.month)}`;
-  const full = (p: { day: number; month: number; year: number }) =>
-    `${dayMonth(p)}/${two(p.year % 100)}`;
-  if (!endDate || endDate === date) return full(from);
-  const to = dateKeyParts(endDate);
-  if (from.year !== to.year) return `${full(from)}-${full(to)}`;
-  if (from.month !== to.month) return `${dayMonth(from)}-${full(to)}`;
-  return `${day(from)}-${full(to)}`;
-}
 
 /**
  * Arrange a talent's journey.
@@ -140,7 +134,10 @@ export function buildParcours({
       // The event's own wording while it offers it, the catalogue's after.
       label: still?.label ?? grant.label,
       xp: grant.xp,
-      action: still && !isActivityFinished(still) ? 'continue' : null,
+      next:
+        still && !isActivityFinished(still)
+          ? { action: 'continue', activity: still }
+          : null,
     });
   }
   for (const activity of offered) {
@@ -150,7 +147,7 @@ export function buildParcours({
       slug: activity.slug,
       label: activity.label,
       xp: null,
-      action: activity.startedAt ? 'continue' : 'start',
+      next: { action: activity.startedAt ? 'continue' : 'start', activity },
     });
   }
 
@@ -160,11 +157,16 @@ export function buildParcours({
     const facts = events.get(id);
     if (!facts) continue;
     const phase = heroEventPhase(facts, now, false);
+    const started = dateKeyParts(facts.date).year;
+    const thisYear = dateKeyParts(toDateKey(now, facts.timezone)).year;
     steps.push({
       facts,
       id,
       name: eventPublicName(facts) ?? UNNAMED_EVENT_NAME,
-      days: parcoursDaysLabel(facts.date, facts.endDate),
+      days: eventDaysLabel(facts.date, facts.endDate, {
+        knownYear: phase === 'ended' ? started : thisYear,
+        weekday: phase !== 'ended',
+      }),
       phase: phase === 'ended' ? 'past' : phase,
       color: facts.category?.color ?? null,
       keyEvent: facts.category?.keyEvent ?? false,
@@ -187,9 +189,21 @@ export function buildParcours({
           byStart(a.facts, b.facts),
       )
       .map(strip),
-    past: steps
-      .filter((s) => s.phase === 'past')
-      .sort((a, b) => byStart(b.facts, a.facts))
-      .map(strip),
+    past: byYear(
+      steps
+        .filter((s) => s.phase === 'past')
+        .sort((a, b) => byStart(b.facts, a.facts)),
+    ),
   };
+
+  function byYear(sorted: typeof steps): ParcoursYear[] {
+    const years: ParcoursYear[] = [];
+    for (const step of sorted) {
+      const year = dateKeyParts(step.facts.date).year;
+      const last = years.at(-1);
+      if (last?.year === year) last.events.push(strip(step));
+      else years.push({ year, events: [strip(step)] });
+    }
+    return years;
+  }
 }

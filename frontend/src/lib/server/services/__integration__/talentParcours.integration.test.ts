@@ -134,14 +134,16 @@ describe('loadTalentParcours', () => {
   });
 
   it('tells the visits the dev space counts, and the events of an activity, never a non-activated one', async () => {
-    const { past } = await loadTalentParcours(talentId, NOW);
+    const past = (await loadTalentParcours(talentId, NOW)).past.flatMap(
+      (stretch) => stretch.events,
+    );
     expect(past.map((e) => e.id)).toEqual([ids.club, ids.stage]);
     expect(past[0].activities).toEqual([
-      { slug, label: 'PyPong', xp: 60, action: null },
+      { slug, label: 'PyPong', xp: 60, next: null },
     ]);
     expect(past[1]).toMatchObject({
       name: 'Parcours stage',
-      days: '15/06/26',
+      days: '15 juin',
       color: '#ff1ef7',
       keyEvent: true,
     });

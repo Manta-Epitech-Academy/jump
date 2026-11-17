@@ -3,7 +3,7 @@ import {
   arrivalLabel,
   calendarDaysBetween,
   countdownLabel,
-  heroDaysLabel,
+  eventDaysLabel,
   heroEventPhase,
   isInvitationOpen,
   pickHomeHero,
@@ -151,24 +151,30 @@ describe('the hero’s words for days and times', () => {
   });
 
   it('names one day, a range, or a range over two months', () => {
-    expect(heroDaysLabel('2026-10-27', null, '2026-10-16')).toBe(
-      'Mardi 27 octobre',
-    );
-    expect(heroDaysLabel('2026-10-27', '2026-10-30', '2026-10-16')).toBe(
+    const hero = { knownYear: 2026, weekday: true };
+    expect(eventDaysLabel('2026-10-27', null, hero)).toBe('Mardi 27 octobre');
+    expect(eventDaysLabel('2026-10-27', '2026-10-30', hero)).toBe(
       'Du 27 au 30 octobre',
     );
-    expect(heroDaysLabel('2026-10-30', '2026-11-01', '2026-10-16')).toBe(
+    expect(eventDaysLabel('2026-10-30', '2026-11-01', hero)).toBe(
       'Du 30 octobre au 1er novembre',
     );
   });
 
-  it('adds the year only when it is not the current one', () => {
-    expect(heroDaysLabel('2027-01-05', '2027-01-08', '2026-12-20')).toBe(
+  it('adds the year only when it is not the one the reader has in mind', () => {
+    const hero = { knownYear: 2026, weekday: true };
+    expect(eventDaysLabel('2027-01-05', '2027-01-08', hero)).toBe(
       'Du 5 au 8 janvier 2027',
     );
-    expect(heroDaysLabel('2026-12-30', '2027-01-02', '2026-12-20')).toBe(
+    expect(eventDaysLabel('2026-12-30', '2027-01-02', hero)).toBe(
       'Du 30 décembre au 2 janvier 2027',
     );
+  });
+
+  it('names a day without its weekday when asked to', () => {
+    expect(
+      eventDaysLabel('2025-04-04', null, { knownYear: 2025, weekday: false }),
+    ).toBe('4 avril');
   });
 
   it('writes the arrival time the French way, or nothing', () => {

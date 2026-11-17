@@ -345,15 +345,22 @@ const WEEKDAY_FORMAT = new Intl.DateTimeFormat('fr-FR', {
 });
 
 /**
- * The days an event runs, the way the hero says them to a talent: « Mardi 27
- * octobre », « Du 27 au 30 octobre », « Du 30 octobre au 2 novembre ». The
- * year only when it is not the current one on the campus clock (`today`).
+ * The days an event runs, the way a talent reads them everywhere: « 27
+ * octobre », « Du 27 au 30 octobre », « Du 30 octobre au 2 novembre ». One
+ * grammar for the home's hero and Mon parcours, so a talent never learns two.
+ *
+ * - `knownYear` is the year the reader already has in mind: the current one
+ *   on the campus clock for the hero, the year heading a stretch of the
+ *   parcours. A year is written only when it is not that one.
+ * - `weekday` names the day of a one-day event (« Mardi 27 octobre »): useful
+ *   for what is coming, noise for what is over.
+ *
  * Read off the keys, so no clock can shift a day.
  */
-export function heroDaysLabel(
+export function eventDaysLabel(
   date: DateKey,
   endDate: DateKey | null,
-  today: DateKey,
+  { knownYear, weekday }: { knownYear: number; weekday: boolean },
 ): string {
   const part = (key: DateKey) => {
     const { year, day } = dateKeyParts(key);
@@ -363,14 +370,15 @@ export function heroDaysLabel(
       month: MONTH_FORMAT.format(dateKeyToDbDate(key)),
     };
   };
-  const currentYear = dateKeyParts(today).year;
   const start = part(date);
   const end = part(endDate ?? date);
   const year = (p: { year: number }) =>
-    p.year === currentYear ? '' : ` ${p.year}`;
+    p.year === knownYear ? '' : ` ${p.year}`;
   if (date === (endDate ?? date)) {
-    const weekday = WEEKDAY_FORMAT.format(dateKeyToDbDate(date));
-    return `${weekday[0].toUpperCase()}${weekday.slice(1)} ${start.day} ${start.month}${year(start)}`;
+    const day = `${start.day} ${start.month}${year(start)}`;
+    if (!weekday) return day;
+    const name = WEEKDAY_FORMAT.format(dateKeyToDbDate(date));
+    return `${name[0].toUpperCase()}${name.slice(1)} ${day}`;
   }
   if (start.year !== end.year) {
     return `Du ${start.day} ${start.month}${year(start)} au ${end.day} ${end.month}${year(end)}`;

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildParcours,
-  parcoursDaysLabel,
+  type Parcours,
   type ParcoursEventFacts,
 } from './talentParcours';
 import { UNNAMED_EVENT_NAME } from './event';
@@ -44,18 +44,8 @@ const activity = (
 const mapOf = (...events: ParcoursEventFacts[]) =>
   new Map(events.map((e) => [e.id, e]));
 
-describe('parcoursDaysLabel', () => {
-  it('writes one day, a run within a month, across months and across years', () => {
-    expect(parcoursDaysLabel('2026-04-04', null)).toBe('04/04/26');
-    expect(parcoursDaysLabel('2026-06-15', '2026-06-26')).toBe('15-26/06/26');
-    expect(parcoursDaysLabel('2026-06-30', '2026-07-02')).toBe(
-      '30/06-02/07/26',
-    );
-    expect(parcoursDaysLabel('2026-12-29', '2027-01-02')).toBe(
-      '29/12/26-02/01/27',
-    );
-  });
-});
+/** Every past event, newest first, across the year headings. */
+const pastOf = (parcours: Parcours) => parcours.past.flatMap((y) => y.events);
 
 describe('buildParcours', () => {
   it('lists the events the talent came to newest first, each with its activity XP', () => {
@@ -74,13 +64,13 @@ describe('buildParcours', () => {
       offered: [],
     });
     expect(parcours.ahead).toEqual([]);
-    expect(parcours.past.map((e) => [e.id, e.days])).toEqual([
-      ['june', '15-26/06/26'],
-      ['march', '14/03/26'],
+    expect(pastOf(parcours).map((e) => [e.id, e.days])).toEqual([
+      ['june', 'Du 15 au 26 juin'],
+      ['march', '14 mars'],
     ]);
-    expect(parcours.past[0].activities).toEqual([
-      { slug: 'snake', label: 'Snake.js', xp: 900, action: null },
-      { slug: 'osint', label: 'CTF OSINT', xp: 1000, action: null },
+    expect(pastOf(parcours)[0].activities).toEqual([
+      { slug: 'snake', label: 'Snake.js', xp: 900, next: null },
+      { slug: 'osint', label: 'CTF OSINT', xp: 1000, next: null },
     ]);
   });
 
@@ -93,7 +83,7 @@ describe('buildParcours', () => {
       earned: [{ eventId: 'club', slug: 'pong', label: 'PyPong', xp: 60 }],
       offered: [],
     });
-    expect(parcours.past.map((e) => e.id)).toEqual(['club']);
+    expect(pastOf(parcours).map((e) => e.id)).toEqual(['club']);
   });
 
   it('shows an activity once: under its XP while unfinished, never again as to do', () => {
@@ -114,12 +104,28 @@ describe('buildParcours', () => {
         activity('done', 'club', { solvedSteps: 4, startedAt: NOW }),
       ],
     });
-    const [club, camp] = parcours.past;
+    const [club, camp] = pastOf(parcours);
     expect(camp.activities).toEqual([
-      { slug: 'pacman', label: 'Pacman IA', xp: 200, action: 'continue' },
+      {
+        slug: 'pacman',
+        label: 'Pacman IA',
+        xp: 200,
+        next: {
+          action: 'continue',
+          activity: expect.objectContaining({ slug: 'pacman' }),
+        },
+      },
     ]);
     expect(club.activities).toEqual([
-      { slug: 'robob', label: 'robob', xp: null, action: 'start' },
+      {
+        slug: 'robob',
+        label: 'robob',
+        xp: null,
+        next: {
+          action: 'start',
+          activity: expect.objectContaining({ slug: 'robob' }),
+        },
+      },
     ]);
   });
 
@@ -137,12 +143,12 @@ describe('buildParcours', () => {
       earned: [],
       offered: [],
     });
-    expect(parcours.ahead.map((e) => [e.id, e.phase])).toEqual([
-      ['stage', 'live'],
-      ['soon', 'upcoming'],
-      ['later', 'upcoming'],
+    expect(parcours.ahead.map((e) => [e.id, e.phase, e.days])).toEqual([
+      ['stage', 'live', 'Du 16 au 20 novembre'],
+      ['soon', 'upcoming', 'Mercredi 25 novembre'],
+      ['later', 'upcoming', 'Samedi 12 décembre'],
     ]);
-    expect(parcours.past.map((e) => e.id)).toEqual(['before']);
+    expect(pastOf(parcours).map((e) => e.id)).toEqual(['before']);
   });
 
   it('carries the category colour and the key-event mark, and names an unnamed event', () => {
@@ -159,15 +165,36 @@ describe('buildParcours', () => {
       earned: [],
       offered: [],
     });
-    expect(parcours.past[0]).toMatchObject({
+    expect(pastOf(parcours)[0]).toMatchObject({
       color: '#ff1ef7',
       keyEvent: true,
     });
-    expect(parcours.past[1]).toMatchObject({
+    expect(pastOf(parcours)[1]).toMatchObject({
       name: UNNAMED_EVENT_NAME,
       color: null,
       keyEvent: false,
     });
+  });
+
+  it('heads what is over by the year it began, and spells a year only across one', () => {
+    const parcours = buildParcours({
+      now: NOW,
+      events: mapOf(
+        event('club', '2026-02-14'),
+        event('winter', '2025-12-29', { endDate: '2026-01-02' }),
+        event('jpo', '2025-03-08'),
+      ),
+      attended: ['club', 'winter', 'jpo'],
+      enrolled: [],
+      earned: [],
+      offered: [],
+    });
+    expect(
+      parcours.past.map((y) => [y.year, y.events.map((e) => e.days)]),
+    ).toEqual([
+      [2026, ['14 février']],
+      [2025, ['Du 29 décembre au 2 janvier 2026', '8 mars']],
+    ]);
   });
 
   it('draws nothing for an event it was not handed', () => {
