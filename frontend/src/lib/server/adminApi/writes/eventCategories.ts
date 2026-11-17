@@ -4,7 +4,7 @@
  *
  * One write for the entity, with patch semantics like the event's own: a key that
  * does not exist yet creates a category (a label and a colour are then
- * required), and on an existing key only the fields given change. Bounded to the
+ * required, and it is not a key event unless said so), and on an existing key only the fields given change. Bounded to the
  * one named row, sends nothing, and reversible by writing the previous value
  * back, which the audit row keeps.
  *
@@ -34,6 +34,7 @@ export type EventCategoryPatch = {
   label?: string;
   /** `#rrggbb`, any case; stored lowercase. */
   color?: string;
+  keyEvent?: boolean;
   archived?: boolean;
 };
 
@@ -79,7 +80,7 @@ export async function writeEventCategory(
     await refusingRaces(race, () =>
       prisma.eventConfig_Category.update({
         where: { key },
-        data: { label, color, archivedAt },
+        data: { label, color, keyEvent: params.keyEvent, archivedAt },
       }),
     );
   } else {
@@ -90,7 +91,13 @@ export async function writeEventCategory(
     }
     await refusingRaces(race, () =>
       prisma.eventConfig_Category.create({
-        data: { key, label, color, archivedAt },
+        data: {
+          key,
+          label,
+          color,
+          keyEvent: params.keyEvent,
+          archivedAt,
+        },
       }),
     );
   }

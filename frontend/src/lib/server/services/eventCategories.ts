@@ -15,6 +15,7 @@ export const EVENT_CATEGORY_TAG_SELECT = {
   key: true,
   label: true,
   color: true,
+  keyEvent: true,
 } satisfies Prisma.EventConfig_CategorySelect;
 
 /** The columns a category is shown with, for an `include` or a `select`. */
@@ -33,6 +34,7 @@ export function eventCategoryView(row: EventCategoryRow): EventCategoryView {
     key: row.key,
     label: row.label,
     color: row.color,
+    keyEvent: row.keyEvent,
     archived: row.archivedAt !== null,
   };
 }

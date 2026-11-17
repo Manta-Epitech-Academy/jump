@@ -361,6 +361,7 @@ erDiagram
     String key PK
     String label UK
     String color
+    Boolean keyEvent
     DateTime archivedAt
     DateTime createdAt
     DateTime updatedAt
