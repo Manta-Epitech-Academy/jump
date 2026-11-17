@@ -25,7 +25,9 @@
   // name and line, the bar, the XP earned and what is left to the next one,
   // then the five levels in a row, so the way ahead is in sight rather than
   // behind a button. The reached ones in colour, the current one marked, the
-  // others faded with the XP they start at. Nothing hides on hover: talents
+  // others faded but in their own colour, as the mockup draws them: a talent
+  // sees Maker will be coral and Hacker magenta, a goal one can picture, where
+  // five grey hexagons all looked alike. Nothing hides on hover: talents
   // are on a phone. The total counts every XP, those earned outside an event
   // too, which the journey below does not list. The home shows the level in
   // its own card (`XpCard`).
@@ -93,7 +95,7 @@
           level={step.level}
           tone={step.tone}
           decorative
-          class={cn('h-9', !reached && 'opacity-30 grayscale')}
+          class={cn('h-9', !reached && 'opacity-30')}
         />
         <span
           class={cn(
