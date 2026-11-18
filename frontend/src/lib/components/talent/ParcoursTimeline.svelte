@@ -97,8 +97,9 @@
         </span>
       {/if}
       <span class="text-xs font-semibold text-muted-foreground">
-        {progressOf(next)}{#if activity.xp !== null}
-          · <span class="text-success">{signed(activity.xp)} XP</span>{/if}
+        {progressOf(next)}{#if activity.xp !== null}{' · '}<span
+            class="text-success">{signed(activity.xp)} XP</span
+          >{/if}
       </span>
       <!-- A form and not a link: entering mints a ticket, and the new tab
            keeps this one alive for the XP. -->
