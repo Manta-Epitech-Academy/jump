@@ -27,7 +27,11 @@ import { PRENOMS, SEED_MAIL_DOMAIN, STAFF_MAIL_DOMAIN } from './catalog/people';
 import type { CampusSpec } from './catalog/campuses';
 import type { SchoolSpec } from './catalog/schools';
 import type { SlotBlueprint } from './catalog/planning';
-import { workshopActivityId } from './catalog/workshops';
+import {
+  workshopActivityId,
+  workshopPoints,
+  workshopSpec,
+} from './catalog/workshops';
 import type { Rng } from './rng';
 import { isShownInDevSpace } from '../../src/lib/domain/sfMemberStatus';
 import { activationBlockers } from '../../src/lib/domain/eventReadiness';
@@ -418,6 +422,13 @@ export class World {
   readonly reservedEventIds = new Set<string>();
   /** Enrolments, so a scenario can mark presence without re-deriving the roster. */
   readonly roster = new Map<string, TalentRef[]>();
+  /** The activities each event offers, by slug, in the order it offers them. */
+  private readonly offers = new Map<string, string[]>();
+  /**
+   * `talentId:slug` of every activity walked: a talent walks one once, whatever
+   * event offered it (`Workshop_Participation` is keyed on the pair).
+   */
+  private readonly walked = new Set<string>();
 
   /**
    * The closing question bank, read from the database before any scenario runs.
@@ -1366,6 +1377,10 @@ export class World {
       });
     }
 
+    this.offers.set(
+      eventId,
+      (opts.workshops ?? []).map((workshop) => workshop.slug),
+    );
     for (const [index, workshop] of (opts.workshops ?? []).entries()) {
       this.buffer.eventConfig_Workshop.push({
         eventId,
@@ -1760,12 +1775,67 @@ export class World {
   // ─── Activités en ligne ───────────────────────────────────────────────────
 
   /**
+   * Who each activity was put in front of: every event that has begun and
+   * offers one, oldest first, with the talents whose enrolment its dev space
+   * shows and the activities it offers them (`hasWalked` says which one a
+   * talent already walks, through another event). The measure in
+   * `PROFILE.md` (« Activités en ligne ») is taken on that same population.
+   *
+   * Only a talent who has signed in can be one: an activity is entered from
+   * the talent's own space, so a talent who never opened it walks none, and
+   * `firstLoginAt` is the earliest a walk can begin.
+   */
+  activityAudiences(): {
+    event: EventRef;
+    talent: TalentRef;
+    firstLoginAt: Date;
+    slugs: string[];
+  }[] {
+    const shown = new Set(
+      this.buffer.participation
+        .filter((p) => p.shownInDevSpace)
+        .map((p) => `${p.eventId}:${p.talentId}`),
+    );
+    return this.events
+      .filter(
+        (event) =>
+          event.date <= this.ctx.clock.today &&
+          (this.offers.get(event.id)?.length ?? 0) > 0,
+      )
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .flatMap((event) =>
+        (this.roster.get(event.id) ?? []).flatMap((talent) => {
+          const firstLoginAt = this.talentRow(talent.id).firstLoginAt;
+          if (!firstLoginAt || !shown.has(`${event.id}:${talent.id}`)) {
+            return [];
+          }
+          return [
+            {
+              event,
+              talent,
+              firstLoginAt: new Date(firstLoginAt),
+              slugs: this.offers.get(event.id)!,
+            },
+          ];
+        }),
+      );
+  }
+
+  /** Whether the talent already walks this activity, from whichever event. */
+  hasWalked(talentId: string, slug: string): boolean {
+    return this.walked.has(`${talentId}:${slug}`);
+  }
+
+  /**
    * A talent's state on one online activity, and the XP grant that state implies.
    *
    * The grant is written HERE rather than left to the caller because the two have
    * to agree: the application sets one grant per (talent, activity) to the
    * `points` of every callback, so a participation without its grant, or with
-   * another amount, is a pair no callback could have produced.
+   * another amount, is a pair no callback could have produced. For the same
+   * reason the caller says how far the talent went and the catalogue says what
+   * that is worth (`workshopPoints`): the steps and their prices are the
+   * subject's, not the scenario's.
    *
    * `celebrated` is the float's state, and both halves are worth placing:
    * `false` leaves the whole grant owed a celebration, which is what a talent
@@ -1776,22 +1846,26 @@ export class World {
     talent: TalentRef;
     event: EventRef;
     slug: string;
-    /** What CTFd reports this talent scored, which the grant is. */
-    points: number;
+    /** How many of the subject's steps the talent validated, in order. */
     solvedSteps: number;
-    totalSteps: number;
     /** When the talent first entered; the grant is dated from it too. */
     at: Date;
     celebrated: boolean;
   }): void {
-    const amount = opts.points;
+    const spec = workshopSpec(opts.slug);
+    const key = `${opts.talent.id}:${opts.slug}`;
+    if (this.walked.has(key)) {
+      throw new Error(`${opts.talent.id} already walks ${opts.slug}.`);
+    }
+    this.walked.add(key);
+    const amount = workshopPoints(spec, opts.solvedSteps);
     this.buffer.workshop_Participation.push({
       talentId: opts.talent.id,
       activityId: workshopActivityId(opts.slug),
       eventId: opts.event.id,
       campusId: opts.event.campusId,
       solvedSteps: opts.solvedSteps,
-      totalSteps: opts.totalSteps,
+      totalSteps: spec.stepValues.length,
       xpCelebrated: opts.celebrated ? amount : 0,
       firstEnteredAt: opts.at,
       updatedAt: opts.at,

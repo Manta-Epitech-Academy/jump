@@ -138,9 +138,7 @@ export const homeHero: Scenario = {
       talent: chooser,
       event: choice,
       slug: pacman.slug,
-      points: 4 * pacman.stepPoints,
       solvedSteps: 4,
-      totalSteps: pacman.totalSteps,
       at: clock.at(-1, 9, 30),
       celebrated: true,
     });
@@ -297,9 +295,7 @@ export const homeHero: Scenario = {
       talent: carrier,
       event: homework,
       slug: santa.slug,
-      points: 2 * santa.stepPoints,
       solvedSteps: 2,
-      totalSteps: santa.totalSteps,
       at: clock.at(-10, 15, 0),
       celebrated: true,
     });
