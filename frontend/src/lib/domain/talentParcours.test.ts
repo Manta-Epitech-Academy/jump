@@ -151,6 +151,28 @@ describe('buildParcours', () => {
     ]);
   });
 
+  it('lets an enrolment go once its event is over, unless a visit or an activity holds it', () => {
+    const parcours = buildParcours({
+      now: NOW,
+      events: mapOf(
+        // Over the day before, still inside the loader's slack.
+        event('missed', '2026-11-17'),
+        event('came', '2026-11-17'),
+        event('walked', '2026-11-16'),
+        event('offers', '2026-11-15'),
+      ),
+      attended: ['came'],
+      enrolled: ['missed', 'came', 'walked', 'offers'],
+      earned: [{ eventId: 'walked', slug: 'pong', label: 'PyPong', xp: 60 }],
+      offered: [activity('pacman', 'offers')],
+    });
+    expect(eventsOf(parcours).map((e) => [e.id, e.phase])).toEqual([
+      ['came', 'past'],
+      ['walked', 'past'],
+      ['offers', 'past'],
+    ]);
+  });
+
   it('carries the category colour and the key-event mark, and names an unnamed event', () => {
     const parcours = buildParcours({
       now: NOW,

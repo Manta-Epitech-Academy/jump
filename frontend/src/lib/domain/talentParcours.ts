@@ -95,6 +95,12 @@ export type Parcours = ParcoursYear[];
  * - `events` holds every event a step may name, keyed by id; a step is drawn
  *   only for an event in `attended` or `enrolled`, or one an activity below
  *   belongs to.
+ * - `enrolled` names what is to come: once its event is over, an enrolment
+ *   alone draws nothing. A visit (`attended`) keeps the step, and so does an
+ *   activity under it, done there or still offered by it, since this is the
+ *   one place it can be opened from. The loader reads enrolments with slack
+ *   past their end (`enrolledNotOverWhere`), so this is where « over » is
+ *   decided, on the event's campus clock, as the home hero decides it.
  * - `earned` are the activity XP, each under the event its walk is pinned to.
  * - `offered` are the activities offered to the talent: one with XP shows its
  *   way back in while unfinished, one without any shows under its offering
@@ -151,12 +157,14 @@ export function buildParcours({
     });
   }
 
-  const ids = new Set([...attended, ...enrolled, ...activitiesOf.keys()]);
+  const outlivesItsEnd = new Set([...attended, ...activitiesOf.keys()]);
+  const ids = new Set([...outlivesItsEnd, ...enrolled]);
   const steps: (ParcoursEvent & { facts: ParcoursEventFacts })[] = [];
   for (const id of ids) {
     const facts = events.get(id);
     if (!facts) continue;
     const phase = heroEventPhase(facts, now, false);
+    if (phase === 'ended' && !outlivesItsEnd.has(id)) continue;
     steps.push({
       facts,
       id,
