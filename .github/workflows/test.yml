@@ -34,6 +34,7 @@ jobs:
   lint-and-check:
     name: Lint & Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
 
@@ -52,6 +53,11 @@ jobs:
       # what keeps the Bun installed above equal to the one the image ships.
       - name: One Bun version for CI and the image
         run: bun run lint:bun-pin
+
+      # `scripts/check-job-timeouts.sh`, awk only. Without it a job added later
+      # gets GitHub's six-hour default back, and the first hang is how we learn.
+      - name: A timeout on every workflow job
+        run: bun run lint:job-timeouts
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -90,6 +96,7 @@ jobs:
     name: Unit & Integration Tests
     needs: lint-and-check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     # The reason this job's name was a lie until now: the integration suites
     # (~190 tests over 20 files) need a real Postgres, so with no service here
@@ -177,6 +184,7 @@ jobs:
     name: E2E Tests
     needs: unit-and-integration
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     services:
       postgres:

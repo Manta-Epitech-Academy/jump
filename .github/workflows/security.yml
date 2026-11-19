@@ -35,6 +35,7 @@ jobs:
   dependency-audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v6
@@ -52,6 +53,7 @@ jobs:
   secret-scan:
     name: Secret Scanning
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
         with:
@@ -81,6 +83,7 @@ jobs:
   sast:
     name: SAST (Semgrep)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     container:
       image: semgrep/semgrep:1.163.0
     steps:
@@ -102,6 +105,7 @@ jobs:
   dast:
     name: DAST (OWASP ZAP)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Run only on schedule and main push, not on every PR (slow + needs running app)
     if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     services:
