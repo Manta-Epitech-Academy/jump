@@ -5,7 +5,7 @@ import {
   type ParcoursEventFacts,
 } from './talentParcours';
 import { UNNAMED_EVENT_NAME } from './event';
-import type { WorkshopActivity } from './workshops';
+import type { TalentWorkshops, WorkshopActivity } from './workshops';
 
 // Wednesday 18 November 2026, 10:00 in Paris.
 const NOW = new Date('2026-11-18T09:00:00Z');
@@ -41,6 +41,8 @@ const activity = (
   ...over,
 });
 
+const NONE: TalentWorkshops = { today: [], activities: [] };
+
 const mapOf = (...events: ParcoursEventFacts[]) =>
   new Map(events.map((e) => [e.id, e]));
 
@@ -61,7 +63,7 @@ describe('buildParcours', () => {
         { eventId: 'june', slug: 'snake', label: 'Snake.js', xp: 900 },
         { eventId: 'june', slug: 'osint', label: 'CTF OSINT', xp: 1000 },
       ],
-      offered: [],
+      workshops: NONE,
     });
     expect(eventsOf(parcours).map((e) => [e.id, e.days])).toEqual([
       ['june', 'Du 15 au 26 juin'],
@@ -80,7 +82,7 @@ describe('buildParcours', () => {
       attended: [],
       enrolled: [],
       earned: [{ eventId: 'club', slug: 'pong', label: 'PyPong', xp: 60 }],
-      offered: [],
+      workshops: NONE,
     });
     expect(eventsOf(parcours).map((e) => e.id)).toEqual(['club']);
   });
@@ -92,16 +94,19 @@ describe('buildParcours', () => {
       attended: ['camp', 'club'],
       enrolled: [],
       earned: [{ eventId: 'camp', slug: 'pacman', label: 'Pacman', xp: 200 }],
-      offered: [
-        // Offered again through a later event, the walk stays where it began.
-        activity('pacman', 'club', {
-          label: 'Pacman IA',
-          solvedSteps: 2,
-          startedAt: NOW,
-        }),
-        activity('robob', 'club'),
-        activity('done', 'club', { solvedSteps: 4, startedAt: NOW }),
-      ],
+      workshops: {
+        today: [],
+        activities: [
+          // Offered again through a later event, the walk stays where it began.
+          activity('pacman', 'club', {
+            label: 'Pacman IA',
+            solvedSteps: 2,
+            startedAt: NOW,
+          }),
+          activity('robob', 'club'),
+          activity('done', 'club', { solvedSteps: 4, startedAt: NOW }),
+        ],
+      },
     });
     const [club, camp] = eventsOf(parcours);
     expect(camp.activities).toEqual([
@@ -140,7 +145,7 @@ describe('buildParcours', () => {
       attended: ['before'],
       enrolled: ['later', 'soon', 'stage'],
       earned: [],
-      offered: [],
+      workshops: NONE,
     });
     expect(parcours.map((y) => y.year)).toEqual([2026]);
     expect(eventsOf(parcours).map((e) => [e.id, e.phase, e.days])).toEqual([
@@ -164,12 +169,32 @@ describe('buildParcours', () => {
       attended: ['came'],
       enrolled: ['missed', 'came', 'walked', 'offers'],
       earned: [{ eventId: 'walked', slug: 'pong', label: 'PyPong', xp: 60 }],
-      offered: [activity('pacman', 'offers')],
+      workshops: { today: [], activities: [activity('pacman', 'offers')] },
     });
     expect(eventsOf(parcours).map((e) => [e.id, e.phase])).toEqual([
       ['came', 'past'],
       ['walked', 'past'],
       ['offers', 'past'],
+    ]);
+  });
+
+  it('opens the first day when a subject is offered, before the arrival time, as the hero does', () => {
+    // 10:00 in Paris, both expected at 14:00.
+    const arriving = { startMinutes: 14 * 60 };
+    const parcours = buildParcours({
+      now: NOW,
+      events: mapOf(
+        event('offering', '2026-11-18', arriving),
+        event('waiting', '2026-11-18', arriving),
+      ),
+      attended: [],
+      enrolled: ['offering', 'waiting'],
+      earned: [],
+      workshops: { today: [activity('pong', 'offering')], activities: [] },
+    });
+    expect(eventsOf(parcours).map((e) => [e.id, e.phase])).toEqual([
+      ['waiting', 'upcoming'],
+      ['offering', 'live'],
     ]);
   });
 
@@ -185,7 +210,7 @@ describe('buildParcours', () => {
       attended: ['stage', 'bare'],
       enrolled: [],
       earned: [],
-      offered: [],
+      workshops: NONE,
     });
     expect(eventsOf(parcours)[0]).toMatchObject({
       color: '#ff1ef7',
@@ -209,7 +234,7 @@ describe('buildParcours', () => {
       attended: ['club', 'winter', 'jpo'],
       enrolled: [],
       earned: [],
-      offered: [],
+      workshops: NONE,
     });
     expect(parcours.map((y) => [y.year, y.events.map((e) => e.days)])).toEqual([
       [2026, ['14 février']],
@@ -224,7 +249,7 @@ describe('buildParcours', () => {
       attended: ['ghost'],
       enrolled: [],
       earned: [{ eventId: 'ghost', slug: 'x', label: 'X', xp: 10 }],
-      offered: [activity('y', 'ghost')],
+      workshops: { today: [], activities: [activity('y', 'ghost')] },
     });
     expect(parcours).toEqual([]);
   });

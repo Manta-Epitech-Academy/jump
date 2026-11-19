@@ -126,6 +126,6 @@ export async function loadTalentParcours(
     attended: attended.map((p) => p.event.id),
     enrolled: enrolled.map((p) => p.event.id),
     earned,
-    offered,
+    workshops,
   });
 }

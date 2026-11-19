@@ -2,7 +2,11 @@ import { dateKeyParts } from './eventPresence';
 import { eventPublicName, UNNAMED_EVENT_NAME } from './event';
 import type { DateKey } from './planningTime';
 import { eventDaysLabel, heroEventPhase } from './talentHome';
-import { isActivityFinished, type WorkshopActivity } from './workshops';
+import {
+  isActivityFinished,
+  type TalentWorkshops,
+  type WorkshopActivity,
+} from './workshops';
 
 // « Mon parcours » (#445): a talent's journey told event by event, newest
 // first, each event with the activities done there and the XP each earned.
@@ -102,9 +106,12 @@ export type Parcours = ParcoursYear[];
  *   past their end (`enrolledNotOverWhere`), so this is where « over » is
  *   decided, on the event's campus clock, as the home hero decides it.
  * - `earned` are the activity XP, each under the event its walk is pinned to.
- * - `offered` are the activities offered to the talent: one with XP shows its
- *   way back in while unfinished, one without any shows under its offering
- *   event as still to do. An activity is shown once.
+ * - `workshops` are the activities offered to the talent, as the home's hero
+ *   reads them (`listTalentWorkshops`): one with XP shows its way back in
+ *   while unfinished, one without any shows under its offering event as still
+ *   to do. An activity is shown once. `today` also says which events offer a
+ *   subject right now, which makes their first day live before the arrival
+ *   time, on the hero and here alike.
  */
 export function buildParcours({
   now,
@@ -112,15 +119,17 @@ export function buildParcours({
   attended,
   enrolled,
   earned,
-  offered,
+  workshops,
 }: {
   now: Date;
   events: ReadonlyMap<string, ParcoursEventFacts>;
   attended: readonly string[];
   enrolled: readonly string[];
   earned: readonly ParcoursEarned[];
-  offered: readonly WorkshopActivity[];
+  workshops: TalentWorkshops;
 }): Parcours {
+  const offered = [...workshops.today, ...workshops.activities];
+  const offersSubjectNow = new Set(workshops.today.map((a) => a.eventId));
   const offeredBySlug = new Map(offered.map((a) => [a.slug, a]));
   const activitiesOf = new Map<string, ParcoursActivity[]>();
   const add = (eventId: string, activity: ParcoursActivity) => {
@@ -163,7 +172,7 @@ export function buildParcours({
   for (const id of ids) {
     const facts = events.get(id);
     if (!facts) continue;
-    const phase = heroEventPhase(facts, now, false);
+    const phase = heroEventPhase(facts, now, offersSubjectNow.has(id));
     if (phase === 'ended' && !outlivesItsEnd.has(id)) continue;
     steps.push({
       facts,
