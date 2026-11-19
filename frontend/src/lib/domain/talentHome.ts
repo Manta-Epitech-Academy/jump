@@ -348,6 +348,8 @@ const WEEKDAY_FORMAT = new Intl.DateTimeFormat('fr-FR', {
  * The days an event runs, the way a talent reads them everywhere: « 27
  * octobre », « Du 27 au 30 octobre », « Du 30 octobre au 2 novembre ». One
  * grammar for the home's hero and Mon parcours, so a talent never learns two.
+ * The staff read theirs through `eventDaysLabel` (`domain/event.ts`),
+ * abbreviated and always with the year: another reader, another grammar.
  *
  * - `knownYear` is the year the reader already has in mind: the current one
  *   on the campus clock for the hero, the year heading a stretch of the
@@ -357,7 +359,7 @@ const WEEKDAY_FORMAT = new Intl.DateTimeFormat('fr-FR', {
  *
  * Read off the keys, so no clock can shift a day.
  */
-export function eventDaysLabel(
+export function talentDaysLabel(
   date: DateKey,
   endDate: DateKey | null,
   { knownYear, weekday }: { knownYear: number; weekday: boolean },

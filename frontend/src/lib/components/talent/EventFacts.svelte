@@ -2,7 +2,7 @@
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import MapPin from '@lucide/svelte/icons/map-pin';
   import { toDateKey } from '$lib/domain/planningTime';
-  import { arrivalLabel, eventDaysLabel } from '$lib/domain/talentHome';
+  import { arrivalLabel, talentDaysLabel } from '$lib/domain/talentHome';
   import { dateKeyParts } from '$lib/domain/eventPresence';
   import { eventPlace } from '$lib/domain/eventHero';
   import type { HeroEvent } from '$lib/domain/talentHome';
@@ -17,7 +17,7 @@
   }: { event: HeroEvent; withArrival?: boolean } = $props();
 
   const days = $derived(
-    eventDaysLabel(event.date, event.endDate, {
+    talentDaysLabel(event.date, event.endDate, {
       knownYear: dateKeyParts(toDateKey(new Date(), event.timezone)).year,
       weekday: true,
     }),

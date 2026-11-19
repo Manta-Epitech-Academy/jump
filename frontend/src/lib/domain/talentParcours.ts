@@ -1,7 +1,7 @@
 import { dateKeyParts } from './eventPresence';
 import { eventPublicName, UNNAMED_EVENT_NAME } from './event';
 import type { DateKey } from './planningTime';
-import { eventDaysLabel, heroEventPhase } from './talentHome';
+import { talentDaysLabel, heroEventPhase } from './talentHome';
 import {
   isActivityFinished,
   type TalentWorkshops,
@@ -71,7 +71,7 @@ export type ParcoursEvent = {
   id: string;
   name: string;
   /**
-   * Its days in the talent's words (`eventDaysLabel`): the year only when it
+   * Its days in the talent's words (`talentDaysLabel`): the year only when it
    * is not the heading's, the weekday only for what is still to live.
    */
   days: string;
@@ -178,7 +178,7 @@ export function buildParcours({
       facts,
       id,
       name: eventPublicName(facts) ?? UNNAMED_EVENT_NAME,
-      days: eventDaysLabel(facts.date, facts.endDate, {
+      days: talentDaysLabel(facts.date, facts.endDate, {
         knownYear: dateKeyParts(facts.date).year,
         weekday: phase !== 'ended',
       }),
