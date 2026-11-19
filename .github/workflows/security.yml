@@ -89,10 +89,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Pinned rulesets only, no `--config auto`. `auto` resolves rules from
-      # the registry at run time (and sends telemetry), which makes a blocking
-      # `--error` gate non-deterministic: a new community rule could fail an
-      # unrelated PR with no diff change, defeating the pinned image above.
+      # Named rulesets, no `--config auto`, which picks rules from what the
+      # repository looks like and sends telemetry. Only the engine is pinned
+      # (the image above): each `p/` ruleset is downloaded from the semgrep.dev
+      # registry on every run. So a rule added upstream can fail a pull request
+      # that changed nothing this scans, and an unreachable registry stalls the
+      # step before it scans anything, silently, until the job's timeout (#525).
       - name: Run Semgrep
         run: semgrep scan --config p/owasp-top-ten --config p/typescript --config p/security-audit --error --sarif --output semgrep-results.sarif frontend/src/
 
