@@ -54,8 +54,9 @@ let failedAt: number | null = null;
  * through `<img>`, never inlined: an SVG loaded as an image runs no script and
  * fetches nothing, so markup from another service needs no sanitising, and the
  * CSP already allows `data:` images. A preview that is not SVG, or is too heavy
- * to inline in every home page, becomes null: the card shows without one, and
- * the game itself stays in the catalogue.
+ * to inline in every home page, becomes null and is logged: the card shows
+ * without one, and the game itself stays in the catalogue. A game sent without
+ * a preview is not logged: it simply has none.
  */
 const previewSchema = z
   .string()
@@ -64,9 +65,17 @@ const previewSchema = z
       svg.trimStart().startsWith('<svg') &&
       new TextEncoder().encode(svg).length <= PREVIEW_MAX_BYTES,
   )
-  .transform((svg) => `data:image/svg+xml,${encodeURIComponent(svg)}`)
-  .nullable()
-  .catch(null);
+  .transform((svg) => `data:image/svg+xml,${encodeURIComponent(svg)}`);
+
+function previewSrcOf(game: string, preview: unknown): string | null {
+  if (preview == null) return null;
+  const src = previewSchema.safeParse(preview);
+  if (src.success) return src.data;
+  console.error(
+    `[minigames] preview of ${game} left out: not an SVG of at most ${PREVIEW_MAX_BYTES} bytes`,
+  );
+  return null;
+}
 
 const catalogGameSchema = z
   .object({
@@ -79,11 +88,11 @@ const catalogGameSchema = z
     // A game with no level yet is still a game: the admin page lists it, and
     // the rotation skips it (`pickNextPublication`).
     levelCount: z.int().nonnegative(),
-    preview: previewSchema,
+    preview: z.unknown(),
   })
   .transform(({ preview, ...game }): CatalogGame => ({
     ...game,
-    previewSrc: preview,
+    previewSrc: previewSrcOf(game.name, preview),
   }));
 
 /**
