@@ -20,8 +20,12 @@ import {
   gameConfigSchema,
 } from '$lib/validation/minigames';
 
-/** A catalogue game merged with its host-side rotation curation. */
-export interface AdminGame extends CatalogGame {
+/**
+ * A catalogue game merged with its host-side rotation curation. Its preview is
+ * the talent card's, and this page never shows it: left out so the admin page
+ * does not carry every game's picture for nothing.
+ */
+export interface AdminGame extends Omit<CatalogGame, 'previewSrc'> {
   scoringType: 'score' | 'chrono';
   enabled: boolean;
   weight: number;
@@ -37,7 +41,7 @@ export const load: PageServerLoad = async () => {
   const configByGame = new Map(configs.map((c) => [c.game, c]));
 
   const games: AdminGame[] = catalog
-    .map((g) => {
+    .map(({ previewSrc: _previewSrc, ...g }) => {
       const cfg = configByGame.get(g.name);
       return {
         ...g,

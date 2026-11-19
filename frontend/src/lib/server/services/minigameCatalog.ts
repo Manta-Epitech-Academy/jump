@@ -1,11 +1,12 @@
 import { env } from '$env/dynamic/private';
 import type { MinigameScoring } from '@prisma/client';
+import { z } from 'zod';
 
 /**
  * The minigame catalogue is owned by the external jump-games service and read
  * live from its public `GET /api/games` endpoint. jump never hand-maintains a
- * game's slug, level count, display name or scoring mode: those are facts of
- * jump-games. The host only curates rotation (see `MinigameConfig`).
+ * game's slug, level count, display name, scoring mode or picture: those are
+ * facts of jump-games. The host only curates rotation (see `MinigameConfig`).
  *
  * The fetch is cached in-memory with a short TTL; on a transient failure we
  * fall back to the last good snapshot so a brief jump-games hiccup doesn't
@@ -22,14 +23,80 @@ export interface CatalogGame {
   endMode: 'puzzle' | 'infinite';
   /** Valid levels are the contiguous range 1..levelCount. */
   levelCount: number;
+  /**
+   * The game's 88×88 preview as a `data:` URI, ready for an `<img src>`, or
+   * null when jump-games sent none jump can show (see `previewSchema`).
+   */
+  previewSrc: string | null;
 }
 
 const TTL_MS = 5 * 60_000;
 
+/** jump-games holds its previews under this size; anything heavier is dropped. */
+const PREVIEW_MAX_BYTES = 16 * 1024;
+
 let cache: { games: CatalogGame[]; at: number } | null = null;
 
+/**
+ * A preview arrives as SVG markup and leaves as a `data:` URI. It is shown
+ * through `<img>`, never inlined: an SVG loaded as an image runs no script and
+ * fetches nothing, so markup from another service needs no sanitising, and the
+ * CSP already allows `data:` images. A preview that is not SVG, or is too heavy
+ * to inline in every home page, becomes null: the card shows without one, and
+ * the game itself stays in the catalogue.
+ */
+const previewSchema = z
+  .string()
+  .refine(
+    (svg) =>
+      svg.trimStart().startsWith('<svg') &&
+      new TextEncoder().encode(svg).length <= PREVIEW_MAX_BYTES,
+  )
+  .transform((svg) => `data:image/svg+xml,${encodeURIComponent(svg)}`)
+  .nullable()
+  .catch(null);
+
+const catalogGameSchema = z
+  .object({
+    name: z.string().min(1),
+    displayName: z.string().min(1),
+    description: z.string(),
+    difficulty: z.enum(['easy', 'medium', 'hard']),
+    hasScore: z.boolean(),
+    endMode: z.enum(['puzzle', 'infinite']),
+    levelCount: z.int().positive(),
+    preview: previewSchema,
+  })
+  .transform(({ preview, ...game }): CatalogGame => ({
+    ...game,
+    previewSrc: preview,
+  }));
+
+/**
+ * Read the `/api/games` body entry by entry. An entry jump cannot trust (a
+ * missing slug, a level count that is not a number) is left out and logged,
+ * rather than reaching the rotation and publishing a level that cannot load.
+ */
+export function parseCatalog(body: unknown): CatalogGame[] {
+  const entries = z.object({ games: z.array(z.unknown()) }).safeParse(body);
+  if (!entries.success) {
+    throw new Error('catalogue body has no `games` array');
+  }
+  return entries.data.games.flatMap((entry) => {
+    const game = catalogGameSchema.safeParse(entry);
+    if (game.success) return [game.data];
+    console.error(
+      '[minigames] catalogue entry left out:',
+      z.prettifyError(game.error),
+    );
+    return [];
+  });
+}
+
 /** Map a catalogue game to the publication's snapshotted scoring mode. */
-export function scoringTypeFor(game: CatalogGame): MinigameScoring {
+export function scoringTypeFor(
+  game: Pick<CatalogGame, 'hasScore'>,
+): MinigameScoring {
   return game.hasScore ? 'score' : 'chrono';
 }
 
@@ -68,8 +135,7 @@ export async function getGameCatalog(
       headers: { accept: 'application/json' },
     });
     if (!res.ok) throw new Error(`status ${res.status}`);
-    const body = (await res.json()) as { games?: CatalogGame[] };
-    const games = body.games ?? [];
+    const games = parseCatalog(await res.json());
     cache = { games, at: Date.now() };
     return games;
   } catch (err) {
