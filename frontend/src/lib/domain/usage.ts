@@ -128,7 +128,6 @@ export const USAGE_FEATURES = {
   TALENT_CONNECTION: 'talent_connection',
   TALENT_DASHBOARD_VIEW: 'talent_dashboard_view',
   TALENT_XP_HISTORY_VIEW: 'talent_xp_history_view',
-  TALENT_EVENTS_VIEW: 'talent_events_view',
   TALENT_CALENDAR_VIEW: 'talent_calendar_view',
   TALENT_LEADERBOARD_VIEW: 'talent_leaderboard_view',
   TALENT_SETTINGS_VIEW: 'talent_settings_view',
@@ -1140,17 +1139,7 @@ export const USAGE_FEATURE_DEFS: Record<UsageFeatureKey, UsageFeatureDef> = {
   [USAGE_FEATURES.TALENT_XP_HISTORY_VIEW]: def({
     key: USAGE_FEATURES.TALENT_XP_HISTORY_VIEW,
     label: 'Ton parcours',
-    definition: `Consultations de « Mon parcours » (les XP gagnés, les activités à faire et terminées, les événements passés). ${BUCKET_NOTE}`,
-    audience: 'talent',
-    space: 'talent',
-    kind: 'view',
-    scope: 'campus',
-    dedupe: 'bucket',
-  }),
-  [USAGE_FEATURES.TALENT_EVENTS_VIEW]: def({
-    key: USAGE_FEATURES.TALENT_EVENTS_VIEW,
-    label: 'Tes événements',
-    definition: `Consultations de la liste des événements côté talent. ${BUCKET_NOTE}`,
+    definition: `Consultations de « Mon parcours » (le niveau, puis les événements du talent avec leurs activités et les XP gagnés). ${BUCKET_NOTE}`,
     audience: 'talent',
     space: 'talent',
     kind: 'view',
@@ -1299,7 +1288,6 @@ export const USAGE_VIEW_ROUTES: Record<string, UsageFeatureKey> = {
   // Talent space
   '/(talent)': USAGE_FEATURES.TALENT_DASHBOARD_VIEW,
   '/(talent)/parcours': USAGE_FEATURES.TALENT_XP_HISTORY_VIEW,
-  '/(talent)/events': USAGE_FEATURES.TALENT_EVENTS_VIEW,
   '/(talent)/calendar': USAGE_FEATURES.TALENT_CALENDAR_VIEW,
   '/(talent)/minigames/[publicationId]/leaderboard':
     USAGE_FEATURES.TALENT_LEADERBOARD_VIEW,

@@ -11,9 +11,10 @@
  * Every day and hour is read on the event's own campus clock, never on the
  * browser's.
  */
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { eventPublicName } from '$lib/domain/event';
+import { eventPublicName, UNNAMED_EVENT_NAME } from '$lib/domain/event';
 import { toDateKey } from '$lib/domain/planningTime';
 import {
   arrivalLabel,
@@ -38,6 +39,30 @@ import { shownEventHeroPicture } from './eventHeroImages';
 const ENDED_SLACK_MS = 36 * 60 * 60 * 1000;
 
 /**
+ * The talent's enrolments that count as « inscrit » (shown in the dev space)
+ * on an event that may not be over yet. Coarse on purpose: whether it is over
+ * is read on the event's campus clock (`heroEventPhase`), which a `where`
+ * cannot do. Shared by the home hero and Mon parcours, so both say « inscrit »
+ * about the same events.
+ */
+export function enrolledNotOverWhere(
+  talentId: string,
+  now: Date,
+): Prisma.ParticipationWhereInput {
+  const since = new Date(now.getTime() - ENDED_SLACK_MS);
+  return {
+    talentId,
+    ...visibleParticipationWhere,
+    event: {
+      OR: [
+        { endDate: { gte: since } },
+        { endDate: null, date: { gte: since } },
+      ],
+    },
+  };
+}
+
+/**
  * The talent's shown enrolments whose event is not over on its campus clock,
  * with what each event wrote for the stages an enrolled talent sees.
  */
@@ -45,18 +70,8 @@ export async function listEnrolledHeroEvents(
   talentId: string,
   now: Date = new Date(),
 ): Promise<EnrolledEvent[]> {
-  const since = new Date(now.getTime() - ENDED_SLACK_MS);
   const enrolments = await prisma.participation.findMany({
-    where: {
-      talentId,
-      ...visibleParticipationWhere,
-      event: {
-        OR: [
-          { endDate: { gte: since } },
-          { endDate: null, date: { gte: since } },
-        ],
-      },
-    },
+    where: enrolledNotOverWhere(talentId, now),
     select: {
       event: {
         select: {
@@ -152,13 +167,6 @@ export async function loadHomeHero(
 }
 
 /**
- * What a talent's calendar calls an event that has no public name: the hero
- * does not name it, and the calendar cannot leave it blank. « Epitech », as
- * Jump's mails sign, never « Epitech Academy », which talents do not know.
- */
-export const UNNAMED_EVENT_CALENDAR_NAME = 'Événement Epitech';
-
-/**
  * The calendar entry behind the hero's « Ajouter à mon agenda », for an event
  * this talent is enrolled in (an enrolment the dev space shows, the rule the
  * hero offers it under); null for any other event, so nobody downloads an
@@ -189,7 +197,7 @@ export async function enrolledEventCalendar(
   const arrival = arrivalLabel(event.startMinutes);
   return {
     id: event.id,
-    name: eventPublicName(event) ?? UNNAMED_EVENT_CALENDAR_NAME,
+    name: eventPublicName(event) ?? UNNAMED_EVENT_NAME,
     date: toDateKey(event.date, timezone),
     endDate: event.endDate && toDateKey(event.endDate, timezone),
     location: eventPlace(event.campus.name),

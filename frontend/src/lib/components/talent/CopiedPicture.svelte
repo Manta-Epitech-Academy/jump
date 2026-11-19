@@ -17,9 +17,13 @@
   //     definite width lets the browser reserve the box before the bytes land:
   //     bounded in height with both sides `auto`, the image is 0 x 0 until it
   //     loads and the hero jumps when it does.
-  //   - `tile`: the cover of one choice among several, as wide as its tile and
-  //     cut to 16:9 so a row of choices lines up whatever each picture's
-  //     proportion. The box is fixed by the ratio, so nothing jumps either.
+  //   - `tile`: the cover of one subject in a list (the hero's choices, Mon
+  //     parcours's activities), as wide as its tile in a 16:9 box, so a row of
+  //     choices lines up whatever each picture's proportion. The picture is
+  //     shown whole in it, on the brand's dark ground, the drawn visual's own:
+  //     cutting it to fill the box sheared a 16:10 maze's frame at the top and
+  //     bottom only, and the picture read as off-centre. The box is fixed by
+  //     the ratio, so nothing jumps either.
   //   - `sprite`: a character drawn small beside a line of text, at a fixed
   //     height. A tiny one is pixel art, kept crisp rather than blurred.
   //
@@ -67,7 +71,7 @@
     class={layout === 'hero'
       ? 'block h-auto w-full max-w-[min(var(--picture-width),calc(40svh*var(--picture-ratio)))] ring-1 ring-white/20 sm:max-w-[min(var(--picture-width),calc(20rem*var(--picture-ratio)))]'
       : layout === 'tile'
-        ? 'block aspect-video w-full object-cover ring-1 ring-white/20'
+        ? 'block aspect-video w-full bg-epi-dark object-contain ring-1 ring-white/20'
         : cn(
             'h-12 w-auto max-w-full',
             picture.width < 128 && '[image-rendering:pixelated]',

@@ -124,6 +124,7 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   'enabled',
   'archived',
   'visible',
+  'keyEvent',
   'receivesDigest',
   // A section's sub-options, keyed by the section, whose keys the schema itself
   // spells out: the section has to be in the same call's `modules` anyway.

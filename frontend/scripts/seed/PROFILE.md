@@ -17,13 +17,15 @@ change rien, et ce n'est pas une raison de re-relever.
 nouvelle lecture de la base de production. Un chiffre qui manque ici se demande,
 il ne se re-relève pas.
 
-Cinq exceptions, datées et signalées sur place : la couverture des closings
+Six exceptions, datées et signalées sur place : la couverture des closings
 par format et le taux de connexion d'une cohorte de stage ont été relevés le
 **2026-09-03**, la ventilation du stage de seconde par campus le **2026-09-06**,
 sur le même instantané restauré, le détail des minijeux et des sommets d'XP
-le **2026-09-14**, sur le dump du 10/07 resté en local, et la civilité des
-talents le **2026-10-28**, demandée au MCP d'administration. Chaque fois parce
-que le générateur en dépendait et que le chiffre manquait. Les cinq blocs disent
+le **2026-09-14**, sur le dump du 10/07 resté en local, la civilité des
+talents le **2026-10-28**, demandée au MCP d'administration, et les activités
+en ligne le **2026-11-17**, au MCP d'administration et aux statistiques de
+l'instance CTFd. Chaque fois parce que le générateur en dépendait et que le
+chiffre manquait. Les blocs disent
 d'où ils viennent et ce qui prouve qu'il s'agit bien du même jeu de données - le
 quatrième en particulier, qui ne vient pas de l'instantané du 29/08, et le
 cinquième, qui porte sur la production du jour, en agrégats, et sur un autre
@@ -447,6 +449,57 @@ de données décrit ce que l'application écrirait maintenant.
 1,62M) avec 2 008 attributions, le générateur en distribue cinq entrées et
 tombe à 1 180. Combler l'écart en inventant des récompenses serait exactement
 ce que ce fichier existe pour empêcher.
+
+## Activités en ligne (relevé du 2026-11-17)
+
+Demandé le **2026-11-17** (#445), parce que ce fichier n'en disait rien et que le
+générateur ne faisait faire aucune activité à la cohorte : « Mon parcours »
+montrait des événements sans XP là où la production montre l'activité et ce
+qu'elle a rapporté. Agrégats seulement, sur la production du jour.
+
+**Qui entre.** `config_workshops` (MCP d'administration) : Pacman IA est proposé
+par **17 événements** et **278 talents** y sont entrés ; Tortue, 2 événements et
+7 talents ; PyPong et LuaPong, aucun événement. `config_events` : les **15
+Halloween Camp 26** passés et visibles affichent **354 inscriptions** dans
+l'espace dev (sur Lyon, `config_event_detail` compte les 46 inscrits affichés
+tous venus). Soit **278 / 354, 78,5 %**, part lue par le générateur
+(`scenarios/activityWalks.ts`). C'est une lecture haute : deux des dix-sept
+événements qui proposent Pacman sont hors de ce compte. `stats_feature_usage`
+ne répond pas par événement (0 ouverture sur Lyon), ce n'est donc pas une source.
+
+**Jusqu'où.** Les statistiques de l'instance CTFd Halloween 2026
+(`/api/v1/statistics/challenges/solves`, en administrateur) : **299 comptes**
+ont validé l'entrée dans le sujet, et le nombre d'entre eux qui a validé
+chaque étape du parcours, dans l'ordre :
+
+| Étape | Partie | Comptes | Points |
+| ----- | ------ | ------- | ------ |
+| 0     | 1      | 298     | 100    |
+| 1     | 1      | 295     | 100    |
+| 2     | 1      | 291     | 150    |
+| 3     | 1      | 286     | 150    |
+| 4     | 1      | 276     | 150    |
+| 5     | 1      | 262     | 150    |
+| 6     | 1      | 249     | 150    |
+| 7     | 1      | 200     | 250    |
+| 8     | 1      | 183     | 100    |
+| 0     | 2      | 142     | 150    |
+| 1     | 2      | 129     | 550    |
+| 2     | 2      | 60      | 400    |
+| 3     | 2      | 41      | 400    |
+| 4     | 2      | 33      | 300    |
+
+Hors parcours, des défis bonus : 49 comptes pour celui de la partie 1, 14 au plus
+pour ceux de la partie 2. 14 comptes atteignent la fin de la partie 2.
+La répartition des scores va jusqu'à la tranche de **4 008 points** (1 point CTFd
+vaut 1 XP), avec deux paquets : vers 1 000-1 300 (la partie 1 finie) et vers
+2 000. Les 299 comptes de CTFd et les 278 talents de Jump ne coïncident pas
+exactement : CTFd compte aussi les comptes d'essai de l'équipe.
+
+Ce que le générateur en garde : la part qui entre, l'entonnoir comme une
+**profondeur** (la part du parcours validée), appliquée à chaque sujet selon sa
+longueur, et les **prix des étapes de Pacman**, recopiés dans
+`catalog/workshops.ts`. Les autres sujets gardent un prix uniforme par étape.
 
 ## Modules d'événement
 

@@ -1,7 +1,7 @@
 <!--
   The talent's XP on the home, and the way into « Mon parcours », where
-  everything the home no longer lists lives: the activities left to do (counted
-  beside its link), the finished ones, the events attended, the XP history.
+  everything the home no longer lists lives: the journey event by event, with
+  the activities done and those left to do (counted beside its link).
 
   Drawn as the 2027 mockup's « Mon parcours » card: the total, the level Jump
   computes from it (`levelProgress`, whatever the levels are) with its badge,

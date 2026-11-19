@@ -5,7 +5,7 @@
   import * as Popover from '$lib/components/ui/popover';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
-  import { FILL_INKS } from '$lib/design/color';
+  import { FILL_INKS, UNCATEGORISED_FILL } from '$lib/design/color';
   import type {
     CalendarCell,
     CalendarEvent,
@@ -62,7 +62,7 @@
   const bandOf = (event: CalendarEvent) =>
     event.fill
       ? { color: event.fill.color, ink: FILL_INKS[event.fill.ink] }
-      : { color: 'var(--muted-foreground)', ink: 'var(--background)' };
+      : UNCATEGORISED_FILL;
 
   const enrolmentsLabel = (n: number) =>
     `${n} ${n > 1 ? 'inscrits' : 'inscrit'}`;

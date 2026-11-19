@@ -235,9 +235,7 @@ export const club: Scenario = {
           talent: anchorRegular,
           event,
           slug: LINUX!.slug,
-          points: LINUX!.totalSteps * LINUX!.stepPoints,
-          solvedSteps: LINUX!.totalSteps,
-          totalSteps: LINUX!.totalSteps,
+          solvedSteps: LINUX!.stepValues.length,
           at: day,
           celebrated: true,
         });
@@ -247,9 +245,7 @@ export const club: Scenario = {
           talent: anchorRegular,
           event,
           slug: PACMAN!.slug,
-          points: 6 * PACMAN!.stepPoints,
           solvedSteps: 6,
-          totalSteps: PACMAN!.totalSteps,
           at: clock.days(-2),
           celebrated: false,
         });
@@ -258,9 +254,7 @@ export const club: Scenario = {
             talent: other,
             event,
             slug: PACMAN!.slug,
-            points: PACMAN!.totalSteps * PACMAN!.stepPoints,
-            solvedSteps: PACMAN!.totalSteps,
-            totalSteps: PACMAN!.totalSteps,
+            solvedSteps: PACMAN!.stepValues.length,
             at: day,
             celebrated: true,
           });

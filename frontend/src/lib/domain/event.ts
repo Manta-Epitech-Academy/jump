@@ -91,6 +91,13 @@ export function eventPublicName(e: {
   return e.publicName?.trim() || null;
 }
 
+/**
+ * What a talent reads for an event that has no public name, where a line cannot
+ * be left blank (a calendar file, a step of the parcours). « Epitech », as
+ * Jump's mails sign, never « Epitech Academy », which talents do not know.
+ */
+export const UNNAMED_EVENT_NAME = 'Événement Epitech';
+
 // ─── Event days (`Event.date` / `Event.endDate`) ───────────────────────────
 // Salesforce owns both days: the sync copies the campaign's `StartDate` and
 // `EndDate`, which are calendar days with no time and no zone. They are stored

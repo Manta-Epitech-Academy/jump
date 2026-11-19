@@ -17,6 +17,7 @@ import { minigames } from './minigames';
 import { careers } from './careers';
 import { sfStatuses } from './sfStatuses';
 import { operations } from './operations';
+import { activityWalks } from './activityWalks';
 import { levels } from './levels';
 import { homeHero } from './homeHero';
 import type { Scenario } from './types';
@@ -41,6 +42,10 @@ export const SCENARIOS: readonly Scenario[] = [
   // so inserting here leaves every existing enrolment at the position it had.
   sfStatuses,
   operations,
+  // After every cohort and its Salesforce statuses: an activity is put in
+  // front of the enrolments the dev space shows. It draws from its own stream,
+  // so it moves nothing before or after it.
+  activityWalks,
   levels,
   // Last, for the reason `niveaux` gives: it places a talent in each state of
   // the home's hero, and the draws it takes move nothing before it.

@@ -35,6 +35,8 @@ type EventCategorySpec = {
   readonly label: string;
   /** `#rrggbb`, lowercase as the write stores it. */
   readonly color: string;
+  /** The stage de seconde is the one key event the mockup stars. */
+  readonly keyEvent: boolean;
   readonly archived: boolean;
 };
 
@@ -43,30 +45,35 @@ export const EVENT_CATEGORIES: readonly EventCategorySpec[] = [
     key: EVENT_CATEGORY.CODING_CLUB,
     label: 'Coding Club',
     color: '#013afb',
+    keyEvent: false,
     archived: false,
   },
   {
     key: EVENT_CATEGORY.SPECIAL,
     label: 'Spécial',
     color: '#00ff97',
+    keyEvent: false,
     archived: false,
   },
   {
     key: EVENT_CATEGORY.STAGE,
     label: 'Stage',
     color: '#ff1ef7',
+    keyEvent: true,
     archived: false,
   },
   {
     key: EVENT_CATEGORY.CAMP,
     label: 'Camp',
     color: '#ff5f3a',
+    keyEvent: false,
     archived: false,
   },
   {
     key: EVENT_CATEGORY.OPEN_DAY,
     label: 'Portes ouvertes',
     color: '#f6f7fb',
+    keyEvent: false,
     archived: true,
   },
 ];
@@ -96,6 +103,7 @@ export async function seedEventCategories(
       key: category.key,
       label: category.label,
       color: category.color,
+      keyEvent: category.keyEvent,
       archivedAt: category.archived ? anchor : null,
       createdAt: anchor,
       updatedAt: anchor,

@@ -1823,6 +1823,12 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           'Its colour on the calendar, #rrggbb. Pick one the other categories do not use, so the two stay apart at a glance. Required to create one.',
         ),
+      keyEvent: z
+        .boolean()
+        .optional()
+        .describe(
+          "True for a key event (événement clé), a kind that weighs in a talent's journey, e.g. the stage de seconde: its events are starred in the talent's parcours. Display only.",
+        ),
       archived: z
         .boolean()
         .optional()

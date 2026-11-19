@@ -105,14 +105,13 @@ export type WorkshopSpec = {
   /** The host serving it. */
   readonly instance: WorkshopInstanceSpec;
   readonly enabled: boolean;
-  /** How many steps the subject holds, mirrored by a seeded participation. */
-  readonly totalSteps: number;
   /**
-   * What one counted step is worth in CTFd, so in XP. Uniform here, where a
-   * real subject prices each step: a seeded participation is worth
-   * `solvedSteps * stepPoints`, which is what its callback would report.
+   * What each step is worth in CTFd, so in XP, in the order a talent walks
+   * them: one entry per step, so their count is the subject's `totalSteps`. A
+   * seeded participation is worth the sum of the steps it validated
+   * (`workshopPoints`), which is what its callback would report.
    */
-  readonly stepPoints: number;
+  readonly stepValues: readonly number[];
   /** The line the hero leads with; null to lead with the label. */
   readonly tagline: string | null;
   /** The pictures, as copied: none for an activity that stands on its label. */
@@ -125,6 +124,11 @@ export type WorkshopSpec = {
   readonly domains: readonly string[];
 };
 
+/** A subject whose steps are all worth the same, the way most are priced. */
+function evenSteps(count: number, points: number): readonly number[] {
+  return Array.from({ length: count }, () => points);
+}
+
 export const WORKSHOPS: readonly WorkshopSpec[] = [
   {
     // What the season's host serves now, after `discover-linux` below.
@@ -132,8 +136,12 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     label: 'Pacman IA',
     instance: WORKSHOP_INSTANCES.season,
     enabled: true,
-    totalSteps: 15,
-    stepPoints: 25,
+    // Pacman's path as CTFd prices it on the Halloween 2026 instance, read on
+    // 2026-11-17 (PROFILE.md, « Activités en ligne »): part 1 (decision
+    // tree), then part 2 (state machine), bonus challenges left out.
+    stepValues: [
+      100, 100, 150, 150, 150, 150, 150, 250, 100, 150, 550, 400, 400, 300,
+    ],
     tagline: 'Bientôt c’est TON code qui fera bouger ce fantôme',
     images: [
       { kind: 'media', file: 'jeu-demo.gif' },
@@ -154,8 +162,7 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     label: 'Discover Linux',
     instance: WORKSHOP_INSTANCES.season,
     enabled: false,
-    totalSteps: 12,
-    stepPoints: 10,
+    stepValues: evenSteps(12, 10),
     tagline: null,
     images: [{ kind: 'poster', file: 'terminal.png' }],
     // Retired before anybody gave it a level: out of the catalogue twice over.
@@ -170,8 +177,7 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     label: 'Santa Shooter',
     instance: WORKSHOP_INSTANCES.santa,
     enabled: true,
-    totalSteps: 31,
-    stepPoints: 50,
+    stepValues: evenSteps(31, 50),
     tagline: null,
     images: [],
     // Filed in the catalogue but missing its tagline and pictures, so the
@@ -186,8 +192,7 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     label: 'BabelShip',
     instance: WORKSHOP_INSTANCES.campus,
     enabled: true,
-    totalSteps: 8,
-    stepPoints: 30,
+    stepValues: evenSteps(8, 30),
     tagline: 'Fais parler des navires qui n’ont pas la même langue',
     images: [{ kind: 'poster', file: 'navires.png' }],
     level: 'all_levels',
@@ -200,8 +205,7 @@ export const WORKSHOPS: readonly WorkshopSpec[] = [
     label: 'RayBan',
     instance: WORKSHOP_INSTANCES.campus,
     enabled: true,
-    totalSteps: 10,
-    stepPoints: 40,
+    stepValues: evenSteps(10, 40),
     tagline: 'Une image 3D, née de simples rayons de lumière',
     images: [{ kind: 'mascot', file: 'rayon.png' }],
     level: 'expert',
@@ -400,4 +404,21 @@ async function presentIds(
   rows: Promise<{ id: string }[]>,
 ): Promise<Set<string>> {
   return new Set((await rows).map((row) => row.id));
+}
+
+/** The activity a slug names; throws on one the catalogue does not hold. */
+export function workshopSpec(slug: string): WorkshopSpec {
+  const spec = WORKSHOPS.find((w) => w.slug === slug);
+  if (!spec) throw new Error(`No seeded activity ${slug}.`);
+  return spec;
+}
+
+/** What validating the first `solvedSteps` steps of an activity pays, in XP. */
+export function workshopPoints(
+  spec: WorkshopSpec,
+  solvedSteps: number,
+): number {
+  return spec.stepValues
+    .slice(0, solvedSteps)
+    .reduce((sum, value) => sum + value, 0);
 }

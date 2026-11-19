@@ -10,6 +10,7 @@ const CAMP = {
   key: 'camp',
   label: 'Camp',
   color: '#ff5f3a',
+  keyEvent: false,
 };
 
 function event(
@@ -285,6 +286,7 @@ describe('buildCampusCalendar events', () => {
           key: 'club',
           label: 'Coding Club',
           color: '#013afb',
+          keyEvent: false,
         },
       }),
     ]);

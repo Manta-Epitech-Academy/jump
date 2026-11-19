@@ -1111,6 +1111,11 @@ model EventConfig_Category {
   key        String    @id
   label      String    @unique
   color      String
+  /// An « événement clé »: a format that weighs in a journey (every stage de
+  /// seconde), marked by a star in the talent's parcours (#445). A property of
+  /// the kind, not of one edition, so a new campaign Salesforce syncs needs no
+  /// flag of its own. Display only, like the colour.
+  keyEvent   Boolean   @default(false)
   archivedAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt

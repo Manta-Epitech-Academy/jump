@@ -336,7 +336,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
     ),
     category: metric(
       event.category,
-      "La catégorie de l'événement (Coding Club, Stage, Camp...), ou null s'il n'en a pas. Elle donne sa couleur au calendrier et compte pour les badges, sans rien changer d'autre : ce sont les sections qui décident des pages de l'événement. « key » est la clé à passer à write_event_config (categoryKey). « archived » vaut vrai pour une catégorie archivée : l'événement la garde, mais elle n'est plus donnée à un autre.",
+      "La catégorie de l'événement (Coding Club, Stage, Camp...), ou null s'il n'en a pas. Elle donne sa couleur au calendrier et au parcours du talent, marque l'événement d'une étoile dans ce parcours quand elle est un événement clé (« keyEvent »), et compte pour les badges, sans rien changer d'autre : ce sont les sections qui décident des pages de l'événement. « key » est la clé à passer à write_event_config (categoryKey). « archived » vaut vrai pour une catégorie archivée : l'événement la garde, mais elle n'est plus donnée à un autre.",
     ),
     configState: metric(
       {
@@ -666,7 +666,7 @@ export async function getEventCategories(): Promise<EventCategories> {
   return {
     categories: metric(
       rows,
-      "Les catégories d'événement, archivées comprises, par ordre alphabétique de libellé. « key » est la clé qui l'identifie et que prennent write_event_category, write_event_config et bulk_event_config (categoryKey) ; elle ne change jamais, le libellé (« label ») se renomme. « color » est sa couleur sur le calendrier, en code hexadécimal (#rrggbb). « archived » vaut vrai pour une catégorie archivée : elle n'est plus donnée à un événement, ceux qui la portent la gardent. « attachedEvents » compte les événements qui la portent.",
+      "Les catégories d'événement, archivées comprises, par ordre alphabétique de libellé. « key » est la clé qui l'identifie et que prennent write_event_category, write_event_config et bulk_event_config (categoryKey) ; elle ne change jamais, le libellé (« label ») se renomme. « color » est sa couleur sur le calendrier et dans le parcours du talent, en code hexadécimal (#rrggbb). « keyEvent » vaut vrai pour un événement clé, un format qui compte dans le parcours d'un talent (le stage de seconde) : ses événements y sont marqués d'une étoile. « archived » vaut vrai pour une catégorie archivée : elle n'est plus donnée à un événement, ceux qui la portent la gardent. « attachedEvents » compte les événements qui la portent.",
     ),
   };
 }

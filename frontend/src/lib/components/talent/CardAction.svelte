@@ -15,16 +15,20 @@
   // eye gets the mockup's size, the thumb gets the target. Inside a card that
   // is itself the link, the card is the target and nothing is added.
   //
-  // Three elements, one look:
+  // Four elements, one look:
   //   - inside a card that is itself the link (`XpCard`, `DailyTrainingTile`),
-  //     no `href` and no `onclick`: a `span`, the card's own hover moves the
-  //     arrow (`group`);
-  //   - `href`: its own link;
-  //   - `onclick`: a button (« Lire la suite » opens a dialog).
+  //     no `href`, no `onclick` and no `submit`: a `span`, the card's own hover
+  //     moves the arrow (`group`);
+  //   - `href`: its own link, in a new tab when `external` (a sign-up form);
+  //   - `onclick`: a button (« Lire la suite » opens a dialog);
+  //   - `submit`: the submit button of the form around it (opening an
+  //     activity mints a ticket, so it is a form, not a link).
   // A count rides along as a small badge, never as another button shape.
   let {
     href,
+    external = false,
     onclick,
+    submit = false,
     count,
     countLabel,
     icon,
@@ -32,7 +36,11 @@
     children,
   }: {
     href?: string;
+    /** With `href`: a page outside Jump, opened in a new tab. */
+    external?: boolean;
     onclick?: () => void;
+    /** The submit button of the form it sits in. */
+    submit?: boolean;
     /** A number to show beside the label, e.g. activities left to do. */
     count?: number;
     /** What the count means, read by a screen reader after the label. */
@@ -72,7 +80,14 @@
 {/snippet}
 
 {#if href}
-  <a {href} class={targetClasses}>{@render content()}</a>
+  <a
+    {href}
+    class={targetClasses}
+    target={external ? '_blank' : undefined}
+    rel={external ? 'noopener noreferrer' : undefined}>{@render content()}</a
+  >
+{:else if submit}
+  <button type="submit" class={targetClasses}>{@render content()}</button>
 {:else if onclick}
   <button type="button" {onclick} class={targetClasses}
     >{@render content()}</button

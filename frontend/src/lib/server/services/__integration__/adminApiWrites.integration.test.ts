@@ -17,6 +17,7 @@ import { mintToken } from '$lib/server/adminApi/tokens';
 import { adminApiWrite } from '$lib/server/adminApi/route';
 import { planDigest } from '$lib/server/adminApi/plan';
 import {
+  getEventCategories,
   getEventDetail,
   getEventTemplates,
   getWorkshops,
@@ -1642,6 +1643,7 @@ describe('admin API writes (integration)', () => {
         categoryKey: club,
         label: 'Coding Club',
         color: '#013afb',
+        keyEvent: false,
         archived: false,
       });
 
@@ -1685,6 +1687,38 @@ describe('admin API writes (integration)', () => {
         archived: false,
       });
       expect(back.payload.after).toMatchObject({ archived: false });
+    });
+
+    it('marks a category as a key event and clears it, leaving the rest alone', async () => {
+      await call(postCategory, writeSecret, {
+        categoryKey: stage,
+        label: 'Stage clé',
+        color: '#ff1ef7',
+        keyEvent: true,
+      });
+      const marked = await prisma.eventConfig_Category.findUniqueOrThrow({
+        where: { key: stage },
+      });
+      expect(marked.keyEvent).toBe(true);
+
+      // The read answers it in the shape the write takes, as for every field.
+      const read = (await getEventCategories()).categories.value.find(
+        (c) => c.key === stage,
+      );
+      expect(read).toMatchObject({ keyEvent: true, label: 'Stage clé' });
+
+      const cleared = await call(postCategory, writeSecret, {
+        categoryKey: stage,
+        keyEvent: false,
+      });
+      expect(cleared.payload.after).toMatchObject({
+        label: 'Stage clé',
+        color: '#ff1ef7',
+        keyEvent: false,
+      });
+
+      // Back to a blank slate for the cases below, which create it themselves.
+      await prisma.eventConfig_Category.delete({ where: { key: stage } });
     });
 
     it('refuses to create a category without a colour, and a label another one holds', async () => {
