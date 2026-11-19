@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   assertLoadTestAuth,
@@ -25,5 +25,5 @@ export const GET: RequestHandler = async ({ request, url }) => {
   }
 
   const manifest = await buildLoadManifest(sample);
-  return json(manifest);
+  return Response.json(manifest);
 };

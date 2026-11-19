@@ -1,4 +1,3 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db';
 import { classifySfStatus } from '$lib/domain/sfMemberStatus';
@@ -77,7 +76,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     (r) => r.statusClass === 'unrecognised',
   ).length;
 
-  return json({
+  return Response.json({
     event: {
       id: event.id,
       displayName: event.publicName || event.titre,

@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   markMinigameRewardsSeen,
@@ -24,5 +24,5 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   if (set.has('base')) await markMinigameRewardsSeen(locals.talent.id);
   if (set.has('rank')) await markMinigameRankRewardsSeen(locals.talent.id);
 
-  return json({ ok: true });
+  return Response.json({ ok: true });
 };

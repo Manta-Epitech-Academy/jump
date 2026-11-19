@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
@@ -26,7 +26,7 @@ export const POST: RequestHandler = async ({ request }) => {
   try {
     const count = await sweepExpiredAttempts();
     console.log(`[Job] OTP attempt sweep: ${count} rows deleted.`);
-    return json({ success: true, deleted: count });
+    return Response.json({ success: true, deleted: count });
   } catch (err) {
     console.error('[Job] OTP attempt sweep failed:', err);
     throw error(500, 'Internal Server Error');

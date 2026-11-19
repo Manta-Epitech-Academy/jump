@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { AnonymizationService } from '$lib/server/services/anonymizationService';
 import { env } from '$env/dynamic/private';
@@ -19,7 +19,7 @@ export const POST: RequestHandler = async ({ request }) => {
     console.log(
       `[Job] Anonymization job completed: ${count} students processed.`,
     );
-    return json({ success: true, count });
+    return Response.json({ success: true, count });
   } catch (err) {
     console.error('[Job] Anonymization job failed:', err);
     throw error(500, 'Internal Server Error');

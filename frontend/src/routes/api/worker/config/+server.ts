@@ -1,4 +1,3 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireWorkerToken } from '$lib/server/auth/workerToken';
 import { getWorkerConfig } from '$lib/server/services/syncConfigService';
@@ -19,5 +18,5 @@ import { getWorkerConfig } from '$lib/server/services/syncConfigService';
  */
 export const GET: RequestHandler = async ({ request }) => {
   requireWorkerToken(request);
-  return json(await getWorkerConfig());
+  return Response.json(await getWorkerConfig());
 };

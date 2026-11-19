@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   startImpersonation,
@@ -79,5 +79,5 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
     { locals },
   );
 
-  return json({ redirect: result.redirect });
+  return Response.json({ redirect: result.redirect });
 };

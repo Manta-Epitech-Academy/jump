@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { z } from 'zod';
 import { prisma } from '$lib/server/db';
 import { resolveRecipients } from '$lib/server/services/broadcast/recipients';
@@ -33,7 +33,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const payload = await request.json().catch(() => null);
   const parsed = previewSchema.safeParse(payload);
   if (!parsed.success) {
-    return json({ total: 0, included: [], excluded: [], incomplete: true });
+    return Response.json({
+      total: 0,
+      included: [],
+      excluded: [],
+      incomplete: true,
+    });
   }
 
   let channel: 'mail' | 'sms' = 'mail';
@@ -66,7 +71,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     email: r.email,
     phone: r.phone,
   }));
-  return json({
+  return Response.json({
     total: recipients.length,
     included,
     excluded: excludedRecipients,

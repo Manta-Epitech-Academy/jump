@@ -1,4 +1,3 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   assertLoadTestAuth,
@@ -17,5 +16,5 @@ import {
 export const POST: RequestHandler = async ({ request }) => {
   assertLoadTestAuth(request);
   const result = await cleanupLoadTest();
-  return json(result);
+  return Response.json(result);
 };

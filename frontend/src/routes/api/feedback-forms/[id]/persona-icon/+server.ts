@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db';
 import { getStorage } from '$lib/server/infra/storage';
@@ -27,16 +27,19 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
   const formData = await request.formData();
   const file = formData.get('file');
   if (!(file instanceof File) || file.size === 0) {
-    return json({ message: 'Aucune image sélectionnée.' }, { status: 400 });
+    return Response.json(
+      { message: 'Aucune image sélectionnée.' },
+      { status: 400 },
+    );
   }
   if (!PERSONA_ICON_INPUT_TYPES.includes(file.type as never)) {
-    return json(
+    return Response.json(
       { message: 'Format non supporté (JPEG, PNG ou WebP attendu).' },
       { status: 415 },
     );
   }
   if (file.size > PERSONA_ICON_MAX_UPLOAD_BYTES) {
-    return json(
+    return Response.json(
       { message: "L'image dépasse la limite de 20 Mo." },
       {
         status: 413,
@@ -49,21 +52,21 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
       new Uint8Array(await file.arrayBuffer()),
     );
     const key = await replacePersonaIcon(params.id, processed.bytes);
-    return json({
+    return Response.json({
       key,
       url: `/api/feedback-forms/${params.id}/persona-icon?v=${key}`,
     });
   } catch (err) {
     console.error('[feedback persona-icon] upload failed', err);
     if (err instanceof CanvasTooLargeError) {
-      return json(
+      return Response.json(
         {
           message: `L'image fait ${describeCanvas(err)}, au-delà de ${Math.floor(MAX_INPUT_PIXELS / 1_000_000)} mégapixels : envoyez-en une version plus petite.`,
         },
         { status: 413 },
       );
     }
-    return json(
+    return Response.json(
       { message: "Échec du traitement de l'image." },
       { status: 500 },
     );
@@ -73,7 +76,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 export const DELETE: RequestHandler = async ({ params, locals }) => {
   requireAdmin(locals);
   await clearPersonaIcon(params.id);
-  return json({ ok: true });
+  return Response.json({ ok: true });
 };
 
 export const GET: RequestHandler = async ({ params }) => {

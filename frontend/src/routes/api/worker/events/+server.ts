@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireWorkerToken } from '$lib/server/auth/workerToken';
 import { workerEventsPayloadSchema } from '$lib/validation/workerSync';
@@ -23,5 +23,5 @@ export const POST: RequestHandler = async ({ request }) => {
   if (!parsed.success)
     throw error(400, 'Invalid payload: expected { events: [...] }');
 
-  return json(await syncEvents(parsed.data.events));
+  return Response.json(await syncEvents(parsed.data.events));
 };

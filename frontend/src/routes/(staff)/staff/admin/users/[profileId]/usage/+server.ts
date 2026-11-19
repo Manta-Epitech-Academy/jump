@@ -1,4 +1,4 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 import { getMemberActivity } from '$lib/server/usage/memberActivity';
@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   // for a database that is down, so a stale link and an outage looked alike.
   if (!activity) error(404, 'Membre introuvable');
 
-  return json({
+  return Response.json({
     ...activity,
     features: activity.features.map((feature) => ({
       ...feature,

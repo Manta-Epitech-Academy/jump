@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { verifyCallbackSignature } from '$lib/server/hmac';
@@ -46,5 +46,5 @@ export const POST: RequestHandler = async ({ request }) => {
     throw error(500, 'persist failed');
   }
 
-  return json({ ok: true });
+  return Response.json({ ok: true });
 };

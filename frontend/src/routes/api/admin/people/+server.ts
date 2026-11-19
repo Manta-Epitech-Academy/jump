@@ -1,4 +1,3 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { prisma } from '$lib/server/db';
 import {
@@ -25,7 +24,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   // Word by word, like the talents directory the result links into, so
   // "Dupont Léa" finds Léa Dupont whichever kind of person she is.
   const q = (url.searchParams.get('q') ?? '').trim();
-  if (q.length < 2) return json([]);
+  if (q.length < 2) return Response.json([]);
 
   const [talents, parents, staff] = await Promise.all([
     prisma.talent.findMany({
@@ -117,5 +116,5 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     })),
   ];
 
-  return json(results);
+  return Response.json(results);
 };

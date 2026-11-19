@@ -1,4 +1,4 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
@@ -60,7 +60,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
     eventId: params.id,
   });
 
-  return json({
+  return Response.json({
     student: {
       civilite: t.civilite,
       prenom: t.prenom,

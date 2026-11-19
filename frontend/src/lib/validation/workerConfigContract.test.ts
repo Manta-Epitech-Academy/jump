@@ -62,7 +62,7 @@ function answerFor(
   };
 }
 
-/** What the worker actually receives, not what we handed to `json()`. */
+/** What the worker actually receives, not what we handed to `Response.json()`. */
 function overTheWire(answer: unknown): unknown {
   return JSON.parse(JSON.stringify(answer));
 }

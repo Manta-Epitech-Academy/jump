@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { verifyCallbackSignature } from '$lib/server/hmac';
@@ -61,5 +61,7 @@ export const POST: RequestHandler = async ({ request }) => {
     throw error(400, 'invalid payload shape');
   }
 
-  return json({ erased: await erasedTalentIds(talentIds as string[]) });
+  return Response.json({
+    erased: await erasedTalentIds(talentIds as string[]),
+  });
 };

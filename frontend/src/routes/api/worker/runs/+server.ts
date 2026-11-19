@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireWorkerToken } from '$lib/server/auth/workerToken';
 import { workerRunOpenSchema } from '$lib/validation/workerSync';
@@ -21,5 +21,5 @@ export const POST: RequestHandler = async ({ request }) => {
   const parsed = workerRunOpenSchema.safeParse(await request.json());
   if (!parsed.success) throw error(400, 'Invalid payload: expected { mode }');
 
-  return json(await openRun(parsed.data.mode));
+  return Response.json(await openRun(parsed.data.mode));
 };

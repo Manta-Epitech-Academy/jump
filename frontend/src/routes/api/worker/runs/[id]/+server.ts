@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireWorkerToken } from '$lib/server/auth/workerToken';
 import { workerRunCloseSchema } from '$lib/validation/workerSync';
@@ -34,5 +34,5 @@ export const PATCH: RequestHandler = async ({ request, params }) => {
       result.reason === 'not_found' ? 'Run not found' : 'Run already closed',
     );
 
-  return json({ ok: true });
+  return Response.json({ ok: true });
 };

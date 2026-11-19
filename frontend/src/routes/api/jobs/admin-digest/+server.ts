@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
@@ -37,7 +37,7 @@ export const POST: RequestHandler = async ({ request }) => {
           ? "[Job] Admin digest: this week's digest already reached somebody or is being sent, nothing sent."
           : '[Job] Admin digest: no recipient chosen (write_admin_digest_recipient), nothing sent.';
     console.log(line);
-    return json({ success: true, ...result });
+    return Response.json({ success: true, ...result });
   } catch (err) {
     console.error('[Job] Admin digest failed:', err);
     throw error(500, 'Internal Server Error');

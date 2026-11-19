@@ -1,4 +1,4 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import {
   DEV_PHASE_OVERRIDE_COOKIE,
@@ -29,7 +29,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 
   if (raw === '') {
     cookies.delete(DEV_PHASE_OVERRIDE_COOKIE, { path: COOKIE_PATH });
-    return json({ override: null });
+    return Response.json({ override: null });
   }
 
   if (!isDevPhaseOverride(raw)) {
@@ -43,5 +43,5 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
     sameSite: 'lax',
     maxAge: COOKIE_MAX_AGE,
   });
-  return json({ override: raw });
+  return Response.json({ override: raw });
 };

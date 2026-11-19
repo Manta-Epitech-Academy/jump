@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
@@ -28,7 +28,11 @@ export const POST: RequestHandler = async ({ request }) => {
     console.log(
       `[Job] gc-api-audit completed: ${deleted} call(s) older than ${RETENTION_DAYS} days removed.`,
     );
-    return json({ success: true, deleted, retentionDays: RETENTION_DAYS });
+    return Response.json({
+      success: true,
+      deleted,
+      retentionDays: RETENTION_DAYS,
+    });
   } catch (err) {
     console.error('[Job] gc-api-audit failed:', err);
     throw error(500, 'Internal Server Error');

@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
@@ -28,7 +28,7 @@ export const POST: RequestHandler = async ({ request }) => {
     console.log(
       `[Job] usage-rollup completed: ${result.monthsFolded} month(s) folded into ${result.rowsWritten} row(s), ${result.rawPurged} raw row(s) older than ${USAGE_RAW_RETENTION_MONTHS} months removed.`,
     );
-    return json({ success: true, ...result });
+    return Response.json({ success: true, ...result });
   } catch (err) {
     console.error('[Job] usage-rollup failed:', err);
     throw error(500, 'Internal Server Error');

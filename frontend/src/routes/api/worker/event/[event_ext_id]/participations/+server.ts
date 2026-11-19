@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireWorkerToken } from '$lib/server/auth/workerToken';
 import { workerParticipationsPayloadSchema } from '$lib/validation/workerSync';
@@ -32,7 +32,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
   if (!parsed.success)
     throw error(400, 'Invalid payload: expected { participations, mode }');
 
-  return json(
+  return Response.json(
     await syncParticipations(
       params.event_ext_id,
       parsed.data.participations,

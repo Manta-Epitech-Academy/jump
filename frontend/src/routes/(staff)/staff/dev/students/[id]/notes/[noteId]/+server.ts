@@ -1,4 +1,4 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { noteUpdateSchema } from '$lib/validation/talentNotes';
 import {
@@ -48,7 +48,7 @@ export const PATCH: RequestHandler = async ({ request, params, locals }) => {
       include: NOTE_INCLUDE,
     });
     if (!current) throw error(404, 'Note introuvable.');
-    return json(
+    return Response.json(
       { conflict: true, current: serializeNote(current) },
       { status: 409 },
     );
@@ -60,7 +60,7 @@ export const PATCH: RequestHandler = async ({ request, params, locals }) => {
   });
   recordUsage(USAGE_FEATURES.DEV_TALENT_NOTE_EDIT, { locals });
 
-  return json({ note: serializeNote(note) });
+  return Response.json({ note: serializeNote(note) });
 };
 
 /** Deletes a note (any dev member may delete any note). */
@@ -75,5 +75,5 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
   await prisma.note_TalentNote.deleteMany({ where: { id: params.noteId } });
   recordUsage(USAGE_FEATURES.DEV_TALENT_NOTE_DELETE, { locals });
 
-  return json({ ok: true });
+  return Response.json({ ok: true });
 };

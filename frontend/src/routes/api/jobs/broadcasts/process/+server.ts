@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { processNextQueuedBroadcast } from '$lib/server/services/broadcast/orchestrator';
@@ -21,8 +21,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
   try {
     const broadcastId = await processNextQueuedBroadcast();
-    if (!broadcastId) return json({ processed: false });
-    return json({ processed: true, broadcastId });
+    if (!broadcastId) return Response.json({ processed: false });
+    return Response.json({ processed: true, broadcastId });
   } catch (err) {
     console.error('[job] broadcast processing failed', err);
     throw error(500, 'Internal Server Error');
