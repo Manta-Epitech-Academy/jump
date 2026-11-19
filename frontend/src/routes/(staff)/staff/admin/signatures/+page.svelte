@@ -1,6 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
+  import { refreshAll } from '$app/navigation';
   import Plus from '@lucide/svelte/icons/plus';
   import Pencil from '@lucide/svelte/icons/pencil';
   import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -240,7 +240,7 @@
             if (result.type === 'success') {
               open = false;
               toast.success('Signataire enregistré.');
-              await invalidateAll();
+              await refreshAll();
             } else if (result.type === 'failure') {
               toast.error(
                 (result.data as { message?: string })?.message ||

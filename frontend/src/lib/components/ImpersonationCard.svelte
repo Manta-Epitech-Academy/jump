@@ -45,7 +45,7 @@
     busy = true;
     try {
       await stopImpersonating();
-      await goto(resolve('staff/admin/users'), { invalidateAll: true });
+      await goto(resolve('staff/admin/users'), { refreshAll: true });
     } catch (err) {
       console.error(err);
       toast.error('Impossible de revenir au compte admin.');

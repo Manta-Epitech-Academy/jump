@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation';
+  import { refreshAll } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { toast } from 'svelte-sonner';
   import FlaskConical from '@lucide/svelte/icons/flask-conical';
@@ -33,7 +33,7 @@
 
   let busy = $state(false);
 
-  // Talk to the endpoint with `fetch` + `invalidateAll` instead of a native
+  // Talk to the endpoint with `fetch` + `refreshAll` instead of a native
   // form post: the endpoint lives outside any page route, so `use:enhance`
   // can't be used (it expects ActionResult JSON), and a native submit would
   // force a full reload.
@@ -51,7 +51,7 @@
         toast.error("L'aperçu de phase n'a pas pu être modifié. Réessayez.");
         return;
       }
-      await invalidateAll();
+      await refreshAll();
     } catch (err) {
       console.error(err);
       toast.error("L'aperçu de phase n'a pas pu être modifié. Réessayez.");

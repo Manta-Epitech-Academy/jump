@@ -71,7 +71,7 @@
       if (result.type === 'redirect') {
         track('rules_signed', { secondsToSign: secondsBetween(seenAt) });
         track('onboarding_completed', { step: 'rules' });
-        goto(result.location, { invalidateAll: true });
+        goto(result.location, { refreshAll: true });
         return;
       }
       if (result.type === 'failure') {

@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { dev } from '$app/env';
   import { enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
+  import { refreshAll } from '$app/navigation';
   import { enter, stagger } from '#lib/motion/index.ts';
   import { triggerConfetti } from '#lib/actions/confetti.ts';
   import { welcomeRewardToast } from '#lib/components/talent/rewardToast.ts';
@@ -112,7 +112,7 @@
   $effect(() => {
     if (!data.hasActivities) return;
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') void invalidateAll();
+      if (document.visibilityState === 'visible') void refreshAll();
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () =>

@@ -18,10 +18,10 @@
   // "Active" means the server slid the window forward, and it does that on
   // every request that runs the hook (`slideImpersonationExpiry`), not only on
   // navigations. So the countdown resets on every server load, detected
-  // reactively: a navigation changes `page.url`, and an in-place `invalidateAll`
+  // reactively: a navigation changes `page.url`, and an in-place `refreshAll`
   // changes `page.data`. That second signal is the one a navigation-only reset
   // misses, and it matters: onboarding steps and activity step-validation
-  // advance via `invalidateAll` without ever navigating (`stepSubmit.ts`: "the
+  // advance via a data refresh without ever navigating (`stepSubmit.ts`: "the
   // wizard never navigates between steps"), yet each still slides the session.
   // We intentionally do not derive the deadline from `session.expiresAt`: under
   // the 5-min cookie cache that value can lag the true expiry, whereas a fresh
@@ -50,13 +50,13 @@
       toast.info(
         "Session d'impersonation expirée, retour à votre compte admin.",
       );
-      await goto(resolve(returnPath), { invalidateAll: true });
+      await goto(resolve(returnPath), { refreshAll: true });
     } catch {
       // The window lapsed before we could stop (e.g. the machine slept past
       // expiry): the stop can no longer restore the admin session, so
       // route to login with an explanation rather than a bare bounce.
       toast.info("Session d'impersonation expirée, reconnectez-vous.");
-      await goto(resolve('staff/login'), { invalidateAll: true });
+      await goto(resolve('staff/login'), { refreshAll: true });
     }
   }
 

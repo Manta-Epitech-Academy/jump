@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { invalidateAll } from '$app/navigation';
+  import { refreshAll } from '$app/navigation';
   import { toast } from 'svelte-sonner';
   import Camera from '@lucide/svelte/icons/camera';
   import Loader2 from '@lucide/svelte/icons/loader-2';
@@ -69,7 +69,7 @@
         toast.error(b?.message ?? "Échec de l'enregistrement de l'icône.");
         return;
       }
-      await invalidateAll();
+      await refreshAll();
     } catch {
       toast.error('Une erreur réseau est survenue.');
     } finally {

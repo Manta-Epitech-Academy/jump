@@ -1,7 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { enhance } from '$app/forms';
-  import { goto, invalidateAll } from '$app/navigation';
+  import { goto, refreshAll } from '$app/navigation';
   import { toast } from 'svelte-sonner';
   import { Button } from '#lib/components/ui/button/index.ts';
   import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
@@ -127,7 +127,7 @@
                     return async ({ result }) => {
                       if (result.type === 'success') {
                         toast.success('Template supprimé.');
-                        await invalidateAll();
+                        await refreshAll();
                       } else if (result.type === 'failure') {
                         const data = result.data as
                           { deleteError?: string } | undefined;

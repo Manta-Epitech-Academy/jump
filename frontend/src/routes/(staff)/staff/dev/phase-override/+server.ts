@@ -15,7 +15,7 @@ const COOKIE_MAX_AGE = 60 * 60 * 8; // 8h, long enough for a working session
  * sessions targeting a dev/superdev account; readers (`hooks.server.ts`)
  * re-validate, but we refuse to even write the cookie when the gate fails.
  *
- * Returns a small JSON payload so the caller can `fetch()` + `invalidateAll()`
+ * Returns a small JSON payload so the caller can `fetch()` + `refreshAll()`
  * without a full-page navigation. We deliberately avoid SvelteKit's form-action
  * + `use:enhance` flow because this endpoint lives outside any page route.
  */
