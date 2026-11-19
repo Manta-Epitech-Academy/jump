@@ -14,7 +14,7 @@ import {
  *     `MAILJET_API_KEY` + `MAILJET_API_SECRET`.
  *
  * Picked at server start. Flipping providers is just an env change +
- * redeploy: call sites depend only on `$lib/server/email`.
+ * redeploy: call sites depend only on `#lib/server/email`.
  */
 export type MailProviderKind = 'resend' | 'mailjet';
 

@@ -18,7 +18,7 @@
  * reached, so its week is not mailed a second time and the next digest counts
  * "nouveau" from it.
  *
- * Weeks and months are counted in Europe/Paris (`$lib/domain/adminDigestCalendar`).
+ * Weeks and months are counted in Europe/Paris (`#lib/domain/adminDigestCalendar`).
  */
 
 import { prisma } from '#lib/server/db.ts';

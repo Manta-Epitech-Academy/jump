@@ -25,7 +25,7 @@ import {
  * The directory's column filters. A list held in memory counts its facets over
  * its rows; the directory is paged on the server, so it counts them in the
  * database and hands the counts to `offerFacets`, where the rules every staff
- * list follows are applied (`$lib/domain/listFacets`). Like every list's, the
+ * list follows are applied (`#lib/domain/listFacets`). Like every list's, the
  * counts are over the whole directory, not over what the other filters left,
  * so a menu reads the same however the list is narrowed.
  */

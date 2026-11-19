@@ -8,7 +8,7 @@
  *     signed with a separate audience claim and consumed by the parent
  *     route, which signs in the `bauth_user` with `role: 'parent'`.
  *
- * Kept free of any `$lib/server/auth` import on purpose: BetterAuth's OTP
+ * Kept free of any `#lib/server/auth` import on purpose: BetterAuth's OTP
  * callback imports `otp.ts`, which mints parent links here, so routing the
  * token helpers through `auth` would close an import cycle. The sibling that
  * does need the BetterAuth instance is `otpSession.ts`, which mints and

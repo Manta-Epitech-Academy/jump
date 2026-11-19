@@ -50,8 +50,8 @@
  * graded on its own point base (e.g. 9999) maps onto a fixed XP budget (e.g. 1800);
  * the per-talent scaled amount still lives on each grant.
  *
- * Self-contained on purpose (no `$lib` import): like the other scripts it must
- * run against the production image where Vite aliases do not resolve. The grant
+ * Self-contained on purpose (nothing imported from `src/`): like the other
+ * scripts it must run against the production image, which ships no `src/`. The grant
  * sourceId format and the xp recompute are inlined from
  * src/lib/server/services/xpService.ts, keep them in sync.
  *

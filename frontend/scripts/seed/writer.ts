@@ -12,9 +12,9 @@
  * And it makes the write order one decision in one place instead of an ordering
  * every scenario has to get right on its own.
  *
- * The services are deliberately not used. They all reach `$lib/server/db`, which
- * reads `$env/dynamic/private` and does not resolve outside Vite, and calling
- * them one row at a time would be far slower besides. What the app's own logic
+ * The services are deliberately not used. Many of them reach SvelteKit's
+ * `$app/*` modules, which resolve only under Vite, and calling them one row at
+ * a time would be far slower besides. What the app's own logic
  * does instead is CHECK the result: see `assert/`. The generator constructs, the
  * domain verifies.
  */

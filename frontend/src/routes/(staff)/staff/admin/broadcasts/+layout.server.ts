@@ -38,7 +38,7 @@ type DevRedirect =
  * Surface the outbound trap (mail + SMS) to the broadcast UI so admins know
  * where their *bulk* sends will land before sending. Both channels carry
  * messages meant for minors and their parents (RGPD), so the trap must never be
- * silent. Gated by `OUTBOUND_MODE` (`$lib/server/outbound`): one switch, both
+ * silent. Gated by `OUTBOUND_MODE` (`#lib/server/outbound`): one switch, both
  * channels, so the banner can't claim "trapped" for one while the other leaks.
  *
  * The asymmetry the banner has to convey honestly:
@@ -49,7 +49,7 @@ type DevRedirect =
  *     accounts have no phone to redirect to), and is *dropped* if that's unset.
  *
  * One more state the banner must not get wrong: while the composer has *armed
- * real sends* (see `$lib/server/armRealSends`), bulk sends bypass the trap and
+ * real sends* (see `#lib/server/armRealSends`), bulk sends bypass the trap and
  * reach real recipients. `armedRealSends` is surfaced so the layout can flip
  * the "trapped" message to a danger one instead of claiming the cohort is safe.
  */

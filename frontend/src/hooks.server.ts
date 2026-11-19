@@ -34,7 +34,7 @@ import { createInitialModeExpression } from 'mode-watcher';
 // Every CSP directive that is a fixed constant (or gone with the recorder, issue
 // #275) lives in kit's `csp` (vite.config.ts) now, which hands out a real
 // per-request script-src nonce. The two values below are what a build-time
-// config cannot express; both live in `$lib/security/csp`, which says why.
+// config cannot express; both live in `#lib/security/csp`, which says why.
 //
 // Computed once at module load rather than per request: `JUMP_GAMES_URL` is a
 // container env var, so it cannot change while the process runs.

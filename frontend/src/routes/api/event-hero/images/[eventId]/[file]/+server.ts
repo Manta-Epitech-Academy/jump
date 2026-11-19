@@ -6,7 +6,7 @@ import { eventHeroImageKeyFromPath } from '#lib/domain/eventHero.ts';
 
 // A picture of one stage of an event's hero on the talent home, copied into
 // storage when an admin wrote it (`write_event_config`,
-// `$lib/server/images/remote.ts`). The browser never asks the host it came
+// `#lib/server/images/remote.ts`). The browser never asks the host it came
 // from, which is the point of the copy.
 //
 // Served only for a key a hero stage still references (the picture, or the

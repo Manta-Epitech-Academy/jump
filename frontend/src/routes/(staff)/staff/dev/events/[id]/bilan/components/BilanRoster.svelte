@@ -59,7 +59,7 @@
   // Event's Jump-owned cohort noun ("stagiaire" / "participant").
   const noun = $derived(cohortNounForms(cohortNoun));
 
-  // Filters, sort and search live in the address (`$lib/domain/bilanView`), so
+  // Filters, sort and search live in the address (`#lib/domain/bilanView`), so
   // the event home's recommendation card can open this list already filtered.
   const view = $derived(BILAN_VIEW.parse(page.url.searchParams));
 

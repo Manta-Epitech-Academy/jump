@@ -4,7 +4,7 @@ import type { AdminEventVM } from './+page.server';
 
 /**
  * The events cockpit's view, in the address every staff list shares
- * (`$lib/domain/listView`), so a reload or a shared link shows the same list.
+ * (`#lib/domain/listView`), so a reload or a shared link shows the same list.
  *
  * - **`campus`** filters from the Campus column, several at once.
  * - **`annee`** (a school-year label, `2026-2027`) has no column, so it keeps

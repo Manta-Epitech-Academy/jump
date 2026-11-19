@@ -13,7 +13,7 @@ import {
  *     Requires `BREVO_API_KEY`.
  *
  * Picked at server start. Flipping providers is an env change + redeploy:
- * call sites depend only on `$lib/server/sms`.
+ * call sites depend only on `#lib/server/sms`.
  */
 export type SmsProviderKind = 'brevo' | 'null';
 

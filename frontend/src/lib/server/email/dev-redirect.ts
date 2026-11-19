@@ -11,7 +11,7 @@ import type { DevRedirectControl, MailMessage } from './types';
  * Dev-redirect splits into two concerns:
  *
  *   1. THE GATE: "is this environment allowed to reach real recipients?"
- *      Owned by `OUTBOUND_MODE` (see `$lib/server/outbound`), shared with SMS,
+ *      Owned by `OUTBOUND_MODE` (see `#lib/server/outbound`), shared with SMS,
  *      fail-safe and env-only. Not this file's concern beyond consulting it.
  *
  *   2. THE DESTINATION: "when trapped, where does the copy land?" Resolved

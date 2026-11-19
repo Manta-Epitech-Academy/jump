@@ -65,7 +65,7 @@
 
   // The streamed cohort payload plus the cheap shell values the table needs.
   // The view it shows (filters, sort, search) is not held here: it is read off
-  // the address (`$lib/domain/inscritsView`) and every control writes there, so
+  // the address (`#lib/domain/inscritsView`) and every control writes there, so
   // a reload, a shared link and the Back button all show the same list.
   let {
     rows,

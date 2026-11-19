@@ -3,7 +3,7 @@ import { defineListView, type SortedListView } from '#lib/domain/listView.ts';
 
 /**
  * The Inscrits page's view, carried in its address in the format every staff
- * list shares (`$lib/domain/listView`): a reload, a link shared with a
+ * list shares (`#lib/domain/listView`): a reload, a link shared with a
  * colleague, the browser's Back button and the event home's cards all land on
  * the same list. Matching a row against the view belongs to the page; this
  * module only declares what the address carries.

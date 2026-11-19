@@ -21,9 +21,9 @@ Read [`DESIGN.md`](../../DESIGN.md) at the repo root before any visual work: it 
     `DESIGN.md` and the existing shadcn-svelte components in `src/lib/components/ui/` remain the absolute source of truth: skills must never introduce out-of-palette colors or ad-hoc raw HTML replacements for standard UI components.
 
 - **Motion goes through the pieces that already carry § Motion**, never through a value picked on the spot:
-  - a Svelte transition is one of `$lib/motion`'s (`enter`, `stagger`, `stepIn`, `stepOut`, `fade`), never `fly` or `fade` from `svelte/transition`;
+  - a Svelte transition is one of `#lib/motion`'s (`enter`, `stagger`, `stepIn`, `stepOut`, `fade`), never `fly` or `fade` from `svelte/transition`;
   - a tooltip is a `Tooltip.Root` under the one provider in `routes/+layout.svelte`, never wrapped in a provider of its own;
-  - the staff sidebar on a phone is `StaffMobileNav` (`$lib/components/staff/`), a drawer from the left, never an `{#if}` around a flying aside.
+  - the staff sidebar on a phone is `StaffMobileNav` (`#lib/components/staff/`), a drawer from the left, never an `{#if}` around a flying aside.
 
   `lint:design` refuses the first two.
 
@@ -31,7 +31,7 @@ Read [`DESIGN.md`](../../DESIGN.md) at the repo root before any visual work: it 
 
   1. **Cut.** An enumeration that only illustrates a choice its own title already makes ("Chiffres de pilotage seulement, en lecture" does not need four examples) is deleted, not relocated. Hiding noise still costs the reader a hover to find out it was noise.
   2. **One visible line.** Whatever is left on a control is the single fact that changes the decision at the moment it is taken, typically an irreversibility ("Choix définitif : un token créé en lecture seule le reste.").
-  3. **`InfoTooltip` for the rest** (`$lib/components/ui/info-tooltip`, ⓘ next to the label it belongs to): rationale, quotas, audit guarantees, "why we ask". Reachable when wanted, invisible otherwise. `KpiTile`'s `helpText` on `/staff/admin/events` is the reference use.
+  3. **`InfoTooltip` for the rest** (`#lib/components/ui/info-tooltip`, ⓘ next to the label it belongs to): rationale, quotas, audit guarantees, "why we ask". Reachable when wanted, invisible otherwise. `KpiTile`'s `helpText` on `/staff/admin/events` is the reference use.
   4. **`Collapsible`, never a tooltip, for text somebody must be able to read and re-read**: terms a checkbox commits to, the consequences of a destructive action. Hover is not a reading surface, and it is not a place to put something a person is agreeing to.
 
   This is the most-repeated review finding on staff dialogs and admin pages: prose accumulates one well-meant clarification at a time, and nobody deletes any of it. The `/staff/admin/api-tokens` page is the worked example (header, tier cards, write toggle, conditions, list).
@@ -45,7 +45,7 @@ Read [`DESIGN.md`](../../DESIGN.md) at the repo root before any visual work: it 
 
   A list, or the whole body of a card or a dialog, gets `ResultsNotice` (`compact` inside a card or a dialog), never a bare italic sentence. The event home's cards are the one exception: `HomeCard` draws its own, as the 2027 mockup does. A missing value on one line among others (a field, a table cell, one entry of a rail) stays a muted line or `-`. The same state reads the same everywhere: an event with no one shown is `EmptyCohortNotice`, on every one of its pages.
 
-- **The dev space has a voice, and it lives in one file.** A tool used all day feels alive through a few lines that make its people smile: the calendar's greeting, a filter that found no one, the last closing of an event, a créneau where everyone came, a lost page. Every such line is in `$lib/domain/devVoice.ts`, so they can be read and rewritten side by side, and none is written inline in a component. A line:
+- **The dev space has a voice, and it lives in one file.** A tool used all day feels alive through a few lines that make its people smile: the calendar's greeting, a filter that found no one, the last closing of an event, a créneau where everyone came, a lost page. Every such line is in `#lib/domain/devVoice.ts`, so they can be read and rewritten side by side, and none is written inline in a component. A line:
 
   1. **is understood by whoever reads it.** "Dev" is the recruitment team: Salesforce, relances and closings are their world, segfaults are not.
   2. **is never said over a failure or lost work.** There the copy only says what failed and what to do.

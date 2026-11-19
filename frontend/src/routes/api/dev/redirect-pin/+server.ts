@@ -11,7 +11,7 @@ import {
 /**
  * Arm / disarm the dev-redirect pin on a trapped (dev/staging) env: route
  * trapped login (OTP) mail to the arming admin so they can test the real
- * logged-out login flow. See `$lib/server/devRedirectPin`.
+ * logged-out login flow. See `#lib/server/devRedirectPin`.
  *
  * Lives under `/api` (not behind `/staff/*` guards) for the same reason as
  * `/api/dev/real-sends`: the disarm button rides the global banner, which is

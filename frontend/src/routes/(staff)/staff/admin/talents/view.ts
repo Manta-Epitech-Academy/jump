@@ -3,7 +3,7 @@ import { defineListView, type SortedListView } from '#lib/domain/listView.ts';
 
 /**
  * The talent directory's view, in the address every staff list shares
- * (`$lib/domain/listView`). Client-safe, unlike `./query`: the page reads it to
+ * (`#lib/domain/listView`). Client-safe, unlike `./query`: the page reads it to
  * write its filters and sort, the server to read them back.
  *
  * Each facet filters from its column: the niveau (`niveau`, a `Niveau` code),

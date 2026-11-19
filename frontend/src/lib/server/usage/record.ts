@@ -21,7 +21,7 @@ import { actorHash } from './actorHash';
  * post a result back is an access to the terminal under art. 5(3) ePD (EDPB
  * Guidelines 2/2023), which would drag the whole thing into art. 82 consent.
  * There is no `/api/usage` endpoint and there must not be one. `usage.test.ts`
- * fails if this module is imported outside `$lib/server`.
+ * fails if this module is imported outside `#lib/server`.
  *
  * WHAT IT REFUSES TO RECORD, each for its own reason:
  *   - a talent who has objected (`usageAnalyticsOptOutAt`), art. 21;

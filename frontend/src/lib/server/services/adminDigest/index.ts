@@ -22,13 +22,13 @@
  * Every actionable figure links straight to the admin page that acts on it. A
  * recipient who isn't logged in yet still lands there: the staff login guard
  * carries the target through `?redirect=` and replays it after Microsoft OAuth
- * (`$lib/server/auth/loginRedirect.ts`), so the link works whether the click
+ * (`#lib/server/auth/loginRedirect.ts`), so the link works whether the click
  * happens before or after signing in.
  *
  * The mail is described once (`findings.ts`) and rendered twice (`render.ts`),
  * so its HTML and text parts cannot say different things.
  *
- * Same branded shell as every other Jump mail (`$lib/domain/emailBrandShell`),
+ * Same branded shell as every other Jump mail (`#lib/domain/emailBrandShell`),
  * wrapped as a full HTML document: a bare fragment scores Gmail/Outlook's
  * auto-generated-spam heuristic, which is exactly the defect the shared shell
  * exists to avoid.

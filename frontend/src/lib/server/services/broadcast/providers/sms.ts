@@ -3,7 +3,7 @@ import { toBrevoRecipient } from '#lib/domain/phone.ts';
 import type { SmsProvider, SendOutcome } from './types';
 
 /**
- * Adapts the provider-agnostic SMS façade (`$lib/server/sms`) into the
+ * Adapts the provider-agnostic SMS façade (`#lib/server/sms`) into the
  * broadcast orchestrator's `SmsProvider`/`SendOutcome` contract: the SMS
  * twin of `./mail.ts`. Transport, dev-redirect and Brevo wiring all live in
  * the façade; this file only translates the result shape and retry semantics.

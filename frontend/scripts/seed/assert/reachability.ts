@@ -6,9 +6,9 @@
  * and `eventRunsClosings` over the result is what turns "we wrote some
  * timestamps" into "every rung of the ladder is standing on".
  *
- * It is also the honest answer to a design constraint: the services cannot be
- * called from here, because they reach `$lib/server/db` and `$env/dynamic/private`
- * which do not resolve outside Vite. The pure domain functions have no such
+ * It is also the honest answer to a design constraint: the services are not
+ * called from here, many of them reaching SvelteKit's `$app/*` modules, which
+ * resolve only under Vite. The pure domain functions have no such
  * dependency, so the check uses the same code the screens do.
  */
 
@@ -278,8 +278,8 @@ export async function reachabilityFailures(
 
   // The usage coverage matrix masks a campus × fonctionnalité cell below
   // five distinct talent actors in one month (`USAGE_SMALL_CELL_FLOOR` in
-  // `adminStats/featureUsage.ts`, a `$lib/server` module unreachable from
-  // this Vite-free script, which is why the threshold is restated rather
+  // `adminStats/featureUsage.ts`, a server module that reaches `$app/*` and so
+  // is unreachable from this Vite-free script, which is why the threshold is restated rather
   // than imported). A dataset producing only masked cells cannot tell a
   // working mask from a broken query.
   const unmaskedCells = await prisma.$queryRaw<{ count: number }[]>`

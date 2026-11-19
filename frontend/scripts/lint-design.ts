@@ -161,12 +161,12 @@ const rules: Rule[] = [
       '320 ms est le plafond pour une transition d’état (DESIGN.md § Motion)',
   },
   {
-    name: 'Aucune transition Svelte hors de $lib/motion',
+    name: 'Aucune transition Svelte hors de #lib/motion',
     /**
      * A Svelte transition picks its duration, distance and delay in
      * JavaScript, where neither the tokens nor the duration rule above can see
      * them. Nineteen files did, drifted to 400ms, 300px and uncapped staggers,
-     * and one of them honoured prefers-reduced-motion. `$lib/motion` names what
+     * and one of them honoured prefers-reduced-motion. `#lib/motion` names what
      * moves and owns how, so it is the only file allowed to import the
      * primitives. `from` closes every import, single-line or not, so a
      * multi-line specifier list cannot slip past a line-based linter here.
@@ -174,7 +174,7 @@ const rules: Rule[] = [
     pattern: /from\s+['"]svelte\/(?:transition|easing)['"]/,
     files: /^(?!.*lib[/\\]motion[/\\])/,
     message:
-      'transition Svelte directe : passer par $lib/motion (enter, stagger, stepIn, stepOut, fade), qui porte les durées et la variante reduced-motion (DESIGN.md § Motion)',
+      'transition Svelte directe : passer par #lib/motion (enter, stagger, stepIn, stepOut, fade), qui porte les durées et la variante reduced-motion (DESIGN.md § Motion)',
   },
   {
     name: 'Un seul fournisseur d’infobulles, à la racine',

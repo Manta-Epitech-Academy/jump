@@ -6,7 +6,7 @@ import { schoolYearOf } from '#lib/domain/schoolYear.ts';
 import { upsertSchoolingYearRecord } from '#lib/server/services/schoolingService.ts';
 import type { DiffField } from '#lib/domain/reconciliation.ts';
 
-// The field catalogue lives in `$lib/domain/reconciliation` (pure domain data,
+// The field catalogue lives in `#lib/domain/reconciliation` (pure domain data,
 // so the client page can import it too). `isDiffField` is re-exported here for
 // the server-side callers that reach for it alongside the reconciliation
 // queries below; everything else they import from the domain module directly.

@@ -9,7 +9,7 @@ import {
 
 /**
  * The send list's view, in the address every staff list shares
- * (`$lib/domain/listView`): the channel (`canal`) and the send's state
+ * (`#lib/domain/listView`): the channel (`canal`) and the send's state
  * (`statut`) filter from their columns. The list is the 50 most recent sends,
  * newest first, and does not sort.
  */

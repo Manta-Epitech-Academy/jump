@@ -16,7 +16,7 @@ import {
 import type { InscritsCohort } from '#lib/domain/inscritsRoster.ts';
 
 // The load reads nothing off the address on purpose. The page's filters, sort
-// and search all live in the querystring (`$lib/domain/inscritsView`) and are
+// and search all live in the querystring (`#lib/domain/inscritsView`) and are
 // applied in the browser over the whole cohort, so a filter change is a
 // navigation that does not re-run this query: SvelteKit re-runs a load only
 // for the `url` parts it read.

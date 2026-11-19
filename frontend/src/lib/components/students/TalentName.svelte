@@ -8,7 +8,7 @@
   // reads as natural civil identity on a profile. Size, weight and colour
   // cascade from the parent, so the same component serves a bold table cell and
   // a muted contact line alike. For string-only sinks (document titles,
-  // breadcrumb labels) use `formatPersonName` in `$lib/domain/profile`, which
+  // breadcrumb labels) use `formatPersonName` in `#lib/domain/profile`, which
   // applies the same rule without markup.
   let {
     talent,

@@ -5,7 +5,7 @@ import type { FormListRow } from './+page.server';
 
 /**
  * The feedback-form list's view, in the address every staff list shares
- * (`$lib/domain/listView`): the form's lifecycle state (`statut`) filters from
+ * (`#lib/domain/listView`): the form's lifecycle state (`statut`) filters from
  * the Statut column, the title, the counts and the last edit sort.
  */
 

@@ -95,7 +95,7 @@
     in_progress: 'warning',
     done: 'success',
   };
-  // Filters, sort and search live in the address (`$lib/domain/closingsView`),
+  // Filters, sort and search live in the address (`#lib/domain/closingsView`),
   // so the event home's cards can open this list already filtered.
   const view = $derived(CLOSINGS_VIEW.parse(page.url.searchParams));
 

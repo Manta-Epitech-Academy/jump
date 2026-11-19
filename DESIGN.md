@@ -835,7 +835,7 @@ Short, direct, purposeful. The brand is flat and confident: it does not bounce.
 
 **Less motion, not none.** Every non-trivial animation respects `prefers-reduced-motion`, and respecting it means moving less, not freezing: what moves stops moving, and what fades keeps fading, because a dialog that appears softly is still easier to follow than one that snaps in. Spinners and progress keep turning, since they carry a state. Confetti, being pure movement with nothing to read in it, does not fire at all. Where each part lives:
 
-- **Svelte transitions** go through `$lib/motion` (`enter`, `stagger`, `stepIn`, `stepOut`, `fade`), which owns the durations and the reduced variant. `lint:design` refuses `svelte/transition` anywhere else.
+- **Svelte transitions** go through `#lib/motion` (`enter`, `stagger`, `stepIn`, `stepOut`, `fade`), which owns the durations and the reduced variant. `lint:design` refuses `svelte/transition` anywhere else.
 - **The `ui/` primitives and vaul** are covered by one block in `layout.css`, which zeroes their offsets and swaps vaul's slide for its fade.
 - **A loop** (`animate-ping`, `pulse`, `bounce`) carries `motion-safe:`, and a component's own keyframes sit behind a `prefers-reduced-motion` query.
 

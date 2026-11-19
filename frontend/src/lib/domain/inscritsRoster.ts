@@ -56,7 +56,7 @@ export type InscritRow = {
   // Cumulative XP, drives the sortable XP column + its explainer tooltip.
   xp: number;
   // Visits on the campus at earlier events: the Parcours column
-  // (`$lib/domain/visitHistory`).
+  // (`#lib/domain/visitHistory`).
   priorVisits: number;
   // Declared tech interests, in the catalogue's own order.
   techInterests: InscritInterest[];
@@ -89,7 +89,7 @@ export type InscritsCohort = {
 /**
  * What the Inscrits table filters and sorts on, kept out of the component so
  * the rules can be read, and tested, on their own. The filter rules are every
- * roster list's (`$lib/domain/listFacets`); what is the Inscrits page's own:
+ * roster list's (`#lib/domain/listFacets`); what is the Inscrits page's own:
  *
  * - **A facet the campus does not use is not offered**, and its param, if an
  *   address carries one, is ignored: no Statut where the campus does not

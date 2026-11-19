@@ -166,7 +166,7 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
   // `pending` recipients and double-send.
   //
   // Those two statuses are the outstanding half of `BROADCAST_STATUS_KIND`
-  // (`$lib/domain/broadcasts`), which is what the seed generator's inertness
+  // (`#lib/domain/broadcasts`), which is what the seed generator's inertness
   // check reads to refuse writing a row this claim could ever match. The
   // condition per status stays here, because only the worker knows that a
   // `sending` row is claimable exactly once its heartbeat is stale.

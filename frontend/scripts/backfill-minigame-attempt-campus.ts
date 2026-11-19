@@ -42,8 +42,8 @@ const prisma = new PrismaClient({ adapter });
 const dryRun = process.argv.includes('--dry-run');
 
 // Inlined from services/minigameService.ts `getClosestEventForTalent` so the
-// script can run inside the production image (no raw `src/`, `$lib` resolves
-// only under Vite). Keep in sync by inspection: ongoing today → upcoming → most
+// script can run inside the production image, which ships no `src/`. Keep in
+// sync by inspection: ongoing today → upcoming → most
 // recent past, returning that participation's event + campus.
 async function resolveClosestCampus(
   talentId: string,

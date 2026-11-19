@@ -8,7 +8,7 @@ import {
 
 /**
  * The sync-error queue's view, in the address every staff list shares
- * (`$lib/domain/listView`): what went wrong (`probleme`, a `SyncErrorKind`)
+ * (`#lib/domain/listView`): what went wrong (`probleme`, a `SyncErrorKind`)
  * filters from the Problème column, the talent's name and the two dates sort.
  */
 

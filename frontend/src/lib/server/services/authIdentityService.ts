@@ -45,7 +45,7 @@ import type {
 const norm = (email: string | null | undefined): string | null =>
   email?.toLowerCase().trim() || null;
 
-// Verdict semantics (types live in `$lib/domain/authIdentity`):
+// Verdict semantics (types live in `#lib/domain/authIdentity`):
 //  - ORPHAN_HOLDER       held by an account with no talent/staff/parent link.
 //                        Repoint the Talent onto it (the live sessions are
 //                        there) and drop the stale account (repoint+drop).

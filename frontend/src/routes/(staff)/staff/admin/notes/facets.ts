@@ -15,7 +15,7 @@ import { parseNoteFilters, type NoteFilters, type NotesFacet } from './view';
  *
  * The gallery is paged on the server, so the author facet is counted in the
  * database, over every note like every list counts its own, and goes through
- * `offerFacets`, the rules every staff list follows (`$lib/domain/listFacets`):
+ * `offerFacets`, the rules every staff list follows (`#lib/domain/listFacets`):
  * here to decide what the rows match, on the page with the ticks of its own
  * address. The campus has no column, so it is no column filter: only a ticked
  * campus that no longer exists is dropped.

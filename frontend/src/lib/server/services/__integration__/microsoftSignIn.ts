@@ -3,7 +3,7 @@
  * staff door's actual code path rather than rows inserted by hand.
  *
  * Only BetterAuth's public surface is used, no internals:
- * - `createAuthOptions` (from `$lib/server/auth`) with the Microsoft provider
+ * - `createAuthOptions` (from `#lib/server/auth`) with the Microsoft provider
  *   pointed at a local fake HTTP server instead of login.microsoftonline.com,
  *   reusing every other real config value (Prisma adapter, `account.modelName`,
  *   `accountLinking`, `mapProfileToUser`, `validateUserInfo`, `onAPIError`) so

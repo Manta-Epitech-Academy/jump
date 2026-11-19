@@ -2,10 +2,10 @@ import type { DiffField } from '#lib/domain/reconciliation.ts';
 import type { AuthConflict } from '#lib/domain/authIdentity.ts';
 
 // Structural mirrors of the reconciliation service's return shapes, declared
-// here (not imported from `$lib/server/services/reconciliationService`) so this
+// here (not imported from `#lib/server/services/reconciliationService`) so this
 // client-consumed file never pulls a server module into the browser bundle. The
 // load's actual return is checked against these by assignment; `AuthConflict`
-// already lives in the client-safe `$lib/domain/authIdentity`.
+// already lives in the client-safe `#lib/domain/authIdentity`.
 export type DiffKind = 'conflict' | 'missing';
 
 export type FieldDiff = {

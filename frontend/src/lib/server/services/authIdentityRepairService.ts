@@ -19,7 +19,7 @@ export type { AuthRepairAction } from '#lib/domain/authIdentity.ts';
  * action that no longer applies (state moved since the page loaded) throws and
  * rolls back: the caller surfaces it as a failed action.
  *
- * This module is the `$lib`-bound entry point for the page actions; the
+ * This module is the `#lib`-bound entry point for the page actions; the
  * Salesforce sync drives the same core through `autoResolveAuthIdentity` below.
  */
 

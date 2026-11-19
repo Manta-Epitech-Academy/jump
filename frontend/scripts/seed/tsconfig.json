@@ -7,9 +7,9 @@
   // adding a link to the `verify` chain.
   //
   // No `extends`: the generator must not see SvelteKit's ambient types. It runs
-  // under plain `bun`, where `$lib`, `$env` and `$app` do not resolve - which is
-  // exactly why it reaches `src/lib/domain` by relative path. Letting the alias
-  // types in would make a broken import compile.
+  // under plain `bun`, where `$app/*` modules do not resolve (`#lib` does: it is
+  // a subpath import in package.json, not a Vite alias). Letting their types in
+  // would make a broken import compile.
   "compilerOptions": {
     "target": "ES2022",
     "module": "Preserve",

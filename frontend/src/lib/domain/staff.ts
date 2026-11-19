@@ -126,7 +126,7 @@ export function bauthRoleForStaffRole(
  * Derived from `bauthRoleForStaffRole` over every `StaffRole` rather than
  * written out, so it is exactly what that mapping can produce and cannot come
  * to disagree with it. The OTP audience resolver
- * (`$lib/server/auth/otpAudience`) refuses on this in addition to the presence
+ * (`#lib/server/auth/otpAudience`) refuses on this in addition to the presence
  * of a `StaffProfile`: the profile is the truth about what someone can do in
  * the app, but this column is what BetterAuth's admin plugin gates
  * impersonation on, so a row carrying it is staff-capable even with no profile

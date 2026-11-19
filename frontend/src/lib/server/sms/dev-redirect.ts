@@ -7,10 +7,10 @@ import { outboundTrapped, type OutboundRouting } from '#lib/server/outbound.ts';
 import type { DevRedirectControl, SmsMessage } from './types';
 
 /**
- * SMS dev-redirect, mirroring `$lib/server/email/dev-redirect.ts`. Two
+ * SMS dev-redirect, mirroring `#lib/server/email/dev-redirect.ts`. Two
  * concerns, kept apart:
  *
- *   1. THE GATE: `OUTBOUND_MODE` (see `$lib/server/outbound`), shared with
+ *   1. THE GATE: `OUTBOUND_MODE` (see `#lib/server/outbound`), shared with
  *      mail, fail-safe and env-only. Texting a real number from dev/staging is
  *      a privacy incident (recipients are minors, RGPD); the gate is immutable
  *      from the running app so that can never happen by accident.

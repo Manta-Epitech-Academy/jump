@@ -112,7 +112,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 export const actions: Actions = {
   // Impersonation now goes through the shared POST /staff/admin/impersonate
-  // endpoint (see $lib/server/auth/impersonate), so the talents directory and
+  // endpoint (see #lib/server/auth/impersonate), so the talents directory and
   // the users page drive one mechanism instead of two.
 
   // Factory reset: wipe everything a talent accrued after the Salesforce worker
