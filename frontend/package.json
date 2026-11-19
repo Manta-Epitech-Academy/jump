@@ -39,7 +39,8 @@
     "lint:prose": "bun run scripts/lint-prose.ts",
     "lint:scripts": "sh ../scripts/check-exec-bits.sh",
     "lint:bun-pin": "sh ../scripts/check-bun-pin.sh",
-    "verify": "bun run lint:scripts && bun run lint:bun-pin && bun run lint && bun run lint:design && bun run lint:tests && bun run lint:prose && bun run check && bun run test && bun run test:integration && bun run test:schema-drift && bun run test:seed && bun run test:e2e"
+    "lint:job-timeouts": "bun run scripts/lint-job-timeouts.ts",
+    "verify": "bun run lint:scripts && bun run lint:bun-pin && bun run lint:job-timeouts && bun run lint && bun run lint:design && bun run lint:tests && bun run lint:prose && bun run check && bun run test && bun run test:integration && bun run test:schema-drift && bun run test:seed && bun run test:e2e"
   },
   "devDependencies": {
     "@internationalized/date": "^3.12.4",

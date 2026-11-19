@@ -13,6 +13,7 @@ jobs:
   check-order:
     name: Block out-of-order migrations
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
         with:

@@ -15,6 +15,7 @@ env:
 jobs:
   build-sveltekit:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
@@ -73,6 +74,7 @@ jobs:
   # use, and building one would suggest otherwise.
   build-seeder:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: github.ref_name == 'dev' || github.ref_name == 'staging'
     permissions:
       contents: read
@@ -114,6 +116,7 @@ jobs:
 
   restart-k3s:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: build-sveltekit
     if: needs.build-sveltekit.outputs.push == 'true'
 
@@ -163,6 +166,9 @@ jobs:
   # world `staging` is judged on, and only `--env` differs between the two.
   seed:
     runs-on: ubuntu-latest
+    # Above its steps' own deadlines (5 minutes of rollout, 30 of seed Job),
+    # so theirs fire first and say what they were waiting for.
+    timeout-minutes: 40
     needs: [build-seeder, restart-k3s]
     if: github.ref_name == 'dev' || github.ref_name == 'staging'
     concurrency:
