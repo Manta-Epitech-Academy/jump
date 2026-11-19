@@ -18,7 +18,7 @@ import { resolveEventNudgeForm } from '$lib/server/feedbackForms';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
 import { getUnseenWorkshopReward } from '$lib/server/services/workshopService';
 import { loadHomeHero } from '$lib/server/services/talentHomeHero';
-import { activitiesToDo } from '$lib/domain/workshops';
+import { activitiesToDoCount } from '$lib/domain/workshops';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -63,10 +63,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     );
     // How many activities are left to walk, counted on the « Mon parcours »
     // pill: the list itself lives on that page, the home only suggests one.
-    const toDoCount = activitiesToDo([
+    const toDoCount = activitiesToDoCount([
       ...workshops.today,
       ...workshops.activities,
-    ]).length;
+    ]);
 
     // Everything earned on an activity and not yet celebrated. The talent walks
     // the activity in another tab, so nothing here witnesses the moment: the float

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { EventLifecycleStatus } from './eventLifecycle';
 import {
-  activitiesToDo,
+  activitiesToDoCount,
   isOfferedNow,
   selectWorkshopOfferings,
   workshopGrantSourceId,
@@ -225,12 +225,11 @@ describe('isOfferedNow', () => {
   });
 });
 
-describe('activitiesToDo', () => {
+describe('activitiesToDoCount', () => {
   const activity = (
     slug: string,
     solved: number,
     total: number,
-    startedAt: string | null = null,
   ): WorkshopActivity => ({
     slug,
     eventId: 'club',
@@ -238,26 +237,18 @@ describe('activitiesToDo', () => {
     label: slug,
     solvedSteps: solved,
     totalSteps: total,
-    startedAt: startedAt ? new Date(startedAt) : null,
+    startedAt: null,
     cover: { tagline: null, media: null, poster: null, mascot: null },
   });
-  const snake = activity('snake', 0, 0);
-  const pacman = activity('pacman', 3, 10, '2026-10-01T10:00:00Z');
-  const linux = activity('linux', 12, 12, '2026-10-02T10:00:00Z');
-  const docker = activity('docker', 1, 8, '2026-10-03T10:00:00Z');
-  const git = activity('git', 0, 6);
 
-  it('leaves the finished ones to the history', () => {
-    expect(activitiesToDo([linux])).toEqual([]);
-  });
-
-  it('puts the most recently entered first, then those never opened in their order', () => {
-    expect(activitiesToDo([snake, pacman, linux, docker, git])).toEqual([
-      docker,
-      pacman,
-      snake,
-      git,
-    ]);
+  it('counts the unfinished ones, one CTFd has not counted yet included', () => {
+    expect(
+      activitiesToDoCount([
+        activity('snake', 0, 0),
+        activity('pacman', 3, 10),
+        activity('linux', 12, 12),
+      ]),
+    ).toBe(2);
   });
 });
 

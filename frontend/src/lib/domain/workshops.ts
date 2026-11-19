@@ -333,18 +333,14 @@ export function isActivityFinished(
 }
 
 /**
- * The activities a talent still has to walk, as « Mon parcours » lists them:
- * the unfinished ones, those already entered first (the most recently entered
- * leading, since that is the one they are most likely to pick up again), then
- * those never opened, in the order they were given.
+ * How many activities a talent still has to walk: the count the home shows
+ * beside its way into « Mon parcours », where each one sits under the event
+ * that offers it (`buildParcours`).
  */
-export function activitiesToDo(
-  activities: WorkshopActivity[],
-): WorkshopActivity[] {
-  const entered = (a: WorkshopActivity) => a.startedAt?.getTime() ?? -Infinity;
-  return activities
-    .filter((activity) => !isActivityFinished(activity))
-    .sort((a, b) => entered(b) - entered(a));
+export function activitiesToDoCount(
+  activities: readonly WorkshopActivity[],
+): number {
+  return activities.filter((activity) => !isActivityFinished(activity)).length;
 }
 
 export type TalentWorkshops = {
