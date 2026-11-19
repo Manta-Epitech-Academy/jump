@@ -76,7 +76,9 @@ const catalogGameSchema = z
     difficulty: z.enum(['easy', 'medium', 'hard']),
     hasScore: z.boolean(),
     endMode: z.enum(['puzzle', 'infinite']),
-    levelCount: z.int().positive(),
+    // A game with no level yet is still a game: the admin page lists it, and
+    // the rotation skips it (`pickNextPublication`).
+    levelCount: z.int().nonnegative(),
     preview: previewSchema,
   })
   .transform(({ preview, ...game }): CatalogGame => ({
@@ -88,13 +90,17 @@ const catalogGameSchema = z
  * Read the `/api/games` body entry by entry. An entry jump cannot trust (a
  * missing slug, a level count that is not a number) is left out and logged,
  * rather than reaching the rotation and publishing a level that cannot load.
+ *
+ * A body with entries none of which jump can read throws instead: that is a
+ * contract jump-games broke, not a catalogue that emptied, and the caller keeps
+ * its last good list rather than caching an empty one.
  */
 export function parseCatalog(body: unknown): CatalogGame[] {
   const entries = z.object({ games: z.array(z.unknown()) }).safeParse(body);
   if (!entries.success) {
     throw new Error('catalogue body has no `games` array');
   }
-  return entries.data.games.flatMap((entry) => {
+  const games = entries.data.games.flatMap((entry) => {
     const game = catalogGameSchema.safeParse(entry);
     if (game.success) return [game.data];
     console.error(
@@ -103,6 +109,10 @@ export function parseCatalog(body: unknown): CatalogGame[] {
     );
     return [];
   });
+  if (games.length === 0 && entries.data.games.length > 0) {
+    throw new Error('no catalogue entry jump can read');
+  }
+  return games;
 }
 
 /** Map a catalogue game to the publication's snapshotted scoring mode. */

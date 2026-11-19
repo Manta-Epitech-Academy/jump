@@ -78,6 +78,14 @@ describe('parseCatalog', () => {
 
     expect(games.map((g) => g.name)).toEqual(['tango']);
   });
+
+  // Left out, a game with no level yet would read on the admin page as one
+  // jump-games removed, its rotation config offered for deletion.
+  it('keeps a game that has no level yet', () => {
+    const [game] = parseCatalog({ games: [entry({ levelCount: 0 })] });
+
+    expect(game.levelCount).toBe(0);
+  });
 });
 
 // #416: prod's public JUMP_GAMES_URL sits behind Cloudflare's bot challenge,
@@ -137,6 +145,21 @@ describe('getGameCatalog', () => {
     );
     const fresh = await getGameCatalog();
     expect(fresh.map((g) => g.name)).toEqual(['tango']);
+  });
+
+  // A body none of whose entries jump can read is a broken contract, not a
+  // catalogue that emptied: cached, it would skip the day's publication.
+  it('keeps the last good list when no entry of a fresh body is readable', async () => {
+    dynamicEnv.JUMP_GAMES_URL = 'https://jump-games.epiboost.fr';
+    await seedCatalog();
+
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ games: [{ slug: 'queens' }] }), {
+        status: 200,
+      }),
+    );
+    const games = await getGameCatalog({ force: true });
+    expect(games.map((g) => g.name)).toEqual(['queens']);
   });
 });
 
