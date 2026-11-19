@@ -54,8 +54,9 @@ jobs:
       - name: One Bun version for CI and the image
         run: bun run lint:bun-pin
 
-      # `scripts/check-job-timeouts.sh`, awk only. Without it a job added later
-      # gets GitHub's six-hour default back, and the first hang is how we learn.
+      # `frontend/scripts/lint-job-timeouts.ts`, on Bun's built-in YAML parser, so still no
+      # install. Without it a job added later gets GitHub's six-hour default
+      # back, and the first hang is how we learn.
       - name: A timeout on every workflow job
         run: bun run lint:job-timeouts
 
@@ -215,7 +216,7 @@ jobs:
       # `scripts/with-test-db.sh` derives them and exports them last, so a value
       # set here would be a dead override that reads as configuration. On a CI
       # checkout the derivation lands on 4173.
-      CI: 'true'
+      CI: "true"
 
     steps:
       - uses: actions/checkout@v6
