@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const dynamicEnv: Record<string, string | undefined> = {};
 vi.mock('$env/dynamic/private', () => ({ env: dynamicEnv }));
 
-const { getGameCatalog, parseCatalog } = await import('./minigameCatalog');
+const { getCatalogPreview, getGameCatalog, parseCatalog } =
+  await import('./minigameCatalog');
 
 const fetchMock = vi.fn();
 
@@ -109,37 +110,74 @@ describe('getGameCatalog', () => {
     );
   });
 
-  // The talent home awaits the catalogue: a hung jump-games must cost a
-  // bounded wait, and must not be asked again on every home load.
-  it('bounds the fetch and serves the stale list for a while after a failure', async () => {
+  // Every caller awaits the catalogue: a hung jump-games must cost a bounded
+  // wait. The admin page and the cron then ask again on their next call: a
+  // failure on the talent home must not cost the day's publication.
+  it('bounds the fetch and asks again right after a failure', async () => {
     dynamicEnv.JUMP_GAMES_URL = 'https://jump-games.epiboost.fr';
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-11-19T08:00:00Z'));
-    fetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify({ games: [entry()] }), { status: 200 }),
-    );
-    await getGameCatalog({ force: true });
+    await seedCatalog();
 
     expect(fetchMock).toHaveBeenLastCalledWith(
       expect.any(String),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
 
+    vi.setSystemTime(new Date('2026-11-19T08:10:00Z'));
+    fetchMock.mockRejectedValueOnce(
+      new DOMException('timed out', 'TimeoutError'),
+    );
+    const stale = await getGameCatalog();
+    expect(stale.map((g) => g.name)).toEqual(['queens']);
+
+    vi.setSystemTime(new Date('2026-11-19T08:10:05Z'));
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ games: [entry({ name: 'tango' })] }), {
+        status: 200,
+      }),
+    );
+    const fresh = await getGameCatalog();
+    expect(fresh.map((g) => g.name)).toEqual(['tango']);
+  });
+});
+
+// The talent home asks on every load, for a picture: after a failure it must
+// not wait on jump-games again on each one.
+describe('getCatalogPreview', () => {
+  it('serves the stale preview for a while after a failure', async () => {
+    dynamicEnv.JUMP_GAMES_URL = 'https://jump-games.epiboost.fr';
+    await seedCatalog();
+
     // The cached list has expired and jump-games now times out.
     vi.setSystemTime(new Date('2026-11-19T08:10:00Z'));
     fetchMock.mockRejectedValue(new DOMException('timed out', 'TimeoutError'));
-    const stale = await getGameCatalog();
-    expect(stale.map((g) => g.name)).toEqual(['queens']);
+    expect(await getCatalogPreview('queens')).toMatch(/^data:image\/svg\+xml,/);
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     // Within the retry window, no new request: the stale list answers.
     vi.setSystemTime(new Date('2026-11-19T08:10:20Z'));
-    await getGameCatalog();
+    expect(await getCatalogPreview('queens')).not.toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     // Past it, jump-games is asked again.
     vi.setSystemTime(new Date('2026-11-19T08:11:00Z'));
-    await getGameCatalog();
+    await getCatalogPreview('queens');
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
+
+  it('is null for a game the catalogue does not hold', async () => {
+    dynamicEnv.JUMP_GAMES_URL = 'https://jump-games.epiboost.fr';
+    await seedCatalog();
+
+    expect(await getCatalogPreview('zip')).toBeNull();
+  });
 });
+
+/** A good catalogue holding Queens, fetched at 08:00, with `Date` faked. */
+async function seedCatalog() {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-19T08:00:00Z'));
+  fetchMock.mockResolvedValueOnce(
+    new Response(JSON.stringify({ games: [entry()] }), { status: 200 }),
+  );
+  await getGameCatalog({ force: true });
+}

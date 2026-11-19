@@ -5,7 +5,7 @@ import { prisma } from '$lib/server/db';
 import { revokeXp } from '$lib/server/services/xpService';
 import { consumeArrivalCelebration } from '$lib/server/talent/arrivalCelebration';
 import { env } from '$env/dynamic/private';
-import { getCatalogGame } from '$lib/server/services/minigameCatalog';
+import { getCatalogPreview } from '$lib/server/services/minigameCatalog';
 import {
   checkTalentEligibility,
   getActivePublication,
@@ -41,9 +41,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     // (cached, and bounded when jump-games is slow) runs alongside the rest of
     // the load instead of after it. It never rejects: no catalogue, no preview.
     const trainingPreview: Promise<string | null> = minigame?.publication
-      ? getCatalogGame(minigame.publication.game).then(
-          (game) => game?.previewSrc ?? null,
-        )
+      ? getCatalogPreview(minigame.publication.game)
       : Promise.resolve(null);
 
     // A finalized attempt that earned XP the talent hasn't seen celebrated yet:

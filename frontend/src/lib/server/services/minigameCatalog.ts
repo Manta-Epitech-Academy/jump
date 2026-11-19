@@ -32,11 +32,15 @@ export interface CatalogGame {
 
 const TTL_MS = 5 * 60_000;
 
-// The talent home awaits the catalogue for the day's game preview, so a hung
-// jump-games must cost a bounded wait, and only once in a while: after a
-// failure, the stale snapshot is served without asking again until the retry
-// window has passed.
+// Every caller awaits the fetch, the cron and the talent home included, so a
+// hung jump-games must cost a bounded wait. The list is static and served from
+// memory: a jump-games that takes longer than this is not answering.
 const FETCH_TIMEOUT_MS = 2_000;
+
+// The talent home asks on every load, for a picture. After a failure it is
+// served the stale snapshot without asking again until this window has passed
+// (`getCatalogPreview`). The admin page and the cron ask on every call: they
+// need the real answer, and they are rare.
 const RETRY_AFTER_FAILURE_MS = 30_000;
 
 /** jump-games holds its previews under this size; anything heavier is dropped. */
@@ -134,12 +138,8 @@ export async function getGameCatalog(
   const base = gamesUrl();
   if (!base) return [];
 
-  const now = Date.now();
-  if (!opts.force) {
-    if (cache && now - cache.at < TTL_MS) return cache.games;
-    if (failedAt !== null && now - failedAt < RETRY_AFTER_FAILURE_MS) {
-      return cache?.games ?? [];
-    }
+  if (!opts.force && cache && Date.now() - cache.at < TTL_MS) {
+    return cache.games;
   }
 
   try {
@@ -165,4 +165,16 @@ export async function getCatalogGame(
 ): Promise<CatalogGame | null> {
   const games = await getGameCatalog();
   return games.find((g) => g.name === name) ?? null;
+}
+
+/**
+ * A game's preview for the talent home, or null. The home asks on every load,
+ * so within the retry window after a failed fetch it reads the stale snapshot
+ * instead of waiting on jump-games again.
+ */
+export async function getCatalogPreview(name: string): Promise<string | null> {
+  const backingOff =
+    failedAt !== null && Date.now() - failedAt < RETRY_AFTER_FAILURE_MS;
+  const games = backingOff ? (cache?.games ?? []) : await getGameCatalog();
+  return games.find((g) => g.name === name)?.previewSrc ?? null;
 }
