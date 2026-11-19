@@ -18,6 +18,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 const SVG =
@@ -106,5 +107,39 @@ describe('getGameCatalog', () => {
       'https://games.jump-dev.epiboost.eu/api/games',
       expect.anything(),
     );
+  });
+
+  // The talent home awaits the catalogue: a hung jump-games must cost a
+  // bounded wait, and must not be asked again on every home load.
+  it('bounds the fetch and serves the stale list for a while after a failure', async () => {
+    dynamicEnv.JUMP_GAMES_URL = 'https://jump-games.epiboost.fr';
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-19T08:00:00Z'));
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ games: [entry()] }), { status: 200 }),
+    );
+    await getGameCatalog({ force: true });
+
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+
+    // The cached list has expired and jump-games now times out.
+    vi.setSystemTime(new Date('2026-11-19T08:10:00Z'));
+    fetchMock.mockRejectedValue(new DOMException('timed out', 'TimeoutError'));
+    const stale = await getGameCatalog();
+    expect(stale.map((g) => g.name)).toEqual(['queens']);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    // Within the retry window, no new request: the stale list answers.
+    vi.setSystemTime(new Date('2026-11-19T08:10:20Z'));
+    await getGameCatalog();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    // Past it, jump-games is asked again.
+    vi.setSystemTime(new Date('2026-11-19T08:11:00Z'));
+    await getGameCatalog();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

@@ -32,10 +32,18 @@ export interface CatalogGame {
 
 const TTL_MS = 5 * 60_000;
 
+// The talent home awaits the catalogue for the day's game preview, so a hung
+// jump-games must cost a bounded wait, and only once in a while: after a
+// failure, the stale snapshot is served without asking again until the retry
+// window has passed.
+const FETCH_TIMEOUT_MS = 2_000;
+const RETRY_AFTER_FAILURE_MS = 30_000;
+
 /** jump-games holds its previews under this size; anything heavier is dropped. */
 const PREVIEW_MAX_BYTES = 16 * 1024;
 
 let cache: { games: CatalogGame[]; at: number } | null = null;
+let failedAt: number | null = null;
 
 /**
  * A preview arrives as SVG markup and leaves as a `data:` URI. It is shown
@@ -126,20 +134,27 @@ export async function getGameCatalog(
   const base = gamesUrl();
   if (!base) return [];
 
-  if (!opts.force && cache && Date.now() - cache.at < TTL_MS) {
-    return cache.games;
+  const now = Date.now();
+  if (!opts.force) {
+    if (cache && now - cache.at < TTL_MS) return cache.games;
+    if (failedAt !== null && now - failedAt < RETRY_AFTER_FAILURE_MS) {
+      return cache?.games ?? [];
+    }
   }
 
   try {
     const res = await fetch(`${base}/api/games`, {
       headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`status ${res.status}`);
     const games = parseCatalog(await res.json());
     cache = { games, at: Date.now() };
+    failedAt = null;
     return games;
   } catch (err) {
     console.error('[minigames] catalogue fetch failed:', err);
+    failedAt = Date.now();
     // Stale-while-error: better a slightly old list than an empty panel.
     return cache?.games ?? [];
   }
