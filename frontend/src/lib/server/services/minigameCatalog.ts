@@ -1,11 +1,12 @@
 import { env } from '$env/dynamic/private';
 import type { MinigameScoring } from '@prisma/client';
+import { z } from 'zod';
 
 /**
  * The minigame catalogue is owned by the external jump-games service and read
  * live from its public `GET /api/games` endpoint. jump never hand-maintains a
- * game's slug, level count, display name or scoring mode: those are facts of
- * jump-games. The host only curates rotation (see `MinigameConfig`).
+ * game's slug, level count, display name, scoring mode or picture: those are
+ * facts of jump-games. The host only curates rotation (see `MinigameConfig`).
  *
  * The fetch is cached in-memory with a short TTL; on a transient failure we
  * fall back to the last good snapshot so a brief jump-games hiccup doesn't
@@ -22,14 +23,111 @@ export interface CatalogGame {
   endMode: 'puzzle' | 'infinite';
   /** Valid levels are the contiguous range 1..levelCount. */
   levelCount: number;
+  /**
+   * The game's 88×88 preview as a `data:` URI, ready for an `<img src>`, or
+   * null when jump-games sent none jump can show (see `previewSchema`).
+   */
+  previewSrc: string | null;
 }
 
 const TTL_MS = 5 * 60_000;
 
+// Every caller awaits the fetch, the cron and the talent home included, so a
+// hung jump-games must cost a bounded wait. The list is static and served from
+// memory: a jump-games that takes longer than this is not answering.
+const FETCH_TIMEOUT_MS = 2_000;
+
+// The talent home asks on every load, for a picture. After a failure it is
+// served the stale snapshot without asking again until this window has passed
+// (`getCatalogPreview`). The admin page and the cron ask on every call: they
+// need the real answer, and they are rare.
+const RETRY_AFTER_FAILURE_MS = 30_000;
+
+/** jump-games holds its previews under this size; anything heavier is dropped. */
+const PREVIEW_MAX_BYTES = 16 * 1024;
+
 let cache: { games: CatalogGame[]; at: number } | null = null;
+let failedAt: number | null = null;
+
+/**
+ * A preview arrives as SVG markup and leaves as a `data:` URI. It is shown
+ * through `<img>`, never inlined: an SVG loaded as an image runs no script and
+ * fetches nothing, so markup from another service needs no sanitising, and the
+ * CSP already allows `data:` images. A preview that is not SVG, or is too heavy
+ * to inline in every home page, becomes null and is logged: the card shows
+ * without one, and the game itself stays in the catalogue. A game sent without
+ * a preview is not logged: it simply has none.
+ */
+const previewSchema = z
+  .string()
+  .refine(
+    (svg) =>
+      svg.trimStart().startsWith('<svg') &&
+      new TextEncoder().encode(svg).length <= PREVIEW_MAX_BYTES,
+  )
+  .transform((svg) => `data:image/svg+xml,${encodeURIComponent(svg)}`);
+
+function previewSrcOf(game: string, preview: unknown): string | null {
+  if (preview == null) return null;
+  const src = previewSchema.safeParse(preview);
+  if (src.success) return src.data;
+  console.error(
+    `[minigames] preview of ${game} left out: not an SVG of at most ${PREVIEW_MAX_BYTES} bytes`,
+  );
+  return null;
+}
+
+const catalogGameSchema = z
+  .object({
+    name: z.string().min(1),
+    displayName: z.string().min(1),
+    description: z.string(),
+    difficulty: z.enum(['easy', 'medium', 'hard']),
+    hasScore: z.boolean(),
+    endMode: z.enum(['puzzle', 'infinite']),
+    // A game with no level yet is still a game: the admin page lists it, and
+    // the rotation skips it (`pickNextPublication`).
+    levelCount: z.int().nonnegative(),
+    preview: z.unknown(),
+  })
+  .transform(({ preview, ...game }): CatalogGame => ({
+    ...game,
+    previewSrc: previewSrcOf(game.name, preview),
+  }));
+
+/**
+ * Read the `/api/games` body entry by entry. An entry jump cannot trust (a
+ * missing slug, a level count that is not a number) is left out and logged,
+ * rather than reaching the rotation and publishing a level that cannot load.
+ *
+ * A body with entries none of which jump can read throws instead: that is a
+ * contract jump-games broke, not a catalogue that emptied, and the caller keeps
+ * its last good list rather than caching an empty one.
+ */
+export function parseCatalog(body: unknown): CatalogGame[] {
+  const entries = z.object({ games: z.array(z.unknown()) }).safeParse(body);
+  if (!entries.success) {
+    throw new Error('catalogue body has no `games` array');
+  }
+  const games = entries.data.games.flatMap((entry) => {
+    const game = catalogGameSchema.safeParse(entry);
+    if (game.success) return [game.data];
+    console.error(
+      '[minigames] catalogue entry left out:',
+      z.prettifyError(game.error),
+    );
+    return [];
+  });
+  if (games.length === 0 && entries.data.games.length > 0) {
+    throw new Error('no catalogue entry jump can read');
+  }
+  return games;
+}
 
 /** Map a catalogue game to the publication's snapshotted scoring mode. */
-export function scoringTypeFor(game: CatalogGame): MinigameScoring {
+export function scoringTypeFor(
+  game: Pick<CatalogGame, 'hasScore'>,
+): MinigameScoring {
   return game.hasScore ? 'score' : 'chrono';
 }
 
@@ -66,14 +164,16 @@ export async function getGameCatalog(
   try {
     const res = await fetch(`${base}/api/games`, {
       headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`status ${res.status}`);
-    const body = (await res.json()) as { games?: CatalogGame[] };
-    const games = body.games ?? [];
+    const games = parseCatalog(await res.json());
     cache = { games, at: Date.now() };
+    failedAt = null;
     return games;
   } catch (err) {
     console.error('[minigames] catalogue fetch failed:', err);
+    failedAt = Date.now();
     // Stale-while-error: better a slightly old list than an empty panel.
     return cache?.games ?? [];
   }
@@ -84,4 +184,16 @@ export async function getCatalogGame(
 ): Promise<CatalogGame | null> {
   const games = await getGameCatalog();
   return games.find((g) => g.name === name) ?? null;
+}
+
+/**
+ * A game's preview for the talent home, or null. The home asks on every load,
+ * so within the retry window after a failed fetch it reads the stale snapshot
+ * instead of waiting on jump-games again.
+ */
+export async function getCatalogPreview(name: string): Promise<string | null> {
+  const backingOff =
+    failedAt !== null && Date.now() - failedAt < RETRY_AFTER_FAILURE_MS;
+  const games = backingOff ? (cache?.games ?? []) : await getGameCatalog();
+  return games.find((g) => g.name === name)?.previewSrc ?? null;
 }

@@ -84,11 +84,16 @@
   let training = $derived.by(() => {
     const minigame = data.minigame;
     if (!minigame?.publication) return null;
+    const preview = data.trainingPreview;
     if (minigame.ok)
-      return { publication: minigame.publication, attempt: null };
+      return { publication: minigame.publication, attempt: null, preview };
     if (minigame.reason !== 'already_played' || !minigame.lastAttempt)
       return null;
-    return { publication: minigame.publication, attempt: minigame.lastAttempt };
+    return {
+      publication: minigame.publication,
+      attempt: minigame.lastAttempt,
+      preview,
+    };
   });
 
   // Whether the talent has a card of their own beside the XP one. Without

@@ -21,12 +21,20 @@
   // A day without a training renders nothing at all, which the home handles by
   // not mounting this: an empty card would only fill space.
   //
+  // Beside the game's name sits its preview, a board caught mid-solve that
+  // jump-games draws for each game (`previewSrc` in its catalogue), so the
+  // talent knows the game before reading its name. It names the game, not the
+  // day's state, so it stays once the game is played, won or lost. It is
+  // decorative: the name is right beside it, inside the same link. A game
+  // without one, or a catalogue out of reach, leaves the card as it was.
+  //
   // A finished attempt is either a win (`done`: ranked, XP earned) or a loss
   // (played, no XP, absent from the board). The two must not read alike: a loss
   // shown as « Défi relevé » congratulates a run the talent never got.
   let {
     publication,
     attempt,
+    preview = null,
   }: {
     publication: { id: string; gameName: string; level: number };
     /** Today's finished attempt, or null while there is still one to play. */
@@ -35,6 +43,8 @@
       score: number | null;
       chrono: number | null;
     } | null;
+    /** The game's preview as a `data:` URI, or null when there is none. */
+    preview?: string | null;
   } = $props();
 
   const outcome = $derived(
@@ -72,23 +82,37 @@
   <Card class="h-full gap-3 p-6 transition-ui group-hover:bg-muted/40">
     <h2 class="epi-overline text-muted-foreground">Entraîner mon cerveau</h2>
 
-    <div class="min-w-0">
-      <p class="font-heading text-display-l text-foreground">
-        {publication.gameName}<TitleCursor />
-      </p>
-      <p class="mt-1 text-sm text-foreground-secondary">
-        {#if outcome === 'playable'}
-          Niveau {publication.level}
-        {:else if outcome === 'won'}
-          <span class={cn('font-semibold', tone)}>Défi relevé</span
-          >{#if result}{' '}<span class="text-muted-foreground">· {result}</span
-            >{/if}
-        {:else}
-          <span class={cn('font-semibold', tone)}>Pas validé</span>{' '}<span
-            class="text-muted-foreground">· retente demain</span
-          >
-        {/if}
-      </p>
+    <div class="flex items-center justify-between gap-4">
+      <div class="min-w-0">
+        <p class="font-heading text-display-l text-foreground">
+          {publication.gameName}<TitleCursor />
+        </p>
+        <p class="mt-1 text-sm text-foreground-secondary">
+          {#if outcome === 'playable'}
+            Niveau {publication.level}
+          {:else if outcome === 'won'}
+            <span class={cn('font-semibold', tone)}>Défi relevé</span
+            >{#if result}{' '}<span class="text-muted-foreground"
+                >· {result}</span
+              >{/if}
+          {:else}
+            <span class={cn('font-semibold', tone)}>Pas validé</span>{' '}<span
+              class="text-muted-foreground">· retente demain</span
+            >
+          {/if}
+        </p>
+      </div>
+
+      {#if preview}
+        <img
+          src={preview}
+          alt=""
+          width="88"
+          height="88"
+          decoding="async"
+          class="size-22 shrink-0"
+        />
+      {/if}
     </div>
 
     {#if outcome === 'playable'}
