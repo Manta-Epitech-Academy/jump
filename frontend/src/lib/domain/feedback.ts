@@ -18,28 +18,6 @@ export const RECO_QUESTION_KEY = 'reco';
 export const RECO_VERDICT_LABEL = 'Recommandation';
 
 /**
- * Route path (base- and origin-less) a talent opens to answer a form for an
- * event: the authenticated bilan link. Single-sourced so the projected QR image
- * and the shareable URL shown beside it always target the exact same route, even
- * if it is later renamed. Callers prepend `${ORIGIN}${base}` for an absolute URL.
- */
-export function feedbackFormPath(eventId: string, formSlug: string): string {
-  return `/feedback/${eventId}/${formSlug}`;
-}
-
-/**
- * Public (unauthenticated) shareable path for a form, opened by anyone with the
- * link (parents, families, an event's audience). Deliberately short and
- * channel-neutral (`/f/<slug>`) so it reads right for any form, not just a stage
- * bilan. The legacy `/bilan/<slug>` path 301-redirects here, so existing QR
- * codes and shared links keep working. Callers prepend `${ORIGIN}${base}` for an
- * absolute URL.
- */
-export function publicFormPath(slug: string): string {
-  return `/f/${slug}`;
-}
-
-/**
  * Returns the slug of the first dashboard-nudge form the talent still owes for the
  * event, or null. The candidate forms come from the DB (`Feedback_Form.dashboardNudge`),
  * so adding a nudged form needs no code change.

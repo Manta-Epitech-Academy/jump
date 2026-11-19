@@ -39,7 +39,6 @@
     FORM_STATUS_LABELS,
     type FormStatusValue,
   } from '$lib/domain/feedbackForms/status';
-  import { publicFormPath } from '$lib/domain/feedback';
   import { resolve } from '$app/paths';
   import type { PageData } from './$types';
   import type { FormListRow, FormsCohort } from './+page.server';
@@ -211,9 +210,9 @@
             <span
               class="mt-0.5 flex items-center gap-1 font-mono text-xs text-muted-foreground"
             >
-              {publicFormPath(r.slug)}
+              {resolve('/f/[slug]', { slug: r.slug })}
               <CopyButton
-                value={`${page.url.origin}${publicFormPath(r.slug)}`}
+                value={`${page.url.origin}${resolve('/f/[slug]', { slug: r.slug })}`}
                 label="Copier le lien public"
               />
             </span>

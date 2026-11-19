@@ -16,7 +16,7 @@
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { env } from '$env/dynamic/private';
-import { base } from '$app/paths';
+import { resolve } from '$app/paths';
 import {
   PRESENCE_SLOTS,
   type DateKey,
@@ -86,5 +86,5 @@ export async function verifyCheckinToken(
 export function buildCheckinLink(token: string): string {
   const origin = env.ORIGIN;
   if (!origin) throw new Error('ORIGIN is not configured');
-  return `${origin}${base}/presence/${encodeURIComponent(token)}`;
+  return `${origin}${resolve('/(talent)/presence/[token]', { token: encodeURIComponent(token) })}`;
 }

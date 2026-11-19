@@ -5,7 +5,7 @@
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { toast } from 'svelte-sonner';
-  import { base } from '$app/paths';
+  import { resolve } from '$app/paths';
   import { cn } from '$lib/utils';
   import { slotKey } from '$lib/domain/eventPresence';
   import type { PresenceSlot } from '@prisma/client';
@@ -105,7 +105,10 @@
     deleting = true;
     try {
       const res = await fetch(
-        `${base}/staff/dev/students/${talentId}/notes/${note.id}`,
+        resolve('/(staff)/staff/dev/students/[id]/notes/[noteId]', {
+          id: talentId,
+          noteId: note.id,
+        }),
         { method: 'DELETE' },
       );
       if (!res.ok) throw new Error(String(res.status));

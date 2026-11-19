@@ -1,6 +1,6 @@
 import { prisma } from '$lib/server/db';
 import type { Prisma } from '@prisma/client';
-import { base } from '$app/paths';
+import { resolve } from '$app/paths';
 import {
   renderCertificatePreviewPng,
   type CertificateData,
@@ -172,7 +172,7 @@ export function diplomaTemplatePreviewLink(template: {
   label: string;
   origin: string;
 }): { url: string; apercu: string } {
-  const url = `${template.origin}${base}/api/admin/config/diploma-template-preview?code=${encodeURIComponent(template.code)}`;
+  const url = `${template.origin}${resolve('/api/admin/config/diploma-template-preview')}?code=${encodeURIComponent(template.code)}`;
   return {
     url,
     apercu: `Aperçu de « ${template.label} » : ${url} (nom, dates, ville et signataire sont des exemples, aucune donnée de jeune n'y figure). Ouvrez ce lien pour voir le certificat.`,

@@ -43,6 +43,12 @@ const config = {
     // See `tsconfig.check.json` and the `check` script in package.json.
     outDir: process.env.KIT_OUTDIR || '.svelte-kit',
     adapter: adapter(),
+    // `resolve()` returns a root-relative path, never one relative to the page
+    // being served. By default it answers `../../x` during a request, which is
+    // fine as an `href` but turns `${ORIGIN}${resolve(...)}` (a mailed login
+    // link, a projected QR code, an admin API answer) into a broken URL. Jump is
+    // served from the root, so a root-relative path names the same page.
+    paths: { relative: false },
     // The Umami session recorder needed `'unsafe-inline'`/`'unsafe-hashes'` in
     // `script-src` to evaluate the ad-hoc inline scripts and `on*` handlers it
     // injected for replay. It's gone (issue #275), and everything left loads

@@ -2,13 +2,14 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import QRCode from 'qrcode';
 import { env } from '$env/dynamic/private';
-import { base } from '$app/paths';
 import { getCampusId } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
-import { feedbackFormPath } from '$lib/domain/feedback';
+import {
+  feedbackFormPath,
+  resolvePublishedEventForm,
+} from '$lib/server/feedbackForms';
 import { recordUsage } from '$lib/server/usage/record';
 import { USAGE_FEATURES } from '$lib/domain/usage';
 
@@ -30,7 +31,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
   const origin = env.ORIGIN;
   if (!origin) throw error(500, 'ORIGIN is not configured');
-  const link = `${origin}${base}${feedbackFormPath(params.id!, form.slug)}`;
+  const link = `${origin}${feedbackFormPath(params.id!, form.slug)}`;
 
   const png = await QRCode.toBuffer(link, {
     width: 1024,

@@ -2,7 +2,7 @@
   import { Textarea } from '$lib/components/ui/textarea';
   import { Button } from '$lib/components/ui/button';
   import { toast } from 'svelte-sonner';
-  import { base } from '$app/paths';
+  import { resolve } from '$app/paths';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import type { PresenceSlot } from '@prisma/client';
@@ -54,8 +54,11 @@
     saving = true;
     try {
       const url = isEdit
-        ? `${base}/staff/dev/students/${talentId}/notes/${note!.id}`
-        : `${base}/staff/dev/students/${talentId}/notes`;
+        ? resolve('/(staff)/staff/dev/students/[id]/notes/[noteId]', {
+            id: talentId,
+            noteId: note!.id,
+          })
+        : resolve('/(staff)/staff/dev/students/[id]/notes', { id: talentId });
       const payload = isEdit
         ? {
             body: value,

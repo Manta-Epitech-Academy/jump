@@ -39,7 +39,7 @@
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { env } from '$env/dynamic/private';
-import { base } from '$app/paths';
+import { resolve } from '$app/paths';
 
 // 30 days: long enough to cover the full onboarding relance cadence
 // (T+0 / T+7 / T+14 / T+21 emails) with slack, so the first email's link
@@ -125,7 +125,7 @@ export function verifyFastloginToken(token: string): Promise<FastloginPayload> {
 export function buildFastloginLink(token: string): string {
   const origin = env.ORIGIN;
   if (!origin) throw new Error('ORIGIN is not configured');
-  return `${origin}${base}/fastlogin?token=${encodeURIComponent(token)}`;
+  return `${origin}${resolve('/fastlogin')}?token=${encodeURIComponent(token)}`;
 }
 
 /**
@@ -153,5 +153,5 @@ export function verifyParentFastloginToken(
 export function buildParentFastloginLink(token: string): string {
   const origin = env.ORIGIN;
   if (!origin) throw new Error('ORIGIN is not configured');
-  return `${origin}${base}/parent/fastlogin?token=${encodeURIComponent(token)}`;
+  return `${origin}${resolve('/(parent)/parent/fastlogin')}?token=${encodeURIComponent(token)}`;
 }

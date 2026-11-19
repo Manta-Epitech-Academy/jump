@@ -10,7 +10,7 @@
  */
 
 import { env } from '$env/dynamic/private';
-import { base } from '$app/paths';
+import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { sendActionEmail } from '$lib/server/email/actionMail';
 import {
@@ -43,7 +43,7 @@ export async function sendParentWelcomeEmail(
   const token = await mintParentFastloginToken({ email, talentId });
   const parentFastloginLink = buildParentFastloginLink(token);
   // Manual OTP page kept as a fallback for templates still on {{login_link}}.
-  const loginUrl = `${env.ORIGIN}${base}/parent/login`;
+  const loginUrl = `${env.ORIGIN}${resolve('/(parent)/parent/login')}`;
   // The template references {{campus}} and {{email_contact_campus}}; resolve them
   // from the talent's effective campus (most-recent participation), matching the
   // resolution in hooks.server.ts. Without this they fall through to the empty
@@ -74,7 +74,7 @@ export async function sendParentOtpEmail(
   otp: string,
   name?: string,
 ): Promise<void> {
-  const loginUrl = `${env.ORIGIN}${base}/parent/login`;
+  const loginUrl = `${env.ORIGIN}${resolve('/(parent)/parent/login')}`;
   await sendActionEmail('otp_parent', email, {
     parent_prenom: name || 'Parent',
     otp_code: otp,

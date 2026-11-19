@@ -1,6 +1,5 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { base } from '$app/paths';
 import { env } from '$env/dynamic/private';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
@@ -12,8 +11,10 @@ import {
 } from '$lib/server/feedbackStats';
 import { loadFeedbackRoster } from '$lib/server/services/feedbackRoster';
 import { countShownCohort } from '$lib/server/services/inscritsCohort';
-import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
-import { feedbackFormPath } from '$lib/domain/feedback';
+import {
+  feedbackFormPath,
+  resolvePublishedEventForm,
+} from '$lib/server/feedbackForms';
 import type { BilanRow, RecoOption } from '$lib/domain/bilanRoster';
 
 interface BilanCohort {
@@ -81,7 +82,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // the page's own origin) so the copyable URL is byte-for-byte what the QR image
   // encodes, and stays correct behind a proxy. `feedbackFormPath` is the single
   // source the QR endpoint also uses, so the two never drift.
-  const feedbackUrl = `${env.ORIGIN ?? ''}${base}${feedbackFormPath(event.id, form.slug)}`;
+  const feedbackUrl = `${env.ORIGIN ?? ''}${feedbackFormPath(event.id, form.slug)}`;
 
   return {
     event: {
