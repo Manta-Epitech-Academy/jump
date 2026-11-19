@@ -1,10 +1,10 @@
 import { error } from '@sveltejs/kit';
-import { dev } from '$app/environment';
+import { dev } from '$app/env';
 import {
   DEV_PHASE_OVERRIDE_COOKIE,
   isDevImpersonation,
   isDevPhaseOverride,
-} from '$lib/server/devPhaseOverride';
+} from '#lib/server/devPhaseOverride.ts';
 import type { RequestHandler } from './$types';
 
 const COOKIE_PATH = '/staff/dev';

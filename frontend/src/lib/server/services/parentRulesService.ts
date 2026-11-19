@@ -1,5 +1,5 @@
-import { prisma } from '$lib/server/db';
-import type { ReglementVersion } from '$lib/content/reglement';
+import { prisma } from '#lib/server/db.ts';
+import type { ReglementVersion } from '#lib/content/reglement/index.ts';
 import {
   guardianActSchoolYear,
   upsertOnboardingYearRecord,

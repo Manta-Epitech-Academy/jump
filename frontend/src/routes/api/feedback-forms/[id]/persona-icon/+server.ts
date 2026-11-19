@@ -1,20 +1,20 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { prisma } from '$lib/server/db';
-import { getStorage } from '$lib/server/infra/storage';
-import { requireAdmin } from '$lib/server/feedbackFormsAdmin';
+import { prisma } from '#lib/server/db.ts';
+import { getStorage } from '#lib/server/infra/storage.ts';
+import { requireAdmin } from '#lib/server/feedbackFormsAdmin.ts';
 import {
   processPersonaIcon,
   replacePersonaIcon,
   clearPersonaIcon,
   PERSONA_ICON_INPUT_TYPES,
   PERSONA_ICON_MAX_UPLOAD_BYTES,
-} from '$lib/server/feedbackForms/personaIcon';
+} from '#lib/server/feedbackForms/personaIcon.ts';
 import {
   CanvasTooLargeError,
   describeCanvas,
   MAX_INPUT_PIXELS,
-} from '$lib/server/images/process';
+} from '#lib/server/images/process.ts';
 
 // Persona avatar for a feedback form. POST/DELETE are admin-only (mutate the
 // form). GET is intentionally PUBLIC: the icon is non-sensitive staff-chosen art

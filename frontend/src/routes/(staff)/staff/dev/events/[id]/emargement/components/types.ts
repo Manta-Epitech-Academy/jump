@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import type { PresenceRecord } from '$lib/domain/eventPresence';
+import type { PresenceRecord } from '#lib/domain/eventPresence.ts';
 
 // Lean roster select for the émargement table: only fields displayed in the
 // list plus note anchors. Contact details are fetched on demand when opening

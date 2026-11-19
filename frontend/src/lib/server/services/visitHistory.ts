@@ -1,5 +1,5 @@
-import { prisma } from '$lib/server/db';
-import { attendedBeforeWhere } from '$lib/domain/attendance';
+import { prisma } from '#lib/server/db.ts';
+import { attendedBeforeWhere } from '#lib/domain/attendance.ts';
 
 /**
  * How many times each talent had come to an event on the campus before a given

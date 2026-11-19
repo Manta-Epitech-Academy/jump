@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { AdminEventVM } from '$lib/server/services/events';
-import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
+import type { AdminEventVM } from '#lib/server/services/events.ts';
+import { VISIBLE_PARTICIPATION_DEFINITION } from '#lib/domain/sfMemberStatus.ts';
 
 const listAdminEvents = vi.fn();
-vi.mock('$lib/server/services/events', () => ({
+vi.mock('#lib/server/services/events.ts', () => ({
   EventService: { listAdminEvents: () => listAdminEvents() },
 }));
 

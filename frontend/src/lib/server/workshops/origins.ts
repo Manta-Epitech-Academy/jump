@@ -17,7 +17,7 @@
  * the page still renders, and only the activity row stops opening.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 
 const TTL_MS = 60_000;
 

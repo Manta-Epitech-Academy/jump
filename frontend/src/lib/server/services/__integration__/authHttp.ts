@@ -10,8 +10,8 @@
 
 import { createHmac } from 'node:crypto';
 import type { Cookies } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { auth } from '$lib/server/auth';
+import { ORIGIN } from '$app/env/private';
+import { auth } from '#lib/server/auth.ts';
 
 export function postAuth(
   path: string,
@@ -19,14 +19,14 @@ export function postAuth(
   cookie?: string,
 ): Promise<Response> {
   return auth.handler(
-    new Request(`${env.ORIGIN}${path}`, {
+    new Request(`${ORIGIN}${path}`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         // The router checks the origin on every POST; ORIGIN is what
         // `createAuthOptions` trusts, so a 404 is the closure and not an
         // origin refusal.
-        origin: env.ORIGIN!,
+        origin: ORIGIN!,
         ...(cookie ? { cookie } : {}),
       },
       body: JSON.stringify(body),
@@ -36,7 +36,7 @@ export function postAuth(
 
 export function getAuth(path: string, cookie?: string): Promise<Response> {
   return auth.handler(
-    new Request(`${env.ORIGIN}${path}`, {
+    new Request(`${ORIGIN}${path}`, {
       headers: cookie ? { cookie } : {},
     }),
   );

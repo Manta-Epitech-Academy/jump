@@ -19,8 +19,8 @@
  * were described by one column name on `Talent`.
  */
 import type { Prisma, Talent } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { getStorage } from '$lib/server/infra/storage';
+import { prisma } from '#lib/server/db.ts';
+import { getStorage } from '#lib/server/infra/storage.ts';
 
 export type OnboardingDocumentType = 'charter' | 'rules' | 'image-rights';
 

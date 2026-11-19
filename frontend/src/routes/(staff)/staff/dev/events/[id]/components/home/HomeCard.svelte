@@ -16,8 +16,8 @@
 </script>
 
 <script lang="ts">
-  import * as Card from '$lib/components/ui/card';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import * as Card from '#lib/components/ui/card/index.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
 
   // One card of the event home: the mockup's mono title ending in the cursor,
   // its figures, and an optional « Voir… » at the foot. A card whose figures

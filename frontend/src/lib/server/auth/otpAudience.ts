@@ -1,5 +1,5 @@
-import { prisma } from '$lib/server/db';
-import { BAUTH_STAFF_ROLES } from '$lib/domain/staff';
+import { prisma } from '#lib/server/db.ts';
+import { BAUTH_STAFF_ROLES } from '#lib/domain/staff.ts';
 
 /**
  * Who is allowed to hold a login OTP, and what Jump knows about them.

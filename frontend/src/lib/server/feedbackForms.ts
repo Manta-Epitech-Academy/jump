@@ -1,17 +1,17 @@
 import type { Prisma } from '@prisma/client';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import type {
   FormSchema,
   Question,
   QuestionType,
   InputKind,
   IdentityField,
-} from '$lib/domain/feedbackForms/schema';
+} from '#lib/domain/feedbackForms/schema.ts';
 import {
   projectQuestionToSchema,
   buildPersonaIconUrl,
-} from '$lib/domain/feedbackForms/schema';
+} from '#lib/domain/feedbackForms/schema.ts';
 
 /** Who a projected form is rendered for; mirrors Feedback_SubmissionSource. */
 export type FormAudience = 'public' | 'authenticated';

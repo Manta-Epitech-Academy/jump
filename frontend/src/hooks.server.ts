@@ -1,50 +1,50 @@
-import type { Handle } from '@sveltejs/kit';
-import { auth } from '$lib/server/auth';
-import { prisma } from '$lib/server/db';
-import { recordUsage } from '$lib/server/usage/record';
+import type { Handle } from '@sveltejs/kit/hooks';
+import { auth } from '#lib/server/auth.ts';
+import { prisma } from '#lib/server/db.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
 import {
   USAGE_FEATURE_DEFS,
   USAGE_VIEW_ROUTES,
   usageConnectionFeature,
-} from '$lib/domain/usage';
-import { applyRouteGuards } from '$lib/server/auth/guards';
+} from '#lib/domain/usage.ts';
+import { applyRouteGuards } from '#lib/server/auth/guards.ts';
 import {
   loadImpersonator,
   slideImpersonationExpiry,
-} from '$lib/server/auth/impersonation';
-import { revokeImpersonation } from '$lib/server/auth/impersonate';
-import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
-import { resolveTalentCampus } from '$lib/server/services/talentCampus';
-import { recordSignInDay } from '$lib/server/services/signInStreak';
-import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
-import { runWithRequestContext } from '$lib/server/requestContext';
-import { readArmedState, effectiveUserId } from '$lib/server/armRealSends';
-import { readDevRedirectPin } from '$lib/server/devRedirectPin';
-import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
-import { env } from '$env/dynamic/private';
+} from '#lib/server/auth/impersonation.ts';
+import { revokeImpersonation } from '#lib/server/auth/impersonate.ts';
+import { markRecipientOpened } from '#lib/server/services/broadcast/tracking.ts';
+import { resolveTalentCampus } from '#lib/server/services/talentCampus.ts';
+import { recordSignInDay } from '#lib/server/services/signInStreak.ts';
+import { readDevPhaseOverride } from '#lib/server/devPhaseOverride.ts';
+import { runWithRequestContext } from '#lib/server/requestContext.ts';
+import { readArmedState, effectiveUserId } from '#lib/server/armRealSends.ts';
+import { readDevRedirectPin } from '#lib/server/devRedirectPin.ts';
+import { staffBulkDevRedirectEmails } from '#lib/server/email/dev-redirect.ts';
+import { JUMP_GAMES_URL } from '$app/env/private';
 import {
   formActionDirective,
   frameSrcDirective,
   LOCKED_DOWN_CSP,
-} from '$lib/security/csp';
-import { workshopBaseUrls } from '$lib/server/workshops/origins';
-import { isCrossSiteWrite } from '$lib/security/crossSite';
+} from '#lib/security/csp.ts';
+import { workshopBaseUrls } from '#lib/server/workshops/origins.ts';
+import { isCrossSiteWrite } from '#lib/security/crossSite.ts';
 import { createInitialModeExpression } from 'mode-watcher';
 
 // Every CSP directive that is a fixed constant (or gone with the recorder, issue
-// #275) lives in `kit.csp` (svelte.config.js) now, which hands out a real
+// #275) lives in kit's `csp` (vite.config.ts) now, which hands out a real
 // per-request script-src nonce. The two values below are what a build-time
 // config cannot express; both live in `$lib/security/csp`, which says why.
 //
 // Computed once at module load rather than per request: `JUMP_GAMES_URL` is a
 // container env var, so it cannot change while the process runs.
-const FRAME_SRC_DIRECTIVE = frameSrcDirective(env.JUMP_GAMES_URL);
+const FRAME_SRC_DIRECTIVE = frameSrcDirective(JUMP_GAMES_URL);
 
 /**
  * The light/dark class, applied before the first paint.
  *
  * `<ModeWatcher />` injects this script itself, and the copy it injects carries
- * no nonce, so `kit.csp` blocks it: the theme class then lands only once
+ * no nonce, so kit's `csp` blocks it: the theme class then lands only once
  * hydration has run, and a talent whose mode is dark gets a flash of the light
  * theme on every full page load. `%sveltekit.nonce%` is substituted in
  * `src/app.html` and nowhere else, so the app template is the only place a

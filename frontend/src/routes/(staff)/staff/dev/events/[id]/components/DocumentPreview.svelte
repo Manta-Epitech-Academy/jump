@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Skeleton } from '$lib/components/ui/skeleton';
+  import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 
   // A document's preview inside an action's tooltip: the image the server
   // rendered (`badges.png`, `diplomes.png`), and the line saying how many the

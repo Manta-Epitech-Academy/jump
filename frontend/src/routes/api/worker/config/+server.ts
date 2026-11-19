@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
-import { requireWorkerToken } from '$lib/server/auth/workerToken';
-import { getWorkerConfig } from '$lib/server/services/syncConfigService';
+import { requireWorkerToken } from '#lib/server/auth/workerToken.ts';
+import { getWorkerConfig } from '#lib/server/services/syncConfigService.ts';
 
 /**
  * The first call of every tick, and the only one on a tick with nothing due.

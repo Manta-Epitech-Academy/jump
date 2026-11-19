@@ -1,8 +1,8 @@
 <script lang="ts">
   import Download from '@lucide/svelte/icons/download';
   import History from '@lucide/svelte/icons/history';
-  import { buttonVariants } from '$lib/components/ui/button';
-  import { cn, formatDateTimeFr } from '$lib/utils';
+  import { buttonVariants } from '#lib/components/ui/button/index.ts';
+  import { cn, formatDateTimeFr } from '#lib/utils.ts';
   import { sinceLabel } from './exportWindow.svelte';
 
   // "Depuis le dernier export": what has become exportable since this admin's

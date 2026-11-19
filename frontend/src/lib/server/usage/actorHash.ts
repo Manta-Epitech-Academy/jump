@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { env } from '$env/dynamic/private';
+import { USAGE_SALT } from '$app/env/private';
 
 /**
  * The monthly-rotating pseudonym that stands in for a talent in
@@ -28,7 +28,7 @@ export function actorHash(
   campusId: string | null,
   at: Date,
 ): string | null {
-  const salt = env.USAGE_SALT;
+  const salt = USAGE_SALT;
   if (!salt) return null;
   return createHash('sha256')
     .update(`${actorId}|${campusId ?? ''}|${usageMonth(at)}|${salt}`)
@@ -37,7 +37,7 @@ export function actorHash(
 
 /** Whether pseudonymous recording is possible at all. */
 export function usageSaltConfigured(): boolean {
-  return Boolean(env.USAGE_SALT);
+  return Boolean(USAGE_SALT);
 }
 
 /**

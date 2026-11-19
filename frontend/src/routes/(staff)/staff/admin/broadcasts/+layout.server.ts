@@ -1,11 +1,11 @@
 import type { LayoutServerLoad } from './$types';
 import type { BroadcastChannel } from '@prisma/client';
-import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
+import { staffBulkDevRedirectEmails } from '#lib/server/email/dev-redirect.ts';
 import {
   parseDevRecipients as parseSmsDevRecipients,
   staffBulkDevRedirectPhones,
-} from '$lib/server/sms/dev-redirect';
-import { outboundTrapped } from '$lib/server/outbound';
+} from '#lib/server/sms/dev-redirect.ts';
+import { outboundTrapped } from '#lib/server/outbound.ts';
 
 /** Where a trapped *bulk* send on one channel lands, for the broadcast banner. */
 type DevRedirect =

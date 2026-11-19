@@ -1,15 +1,15 @@
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import type { PageServerLoad } from './$types';
-import { prisma } from '$lib/server/db';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { toCalendarPlanning } from '$lib/domain/talentPlanning';
+import { prisma } from '#lib/server/db.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { toCalendarPlanning } from '#lib/domain/talentPlanning.ts';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
   // Data-driven: no calendar to show if none of the talent's events is planned.
   const { hasPlannedEvents } = await parent();
-  if (!hasPlannedEvents) throw redirect(303, resolve('/'));
+  if (!hasPlannedEvents) throw redirect(303, resolve(''));
 
   // Every event the talent participates in, past and future: the calendar is
   // their full personal timeline, not a single-event view. Non-orga activities

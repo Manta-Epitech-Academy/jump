@@ -1,5 +1,5 @@
-import type { FacetDef } from '$lib/domain/listFacets';
-import { defineListChoice, defineListView } from '$lib/domain/listView';
+import type { FacetDef } from '#lib/domain/listFacets.ts';
+import { defineListChoice, defineListView } from '#lib/domain/listView.ts';
 import type { AdminEventVM } from './+page.server';
 
 /**

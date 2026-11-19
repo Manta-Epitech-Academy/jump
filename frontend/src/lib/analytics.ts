@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
 type Primitive = string | number | boolean | null | undefined;
 export type EventData = Record<string, Primitive>;

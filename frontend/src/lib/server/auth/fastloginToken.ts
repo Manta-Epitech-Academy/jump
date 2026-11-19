@@ -38,7 +38,7 @@
  */
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
-import { env } from '$env/dynamic/private';
+import { BETTER_AUTH_SECRET, ORIGIN } from '$app/env/private';
 import { resolve } from '$app/paths';
 
 // 30 days: long enough to cover the full onboarding relance cadence
@@ -54,7 +54,7 @@ const AUDIENCE = 'jump:fastlogin';
 const PARENT_AUDIENCE = 'jump:parent_fastlogin';
 
 function getKey(): Uint8Array {
-  const secret = env.BETTER_AUTH_SECRET;
+  const secret = BETTER_AUTH_SECRET;
   if (!secret) throw new Error('BETTER_AUTH_SECRET is not configured');
   return new TextEncoder().encode(secret);
 }
@@ -123,9 +123,9 @@ export function verifyFastloginToken(token: string): Promise<FastloginPayload> {
 }
 
 export function buildFastloginLink(token: string): string {
-  const origin = env.ORIGIN;
+  const origin = ORIGIN;
   if (!origin) throw new Error('ORIGIN is not configured');
-  return `${origin}${resolve('/fastlogin')}?token=${encodeURIComponent(token)}`;
+  return `${origin}${resolve('fastlogin')}?token=${encodeURIComponent(token)}`;
 }
 
 /**
@@ -151,7 +151,7 @@ export function verifyParentFastloginToken(
 }
 
 export function buildParentFastloginLink(token: string): string {
-  const origin = env.ORIGIN;
+  const origin = ORIGIN;
   if (!origin) throw new Error('ORIGIN is not configured');
   return `${origin}${resolve('/(parent)/parent/fastlogin')}?token=${encodeURIComponent(token)}`;
 }

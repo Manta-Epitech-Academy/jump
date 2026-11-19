@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
 
   type Props = {
     /** Vertical padding density. Compact for sub-pages, comfortable for top-level dashboards. */

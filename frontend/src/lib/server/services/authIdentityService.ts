@@ -1,12 +1,12 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import type {
   AuthConflict,
   AuthConflictVerdict,
   AuthAccountSummary,
   ExposureKind,
   AccountNature,
-} from '$lib/domain/authIdentity';
+} from '#lib/domain/authIdentity.ts';
 
 /**
  * Auth-identity conflicts: the login-layer sibling of `reconciliationService`.

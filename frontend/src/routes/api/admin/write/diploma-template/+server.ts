@@ -1,4 +1,4 @@
-import { adminApiWrite } from '$lib/server/adminApi/route';
+import { adminApiWrite } from '#lib/server/adminApi/route.ts';
 
 // Curated write: see `$lib/server/adminApi/operations.ts` for the params and
 // whether repeating it is safe. Auth, tier, write capability, audit (with

@@ -5,8 +5,8 @@
     substituteVariables,
     buildDemoContext,
     findUnknownTokens,
-  } from '$lib/domain/broadcastVariables';
-  import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
+  } from '#lib/domain/broadcastVariables.ts';
+  import { renderBroadcastMail } from '#lib/domain/broadcastMarkdown.ts';
 
   type Props = {
     channel: 'mail' | 'sms';

@@ -1,29 +1,32 @@
 import { Prisma } from '@prisma/client';
 import { recomputeAttendance } from './attendance';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   changeUserEmail,
   EmailChangeConflict,
-} from '$lib/server/services/userEmail';
+} from '#lib/server/services/userEmail.ts';
 import {
   clearLegacyDocumentKeys,
   deleteDocumentObjects,
   documentKeysOf,
   TALENT_DOCUMENT_KEYS_SELECT,
-} from '$lib/server/services/onboardingDocuments';
+} from '#lib/server/services/onboardingDocuments.ts';
 import {
   findUnreferencedParentAccount,
   deleteParentAccountCascade,
-} from '$lib/server/services/parentAccount';
+} from '#lib/server/services/parentAccount.ts';
 import {
   clearGuardianActs,
   clearOnboardingTimestamps,
   clearTalentOnboardingArtifacts,
-} from '$lib/domain/talentOnboarding';
-import { clearGuardianContacts, guardianEmailsOf } from '$lib/domain/contact';
-import { clearSignInStreak } from '$lib/server/services/signInStreak';
-import { schoolYearOf } from '$lib/domain/schoolYear';
-import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
+} from '#lib/domain/talentOnboarding.ts';
+import {
+  clearGuardianContacts,
+  guardianEmailsOf,
+} from '#lib/domain/contact.ts';
+import { clearSignInStreak } from '#lib/server/services/signInStreak.ts';
+import { schoolYearOf } from '#lib/domain/schoolYear.ts';
+import { upsertSchoolingYearRecord } from '#lib/server/services/schoolingService.ts';
 
 /**
  * Why `ensureTalentUser` could not give a talent a login: no Salesforce address

@@ -1,17 +1,17 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
-  import { Checkbox } from '$lib/components/ui/checkbox';
+  import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
   import BookOpen from '@lucide/svelte/icons/book-open';
   import Sparkles from '@lucide/svelte/icons/sparkles';
-  import { track, errReason, secondsBetween } from '$lib/analytics';
-  import { WELCOME_XP_BONUS } from '$lib/domain/xp';
-  import { CHARTE_INFORMATIQUE_BODY } from '$lib/content/charteInformatique';
-  import { renderMarkdown } from '$lib/markdown';
+  import { track, errReason, secondsBetween } from '#lib/analytics.ts';
+  import { WELCOME_XP_BONUS } from '#lib/domain/xp.ts';
+  import { CHARTE_INFORMATIQUE_BODY } from '#lib/content/charteInformatique.ts';
+  import { renderMarkdown } from '#lib/markdown.ts';
   import {
     reglementTextFor,
     CURRENT_REGLEMENT_VERSION,
-  } from '$lib/content/reglement';
+  } from '#lib/content/reglement/index.ts';
   import ContinueButton from './ContinueButton.svelte';
 
   // Single source of truth for the règlement body: same text the PDF embeds

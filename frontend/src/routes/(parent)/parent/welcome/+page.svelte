@@ -1,7 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { Button } from '$lib/components/ui/button';
-  import ParentFlowShell from '$lib/components/parent/ParentFlowShell.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import ParentFlowShell from '#lib/components/parent/ParentFlowShell.svelte';
   import Heart from '@lucide/svelte/icons/heart';
 
   let { data } = $props();
@@ -44,7 +44,7 @@
         </p>
 
         <Button
-          href={resolve('/parent/reglement')}
+          href={resolve('parent/reglement')}
           class="h-auto w-full rounded-xl bg-epi-tech px-6 py-3 text-black shadow-raised transition-ui duration-200 hover:bg-epi-tech hover:brightness-110"
         >
           Continuer

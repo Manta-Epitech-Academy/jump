@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import type { HomeLink, HomePart } from '$lib/domain/eventHome';
-  import RingChart from '$lib/components/staff/charts/RingChart.svelte';
-  import { CHART_TONE_CLASS } from '$lib/components/staff/charts/chartTone';
-  import { cn } from '$lib/utils';
+  import type { HomeLink, HomePart } from '#lib/domain/eventHome.ts';
+  import RingChart from '#lib/components/staff/charts/RingChart.svelte';
+  import { CHART_TONE_CLASS } from '#lib/components/staff/charts/chartTone.ts';
+  import { cn } from '#lib/utils.ts';
   import HomeCard, { type HomeCardEmpty } from './HomeCard.svelte';
 
   // A whole in parts: the ring, then its legend, each row of which opens the

@@ -22,16 +22,16 @@
 import { type RequestHandler } from '@sveltejs/kit';
 import { Hono } from 'hono';
 import { StreamableHTTPTransport } from '@hono/mcp';
-import { authenticateOrRefuse } from '$lib/server/adminApi/guard';
+import { authenticateOrRefuse } from '#lib/server/adminApi/guard.ts';
 import {
   recordAdminApiCall,
   TRANSPORT_OPERATIONS,
-} from '$lib/server/adminApi/audit';
+} from '#lib/server/adminApi/audit.ts';
 import {
   buildAdminMcpServer,
   auditUnreachedToolCall,
   envelopeRefusal,
-} from '$lib/server/adminApi/mcpServer';
+} from '#lib/server/adminApi/mcpServer.ts';
 
 /**
  * Largest envelope this endpoint reads.

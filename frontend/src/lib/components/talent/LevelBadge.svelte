@@ -12,8 +12,8 @@
   level is already written beside the badge, or the level is read twice.
 -->
 <script lang="ts">
-  import type { LevelTone } from '$lib/domain/xp';
-  import { cn } from '$lib/utils';
+  import type { LevelTone } from '#lib/domain/xp.ts';
+  import { cn } from '#lib/utils.ts';
 
   let {
     level,

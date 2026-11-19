@@ -1,12 +1,12 @@
 import type { RequestHandler } from './$types';
 import { error, redirect } from '@sveltejs/kit';
-import { dev } from '$app/environment';
-import { canArmRealSends, effectiveUserId } from '$lib/server/armRealSends';
+import { dev } from '$app/env';
+import { canArmRealSends, effectiveUserId } from '#lib/server/armRealSends.ts';
 import {
   DEV_REDIRECT_PIN_COOKIE,
   DEV_REDIRECT_PIN_MS,
   makePinCookie,
-} from '$lib/server/devRedirectPin';
+} from '#lib/server/devRedirectPin.ts';
 
 /**
  * Arm / disarm the dev-redirect pin on a trapped (dev/staging) env: route

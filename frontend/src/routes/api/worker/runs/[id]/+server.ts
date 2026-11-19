@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireWorkerToken } from '$lib/server/auth/workerToken';
-import { workerRunCloseSchema } from '$lib/validation/workerSync';
-import { closeRun } from '$lib/server/services/syncRunService';
+import { requireWorkerToken } from '#lib/server/auth/workerToken.ts';
+import { workerRunCloseSchema } from '#lib/validation/workerSync.ts';
+import { closeRun } from '#lib/server/services/syncRunService.ts';
 
 /**
  * Close a run, `ok` with its counters or `error` with what went wrong.

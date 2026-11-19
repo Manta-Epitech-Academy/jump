@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { findEventHeroImage } from '$lib/server/services/eventHeroImages';
-import { storedImageResponse } from '$lib/server/images/remote';
-import { eventHeroImageKeyFromPath } from '$lib/domain/eventHero';
+import { findEventHeroImage } from '#lib/server/services/eventHeroImages.ts';
+import { storedImageResponse } from '#lib/server/images/remote.ts';
+import { eventHeroImageKeyFromPath } from '#lib/domain/eventHero.ts';
 
 // A picture of one stage of an event's hero on the talent home, copied into
 // storage when an admin wrote it (`write_event_config`,

@@ -3,17 +3,17 @@
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import Check from '@lucide/svelte/icons/check';
-  import { Button } from '$lib/components/ui/button';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
-  import { cn } from '$lib/utils';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+  import SegmentedFilter from '#lib/components/staff/SegmentedFilter.svelte';
+  import { cn } from '#lib/utils.ts';
   import {
     dayLabelFr,
     slotLabelFr,
     PRESENCE_SLOTS,
     type EventSlot,
     type PresenceSlot,
-  } from '$lib/domain/eventPresence';
+  } from '#lib/domain/eventPresence.ts';
 
   // Picks one émargement créneau in two orthogonal moves rather than stepping a
   // flat list of ~20: jump to a DAY (prev/next or dropdown), then flip the

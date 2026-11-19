@@ -1,9 +1,9 @@
 import { error } from '@sveltejs/kit';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
 import { timingSafeEqual } from 'node:crypto';
-import { env } from '$env/dynamic/private';
-import { can } from '$lib/domain/permissions';
-import { prisma } from '$lib/server/db';
+import { LOAD_TEST_SECRET } from '$app/env/private';
+import { can } from '#lib/domain/permissions.ts';
+import { prisma } from '#lib/server/db.ts';
 
 /**
  * Server-side load-test plumbing. The whole point is that a load-test driver
@@ -38,7 +38,7 @@ function safeEqual(a: string, b: string): boolean {
  * Call first in every handler so the gate lives in exactly one place.
  */
 export function assertLoadTestAuth(request: Request): void {
-  const secret = env.LOAD_TEST_SECRET;
+  const secret = LOAD_TEST_SECRET;
   if (!secret) throw error(404, 'Not Found');
   const token =
     request.headers.get('authorization')?.replace('Bearer ', '') ?? '';

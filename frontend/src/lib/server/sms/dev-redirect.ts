@@ -1,9 +1,9 @@
-import { env } from '$env/dynamic/private';
+import { SMS_DEV_RECIPIENTS } from '$app/env/private';
 import {
   currentArmedRealSends,
   currentDevRedirectPhones,
-} from '$lib/server/requestContext';
-import { outboundTrapped, type OutboundRouting } from '$lib/server/outbound';
+} from '#lib/server/requestContext.ts';
+import { outboundTrapped, type OutboundRouting } from '#lib/server/outbound.ts';
 import type { DevRedirectControl, SmsMessage } from './types';
 
 /**
@@ -20,7 +20,7 @@ import type { DevRedirectControl, SmsMessage } from './types';
  *      number prepended to the body.
  */
 export function parseDevRecipients(): string[] | null {
-  const raw = env.SMS_DEV_RECIPIENTS?.trim();
+  const raw = SMS_DEV_RECIPIENTS?.trim();
   if (!raw) return null;
   const list = raw
     .split(',')

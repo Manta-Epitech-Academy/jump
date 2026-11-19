@@ -1,5 +1,5 @@
-import { prisma } from '$lib/server/db';
-import { getOnboardingStep } from '$lib/domain/talentOnboarding';
+import { prisma } from '#lib/server/db.ts';
+import { getOnboardingStep } from '#lib/domain/talentOnboarding.ts';
 import { patchCurrentOnboardingRecord } from '../onboardingYearService';
 
 /**

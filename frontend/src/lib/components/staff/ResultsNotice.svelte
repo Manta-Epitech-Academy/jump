@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Component } from 'svelte';
   import type { LucideIcon } from '@lucide/svelte';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import { cn } from '$lib/utils';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import { cn } from '#lib/utils.ts';
 
   // The quiet panel a staff screen shows in place of what it has nothing of
   // yet, or could not load. It used to be copy-pasted at twelve sites, which

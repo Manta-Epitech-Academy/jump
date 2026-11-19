@@ -1,10 +1,10 @@
-import type { FacetDef } from '$lib/domain/listFacets';
-import { defineListView } from '$lib/domain/listView';
+import type { FacetDef } from '#lib/domain/listFacets.ts';
+import { defineListView } from '#lib/domain/listView.ts';
 import {
   SYNC_ERROR_KIND_LABELS,
   SYNC_ERROR_KINDS,
   type SyncErrorKind,
-} from '$lib/domain/syncError';
+} from '#lib/domain/syncError.ts';
 
 /**
  * The sync-error queue's view, in the address every staff list shares

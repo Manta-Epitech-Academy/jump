@@ -1,11 +1,11 @@
 <script lang="ts">
-  import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
+  import * as ResponsiveDialog from '#lib/components/ui/responsive-dialog/index.ts';
   import Clock from '@lucide/svelte/icons/clock';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
   import {
     activityTypeLabels,
     activityTypeStyles,
-  } from '$lib/validation/templates';
+  } from '#lib/validation/templates.ts';
 
   type SlotLike = {
     startTime: Date | string;

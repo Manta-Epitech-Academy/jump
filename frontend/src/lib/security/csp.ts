@@ -1,16 +1,16 @@
 /**
- * The pieces of Content-Security-Policy that `kit.csp` cannot own.
+ * The pieces of Content-Security-Policy that kit's `csp` cannot own.
  *
- * Everything fixed lives in `svelte.config.js`, which hands out a real
+ * Everything fixed lives in `vite.config.ts`, which hands out a real
  * per-request `script-src` nonce (issue #277). What is left here is what a
  * build-time config genuinely cannot express, and it is deliberately a few small
  * values rather than a policy: `hooks.server.ts` appends them, it does not
  * rebuild a header, and `security/csp.test.ts` fails if it starts to.
  *
- * A DIRECTIVE APPENDED HERE MUST BE ABSENT FROM `kit.csp`, and that is a
+ * A DIRECTIVE APPENDED HERE MUST BE ABSENT FROM kit's `csp`, and that is a
  * property of CSP rather than a convention: a header repeating a directive keeps
  * the FIRST occurrence and ignores the rest, unlike two separate policies, which
- * intersect. So a `form-action` left declared in `svelte.config.js` would make
+ * intersect. So a `form-action` left declared in `vite.config.ts` would make
  * the one computed below dead text that still reads as if it worked.
  */
 
@@ -18,7 +18,7 @@
  * `frame-src`, the one directive still computed per request.
  *
  * Its `JUMP_GAMES_URL`-derived entry is genuinely per-deployment, and
- * `svelte.config.js` only ever runs at build time (see the Dockerfile: one image,
+ * `vite.config.ts` only ever runs at build time (see the Dockerfile: one image,
  * built before any environment's env vars exist, then deployed everywhere with
  * different ones), so a value read from `process.env` there would freeze to
  * whatever the CI build happened to have.
@@ -79,7 +79,7 @@ export function formActionDirective(baseUrls: readonly string[]): string {
  * The policy for a response kit never rendered: an early guard redirect, a JSON
  * action result, a `+server.ts` endpoint.
  *
- * None of them go through kit's page renderer, so none carry the `kit.csp`
+ * None of them go through kit's page renderer, so none carry the kit's `csp`
  * header. Nothing runs a script or embeds a frame on any of them either, so
  * refusing everything is both correct and much better than the alternative,
  * which is a response with no policy at all.

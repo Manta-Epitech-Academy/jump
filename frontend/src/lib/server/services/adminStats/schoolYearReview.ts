@@ -29,15 +29,15 @@ import {
   variation,
   type Metric,
   type Variation,
-} from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+} from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { scopeLabels } from './cohort';
 import { getEventsOverview } from './eventsOverview';
 import { getCohortProfile } from './cohortProfile';
 import { getSchoolsReach } from './schoolsReach';
 import { getTalentRetention } from './talentRetention';
 import { getClosingInsights } from './closingInsights';
-import { CLOSING_QUESTION_KEYS } from '$lib/domain/closing';
+import { CLOSING_QUESTION_KEYS } from '#lib/domain/closing.ts';
 
 export type SchoolYearReview = {
   filters: { schoolYear: string; campus: string };

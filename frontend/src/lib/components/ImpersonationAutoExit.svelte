@@ -2,9 +2,9 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { stopImpersonating } from '$lib/impersonation';
+  import { stopImpersonating } from '#lib/impersonation.ts';
   import { toast } from 'svelte-sonner';
-  import { IMPERSONATION_IDLE_WINDOW_SEC } from '$lib/domain/impersonation';
+  import { IMPERSONATION_IDLE_WINDOW_SEC } from '#lib/domain/impersonation.ts';
 
   // Headless guard, mounted once in the root layout. An impersonation session
   // is an idle timeout: the server slides its expiry forward on each request
@@ -41,7 +41,7 @@
   // Mirror the manual banners' return targets: talent impersonations land on
   // the talent roster, staff impersonations on the users list.
   const returnPath = $derived(
-    page.data.talent ? '/staff/admin/talents' : '/staff/admin/users',
+    page.data.talent ? 'staff/admin/talents' : 'staff/admin/users',
   );
 
   async function autoExit() {
@@ -56,7 +56,7 @@
       // expiry): the stop can no longer restore the admin session, so
       // route to login with an explanation rather than a bare bounce.
       toast.info("Session d'impersonation expirée, reconnectez-vous.");
-      await goto(resolve('/staff/login'), { invalidateAll: true });
+      await goto(resolve('staff/login'), { invalidateAll: true });
     }
   }
 

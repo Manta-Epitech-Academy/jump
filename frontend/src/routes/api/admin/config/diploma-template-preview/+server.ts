@@ -1,4 +1,4 @@
-import { adminApiImage } from '$lib/server/adminApi/route';
+import { adminApiImage } from '#lib/server/adminApi/route.ts';
 
 // Curated operation, served as the image itself rather than as JSON: see
 // `$lib/server/adminApi/operations.ts` for the params. Auth, tier, validation

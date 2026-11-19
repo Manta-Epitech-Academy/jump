@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createHmac } from 'node:crypto';
 import { isHttpError } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { workshopKeys } from '$lib/server/workshops/ticket';
-import { workshopGrantSourceId } from '$lib/domain/workshops';
-import { getUnseenWorkshopReward } from '$lib/server/services/workshopService';
-import { resolveGrantLabels } from '$lib/server/services/xpStoryService';
-import { writeWorkshop } from '$lib/server/adminApi/writes/workshops';
-import { OperationRefusedError } from '$lib/server/adminApi/errors';
+import { prisma } from '#lib/server/db.ts';
+import { workshopKeys } from '#lib/server/workshops/ticket.ts';
+import { workshopGrantSourceId } from '#lib/domain/workshops.ts';
+import { getUnseenWorkshopReward } from '#lib/server/services/workshopService.ts';
+import { resolveGrantLabels } from '#lib/server/services/xpStoryService.ts';
+import { writeWorkshop } from '#lib/server/adminApi/writes/workshops.ts';
+import { OperationRefusedError } from '#lib/server/adminApi/errors.ts';
 import { POST } from '../../../../routes/api/workshops/callback/+server';
 import { assertTestDatabase } from './testDatabase';
 

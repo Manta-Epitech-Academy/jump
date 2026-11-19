@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import {
   markMinigameRewardsSeen,
   markMinigameRankRewardsSeen,
-} from '$lib/server/services/minigameService';
+} from '#lib/server/services/minigameService.ts';
 
 /**
  * Mark a talent's unseen minigame reward floats as seen, so each fires exactly

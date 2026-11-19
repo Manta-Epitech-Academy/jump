@@ -20,15 +20,15 @@
  * `/staff/admin/users`, where the same figures are per row.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import type { StaffRole } from '@prisma/client';
 import {
   median,
   metric,
   share,
   type Metric,
-} from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+} from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 
 const NEVER_RULE =
   "Un compte dont aucune connexion réelle n'a jamais été enregistrée. Les sessions d'impersonation ne comptent pas : un administrateur qui teste l'espace d'un membre n'est pas ce membre qui se connecte.";

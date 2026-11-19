@@ -2,12 +2,12 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { stopImpersonating } from '$lib/impersonation';
+  import { stopImpersonating } from '#lib/impersonation.ts';
   import LogOut from '@lucide/svelte/icons/log-out';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import { toast } from 'svelte-sonner';
-  import StagePhaseOverrideToggle from '$lib/components/dev/StagePhaseOverrideToggle.svelte';
-  import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
+  import StagePhaseOverrideToggle from '#lib/components/dev/StagePhaseOverrideToggle.svelte';
+  import type { EventLifecycleStatus } from '#lib/domain/eventLifecycle.ts';
 
   // Impersonation indicator. Lives inside the sidebar (above the footer)
   // rather than as a top banner so it never shifts the viewport. Styled for
@@ -45,7 +45,7 @@
     busy = true;
     try {
       await stopImpersonating();
-      await goto(resolve('/staff/admin/users'), { invalidateAll: true });
+      await goto(resolve('staff/admin/users'), { invalidateAll: true });
     } catch (err) {
       console.error(err);
       toast.error('Impossible de revenir au compte admin.');

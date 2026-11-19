@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 
-vi.mock('$lib/server/db', () => ({
+vi.mock('#lib/server/db.ts', () => ({
   prisma: {
     campus: { findFirst: vi.fn(), findMany: vi.fn() },
     event: { findUnique: vi.fn() },

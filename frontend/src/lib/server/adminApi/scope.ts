@@ -26,9 +26,9 @@
  * is verified to exist, which is what stops the confident zero there too.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { handleProvenanceFr } from './handles';
-import { eventDisplayName } from '$lib/domain/event';
+import { eventDisplayName } from '#lib/domain/event.ts';
 
 /**
  * The caller named a campus, event or school year that does not exist. Carried

@@ -1,4 +1,7 @@
-import { env } from '$env/dynamic/private';
+import {
+  SMS_PROVIDER,
+  SMS_SENDER as configuredSmsSender,
+} from '$app/env/private';
 
 /**
  * Which SMS backend to use. Mirrors `MAIL_PROVIDER`.
@@ -14,7 +17,7 @@ import { env } from '$env/dynamic/private';
  */
 export type SmsProviderKind = 'brevo' | 'null';
 
-const RAW = (env.SMS_PROVIDER ?? 'null').toLowerCase();
+const RAW = (SMS_PROVIDER ?? 'null').toLowerCase();
 
 export const smsProviderKind: SmsProviderKind =
   RAW === 'brevo' ? 'brevo' : 'null';
@@ -33,4 +36,4 @@ export function isSmsEnabled(): boolean {
  * at 11 characters; longer values are rejected by the API. Defaults to the
  * brand the SMS speaks for.
  */
-export const SMS_SENDER = (env.SMS_SENDER || 'Epitech').slice(0, 11);
+export const SMS_SENDER = (configuredSmsSender || 'Epitech').slice(0, 11);

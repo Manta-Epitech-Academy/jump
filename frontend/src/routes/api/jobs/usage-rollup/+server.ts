@@ -1,11 +1,11 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
+import { CRON_SECRET } from '$app/env/private';
+import { safeTokenEquals } from '#lib/server/auth/safeTokenCompare.ts';
 import {
   rollUpUsage,
   USAGE_RAW_RETENTION_MONTHS,
-} from '$lib/server/usage/rollup';
+} from '#lib/server/usage/rollup.ts';
 
 /**
  * Folds usage rows into the monthly cube, then purges the raw rows past the
@@ -18,7 +18,7 @@ import {
  */
 export const POST: RequestHandler = async ({ request }) => {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  const cronSecret = env.CRON_SECRET;
+  const cronSecret = CRON_SECRET;
   if (!cronSecret || !token || !safeTokenEquals(token, cronSecret)) {
     throw error(401, 'Unauthorized: Invalid or missing token');
   }

@@ -1,8 +1,8 @@
 import type { RequestHandler } from './$types';
 
-import type { Answers } from '$lib/domain/feedbackForms/schema';
-import { getFormGraphBySlug } from '$lib/server/feedbackForms';
-import { recordSubmission } from '$lib/server/feedbackSubmissions';
+import type { Answers } from '#lib/domain/feedbackForms/schema.ts';
+import { getFormGraphBySlug } from '#lib/server/feedbackForms.ts';
+import { recordSubmission } from '#lib/server/feedbackSubmissions.ts';
 
 // Public submit endpoint for a feedback form (no auth). The respondent is not a
 // Jump account: their self-reported identity is stored on the submission and

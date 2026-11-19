@@ -1,21 +1,24 @@
 import { Prisma } from '@prisma/client';
 import { recomputeAttendance } from './attendance';
-import { prisma } from '$lib/server/db';
-import { findUnreferencedParentAccount } from '$lib/server/services/parentAccount';
+import { prisma } from '#lib/server/db.ts';
+import { findUnreferencedParentAccount } from '#lib/server/services/parentAccount.ts';
 import {
   clearLegacyDocumentKeys,
   deleteDocumentObjects,
   documentKeysOf,
   TALENT_DOCUMENT_KEYS_SELECT,
-} from '$lib/server/services/onboardingDocuments';
-import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
+} from '#lib/server/services/onboardingDocuments.ts';
+import { DATA_RETENTION_MONTHS } from '#lib/domain/retention.ts';
 import {
   clearGuardianActs,
   clearOnboardingTimestamps,
   clearTalentOnboardingArtifacts,
-} from '$lib/domain/talentOnboarding';
-import { clearGuardianContacts, guardianEmailsOf } from '$lib/domain/contact';
-import { clearSignInStreak } from '$lib/server/services/signInStreak';
+} from '#lib/domain/talentOnboarding.ts';
+import {
+  clearGuardianContacts,
+  guardianEmailsOf,
+} from '#lib/domain/contact.ts';
+import { clearSignInStreak } from '#lib/server/services/signInStreak.ts';
 
 /**
  * The single GDPR-erasure primitive. Clears a talent's PII in place rather than

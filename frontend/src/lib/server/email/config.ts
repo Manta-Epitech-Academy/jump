@@ -1,4 +1,8 @@
-import { env } from '$env/dynamic/private';
+import {
+  MAIL_FROM as configuredMailFrom,
+  MAIL_PROVIDER,
+  RESEND_FROM_EMAIL,
+} from '$app/env/private';
 
 /**
  * Which transactional mail provider to use.
@@ -14,7 +18,7 @@ import { env } from '$env/dynamic/private';
  */
 export type MailProviderKind = 'resend' | 'mailjet';
 
-const RAW = (env.MAIL_PROVIDER ?? 'resend').toLowerCase();
+const RAW = (MAIL_PROVIDER ?? 'resend').toLowerCase();
 
 export const mailProviderKind: MailProviderKind =
   RAW === 'mailjet' ? 'mailjet' : 'resend';
@@ -25,4 +29,4 @@ export const mailProviderKind: MailProviderKind =
  * break older `.env` files mid-migration.
  */
 export const MAIL_FROM =
-  env.MAIL_FROM || env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>';
+  configuredMailFrom || RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>';

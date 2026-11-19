@@ -21,7 +21,7 @@ import {
   decideSync,
   type SyncCadence,
   type SyncRequests,
-} from '$lib/domain/syncSchedule';
+} from '#lib/domain/syncSchedule.ts';
 import { workerConfigAnswerSchema } from './workerSync';
 
 const CADENCES: SyncCadence[] = [

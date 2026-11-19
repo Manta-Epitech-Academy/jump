@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { Card } from '$lib/components/ui/card';
-  import CardAction from '$lib/components/talent/CardAction.svelte';
-  import SubjectVisual from '$lib/components/talent/SubjectVisual.svelte';
+  import { Card } from '#lib/components/ui/card/index.ts';
+  import CardAction from '#lib/components/talent/CardAction.svelte';
+  import SubjectVisual from '#lib/components/talent/SubjectVisual.svelte';
   import Star from '@lucide/svelte/icons/star';
-  import { UNCATEGORISED_FILL } from '$lib/design/color';
+  import { UNCATEGORISED_FILL } from '#lib/design/color.ts';
   import type {
     Parcours,
     ParcoursActivity,
     ParcoursActivityNext,
     ParcoursEvent,
-  } from '$lib/domain/talentParcours';
-  import { cn } from '$lib/utils';
+  } from '#lib/domain/talentParcours.ts';
+  import { cn } from '#lib/utils.ts';
 
   // A talent's journey as the 2027 mockup draws it: one step per event down a
   // line, newest first, under the year it begins in, its kind's colour as the

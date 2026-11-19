@@ -1,4 +1,4 @@
-import { adminApiRead } from '$lib/server/adminApi/route';
+import { adminApiRead } from '#lib/server/adminApi/route.ts';
 
 // Curated operation: see `$lib/server/adminApi/operations.ts` for the params,
 // the description and what the figures mean. Auth, tier, validation and audit

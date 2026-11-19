@@ -5,13 +5,13 @@ import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
-} from '$lib/server/db/scoped';
-import { loadCampusCalendar } from '$lib/server/services/campusCalendar';
-import { calendarYearOf } from '$lib/domain/campusCalendar';
-import { campusClock, toDateKey } from '$lib/domain/planningTime';
-import { isSchoolYearLabel } from '$lib/domain/schoolYear';
-import { firstNameOf } from '$lib/domain/profile';
-import { greetingFor } from '$lib/domain/devVoice';
+} from '#lib/server/db/scoped.ts';
+import { loadCampusCalendar } from '#lib/server/services/campusCalendar.ts';
+import { calendarYearOf } from '#lib/domain/campusCalendar.ts';
+import { campusClock, toDateKey } from '#lib/domain/planningTime.ts';
+import { isSchoolYearLabel } from '#lib/domain/schoolYear.ts';
+import { firstNameOf } from '#lib/domain/profile.ts';
+import { greetingFor } from '#lib/domain/devVoice.ts';
 
 /**
  * The dev space opens on its campus's calendar: every event of a school year,
@@ -32,7 +32,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const timezone = getCampusTimezone(locals);
   const asked = url.searchParams.get('year');
   if (asked !== null && !isSchoolYearLabel(asked)) {
-    throw redirect(303, resolve('/staff/dev'));
+    throw redirect(303, resolve('staff/dev'));
   }
   const now = new Date();
   const today = toDateKey(now, timezone);

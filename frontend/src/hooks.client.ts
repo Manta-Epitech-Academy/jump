@@ -3,7 +3,7 @@
  *
  * Zod compiles a fast path for object schemas with `new Function`, and finds out
  * whether it may by trying it the first time one is parsed. The policy here
- * (`svelte.config.js`) never allows `eval`, so the compiled path can never run
+ * (`vite.config.ts`) never allows `eval`, so the compiled path can never run
  * in a browser, and the probe is not free: the browser reports the refused call
  * as a `securitypolicyviolation` although Zod swallows the throw. That is a
  * violation on every page that validates a form, which buries the one that

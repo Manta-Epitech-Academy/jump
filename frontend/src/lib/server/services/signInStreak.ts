@@ -1,7 +1,7 @@
 import { parseDate } from '@internationalized/date';
-import { prisma } from '$lib/server/db';
-import { dbDateToKey } from '$lib/domain/eventPresence';
-import { toDateKey } from '$lib/domain/planningTime';
+import { prisma } from '#lib/server/db.ts';
+import { dbDateToKey } from '#lib/domain/eventPresence.ts';
+import { toDateKey } from '#lib/domain/planningTime.ts';
 
 /**
  * Count the day `now` falls on, in `timezone`, into the talent's run of

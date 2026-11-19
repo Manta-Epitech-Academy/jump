@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
-import { purgeAdminApiCalls } from '$lib/server/adminApi/audit';
+import { CRON_SECRET } from '$app/env/private';
+import { safeTokenEquals } from '#lib/server/auth/safeTokenCompare.ts';
+import { purgeAdminApiCalls } from '#lib/server/adminApi/audit.ts';
 
 /**
  * Trims the curated-admin-API call log. A row is written on every call
@@ -18,7 +18,7 @@ const RETENTION_DAYS = 180;
 
 export const POST: RequestHandler = async ({ request }) => {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  const cronSecret = env.CRON_SECRET;
+  const cronSecret = CRON_SECRET;
   if (!cronSecret || !token || !safeTokenEquals(token, cronSecret)) {
     throw error(401, 'Unauthorized: Invalid or missing token');
   }

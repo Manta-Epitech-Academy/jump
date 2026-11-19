@@ -16,12 +16,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { AdminEventVM } from '$lib/server/services/events';
+import type { AdminEventVM } from '#lib/server/services/events.ts';
 
 const recordFindMany = vi.fn();
 const templateFindMany = vi.fn();
 
-vi.mock('$lib/server/db', () => ({
+vi.mock('#lib/server/db.ts', () => ({
   prisma: {
     closing_Record: { findMany: (args: unknown) => recordFindMany(args) },
     closing_Template: { findMany: (args: unknown) => templateFindMany(args) },

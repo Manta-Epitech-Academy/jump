@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
-import { sendAdminDigest } from '$lib/server/services/adminDigest';
+import { CRON_SECRET } from '$app/env/private';
+import { safeTokenEquals } from '#lib/server/auth/safeTokenCompare.ts';
+import { sendAdminDigest } from '#lib/server/services/adminDigest/index.ts';
 
 /**
  * Weekly admin digest. Expected schedule: Monday morning, Europe/Paris. As a k8s
@@ -20,7 +20,7 @@ import { sendAdminDigest } from '$lib/server/services/adminDigest';
  */
 export const POST: RequestHandler = async ({ request }) => {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  const cronSecret = env.CRON_SECRET;
+  const cronSecret = CRON_SECRET;
 
   if (!cronSecret || !token || !safeTokenEquals(token, cronSecret)) {
     throw error(401, 'Unauthorized: Invalid or missing token');

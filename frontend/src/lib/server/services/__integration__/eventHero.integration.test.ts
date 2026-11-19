@@ -11,15 +11,15 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { isHttpError } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
-import { writeEventConfig } from '$lib/server/adminApi/writes/events';
-import { OperationRefusedError } from '$lib/server/adminApi/errors';
+import { writeEventConfig } from '#lib/server/adminApi/writes/events.ts';
+import { OperationRefusedError } from '#lib/server/adminApi/errors.ts';
 import { GET as imageProxy } from '../../../../routes/api/event-hero/images/[eventId]/[file]/+server';
 
 const objects = new Map<string, Uint8Array>();
 
-vi.mock('$lib/server/infra/storage', () => ({
+vi.mock('#lib/server/infra/storage.ts', () => ({
   getStorage: () => ({
     save: async (key: string, data: Uint8Array) => {
       objects.set(key, data);
@@ -40,13 +40,13 @@ vi.mock('$lib/server/infra/storage', () => ({
 
 // The address policy refuses loopback, which is where the test host lives, so
 // it is let through here and judged on its own in `infra/publicAddress.test.ts`.
-vi.mock('$lib/server/infra/publicAddress', () => ({
+vi.mock('#lib/server/infra/publicAddress.ts', () => ({
   isPublicAddress: vi.fn(() => true),
 }));
 
-vi.mock('$lib/server/images/process', async (importOriginal) => {
+vi.mock('#lib/server/images/process.ts', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('$lib/server/images/process')>();
+    await importOriginal<typeof import('#lib/server/images/process.ts')>();
   return {
     ...actual,
     processImage: vi.fn(async (input: Uint8Array) => ({

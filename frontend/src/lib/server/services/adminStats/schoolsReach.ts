@@ -14,16 +14,16 @@
  * well we know where the cohort comes from.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   rankLyceesByCohort,
   toBreakdown,
   type LyceeStat,
-} from '$lib/server/services/cohortOverview';
-import { departementOf, academieOf } from '$lib/domain/school';
-import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+} from '#lib/server/services/cohortOverview.ts';
+import { departementOf, academieOf } from '#lib/domain/school.ts';
+import { VISIBLE_PARTICIPATION_DEFINITION } from '#lib/domain/sfMemberStatus.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { cohortWhere, scopeLabels } from './cohort';
 
 /** Lycées listed by name before the tail is summarised. */

@@ -3,47 +3,47 @@
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ExternalLink from '@lucide/svelte/icons/external-link';
-  import * as Table from '$lib/components/ui/table';
-  import * as Collapsible from '$lib/components/ui/collapsible';
-  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
-  import type { ColumnDef } from '$lib/components/staff/datatable/types';
-  import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
+  import { InfoTooltip } from '#lib/components/ui/info-tooltip/index.ts';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '#lib/components/staff/datatable/DataTableToolbar.svelte';
+  import Pagination from '#lib/components/staff/datatable/Pagination.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import ActiveFilterChips from '#lib/components/staff/ActiveFilterChips.svelte';
+  import type { ColumnDef } from '#lib/components/staff/datatable/types.ts';
+  import { facetControls } from '#lib/components/staff/datatable/facetControls.ts';
   import {
     clearListFilters,
     setListParams,
-  } from '$lib/components/staff/datatable/urlList';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import { listFacets, matchesListFacets } from '$lib/domain/listFacets';
+  } from '#lib/components/staff/datatable/urlList.ts';
+  import { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
+  import { listFacets, matchesListFacets } from '#lib/domain/listFacets.ts';
   import {
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
+  } from '#lib/components/staff/datatable/search.ts';
   import {
     nextSort,
     rowComparator,
-  } from '$lib/components/staff/datatable/sort';
+  } from '#lib/components/staff/datatable/sort.ts';
   import {
     pageCount,
     paginate,
-  } from '$lib/components/staff/datatable/paginate';
+  } from '#lib/components/staff/datatable/paginate.ts';
   import {
     statusBadgeClass,
     type StatusTone,
-  } from '$lib/components/staff/statusBadge';
-  import SalesforceIconLink from '$lib/components/salesforce/SalesforceIconLink.svelte';
-  import { adminTalentHref } from '$lib/components/admin/adminTalentHref';
-  import { formatDateTimeFr } from '$lib/utils';
-  import { natureLabel } from '$lib/domain/authIdentity';
+  } from '#lib/components/staff/statusBadge.ts';
+  import SalesforceIconLink from '#lib/components/salesforce/SalesforceIconLink.svelte';
+  import { adminTalentHref } from '#lib/components/admin/adminTalentHref.ts';
+  import { formatDateTimeFr } from '#lib/utils.ts';
+  import { natureLabel } from '#lib/domain/authIdentity.ts';
   import {
     REMEDY_WHO_LABELS,
     type SyncErrorRemedy,
-  } from '$lib/domain/syncError';
+  } from '#lib/domain/syncError.ts';
   import {
     SYNC_ERRORS_FACET_DEFS,
     SYNC_ERRORS_SORT_DEFAULT_DIR,

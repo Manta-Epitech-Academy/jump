@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getStorage } from '$lib/server/infra/storage';
-import { avatarStorageKey } from '$lib/server/services/microsoftProfile';
+import { getStorage } from '#lib/server/infra/storage.ts';
+import { avatarStorageKey } from '#lib/server/services/microsoftProfile.ts';
 
 // Streams a user's avatar from S3. The image URL stored in bauth_user.image
 // carries a `?v=<token>` cache-buster updated on every sync, so we can safely

@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import {
   assertLoadTestAuth,
   seedLoadTalents,
-} from '$lib/server/services/loadTestService';
+} from '#lib/server/services/loadTestService.ts';
 
 /**
  * Load-test helper: seed N throwaway @loadtest.invalid talents directly in THIS

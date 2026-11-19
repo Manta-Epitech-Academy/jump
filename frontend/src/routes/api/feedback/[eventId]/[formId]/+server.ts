@@ -1,9 +1,9 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import type { Answers } from '$lib/domain/feedbackForms/schema';
-import { getFormGraphBySlug } from '$lib/server/feedbackForms';
-import { recordSubmission } from '$lib/server/feedbackSubmissions';
+import { prisma } from '#lib/server/db.ts';
+import type { Answers } from '#lib/domain/feedbackForms/schema.ts';
+import { getFormGraphBySlug } from '#lib/server/feedbackForms.ts';
+import { recordSubmission } from '#lib/server/feedbackSubmissions.ts';
 
 export const POST: RequestHandler = async ({ request, locals, params }) => {
   if (!locals.talent) {

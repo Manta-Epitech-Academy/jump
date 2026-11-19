@@ -1,21 +1,21 @@
 import type { Actions, PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { now } from '@internationalized/date';
-import { getBrowserTimezone } from '$lib/server/db/scoped';
-import { getStartOfDay } from '$lib/utils';
-import { getParentLastName } from '$lib/domain/parent';
+import { getBrowserTimezone } from '#lib/server/db/scoped.ts';
+import { getStartOfDay } from '#lib/utils.ts';
+import { getParentLastName } from '#lib/domain/parent.ts';
 import {
   IMAGE_RIGHTS_DECISIONS,
   imageRightsStatus,
   priorYearDecision,
   type ImageRightsDecision,
-} from '$lib/domain/imageRights';
+} from '#lib/domain/imageRights.ts';
 import {
   LATEST_IMAGE_RIGHTS_DECISION_ORDER,
   recordImageRightsDecision,
-} from '$lib/server/services/imageRightsService';
+} from '#lib/server/services/imageRightsService.ts';
 
 export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -53,7 +53,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
 
   // Security: verify this child belongs to the parent
   if (!child || child.parentEmail !== parentEmail) {
-    throw redirect(303, resolve('/parent'));
+    throw redirect(303, resolve('parent'));
   }
 
   // Check how many children the parent has (for UI: hide back button if single child)

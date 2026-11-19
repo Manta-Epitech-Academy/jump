@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 
-import { searchAnnuaire } from '$lib/server/annuaire';
+import { searchAnnuaire } from '#lib/server/annuaire.ts';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
   if (!locals.user) return Response.json([], { status: 401 });

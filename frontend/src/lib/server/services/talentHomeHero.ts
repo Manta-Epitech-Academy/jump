@@ -12,10 +12,10 @@
  * browser's.
  */
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { eventPublicName, UNNAMED_EVENT_NAME } from '$lib/domain/event';
-import { toDateKey } from '$lib/domain/planningTime';
+import { prisma } from '#lib/server/db.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { eventPublicName, UNNAMED_EVENT_NAME } from '#lib/domain/event.ts';
+import { toDateKey } from '#lib/domain/planningTime.ts';
 import {
   arrivalLabel,
   heroEventPhase,
@@ -23,10 +23,10 @@ import {
   type EnrolledEvent,
   type HomeHero,
   type TalentHome,
-} from '$lib/domain/talentHome';
-import { eventPlace, type HeroCopyWritten } from '$lib/domain/eventHero';
-import type { IcsEvent } from '$lib/domain/ics';
-import type { TalentWorkshops } from '$lib/domain/workshops';
+} from '#lib/domain/talentHome.ts';
+import { eventPlace, type HeroCopyWritten } from '#lib/domain/eventHero.ts';
+import type { IcsEvent } from '#lib/domain/ics.ts';
+import type { TalentWorkshops } from '#lib/domain/workshops.ts';
 import { listTalentWorkshops } from './workshopService';
 import { getTalentHome } from './talentHomeService';
 import { shownEventHeroPicture } from './eventHeroImages';

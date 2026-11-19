@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { onImageBroken } from '$lib/actions/onImageBroken';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import { Button } from '$lib/components/ui/button';
-  import CopyButton from '$lib/components/ui/CopyButton.svelte';
+  import { onImageBroken } from '#lib/actions/onImageBroken.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import CopyButton from '#lib/components/ui/CopyButton.svelte';
   import Play from '@lucide/svelte/icons/play';
   import Terminal from '@lucide/svelte/icons/terminal';
   import {
     WORKSHOP_LEVEL_LABELS,
     type CatalogueSubject,
-  } from '$lib/domain/workshopCatalogue';
+  } from '#lib/domain/workshopCatalogue.ts';
 
   // One subject of the dev space's catalogue, as the 2027 mockup draws it: a
   // brand card with the blueprint grid, its picture, its name, its domains and

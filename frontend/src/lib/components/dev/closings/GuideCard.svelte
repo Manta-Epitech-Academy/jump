@@ -2,7 +2,7 @@
   import BookOpen from '@lucide/svelte/icons/book-open';
   import Clock from '@lucide/svelte/icons/clock';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
-  import * as Card from '$lib/components/ui/card';
+  import * as Card from '#lib/components/ui/card/index.ts';
 
   // Static how-to card. Shown on the cohort closings list as a quick reminder
   // on timing and tone before staff open one to conduct it.

@@ -14,7 +14,7 @@
  */
 
 import type { Prisma, Sync_ErrorKind } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 
 /** The kinds that name a contact Jump could not take in, not a talent it has. */
 export type ContactErrorKind = Extract<

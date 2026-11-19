@@ -1,35 +1,35 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { scrollTopOnNavigate } from '$lib/actions/scrollTopOnNavigate';
+  import { scrollTopOnNavigate } from '#lib/actions/scrollTopOnNavigate.ts';
   import { resolve } from '$app/paths';
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Settings from '@lucide/svelte/icons/settings';
   import KeyRound from '@lucide/svelte/icons/key-round';
   import Search from '@lucide/svelte/icons/search';
-  import BrandMark from '$lib/components/layout/BrandMark.svelte';
-  import AppRevision from '$lib/components/layout/AppRevision.svelte';
-  import { Button } from '$lib/components/ui/button';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import * as Avatar from '$lib/components/ui/avatar';
-  import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import StaffSettingsDialog from '$lib/components/layout/StaffSettingsDialog.svelte';
-  import AdminCommand from '$lib/components/admin/AdminCommand.svelte';
-  import StaffMobileNav from '$lib/components/staff/StaffMobileNav.svelte';
+  import BrandMark from '#lib/components/layout/BrandMark.svelte';
+  import AppRevision from '#lib/components/layout/AppRevision.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+  import * as Avatar from '#lib/components/ui/avatar/index.ts';
+  import ModeToggle from '#lib/components/ModeToggle.svelte';
+  import StaffSettingsDialog from '#lib/components/layout/StaffSettingsDialog.svelte';
+  import AdminCommand from '#lib/components/admin/AdminCommand.svelte';
+  import StaffMobileNav from '#lib/components/staff/StaffMobileNav.svelte';
   import {
     ADMIN_NAV,
     type AdminNavItem,
     type AdminBadgeKey,
-  } from '$lib/components/admin/adminNav';
-  import { track, secondsBetween } from '$lib/analytics';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  } from '#lib/components/admin/adminNav.ts';
+  import { track, secondsBetween } from '#lib/analytics.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
 
   let { children, data } = $props();
 
   let settingsOpen = $state(false);
   let commandOpen = $state(false);
 
-  const ADMIN_HOME = resolve('/staff/admin');
+  const ADMIN_HOME = resolve('staff/admin');
 
   // Entries carry already-resolved hrefs, so highlight by comparing them
   // directly against the current pathname.
@@ -149,7 +149,7 @@
       </StaffMobileNav>
 
       <BrandMark
-        href={resolve('/staff/admin')}
+        href={resolve('staff/admin')}
         sublabel="Admin"
         accent="pink"
         orientation="inline"
@@ -216,14 +216,14 @@
             </DropdownMenu.Item>
             <DropdownMenu.Item class="cursor-pointer">
               {#snippet child({ props })}
-                <a {...props} href={resolve('/staff/admin/api-tokens')}>
+                <a {...props} href={resolve('staff/admin/api-tokens')}>
                   <KeyRound class="mr-2 h-4 w-4" />
                   Accès API
                 </a>
               {/snippet}
             </DropdownMenu.Item>
             <form
-              action="{resolve('/logout')}?type=admin"
+              action="{resolve('logout')}?type=admin"
               method="POST"
               onsubmit={() =>
                 track('logout', {

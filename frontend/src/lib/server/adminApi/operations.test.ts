@@ -8,7 +8,10 @@
 
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { EVENT_MODULE_KEYS, moduleSettingKeys } from '$lib/domain/eventModules';
+import {
+  EVENT_MODULE_KEYS,
+  moduleSettingKeys,
+} from '#lib/domain/eventModules.ts';
 import { httpOperations } from './httpCatalogue';
 import {
   ADMIN_API_OPERATIONS,

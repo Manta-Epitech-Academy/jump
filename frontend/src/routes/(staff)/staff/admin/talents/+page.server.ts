@@ -1,18 +1,18 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   resetTalentToImport,
   TalentAlreadyErased,
-} from '$lib/server/services/talentAccount';
+} from '#lib/server/services/talentAccount.ts';
 import {
   changeParentEmail,
   type ChangeParentEmailResult,
-} from '$lib/server/services/parentAccount';
-import { parentCompleteWhere } from '$lib/server/db/dossierCompliance';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+} from '#lib/server/services/parentAccount.ts';
+import { parentCompleteWhere } from '#lib/server/db/dossierCompliance.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 import {
   buildTalentWhere,
   buildOrderBy,

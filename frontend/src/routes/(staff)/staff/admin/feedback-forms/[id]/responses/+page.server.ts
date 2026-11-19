@@ -1,14 +1,14 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { requireAdmin } from '$lib/server/feedbackFormsAdmin';
+import { prisma } from '#lib/server/db.ts';
+import { requireAdmin } from '#lib/server/feedbackFormsAdmin.ts';
 import {
   computeFormStats,
   getPublicRespondents,
   getEventResponseBreakdown,
   eventAxisScope,
   type StatsScope,
-} from '$lib/server/feedbackStats';
+} from '#lib/server/feedbackStats.ts';
 
 // Per-form aggregate reporting, co-located with the form it belongs to. A form
 // is reused across many events (every Coding Club binds to the same default

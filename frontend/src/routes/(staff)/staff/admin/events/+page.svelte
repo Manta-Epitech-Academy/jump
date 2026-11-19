@@ -3,34 +3,34 @@
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
+  } from '#lib/components/staff/datatable/search.ts';
   import Database from '@lucide/svelte/icons/database';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import CircleDot from '@lucide/svelte/icons/circle-dot';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
-  import { Button } from '$lib/components/ui/button';
-  import { Badge } from '$lib/components/ui/badge';
-  import * as Table from '$lib/components/ui/table';
-  import EventModulesCell from '$lib/components/events/EventModulesCell.svelte';
-  import EventStateBadge from '$lib/components/events/EventStateBadge.svelte';
-  import AdminSfStatusInspectorDialog from '$lib/components/events/AdminSfStatusInspectorDialog.svelte';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import EventModulesCell from '#lib/components/events/EventModulesCell.svelte';
+  import EventStateBadge from '#lib/components/events/EventStateBadge.svelte';
+  import AdminSfStatusInspectorDialog from '#lib/components/events/AdminSfStatusInspectorDialog.svelte';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '#lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
     ActiveFilterChip,
     ColumnDef,
-  } from '$lib/components/staff/datatable/types';
-  import { type SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
-  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
-  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
-  import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  } from '#lib/components/staff/datatable/types.ts';
+  import { type SegmentOption } from '#lib/components/staff/SegmentedFilter.svelte';
+  import FilterSelect from '#lib/components/staff/FilterSelect.svelte';
+  import ActiveFilterChips from '#lib/components/staff/ActiveFilterChips.svelte';
+  import { facetControls } from '#lib/components/staff/datatable/facetControls.ts';
   import {
     clearListFilters,
     setListParams,
-  } from '$lib/components/staff/datatable/urlList';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import { listFacets, matchesListFacets } from '$lib/domain/listFacets';
+  } from '#lib/components/staff/datatable/urlList.ts';
+  import { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
+  import { listFacets, matchesListFacets } from '#lib/domain/listFacets.ts';
   import {
     EVENT_PERIOD,
     EVENTS_FACET_DEFS,
@@ -42,12 +42,12 @@
   import {
     isEventToPrepare,
     type EventConfigState,
-  } from '$lib/domain/eventReadiness';
-  import KpiTile from '$lib/components/staff/KpiTile.svelte';
+  } from '#lib/domain/eventReadiness.ts';
+  import KpiTile from '#lib/components/staff/KpiTile.svelte';
   import { page } from '$app/state';
   import type { AdminEventVM } from './+page.server';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import { nextSort } from '$lib/components/staff/datatable/sort';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import { nextSort } from '#lib/components/staff/datatable/sort.ts';
 
   let { data } = $props();
 

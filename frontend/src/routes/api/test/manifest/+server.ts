@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import {
   assertLoadTestAuth,
   buildLoadManifest,
-} from '$lib/server/services/loadTestService';
+} from '#lib/server/services/loadTestService.ts';
 
 /**
  * Load-test helper: build the k6 manifest server-side and return it as JSON, so

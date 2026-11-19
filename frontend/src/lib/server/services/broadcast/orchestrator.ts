@@ -4,20 +4,20 @@ import type {
   BroadcastChannel,
   BroadcastSourceFilter,
 } from '@prisma/client';
-import { env } from '$env/dynamic/private';
-import { prisma } from '$lib/server/db';
+import { ORIGIN } from '$app/env/private';
+import { prisma } from '#lib/server/db.ts';
 import {
   BROADCAST_MAX_RETRIES,
   type BroadcastFilters,
   type BroadcastTerminalStatus,
-} from '$lib/domain/broadcasts';
+} from '#lib/domain/broadcasts.ts';
 import { rewriteHtmlLinks, rewriteSmsLinks } from './linkRewriter';
 import {
   substituteVariables,
   type VariableContext,
-} from '$lib/domain/broadcastVariables';
-import { renderBroadcastEmail } from '$lib/domain/broadcastMarkdown';
-import { daysUntil } from '$lib/server/services/stageContext';
+} from '#lib/domain/broadcastVariables.ts';
+import { renderBroadcastEmail } from '#lib/domain/broadcastMarkdown.ts';
+import { daysUntil } from '#lib/server/services/stageContext.ts';
 import { resolveRecipients } from './recipients';
 import { getMailProvider } from './providers/mail';
 import { getSmsProvider } from './providers/sms';
@@ -27,11 +27,11 @@ import {
   buildFastloginLink,
   mintParentFastloginToken,
   buildParentFastloginLink,
-} from '$lib/server/auth/fastloginToken';
-import { mintSigninOtp } from '$lib/server/auth/otpSession';
+} from '#lib/server/auth/fastloginToken.ts';
+import { mintSigninOtp } from '#lib/server/auth/otpSession.ts';
 import { loadBroadcastTemplate } from './templates';
-import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
-import { staffBulkDevRedirectPhones } from '$lib/server/sms/dev-redirect';
+import { staffBulkDevRedirectEmails } from '#lib/server/email/dev-redirect.ts';
+import { staffBulkDevRedirectPhones } from '#lib/server/sms/dev-redirect.ts';
 
 export interface EnqueueBroadcastInput {
   name: string;
@@ -374,11 +374,7 @@ function buildMailMessage(
     ctx,
     'markdown',
   );
-  const rendered = renderBroadcastEmail(
-    bodyWithVars,
-    env.ORIGIN ?? '',
-    subject,
-  );
+  const rendered = renderBroadcastEmail(bodyWithVars, ORIGIN ?? '', subject);
   // Track links in both parts so an open via the text/plain copy still counts.
   const html = rewriteHtmlLinks(rendered.html, recipient.id);
   const text = rewriteSmsLinks(rendered.text, recipient.id);

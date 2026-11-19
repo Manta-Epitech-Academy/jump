@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireWorkerToken } from '$lib/server/auth/workerToken';
-import { workerRunOpenSchema } from '$lib/validation/workerSync';
-import { openRun } from '$lib/server/services/syncRunService';
+import { requireWorkerToken } from '#lib/server/auth/workerToken.ts';
+import { workerRunOpenSchema } from '#lib/validation/workerSync.ts';
+import { openRun } from '#lib/server/services/syncRunService.ts';
 
 /**
  * Open a run report, before the worker pulls anything.

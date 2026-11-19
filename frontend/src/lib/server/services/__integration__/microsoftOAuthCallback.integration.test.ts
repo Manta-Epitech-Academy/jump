@@ -36,7 +36,7 @@
  * register path, a provisioned member's for the relink.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { signInWithMicrosoft } from './microsoftSignIn';
 

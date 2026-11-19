@@ -1,14 +1,14 @@
 import { error } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { noteUpdateSchema } from '$lib/validation/talentNotes';
+import { prisma } from '#lib/server/db.ts';
+import { noteUpdateSchema } from '#lib/validation/talentNotes.ts';
 import {
   NOTE_INCLUDE,
   requireTalentNoteAccess,
   serializeNote,
-} from '$lib/server/talentNotes';
+} from '#lib/server/talentNotes.ts';
 import type { RequestHandler } from './$types';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 /** Asserts the note exists and belongs to this talent (404 otherwise). Any dev
  *  member may manage it: there is no per-note ownership gate. */

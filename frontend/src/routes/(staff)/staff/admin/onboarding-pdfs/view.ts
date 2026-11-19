@@ -1,4 +1,4 @@
-import { defineListChoice, defineListView } from '$lib/domain/listView';
+import { defineListChoice, defineListView } from '#lib/domain/listView.ts';
 
 /**
  * The PDF job feed's view, in the address every staff list shares

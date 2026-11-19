@@ -1,4 +1,4 @@
-import { serveOpenApiDocument } from '$lib/server/adminApi/openapi';
+import { serveOpenApiDocument } from '#lib/server/adminApi/openapi.ts';
 
 // The HTTP reference: every operation the caller's token can call, generated
 // from the catalogue and the route files. Not an operation itself, see

@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { version } from '$app/environment';
-  import { cn } from '$lib/utils';
+  import { version } from '$app/env';
+  import { cn } from '#lib/utils.ts';
 
   /**
    * The commit this build was made from, so anyone can tell which code an
    * environment runs, including from a login page when the admin will not open.
    *
-   * `version` is the commit (svelte.config.js). A build that had none carries
+   * `version` is the commit (vite.config.ts). A build that had none carries
    * kit's timestamp instead, and that renders nothing rather than a number that
    * reads like a commit.
    */

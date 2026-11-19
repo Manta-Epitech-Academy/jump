@@ -6,11 +6,11 @@ import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
-} from '$lib/server/db/scoped';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { countShownCohort } from '$lib/server/services/inscritsCohort';
-import { requireStaffGroup } from '$lib/server/auth/guards';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
+} from '#lib/server/db/scoped.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
+import { countShownCohort } from '#lib/server/services/inscritsCohort.ts';
+import { requireStaffGroup } from '#lib/server/auth/guards.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
 import {
   presenceSlots,
   isPresenceSlot,
@@ -25,26 +25,26 @@ import {
   type PresenceRecord,
   type PresenceSlot,
   type CellStatus,
-} from '$lib/domain/eventPresence';
+} from '#lib/domain/eventPresence.ts';
 import {
   isSlotClosed,
   isSlotPastCutoff,
-} from '$lib/server/presence/slotClosure';
+} from '#lib/server/presence/slotClosure.ts';
 import {
   closePresenceSlot,
   reopenPresenceSlot,
   markAllPresentInSlot,
   writePresenceCell,
-} from '$lib/server/services/presenceService';
+} from '#lib/server/services/presenceService.ts';
 import {
   setPresenceSchema,
   markAllPresentSchema,
   closeSlotSchema,
   reopenSlotSchema,
-} from '$lib/validation/presence';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+} from '#lib/validation/presence.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 import {
   PRESENCE_ROSTER_SELECT,
   type PresenceRow,

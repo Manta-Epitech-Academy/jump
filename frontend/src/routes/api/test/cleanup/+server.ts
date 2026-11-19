@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import {
   assertLoadTestAuth,
   cleanupLoadTest,
-} from '$lib/server/services/loadTestService';
+} from '#lib/server/services/loadTestService.ts';
 
 /**
  * Load-test helper: cascade-delete every @loadtest.invalid account from THIS

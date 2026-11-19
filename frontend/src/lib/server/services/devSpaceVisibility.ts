@@ -16,8 +16,8 @@
 
 import { error } from '@sveltejs/kit';
 import { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
+import { prisma } from '#lib/server/db.ts';
+import { normalizeSfStatus } from '#lib/domain/sfMemberStatus.ts';
 import { recomputeAttendance } from './attendance';
 
 type Db = Prisma.TransactionClient | typeof prisma;

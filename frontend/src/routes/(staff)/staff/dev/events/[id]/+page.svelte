@@ -1,13 +1,13 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { Skeleton } from '$lib/components/ui/skeleton';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import EventCategoryChip from '$lib/components/events/EventCategoryChip.svelte';
-  import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
-  import ExcelExportTile from '$lib/components/events/ExcelExportTile.svelte';
-  import { EVENT_MODULES } from '$lib/domain/eventModules';
+  import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import ResultsSkeleton from '#lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import EventCategoryChip from '#lib/components/events/EventCategoryChip.svelte';
+  import EventSalesforceButton from '#lib/components/events/EventSalesforceButton.svelte';
+  import ExcelExportTile from '#lib/components/events/ExcelExportTile.svelte';
+  import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
   import type { PageData } from './$types';
   import EventCountdown from './components/EventCountdown.svelte';
   import EventBadgesAction from './components/EventBadgesAction.svelte';
@@ -84,7 +84,7 @@
         <EventSalesforceButton externalId={data.event.externalId} />
         {#if hasCohort && data.exportSections.length > 0}
           <ExcelExportTile
-            href={resolve(`/staff/dev/events/${data.event.id}/export`)}
+            href={resolve(`staff/dev/events/${data.event.id}/export`)}
           >
             Tout l'événement, une feuille par section : {data.exportSections.join(
               ', ',

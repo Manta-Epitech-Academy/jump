@@ -1,16 +1,16 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { civiliteLabel, parentTypeLabel } from '$lib/domain/profile';
-import { normalizePhoneToE164 } from '$lib/domain/phone';
-import { schoolYearOf } from '$lib/domain/schoolYear';
-import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
-import type { DiffField } from '$lib/domain/reconciliation';
+import { prisma } from '#lib/server/db.ts';
+import { civiliteLabel, parentTypeLabel } from '#lib/domain/profile.ts';
+import { normalizePhoneToE164 } from '#lib/domain/phone.ts';
+import { schoolYearOf } from '#lib/domain/schoolYear.ts';
+import { upsertSchoolingYearRecord } from '#lib/server/services/schoolingService.ts';
+import type { DiffField } from '#lib/domain/reconciliation.ts';
 
 // The field catalogue lives in `$lib/domain/reconciliation` (pure domain data,
 // so the client page can import it too). `isDiffField` is re-exported here for
 // the server-side callers that reach for it alongside the reconciliation
 // queries below; everything else they import from the domain module directly.
-export { isDiffField } from '$lib/domain/reconciliation';
+export { isDiffField } from '#lib/domain/reconciliation.ts';
 
 /**
  * Diff between the talent's confirmed profile (Jump truth, on `Talent`) and what

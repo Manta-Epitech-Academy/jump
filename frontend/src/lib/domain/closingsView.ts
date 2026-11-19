@@ -1,4 +1,4 @@
-import { defineListView, type SortedListView } from '$lib/domain/listView';
+import { defineListView, type SortedListView } from '#lib/domain/listView.ts';
 
 /**
  * The Closings page's view, carried in its address, in the format every staff

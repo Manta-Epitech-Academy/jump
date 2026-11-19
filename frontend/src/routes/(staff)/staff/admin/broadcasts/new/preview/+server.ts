@@ -1,16 +1,16 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { prisma } from '$lib/server/db';
-import { resolveRecipients } from '$lib/server/services/broadcast/recipients';
+import { prisma } from '#lib/server/db.ts';
+import { resolveRecipients } from '#lib/server/services/broadcast/recipients.ts';
 import {
   broadcastFiltersSchema,
   broadcastSourceFilterSchema,
-} from '$lib/validation/broadcasts';
+} from '#lib/validation/broadcasts.ts';
 import {
   BROADCAST_AUDIENCES,
   type IncludedRecipient,
-} from '$lib/domain/broadcasts';
+} from '#lib/domain/broadcasts.ts';
 
 // Live recipient preview for /staff/admin/broadcasts/new. Called from the
 // page on every relevant field change (debounced client-side). Looser than

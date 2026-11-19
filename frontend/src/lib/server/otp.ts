@@ -9,14 +9,14 @@
  * sendVerificationOTP callback, the onboarding action) doesn't error.
  */
 
-import { env } from '$env/dynamic/private';
+import { ORIGIN } from '$app/env/private';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
-import { sendActionEmail } from '$lib/server/email/actionMail';
+import { prisma } from '#lib/server/db.ts';
+import { sendActionEmail } from '#lib/server/email/actionMail.ts';
 import {
   mintParentFastloginToken,
   buildParentFastloginLink,
-} from '$lib/server/auth/fastloginToken';
+} from '#lib/server/auth/fastloginToken.ts';
 
 export async function sendOtpEmail(
   email: string,
@@ -43,7 +43,7 @@ export async function sendParentWelcomeEmail(
   const token = await mintParentFastloginToken({ email, talentId });
   const parentFastloginLink = buildParentFastloginLink(token);
   // Manual OTP page kept as a fallback for templates still on {{login_link}}.
-  const loginUrl = `${env.ORIGIN}${resolve('/(parent)/parent/login')}`;
+  const loginUrl = `${ORIGIN}${resolve('/(parent)/parent/login')}`;
   // The template references {{campus}} and {{email_contact_campus}}; resolve them
   // from the talent's effective campus (most-recent participation), matching the
   // resolution in hooks.server.ts. Without this they fall through to the empty
@@ -74,7 +74,7 @@ export async function sendParentOtpEmail(
   otp: string,
   name?: string,
 ): Promise<void> {
-  const loginUrl = `${env.ORIGIN}${resolve('/(parent)/parent/login')}`;
+  const loginUrl = `${ORIGIN}${resolve('/(parent)/parent/login')}`;
   await sendActionEmail('otp_parent', email, {
     parent_prenom: name || 'Parent',
     otp_code: otp,

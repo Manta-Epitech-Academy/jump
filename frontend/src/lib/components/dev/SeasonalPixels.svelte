@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Season } from '$lib/domain/season';
+  import type { Season } from '#lib/domain/season.ts';
 
   /**
    * A small pixel motif on the brand-blue band of the talent fiche, for a

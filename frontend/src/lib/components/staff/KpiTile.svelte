@@ -5,9 +5,9 @@
 <script lang="ts">
   import type { Component, Snippet } from 'svelte';
   import type { LucideIcon } from '@lucide/svelte';
-  import * as Card from '$lib/components/ui/card';
-  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
-  import { cn } from '$lib/utils';
+  import * as Card from '#lib/components/ui/card/index.ts';
+  import { InfoTooltip } from '#lib/components/ui/info-tooltip/index.ts';
+  import { cn } from '#lib/utils.ts';
 
   type Props = {
     label: string;

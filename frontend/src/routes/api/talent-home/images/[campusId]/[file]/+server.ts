@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { findTalentHomeImage } from '$lib/server/services/talentHomeService';
-import { storedImageResponse } from '$lib/server/images/remote';
-import { talentHomeImageKeyFromPath } from '$lib/domain/talentHome';
+import { findTalentHomeImage } from '#lib/server/services/talentHomeService.ts';
+import { storedImageResponse } from '#lib/server/images/remote.ts';
+import { talentHomeImageKeyFromPath } from '#lib/domain/talentHome.ts';
 
 // A picture of a campus's home (its highlighted event's, those its note names),
 // copied into storage when an admin wrote it (`write_talent_home_highlight`,

@@ -3,24 +3,24 @@ import { redirect, fail } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { camperEmailSchema, camperOtpSchema } from '$lib/validation/auth';
-import { auth } from '$lib/server/auth';
-import { forwardAuthCookies } from '$lib/server/auth/cookies';
-import { claimAttempt } from '$lib/server/auth/rateLimiter';
-import { prisma } from '$lib/server/db';
-import { resolveOtpIdentity } from '$lib/server/auth/otpAudience';
-import { ensureTalentUser } from '$lib/server/services/talentAccount';
+import { camperEmailSchema, camperOtpSchema } from '#lib/validation/auth.ts';
+import { auth } from '#lib/server/auth.ts';
+import { forwardAuthCookies } from '#lib/server/auth/cookies.ts';
+import { claimAttempt } from '#lib/server/auth/rateLimiter.ts';
+import { prisma } from '#lib/server/db.ts';
+import { resolveOtpIdentity } from '#lib/server/auth/otpAudience.ts';
+import { ensureTalentUser } from '#lib/server/services/talentAccount.ts';
 import {
   captureRedirectCookie,
   consumeRedirectCookie,
-} from '$lib/server/auth/loginRedirect';
+} from '#lib/server/auth/loginRedirect.ts';
 
 export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (locals.talent) {
-    throw redirect(303, resolve('/'));
+    throw redirect(303, resolve(''));
   }
   if (locals.user?.role === 'parent') {
-    throw redirect(303, resolve('/parent/welcome'));
+    throw redirect(303, resolve('parent/welcome'));
   }
 
   // Stash where the guard bounced them from, to replay after OTP verifies.
@@ -202,11 +202,11 @@ export const actions: Actions = {
         },
       });
       if (pendingCount > 0) {
-        throw redirect(303, resolve('/parent/welcome'));
+        throw redirect(303, resolve('parent/welcome'));
       }
-      throw redirect(303, resolve('/parent/merci'));
+      throw redirect(303, resolve('parent/merci'));
     }
 
-    throw redirect(303, back ?? resolve('/'));
+    throw redirect(303, back ?? resolve(''));
   },
 };

@@ -1,5 +1,5 @@
-import { sendSms, type SendSmsFailure } from '$lib/server/sms';
-import { toBrevoRecipient } from '$lib/domain/phone';
+import { sendSms, type SendSmsFailure } from '#lib/server/sms/index.ts';
+import { toBrevoRecipient } from '#lib/domain/phone.ts';
 import type { SmsProvider, SendOutcome } from './types';
 
 /**

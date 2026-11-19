@@ -1,9 +1,9 @@
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   USAGE_FEATURE_DEFS,
   usageDedupeKey,
   type UsageFeatureKey,
-} from '$lib/domain/usage';
+} from '#lib/domain/usage.ts';
 import { actorHash } from './actorHash';
 
 /**

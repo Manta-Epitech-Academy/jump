@@ -4,9 +4,9 @@
  * `write_event_config` (`$lib/server/images/remote.ts`), so a talent's browser
  * only ever asks Jump for them.
  */
-import { prisma } from '$lib/server/db';
-import type { ShownPicture } from '$lib/domain/pictures';
-import { eventHeroImageUrl } from '$lib/domain/eventHero';
+import { prisma } from '#lib/server/db.ts';
+import type { ShownPicture } from '#lib/domain/pictures.ts';
+import { eventHeroImageUrl } from '#lib/domain/eventHero.ts';
 
 /** A copied hero picture, as a page draws it. */
 export function shownEventHeroPicture(image: {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
 import {
@@ -8,17 +8,17 @@ import {
   revokeToken,
   listTokens,
   hashSecret,
-} from '$lib/server/adminApi/tokens';
+} from '#lib/server/adminApi/tokens.ts';
 import {
   authenticateAdminApi,
   authorizeOperation,
-} from '$lib/server/adminApi/guard';
-import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
+} from '#lib/server/adminApi/guard.ts';
+import { ADMIN_API_OPERATIONS } from '#lib/server/adminApi/operations.ts';
 import {
   recordAdminApiCall,
   purgeAdminApiCalls,
   ANONYMOUS_ACTOR,
-} from '$lib/server/adminApi/audit';
+} from '#lib/server/adminApi/audit.ts';
 
 /** Any core read; the authorisation rules do not depend on which one. */
 const READ_OPERATION = ADMIN_API_OPERATIONS.stats_sync_health;

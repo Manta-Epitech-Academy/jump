@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as Command from '$lib/components/ui/command';
+  import * as Command from '#lib/components/ui/command/index.ts';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { onMount, onDestroy } from 'svelte';
@@ -8,13 +8,13 @@
   import UsersRound from '@lucide/svelte/icons/users-round';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import type { LucideIcon } from '@lucide/svelte';
-  import { Skeleton } from '$lib/components/ui/skeleton';
-  import { ADMIN_NAV } from '$lib/components/admin/adminNav';
+  import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+  import { ADMIN_NAV } from '#lib/components/admin/adminNav.ts';
   import {
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
+  } from '#lib/components/staff/datatable/search.ts';
 
   // Admin-only command palette (Cmd/Ctrl+K), two surfaces in one list:
   //  - Navigation: jump to any admin page, filtered client-side (instant, no
@@ -84,11 +84,11 @@
       // The members roster sits below the invitations queue, so jump straight to
       // it via the #members anchor: the section reads the ?q and filters to this
       // person, in view immediately instead of buried below the invitations.
-      go(`${resolve('/staff/admin/users')}?q=${q}#members`);
+      go(`${resolve('staff/admin/users')}?q=${q}#members`);
     } else {
       // Talents and parents both resolve to the talents directory (a parent
       // points at their child); it's a single table, so no anchor needed.
-      go(`${resolve('/staff/admin/talents')}?q=${q}`);
+      go(`${resolve('staff/admin/talents')}?q=${q}`);
     }
   }
 
@@ -103,7 +103,7 @@
     searchTimeout = setTimeout(async () => {
       try {
         const res = await fetch(
-          `${resolve('/api/admin/people')}?q=${encodeURIComponent(q)}`,
+          `${resolve('api/admin/people')}?q=${encodeURIComponent(q)}`,
         );
         if (res.ok) results = await res.json();
       } finally {

@@ -3,9 +3,9 @@ import type { RequestHandler } from './$types';
 import {
   startImpersonation,
   type ImpersonationRefusal,
-} from '$lib/server/auth/impersonate';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+} from '#lib/server/auth/impersonate.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // Admin impersonation endpoint, shared by the talents directory and the users
 // page. Lives under /staff/admin/* so the route guard already gates it to admins;

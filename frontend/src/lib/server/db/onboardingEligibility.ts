@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { COLLEGE_NIVEAUX } from '$lib/domain/niveau';
+import { COLLEGE_NIVEAUX } from '#lib/domain/niveau.ts';
 
 /**
  * SQL counterparts of {@link isOnboardingEligible}, shaped as

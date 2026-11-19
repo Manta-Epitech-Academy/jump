@@ -1,12 +1,12 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import QRCode from 'qrcode';
-import { getCampusId, getCampusTimezone } from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
-import { resolveSlotCheckinLink } from '$lib/server/presence/slotCheckin';
-import { generatePresenceQrPdf } from '$lib/server/presence/qrPdf';
-import { dayLabelFr, slotLabelFr } from '$lib/domain/eventPresence';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { getCampusId, getCampusTimezone } from '#lib/server/db/scoped.ts';
+import { requireStaffGroup } from '#lib/server/auth/guards.ts';
+import { resolveSlotCheckinLink } from '#lib/server/presence/slotCheckin.ts';
+import { generatePresenceQrPdf } from '#lib/server/presence/qrPdf.ts';
+import { dayLabelFr, slotLabelFr } from '#lib/domain/eventPresence.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // Printable A4 émargement sheet for the chosen (day, slot): same signed link as
 // the on-screen QR, rendered big for a TV or a wall poster.

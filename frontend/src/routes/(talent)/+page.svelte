@@ -1,23 +1,23 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { dev } from '$app/environment';
+  import { dev } from '$app/env';
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
-  import { enter, stagger } from '$lib/motion';
-  import { triggerConfetti } from '$lib/actions/confetti';
-  import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
-  import FeedbackBanner from '$lib/components/feedback/FeedbackBanner.svelte';
-  import NewsCard from '$lib/components/talent/NewsCard.svelte';
-  import XpCard from '$lib/components/talent/XpCard.svelte';
-  import TalentHomeHero from '$lib/components/talent/TalentHomeHero.svelte';
-  import DailyTrainingTile from '$lib/components/talent/DailyTrainingTile.svelte';
-  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
-  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
-  import XpFloat from '$lib/components/talent/XpFloat.svelte';
-  import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
-  import WorkshopRewardCelebration from '$lib/components/talent/WorkshopRewardCelebration.svelte';
+  import { enter, stagger } from '#lib/motion/index.ts';
+  import { triggerConfetti } from '#lib/actions/confetti.ts';
+  import { welcomeRewardToast } from '#lib/components/talent/rewardToast.ts';
+  import FeedbackBanner from '#lib/components/feedback/FeedbackBanner.svelte';
+  import NewsCard from '#lib/components/talent/NewsCard.svelte';
+  import XpCard from '#lib/components/talent/XpCard.svelte';
+  import TalentHomeHero from '#lib/components/talent/TalentHomeHero.svelte';
+  import DailyTrainingTile from '#lib/components/talent/DailyTrainingTile.svelte';
+  import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
+  import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
+  import XpFloat from '#lib/components/talent/XpFloat.svelte';
+  import MinigameRewardCelebration from '#lib/components/talent/MinigameRewardCelebration.svelte';
+  import WorkshopRewardCelebration from '#lib/components/talent/WorkshopRewardCelebration.svelte';
   import { onMount } from 'svelte';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
 
   let { data }: { data: PageData } = $props();
 

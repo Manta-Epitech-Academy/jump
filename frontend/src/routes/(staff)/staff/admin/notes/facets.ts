@@ -1,10 +1,11 @@
-import { prisma } from '$lib/server/db';
+import type { ListParams } from '#lib/domain/listView.ts';
+import { prisma } from '#lib/server/db.ts';
 import {
   FACET_NONE,
   offerFacets,
   type CountedFacet,
   type FacetCount,
-} from '$lib/domain/listFacets';
+} from '#lib/domain/listFacets.ts';
 import { parseNoteFilters, type NoteFilters, type NotesFacet } from './view';
 
 /**
@@ -19,7 +20,7 @@ import { parseNoteFilters, type NoteFilters, type NotesFacet } from './view';
  * address. The campus has no column, so it is no column filter: only a ticked
  * campus that no longer exists is dropped.
  */
-export async function resolveNoteFilters(params: URLSearchParams): Promise<{
+export async function resolveNoteFilters(params: ListParams): Promise<{
   filters: NoteFilters;
   facetCounts: CountedFacet<NotesFacet>[];
   campuses: { id: string; name: string }[];

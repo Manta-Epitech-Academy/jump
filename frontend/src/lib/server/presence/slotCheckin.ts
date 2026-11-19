@@ -1,13 +1,13 @@
 import { error } from '@sveltejs/kit';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
 import {
   PRESENCE_SLOTS,
   isPresenceSlot,
   dateKeyToDbDate,
   type PresenceSlot,
-} from '$lib/domain/eventPresence';
-import { eventDisplayName } from '$lib/domain/event';
+} from '#lib/domain/eventPresence.ts';
+import { eventDisplayName } from '#lib/domain/event.ts';
 import { mintCheckinToken, buildCheckinLink } from './checkinToken';
 
 const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { onboardingSubmit } from '../stepSubmit';
-  import { Label } from '$lib/components/ui/label';
-  import { Textarea } from '$lib/components/ui/textarea';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { Textarea } from '#lib/components/ui/textarea/index.ts';
   import Laptop from '@lucide/svelte/icons/laptop';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import ContinueButton from './ContinueButton.svelte';

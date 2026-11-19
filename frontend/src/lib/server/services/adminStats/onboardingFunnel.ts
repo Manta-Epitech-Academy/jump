@@ -13,23 +13,23 @@
  */
 
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   ONBOARDING_STEP_ORDER,
   ONBOARDING_STEP_LABELS,
   type OnboardingStep,
   type OnboardingStepFields,
-} from '$lib/domain/talentOnboarding';
-import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+} from '#lib/domain/talentOnboarding.ts';
+import { VISIBLE_PARTICIPATION_DEFINITION } from '#lib/domain/sfMemberStatus.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import {
   cohortWhere,
   dossierSchoolYear,
   onboardingCompleteWhere,
   scopeLabels,
 } from './cohort';
-import { onboardingEligibleWhere } from '$lib/server/db/onboardingEligibility';
+import { onboardingEligibleWhere } from '#lib/server/db/onboardingEligibility.ts';
 
 const isSet = { not: null };
 

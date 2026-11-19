@@ -7,10 +7,10 @@
     parseDate,
     type DateValue,
   } from '@internationalized/date';
-  import { cn } from '$lib/utils';
-  import { Button } from '$lib/components/ui/button';
-  import { Calendar } from '$lib/components/ui/calendar';
-  import * as Popover from '$lib/components/ui/popover';
+  import { cn } from '#lib/utils.ts';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Calendar } from '#lib/components/ui/calendar/index.ts';
+  import * as Popover from '#lib/components/ui/popover/index.ts';
 
   // String-native, fr-locale date picker. Mirrors the TimePicker contract
   // (string in/out + a hidden input named `name`) so superform's DOM FormData

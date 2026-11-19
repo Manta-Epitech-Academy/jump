@@ -2,7 +2,7 @@
   import EnrolledHero from './EnrolledHero.svelte';
   import InvitationHero from './InvitationHero.svelte';
   import LiveHero from './LiveHero.svelte';
-  import type { HomeHero } from '$lib/domain/talentHome';
+  import type { HomeHero } from '#lib/domain/talentHome.ts';
 
   // The blue zone at the head of a talent's home: the one place where Jump
   // says what to do now, and what the talent is living reflected back (#501).

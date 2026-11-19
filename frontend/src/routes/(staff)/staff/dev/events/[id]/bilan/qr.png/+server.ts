@@ -1,17 +1,17 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import QRCode from 'qrcode';
-import { env } from '$env/dynamic/private';
-import { getCampusId } from '$lib/server/db/scoped';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { requireStaffGroup } from '$lib/server/auth/guards';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { ORIGIN } from '$app/env/private';
+import { getCampusId } from '#lib/server/db/scoped.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
+import { requireStaffGroup } from '#lib/server/auth/guards.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
 import {
   feedbackFormPath,
   resolvePublishedEventForm,
-} from '$lib/server/feedbackForms';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+} from '#lib/server/feedbackForms.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // On-screen QR for the event's feedback form. Encodes the AUTHENTICATED feedback
 // link for this event, so a talent who scans logs in (if needed) and their
@@ -29,7 +29,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
   const form = await resolvePublishedEventForm(event);
   if (!form) throw error(404, 'Formulaire de feedback introuvable.');
 
-  const origin = env.ORIGIN;
+  const origin = ORIGIN;
   if (!origin) throw error(500, 'ORIGIN is not configured');
   const link = `${origin}${feedbackFormPath(params.id!, form.slug)}`;
 

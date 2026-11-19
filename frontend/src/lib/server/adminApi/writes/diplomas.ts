@@ -6,14 +6,14 @@
 // ids, so a delete tool would be something a model could aim on its own, which
 // puts it in class C. A certificate is retired by leaving it unreferenced, and
 // the FK is `Restrict` so a hand-deletion of one still in use fails loudly.
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   COHORT_TAIL_PAGES,
   unknownCertificateTokens,
-} from '$lib/domain/diplomas';
-import { sanitizeCertificateDesign } from '$lib/server/diplomaSanitize';
-import { renderCertificateSample } from '$lib/server/services/diplomaGenerator';
-import { diplomaTemplatePreviewLink } from '$lib/server/diplomaTemplates';
+} from '#lib/domain/diplomas.ts';
+import { sanitizeCertificateDesign } from '#lib/server/diplomaSanitize.ts';
+import { renderCertificateSample } from '#lib/server/services/diplomaGenerator.ts';
+import { diplomaTemplatePreviewLink } from '#lib/server/diplomaTemplates.ts';
 import { OperationRefusedError } from '../errors';
 import { metric } from '../metrics';
 import { canonicalJson, type WriteOutcome } from '../plan';

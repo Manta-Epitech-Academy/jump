@@ -8,11 +8,11 @@
  * (`repeat` in `operations.ts`); the comments below say why it holds.
  */
 
-import { prisma } from '$lib/server/db';
-import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
-import { resolveSchoolByUai } from '$lib/server/services/schoolService';
-import { resetClosing } from '$lib/server/services/closingResetService';
-import { answeredCount } from '$lib/server/services/closingService';
+import { prisma } from '#lib/server/db.ts';
+import { runOnboardingPdfJob } from '#lib/server/services/onboardingPdfJobService.ts';
+import { resolveSchoolByUai } from '#lib/server/services/schoolService.ts';
+import { resetClosing } from '#lib/server/services/closingResetService.ts';
+import { answeredCount } from '#lib/server/services/closingService.ts';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';

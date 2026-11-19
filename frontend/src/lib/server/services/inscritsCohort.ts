@@ -1,11 +1,11 @@
 import type { Prisma } from '@prisma/client';
-import type { ScopedPrismaClient } from '$lib/server/db/scoped';
-import type { EventRecord } from '$lib/server/services/stageContext';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { rulesStatus, inscritStatus } from '$lib/domain/dossierCompliance';
-import { imageRightsStatus } from '$lib/domain/imageRights';
-import { schoolYearOf } from '$lib/domain/schoolYear';
-import { countPriorVisits } from '$lib/server/services/visitHistory';
+import type { ScopedPrismaClient } from '#lib/server/db/scoped.ts';
+import type { EventRecord } from '#lib/server/services/stageContext.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { rulesStatus, inscritStatus } from '#lib/domain/dossierCompliance.ts';
+import { imageRightsStatus } from '#lib/domain/imageRights.ts';
+import { schoolYearOf } from '#lib/domain/schoolYear.ts';
+import { countPriorVisits } from '#lib/server/services/visitHistory.ts';
 import {
   loadEventDossierSignatures,
   NO_DOSSIER_SIGNATURES,
@@ -14,7 +14,7 @@ import type {
   InscritInterest,
   InscritRow,
   InscritsCohort,
-} from '$lib/domain/inscritsRoster';
+} from '#lib/domain/inscritsRoster.ts';
 
 // The talent columns the roster shows and filters on, and nothing else: the
 // cohort fetch (~200 rows) must not drag the full Talent row (Salesforce-mirror

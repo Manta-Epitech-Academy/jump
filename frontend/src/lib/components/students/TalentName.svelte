@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatGivenName } from '$lib/domain/profile';
+  import { formatGivenName } from '#lib/domain/profile.ts';
 
   // Surname uppercased (French civil convention), mirrored at display scale by
   // the talent profile hero. `order` flips the reading order without touching

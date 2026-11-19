@@ -3,5 +3,5 @@ import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 
 export const load: PageServerLoad = async () => {
-  throw redirect(301, resolve('/login'));
+  throw redirect(301, resolve('login'));
 };

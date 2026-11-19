@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { markWorkshopRewardsSeen } from '$lib/server/services/workshopService';
-import { workshopRewardAckSchema } from '$lib/validation/workshops';
+import { markWorkshopRewardsSeen } from '#lib/server/services/workshopService.ts';
+import { workshopRewardAckSchema } from '#lib/validation/workshops.ts';
 
 /**
  * Mark a talent's activity XP as celebrated, up to what the dashboard showed.

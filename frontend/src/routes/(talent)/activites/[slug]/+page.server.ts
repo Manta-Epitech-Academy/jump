@@ -1,16 +1,19 @@
 import type { Actions, PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import {
+  WORKSHOP_TICKET_SECRET,
+  WORKSHOP_TICKET_KEY_ID,
+} from '$app/env/private';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 import {
   enterWorkshop,
   resolveWorkshopEntry,
-} from '$lib/server/services/workshopService';
+} from '#lib/server/services/workshopService.ts';
 import {
   mintWorkshopTicket,
   workshopDisplayName,
-} from '$lib/server/workshops/ticket';
+} from '#lib/server/workshops/ticket.ts';
 
 /**
  * Action-only route, like `/staff/settings`: the control lives on the talent
@@ -29,8 +32,8 @@ export const actions: Actions = {
   default: async ({ params, locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
 
-    const secret = env.WORKSHOP_TICKET_SECRET;
-    const kid = env.WORKSHOP_TICKET_KEY_ID;
+    const secret = WORKSHOP_TICKET_SECRET;
+    const kid = WORKSHOP_TICKET_KEY_ID;
     if (!secret || !kid) {
       console.error(
         '[workshops] WORKSHOP_TICKET_SECRET / WORKSHOP_TICKET_KEY_ID not configured.',
@@ -68,6 +71,10 @@ export const actions: Actions = {
       eventId: entry.eventId,
     });
 
-    throw redirect(303, `${entry.baseUrl}/jump/enter?t=${token}`);
+    // The one external destination is the instance this entry resolved to: a
+    // curated `Workshop_Instance` row, never anything the request carried.
+    throw redirect(303, `${entry.baseUrl}/jump/enter?t=${token}`, {
+      external: [new URL(entry.baseUrl).origin],
+    });
   },
 };

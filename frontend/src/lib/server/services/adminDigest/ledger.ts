@@ -21,11 +21,11 @@
  * Weeks and months are counted in Europe/Paris (`$lib/domain/adminDigestCalendar`).
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   digestMonthStart,
   digestWeekOf,
-} from '$lib/domain/adminDigestCalendar';
+} from '#lib/domain/adminDigestCalendar.ts';
 
 /**
  * How long an unfinished run holds its week. A send to a handful of admins takes

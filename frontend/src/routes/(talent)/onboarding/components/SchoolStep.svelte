@@ -2,9 +2,9 @@
   import { untrack } from 'svelte';
   import { enhance } from '$app/forms';
   import { onboardingSubmit } from '../stepSubmit';
-  import * as Command from '$lib/components/ui/command';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
+  import * as Command from '#lib/components/ui/command/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
   import School from '@lucide/svelte/icons/school';
   import Search from '@lucide/svelte/icons/search';
   import PenLine from '@lucide/svelte/icons/pen-line';

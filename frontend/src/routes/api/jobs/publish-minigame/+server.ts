@@ -1,12 +1,12 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { pickNextPublication } from '$lib/server/services/minigameService';
-import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
+import { CRON_SECRET } from '$app/env/private';
+import { pickNextPublication } from '#lib/server/services/minigameService.ts';
+import { safeTokenEquals } from '#lib/server/auth/safeTokenCompare.ts';
 
 export const POST: RequestHandler = async ({ request }) => {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  const cronSecret = env.CRON_SECRET;
+  const cronSecret = CRON_SECRET;
 
   if (!cronSecret || !token || !safeTokenEquals(token, cronSecret)) {
     throw error(401, 'Unauthorized: Invalid or missing token');

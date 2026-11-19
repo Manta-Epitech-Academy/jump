@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireWorkerToken } from '$lib/server/auth/workerToken';
-import { workerTalentsPayloadSchema } from '$lib/validation/workerSync';
-import { syncTalents } from '$lib/server/services/syncService';
+import { requireWorkerToken } from '#lib/server/auth/workerToken.ts';
+import { workerTalentsPayloadSchema } from '#lib/validation/workerSync.ts';
+import { syncTalents } from '#lib/server/services/syncService.ts';
 
 /**
  * Talent identities for the whole run, deduplicated by the worker and paginated

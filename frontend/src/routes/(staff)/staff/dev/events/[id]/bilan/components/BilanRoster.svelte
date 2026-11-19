@@ -1,45 +1,45 @@
 <script lang="ts">
-  import { noMatchLine } from '$lib/domain/devVoice';
+  import { noMatchLine } from '#lib/domain/devVoice.ts';
   import { page } from '$app/state';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
-  import * as Table from '$lib/components/ui/table';
-  import { cn } from '$lib/utils';
-  import { formatGivenName } from '$lib/domain/profile';
-  import { cohortNounForms } from '$lib/domain/event';
-  import { optionPolarity, type AnswerPolarity } from '$lib/domain/polarity';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
-  import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
-  import { talentFicheHref } from '$lib/components/dev/talentFiche';
-  import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import { cn } from '#lib/utils.ts';
+  import { formatGivenName } from '#lib/domain/profile.ts';
+  import { cohortNounForms } from '#lib/domain/event.ts';
+  import { optionPolarity, type AnswerPolarity } from '#lib/domain/polarity.ts';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '#lib/components/staff/datatable/DataTableToolbar.svelte';
+  import ActiveFilterChips from '#lib/components/staff/ActiveFilterChips.svelte';
+  import TalentAvatar from '#lib/components/students/TalentAvatar.svelte';
+  import { talentFicheHref } from '#lib/components/dev/talentFiche.ts';
+  import type { ColumnDef } from '#lib/components/staff/datatable/types.ts';
   import {
     clearListFilters,
     setListParams,
-  } from '$lib/components/staff/datatable/urlList';
-  import { facetControls } from '$lib/components/staff/datatable/facetControls';
-  import type { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  } from '#lib/components/staff/datatable/urlList.ts';
+  import { facetControls } from '#lib/components/staff/datatable/facetControls.ts';
+  import type { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
   import {
     BILAN_SORT_DEFAULT_DIR,
     type BilanSortKey,
     BILAN_VIEW,
-  } from '$lib/domain/bilanView';
+  } from '#lib/domain/bilanView.ts';
   import {
     bilanFacets,
     matchesBilanFacets,
     type BilanRow,
     type RecoOption,
-  } from '$lib/domain/bilanRoster';
+  } from '#lib/domain/bilanRoster.ts';
   import {
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
+  } from '#lib/components/staff/datatable/search.ts';
   import {
     nextSort,
     rowComparator,
-  } from '$lib/components/staff/datatable/sort';
+  } from '#lib/components/staff/datatable/sort.ts';
 
   let {
     rows,

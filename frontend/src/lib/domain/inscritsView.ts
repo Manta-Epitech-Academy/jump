@@ -1,5 +1,5 @@
-import { FACET_NONE } from '$lib/domain/listFacets';
-import { defineListView, type SortedListView } from '$lib/domain/listView';
+import { FACET_NONE } from '#lib/domain/listFacets.ts';
+import { defineListView, type SortedListView } from '#lib/domain/listView.ts';
 
 /**
  * The Inscrits page's view, carried in its address in the format every staff

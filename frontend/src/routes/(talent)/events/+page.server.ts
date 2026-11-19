@@ -6,5 +6,5 @@ import { resolve } from '$app/paths';
 // tells every event with its activities and XP (#445). Kept as a permanent
 // redirect so bookmarks and links already sent keep working.
 export const load: PageServerLoad = async () => {
-  throw redirect(301, resolve('/parcours'));
+  throw redirect(301, resolve('parcours'));
 };

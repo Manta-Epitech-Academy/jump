@@ -3,17 +3,17 @@ import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
-} from '$lib/server/db/scoped';
+} from '#lib/server/db/scoped.ts';
 import {
   loadEventOr404,
   eventModuleSettings,
-} from '$lib/server/services/stageContext';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
+} from '#lib/server/services/stageContext.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
 import {
   countShownCohort,
   loadInscritsCohort,
-} from '$lib/server/services/inscritsCohort';
-import type { InscritsCohort } from '$lib/domain/inscritsRoster';
+} from '#lib/server/services/inscritsCohort.ts';
+import type { InscritsCohort } from '#lib/domain/inscritsRoster.ts';
 
 // The load reads nothing off the address on purpose. The page's filters, sort
 // and search all live in the querystring (`$lib/domain/inscritsView`) and are

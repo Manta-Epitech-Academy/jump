@@ -9,17 +9,17 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
-import { mintToken } from '$lib/server/adminApi/tokens';
-import { adminApiWrite } from '$lib/server/adminApi/route';
+import { mintToken } from '#lib/server/adminApi/tokens.ts';
+import { adminApiWrite } from '#lib/server/adminApi/route.ts';
 import {
   getEmailActions,
   getInterests,
   getCampusOverview,
-} from '$lib/server/services/adminStats/configuration';
-import { loadBroadcastTemplate } from '$lib/server/services/broadcast/templates';
+} from '#lib/server/services/adminStats/configuration.ts';
+import { loadBroadcastTemplate } from '#lib/server/services/broadcast/templates.ts';
 
 const postEmailAction = adminApiWrite('write_email_action');
 const postInterest = adminApiWrite('write_interest');

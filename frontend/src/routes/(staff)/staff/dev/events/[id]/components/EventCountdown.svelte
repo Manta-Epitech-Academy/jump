@@ -3,7 +3,7 @@
   import {
     openingCountdownLine,
     type EventLifecycleStatus,
-  } from '$lib/domain/eventLifecycle';
+  } from '#lib/domain/eventLifecycle.ts';
 
   // Where the event stands, as one line of its home's header, the mockup's:
   // « Ouverture dans 12 j 4 h » (`openingCountdownLine`), then « En cours »,

@@ -11,31 +11,31 @@
   import { enhance } from '$app/forms';
   import { invalidate } from '$app/navigation';
   import { page } from '$app/state';
-  import { offerFacets } from '$lib/domain/listFacets';
+  import { offerFacets } from '#lib/domain/listFacets.ts';
   import {
     clearListFilters,
     setListParams,
-  } from '$lib/components/staff/datatable/urlList';
-  import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  } from '#lib/components/staff/datatable/urlList.ts';
+  import { facetControls } from '#lib/components/staff/datatable/facetControls.ts';
   import type {
     ActiveFilterChip,
     ColumnDef,
-  } from '$lib/components/staff/datatable/types';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import { Badge } from '$lib/components/ui/badge';
-  import { Button } from '$lib/components/ui/button';
-  import * as Card from '$lib/components/ui/card';
-  import { Input } from '$lib/components/ui/input';
-  import * as Table from '$lib/components/ui/table';
-  import KpiTile from '$lib/components/staff/KpiTile.svelte';
-  import { formatDateTimeFr } from '$lib/utils';
+  } from '#lib/components/staff/datatable/types.ts';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
+  import ActiveFilterChips from '#lib/components/staff/ActiveFilterChips.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Card from '#lib/components/ui/card/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import KpiTile from '#lib/components/staff/KpiTile.svelte';
+  import { formatDateTimeFr } from '#lib/utils.ts';
   import { toast } from 'svelte-sonner';
   import ExportMenu from './components/ExportMenu.svelte';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
   import {
     JOB_STATUS_FILTER,
     ONBOARDING_DOCUMENT_LABELS,

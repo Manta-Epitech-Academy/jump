@@ -1,17 +1,17 @@
 import ejs from 'ejs';
-import { renderMarkdown } from '$lib/markdown';
-import { escapeHtml } from '$lib/domain/htmlEscape';
+import { renderMarkdown } from '#lib/markdown.ts';
+import { escapeHtml } from '#lib/domain/htmlEscape.ts';
 import { renderPdf } from '../infra/documentRenderer';
 import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import onboardingTemplate from '../templates/onboarding-document.html?raw';
-import { reglementTextFor } from '$lib/content/reglement';
-import { droitImageDocumentFor } from '$lib/content/droit-image';
+import { reglementTextFor } from '#lib/content/reglement/index.ts';
+import { droitImageDocumentFor } from '#lib/content/droit-image/index.ts';
 import {
   ONBOARDING_DOCUMENTS,
   type OnboardingDocumentType,
 } from './onboardingDocuments';
-import type { ImageRightsDecision } from '$lib/domain/imageRights';
+import type { ImageRightsDecision } from '#lib/domain/imageRights.ts';
 
 type DocumentType = OnboardingDocumentType;
 

@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
   export type ClosingAction = 'start' | 'autosave' | 'close';
   export type ClosingSaveState = 'idle' | 'saving' | 'saved' | 'failed';
   // Surfaced to the page so it can mirror the lifecycle status and the
@@ -13,7 +13,7 @@
 
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { stepIn, stepOut } from '$lib/motion';
+  import { stepIn, stepOut } from '#lib/motion/index.ts';
   import { superForm, type SuperValidated } from 'sveltekit-superforms';
   import { toast } from 'svelte-sonner';
   import Star from '@lucide/svelte/icons/star';
@@ -43,15 +43,15 @@
   import Smile from '@lucide/svelte/icons/smile';
   import Laugh from '@lucide/svelte/icons/laugh';
   import type { ClosingStatus } from '@prisma/client';
-  import { Button } from '$lib/components/ui/button';
-  import { lastClosingLine } from '$lib/domain/devVoice';
-  import { Textarea } from '$lib/components/ui/textarea';
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import * as Avatar from '$lib/components/ui/avatar';
-  import PullQuote from '$lib/components/staff/PullQuote.svelte';
-  import { getInitials } from '$lib/avatar';
-  import { CLOSINGS_VIEW } from '$lib/domain/closingsView';
-  import { cn } from '$lib/utils';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { lastClosingLine } from '#lib/domain/devVoice.ts';
+  import { Textarea } from '#lib/components/ui/textarea/index.ts';
+  import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
+  import * as Avatar from '#lib/components/ui/avatar/index.ts';
+  import PullQuote from '#lib/components/staff/PullQuote.svelte';
+  import { getInitials } from '#lib/avatar.ts';
+  import { CLOSINGS_VIEW } from '#lib/domain/closingsView.ts';
+  import { cn } from '#lib/utils.ts';
   import {
     VERDICT_SECTION,
     CLOSING_RECOMMENDATIONS,
@@ -65,11 +65,11 @@
     type ClosingSection,
     type RecommendationIconToken,
     type RecommendationToneToken,
-  } from '$lib/domain/closing';
+  } from '#lib/domain/closing.ts';
   import type {
     ClosingAnswerForm,
     ClosingConductForm,
-  } from '$lib/validation/closings';
+  } from '#lib/validation/closings.ts';
 
   let {
     form: data,

@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { prisma } from '#lib/server/db.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
 import {
   buildSubmissionWhere,
   computeFormStats,
-} from '$lib/server/feedbackStats';
-import { resolveScope } from '$lib/server/adminApi/scope';
-import { getFeedbackResults } from '$lib/server/services/adminStats/feedbackResults';
+} from '#lib/server/feedbackStats.ts';
+import { resolveScope } from '#lib/server/adminApi/scope.ts';
+import { getFeedbackResults } from '#lib/server/services/adminStats/feedbackResults.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

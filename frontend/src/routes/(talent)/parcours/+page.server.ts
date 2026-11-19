@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
-import { loadTalentParcours } from '$lib/server/talent/parcours';
-import { getTalentHome } from '$lib/server/services/talentHomeService';
+import { loadTalentParcours } from '#lib/server/talent/parcours.ts';
+import { getTalentHome } from '#lib/server/services/talentHomeService.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) {

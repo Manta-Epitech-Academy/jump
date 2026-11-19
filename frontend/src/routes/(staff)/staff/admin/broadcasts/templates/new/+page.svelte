@@ -1,6 +1,6 @@
 <script lang="ts">
-  import TemplateForm from '$lib/components/admin/broadcasts/TemplateForm.svelte';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import TemplateForm from '#lib/components/admin/broadcasts/TemplateForm.svelte';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 </script>

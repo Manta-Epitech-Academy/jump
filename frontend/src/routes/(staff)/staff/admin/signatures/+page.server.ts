@@ -1,9 +1,9 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { uploadFile, deleteFile } from '$lib/server/infra/storage';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { prisma } from '#lib/server/db.ts';
+import { uploadFile, deleteFile } from '#lib/server/infra/storage.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 const BUCKET = 'jump-files';
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 Mo

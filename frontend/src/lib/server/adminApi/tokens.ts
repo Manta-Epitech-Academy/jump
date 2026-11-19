@@ -16,7 +16,7 @@
 
 import { createHash } from 'node:crypto';
 import type { AdminApi_TokenTier } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 
 const SECRET_BYTES = 32;
 const SECRET_PREFIX = 'jump_';

@@ -1,11 +1,11 @@
-import { CIVILITE_OPTIONS } from '$lib/domain/profile';
-import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
+import { CIVILITE_OPTIONS } from '#lib/domain/profile.ts';
+import { compareNiveaux, niveauLabel } from '#lib/domain/niveau.ts';
 import {
   INSCRIT_STATUS_LABELS,
   type InscritStatus,
   type RulesStatus,
-} from '$lib/domain/dossierCompliance';
-import type { ImageRightsStatus } from '$lib/domain/imageRights';
+} from '#lib/domain/dossierCompliance.ts';
+import type { ImageRightsStatus } from '#lib/domain/imageRights.ts';
 import {
   byCount,
   countFacet,
@@ -15,20 +15,20 @@ import {
   type FacetCount,
   type FacetDef,
   type ListFacet,
-} from '$lib/domain/listFacets';
+} from '#lib/domain/listFacets.ts';
 import {
   buildHaystack,
   matchesAllTokens,
   searchTokens,
-} from '$lib/components/staff/datatable/search';
-import { rowComparator } from '$lib/components/staff/datatable/sort';
+} from '#lib/components/staff/datatable/search.ts';
+import { rowComparator } from '#lib/components/staff/datatable/sort.ts';
 import {
   INSCRITS_FACETS,
   INSCRITS_NONE,
   type InscritsFacet,
   type InscritsSortKey,
   type InscritsView,
-} from '$lib/domain/inscritsView';
+} from '#lib/domain/inscritsView.ts';
 
 /**
  * An interest as a row carries it: enough for a chip and a filter value. The

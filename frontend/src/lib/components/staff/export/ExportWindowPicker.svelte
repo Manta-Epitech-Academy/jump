@@ -1,5 +1,5 @@
 <script lang="ts">
-  import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
+  import SegmentedFilter from '#lib/components/staff/SegmentedFilter.svelte';
   import {
     EXPORT_PERIOD_OPTIONS,
     type ExportPeriod,

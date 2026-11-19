@@ -11,13 +11,13 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { GET } from '../../../../routes/(staff)/staff/oauth/callback/+server';
 import { assertTestDatabase } from './testDatabase';
 import { cookieJar } from './authHttp';
 
 // The avatar is fetched from Microsoft Graph with the member's token.
-vi.mock('$lib/server/services/microsoftProfile', () => ({
+vi.mock('#lib/server/services/microsoftProfile.ts', () => ({
   syncMicrosoftAvatar: vi.fn(async () => {}),
 }));
 

@@ -2,9 +2,9 @@
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
   import SunMoon from '@lucide/svelte/icons/sun-moon';
-  import { Button } from '$lib/components/ui/button';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
   import { setMode, mode, userPrefersMode } from 'mode-watcher';
 </script>
 

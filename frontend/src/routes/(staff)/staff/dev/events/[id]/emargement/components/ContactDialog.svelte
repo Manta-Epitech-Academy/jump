@@ -1,10 +1,10 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import * as Dialog from '$lib/components/ui/dialog';
-  import StudentContactDetails from '$lib/components/students/StudentContactDetails.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import type { ContactPerson } from '$lib/domain/contact';
-  import { cohortNounForms } from '$lib/domain/event';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import StudentContactDetails from '#lib/components/students/StudentContactDetails.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import type { ContactPerson } from '#lib/domain/contact.ts';
+  import { cohortNounForms } from '#lib/domain/event.ts';
   import type { PresenceRow } from './types';
 
   // Coordinates for one row of the roster, fetched on open rather than carried
@@ -45,7 +45,7 @@
     details = null;
     try {
       const res = await fetch(
-        resolve(`/staff/dev/events/${eventId}/emargement/contact/${talentId}`),
+        resolve(`staff/dev/events/${eventId}/emargement/contact/${talentId}`),
       );
       if (!res.ok) throw new Error('request_failed');
       details = (await res.json()) as ContactDetails;

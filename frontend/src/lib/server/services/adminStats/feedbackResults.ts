@@ -28,15 +28,15 @@
  * nobody answered. Resolving it upstream is what buys that (see `adminApi/scope`).
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   computeFormStats,
   type FormStats,
   type StatsScope,
-} from '$lib/server/feedbackStats';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
+} from '#lib/server/feedbackStats.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
+import { UnknownScopeError, type Scope } from '#lib/server/adminApi/scope.ts';
 import { scopedEvents, scopeLabels } from './cohort';
 
 /** Questionnaires detailed before the answer stops listing them. */

@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { toast } from 'svelte-sonner';
   import FlaskConical from '@lucide/svelte/icons/flask-conical';
-  import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
+  import type { EventLifecycleStatus } from '#lib/domain/eventLifecycle.ts';
 
   type Props = {
     /** Active override, null when running on real phase. */
@@ -43,7 +43,7 @@
     try {
       const fd = new FormData();
       fd.set('value', value);
-      const res = await fetch(resolve('/staff/dev/phase-override'), {
+      const res = await fetch(resolve('staff/dev/phase-override'), {
         method: 'POST',
         body: fd,
       });

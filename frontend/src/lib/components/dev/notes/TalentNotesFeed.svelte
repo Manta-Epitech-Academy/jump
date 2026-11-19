@@ -2,15 +2,15 @@
   import Plus from '@lucide/svelte/icons/plus';
   import StickyNote from '@lucide/svelte/icons/sticky-note';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { Button, buttonVariants } from '$lib/components/ui/button';
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
+  import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';
-  import { cn } from '$lib/utils';
-  import { slotKey } from '$lib/domain/eventPresence';
+  import { cn } from '#lib/utils.ts';
+  import { slotKey } from '#lib/domain/eventPresence.ts';
   import type { PresenceSlot } from '@prisma/client';
-  import type { SerializedNote } from '$lib/domain/talentNotes';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import type { SerializedNote } from '#lib/domain/talentNotes.ts';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
   import TalentNoteEditor from './TalentNoteEditor.svelte';
   import TalentNoteCard from './TalentNoteCard.svelte';
 

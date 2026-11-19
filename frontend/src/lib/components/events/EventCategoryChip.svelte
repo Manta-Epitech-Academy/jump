@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { EventCategoryView } from '$lib/domain/eventCategory';
+  import type { EventCategoryView } from '#lib/domain/eventCategory.ts';
 
   // An event's category as every screen names it: its colour as a swatch beside
   // the label. The colour is whatever the team picked, so the swatch carries a

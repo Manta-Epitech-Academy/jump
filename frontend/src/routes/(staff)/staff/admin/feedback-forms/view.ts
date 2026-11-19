@@ -1,6 +1,6 @@
-import type { FacetDef } from '$lib/domain/listFacets';
-import { defineListView } from '$lib/domain/listView';
-import { FORM_STATUS_OPTIONS } from '$lib/domain/feedbackForms/status';
+import type { FacetDef } from '#lib/domain/listFacets.ts';
+import { defineListView } from '#lib/domain/listView.ts';
+import { FORM_STATUS_OPTIONS } from '#lib/domain/feedbackForms/status.ts';
 import type { FormListRow } from './+page.server';
 
 /**

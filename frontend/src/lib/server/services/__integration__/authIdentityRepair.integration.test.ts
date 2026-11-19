@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { runAuthRepair } from '$lib/server/services/authIdentityRepairService';
-import { loadOpenSyncErrors } from '$lib/server/services/syncErrorQueue';
+import { prisma } from '#lib/server/db.ts';
+import { runAuthRepair } from '#lib/server/services/authIdentityRepairService.ts';
+import { loadOpenSyncErrors } from '#lib/server/services/syncErrorQueue.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

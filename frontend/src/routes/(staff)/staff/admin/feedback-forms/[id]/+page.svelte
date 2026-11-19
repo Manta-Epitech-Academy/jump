@@ -6,13 +6,13 @@
   import Loader2 from '@lucide/svelte/icons/loader-2';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import MessageSquareDashed from '@lucide/svelte/icons/message-square-dashed';
-  import { Button } from '$lib/components/ui/button';
-  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
-  import ChatScreen from '$lib/components/feedback/ChatScreen.svelte';
-  import PersonaAvatar from '$lib/components/feedback/PersonaAvatar.svelte';
-  import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import { DEFAULT_PERSONA } from '$lib/domain/feedbackForms/schema';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { InfoTooltip } from '#lib/components/ui/info-tooltip/index.ts';
+  import ChatScreen from '#lib/components/feedback/ChatScreen.svelte';
+  import PersonaAvatar from '#lib/components/feedback/PersonaAvatar.svelte';
+  import SegmentedFilter from '#lib/components/staff/SegmentedFilter.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import { DEFAULT_PERSONA } from '#lib/domain/feedbackForms/schema.ts';
   import FormHeader from '../components/FormHeader.svelte';
   import type { PageData } from './$types';
 

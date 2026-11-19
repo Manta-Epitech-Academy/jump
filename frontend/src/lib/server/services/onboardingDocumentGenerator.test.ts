@@ -3,8 +3,8 @@ import { renderImageRightsDocument } from './onboardingDocumentGenerator';
 import {
   CURRENT_DROIT_IMAGE_VERSION,
   LEGACY_DROIT_IMAGE_VERSION,
-} from '$lib/content/droit-image';
-import type { ImageRightsDecision } from '$lib/domain/imageRights';
+} from '#lib/content/droit-image/index.ts';
+import type { ImageRightsDecision } from '#lib/domain/imageRights.ts';
 
 /**
  * Filling the droit-à-l'image document.

@@ -1,7 +1,7 @@
-import type { User, Session } from '$lib/server/auth';
+import type { User, Session } from '#lib/server/auth.ts';
 import type { StaffProfile, Talent, Campus } from '@prisma/client';
-import type { StaffGroup } from '$lib/domain/permissions';
-import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
+import type { StaffGroup } from '#lib/domain/permissions.ts';
+import type { EventLifecycleStatus } from '#lib/domain/eventLifecycle.ts';
 
 declare global {
   namespace App {

@@ -1,5 +1,5 @@
-import type { DiffField } from '$lib/domain/reconciliation';
-import type { AuthConflict } from '$lib/domain/authIdentity';
+import type { DiffField } from '#lib/domain/reconciliation.ts';
+import type { AuthConflict } from '#lib/domain/authIdentity.ts';
 
 // Structural mirrors of the reconciliation service's return shapes, declared
 // here (not imported from `$lib/server/services/reconciliationService`) so this

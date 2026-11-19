@@ -1,4 +1,4 @@
-import { auth } from '$lib/server/auth';
+import { auth } from '#lib/server/auth.ts';
 import { toSvelteKitHandler } from 'better-auth/svelte-kit';
 import type { RequestHandler } from './$types';
 

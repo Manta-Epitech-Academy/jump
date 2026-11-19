@@ -1,5 +1,5 @@
-import { defineListChoice } from '$lib/domain/listView';
-import { CLOSING_RECOMMENDATION_DISPLAY_ORDER } from '$lib/domain/closing';
+import { defineListChoice } from '#lib/domain/listView.ts';
+import { CLOSING_RECOMMENDATION_DISPLAY_ORDER } from '#lib/domain/closing.ts';
 
 /**
  * The closing PDFs' view, in the address every staff list shares

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import { NOT_FOUND_LINE } from '$lib/domain/devVoice';
+  import { NOT_FOUND_LINE } from '#lib/domain/devVoice.ts';
   import SearchX from '@lucide/svelte/icons/search-x';
   import ServerCrash from '@lucide/svelte/icons/server-crash';
   import Terminal from '@lucide/svelte/icons/terminal';
@@ -40,7 +40,7 @@
   // A lost page in the dev space gets the dev space's voice, a wink at the
   // cursor of the title, with the plain explanation as the hint. Recruiters read
   // it; talents and parents never land on a `/staff/dev` address.
-  const devBase = resolve('/staff/dev');
+  const devBase = resolve('staff/dev');
   const lostInDevSpace = $derived(
     is404 &&
       genericNotFound &&

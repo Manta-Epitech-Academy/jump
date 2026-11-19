@@ -16,7 +16,7 @@ import { smsProviderKind } from './config';
 import { brevoSmsProvider } from './providers/brevo';
 import { nullSmsProvider } from './providers/null';
 import { resolveSmsRouting, applyDevRedirect } from './dev-redirect';
-import { toBrevoRecipient } from '$lib/domain/phone';
+import { toBrevoRecipient } from '#lib/domain/phone.ts';
 import type {
   SmsMessage,
   SmsProvider,

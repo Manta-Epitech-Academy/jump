@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import Info from '@lucide/svelte/icons/info';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import { cn } from '$lib/utils';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import { cn } from '#lib/utils.ts';
 
   let {
     text,

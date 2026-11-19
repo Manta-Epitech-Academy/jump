@@ -1,10 +1,10 @@
-import { env } from '$env/dynamic/private';
+import { EMAIL_DEV_RECIPIENTS } from '$app/env/private';
 import {
   currentActorEmail,
   currentArmedRealSends,
   currentDevRedirectEmails,
-} from '$lib/server/requestContext';
-import { outboundTrapped, type OutboundRouting } from '$lib/server/outbound';
+} from '#lib/server/requestContext.ts';
+import { outboundTrapped, type OutboundRouting } from '#lib/server/outbound.ts';
 import type { DevRedirectControl, MailMessage } from './types';
 
 /**
@@ -23,7 +23,7 @@ import type { DevRedirectControl, MailMessage } from './types';
  * who would have received it in prod.
  */
 function parseDevRecipients(): string[] | null {
-  const raw = env.EMAIL_DEV_RECIPIENTS?.trim();
+  const raw = EMAIL_DEV_RECIPIENTS?.trim();
   if (!raw) return null;
   const list = raw
     .split(',')

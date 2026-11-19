@@ -1,15 +1,15 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   applyRepointAndDrop,
   applySwap,
   applySever,
   planRepointAndDrop,
-} from '$lib/server/authIdentityRepairCore';
-import type { AuthRepairAction } from '$lib/domain/authIdentity';
-import { clearLoginErrors } from '$lib/server/services/syncErrorService';
+} from '#lib/server/authIdentityRepairCore.ts';
+import type { AuthRepairAction } from '#lib/domain/authIdentity.ts';
+import { clearLoginErrors } from '#lib/server/services/syncErrorService.ts';
 
-export type { AuthRepairAction } from '$lib/domain/authIdentity';
+export type { AuthRepairAction } from '#lib/domain/authIdentity.ts';
 
 /**
  * Request-side wrappers around the auth-identity repair core, for the admin UI.

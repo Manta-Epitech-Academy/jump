@@ -1,13 +1,13 @@
 import type { RequestHandler } from './$types';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   containsToken,
   everyTokenMatches,
   talentSearchWhere,
-} from '$lib/server/db/textSearch';
-import { requireAdminSession } from '$lib/server/auth/guards';
-import { getStaffRoleLabel } from '$lib/domain/staff';
-import { niveauLabel } from '$lib/domain/niveau';
+} from '#lib/server/db/textSearch.ts';
+import { requireAdminSession } from '#lib/server/auth/guards.ts';
+import { getStaffRoleLabel } from '#lib/domain/staff.ts';
+import { niveauLabel } from '#lib/domain/niveau.ts';
 
 // Global "find a person" typeahead for the admin command palette. Admin is
 // campus-agnostic, so this is intentionally un-scoped. Three kinds in one call:

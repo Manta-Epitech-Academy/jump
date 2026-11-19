@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import {
@@ -8,7 +8,7 @@
     weekLabel,
     WEEK_VIEW_DAYS,
     type WeekView,
-  } from '$lib/domain/calendarWeek';
+  } from '#lib/domain/calendarWeek.ts';
 
   let {
     range,

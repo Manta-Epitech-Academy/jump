@@ -1,16 +1,16 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   IMAGE_RIGHTS_DECISIONS,
   priorYearDecision,
   type ImageRightsDecision,
-} from '$lib/domain/imageRights';
+} from '#lib/domain/imageRights.ts';
 import {
   LATEST_IMAGE_RIGHTS_DECISION_ORDER,
   recordImageRightsDecision,
-} from '$lib/server/services/imageRightsService';
+} from '#lib/server/services/imageRightsService.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     where: { parentEmail: locals.user.email, parentRulesSignedAt: null },
   });
   if (unsignedRules > 0) {
-    throw redirect(303, resolve('/parent/reglement'));
+    throw redirect(303, resolve('parent/reglement'));
   }
 
   // Children whose guardian has not yet decided for the dossier in hand: a
@@ -64,7 +64,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   });
 
   if (undecidedChildren.length === 0) {
-    throw redirect(303, resolve('/parent/merci'));
+    throw redirect(303, resolve('parent/merci'));
   }
 
   return {
@@ -168,7 +168,7 @@ export const actions: Actions = {
     });
 
     if (remaining === 0) {
-      throw redirect(303, resolve('/parent/merci'));
+      throw redirect(303, resolve('parent/merci'));
     }
 
     return { success: studentName, decision };

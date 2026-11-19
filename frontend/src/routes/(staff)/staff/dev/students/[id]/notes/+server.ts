@@ -1,15 +1,15 @@
 import { error } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { dateKeyToDbDate } from '$lib/domain/eventPresence';
-import { noteCreateSchema } from '$lib/validation/talentNotes';
+import { prisma } from '#lib/server/db.ts';
+import { dateKeyToDbDate } from '#lib/domain/eventPresence.ts';
+import { noteCreateSchema } from '#lib/validation/talentNotes.ts';
 import {
   NOTE_INCLUDE,
   requireTalentNoteAccess,
   serializeNote,
-} from '$lib/server/talentNotes';
+} from '#lib/server/talentNotes.ts';
 import type { RequestHandler } from './$types';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 /**
  * Staff notes about a talent (the multi-note feed that replaced the single

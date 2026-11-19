@@ -1,10 +1,10 @@
 import type { RequestHandler } from './$types';
 
 import { z } from 'zod';
-import { BROADCAST_CHANNELS } from '$lib/domain/broadcasts';
-import { sendTestMessage } from '$lib/server/services/broadcast/testMessage';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { BROADCAST_CHANNELS } from '#lib/domain/broadcasts.ts';
+import { sendTestMessage } from '#lib/server/services/broadcast/testMessage.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // Live test-send for the template editor (/broadcasts/templates/new + [id]).
 // Sends the in-progress draft (no saved template needed), rendered with demo

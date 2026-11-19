@@ -15,7 +15,7 @@
  * detail. Transport-level failures surface as 4xx/5xx HTTP responses.
  */
 
-import { env } from '$env/dynamic/private';
+import { MAILJET_API_KEY, MAILJET_API_SECRET } from '$app/env/private';
 import type { MailMessage, MailProvider, SendEmailResult } from '../types';
 
 /**
@@ -88,8 +88,8 @@ function toMailjetMessage(msg: MailMessage): MailjetMessage {
 }
 
 function authHeader(): string {
-  const key = env.MAILJET_API_KEY ?? '';
-  const secret = env.MAILJET_API_SECRET ?? '';
+  const key = MAILJET_API_KEY ?? '';
+  const secret = MAILJET_API_SECRET ?? '';
   return `Basic ${Buffer.from(`${key}:${secret}`).toString('base64')}`;
 }
 

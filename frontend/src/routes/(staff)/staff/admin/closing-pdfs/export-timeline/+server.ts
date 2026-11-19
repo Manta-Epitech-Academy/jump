@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
-import { prisma } from '$lib/server/db';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { prisma } from '#lib/server/db.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // Conducted-at instant of every finalised closing (no identity). It feeds only
 // the export menu's per-period and "depuis le dernier export" counts, so it lives

@@ -1,17 +1,17 @@
 import type { Actions, PageServerLoad } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   acknowledgeDeletionRejection,
   cancelTalentDeletion,
   getLatestDeletionRequest,
   requestTalentDeletion,
-} from '$lib/server/services/talentDeletionService';
+} from '#lib/server/services/talentDeletionService.ts';
 import {
   TALENT_VIEWABLE_DOCUMENTS,
   listTalentDocuments,
-} from '$lib/server/services/onboardingDocuments';
-import { resolveTalentDocumentStatus } from '$lib/server/services/onboardingPdfJobService';
+} from '#lib/server/services/onboardingDocuments.ts';
+import { resolveTalentDocumentStatus } from '#lib/server/services/onboardingPdfJobService.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) {

@@ -10,21 +10,21 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
-import { mintToken } from '$lib/server/adminApi/tokens';
-import { adminApiWrite } from '$lib/server/adminApi/route';
-import { planDigest } from '$lib/server/adminApi/plan';
+import { mintToken } from '#lib/server/adminApi/tokens.ts';
+import { adminApiWrite } from '#lib/server/adminApi/route.ts';
+import { planDigest } from '#lib/server/adminApi/plan.ts';
 import {
   getEventCategories,
   getEventDetail,
   getEventTemplates,
   getWorkshops,
   type EventDetail,
-} from '$lib/server/services/adminStats/configuration';
-import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
-import { toDateKey } from '$lib/domain/eventPresence';
+} from '#lib/server/services/adminStats/configuration.ts';
+import { ADMIN_API_OPERATIONS } from '#lib/server/adminApi/operations.ts';
+import { toDateKey } from '#lib/domain/eventPresence.ts';
 
 const postConfig = adminApiWrite('write_event_config');
 const postBulk = adminApiWrite('bulk_event_config');

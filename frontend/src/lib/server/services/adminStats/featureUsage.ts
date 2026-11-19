@@ -33,7 +33,7 @@
  * which asks a different question.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   USAGE_FEATURE_DEFS,
   USAGE_FEATURE_KEYS,
@@ -41,7 +41,7 @@ import {
   type UsageAudience,
   type UsageFeatureKey,
   type UsageSpace,
-} from '$lib/domain/usage';
+} from '#lib/domain/usage.ts';
 import {
   metric,
   rank,
@@ -53,9 +53,9 @@ import {
   type Metric,
   type Ranked,
   type Variation,
-} from '$lib/server/adminApi/metrics';
-import { OperationRefusedError } from '$lib/server/adminApi/errors';
-import type { Scope } from '$lib/server/adminApi/scope';
+} from '#lib/server/adminApi/metrics.ts';
+import { OperationRefusedError } from '#lib/server/adminApi/errors.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import {
   foldByFeature,
   foldByFeatureCampus,
@@ -67,12 +67,12 @@ import {
   type MonthlyTally,
   type UsageSource,
   type UsageWindow,
-} from '$lib/server/usage/read';
+} from '#lib/server/usage/read.ts';
 import {
   completeMonths,
   monthsCovering,
   shiftMonth,
-} from '$lib/server/usage/months';
+} from '#lib/server/usage/months.ts';
 import { scopedEvents, scopeLabels } from './cohort';
 
 const FEATURE_AXIS_NOTE = rankAxisNote(RANK_UNITS.feature);

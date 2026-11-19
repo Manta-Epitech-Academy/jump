@@ -17,11 +17,11 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   claimAttempt,
   sweepExpiredAttempts,
-} from '$lib/server/auth/rateLimiter';
+} from '#lib/server/auth/rateLimiter.ts';
 import { assertTestDatabase } from './testDatabase';
 
 describe('OTP rate limiter (integration)', () => {

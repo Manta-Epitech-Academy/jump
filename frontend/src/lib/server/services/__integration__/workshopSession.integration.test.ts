@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   enterWorkshop,
   type WorkshopEntry,
-} from '$lib/server/services/workshopService';
+} from '#lib/server/services/workshopService.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

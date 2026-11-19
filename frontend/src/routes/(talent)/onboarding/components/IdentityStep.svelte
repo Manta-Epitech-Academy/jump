@@ -2,12 +2,12 @@
   import { untrack } from 'svelte';
   import { enhance } from '$app/forms';
   import { onboardingSubmit } from '../stepSubmit';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import { PhoneInput } from '$lib/components/ui/phone-input';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { PhoneInput } from '#lib/components/ui/phone-input/index.ts';
   import UserCheck from '@lucide/svelte/icons/user-check';
-  import { CIVILITE_OPTIONS } from '$lib/domain/profile';
-  import { cn } from '$lib/utils';
+  import { CIVILITE_OPTIONS } from '#lib/domain/profile.ts';
+  import { cn } from '#lib/utils.ts';
   import ContinueButton from './ContinueButton.svelte';
   import { fieldInput, fieldPopover } from './fieldSkin';
 

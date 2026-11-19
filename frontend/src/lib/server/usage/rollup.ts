@@ -1,6 +1,9 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { USAGE_RAW_RETENTION_MONTHS, usageRawCutoff } from '$lib/domain/usage';
+import { prisma } from '#lib/server/db.ts';
+import {
+  USAGE_RAW_RETENTION_MONTHS,
+  usageRawCutoff,
+} from '#lib/domain/usage.ts';
 
 export { USAGE_RAW_RETENTION_MONTHS };
 

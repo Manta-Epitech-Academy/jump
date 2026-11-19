@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   ensureTalentUser,
   TalentAccountError,
-} from '$lib/server/services/talentAccount';
+} from '#lib/server/services/talentAccount.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

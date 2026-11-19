@@ -20,11 +20,11 @@
  * event's configuration (`write_event_config`, `bulk_event_config`).
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   EVENT_CATEGORY_SELECT,
   eventCategoryView,
-} from '$lib/server/services/eventCategories';
+} from '#lib/server/services/eventCategories.ts';
 import { OperationRefusedError } from '../errors';
 import { archivedAtFor, refusingRaces } from './catalogue';
 import type { WriteOutcome } from '../plan';

@@ -1,12 +1,13 @@
-import { prisma } from '$lib/server/db';
-import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
+import type { ListParams } from '#lib/domain/listView.ts';
+import { prisma } from '#lib/server/db.ts';
+import { compareNiveaux, niveauLabel } from '#lib/domain/niveau.ts';
 import {
   FACET_NONE,
   FACET_NONE_LABEL,
   offerFacets,
   type CountedFacet,
   type FacetCount,
-} from '$lib/domain/listFacets';
+} from '#lib/domain/listFacets.ts';
 import {
   PARENT_STATUS_LABELS,
   TALENT_STATUS_LABELS,
@@ -120,7 +121,7 @@ export async function talentFacetCounts(): Promise<
  * exactly the talents the table shows; the page applies `offerFacets` to the
  * same counts with the ticks of its own address.
  */
-export async function resolveTalentFilters(params: URLSearchParams): Promise<{
+export async function resolveTalentFilters(params: ListParams): Promise<{
   filters: TalentFilters;
   facetCounts: CountedFacet<TalentsFacet>[];
 }> {

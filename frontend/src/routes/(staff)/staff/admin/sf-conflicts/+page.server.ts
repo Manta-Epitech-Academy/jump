@@ -5,15 +5,15 @@ import {
   listSalesforceEnrichment,
   adoptSalesforceField,
   isDiffField,
-} from '$lib/server/services/reconciliationService';
-import { listAuthIdentityConflicts } from '$lib/server/services/authIdentityService';
+} from '#lib/server/services/reconciliationService.ts';
+import { listAuthIdentityConflicts } from '#lib/server/services/authIdentityService.ts';
 import {
   runAuthRepair,
   type AuthRepairAction,
-} from '$lib/server/services/authIdentityRepairService';
+} from '#lib/server/services/authIdentityRepairService.ts';
 import type { SfConflictsData } from './components/types';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   // Two families of conflict surfaced as two tabs on this page:
