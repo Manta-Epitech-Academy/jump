@@ -5,6 +5,7 @@ import { prisma } from '$lib/server/db';
 import { revokeXp } from '$lib/server/services/xpService';
 import { consumeArrivalCelebration } from '$lib/server/talent/arrivalCelebration';
 import { env } from '$env/dynamic/private';
+import { getCatalogGame } from '$lib/server/services/minigameCatalog';
 import {
   checkTalentEligibility,
   getActivePublication,
@@ -34,6 +35,16 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     const minigame = env.JUMP_GAMES_URL
       ? await checkTalentEligibility(studentId)
       : null;
+
+    // The day's game preview on the training card, drawn by jump-games and read
+    // from its catalogue. Started here and awaited at the end, so the catalogue
+    // (cached, and bounded when jump-games is slow) runs alongside the rest of
+    // the load instead of after it. It never rejects: no catalogue, no preview.
+    const trainingPreview: Promise<string | null> = minigame?.publication
+      ? getCatalogGame(minigame.publication.game).then(
+          (game) => game?.previewSrc ?? null,
+        )
+      : Promise.resolve(null);
 
     // A finalized attempt that earned XP the talent hasn't seen celebrated yet:
     // drives the one-shot "+XP" float, the same as the onboarding arrival. The
@@ -155,6 +166,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     return {
       student: locals.talent,
       minigame,
+      trainingPreview: await trainingPreview,
       minigameReward,
       minigameRankReward,
       hero,
