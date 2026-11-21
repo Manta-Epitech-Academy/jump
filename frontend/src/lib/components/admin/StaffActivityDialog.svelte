@@ -29,6 +29,7 @@
   import Loader from '@lucide/svelte/icons/loader';
   import Eye from '@lucide/svelte/icons/eye';
   import { memberActivity } from './staffActivity.remote';
+  import { refreshWhenReused } from '#lib/components/remoteQuery.svelte.ts';
 
   type Props = {
     open: boolean;
@@ -47,12 +48,13 @@
     lastActiveAt,
   }: Props = $props();
 
-  // Asked while the dialog is open, and dropped when it closes. One query per
-  // member, so the body always reads the member the dialog is open on: a row
-  // opened before lands on its own query, which nothing reads any more.
+  // Asked while the dialog is open, one query per member, so the body always
+  // reads the member the dialog is open on: a row opened before lands on its
+  // own query, which nothing reads any more. Reopened, it is asked again.
   const activity = $derived(
     open && profileId ? memberActivity(profileId) : null,
   );
+  refreshWhenReused(() => activity);
 </script>
 
 <Dialog.Root bind:open>

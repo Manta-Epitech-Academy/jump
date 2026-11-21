@@ -21,6 +21,7 @@
     type SfStatusClass,
   } from '#lib/domain/sfMemberStatus.ts';
   import { sfMembers } from './sfMembers.remote';
+  import { refreshWhenReused } from '#lib/components/remoteQuery.svelte.ts';
 
   type ParticipationRow = NonNullable<
     ReturnType<typeof sfMembers>['current']
@@ -43,6 +44,7 @@
   // the event the dialog is open on, and an answer for one opened before lands
   // on a query nothing reads any more.
   const inspection = $derived(open && eventId ? sfMembers(eventId) : null);
+  refreshWhenReused(() => inspection);
   const data = $derived(inspection?.current);
 
   // A closed dialog starts the next one from the whole list.

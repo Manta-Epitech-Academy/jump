@@ -6,6 +6,7 @@
   import { talentNotes } from '#lib/components/dev/notes/talentNotes.remote.ts';
   import { slotLabelLong, type EventSlot } from '#lib/domain/eventPresence.ts';
   import type { PresenceRow } from './types';
+  import { refreshWhenReused } from '#lib/components/remoteQuery.svelte.ts';
 
   // Per-row notes modal: shows the talent's full notes feed without leaving the
   // émargement table. The roster carries only a count, so the bodies are
@@ -31,10 +32,11 @@
     onCountChange?: (talentId: string, count: number) => void;
   } = $props();
 
-  // Asked on each open, one query per talent: closing drops it, so the next
-  // open asks again (another member of staff may have added notes since), and
-  // an answer for a row opened before lands on a query nothing reads any more.
+  // Asked on each open, one query per talent: an answer for a row opened
+  // before lands on a query nothing reads any more, and a reopened row is asked
+  // again, since another member of staff may have added notes since.
   const notes = $derived(open && row ? talentNotes(row.talentId) : null);
+  refreshWhenReused(() => notes);
 </script>
 
 <Dialog.Root bind:open>

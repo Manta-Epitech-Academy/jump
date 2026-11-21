@@ -1,5 +1,6 @@
 /**
- * The one mutating end-to-end path: a dev-team member marks a talent present.
+ * The mutating end-to-end paths of the roster: a dev-team member marks a
+ * talent present, and writes a note about one.
  *
  * Émargement is the surface AGENTS.md says must be a screen rather than an API
  * call - it is run on the floor, at 9am, on 200 students - so it is the write
@@ -52,13 +53,13 @@ test.describe("l'émargement", () => {
     const present = row.getByRole('button', { name: 'Présent', exact: true });
 
     // Establish the starting state instead of assuming it. The fixture is seeded
-    // once per run and this is the only spec that writes, so nothing puts the
-    // cell back: a CI retry (`retries: 2`) does not re-run the setup project, so
-    // attempt 2 would open on the row attempt 1 already marked and die on the
-    // line below rather than on whatever actually broke. Cleared through the
-    // switch itself - clicking the active segment resets the cell - so the
-    // `eventsCount` projection is recomputed by the app exactly as in
-    // production, which a raw delete against the fixture's client would not do.
+    // once per run and this is the only spec that writes a presence, so nothing
+    // puts the cell back: a CI retry (`retries: 2`) does not re-run the setup
+    // project, so attempt 2 would open on the row attempt 1 already marked and die
+    // on the line below rather than on whatever actually broke. Cleared through
+    // the switch itself - clicking the active segment resets the cell - so the
+    // `eventsCount` projection is recomputed by the app exactly as in production,
+    // which a raw delete against the fixture's client would not do.
     if ((await present.getAttribute('aria-pressed')) === 'true') {
       await Promise.all([waitForSetPresence(page), present.click()]);
     }
@@ -79,6 +80,35 @@ test.describe("l'émargement", () => {
       .filter({ hasText: E2E.talentReady.nom })
       .getByRole('button', { name: 'Présent', exact: true });
     await expect(afterReload).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('écrit une note que la fenêtre relit à la réouverture', async ({
+    page,
+  }) => {
+    // The notes are remote functions: the dialog reads `talentNotes`, the
+    // composer calls `createTalentNote`, and neither meets the route guard, so
+    // this is the run that proves the dev gate admits the team member it should
+    // and that a query's answer reaches the screen. Unique per run, since a CI
+    // retry reopens on the note the previous attempt wrote.
+    const body = `Note E2E ${Date.now()}`;
+    await page.goto(EMARGEMENT_URL);
+    const notesOf = page.getByRole('button', {
+      name: `Notes de ${E2E.talentReady.prenom} ${E2E.talentReady.nom}`,
+    });
+
+    await notesOf.first().click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Ajouter une note' }).click();
+    await dialog.getByRole('textbox').fill(body);
+    await dialog.getByRole('button', { name: 'Ajouter', exact: true }).click();
+    await expect(dialog.getByText(body)).toBeVisible();
+
+    // Closing drops the query, so reopening asks the server again: the note
+    // has to come back from the database, not from the feed's own list.
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await notesOf.first().click();
+    await expect(page.getByRole('dialog').getByText(body)).toBeVisible();
   });
 
   test("refuse l'accès à un administrateur", async ({ browser }) => {

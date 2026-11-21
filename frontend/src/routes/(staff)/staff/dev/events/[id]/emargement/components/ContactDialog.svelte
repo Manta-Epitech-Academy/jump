@@ -5,6 +5,7 @@
   import { cohortNounForms } from '#lib/domain/event.ts';
   import type { PresenceRow } from './types';
   import { emargementContact } from '../contact.remote';
+  import { refreshWhenReused } from '#lib/components/remoteQuery.svelte.ts';
 
   // Coordinates for one row of the roster, asked on open (`emargementContact`).
   //
@@ -32,6 +33,7 @@
   const contact = $derived(
     open && row ? emargementContact({ eventId, talentId: row.talentId }) : null,
   );
+  refreshWhenReused(() => contact);
 </script>
 
 <Dialog.Root bind:open>

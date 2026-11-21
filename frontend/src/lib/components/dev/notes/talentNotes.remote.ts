@@ -22,6 +22,11 @@ import { USAGE_FEATURES } from '#lib/domain/usage.ts';
  * carries note bodies. Access is dev-member and campus-scoped
  * (`requireTalentNoteAccess`): any dev member may manage any note, there is no
  * per-note ownership gate.
+ *
+ * Every write refreshes `talentNotes` for its talent in the same response, so
+ * a dialog that opens on that talent again reads the list as it now is rather
+ * than the one cached before the write (the émargement E2E caught exactly
+ * that: a note written, the dialog closed and reopened on « Aucune note »).
  */
 
 const talentId = z.string().min(1);
@@ -83,6 +88,7 @@ export const createTalentNote = gatedCommand(
       include: NOTE_INCLUDE,
     });
     recordUsage(USAGE_FEATURES.DEV_TALENT_NOTE_CREATE, { locals });
+    await talentNotes(id).refresh();
     return serializeNote(note);
   },
 );
@@ -118,6 +124,7 @@ export const editTalentNote = gatedCommand(
       include: NOTE_INCLUDE,
     });
     recordUsage(USAGE_FEATURES.DEV_TALENT_NOTE_EDIT, { locals });
+    await talentNotes(id).refresh();
     return { outcome: 'saved', note: serializeNote(note) } as const;
   },
 );
@@ -137,5 +144,6 @@ export const deleteTalentNote = gatedCommand(
     // delete still reports success.
     await prisma.note_TalentNote.deleteMany({ where: { id: noteId } });
     recordUsage(USAGE_FEATURES.DEV_TALENT_NOTE_DELETE, { locals });
+    await talentNotes(id).refresh();
   },
 );
