@@ -5,7 +5,7 @@
   import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
   import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
   import { toast } from 'svelte-sonner';
-  import { resolve } from '$app/paths';
+  import { deleteTalentNote } from './talentNotes.remote';
   import { cn } from '#lib/utils.ts';
   import { slotKey } from '#lib/domain/eventPresence.ts';
   import type { PresenceSlot } from '@prisma/client';
@@ -104,14 +104,7 @@
     if (deleting) return;
     deleting = true;
     try {
-      const res = await fetch(
-        resolve('/(staff)/staff/dev/students/[id]/notes/[noteId]', {
-          id: talentId,
-          noteId: note.id,
-        }),
-        { method: 'DELETE' },
-      );
-      if (!res.ok) throw new Error(String(res.status));
+      await deleteTalentNote({ talentId, noteId: note.id });
       items = items.filter((n) => n.id !== note.id);
       onCountChange?.(items.length);
       toast.success('Note supprimée.');
