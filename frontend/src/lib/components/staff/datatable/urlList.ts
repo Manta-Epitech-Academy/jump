@@ -34,9 +34,10 @@ export function goToListPage(target: number): void {
   const url = new URL(page.url.href);
   if (target > 1) url.searchParams.set('page', String(target));
   else url.searchParams.delete('page');
-  // `reset: false` keeps focus and scroll together, so the scroll to the top
-  // of the new page is ours to do once it has rendered.
-  void goto(url.toString(), { reset: false }).then(() => window.scrollTo(0, 0));
+  // `reset: false` keeps focus on the pager. The new page still opens at its
+  // top: the staff layouts scroll their `<main>` rather than the window, and
+  // `scrollTopOnNavigate` sends it back up after every navigation.
+  void goto(url.toString(), { reset: false });
 }
 
 /**
