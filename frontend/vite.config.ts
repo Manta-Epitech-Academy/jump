@@ -38,22 +38,27 @@ function revision() {
 // the page renders from SSR, then hydration lands on modules that moved under
 // it, and it goes white until the server is restarted. So every such command
 // gets its own directory: `bun run check` and the E2E build pass `KIT_OUTDIR`,
-// and vitest (which sets `VITEST` before it loads this file) gets its own
-// without being told, so an editor's test runner or a bare `bunx vitest` obeys
-// it too. An explicit `KIT_OUTDIR` still wins, which leaves CI free to override.
-// Each directory is listed in `server.watch.ignored` below.
-const outDir =
-  process.env.KIT_OUTDIR ??
-  (process.env.VITEST ? '.svelte-kit-test' : '.svelte-kit');
+// and vitest gets its own without being told. Vitest is recognised by the
+// `test` mode it loads every config in, not by the `VITEST` variable: its CLI
+// sets that variable before loading this file, but `createVitest()`, which an
+// editor's test runner calls, does not. So a bare `bunx vitest` and an editor
+// both obey it. An explicit `KIT_OUTDIR` still wins, which leaves CI free to
+// override. Each directory is listed in `server.watch.ignored` below.
+function kitOutDir(mode: string): string {
+  return (
+    process.env.KIT_OUTDIR ??
+    (mode === 'test' ? '.svelte-kit-test' : '.svelte-kit')
+  );
+}
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     tailwindcss(),
     sveltekit({
       // Consult https://svelte.dev/docs/kit/integrations
       // for more information about preprocessors
       preprocess: vitePreprocess(),
-      outDir,
+      outDir: kitOutDir(mode),
       adapter: adapter(),
       // `resolve()` returns a root-relative path, never one relative to the page
       // being served. By default it answers `../../x` during a request, which is
@@ -139,4 +144,4 @@ export default defineConfig({
       ],
     },
   },
-});
+}));
