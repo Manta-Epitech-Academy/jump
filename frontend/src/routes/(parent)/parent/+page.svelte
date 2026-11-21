@@ -101,7 +101,7 @@
                         Prochain rendez-vous
                       </p>
                       <p class="mt-0.5 text-sm font-bold text-foreground">
-                        {child.upcomingEvent.titre}
+                        {child.upcomingEvent.name}
                       </p>
                       <p class="text-xs text-muted-foreground">
                         Le {new Date(

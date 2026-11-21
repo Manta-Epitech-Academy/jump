@@ -10,17 +10,28 @@ const { load: loadFeedbackPage } =
   await import('../../../../routes/(talent)/feedback/[eventId]/[formId]/+page.server');
 const { POST: postFeedback } =
   await import('../../../../routes/api/feedback/[eventId]/[formId]/+server');
+const { load: loadParentHome } =
+  await import('../../../../routes/(parent)/parent/+page.server');
+const { load: loadParentChild } =
+  await import('../../../../routes/(parent)/parent/enfant/[talentId]/+page.server');
 
 /**
  * Anyone but an admin is shown only the events an admin activated (#516). The
  * services the talent's home and parcours read are held to it in their own
  * suites; this one holds the route loads that read events themselves: the
- * talent's planning and what guards it, and the feedback form's page and
- * submission. Each reads an activated event and one nobody activated, enrolled
- * the same way, so the only difference is the activation.
+ * talent's planning and what guards it, the feedback form's page and
+ * submission, and the parent space. Each reads an activated event and one
+ * nobody activated, enrolled the same way, so the only difference is the
+ * activation.
  */
 describe('events a talent is shown (integration)', () => {
   const stamp = Date.now();
+  const HOUR = 60 * 60 * 1000;
+  // Two weeks out, so the events are still to come for the parent space,
+  // whatever day the suite runs on.
+  const eventDay = new Date(Date.now() + 14 * 24 * HOUR);
+  const parentEmail = `parent.shown.${stamp}@example.test`;
+  let siblingId = '';
   let campusId = '';
   let talentId = '';
   let formSlug = '';
@@ -30,7 +41,7 @@ describe('events a talent is shown (integration)', () => {
   const talent = () => ({ id: talentId, prenom: 'Lou', nom: 'Montrée' });
 
   async function plannedEvent(publicName: string, activated: boolean) {
-    const date = new Date('2026-12-07T08:00:00.000Z');
+    const date = eventDay;
     const event = await prisma.event.create({
       data: {
         titre: `SF-Campaign-${publicName}-${stamp}`,
@@ -43,8 +54,8 @@ describe('events a talent is shown (integration)', () => {
           create: {
             nom: `Atelier ${publicName}`,
             activityType: 'atelier',
-            startTime: new Date('2026-12-07T09:00:00.000Z'),
-            endTime: new Date('2026-12-07T10:00:00.000Z'),
+            startTime: new Date(eventDay.getTime() + HOUR),
+            endTime: new Date(eventDay.getTime() + 2 * HOUR),
           },
         },
       },
@@ -61,7 +72,16 @@ describe('events a talent is shown (integration)', () => {
       await prisma.campus.create({ data: { name: `Shown ${stamp}` } })
     ).id;
     talentId = (
-      await prisma.talent.create({ data: { prenom: 'Lou', nom: 'Montrée' } })
+      await prisma.talent.create({
+        data: { prenom: 'Lou', nom: 'Montrée', parentEmail },
+      })
+    ).id;
+    // A second child, so the parent's home lists them rather than redirecting
+    // to the only one.
+    siblingId = (
+      await prisma.talent.create({
+        data: { prenom: 'Noé', nom: 'Montrée', parentEmail },
+      })
     ).id;
     formSlug = (
       await prisma.feedback_Form.create({
@@ -90,7 +110,9 @@ describe('events a talent is shown (integration)', () => {
     await prisma.feedback_Submission.deleteMany({ where: { talentId } });
     await prisma.event.deleteMany({ where: { campusId } });
     await prisma.feedback_Form.deleteMany({ where: { slug: formSlug } });
-    await prisma.talent.deleteMany({ where: { id: talentId } });
+    await prisma.talent.deleteMany({
+      where: { id: { in: [talentId, siblingId] } },
+    });
     await prisma.campus.deleteMany({ where: { id: campusId } });
   });
 
@@ -153,5 +175,36 @@ describe('events a talent is shown (integration)', () => {
         where: { talentId, eventId: hiddenId },
       }),
     ).toBe(0);
+  });
+
+  const parent = { role: 'parent', email: parentEmail, name: 'Montrée' };
+
+  it('neither counts nor names an event no admin activated on the parent home', async () => {
+    const data = (await loadParentHome({
+      locals: { user: parent },
+    } as unknown as Parameters<typeof loadParentHome>[0])) as {
+      children: {
+        id: string;
+        eventsCount: number;
+        upcomingEvent: { name: string } | null;
+      }[];
+    };
+    expect(data.children.find((c) => c.id === talentId)).toMatchObject({
+      eventsCount: 1,
+      upcomingEvent: { name: 'Stage prêt' },
+    });
+  });
+
+  it('lists only the activated event among a child’s upcoming ones, under its public name', async () => {
+    const data = (await loadParentChild({
+      locals: { user: parent },
+      params: { talentId },
+      cookies: { get: () => undefined },
+    } as unknown as Parameters<typeof loadParentChild>[0])) as {
+      upcomingEvents: { id: string; name: string }[];
+    };
+    expect(data.upcomingEvents.map(({ id, name }) => ({ id, name }))).toEqual([
+      { id: shownId, name: 'Stage prêt' },
+    ]);
   });
 });
