@@ -1,4 +1,44 @@
+import type { Prisma } from '@prisma/client';
 import type { EventLifecycleStatus } from './eventLifecycle';
+
+/**
+ * The events anyone but an admin is shown: an admin activated it
+ * (`devActivatedAt`) and it carries at least one section. Everything a talent,
+ * a parent or the dev team reads about an event goes through this rule: the dev
+ * workspace's list and pages, the « Déjà venu » count and a talent's fiche, the
+ * talent's home, planning, activities, feedback and émargement, and the parent
+ * space (#516). Only the admin space and the admin API read every event.
+ *
+ * Before #516 it decided only what the dev workspace listed, and every other
+ * surface read the whole Salesforce history: talents and parents saw campaigns
+ * nobody had prepared, under their raw Salesforce title, and a page of the
+ * workspace opened by its address for an event the menu did not hold. An
+ * activated event has passed the activation rule ({@link activationBlockers}),
+ * so its public name is set, and that is what lets a talent surface name it.
+ *
+ * Two spellings of one rule, because a Prisma `where` cannot call a predicate:
+ * this one for a query, {@link isEventShown} for a row already loaded. They are
+ * kept beside each other and `eventReadiness.test.ts` asserts they read the
+ * same fields. It is also the `shown` state of {@link eventConfigState}, which
+ * reads the same two facts off a view model, and the same test holds the three
+ * together.
+ *
+ * Not the same rule as `activatableEventWhere` in `server/services/events`:
+ * this one is what IS shown, that one is what MAY be shown (a stricter set,
+ * which also needs a public name).
+ */
+export const shownEventWhere = {
+  devActivatedAt: { not: null },
+  modules: { some: {} },
+} satisfies Prisma.EventWhereInput;
+
+/** {@link shownEventWhere} for a row already loaded. */
+export function isEventShown(event: {
+  devActivatedAt: Date | null;
+  modules: readonly unknown[];
+}): boolean {
+  return event.devActivatedAt !== null && event.modules.length > 0;
+}
 
 /**
  * The configuration state of an event, for the admin events cockpit. A pure

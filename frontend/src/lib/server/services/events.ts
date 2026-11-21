@@ -164,7 +164,7 @@ export function jumpOwnedFields(
  * honest arrangement is one rule with two spellings that name each other, and a
  * unit test asserting they read the same fields.
  *
- * Stricter than `devVisibleEventWhere` in `services/stageContext`, which is what
+ * Stricter than `shownEventWhere` in `domain/eventReadiness`, which is what
  * is visible rather than what may be made visible.
  */
 export const activatableEventWhere = {

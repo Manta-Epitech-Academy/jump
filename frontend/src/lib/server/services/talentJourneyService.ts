@@ -2,7 +2,7 @@ import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { eventDisplayName } from '$lib/domain/event';
 import { EVENT_MODULES, eventHasModule } from '$lib/domain/eventModules';
-import { isDevVisibleEvent } from '$lib/server/services/stageContext';
+import { isEventShown } from '$lib/domain/eventReadiness';
 import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
 import { attendedBeforeWhere } from '$lib/domain/attendance';
 import type {
@@ -100,7 +100,7 @@ export async function getTalentJourney(
   const closingOf = new Map(closings.map((c) => [c.eventId, c]));
 
   // The event's Inscrits list, when the reader can actually open it: same campus
-  // (`loadEventOr404`), a member of the dev workspace (`isDevVisibleEvent`), and
+  // (`loadEventOr404`), a member of the dev workspace (`isEventShown`), and
   // the module that gates the page (the surface that page asks `loadEventOr404`
   // for).
   // Withholding the link rather than pointing at another surface is deliberate -
@@ -114,7 +114,7 @@ export async function getTalentJourney(
   // configuration rather than the talent's history.
   const eventHref = (event: JourneyEvent): string | null => {
     if (event.campusId !== campusId) return null;
-    if (!isDevVisibleEvent(event)) return null;
+    if (!isEventShown(event)) return null;
     const modules = event.modules.map((m) => m.moduleKey);
     if (!eventHasModule(modules, EVENT_MODULES.INSCRITS)) return null;
     return resolve(`/staff/dev/events/${event.id}/inscrits`);

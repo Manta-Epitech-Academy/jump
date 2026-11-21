@@ -9,7 +9,7 @@ import {
   type ParcoursEarned,
   type ParcoursEventFacts,
 } from '$lib/domain/talentParcours';
-import { devVisibleEventWhere } from '$lib/server/services/stageContext';
+import { shownEventWhere } from '$lib/domain/eventReadiness';
 import { enrolledNotOverWhere } from '$lib/server/services/talentHomeHero';
 import { listTalentWorkshops } from '$lib/server/services/workshopService';
 import { resolveGrantLabels } from '$lib/server/services/xpStoryService';
@@ -22,7 +22,7 @@ import { resolveGrantLabels } from '$lib/server/services/xpStoryService';
  *   the recruiter reading their fiche count the same visits (#491).
  * - « Inscrit » is the home hero's (`enrolledNotOverWhere`): an enrolment the
  *   dev space shows.
- * - Only events an admin activated (`devVisibleEventWhere`) are read at all:
+ * - Only events an admin activated (`shownEventWhere`) are read at all:
  *   nobody but an admin is shown another, and activating one asks for its
  *   public name.
  *
@@ -61,7 +61,7 @@ export async function loadTalentParcours(
   talentId: string,
   now: Date = new Date(),
 ): Promise<Parcours> {
-  const visible = { event: devVisibleEventWhere };
+  const visible = { event: shownEventWhere };
   const [attended, enrolled, grants, workshops] = await Promise.all([
     prisma.participation.findMany({
       where: { talentId, AND: [attendedBeforeWhere(now), visible] },
@@ -73,7 +73,7 @@ export async function loadTalentParcours(
     }),
     // One grant per walked activity, pinned to the event the walk began at.
     prisma.xpGrant.findMany({
-      where: { talentId, source: 'workshop', event: devVisibleEventWhere },
+      where: { talentId, source: 'workshop', event: shownEventWhere },
       orderBy: { createdAt: 'asc' },
       select: {
         source: true,
@@ -100,7 +100,7 @@ export async function loadTalentParcours(
   ];
   if (unread.length > 0) {
     const rows = await prisma.event.findMany({
-      where: { id: { in: unread }, ...devVisibleEventWhere },
+      where: { id: { in: unread }, ...shownEventWhere },
       select: PARCOURS_EVENT_SELECT,
     });
     for (const row of rows) events.set(row.id, factsOf(row));

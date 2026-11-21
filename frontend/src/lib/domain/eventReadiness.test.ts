@@ -16,7 +16,10 @@ import {
   canBeMadeVisible,
   eventMissingConfig,
   EVENT_MISSING_LABELS,
+  eventConfigState,
+  isEventShown,
   preparationHorizon,
+  shownEventWhere,
   type EventConfigFields,
 } from './eventReadiness';
 
@@ -114,5 +117,33 @@ describe('preparationHorizon', () => {
   it('treats an event under way as imminent and a finished one as having no horizon', () => {
     expect(preparationHorizon('ongoing', '2026-11-02', today)).toBe('imminent');
     expect(preparationHorizon('past', '2026-11-02', today)).toBeNull();
+  });
+});
+
+// The rule every non-admin surface reads events through (#516), spelled three
+// ways: a `where` for queries, a predicate for loaded rows, and the `shown`
+// state the admin cockpit reports. What this catches is a condition added to
+// one spelling and not the others; behaviour is pinned on real SQL in the
+// integration suites.
+describe('shownEventWhere', () => {
+  it('reads the same fields as isEventShown', () => {
+    expect(Object.keys(shownEventWhere).sort()).toEqual([
+      'devActivatedAt',
+      'modules',
+    ]);
+  });
+
+  it('agrees with isEventShown and eventConfigState on every combination', () => {
+    for (const activated of [true, false]) {
+      for (const modules of [[], ['inscrits']]) {
+        const row = { devActivatedAt: activated ? new Date() : null, modules };
+        const state = eventConfigState({
+          devActivated: activated,
+          moduleCount: modules.length,
+        });
+        expect(isEventShown(row)).toBe(state === 'shown');
+        expect(isEventShown(row)).toBe(activated && modules.length > 0);
+      }
+    }
   });
 });

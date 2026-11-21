@@ -13,13 +13,13 @@ import {
 import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
 import { toDateKey } from '$lib/domain/planningTime';
 import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { devVisibleEventWhere } from './stageContext';
+import { shownEventWhere } from '$lib/domain/eventReadiness';
 import { EVENT_CATEGORY_TAG_SELECT } from './eventCategories';
 
 /**
  * A campus's school year, as the dev space's landing page shows it.
  *
- * The events are the dev space's own (`devVisibleEventWhere`): a click opens
+ * The events are the ones an admin activated (`shownEventWhere`): a click opens
  * one, so the calendar holds no event it could not open. Their window is the
  * grid's twelve months (`calendarDays`), any event with a day in them, so the
  * grid can paint one that starts or ends outside. The count beside each is the
@@ -41,7 +41,7 @@ export async function loadCampusCalendar(
 
   const rows = await db.event.findMany({
     where: {
-      ...devVisibleEventWhere,
+      ...shownEventWhere,
       date: { lte: to },
       OR: [{ endDate: null, date: { gte: from } }, { endDate: { gte: from } }],
     },
