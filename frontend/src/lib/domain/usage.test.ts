@@ -216,13 +216,16 @@ describe('the catalogue and the code cannot drift', () => {
     // `src/hooks.server.ts` is server code by SvelteKit's own convention even
     // though it sits outside `#lib/server`, and it is where visits and
     // connections are counted. Everything else outside `#lib/server` and `src/routes` ships
-    // to a browser.
+    // to a browser, except a remote-function module (`*.remote.ts`), which runs
+    // on the server and reaches the browser only as a stub that calls it.
     const serverOnly = new Set(['src/hooks.server.ts']);
+    const remoteModule = /[/.]remote\.[^/]+$/;
     const offenders = sourceFiles
       .filter(
         (f) => !f.startsWith('src/lib/server/') && !f.endsWith('.test.ts'),
       )
       .filter((f) => !f.includes('/routes/') && !serverOnly.has(f))
+      .filter((f) => !remoteModule.test(f))
       .filter((f) => readFileSync(f, 'utf-8').includes('usage/record'));
     expect(offenders).toEqual([]);
   });

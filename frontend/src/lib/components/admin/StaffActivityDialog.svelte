@@ -28,19 +28,11 @@
   import { formatDateFr, formatDateTimeFr } from '#lib/utils.ts';
   import Loader from '@lucide/svelte/icons/loader';
   import Eye from '@lucide/svelte/icons/eye';
-
-  type FeatureUse = {
-    libelle: string;
-    espace: string;
-    utilisations: number;
-    dernierUsage: string;
-    enExploration: number;
-  };
-  type NeverOpened = { libelle: string; espace: string };
+  import { memberActivity } from './staffActivity.remote';
 
   type Props = {
     open: boolean;
-    /** Null while no row is selected; the dialog fetches when it becomes set. */
+    /** Null while no row is selected; the dialog asks when it becomes set. */
     profileId: string | null;
     name: string;
     firstLoginAt: Date | string | null;
@@ -55,57 +47,12 @@
     lastActiveAt,
   }: Props = $props();
 
-  /**
-   * The four answers this dialog can render, as one value rather than a pair of
-   * booleans.
-   *
-   * `missing` is the reason: the route answers 404 for a profile that no longer
-   * exists, and with only `loading` and `failed` to carry it a deleted member
-   * rendered the outage sentence, telling somebody to retry a fetch that can
-   * never succeed. Two booleans also spell four states of which only three are
-   * meant to exist; a union spells the states themselves, so the next one
-   * cannot be added without a branch to render it.
-   */
-  type Status = 'loading' | 'missing' | 'failed' | 'ready';
-
-  let status = $state<Status>('loading');
-  let windowMonths = $state(0);
-  let activeDays = $state(0);
-  let features = $state<FeatureUse[]>([]);
-  let jamaisOuvertes = $state<NeverOpened[]>([]);
-
-  // Fetched when the dialog opens rather than with the roster: 138 members each
-  // holding hundreds of rows inside the window would be a payload nobody reads.
-  $effect(() => {
-    if (!open || !profileId) return;
-    const id = profileId;
-    status = 'loading';
-    fetch(`/staff/admin/users/${id}/usage`)
-      .then((res) => {
-        // A stale link and an outage are different answers to the admin, so
-        // they are different answers here: null is « ce membre n'existe plus »,
-        // a rejection is « la requête a échoué ».
-        if (res.status === 404) return null;
-        if (!res.ok) throw new Error(String(res.status));
-        return res.json();
-      })
-      .then((body) => {
-        if (profileId !== id) return; // a newer row was opened meanwhile
-        if (!body) {
-          status = 'missing';
-          return;
-        }
-        windowMonths = body.windowMonths ?? 0;
-        activeDays = body.activeDays ?? 0;
-        features = body.features ?? [];
-        jamaisOuvertes = body.jamaisOuvertes ?? [];
-        status = 'ready';
-      })
-      .catch(() => {
-        if (profileId !== id) return;
-        status = 'failed';
-      });
-  });
+  // Asked while the dialog is open, and dropped when it closes. One query per
+  // member, so the body always reads the member the dialog is open on: a row
+  // opened before lands on its own query, which nothing reads any more.
+  const activity = $derived(
+    open && profileId ? memberActivity(profileId) : null,
+  );
 </script>
 
 <Dialog.Root bind:open>
@@ -123,7 +70,11 @@
       </Dialog.Description>
     </Dialog.Header>
 
-    {#if status === 'loading'}
+    {#if activity?.error}
+      <p class="py-6 text-sm text-muted-foreground">
+        Chargement impossible. Réessayez dans un instant.
+      </p>
+    {:else if !activity?.ready}
       <p
         class="flex items-center gap-2 py-6 text-sm text-muted-foreground"
         aria-live="polite"
@@ -131,16 +82,14 @@
         <Loader class="h-4 w-4 animate-spin" />
         Chargement…
       </p>
-    {:else if status === 'missing'}
+    {:else if !activity.current}
       <p class="py-6 text-sm text-muted-foreground">
         Ce membre n'existe plus. Rafraîchissez la page pour remettre la liste à
         jour.
       </p>
-    {:else if status === 'failed'}
-      <p class="py-6 text-sm text-muted-foreground">
-        Chargement impossible. Réessayez dans un instant.
-      </p>
     {:else}
+      {@const { activeDays, windowMonths, features, jamaisOuvertes } =
+        activity.current}
       <div class="space-y-5">
         <!--
           One figure, and no tooltip under it. There were two, a connexions
