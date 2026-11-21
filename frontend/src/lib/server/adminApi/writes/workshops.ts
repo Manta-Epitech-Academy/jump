@@ -32,7 +32,7 @@ import type { WriteOutcome } from '../plan';
 import {
   replacePictures,
   type StoredPicture,
-} from '#lib/server/images/remote.ts';
+} from '#lib/server/images/copy.ts';
 import {
   WORKSHOP_COVER_MAX_EDGE,
   workshopCoverKey,

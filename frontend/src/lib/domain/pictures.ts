@@ -1,5 +1,5 @@
 /**
- * A picture Jump copied from an address an admin gave (`images/remote.ts`) and
+ * A picture Jump copied from an address an admin gave (`images/copy.ts`) and
  * serves itself, as a page draws it: its own URL, its intrinsic size so the box
  * is reserved before the bytes land, and, for an animation, the URL of its
  * first frame, what a talent who asked for reduced motion sees instead.

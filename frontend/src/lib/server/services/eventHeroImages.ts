@@ -1,7 +1,7 @@
 /**
  * The pictures of an event's hero on the talent home (`EventConfig_HeroImage`),
  * as a page draws them and as the proxy serves them. Copied by
- * `write_event_config` (`#lib/server/images/remote.ts`), so a talent's browser
+ * `write_event_config` (`#lib/server/images/copy.ts`), so a talent's browser
  * only ever asks Jump for them.
  */
 import { prisma } from '#lib/server/db.ts';

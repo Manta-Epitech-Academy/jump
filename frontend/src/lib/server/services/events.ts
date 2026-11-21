@@ -19,7 +19,7 @@ import {
   EVENT_HERO_STAGES,
   type EventHeroStage,
 } from '#lib/domain/eventHero.ts';
-import type { StoredPicture } from '#lib/server/images/remote.ts';
+import type { StoredPicture } from '#lib/server/images/copy.ts';
 import {
   getEventStatus,
   getLifecycleBounds,

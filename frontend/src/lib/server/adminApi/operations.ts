@@ -563,7 +563,7 @@ function repeatSentence(repeat: { safe: boolean; because?: string }): string {
 
 /**
  * What every picture-taking write accepts, said once so the operations cannot
- * describe the same copy in different words (`images/remote.ts`).
+ * describe the same copy in different words (`images/copy.ts`).
  */
 const PICTURE_RULES =
   'Any proportion and any size: Jump downloads the picture (following redirects), keeps it whole and lays it out itself, never cropping or stretching it. PNG, JPEG, WebP or GIF, animated or not, up to 20 MB (an animated GIF up to 6 MB, since talents load it as it is on their phones); Jump shows a still of an animation to talents who asked for reduced motion. Refused, with the reason: an address that is not public, a file that is not one of those formats (an SVG, AVIF or HEIC is named as such), a picture over about 16 megapixels. An address the call already holds a copy of is not downloaded again, so restating it is free and never fails; to replace a picture, give its new address.';

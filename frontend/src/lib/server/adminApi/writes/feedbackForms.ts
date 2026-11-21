@@ -41,7 +41,7 @@ import { feedbackFormPreviewLink } from '#lib/server/feedbackForms.ts';
 import {
   RemoteImageRefusal,
   swapStoredImages,
-} from '#lib/server/images/remote.ts';
+} from '#lib/server/images/copy.ts';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import { UnknownScopeError } from '../scope';

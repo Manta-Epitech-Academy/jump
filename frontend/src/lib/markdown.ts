@@ -97,7 +97,7 @@ function authoredMarked(pictures: ReadonlyMap<string, ShownPicture>): Marked {
 
 const AUTHORED_LINK_PROTOCOLS = new Set(['https:', 'mailto:']);
 /**
- * A picture is downloaded from its address (`images/remote.ts`), so it has to
+ * A picture is downloaded from its address (`images/copy.ts`), so it has to
  * be one that parses: an address that only starts like one (`https://`) would
  * pass a prefix test and fail the copy as an internal error.
  */
