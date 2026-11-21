@@ -51,7 +51,6 @@
     {#each tabs as t (t.key)}
       <a
         href={t.href}
-        data-sveltekit-noscroll
         class="-mb-px cursor-pointer border-b-2 px-1 pb-2.5 text-sm font-medium transition-colors {current ===
         t.key
           ? 'border-epi-tomorrow text-foreground'
