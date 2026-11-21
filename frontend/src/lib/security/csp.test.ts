@@ -172,6 +172,23 @@ describe('form-action, the directive the activities made per request', () => {
   });
 });
 
+describe('the policy names only what Jump loads', () => {
+  /**
+   * A source a page never uses is not harmless: it is a host an injected tag
+   * may load from, and it tells an auditor about a transfer that does not
+   * happen. Google Fonts sat in `style-src` and `font-src` long after the fonts
+   * moved to `@fontsource` (#518), and `img-src` carried a bare `https:`, which
+   * allows every host there is.
+   */
+  it('allows no Google Fonts host', () => {
+    expect(code(CONFIG)).not.toMatch(/fonts\.(googleapis|gstatic)\.com/);
+  });
+
+  it('allows no bare scheme in place of a host', () => {
+    expect(code(CONFIG)).not.toMatch(/'(https?|wss?):'/);
+  });
+});
+
 describe('a directive computed per request is declared nowhere else', () => {
   /**
    * A header repeating a directive keeps the FIRST occurrence and ignores the
