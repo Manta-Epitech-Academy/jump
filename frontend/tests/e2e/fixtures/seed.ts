@@ -222,9 +222,10 @@ export async function seedE2eData(): Promise<void> {
   });
 
   // ── What the home's hero is drawn from beyond a talent's own day ─────────
-  // The camp the campus points at, twelve days out with its sign-up form, and
-  // an event weeks ago on each campus, which is what makes the campus the
-  // home of a talent whose only enrolment it is.
+  // The camp the campus points at, twelve days out with its sign-up form and
+  // activated (a talent is shown no other event, #516), and an event weeks ago
+  // on each campus, which is what makes the campus the home of a talent whose
+  // only enrolment it is (any event does, activated or not).
   await prisma.event.create({
     data: {
       id: E2E.highlightedEventId,
@@ -233,6 +234,8 @@ export async function seedE2eData(): Promise<void> {
       ...campusDay(12),
       campusId: E2E.campusId,
       signupUrl: E2E.highlightedSignupUrl,
+      devActivatedAt: now,
+      modules: { create: { moduleKey: EVENT_MODULES.INSCRITS } },
     },
   });
   await prisma.talentHome_Highlight.create({
@@ -352,8 +355,9 @@ export async function seedE2eData(): Promise<void> {
   });
 
   // Signed like the talent above, but enrolled only in a session three days
-  // out: no subject today, so the hero says they are expected, with the day
-  // and the confirmed arrival hour, ahead of the camp the campus points at.
+  // out, activated: no subject today, so the hero says they are expected, with
+  // the day and the confirmed arrival hour, ahead of the camp the campus
+  // points at.
   await prisma.event.create({
     data: {
       id: E2E.upcomingEventId,
@@ -366,6 +370,8 @@ export async function seedE2eData(): Promise<void> {
       ),
       startMinutes: 14 * 60,
       campusId: E2E.campusId,
+      devActivatedAt: now,
+      modules: { create: { moduleKey: EVENT_MODULES.INSCRITS } },
     },
   });
   await prisma.bauth_user.create({
