@@ -348,7 +348,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
     ),
     missing: metric(
       eventMissingConfig(event),
-      "Ce qu'il reste à renseigner pour que l'événement soit visible dans l'espace dev. Liste vide = rien ne manque.",
+      "Ce qu'il reste à faire pour que l'événement soit activé, donc visible dans l'espace dev et par ses talents et leurs parents. Liste vide = rien ne manque.",
     ),
     modules: metric(
       EVENT_MODULE_KEYS.map((key) => ({
@@ -508,7 +508,7 @@ export async function getCampusOverview(
     ...summariseEvents(events),
     campuses: metric(
       rows,
-      `Les mêmes chiffres campus par campus, chaque campus compris, même sans événement sur le périmètre : « events » est le total, que « visible », « readyToPublish » et « unconfigured » répartissent ; « visibleShare » est la part des événements du campus visibles dans l'espace dev ; « toPrepare » compte ceux qui ne sont pas passés et pas encore visibles ; « participants » compte les participations, ${VISIBLE_PARTICIPATION_DEFINITION} ; « modules » compte les événements où chaque section est activée, sans tenir compte de l'activation. Les effectifs d'équipe (« staff ») sont ceux d'aujourd'hui, ils ne dépendent pas de l'année scolaire demandée. « configuration » est le réglage du campus, tel que write_campus le prend : « externalName » est le nom du campus dans Salesforce (null tant que la synchronisation ne le sert pas), « timezone » son fuseau horaire, « departement » son code de département, dont « departementName » et « academie » donnent le nom et l'académie (ils décident des vacances scolaires et des jours fériés du calendrier), « contactAddress » l'adresse de contact que les mails transactionnels citent.`,
+      `Les mêmes chiffres campus par campus, chaque campus compris, même sans événement sur le périmètre : « events » est le total, que « visible », « readyToPublish » et « unconfigured » répartissent ; « visibleShare » est la part des événements du campus activés, donc visibles dans l'espace dev et par leurs talents et leurs parents ; « toPrepare » compte ceux qui ne sont pas passés et pas encore activés ; « participants » compte les participations, ${VISIBLE_PARTICIPATION_DEFINITION} ; « modules » compte les événements où chaque section est activée, sans tenir compte de l'activation. Les effectifs d'équipe (« staff ») sont ceux d'aujourd'hui, ils ne dépendent pas de l'année scolaire demandée. « configuration » est le réglage du campus, tel que write_campus le prend : « externalName » est le nom du campus dans Salesforce (null tant que la synchronisation ne le sert pas), « timezone » son fuseau horaire, « departement » son code de département, dont « departementName » et « academie » donnent le nom et l'académie (ils décident des vacances scolaires et des jours fériés du calendrier), « contactAddress » l'adresse de contact que les mails transactionnels citent.`,
     ),
   };
 }

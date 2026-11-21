@@ -162,8 +162,8 @@ memory, because `since: undefined` is present in an object and gone from its JSO
   `isServedToWorker` its row form for the admin answers that report it.
 - **Nothing here touches `Event.devActivatedAt`.** A new campaign under a
   whitelisted parent is discovered automatically, which is the point; publishing
-  it to the dev workspace stays an admin's decision. Automatic discovery is not
-  automatic publication.
+  it (to the dev workspace, its talents and their parents) stays an admin's
+  decision. Automatic discovery is not automatic publication.
 - **`syncEvents` skips what it cannot resolve, it does not refuse the batch.** It
   used to return on the first bad row, leaving everything before it applied and
   everything after it not, with one string to explain the state.

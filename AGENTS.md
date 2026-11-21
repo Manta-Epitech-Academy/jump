@@ -65,6 +65,7 @@ The protocol is [`CONTRIBUTING.md`](.github/CONTRIBUTING.md), and parts of it ar
 
 ## Domain rules any change can hit
 
+- **Anyone but an admin is shown only the events an admin activated:** read events through `shownEventWhere` / `isEventShown`, and a talent's or parent's enrolments through `shownEnrolmentWhere` (`domain/eventReadiness.ts`). Only the admin space and the admin API read every event (#516).
 - **Event surfaces are per-event modules** (`EVENT_MODULES` in `domain/eventModules.ts`), never feature flags and never hard-coded keys.
 - **XP is a ledger.** Never write `Talent.xp`: go through `xpService`. A level is derived (`computeLevel`), never stored, and never shown in the dev workspace.
 - **Facts are rows, state is a projection** recomputed in the same transaction.

@@ -74,9 +74,10 @@ export function isEventShown(event: {
  *
  *  - `unconfigured` no section enabled (nothing to show, whatever the gate says)
  *  - `ready`        sections enabled but hidden - one toggle from live
- *  - `shown`        activated AND >=1 section: live for the dev team. Mirrors
- *                   `resolveWorkspaceEvents`' membership rule, so this state and
- *                   the dev workspace agree on what "in the dev space" means.
+ *  - `shown`        activated AND >=1 section: live for everyone but admins,
+ *                   the dev team, the event's talents and their parents. The
+ *                   view-model spelling of `shownEventWhere`, so this state
+ *                   and every non-admin screen agree on what "shown" means.
  */
 export type EventConfigState = 'shown' | 'ready' | 'unconfigured';
 
@@ -87,9 +88,10 @@ export const EVENT_CONFIG_STATE_LABELS: Record<EventConfigState, string> = {
 };
 
 export const EVENT_CONFIG_STATE_HINTS: Record<EventConfigState, string> = {
-  shown: "Activé et visible dans l'espace dev.",
+  shown:
+    "Activé : visible dans l'espace dev, et par ses talents et leurs parents.",
   ready:
-    "Configuré mais masqué : activez-le pour le rendre visible dans l'espace dev.",
+    "Configuré mais masqué : activez-le pour le montrer à l'espace dev, à ses talents et à leurs parents.",
   unconfigured:
     "Aucune section activée : configurez l'événement pour le préparer.",
 };
@@ -201,7 +203,7 @@ export const EVENT_MISSING_LABELS = {
   publicName: 'nom public',
   cohortNoun: 'nom des participants',
   modules: 'aucune section activée',
-  activation: "pas encore activé pour l'espace dev",
+  activation: 'pas encore activé',
 } as const;
 
 /**

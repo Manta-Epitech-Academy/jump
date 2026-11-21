@@ -112,7 +112,7 @@ export function summariseEvents(events: AdminEventVM[]): EventsSummary {
       ),
       visibleShare: metric(
         counts.visibleShare,
-        "Part des événements du périmètre effectivement visibles dans l'espace dev, en pourcentage. Le complément se répartit entre « readyToPublish » et « unconfigured » : les trois états couvrent tous les événements. Vaut null quand le périmètre n'a aucun événement.",
+        "Part des événements du périmètre effectivement activés, donc visibles dans l'espace dev et par leurs talents et leurs parents, en pourcentage. Le complément se répartit entre « readyToPublish » et « unconfigured » : les trois états couvrent tous les événements. Vaut null quand le périmètre n'a aucun événement.",
       ),
       readyToPublish: metric(
         counts.readyToPublish,
@@ -124,7 +124,7 @@ export function summariseEvents(events: AdminEventVM[]): EventsSummary {
       ),
       toPrepare: metric(
         counts.toPrepare,
-        "Événements non passés qui ne sont pas encore visibles dans l'espace dev : ceux qui demandent encore une action. Ce n'est donc pas l'écart entre le total et « visible ».",
+        "Événements non passés qui ne sont pas encore activés : ceux qui demandent encore une action. Ce n'est donc pas l'écart entre le total et « visible ».",
       ),
       participants: metric(
         counts.participants,
