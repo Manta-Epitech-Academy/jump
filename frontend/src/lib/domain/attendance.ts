@@ -28,6 +28,7 @@
  */
 
 import type { Prisma } from '@prisma/client';
+import { shownEventWhere } from './eventReadiness';
 import { visibleParticipationWhere } from './sfMemberStatus';
 
 /**
@@ -86,6 +87,21 @@ export function attendedBeforeWhere(
       ],
     },
   };
+}
+
+/**
+ * `attendedBeforeWhere`, on the events anyone but an admin is shown
+ * (`shownEventWhere`): what a talent's « Mon parcours », the « Déjà venu »
+ * count and the parcours of a talent's fiche read, so none of them counts or
+ * lists a visit to an event no admin activated (#516).
+ *
+ * `attendedBeforeWhere` itself keeps every event, because the admin API counts
+ * the visits of one event whether or not it is activated yet.
+ */
+export function attendedShownBeforeWhere(
+  reference: Date,
+): Prisma.ParticipationWhereInput {
+  return { AND: [attendedBeforeWhere(reference), { event: shownEventWhere }] };
 }
 
 /**

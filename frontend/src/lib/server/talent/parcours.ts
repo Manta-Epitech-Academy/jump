@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { attendedBeforeWhere } from '$lib/domain/attendance';
+import { attendedShownBeforeWhere } from '$lib/domain/attendance';
 import { toDateKey } from '$lib/domain/planningTime';
 import { workshopSlugFromSourceId } from '$lib/domain/workshops';
 import {
@@ -18,8 +18,8 @@ import { resolveGrantLabels } from '$lib/server/services/xpStoryService';
  * The facts behind a talent's « Mon parcours » (#445), arranged by
  * `buildParcours`. Three rules, each read where it is owned:
  *
- * - « Venu » is `attendedBeforeWhere`, the dev space's own, so the talent and
- *   the recruiter reading their fiche count the same visits (#491).
+ * - « Venu » is `attendedShownBeforeWhere`, the dev space's own, so the talent
+ *   and the recruiter reading their fiche count the same visits (#491).
  * - « Inscrit » is the home hero's (`enrolledNotOverWhere`): an enrolment the
  *   dev space shows.
  * - Only events an admin activated (`shownEventWhere`) are read at all:
@@ -64,7 +64,7 @@ export async function loadTalentParcours(
   const visible = { event: shownEventWhere };
   const [attended, enrolled, grants, workshops] = await Promise.all([
     prisma.participation.findMany({
-      where: { talentId, AND: [attendedBeforeWhere(now), visible] },
+      where: { talentId, ...attendedShownBeforeWhere(now) },
       select: { event: { select: PARCOURS_EVENT_SELECT } },
     }),
     prisma.participation.findMany({

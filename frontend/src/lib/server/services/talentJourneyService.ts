@@ -2,9 +2,9 @@ import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { eventDisplayName } from '$lib/domain/event';
 import { EVENT_MODULES, eventHasModule } from '$lib/domain/eventModules';
-import { isEventShown } from '$lib/domain/eventReadiness';
+import { shownEventWhere } from '$lib/domain/eventReadiness';
 import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
-import { attendedBeforeWhere } from '$lib/domain/attendance';
+import { attendedShownBeforeWhere } from '$lib/domain/attendance';
 import type {
   TalentJourney,
   TalentJourneyEntry,
@@ -12,10 +12,18 @@ import type {
 
 /**
  * Build a talent's journey: the events they came to, newest first, each with
- * the closing conducted at it. « Came » is `attendedBeforeWhere`'s, the one the
- * Inscrits parcours counts (#491), so the fiche and the « Déjà venu 3 fois » a
- * recruiter just read cannot disagree; an enrolment with no proof of a visit is
- * not a step of anybody's journey.
+ * the closing conducted at it. « Came » is `attendedShownBeforeWhere`'s, the one
+ * the Inscrits parcours counts (#491), so the fiche and the « Déjà venu 3 fois »
+ * a recruiter just read cannot disagree; an enrolment with no proof of a visit
+ * is not a step of anybody's journey.
+ *
+ * Only events an admin activated are read, on both sides of the union
+ * (`shownEventWhere`): the dev team is shown no other event anywhere (#516).
+ * This page used to keep such an event as a row and withhold only its link, on
+ * the grounds that a visit is a fact about the person; but the count in this
+ * section's header then disagreed with « Déjà venu » on the same talent, and a
+ * campaign nobody prepared was named to the team on the one page that read the
+ * whole Salesforce history.
  *
  * Two queries, not a per-event lookup - participations and closings, unioned in
  * memory rather than joined in SQL, because a closing keys on (talent, event)
@@ -31,9 +39,8 @@ import type {
  * at a glance; the team's verdict note is here because it IS the team's memory of
  * the person, and the fiche already has a quieter register for staff writing.
  */
-// What decides whether the event's name is a link: the reader's own campus,
-// whether the event is in the dev workspace at all, and the module the
-// destination is gated on. Read here rather than left to the component, which
+// What decides whether the event's name is a link: the reader's own campus and
+// the module the destination is gated on. Read here rather than left to the component, which
 // has no way to ask. Shared by both queries below: a closing that has outlived
 // its participation still names an event, and it is the same event shape
 // either way.
@@ -44,7 +51,6 @@ const JOURNEY_EVENT_SELECT = {
   date: true,
   endDate: true,
   campusId: true,
-  devActivatedAt: true,
   modules: { select: { moduleKey: true } },
 } as const;
 
@@ -58,7 +64,6 @@ type JourneyEvent = {
   date: Date;
   endDate: Date | null;
   campusId: string;
-  devActivatedAt: Date | null;
   modules: { moduleKey: string }[];
 };
 
@@ -74,14 +79,14 @@ export async function getTalentJourney(
   // participation naming it is gone. Joined back by event id below.
   const [participations, closings] = await Promise.all([
     prisma.participation.findMany({
-      where: { talentId, ...attendedBeforeWhere(new Date()) },
+      where: { talentId, ...attendedShownBeforeWhere(new Date()) },
       select: {
         eventId: true,
         event: { select: JOURNEY_EVENT_SELECT },
       },
     }),
     prisma.closing_Record.findMany({
-      where: { talentId },
+      where: { talentId, event: shownEventWhere },
       select: {
         eventId: true,
         status: true,
@@ -100,21 +105,14 @@ export async function getTalentJourney(
   const closingOf = new Map(closings.map((c) => [c.eventId, c]));
 
   // The event's Inscrits list, when the reader can actually open it: same campus
-  // (`loadEventOr404`), a member of the dev workspace (`isEventShown`), and
-  // the module that gates the page (the surface that page asks `loadEventOr404`
-  // for).
+  // and the module that gates the page, the two conditions `loadEventOr404`
+  // adds to the activation every row here already has.
   // Withholding the link rather than pointing at another surface is deliberate -
   // an event with no Inscrits list has nothing this page was sending them to
   // read, and where an event opens (its home, `landingSurface`) is a different
   // question, asked by the workspace, which knows the event.
-  //
-  // The row itself stays, link or no link: what somebody attended is a fact
-  // about that person, and dropping the events an admin has not activated would
-  // make this section - and the counts in its header - describe the workspace's
-  // configuration rather than the talent's history.
   const eventHref = (event: JourneyEvent): string | null => {
     if (event.campusId !== campusId) return null;
-    if (!isEventShown(event)) return null;
     const modules = event.modules.map((m) => m.moduleKey);
     if (!eventHasModule(modules, EVENT_MODULES.INSCRITS)) return null;
     return resolve(`/staff/dev/events/${event.id}/inscrits`);
