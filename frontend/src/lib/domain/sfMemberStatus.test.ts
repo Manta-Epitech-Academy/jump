@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { readsWithout, walk } from '$lib/testing/sourceReads';
 import {
   classifySfStatus,
   isShownInDevSpace,
@@ -73,16 +73,6 @@ describe('sfMemberStatus domain logic', () => {
   });
 });
 
-/** Every file under a directory tree, recursively. */
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, out);
-    else out.push(full);
-  }
-  return out;
-}
-
 /**
  * The reads a dev surface makes of a cohort, each with the marker that scopes
  * it to the cohort the dev space shows: an enrolment read (a delegate call, or a
@@ -101,25 +91,10 @@ const COHORT_READS = [
   },
 ] as const;
 
-/** The text from an opening bracket to the one that closes it. */
-function balanced(source: string, open: number): string {
-  let depth = 0;
-  for (let i = open; i < source.length; i++) {
-    if (source[i] === '(' || source[i] === '{') depth++;
-    else if (source[i] === ')' || source[i] === '}') {
-      depth--;
-      if (depth === 0) return source.slice(open, i + 1);
-    }
-  }
-  return source.slice(open);
-}
-
 /** The arguments of every cohort read in a source that do not carry its marker. */
 function readsWithoutFragment(source: string): string[] {
   return COHORT_READS.flatMap(({ read, marker }) =>
-    [...source.matchAll(read)]
-      .map((m) => balanced(source, (m.index ?? 0) + m[0].length - 1))
-      .filter((arg) => !arg.includes(marker)),
+    readsWithout(source, read, [marker]),
   );
 }
 

@@ -5,9 +5,11 @@ import { writePresenceCell } from '$lib/server/services/presenceService';
 import { verifyCheckinToken } from '$lib/server/presence/checkinToken';
 import { isSlotClosed } from '$lib/server/presence/slotClosure';
 import { eventPublicName, UNNAMED_EVENT_NAME } from '$lib/domain/event';
-import { shownEventWhere } from '$lib/domain/eventReadiness';
+import {
+  shownEnrolmentWhere,
+  shownEventWhere,
+} from '$lib/domain/eventReadiness';
 import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import {
   dateKeyToDbDate,
   dayLabelFr,
@@ -75,7 +77,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       select: { day: true, slot: true },
     }),
     prisma.participation.findFirst({
-      where: { talentId: talent.id, eventId, ...visibleParticipationWhere },
+      where: { talentId: talent.id, eventId, ...shownEnrolmentWhere() },
       select: { id: true },
     }),
   ]);
