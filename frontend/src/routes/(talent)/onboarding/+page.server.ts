@@ -416,7 +416,10 @@ export const actions: Actions = {
         locals.talent.prenom,
         talentId,
       ).catch((err) =>
-        console.error(`Failed to send parent welcome for ${parentEmail}:`, err),
+        console.error(
+          `Failed to send parent welcome for talent ${talentId}:`,
+          err,
+        ),
       );
     }
 

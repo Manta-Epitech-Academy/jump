@@ -141,8 +141,9 @@ export const actions: Actions = {
 
   // The talent's right to object (RGPD art. 21). Usage measurement runs on
   // legitimate interest rather than consent, so it is on until it is refused,
-  // and refusing it has to actually stop the recording rather than hide it: the
-  // recorder reads this timestamp before every write.
+  // and refusing it has to actually stop the recording rather than hide it:
+  // the recorder reads this timestamp before every write, and the browser stops
+  // sending to Umami, both through `objectedToUsageMeasurement`.
   //
   // Storing the date and not a boolean because that is what the flat-column
   // convention on `Talent` does everywhere else, and because "since when" is the

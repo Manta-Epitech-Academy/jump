@@ -12,6 +12,12 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
 const CRISP_HOST = 'https://client.crisp.chat';
 const CRISP_RELAY = 'wss://client.relay.crisp.chat';
+// The two hosts the Crisp widget loads images from besides its own script
+// host: the operators' avatars and the files exchanged in a conversation. They
+// are Crisp's documented CSP list, and the widget is the only reason a Jump
+// page loads an image from another host.
+const CRISP_IMAGES = 'https://image.crisp.chat';
+const CRISP_STORAGE = 'https://storage.crisp.chat';
 
 // The commit this build is made from. CI passes `GIT_SHA`, because the image
 // is built from `frontend/` alone and carries no `.git`; a local build reads
@@ -71,14 +77,17 @@ const config = {
         // Svelte transitions set `element.style` directly at runtime; there's
         // no nonce for a runtime property assignment, so this needs
         // `'unsafe-inline'` regardless of kit.csp (see the SvelteKit CSP docs).
-        'style-src': [
-          'self',
-          'unsafe-inline',
-          'https://fonts.googleapis.com',
-          CRISP_HOST,
-        ],
-        'img-src': ['self', 'data:', 'https:'],
-        'font-src': ['self', 'https://fonts.gstatic.com', CRISP_HOST],
+        'style-src': ['self', 'unsafe-inline', CRISP_HOST],
+        // Every image Jump renders is its own: avatars, covers and pictures
+        // are re-served by Jump's routes (`/api/avatars`, `/api/event-hero`,
+        // `/api/talent-home`, `/api/workshops/covers`), Markdown pictures are
+        // rewritten to those copies, and broadcast HTML allows no `<img>`.
+        // `data:` is the base64 photo BetterAuth stores until the Microsoft
+        // avatar sync replaces it, and the daily-training previews. A bare
+        // `https:` used to stand here, which allowed every host on the web.
+        'img-src': ['self', 'data:', CRISP_HOST, CRISP_IMAGES, CRISP_STORAGE],
+        // Fonts are bundled through `@fontsource`; nothing loads from Google.
+        'font-src': ['self', CRISP_HOST],
         'connect-src': ['self', UMAMI_HOST, CRISP_HOST, CRISP_RELAY],
         'frame-ancestors': ['none'],
         'object-src': ['none'],

@@ -15,8 +15,9 @@ import { safeTokenEquals } from './safeTokenCompare';
  * from being writable by anybody who finds the path.
  *
  * Worth knowing about this namespace: it sits outside the `/api/admin` and
- * `/api/mcp` prefixes that the curated admin API assumes are rate-limited at
- * the edge. There is no per-call audit row here either. What stands in for both
+ * `/api/mcp` prefixes, so no rate control scoped to the curated admin API would
+ * cover it (what is in place there is stated once, in
+ * `.claude/rules/admin-api.md`). There is no per-call audit row here either. What stands in for both
  * is that the credential is machine-only, the surface is six fixed operations,
  * and every real run leaves a `Sync_Run`.
  */

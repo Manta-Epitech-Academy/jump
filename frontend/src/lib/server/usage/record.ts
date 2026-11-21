@@ -1,6 +1,7 @@
 import { prisma } from '$lib/server/db';
 import {
   USAGE_FEATURE_DEFS,
+  objectedToUsageMeasurement,
   usageDedupeKey,
   type UsageFeatureKey,
 } from '$lib/domain/usage';
@@ -87,7 +88,7 @@ function resolveActor(
   // recorded at all rather than being attributed to either of them.
   if (impersonatedById) return null;
   const talent = locals.talent;
-  if (!talent || talent.usageAnalyticsOptOutAt) return null;
+  if (!talent || objectedToUsageMeasurement(talent)) return null;
   const campusId = locals.talentCampusId ?? null;
   const hash = actorHash(talent.id, campusId, now);
   if (!hash) return null;

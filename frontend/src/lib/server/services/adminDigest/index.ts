@@ -222,10 +222,10 @@ export async function sendAdminDigest(
   // would also expose the whole admin list in every header. Each one is counted
   // on the run as it leaves, so a run that dies half-way still says whom it
   // reached and its week is not mailed again.
-  for (const to of recipients) {
+  for (const { userId, address } of recipients) {
     const result = await sendEmail({
       from: MAIL_FROM,
-      to,
+      to: address,
       subject: digest.subject,
       html: digest.html,
       text: digest.text,
@@ -234,7 +234,9 @@ export async function sendAdminDigest(
     if (result.ok) sent++;
     else {
       failed++;
-      console.error(`[adminDigest] send failed for ${to}: ${result.message}`);
+      console.error(
+        `[adminDigest] send failed for user ${userId}: ${result.message}`,
+      );
     }
   }
 
