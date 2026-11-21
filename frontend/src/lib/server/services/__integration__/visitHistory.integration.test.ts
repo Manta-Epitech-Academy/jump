@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '$lib/server/db';
 import { countPriorVisits } from '../visitHistory';
+import { getEventDetail } from '../adminStats/configuration';
 import { assertTestDatabase } from './testDatabase';
 
 /**
@@ -21,6 +22,7 @@ describe('prior visits (integration)', () => {
   let talentId = '';
   let newcomerId = '';
   const eventIds: string[] = [];
+  let notActivatedId = '';
 
   const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
@@ -59,6 +61,7 @@ describe('prior visits (integration)', () => {
         },
       });
       eventIds.push(event.id);
+      if (!activated) notActivatedId = event.id;
       await prisma.participation.create({
         data: {
           talentId: talent,
@@ -109,5 +112,12 @@ describe('prior visits (integration)', () => {
       day('2026-03-10'),
     );
     expect(counts.get(talentId)).toBe(1);
+  });
+
+  // AC6 of #516: the visit the dev space no longer counts is still a fact the
+  // admin API reports, on the event itself, whether or not it is activated.
+  it('leaves the visit to an event no admin activated to the admin API', async () => {
+    const detail = await getEventDetail(notActivatedId);
+    expect(detail.attended.value).toBe(1);
   });
 });
