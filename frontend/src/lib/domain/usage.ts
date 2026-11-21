@@ -257,6 +257,22 @@ export function usageRawCutoff(now: Date = new Date()): Date {
   return cutoff;
 }
 
+/**
+ * Whether this talent has objected to being measured (RGPD art. 21).
+ *
+ * One objection, and it stops every measurement Jump makes of them: the
+ * catalogue's recorder (`recordUsage`) and the audience measurement
+ * the browser sends to Umami (`$lib/analytics`). The settings switch promises
+ * that « plus rien ne sera alors enregistré », so the two read this one rule
+ * rather than each its own copy of it: Umami kept following objectors for as
+ * long as only the recorder checked (#518).
+ */
+export function objectedToUsageMeasurement(
+  talent: { usageAnalyticsOptOutAt: Date | string | null } | null | undefined,
+): boolean {
+  return talent?.usageAnalyticsOptOutAt != null;
+}
+
 export interface UsageFeatureDef {
   key: UsageFeatureKey;
   /** Short FR name, in the audience's register (vous for staff, tu for talent). */
