@@ -34,6 +34,7 @@ import {
   type LifecycleBounds,
 } from '$lib/domain/eventLifecycle';
 import { eventDisplayName } from '$lib/domain/event';
+import { shownEventWhere } from '$lib/domain/eventReadiness';
 import { dbDateToKey } from '$lib/domain/eventPresence';
 import { campusClock, toDateKey } from '$lib/domain/planningTime';
 import { formatDateFr } from '$lib/utils';
@@ -65,7 +66,10 @@ export type WorkshopEntry = {
  * through an enrolment the dev space shows (`shownInDevSpace`), the rule that
  * says who is at an event (#491): a withdrawn talent is not offered the day's
  * subjects. The list itself still reads every enrolment, so what a talent
- * started stays theirs to carry on.
+ * started stays theirs to carry on, but only on events an admin activated
+ * (`shownEventWhere`, #516): a talent is shown no other event, so an activity
+ * offered through one waits for its activation, and leaves with a
+ * deactivation, the XP it earned staying in the ledger.
  */
 async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
   const activityWhere: Prisma.Workshop_ActivityWhereInput = {
@@ -77,7 +81,10 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
     prisma.participation.findMany({
       where: {
         talentId,
-        event: { workshops: { some: { activity: activityWhere } } },
+        event: {
+          ...shownEventWhere,
+          workshops: { some: { activity: activityWhere } },
+        },
       },
       select: {
         eventId: true,

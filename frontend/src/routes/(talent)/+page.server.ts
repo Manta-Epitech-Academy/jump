@@ -15,7 +15,10 @@ import {
 } from '$lib/server/services/minigameService';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { pendingFeedbackForm } from '$lib/domain/feedback';
-import { resolveEventNudgeForm } from '$lib/server/feedbackForms';
+import {
+  feedbackParticipationWhere,
+  resolveEventNudgeForm,
+} from '$lib/server/feedbackForms';
 import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
 import { getUnseenWorkshopReward } from '$lib/server/services/workshopService';
 import { loadHomeHero } from '$lib/server/services/talentHomeHero';
@@ -115,11 +118,14 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     }> = [];
     // A talent can match several events with a form; feedback is owed after the
     // event, so nudge about the most recently started one, not a DB-arbitrary
-    // one. Only events carrying a feedback form qualify.
+    // one. Only events carrying a feedback form qualify, through the enrolments
+    // the form's own page accepts (`feedbackParticipationWhere`).
     const feedbackParticipation = await prisma.participation.findFirst({
       where: {
-        talentId: studentId,
-        event: { feedbackFormId: { not: null } },
+        AND: [
+          feedbackParticipationWhere(studentId),
+          { event: { feedbackFormId: { not: null } } },
+        ],
       },
       orderBy: { event: { date: 'desc' } },
       include: {

@@ -11,7 +11,7 @@ describe('the talent calendar’s range', () => {
     const endDate = eventEndInstant('2026-07-10', 'Indian/Reunion');
     const single = eventStartInstant('2026-07-20', 'Indian/Reunion');
     const event = (over: { date: Date; endDate: Date | null }) => ({
-      event: { id: 'e', titre: 'Stage', planningSlots: [], ...over },
+      event: { id: 'e', publicName: 'Stage', planningSlots: [], ...over },
     });
 
     expect(

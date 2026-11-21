@@ -14,7 +14,7 @@
     activityType: string;
     // Present on the multi-event calendar so the dialog can name which event the
     // activity belongs to. Optional so single-event callers stay valid.
-    event?: { id: string; titre: string };
+    event?: { id: string; name: string };
   };
 
   let {
@@ -73,7 +73,7 @@
         </ResponsiveDialog.Description>
         {#if slot.event}
           <p class="text-xs font-medium text-muted-foreground">
-            {slot.event.titre}
+            {slot.event.name}
           </p>
         {/if}
       </ResponsiveDialog.Header>

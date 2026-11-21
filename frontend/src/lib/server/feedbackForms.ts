@@ -1,6 +1,8 @@
 import type { Prisma } from '@prisma/client';
 import { base } from '$app/paths';
 import { prisma } from '$lib/server/db';
+import { shownEventWhere } from '$lib/domain/eventReadiness';
+import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
 import type {
   FormSchema,
   Question,
@@ -149,6 +151,20 @@ export async function resolveEventNudgeForm(
     form.dashboardNudge
     ? form
     : null;
+}
+
+/**
+ * The enrolments through which a talent answers an event's feedback form, or is
+ * reminded to: shown in the dev space, on an event an admin activated (#516).
+ * One rule for the home's nudge, the form's page and its submission, so the
+ * banner never leads to a page that refuses, nor the page to a POST that does.
+ * The bilan reads answers on the shown cohort only (`shownCohortOf`), so an
+ * answer through any other enrolment would be collected and never read.
+ */
+export function feedbackParticipationWhere(
+  talentId: string,
+): Prisma.ParticipationWhereInput {
+  return { talentId, ...visibleParticipationWhere, event: shownEventWhere };
 }
 
 function projectQuestion(q: GraphQuestion): Question {

@@ -41,10 +41,20 @@ describe('which activities a talent is offered (integration)', () => {
     titre: string,
     date: Date,
     offers: string[],
-    endDate: Date | null = null,
+    {
+      endDate = null,
+      activated = true,
+    }: { endDate?: Date | null; activated?: boolean } = {},
   ) {
     const row = await prisma.event.create({
-      data: { titre: `${titre} ${stamp}`, campusId, date, endDate },
+      data: {
+        titre: `${titre} ${stamp}`,
+        campusId,
+        date,
+        endDate,
+        devActivatedAt: activated ? date : null,
+        modules: { create: { moduleKey: 'inscrits' } },
+      },
     });
     for (const [position, name] of offers.entries()) {
       await prisma.eventConfig_Workshop.create({
@@ -78,6 +88,7 @@ describe('which activities a talent is offered (integration)', () => {
       'past',
       'started',
       'reunion',
+      'hidden',
     ]) {
       const row = await prisma.workshop_Activity.create({
         data: { slug: slug(name), instanceId, label: `Atelier ${name}` },
@@ -94,13 +105,9 @@ describe('which activities a talent is offered (integration)', () => {
     await event(paris, 'Demain', sfDay('2026-10-29'), ['tomorrow']);
     await event(paris, 'Aujourd’hui', sfDay('2026-10-28'), ['today']);
     // Started yesterday, ends Friday: every day of it is « today ».
-    await event(
-      paris,
-      'Stage',
-      sfDay('2026-10-27'),
-      ['stage'],
-      fromWallClock('2026-10-30', '23:59', 'Europe/Paris'),
-    );
+    await event(paris, 'Stage', sfDay('2026-10-27'), ['stage'], {
+      endDate: fromWallClock('2026-10-30', '23:59', 'Europe/Paris'),
+    });
     // The same subject as today's, a month ago: today's must win.
     await event(paris, 'Il y a un mois', sfDay('2026-09-30'), [
       'past',
@@ -119,6 +126,10 @@ describe('which activities a talent is offered (integration)', () => {
       },
     });
     await event(reunion, 'Saint-Denis', sfDay('2026-10-28'), ['reunion']);
+    // Running today, but no admin activated it (#516).
+    await event(paris, 'Caché', sfDay('2026-10-28'), ['hidden'], {
+      activated: false,
+    });
   });
 
   afterAll(async () => {
@@ -140,6 +151,15 @@ describe('which activities a talent is offered (integration)', () => {
     const shown = [...today, ...activities].map((a) => a.slug);
     expect(shown).not.toContain(slug('tomorrow'));
     expect(await resolveWorkshopEntry(talentId, slug('tomorrow'), NOW)).toBe(
+      null,
+    );
+  });
+
+  it('shows nothing of an event no admin activated, and refuses its entry', async () => {
+    const { today, activities } = await listTalentWorkshops(talentId, NOW);
+    const shown = [...today, ...activities].map((a) => a.slug);
+    expect(shown).not.toContain(slug('hidden'));
+    expect(await resolveWorkshopEntry(talentId, slug('hidden'), NOW)).toBe(
       null,
     );
   });

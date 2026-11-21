@@ -1,7 +1,11 @@
 import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { getFormGraphBySlug, toFormSchema } from '$lib/server/feedbackForms';
+import {
+  feedbackParticipationWhere,
+  getFormGraphBySlug,
+  toFormSchema,
+} from '$lib/server/feedbackForms';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.talent) {
@@ -17,15 +21,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw error(404, 'Formulaire introuvable');
   }
 
-  const event = await prisma.event.findUnique({
-    where: { id: params.eventId },
-  });
-  if (!event) {
-    throw error(404, 'Événement introuvable');
-  }
-
   const participation = await prisma.participation.findFirst({
-    where: { eventId: params.eventId, talentId: locals.talent.id },
+    where: {
+      eventId: params.eventId,
+      ...feedbackParticipationWhere(locals.talent.id),
+    },
     select: { id: true },
   });
   if (!participation) {

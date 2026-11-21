@@ -21,7 +21,7 @@ import { resolveGrantLabels } from '$lib/server/services/xpStoryService';
  * - « Venu » is `attendedShownBeforeWhere`, the dev space's own, so the talent
  *   and the recruiter reading their fiche count the same visits (#491).
  * - « Inscrit » is the home hero's (`enrolledNotOverWhere`): an enrolment the
- *   dev space shows.
+ *   dev space shows, on an activated event.
  * - Only events an admin activated (`shownEventWhere`) are read at all:
  *   nobody but an admin is shown another, and activating one asks for its
  *   public name.
@@ -61,14 +61,13 @@ export async function loadTalentParcours(
   talentId: string,
   now: Date = new Date(),
 ): Promise<Parcours> {
-  const visible = { event: shownEventWhere };
   const [attended, enrolled, grants, workshops] = await Promise.all([
     prisma.participation.findMany({
       where: { talentId, ...attendedShownBeforeWhere(now) },
       select: { event: { select: PARCOURS_EVENT_SELECT } },
     }),
     prisma.participation.findMany({
-      where: { AND: [enrolledNotOverWhere(talentId, now), visible] },
+      where: enrolledNotOverWhere(talentId, now),
       select: { event: { select: PARCOURS_EVENT_SELECT } },
     }),
     // One grant per walked activity, pinned to the event the walk began at.

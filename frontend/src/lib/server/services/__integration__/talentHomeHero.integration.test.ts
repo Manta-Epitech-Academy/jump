@@ -20,6 +20,11 @@ describe('the talent home hero (integration)', () => {
   /** Monday 16 November 2026, 11:00 in Paris. */
   const NOW = new Date('2026-11-16T10:00:00Z');
   const parisDay = (key: string) => fromWallClock(key, '00:00', 'Europe/Paris');
+  // What every event here needs for a talent to be shown it at all (#516).
+  const activated = {
+    devActivatedAt: NOW,
+    modules: { create: { moduleKey: 'inscrits' } },
+  };
   const parisLastDay = (key: string) =>
     fromWallClock(key, '23:59', 'Europe/Paris');
 
@@ -79,6 +84,7 @@ describe('the talent home hero (integration)', () => {
           date: parisDay('2026-11-16'),
           endDate: parisLastDay('2026-11-20'),
           startMinutes: 9 * 60,
+          ...activated,
         },
       })
     ).id;
@@ -96,6 +102,7 @@ describe('the talent home hero (integration)', () => {
           endDate: parisLastDay('2026-11-28'),
           startMinutes: 10 * 60,
           signupUrl: 'https://www.epitech.invalid/inscription',
+          ...activated,
         },
       })
     ).id;
@@ -106,6 +113,7 @@ describe('the talent home hero (integration)', () => {
           titre: `JPO ${stamp}`,
           campusId,
           date: parisDay('2026-11-14'),
+          ...activated,
         },
       })
     ).id;
@@ -206,6 +214,7 @@ describe('the talent home hero (integration)', () => {
           titre: `Paris-2026-11-20-CodingClub-${stamp}`,
           campusId,
           date: parisDay('2026-11-20'),
+          ...activated,
         },
       })
     ).id;
@@ -219,6 +228,34 @@ describe('the talent home hero (integration)', () => {
       expect(await enrolledEventCalendar(talentId, unnamedId)).toMatchObject({
         name: UNNAMED_EVENT_NAME,
       });
+    } finally {
+      await prisma.talent.deleteMany({ where: { id: talentId } });
+    }
+  });
+
+  // #516: a campaign nobody prepared is not on a talent's home, nor in their
+  // calendar, even though they are enrolled in it.
+  it('neither shows nor offers to download an event no admin activated', async () => {
+    const talentId = (
+      await prisma.talent.create({ data: { prenom: 'Eli', nom: 'Hero' } })
+    ).id;
+    const hiddenId = (
+      await prisma.event.create({
+        data: {
+          titre: `Hidden ${stamp}`,
+          publicName: 'Stage pas encore prêt',
+          campusId,
+          date: parisDay('2026-11-20'),
+          modules: { create: { moduleKey: 'inscrits' } },
+        },
+      })
+    ).id;
+    try {
+      await enrol(talentId, hiddenId);
+      expect(await listEnrolledHeroEvents(talentId, NOW)).toEqual([]);
+      const { hero } = await loadHomeHero(talentId, campusId, NOW);
+      expect(hero).not.toMatchObject({ event: { id: hiddenId } });
+      expect(await enrolledEventCalendar(talentId, hiddenId)).toBeNull();
     } finally {
       await prisma.talent.deleteMany({ where: { id: talentId } });
     }
