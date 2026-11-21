@@ -3,6 +3,7 @@
   import XpFloat from '#lib/components/talent/XpFloat.svelte';
   import { workshopRewardToast } from '#lib/components/talent/rewardToast.ts';
   import type { WorkshopReward } from '#lib/server/services/workshopService.ts';
+  import { ackWorkshopRewards } from './rewardsSeen.remote';
 
   // An activity is walked in a second tab, and often in the evening at home, so
   // nothing on the Jump side witnesses the moment XP are earned: the callback
@@ -54,11 +55,7 @@
       acknowledged.set(activityId, amount);
     }
 
-    void fetch('/api/workshops/rewards-seen', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ upTo }),
-    });
+    void ackWorkshopRewards({ upTo });
 
     clearTimers();
     timers.push(

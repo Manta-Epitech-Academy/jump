@@ -1,12 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { isHttpError } from '@sveltejs/kit';
 import { prisma } from '#lib/server/db.ts';
 import {
   applyWorkshopProgress,
   getUnseenWorkshopReward,
   markWorkshopRewardsSeen,
 } from '#lib/server/services/workshopService.ts';
-import { POST as ackRoute } from '../../../../routes/api/workshops/rewards-seen/+server';
 import { assertTestDatabase } from './testDatabase';
 
 /**
@@ -234,50 +232,5 @@ describe('the activity XP celebration (integration)', () => {
 
     await markWorkshopRewardsSeen(t.talentId, stale);
     expect(await getUnseenWorkshopReward(t.talentId)).toBeNull();
-  });
-
-  describe('the acknowledgement route', () => {
-    async function ack(body: unknown, talentId: string | null) {
-      const request = new Request(
-        'http://localhost/api/workshops/rewards-seen',
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(body),
-        },
-      );
-      try {
-        const response = await ackRoute({
-          request,
-          locals: { talent: talentId ? { id: talentId } : null },
-        } as unknown as Parameters<typeof ackRoute>[0]);
-        return response.status;
-      } catch (err) {
-        if (isHttpError(err)) return err.status;
-        throw err;
-      }
-    }
-
-    it('acknowledges what the dashboard sends back', async () => {
-      const t = await enteredTalent();
-      await t.report(2, 12);
-      const reward = await getUnseenWorkshopReward(t.talentId);
-      expect(await ack({ upTo: reward!.upTo }, t.talentId)).toBe(200);
-      expect(await getUnseenWorkshopReward(t.talentId)).toBeNull();
-    });
-
-    it('refuses a caller who is not a talent', async () => {
-      expect(await ack({ upTo: [] }, null)).toBe(401);
-    });
-
-    it('refuses a body it cannot read, and acknowledges nothing', async () => {
-      const t = await enteredTalent();
-      await t.report(2, 12);
-      expect(await ack({}, t.talentId)).toBe(400);
-      expect(
-        await ack({ upTo: [{ activityId: 'x', amount: -5 }] }, t.talentId),
-      ).toBe(400);
-      expect((await getUnseenWorkshopReward(t.talentId))?.xp).toBe(100);
-    });
   });
 });
