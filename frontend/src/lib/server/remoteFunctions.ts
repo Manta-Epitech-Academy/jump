@@ -34,7 +34,11 @@ async function parse<Schema extends StandardSchemaV1>(
   raw: unknown,
 ): Promise<StandardSchemaV1.InferOutput<Schema>> {
   const result = await schema['~standard'].validate(raw);
-  if (result.issues) throw error(400, 'Requête invalide.');
+  // The first issue's own message, which is French where a person reads it
+  // (`La note est vide`): a schema a person's input reaches carries its copy.
+  if (result.issues) {
+    throw error(400, result.issues[0]?.message ?? 'Requête invalide.');
+  }
   return result.value;
 }
 
