@@ -82,23 +82,28 @@ export function eventModuleSettings<K extends EventModuleKey>(
 
 /**
  * Load an event of the caller's campus for one dev-workspace surface, 404ing
- * when it belongs to another campus or when `surface` is a module the event has
- * turned off, so a direct URL to such a surface behaves like a missing page.
- * A surface that is no module (`planning`) is gated on the data its own load
- * reads, as are the data gates of module surfaces (a feedback form, a closing
- * grid, a certificate design).
+ * when it belongs to another campus, when no admin activated it
+ * (`shownEventWhere`), or when `surface` is a module the event has turned off,
+ * so a direct URL to such a surface behaves like a missing page. A surface that
+ * is no module (`planning`) is gated on the data its own load reads, as are the
+ * data gates of module surfaces (a feedback form, a closing grid, a certificate
+ * design).
  *
  * The surface is a required argument because the module gate used to be a
  * second call each route had to remember, and four endpoints (both exports,
- * both émargement QR codes) forgot it.
+ * both émargement QR codes) forgot it. The activation gate is here for the same
+ * reason: the workspace's menu only ever held activated events, but every page
+ * under an event opened by its address for one it did not (#516), under
+ * another event's name in the menu, since the layout falls back to the
+ * workspace's default event when the URL names one it does not hold.
  */
 export async function loadEventOr404(
   eventId: string,
   campusId: string,
   surface: EventSurfaceKey,
 ): Promise<EventRecord> {
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
+  const event = await prisma.event.findFirst({
+    where: { id: eventId, campusId, ...shownEventWhere },
     select: {
       id: true,
       titre: true,
@@ -115,9 +120,7 @@ export async function loadEventOr404(
       modules: { select: { moduleKey: true, settings: true } },
     },
   });
-  if (!event || event.campusId !== campusId) {
-    throw error(404, 'Événement introuvable.');
-  }
+  if (!event) throw error(404, 'Événement introuvable.');
   const { modules, ...rest } = event;
   const present = modules.filter((m) => isEventModuleKey(m.moduleKey));
   const record: EventRecord = {
