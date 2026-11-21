@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
+  import { refreshAll } from '$app/navigation';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import { fade } from '#lib/motion/index.ts';
 
@@ -82,7 +82,7 @@
   use:enhance={() => {
     return async ({ result }) => {
       if (result.type === 'success') {
-        await invalidateAll();
+        await refreshAll();
       } else {
         failed = true;
       }

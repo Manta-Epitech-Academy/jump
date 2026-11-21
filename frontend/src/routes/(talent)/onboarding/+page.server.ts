@@ -422,7 +422,7 @@ export const actions: Actions = {
 
     // No redirect: a redirect to the same /onboarding URL doesn't re-render
     // under use:enhance (the client never picks up the advanced step). The form's
-    // enhance callback calls invalidateAll() on success to rerun load instead.
+    // enhance callback calls refreshAll() on success to rerun load instead.
     return { success: true };
   },
 
