@@ -4,7 +4,7 @@
   import TitleCursor from './TitleCursor.svelte';
 
   type Props = {
-    /** Resolved link target (e.g. resolve('/staff/dev')). */
+    /** Resolved link target (e.g. resolve('staff/dev')). */
     href: string;
     /** Small label next to/under the wordmark, role label, "Admin", … */
     sublabel?: string;
