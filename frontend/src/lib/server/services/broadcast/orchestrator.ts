@@ -18,6 +18,7 @@ import {
 } from '$lib/domain/broadcastVariables';
 import { renderBroadcastEmail } from '$lib/domain/broadcastMarkdown';
 import { daysUntil } from '$lib/server/services/stageContext';
+import { eventDisplayName } from '$lib/domain/event';
 import { resolveRecipients } from './recipients';
 import { getMailProvider } from './providers/mail';
 import { getSmsProvider } from './providers/sms';
@@ -191,7 +192,7 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
       subjectSnapshot: true,
       bodySnapshot: true,
       eventId: true,
-      event: { select: { titre: true, date: true } },
+      event: { select: { titre: true, publicName: true, date: true } },
       // The staff member who enqueued this broadcast. On dev/staging their
       // configured dev-redirect inbox (or login email) is where trapped mail
       // copies land (see `sendMailBatch`), so each tester only sees their own
@@ -338,7 +339,7 @@ type BroadcastForSend = {
   subjectSnapshot: string | null;
   bodySnapshot: string;
   eventId: string | null;
-  event: { titre: string; date: Date } | null;
+  event: { titre: string; publicName: string | null; date: Date } | null;
   /** Null once the creator's account has been deleted. The send itself is
    *  unaffected: this only feeds the per-staff dev-redirect on a trapped
    *  environment, and an absent creator yields no personal destination, which
@@ -626,7 +627,9 @@ function buildContext(
     phone: recipient.recipientPhone,
     campus: recipient.broadcast.campus?.name ?? '',
     email_contact_campus: recipient.broadcast.campus?.contactEmail ?? null,
-    event_name: broadcast.event?.titre ?? null,
+    // The name the talents and their parents know the event by, its public
+    // one, the Salesforce title only for an event that has none (#516).
+    event_name: broadcast.event ? eventDisplayName(broadcast.event) : null,
     // Countdown to the linked event for {{jours_restants}} (e.g. a "le stage
     // commence dans X jours" broadcast). Null for event-less broadcasts, like
     // the other contextual tokens.
