@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { Checkbox } from '$lib/components/ui/checkbox';
-  import ParentSignatureForm from '$lib/components/parent/ParentSignatureForm.svelte';
-  import { track, errReason } from '$lib/analytics';
+  import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
+  import ParentSignatureForm from '#lib/components/parent/ParentSignatureForm.svelte';
+  import { track, errReason } from '#lib/analytics.ts';
 
   interface Props {
     child: {

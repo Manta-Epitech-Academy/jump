@@ -11,9 +11,9 @@
  * the staff behind the calls.
  */
 
-import { prisma } from '$lib/server/db';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import { TRANSPORT_OPERATIONS } from '$lib/server/adminApi/audit';
+import { prisma } from '#lib/server/db.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
+import { TRANSPORT_OPERATIONS } from '#lib/server/adminApi/audit.ts';
 
 /** How far back the log can be read in one call. */
 export const API_USAGE_MAX_DAYS = 180;

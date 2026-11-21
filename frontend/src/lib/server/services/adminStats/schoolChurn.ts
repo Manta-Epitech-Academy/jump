@@ -21,10 +21,10 @@
  * acting on. Both lists are capped and say so.
  */
 
-import { prisma } from '$lib/server/db';
-import { rankLyceesByCohort } from '$lib/server/services/cohortOverview';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+import { prisma } from '#lib/server/db.ts';
+import { rankLyceesByCohort } from '#lib/server/services/cohortOverview.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { cohortWhere, scopeLabels } from './cohort';
 import { DISTINCT_SCHOOLS_RULE } from './schoolsReach';
 

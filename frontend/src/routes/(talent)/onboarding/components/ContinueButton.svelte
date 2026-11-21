@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
 
   // The onboarding step CTA. Every step submits a form and waits on a server
   // round-trip (profile fans out parent emails + resolves the school; rules

@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { requireAdmin, deleteForm } from '$lib/server/feedbackFormsAdmin';
+import { prisma } from '#lib/server/db.ts';
+import { requireAdmin, deleteForm } from '#lib/server/feedbackFormsAdmin.ts';
 
 export interface FormListRow {
   id: string;

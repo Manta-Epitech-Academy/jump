@@ -6,12 +6,12 @@ import type { Prisma } from '@prisma/client';
 import type {
   AuthoredForm,
   AuthoredQuestion,
-} from '$lib/domain/feedbackForms/authoring';
+} from '#lib/domain/feedbackForms/authoring.ts';
 import type {
   IdentityField,
   InputKind,
   QuestionType,
-} from '$lib/domain/feedbackForms/schema';
+} from '#lib/domain/feedbackForms/schema.ts';
 
 const QUESTION_SELECT = {
   sectionId: true,

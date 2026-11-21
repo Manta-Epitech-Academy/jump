@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { metric } from '$lib/server/adminApi/metrics';
-import type { PreparationHorizon } from '$lib/domain/eventReadiness';
+import { metric } from '#lib/server/adminApi/metrics.ts';
+import type { PreparationHorizon } from '#lib/domain/eventReadiness.ts';
 
 const getEventsConfigList = vi.fn();
 const getSyncHealth = vi.fn();
@@ -10,25 +10,25 @@ const getAccountDeletionQueue = vi.fn();
 const getFeatureAdoptionGaps = vi.fn();
 const getEmargementCoverage = vi.fn();
 
-vi.mock('$lib/server/services/adminStats/eventsList', () => ({
+vi.mock('#lib/server/services/adminStats/eventsList.ts', () => ({
   getEventsConfigList: (...args: unknown[]) => getEventsConfigList(...args),
   EVENTS_LIST_LIMIT: 100,
 }));
-vi.mock('$lib/server/services/adminStats/syncHealth', () => ({
+vi.mock('#lib/server/services/adminStats/syncHealth.ts', () => ({
   getSyncHealth: (...args: unknown[]) => getSyncHealth(...args),
 }));
-vi.mock('$lib/server/services/adminStats/dataFreshness', () => ({
+vi.mock('#lib/server/services/adminStats/dataFreshness.ts', () => ({
   getDataFreshness: () => getDataFreshness(),
 }));
-vi.mock('$lib/server/services/adminStats/opsQueues', () => ({
+vi.mock('#lib/server/services/adminStats/opsQueues.ts', () => ({
   getPdfJobsHealth: (...args: unknown[]) => getPdfJobsHealth(...args),
   getAccountDeletionQueue: (...args: unknown[]) =>
     getAccountDeletionQueue(...args),
 }));
-vi.mock('$lib/server/services/adminStats/emargementCoverage', () => ({
+vi.mock('#lib/server/services/adminStats/emargementCoverage.ts', () => ({
   getEmargementCoverage: (...args: unknown[]) => getEmargementCoverage(...args),
 }));
-vi.mock('$lib/server/services/adminStats/featureUsage', () => ({
+vi.mock('#lib/server/services/adminStats/featureUsage.ts', () => ({
   getFeatureAdoptionGaps: () => getFeatureAdoptionGaps(),
 }));
 
@@ -42,10 +42,10 @@ const ledger = {
   recordDigestSend: vi.fn(),
 };
 
-vi.mock('$lib/server/services/adminStats/adminDigestRecipients', () => ({
+vi.mock('#lib/server/services/adminStats/adminDigestRecipients.ts', () => ({
   adminDigestRecipients: () => adminDigestRecipients(),
 }));
-vi.mock('$lib/server/email', () => ({
+vi.mock('#lib/server/email/index.ts', () => ({
   MAIL_FROM: 'jump@example.test',
   sendEmail: (...args: unknown[]) => sendEmail(...args),
 }));

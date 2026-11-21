@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderMarkdown } from '$lib/markdown';
+import { renderMarkdown } from '#lib/markdown.ts';
 import {
   REGLEMENT_VERSIONS,
   CURRENT_REGLEMENT_VERSION,

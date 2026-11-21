@@ -1,7 +1,7 @@
 import type { ClosingRecommendation, Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { gridQuestions, type ClosingGrid } from '$lib/domain/closing';
-import type { ClosingConductForm } from '$lib/validation/closings';
+import { prisma } from '#lib/server/db.ts';
+import { gridQuestions, type ClosingGrid } from '#lib/domain/closing.ts';
+import type { ClosingConductForm } from '#lib/validation/closings.ts';
 import { recomputeAttendance } from './attendance';
 
 /**

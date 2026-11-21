@@ -13,12 +13,12 @@
  * Safe to repeat: it sets the link rather than toggling it.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   EMAIL_ACTIONS,
   missingRequiredVariables,
   type EmailActionKey,
-} from '$lib/domain/emailActions';
+} from '#lib/domain/emailActions.ts';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';

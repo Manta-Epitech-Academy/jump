@@ -28,10 +28,10 @@
  * absent.
  */
 
-import { prisma } from '$lib/server/db';
-import { eventDisplayName } from '$lib/domain/event';
-import type { AnswerPolarity } from '$lib/domain/polarity';
-import { handleProvenanceFr } from '$lib/server/adminApi/handles';
+import { prisma } from '#lib/server/db.ts';
+import { eventDisplayName } from '#lib/domain/event.ts';
+import type { AnswerPolarity } from '#lib/domain/polarity.ts';
+import { handleProvenanceFr } from '#lib/server/adminApi/handles.ts';
 import {
   metric,
   rank,
@@ -40,8 +40,8 @@ import {
   share,
   type Metric,
   type Ranked,
-} from '$lib/server/adminApi/metrics';
-import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
+} from '#lib/server/adminApi/metrics.ts';
+import { UnknownScopeError, type Scope } from '#lib/server/adminApi/scope.ts';
 import { enrolmentKey, scopedEnrolments, scopeLabels } from './cohort';
 
 /** Groups detailed before the answer stops listing them. */

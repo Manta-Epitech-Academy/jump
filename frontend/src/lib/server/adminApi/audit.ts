@@ -11,7 +11,7 @@
  * than a stored counter.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import type { AdminApi_TokenTier, Prisma } from '@prisma/client';
 
 /**

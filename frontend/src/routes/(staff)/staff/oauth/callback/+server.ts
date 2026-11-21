@@ -1,13 +1,13 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   bauthRoleForStaffRole,
   getStaffRoleRedirectPath,
-} from '$lib/domain/staff';
-import { syncMicrosoftAvatar } from '$lib/server/services/microsoftProfile';
-import { consumeRedirectCookie } from '$lib/server/auth/loginRedirect';
+} from '#lib/domain/staff.ts';
+import { syncMicrosoftAvatar } from '#lib/server/services/microsoftProfile.ts';
+import { consumeRedirectCookie } from '#lib/server/auth/loginRedirect.ts';
 
 /**
  * Expire BetterAuth's session-data cookie cache so the next request
@@ -46,14 +46,14 @@ function expireSessionCache(redirectUrl: string): Response {
 
 export const GET: RequestHandler = async ({ locals, cookies }) => {
   if (!locals.user) {
-    throw redirect(303, `${resolve('/staff/login')}?error=OAuthFailed`);
+    throw redirect(303, `${resolve('staff/login')}?error=OAuthFailed`);
   }
 
   const linked = await prisma.bauth_account.count({
     where: { userId: locals.user.id, providerId: 'microsoft' },
   });
   if (linked === 0) {
-    throw redirect(303, `${resolve('/staff/login')}?error=NotStaffAccount`);
+    throw redirect(303, `${resolve('staff/login')}?error=NotStaffAccount`);
   }
 
   const email = locals.user.email.toLowerCase();
@@ -76,7 +76,7 @@ export const GET: RequestHandler = async ({ locals, cookies }) => {
       // The door admitted this sign-in on an invitation that has been withdrawn
       // since, or on a session opened earlier without passing through here.
       // Nothing to undo: the session carries no profile and no staff role.
-      throw redirect(303, `${resolve('/staff/login')}?error=NotInvited`);
+      throw redirect(303, `${resolve('staff/login')}?error=NotInvited`);
     }
 
     const [provisioned] = await prisma.$transaction([
@@ -110,7 +110,7 @@ export const GET: RequestHandler = async ({ locals, cookies }) => {
   const targetPath = getStaffRoleRedirectPath(profile.staffRole);
 
   if (!targetPath) {
-    throw redirect(303, `${resolve('/staff/login')}?error=NoRole`);
+    throw redirect(303, `${resolve('staff/login')}?error=NoRole`);
   }
 
   await syncMicrosoftAvatar(locals.user.id);

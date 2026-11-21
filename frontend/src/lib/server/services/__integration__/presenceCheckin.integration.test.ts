@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { dateKeyToDbDate, toDateKey } from '$lib/domain/eventPresence';
+import { prisma } from '#lib/server/db.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
+import { dateKeyToDbDate, toDateKey } from '#lib/domain/eventPresence.ts';
 import { assertTestDatabase } from './testDatabase';
 
 // The token's signature is not what is under test: it decodes to the créneau it
 // names, so each case below is about what the scan does with a valid one.
-vi.mock('$lib/server/presence/checkinToken', () => ({
+vi.mock('#lib/server/presence/checkinToken.ts', () => ({
   verifyCheckinToken: async (token: string) => JSON.parse(token),
 }));
 

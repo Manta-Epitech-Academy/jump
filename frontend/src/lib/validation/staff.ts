@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { INVITABLE_STAFF_ROLES } from '$lib/domain/permissions';
-import { isStaffEmailAddress } from '$lib/domain/staff';
+import { INVITABLE_STAFF_ROLES } from '#lib/domain/permissions.ts';
+import { isStaffEmailAddress } from '#lib/domain/staff.ts';
 
 const epitechEmail = z
   .email('Adresse email invalide')

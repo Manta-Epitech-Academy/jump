@@ -13,8 +13,8 @@
 </script>
 
 <script lang="ts">
-  import { BROADCAST_STATUS_LABELS } from '$lib/domain/broadcasts';
-  import { cn } from '$lib/utils';
+  import { BROADCAST_STATUS_LABELS } from '#lib/domain/broadcasts.ts';
+  import { cn } from '#lib/utils.ts';
 
   let {
     status,

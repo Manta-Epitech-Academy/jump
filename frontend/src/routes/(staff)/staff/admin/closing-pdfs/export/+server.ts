@@ -1,16 +1,16 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { Zip, ZipPassThrough } from 'fflate';
 import {
   generateClosingPdf,
   closingPdfFilename,
   closingPdfSelect,
-} from '$lib/server/services/closingPdfGenerator';
-import { resolveClosingGrids } from '$lib/server/closingTemplates';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+} from '#lib/server/services/closingPdfGenerator.ts';
+import { resolveClosingGrids } from '#lib/server/closingTemplates.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // Closings are rendered on demand (no stored artifact to fetch, unlike the
 // onboarding export): each PDF is generated through the shared Puppeteer pool,

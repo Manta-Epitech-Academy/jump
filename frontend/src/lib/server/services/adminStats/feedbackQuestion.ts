@@ -23,14 +23,14 @@
  * bucket in memory, which is what `campusComparison` does with participations.
  */
 
-import { prisma } from '$lib/server/db';
-import { eventDisplayName } from '$lib/domain/event';
-import { optionPolarity } from '$lib/domain/polarity';
-import { getFormGraphById } from '$lib/server/feedbackForms';
+import { prisma } from '#lib/server/db.ts';
+import { eventDisplayName } from '#lib/domain/event.ts';
+import { optionPolarity } from '#lib/domain/polarity.ts';
+import { getFormGraphById } from '#lib/server/feedbackForms.ts';
 import {
   buildSubmissionWhere,
   type StatsScope,
-} from '$lib/server/feedbackStats';
+} from '#lib/server/feedbackStats.ts';
 import {
   metric,
   rank,
@@ -39,9 +39,9 @@ import {
   share,
   type Metric,
   type Ranked,
-} from '$lib/server/adminApi/metrics';
-import { handleProvenanceFr } from '$lib/server/adminApi/handles';
-import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
+} from '#lib/server/adminApi/metrics.ts';
+import { handleProvenanceFr } from '#lib/server/adminApi/handles.ts';
+import { UnknownScopeError, type Scope } from '#lib/server/adminApi/scope.ts';
 import { scopedEvents, scopeLabels } from './cohort';
 
 /** Groups detailed before the answer stops listing them. */

@@ -2,17 +2,22 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin } from 'better-auth/plugins/admin';
 import { emailOTP } from 'better-auth/plugins/email-otp';
-import { prisma } from '$lib/server/db';
-import { env } from '$env/dynamic/private';
-import { sendOtpEmail, sendParentOtpEmail } from '$lib/server/otp';
-import { resolveOtpIdentity } from '$lib/server/auth/otpAudience';
-import { emailOtpAudienceGate } from '$lib/server/auth/emailOtpAudienceGate';
-import { staffDoorGate } from '$lib/server/auth/staffDoor';
-import { httpSurface } from '$lib/server/auth/httpSurface';
-import { pinnedMicrosoftTenant } from '$lib/server/auth/microsoftTenant';
-import { IMPERSONATION_IDLE_WINDOW_SEC } from '$lib/domain/impersonation';
+import { prisma } from '#lib/server/db.ts';
+import {
+  MICROSOFT_CLIENT_ID,
+  MICROSOFT_CLIENT_SECRET,
+  MICROSOFT_TENANT_ID,
+  ORIGIN,
+} from '$app/env/private';
+import { sendOtpEmail, sendParentOtpEmail } from '#lib/server/otp.ts';
+import { resolveOtpIdentity } from '#lib/server/auth/otpAudience.ts';
+import { emailOtpAudienceGate } from '#lib/server/auth/emailOtpAudienceGate.ts';
+import { staffDoorGate } from '#lib/server/auth/staffDoor.ts';
+import { httpSurface } from '#lib/server/auth/httpSurface.ts';
+import { pinnedMicrosoftTenant } from '#lib/server/auth/microsoftTenant.ts';
+import { IMPERSONATION_IDLE_WINDOW_SEC } from '#lib/domain/impersonation.ts';
 import { resolve } from '$app/paths';
-import { building, dev } from '$app/environment';
+import { building, dev } from '$app/env';
 
 // Microsoft provider overrides, and only those: the one thing an integration
 // test needs to change is where the provider's token/authorize endpoints
@@ -77,20 +82,20 @@ export function createAuthOptions(
   return {
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
 
-    baseURL: env.ORIGIN!,
-    basePath: resolve('/api/auth'),
+    baseURL: ORIGIN!,
+    basePath: resolve('api/auth'),
 
     socialProviders: {
       microsoft: {
-        clientId: env.MICROSOFT_CLIENT_ID!,
-        clientSecret: env.MICROSOFT_CLIENT_SECRET!,
+        clientId: MICROSOFT_CLIENT_ID!,
+        clientSecret: MICROSOFT_CLIENT_SECRET!,
         // Refuses to boot unless pinned to one directory, which is what lets
         // the address below be trusted (see the module). Not while `building`:
         // `vite build` evaluates this module with no runtime env, and the
         // instance it builds never serves.
         tenantId: building
           ? undefined
-          : pinnedMicrosoftTenant(env.MICROSOFT_TENANT_ID),
+          : pinnedMicrosoftTenant(MICROSOFT_TENANT_ID),
         // These four and nothing else. The provider's defaults add
         // `offline_access`, which makes Microsoft issue a refresh token, stored
         // in `bauth_account` and outliving any session it was read through.
@@ -207,11 +212,11 @@ export function createAuthOptions(
     // `/staff/login` is the right destination for every one of them only because
     // the staff door is the only OAuth door: talents sign in by OTP. Adding a
     // talent OAuth door means giving this a second answer.
-    onAPIError: { errorURL: resolve('/staff/login') },
+    onAPIError: { errorURL: resolve('staff/login') },
 
     trustedOrigins: dev
-      ? [env.ORIGIN!, 'http://localhost:5173', 'http://localhost:3030']
-      : [env.ORIGIN!],
+      ? [ORIGIN!, 'http://localhost:5173', 'http://localhost:3030']
+      : [ORIGIN!],
   };
 }
 

@@ -1,6 +1,6 @@
-import type { ClosingsRoster } from '$lib/domain/closingsRoster';
+import type { ClosingsRoster } from '#lib/domain/closingsRoster.ts';
 
-export type { ClosingRow } from '$lib/domain/closingsRoster';
+export type { ClosingRow } from '#lib/domain/closingsRoster.ts';
 
 /** One staff member with the number of closings they conducted, for the
  *  "Closings menés" leaderboard. */

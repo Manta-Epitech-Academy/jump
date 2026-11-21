@@ -1,16 +1,16 @@
 <script lang="ts">
   import CalendarX from '@lucide/svelte/icons/calendar-x';
   import { resolve } from '$app/paths';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import CampusYearGrid from '$lib/components/calendar/CampusYearGrid.svelte';
-  import CampusEventList from '$lib/components/calendar/CampusEventList.svelte';
-  import CampusCalendarLegend from '$lib/components/calendar/CampusCalendarLegend.svelte';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import CampusYearGrid from '#lib/components/calendar/CampusYearGrid.svelte';
+  import CampusEventList from '#lib/components/calendar/CampusEventList.svelte';
+  import CampusCalendarLegend from '#lib/components/calendar/CampusCalendarLegend.svelte';
   import CalendarViewToggle, {
     type CampusCalendarView,
-  } from '$lib/components/calendar/CalendarViewToggle.svelte';
-  import { selectedEvent } from '$lib/components/dev/selectedEvent';
-  import { eventSurfacePath } from '$lib/domain/eventModules';
+  } from '#lib/components/calendar/CalendarViewToggle.svelte';
+  import { selectedEvent } from '#lib/components/dev/selectedEvent.ts';
+  import { eventSurfacePath } from '#lib/domain/eventModules.ts';
 
   let { data } = $props();
 

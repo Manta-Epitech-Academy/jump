@@ -30,8 +30,7 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 // Inlined from `normalizePhoneToE164` in `src/lib/domain/phone.ts` so the
 // script can run inside the production image, which only ships the built app
-// (no raw `src/`, and the `$lib` alias resolves only under Vite). Keep in sync
-// by inspection: the logic is small and pure. Collapses any parseable shape to
+// (no raw `src/`). Keep in sync by inspection: the logic is small and pure. Collapses any parseable shape to
 // canonical E.164 ("+33765719823"), parsing as international first then as a
 // French national number; returns null for genuine junk (left untouched below).
 const DEFAULT_REGION = 'FR';

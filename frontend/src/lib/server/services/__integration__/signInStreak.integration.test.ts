@@ -16,10 +16,10 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { recordSignInDay } from '$lib/server/services/signInStreak';
-import { anonymizeTalent } from '$lib/server/services/anonymizationService';
-import { dateKeyToDbDate, dbDateToKey } from '$lib/domain/eventPresence';
+import { prisma } from '#lib/server/db.ts';
+import { recordSignInDay } from '#lib/server/services/signInStreak.ts';
+import { anonymizeTalent } from '#lib/server/services/anonymizationService.ts';
+import { dateKeyToDbDate, dbDateToKey } from '#lib/domain/eventPresence.ts';
 import { assertTestDatabase } from './testDatabase';
 
 const stamp = Date.now();

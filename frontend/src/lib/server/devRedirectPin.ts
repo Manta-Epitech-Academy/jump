@@ -1,6 +1,6 @@
 import type { RequestEvent } from '@sveltejs/kit';
-import { outboundTrapped } from '$lib/server/outbound';
-import { parseCookieToken, signCookieToken } from '$lib/server/signedCookie';
+import { outboundTrapped } from '#lib/server/outbound.ts';
+import { parseCookieToken, signCookieToken } from '#lib/server/signedCookie.ts';
 
 /**
  * Dev-redirect pin: a runtime way to test the *logged-out* OTP login flow.

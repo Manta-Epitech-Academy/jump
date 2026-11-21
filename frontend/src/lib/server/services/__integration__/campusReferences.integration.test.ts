@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { CAMPUS_REFERENCES } from '$lib/server/adminApi/writes/campuses';
+import { CAMPUS_REFERENCES } from '#lib/server/adminApi/writes/campuses.ts';
 import { loadDatamodel } from '../../../../../scripts/seed/schema';
 import { assertTestDatabase } from './testDatabase';
 

@@ -10,15 +10,15 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { AdminEventVM } from '$lib/server/services/events';
+import type { AdminEventVM } from '#lib/server/services/events.ts';
 
 const listAdminEvents = vi.fn();
-vi.mock('$lib/server/services/events', () => ({
+vi.mock('#lib/server/services/events.ts', () => ({
   EventService: { listAdminEvents: () => listAdminEvents() },
 }));
 
 const participationGroupBy = vi.fn();
-vi.mock('$lib/server/db', () => ({
+vi.mock('#lib/server/db.ts', () => ({
   prisma: {
     participation: { groupBy: (args: unknown) => participationGroupBy(args) },
   },

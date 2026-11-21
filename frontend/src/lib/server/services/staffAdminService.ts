@@ -14,8 +14,8 @@
  */
 
 import { Prisma, type StaffRole } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { staffRoles, bauthRoleForStaffRole } from '$lib/domain/staff';
+import { prisma } from '#lib/server/db.ts';
+import { staffRoles, bauthRoleForStaffRole } from '#lib/domain/staff.ts';
 import type { ServiceResult } from './result';
 
 export type InviteStaffFailure =

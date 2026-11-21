@@ -1,4 +1,4 @@
-import type { SubmitFunction } from '@sveltejs/kit';
+import type { SubmitFunction } from '$app/forms';
 
 /**
  * Shared submit behaviour for every onboarding step form (and the go-back form).

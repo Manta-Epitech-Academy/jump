@@ -1,10 +1,10 @@
 <script lang="ts">
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import EventCategoryChip from '$lib/components/events/EventCategoryChip.svelte';
-  import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import { cn } from '$lib/utils';
-  import type { CampusCalendar } from '$lib/domain/campusCalendar';
+  import EventCategoryChip from '#lib/components/events/EventCategoryChip.svelte';
+  import SalesforceIcon from '#lib/components/icons/SalesforceIcon.svelte';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import { cn } from '#lib/utils.ts';
+  import type { CampusCalendar } from '#lib/domain/campusCalendar.ts';
   import CalendarEventStatus from './CalendarEventStatus.svelte';
 
   // The list view of the 2027 mockup: the school year's events by date, grouped

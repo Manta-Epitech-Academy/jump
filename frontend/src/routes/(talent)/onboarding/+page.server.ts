@@ -1,7 +1,7 @@
 import { redirect, error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   identitySchema,
   schoolSchema,
@@ -10,38 +10,38 @@ import {
   equipmentSchema,
   rulesSchema,
   rulesSchemaWithoutCharter,
-} from '$lib/validation/onboarding';
-import { sendParentWelcomeEmail } from '$lib/server/otp';
-import { resolveSchoolByUai } from '$lib/server/services/schoolService';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
-import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
+} from '#lib/validation/onboarding.ts';
+import { sendParentWelcomeEmail } from '#lib/server/otp.ts';
+import { resolveSchoolByUai } from '#lib/server/services/schoolService.ts';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
+import { upsertSchoolingYearRecord } from '#lib/server/services/schoolingService.ts';
 import {
   getOnboardingStep,
   onboardingFieldsForYear,
-} from '$lib/domain/talentOnboarding';
+} from '#lib/domain/talentOnboarding.ts';
 import {
   lockTalent,
   patchCurrentOnboardingRecord,
   type OnboardingRecordPatch,
-} from '$lib/server/services/onboardingYearService';
-import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
-import { claimAttempt } from '$lib/server/auth/rateLimiter';
+} from '#lib/server/services/onboardingYearService.ts';
+import { runOnboardingPdfJob } from '#lib/server/services/onboardingPdfJobService.ts';
+import { claimAttempt } from '#lib/server/auth/rateLimiter.ts';
 import {
   isParentLoginRace,
   setParentLogin,
   type SetParentLoginResult,
-} from '$lib/server/services/parentAccount';
+} from '#lib/server/services/parentAccount.ts';
 import {
   offeredInterestSelection,
   validateTalentInterests,
   signOnboardingRules,
-} from '$lib/server/services/onboardingService';
-import { offeredInterestWhere } from '$lib/domain/interests';
+} from '#lib/server/services/onboardingService.ts';
+import { offeredInterestWhere } from '#lib/domain/interests.ts';
 import {
   captureOnboardingReturn,
   consumeOnboardingReturn,
-} from '$lib/server/auth/loginRedirect';
-import { signalArrivalCelebration } from '$lib/server/talent/arrivalCelebration';
+} from '#lib/server/auth/loginRedirect.ts';
+import { signalArrivalCelebration } from '#lib/server/talent/arrivalCelebration.ts';
 
 export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (!locals.talent) {
@@ -57,7 +57,7 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   const step = getOnboardingStep(dossier);
 
   if (!step) {
-    throw redirect(303, resolve('/'));
+    throw redirect(303, resolve(''));
   }
 
   // Stash the page the talent was heading for when a guard bounced them here
@@ -585,7 +585,7 @@ export const actions: Actions = {
     // Not at the rules step: a stale tab, a second submit, or a crafted POST.
     // The wizard's `load` resumes at the step actually owed, or sends a talent
     // who has just finished to the dashboard, so there is nothing to say here.
-    if (!signed.ok) throw redirect(303, resolve('/onboarding'));
+    if (!signed.ok) throw redirect(303, resolve('onboarding'));
 
     // Generate the PDF + upload to S3 in the background: NOT awaited, so the
     // student reaches the dashboard immediately and the file lands a few seconds
@@ -601,6 +601,6 @@ export const actions: Actions = {
     // means the welcome guard won't re-intercept either redirect.
     signalArrivalCelebration(cookies);
     const resume = consumeOnboardingReturn(cookies);
-    throw redirect(303, resume ?? resolve('/'));
+    throw redirect(303, resume ?? resolve(''));
   },
 };

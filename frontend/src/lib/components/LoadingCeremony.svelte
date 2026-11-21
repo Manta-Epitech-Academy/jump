@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { fade } from '$lib/motion';
-  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import { fade } from '#lib/motion/index.ts';
+  import EpitechLogo from '#lib/components/layout/EpitechLogo.svelte';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
 
   // Full-screen "ceremony" overlay for long-running, once-in-a-while staff
   // actions (the first being the end-of-stage diploma generation, ~15-20s on a

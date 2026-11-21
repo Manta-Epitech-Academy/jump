@@ -1,8 +1,9 @@
-import { defineListView, type SortedListView } from '$lib/domain/listView';
+import type { ListParams } from '#lib/domain/listView.ts';
+import { defineListView, type SortedListView } from '#lib/domain/listView.ts';
 
 /**
  * The notes gallery's view, in the address every staff list shares
- * (`$lib/domain/listView`). Client-safe, unlike `./query`: the page reads it to
+ * (`#lib/domain/listView`). Client-safe, unlike `./query`: the page reads it to
  * write its filters and sort, the server to read them back.
  *
  * Who wrote the note (`auteur`, a staff profile id, `aucun` for an author whose
@@ -36,7 +37,7 @@ export type NoteFilters = SortedListView<NotesFacet, NotesSortKey> & {
 };
 
 /** Parse the gallery filters off the URL; nothing in it can break the read. */
-export function parseNoteFilters(params: URLSearchParams): NoteFilters {
+export function parseNoteFilters(params: ListParams): NoteFilters {
   return {
     ...NOTES_VIEW.parse(params),
     q: (params.get('q') ?? '').trim(),

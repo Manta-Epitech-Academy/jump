@@ -1,10 +1,10 @@
-import { error, json } from '@sveltejs/kit';
-import { dev } from '$app/environment';
+import { error } from '@sveltejs/kit';
+import { dev } from '$app/env';
 import {
   DEV_PHASE_OVERRIDE_COOKIE,
   isDevImpersonation,
   isDevPhaseOverride,
-} from '$lib/server/devPhaseOverride';
+} from '#lib/server/devPhaseOverride.ts';
 import type { RequestHandler } from './$types';
 
 const COOKIE_PATH = '/staff/dev';
@@ -15,7 +15,7 @@ const COOKIE_MAX_AGE = 60 * 60 * 8; // 8h, long enough for a working session
  * sessions targeting a dev/superdev account; readers (`hooks.server.ts`)
  * re-validate, but we refuse to even write the cookie when the gate fails.
  *
- * Returns a small JSON payload so the caller can `fetch()` + `invalidateAll()`
+ * Returns a small JSON payload so the caller can `fetch()` + `refreshAll()`
  * without a full-page navigation. We deliberately avoid SvelteKit's form-action
  * + `use:enhance` flow because this endpoint lives outside any page route.
  */
@@ -29,7 +29,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 
   if (raw === '') {
     cookies.delete(DEV_PHASE_OVERRIDE_COOKIE, { path: COOKIE_PATH });
-    return json({ override: null });
+    return Response.json({ override: null });
   }
 
   if (!isDevPhaseOverride(raw)) {
@@ -43,5 +43,5 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
     sameSite: 'lax',
     maxAge: COOKIE_MAX_AGE,
   });
-  return json({ override: raw });
+  return Response.json({ override: raw });
 };

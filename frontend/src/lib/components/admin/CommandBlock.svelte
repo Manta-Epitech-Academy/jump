@@ -12,7 +12,7 @@
    * `<pre>` already refuses to wrap on its own, so the rule here is the
    * container, not a whitespace class.
    */
-  import CopyButton from '$lib/components/ui/CopyButton.svelte';
+  import CopyButton from '#lib/components/ui/CopyButton.svelte';
 
   type Props = {
     label: string;

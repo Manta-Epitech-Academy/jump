@@ -1354,7 +1354,7 @@ export function isUsageFeatureKey(value: string): value is UsageFeatureKey {
  * `record.test.ts` pins each of those three.
  *
  * Here in the domain rather than beside the recorder because it has a second
- * caller that cannot reach `$lib/server`: the seed generator, which has to write
+ * caller that cannot reach `#lib/server`: the seed generator, which has to write
  * rows the recorder would recognise. It restated the shape instead, in a
  * different separator and with no time component at all, which capped a seeded
  * member at one row per feature - so their connection count could never exceed

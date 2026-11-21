@@ -13,15 +13,15 @@
  */
 
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   decideSync,
   pendingRequests,
   type SyncCadence,
   type SyncDecision,
   type SyncRequests,
-} from '$lib/domain/syncSchedule';
-import type { WorkerConfigAnswer } from '$lib/validation/workerSync';
+} from '#lib/domain/syncSchedule.ts';
+import type { WorkerConfigAnswer } from '#lib/validation/workerSync.ts';
 import { lastOkRun } from './syncRunService';
 
 /**

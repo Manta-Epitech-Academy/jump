@@ -1,16 +1,16 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { csvResponse } from '$lib/server/csv';
-import { requireAdmin } from '$lib/server/feedbackFormsAdmin';
-import { getFormGraphById } from '$lib/server/feedbackForms';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { prisma } from '#lib/server/db.ts';
+import { csvResponse } from '#lib/server/csv.ts';
+import { requireAdmin } from '#lib/server/feedbackFormsAdmin.ts';
+import { getFormGraphById } from '#lib/server/feedbackForms.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 import {
   answerCells,
   buildSubmissionWhere,
   eventAxisScope,
-} from '$lib/server/feedbackStats';
+} from '#lib/server/feedbackStats.ts';
 
 export const GET: RequestHandler = async ({ params, url, locals }) => {
   recordUsage(USAGE_FEATURES.ADMIN_FEEDBACK_RESPONSES_EXPORT, { locals });

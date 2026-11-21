@@ -1,13 +1,13 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireStaffGroup } from '$lib/server/auth/guards';
-import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { guardiansOf, type ContactPerson } from '$lib/domain/contact';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { requireStaffGroup } from '#lib/server/auth/guards.ts';
+import { getCampusId, scopedPrisma } from '#lib/server/db/scoped.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { guardiansOf, type ContactPerson } from '#lib/domain/contact.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
   requireStaffGroup(locals, 'devMember');
@@ -60,7 +60,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
     eventId: params.id,
   });
 
-  return json({
+  return Response.json({
     student: {
       civilite: t.civilite,
       prenom: t.prenom,

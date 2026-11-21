@@ -1,28 +1,28 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { browser } from '$app/environment';
+  import { browser } from '$app/env';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
   import { superForm } from 'sveltekit-superforms';
-  import { Button, buttonVariants } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import PhoneInput from '$lib/components/ui/phone-input/PhoneInput.svelte';
-  import { Label } from '$lib/components/ui/label';
-  import * as RadioGroup from '$lib/components/ui/radio-group';
-  import * as Collapsible from '$lib/components/ui/collapsible';
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import PhoneInput from '#lib/components/ui/phone-input/PhoneInput.svelte';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
+  import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
+  import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
   import Plus from '@lucide/svelte/icons/plus';
   import Send from '@lucide/svelte/icons/send';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import SegmentedFilter from '#lib/components/staff/SegmentedFilter.svelte';
   import SearchableSelect, {
     type SelectOption,
-  } from '$lib/components/staff/SearchableSelect.svelte';
-  import MessageBodyEditor from '$lib/components/admin/broadcasts/MessageBodyEditor.svelte';
-  import MessagePreview from '$lib/components/admin/broadcasts/MessagePreview.svelte';
-  import BroadcastFilters from '$lib/components/admin/broadcasts/BroadcastFilters.svelte';
-  import RecipientsPanel from '$lib/components/admin/broadcasts/RecipientsPanel.svelte';
+  } from '#lib/components/staff/SearchableSelect.svelte';
+  import MessageBodyEditor from '#lib/components/admin/broadcasts/MessageBodyEditor.svelte';
+  import MessagePreview from '#lib/components/admin/broadcasts/MessagePreview.svelte';
+  import BroadcastFilters from '#lib/components/admin/broadcasts/BroadcastFilters.svelte';
+  import RecipientsPanel from '#lib/components/admin/broadcasts/RecipientsPanel.svelte';
   import {
     BROADCAST_AUDIENCES,
     BROADCAST_AUDIENCE_LABELS,
@@ -31,9 +31,9 @@
     countActiveBroadcastFilters,
     type IncludedRecipient,
     type ExcludedRecipient,
-  } from '$lib/domain/broadcasts';
-  import { broadcastFiltersSchema } from '$lib/validation/broadcasts';
-  import { cn } from '$lib/utils';
+  } from '#lib/domain/broadcasts.ts';
+  import { broadcastFiltersSchema } from '#lib/validation/broadcasts.ts';
+  import { cn } from '#lib/utils.ts';
 
   let { data } = $props();
 

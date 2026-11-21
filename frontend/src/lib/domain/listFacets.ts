@@ -18,7 +18,7 @@
  *   filter**, since it could not narrow the list; its param is ignored.
  * - **In the address, one param per facet, values comma-joined**, ids or enum
  *   keys and never labels, `aucun` for "not filled in". The default view writes
- *   nothing (`$lib/domain/listView`).
+ *   nothing (`#lib/domain/listView`).
  *
  * Who counts is the only thing that differs between lists. A list held whole
  * in memory counts its rows (`listFacets`, through `countFacet`); a list paged

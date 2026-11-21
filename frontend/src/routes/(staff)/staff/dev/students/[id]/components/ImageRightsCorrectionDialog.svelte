@@ -8,15 +8,15 @@
   import { toast } from 'svelte-sonner';
   import Check from '@lucide/svelte/icons/check';
   import X from '@lucide/svelte/icons/x';
-  import * as Dialog from '$lib/components/ui/dialog';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import { Textarea } from '$lib/components/ui/textarea';
-  import { Separator } from '$lib/components/ui/separator';
-  import { cn, formatDateFr } from '$lib/utils';
-  import { IMAGE_RIGHTS_STATUS_LABELS } from '$lib/domain/imageRights';
-  import type { ImageRightsCorrectionSchema } from '$lib/validation/imageRights';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { Textarea } from '#lib/components/ui/textarea/index.ts';
+  import { Separator } from '#lib/components/ui/separator/index.ts';
+  import { cn, formatDateFr } from '#lib/utils.ts';
+  import { IMAGE_RIGHTS_STATUS_LABELS } from '#lib/domain/imageRights.ts';
+  import type { ImageRightsCorrectionSchema } from '#lib/validation/imageRights.ts';
 
   // History row as projected by the page load (staff name flattened).
   type RecordVM = {

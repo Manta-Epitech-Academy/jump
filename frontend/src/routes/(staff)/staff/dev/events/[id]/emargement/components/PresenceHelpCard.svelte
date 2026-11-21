@@ -3,8 +3,8 @@
   import QrCode from '@lucide/svelte/icons/qr-code';
   import MousePointerClick from '@lucide/svelte/icons/mouse-pointer-click';
   import Lock from '@lucide/svelte/icons/lock';
-  import * as Card from '$lib/components/ui/card';
-  import { cohortNounForms } from '$lib/domain/event';
+  import * as Card from '#lib/components/ui/card/index.ts';
+  import { cohortNounForms } from '#lib/domain/event.ts';
 
   let { cohortNoun }: { cohortNoun: string | null } = $props();
   const noun = $derived(cohortNounForms(cohortNoun));

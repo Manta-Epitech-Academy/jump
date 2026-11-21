@@ -1,7 +1,7 @@
 <script lang="ts">
   import Search from '@lucide/svelte/icons/search';
-  import { Input } from '$lib/components/ui/input';
-  import { cn } from '$lib/utils';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { cn } from '#lib/utils.ts';
 
   // A list's search box, alone: `DataTableToolbar` renders it above a table,
   // and the event lists put it on their title's line (`TitleLineSearch`).

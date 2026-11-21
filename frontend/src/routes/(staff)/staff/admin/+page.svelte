@@ -6,16 +6,16 @@
   import RefreshCw from '@lucide/svelte/icons/refresh-cw';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import * as Card from '$lib/components/ui/card';
-  import { Badge } from '$lib/components/ui/badge';
-  import EventStateBadge from '$lib/components/events/EventStateBadge.svelte';
-  import EventModulesCell from '$lib/components/events/EventModulesCell.svelte';
+  import * as Card from '#lib/components/ui/card/index.ts';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import EventStateBadge from '#lib/components/events/EventStateBadge.svelte';
+  import EventModulesCell from '#lib/components/events/EventModulesCell.svelte';
   import { resolve } from '$app/paths';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 
-  const eventsHref = resolve('/staff/admin/events');
+  const eventsHref = resolve('staff/admin/events');
 
   // One event on the cockpit: its campus and its name, over every period. A
   // name alone repeats across campuses ("Stage de Seconde" names fifteen).
@@ -79,7 +79,7 @@
     </Card.Root>
 
     <a
-      href={resolve('/staff/admin/users')}
+      href={resolve('staff/admin/users')}
       class="block transition-ui active:translate-y-px"
     >
       <Card.Root
@@ -102,7 +102,7 @@
     </a>
 
     <a
-      href={resolve('/staff/admin/talents')}
+      href={resolve('staff/admin/talents')}
       class="block transition-ui active:translate-y-px"
     >
       <Card.Root

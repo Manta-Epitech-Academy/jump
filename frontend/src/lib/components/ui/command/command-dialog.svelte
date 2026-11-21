@@ -5,8 +5,8 @@
   } from 'bits-ui';
   import type { Snippet } from 'svelte';
   import Command from './command.svelte';
-  import * as Dialog from '$lib/components/ui/dialog/index.js';
-  import type { WithoutChildrenOrChild } from '$lib/utils.js';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import type { WithoutChildrenOrChild } from '#lib/utils.ts';
 
   let {
     open = $bindable(false),

@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { reachRulesStep } from './onboardingLadder';
 import {
   CURRENT_REGLEMENT_VERSION,
   LEGACY_REGLEMENT_VERSION,
-} from '$lib/content/reglement';
+} from '#lib/content/reglement/index.ts';
 
 // The two services under test enqueue a PDF job inside their transaction, which
 // is part of what we assert. `recordParentRulesSignature` additionally fires the

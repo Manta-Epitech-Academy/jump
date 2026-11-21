@@ -2,14 +2,14 @@
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
-  import { Button } from '$lib/components/ui/button';
-  import { Checkbox } from '$lib/components/ui/checkbox';
-  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
-  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
-  import BrandBackdrop from '$lib/components/layout/BrandBackdrop.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
+  import EpitechLogo from '#lib/components/layout/EpitechLogo.svelte';
+  import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
+  import BrandBackdrop from '#lib/components/layout/BrandBackdrop.svelte';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
-  import { CHARTE_INFORMATIQUE_BODY } from '$lib/content/charteInformatique';
+  import { CHARTE_INFORMATIQUE_BODY } from '#lib/content/charteInformatique.ts';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -29,7 +29,7 @@
   <!-- Header: logo in the top bar, matching /welcome and the onboarding pages -->
   <header class="relative z-10 shrink-0 border-b border-border/50 bg-muted">
     <div class="mx-auto flex w-full max-w-lg items-center px-4 py-3">
-      <a href={resolve('/')} aria-label="Accueil">
+      <a href={resolve('')} aria-label="Accueil">
         <EpitechLogo class="h-7 w-auto" />
       </a>
     </div>

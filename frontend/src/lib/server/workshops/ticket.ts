@@ -27,7 +27,7 @@
  */
 
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
-import { formatPeerName } from '$lib/domain/profile';
+import { formatPeerName } from '#lib/domain/profile.ts';
 
 /** Every ticket Jump mints lives this long, and the plugin refuses a longer one. */
 export const WORKSHOP_TICKET_TTL_SECONDS = 120;

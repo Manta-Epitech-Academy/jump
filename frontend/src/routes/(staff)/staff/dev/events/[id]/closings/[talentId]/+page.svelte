@@ -2,12 +2,12 @@
   import { resolve } from '$app/paths';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import type { PageData } from './$types';
-  import TalentPersonHeader from '$lib/components/students/TalentPersonHeader.svelte';
-  import ClosingFlow from '$lib/components/dev/closings/ClosingFlow.svelte';
-  import ClosingSectionNav from '$lib/components/dev/closings/ClosingSectionNav.svelte';
-  import { eventDisplayName } from '$lib/domain/event';
-  import { cn } from '$lib/utils';
-  import { talentFicheHref } from '$lib/components/dev/talentFiche';
+  import TalentPersonHeader from '#lib/components/students/TalentPersonHeader.svelte';
+  import ClosingFlow from '#lib/components/dev/closings/ClosingFlow.svelte';
+  import ClosingSectionNav from '#lib/components/dev/closings/ClosingSectionNav.svelte';
+  import { eventDisplayName } from '#lib/domain/event.ts';
+  import { cn } from '#lib/utils.ts';
+  import { talentFicheHref } from '#lib/components/dev/talentFiche.ts';
   import type { ClosingStatus } from '@prisma/client';
 
   let { data }: { data: PageData } = $props();
@@ -39,7 +39,7 @@
        carrying two buttons and nothing else. -->
   {#if isDone}
     <a
-      href={resolve(`/staff/dev/events/${data.event.id}/closings`)}
+      href={resolve(`staff/dev/events/${data.event.id}/closings`)}
       class="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
     >
       <ArrowLeft class="h-4 w-4 shrink-0" />
@@ -77,7 +77,7 @@
         conductedLabel={data.conductedLabel}
         conductedBy={data.conductedBy}
         conductedByImage={data.conductedByImage}
-        closingsHref={resolve(`/staff/dev/events/${data.event.id}/closings`)}
+        closingsHref={resolve(`staff/dev/events/${data.event.id}/closings`)}
         bind:status
         bind:step
       />
@@ -92,7 +92,7 @@
           <!-- The way back only. The fiche is reached from the header, which is
                where the person is, rather than from two places at once. -->
           <a
-            href={resolve(`/staff/dev/events/${data.event.id}/closings`)}
+            href={resolve(`staff/dev/events/${data.event.id}/closings`)}
             class="flex cursor-pointer items-center gap-2 rounded-sm border bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/40"
           >
             <ArrowLeft class="h-4 w-4 shrink-0 text-muted-foreground" />

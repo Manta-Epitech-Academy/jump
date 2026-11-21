@@ -4,10 +4,10 @@
   import IdCard from '@lucide/svelte/icons/id-card';
   import Smile from '@lucide/svelte/icons/smile';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { Button } from '$lib/components/ui/button';
-  import * as Dialog from '$lib/components/ui/dialog';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import { ACTION_TILE_CLASS } from '$lib/components/events/actionTile';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import { ACTION_TILE_CLASS } from '#lib/components/events/actionTile.ts';
   import DocumentPreview from './DocumentPreview.svelte';
 
   // « Générer badges »: the printed name badges of every inscrit of the event
@@ -44,7 +44,7 @@
       // `&t=` defeats Cloudflare's cache-by-extension on `.pdf`, `no-store`
       // the browser cache.
       const res = await fetch(
-        `${resolve(`/staff/dev/events/${eventId}/badges.pdf`)}?mode=${mode}&t=${Date.now()}`,
+        `${resolve(`staff/dev/events/${eventId}/badges.pdf`)}?mode=${mode}&t=${Date.now()}`,
         { cache: 'no-store' },
       );
       if (!res.ok) throw new Error(`Badges failed: ${res.status}`);
@@ -91,7 +91,7 @@
   </Tooltip.Trigger>
   <Tooltip.Content>
     <DocumentPreview
-      src={resolve(`/staff/dev/events/${eventId}/badges.png`)}
+      src={resolve(`staff/dev/events/${eventId}/badges.png`)}
       alt="Aperçu d'un badge"
       aspectClass="aspect-[99/63]"
       caption={`Aperçu · ${count} ${count > 1 ? 'badges' : 'badge'} à générer`}

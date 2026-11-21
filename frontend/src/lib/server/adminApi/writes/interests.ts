@@ -14,8 +14,8 @@
  * takes the next position of its kind only when it is created.
  */
 
-import { prisma } from '$lib/server/db';
-import { INTEREST_KINDS, type InterestKind } from '$lib/domain/interests';
+import { prisma } from '#lib/server/db.ts';
+import { INTEREST_KINDS, type InterestKind } from '#lib/domain/interests.ts';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';

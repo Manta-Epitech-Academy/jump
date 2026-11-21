@@ -1,17 +1,17 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { generateDiplomasPDF } from '$lib/server/services/diplomaGenerator';
+import { getCampusId, scopedPrisma } from '#lib/server/db/scoped.ts';
+import { requireStaffGroup } from '#lib/server/auth/guards.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { generateDiplomasPDF } from '#lib/server/services/diplomaGenerator.ts';
 import {
   loadEventCertificateContext,
   resolveEventDiplomaDesign,
-} from '$lib/server/diplomaTemplates';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+} from '#lib/server/diplomaTemplates.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // Generates whichever certificate this event issues, for every talent registered
 // to it (no selection, all inscrits), one page per student. Campus-scoped via

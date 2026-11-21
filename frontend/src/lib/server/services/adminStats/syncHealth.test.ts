@@ -9,10 +9,10 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   explainSyncError,
   type SyncErrorSituation,
-} from '$lib/domain/syncError';
-import type { OpenSyncError } from '$lib/server/services/syncErrorQueue';
+} from '#lib/domain/syncError.ts';
+import type { OpenSyncError } from '#lib/server/services/syncErrorQueue.ts';
 
-vi.mock('$lib/server/db', () => ({ prisma: {} }));
+vi.mock('#lib/server/db.ts', () => ({ prisma: {} }));
 
 const { errorSituations } = await import('./syncHealth');
 

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { Label } from '$lib/components/ui/label';
-  import { Textarea } from '$lib/components/ui/textarea';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import { Button } from '$lib/components/ui/button';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { Textarea } from '#lib/components/ui/textarea/index.ts';
+  import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import Bold from '@lucide/svelte/icons/bold';
   import Italic from '@lucide/svelte/icons/italic';
   import Heading from '@lucide/svelte/icons/heading';
@@ -13,15 +13,15 @@
   import MousePointerClick from '@lucide/svelte/icons/mouse-pointer-click';
   import Braces from '@lucide/svelte/icons/braces';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import { BROADCAST_VARIABLES } from '$lib/domain/broadcasts';
+  import { BROADCAST_VARIABLES } from '#lib/domain/broadcasts.ts';
   import {
     SMS_SINGLE_SEGMENT_CHARS,
     SMS_BROADCAST_MAX_CHARS,
     SMS_MAX_SEGMENTS,
     estimateSmsLength,
     smsSegments,
-  } from '$lib/domain/sms';
-  import { cn } from '$lib/utils';
+  } from '#lib/domain/sms.ts';
+  import { cn } from '#lib/utils.ts';
 
   type Props = {
     /** Bindable markdown/plain body. Optional so callers whose form field is

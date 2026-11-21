@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { stopImpersonation } from '$lib/server/auth/impersonate';
+import { stopImpersonation } from '#lib/server/auth/impersonate.ts';
 
 // Ends an admin impersonation and puts the admin's own session back. Lives
 // under `/api` so the impersonated session, a talent's or a dev's, reaches it:

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { OperationRefusedError } from '$lib/server/adminApi/errors';
+import { OperationRefusedError } from '#lib/server/adminApi/errors.ts';
 
-vi.mock('$lib/server/db', () => ({ prisma: {} }));
+vi.mock('#lib/server/db.ts', () => ({ prisma: {} }));
 
 const { foldByFeature, foldByFeatureCampus, usageWindowFor } =
   await import('./read');

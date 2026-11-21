@@ -14,7 +14,7 @@
 import { prisma } from './db';
 import { E2E, E2E_DOMAIN } from './identities';
 // The real domain helpers, imported across the tree rather than restated here.
-// All are pure (no `$lib` import, no Prisma), so they resolve fine outside Vite,
+// All are pure (no SvelteKit module, no Prisma), so they resolve fine outside Vite,
 // and a fixture that re-derived the school-year cutover would be a second copy of
 // the rule the guard reads.
 import { currentSchoolYearLabel } from '../../../src/lib/domain/schoolYear';

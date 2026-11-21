@@ -10,16 +10,19 @@
  */
 
 import type { Sync_ErrorKind } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { loadAddressDirectory } from '$lib/server/services/authIdentityService';
-import { foldForSearch } from '$lib/components/staff/datatable/search';
-import { actionForVerdict, type AccountNature } from '$lib/domain/authIdentity';
+import { prisma } from '#lib/server/db.ts';
+import { loadAddressDirectory } from '#lib/server/services/authIdentityService.ts';
+import { foldForSearch } from '#lib/components/staff/datatable/search.ts';
+import {
+  actionForVerdict,
+  type AccountNature,
+} from '#lib/domain/authIdentity.ts';
 import {
   explainSyncError,
   type AddressHolder,
   type SyncErrorExplanation,
   type SyncErrorSituation,
-} from '$lib/domain/syncError';
+} from '#lib/domain/syncError.ts';
 
 /** A person an error concerns, as much as Jump knows of them. */
 export type SyncErrorPerson = {

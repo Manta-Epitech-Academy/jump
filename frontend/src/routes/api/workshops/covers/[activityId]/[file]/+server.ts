@@ -1,11 +1,11 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { prisma } from '$lib/server/db';
-import { storedImageResponse } from '$lib/server/images/remote';
-import { workshopCoverKeyFromPath } from '$lib/domain/workshops';
+import { prisma } from '#lib/server/db.ts';
+import { storedImageResponse } from '#lib/server/images/remote.ts';
+import { workshopCoverKeyFromPath } from '#lib/domain/workshops.ts';
 
 // A picture of an activity's cover, copied into storage when an admin wrote it
-// (`write_workshop`, `$lib/server/images/remote.ts`). The browser never
+// (`write_workshop`, `#lib/server/images/remote.ts`). The browser never
 // asks the host it came from, which is the point of the copy.
 //
 // Served only for a key a cover row still references (the picture, or the

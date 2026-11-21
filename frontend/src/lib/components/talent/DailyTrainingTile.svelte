@@ -1,10 +1,10 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import CardAction from '$lib/components/talent/CardAction.svelte';
+  import CardAction from '#lib/components/talent/CardAction.svelte';
   import Trophy from '@lucide/svelte/icons/trophy';
-  import { cn } from '$lib/utils';
-  import { Card } from '$lib/components/ui/card';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import { cn } from '#lib/utils.ts';
+  import { Card } from '#lib/components/ui/card/index.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
 
   // The day's brain training, as one card among the talent's own (XP, next
   // session) rather than a section of its own: being on the home already says
@@ -64,8 +64,8 @@
 
   const href = $derived(
     outcome === 'playable'
-      ? resolve(`/minigames/${publication.id}`)
-      : resolve(`/minigames/${publication.id}/leaderboard`),
+      ? resolve(`minigames/${publication.id}`)
+      : resolve(`minigames/${publication.id}/leaderboard`),
   );
 
   // The state's colour, on the state's own words: the action below stays in

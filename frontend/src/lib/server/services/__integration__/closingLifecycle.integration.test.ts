@@ -1,25 +1,25 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { scopedPrisma } from '$lib/server/db/scoped';
+import { prisma } from '#lib/server/db.ts';
+import { scopedPrisma } from '#lib/server/db/scoped.ts';
 import { assertTestDatabase } from './testDatabase';
 import {
   CLOSING_QUESTION_KEYS,
   gridQuestions,
   recordSynthesisSections,
   RETIRED_SECTION_TITLE,
-} from '$lib/domain/closing';
-import { closingAnswersIssues } from '$lib/validation/closings';
-import { resolveClosingGridById } from '$lib/server/closingTemplates';
-import { persistClosing } from '$lib/server/services/closingService';
-import { anonymizeTalent } from '$lib/server/services/anonymizationService';
+} from '#lib/domain/closing.ts';
+import { closingAnswersIssues } from '#lib/validation/closings.ts';
+import { resolveClosingGridById } from '#lib/server/closingTemplates.ts';
+import { persistClosing } from '#lib/server/services/closingService.ts';
+import { anonymizeTalent } from '#lib/server/services/anonymizationService.ts';
 import {
   writeClosingQuestion,
   writeClosingTemplate,
-} from '$lib/server/adminApi/writes/closings';
-import { OperationRefusedError } from '$lib/server/adminApi/errors';
-import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
-import { getClosingTemplates } from '$lib/server/services/adminStats/closingConfiguration';
-import { getTalentJourney } from '$lib/server/services/talentJourneyService';
+} from '#lib/server/adminApi/writes/closings.ts';
+import { OperationRefusedError } from '#lib/server/adminApi/errors.ts';
+import { ADMIN_API_OPERATIONS } from '#lib/server/adminApi/operations.ts';
+import { getClosingTemplates } from '#lib/server/services/adminStats/closingConfiguration.ts';
+import { getTalentJourney } from '#lib/server/services/talentJourneyService.ts';
 
 /**
  * The closing invariants that only a real database can prove.

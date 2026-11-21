@@ -1,7 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -17,14 +17,14 @@ export const load: PageServerLoad = async ({ locals }) => {
     where: { parentEmail, parentRulesSignedAt: null },
   });
   if (unsignedRules > 0) {
-    throw redirect(303, resolve('/parent/reglement'));
+    throw redirect(303, resolve('parent/reglement'));
   }
 
   const undecidedCount = await prisma.talent.count({
     where: { parentEmail, imageRightsDecidedAt: null },
   });
   if (undecidedCount > 0) {
-    throw redirect(303, resolve('/parent/signature'));
+    throw redirect(303, resolve('parent/signature'));
   }
 
   // Personalise the acknowledgement from the most recently decided child.

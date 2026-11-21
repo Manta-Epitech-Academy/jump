@@ -1,8 +1,8 @@
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
-import { getStaffRoleRedirectPath } from '$lib/domain/staff';
-import { captureRedirectCookie } from '$lib/server/auth/loginRedirect';
+import { getStaffRoleRedirectPath } from '#lib/domain/staff.ts';
+import { captureRedirectCookie } from '#lib/server/auth/loginRedirect.ts';
 
 // Two refusals, one situation: the address is already somebody's talent or
 // guardian login. BetterAuth says so for a row that has never signed in, the

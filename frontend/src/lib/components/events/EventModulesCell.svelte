@@ -1,10 +1,10 @@
 <script lang="ts">
   import EventModuleIcon from './EventModuleIcon.svelte';
-  import * as Tooltip from '$lib/components/ui/tooltip';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
   import {
     EVENT_MODULE_DEFS,
     type EventModuleKey,
-  } from '$lib/domain/eventModules';
+  } from '#lib/domain/eventModules.ts';
 
   // Compact, fixed-height view of an event's enabled modules for the admin list.
   // Icon chips on a single line (never wrapping) keep every row the same height,

@@ -6,7 +6,7 @@
     FORM_STATUS_BADGE_CLASS,
     FORM_STATUS_LABELS,
     type FormStatusValue,
-  } from '$lib/domain/feedbackForms/status';
+  } from '#lib/domain/feedbackForms/status.ts';
 
   // The two faces of one form an admin opens: how a respondent meets it, and
   // what was answered. Writing it goes over the admin API (`write_feedback_form`),
@@ -30,7 +30,7 @@
 
 <div class="space-y-4">
   <a
-    href={resolve('/staff/admin/feedback-forms')}
+    href={resolve('staff/admin/feedback-forms')}
     class="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
   >
     <ArrowLeft class="h-4 w-4" /> Tous les formulaires

@@ -2,11 +2,11 @@
   import { superForm, type SuperValidated } from 'sveltekit-superforms';
   import type { Infer } from 'sveltekit-superforms';
   import { toast } from 'svelte-sonner';
-  import { staffDevRedirectSchema } from '$lib/validation/staffSettings';
-  import { Button } from '$lib/components/ui/button';
-  import { Label } from '$lib/components/ui/label';
-  import { Textarea } from '$lib/components/ui/textarea';
-  import * as Dialog from '$lib/components/ui/dialog';
+  import { staffDevRedirectSchema } from '#lib/validation/staffSettings.ts';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { Textarea } from '#lib/components/ui/textarea/index.ts';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
   import Info from '@lucide/svelte/icons/info';
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
   import MailCheck from '@lucide/svelte/icons/mail-check';

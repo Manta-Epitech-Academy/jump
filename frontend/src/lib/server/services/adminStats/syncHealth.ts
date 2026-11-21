@@ -20,34 +20,37 @@
  * merged "last sync" figure cannot say so.
  */
 
-import { prisma } from '$lib/server/db';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
+import { prisma } from '#lib/server/db.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
 import {
   sinceLabelFr,
   withSince,
   type SinceFilter,
   type WithSince,
 } from './since';
-import { memberStatusCatalogue } from '$lib/server/services/devSpaceVisibility';
-import { isServedToWorker } from '$lib/server/services/syncConfigService';
+import { memberStatusCatalogue } from '#lib/server/services/devSpaceVisibility.ts';
+import { isServedToWorker } from '#lib/server/services/syncConfigService.ts';
 import {
   openRunSnapshot,
   recentRuns,
   SYNC_RUN_RETENTION_DAYS,
-} from '$lib/server/services/syncRunService';
-import type { SyncMode } from '$lib/domain/syncSchedule';
+} from '#lib/server/services/syncRunService.ts';
+import type { SyncMode } from '#lib/domain/syncSchedule.ts';
 import {
   currentSyncDecision,
   listCadences,
-} from '$lib/server/services/syncConfigService';
+} from '#lib/server/services/syncConfigService.ts';
 import { hoursSince, syncFreshnessTerms } from './dataFreshness';
-import { eventDisplayName } from '$lib/domain/event';
-import { toDateKey } from '$lib/domain/planningTime';
-import { REMEDY_WHO_LABELS, type SyncErrorKind } from '$lib/domain/syncError';
+import { eventDisplayName } from '#lib/domain/event.ts';
+import { toDateKey } from '#lib/domain/planningTime.ts';
+import {
+  REMEDY_WHO_LABELS,
+  type SyncErrorKind,
+} from '#lib/domain/syncError.ts';
 import {
   loadOpenSyncErrors,
   type OpenSyncError,
-} from '$lib/server/services/syncErrorQueue';
+} from '#lib/server/services/syncErrorQueue.ts';
 
 type PassHealth = {
   at: string;

@@ -1,12 +1,13 @@
-import { prisma } from '$lib/server/db';
-import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
+import type { ListParams } from '#lib/domain/listView.ts';
+import { prisma } from '#lib/server/db.ts';
+import { compareNiveaux, niveauLabel } from '#lib/domain/niveau.ts';
 import {
   FACET_NONE,
   FACET_NONE_LABEL,
   offerFacets,
   type CountedFacet,
   type FacetCount,
-} from '$lib/domain/listFacets';
+} from '#lib/domain/listFacets.ts';
 import {
   PARENT_STATUS_LABELS,
   TALENT_STATUS_LABELS,
@@ -24,7 +25,7 @@ import {
  * The directory's column filters. A list held in memory counts its facets over
  * its rows; the directory is paged on the server, so it counts them in the
  * database and hands the counts to `offerFacets`, where the rules every staff
- * list follows are applied (`$lib/domain/listFacets`). Like every list's, the
+ * list follows are applied (`#lib/domain/listFacets`). Like every list's, the
  * counts are over the whole directory, not over what the other filters left,
  * so a menu reads the same however the list is narrowed.
  */
@@ -120,7 +121,7 @@ export async function talentFacetCounts(): Promise<
  * exactly the talents the table shows; the page applies `offerFacets` to the
  * same counts with the ticks of its own address.
  */
-export async function resolveTalentFilters(params: URLSearchParams): Promise<{
+export async function resolveTalentFilters(params: ListParams): Promise<{
   filters: TalentFilters;
   facetCounts: CountedFacet<TalentsFacet>[];
 }> {

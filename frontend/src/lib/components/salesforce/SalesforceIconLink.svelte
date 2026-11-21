@@ -4,9 +4,9 @@
   // SalesforceLinkButton, but the affordance is the brand glyph alone: there is
   // no room for a label or a second external-link icon, so `title` / `aria-label`
   // carry the "opens in Salesforce" meaning instead.
-  import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
-  import { salesforceUrl } from '$lib/domain/salesforce';
-  import { cn } from '$lib/utils';
+  import SalesforceIcon from '#lib/components/icons/SalesforceIcon.svelte';
+  import { salesforceUrl } from '#lib/domain/salesforce.ts';
+  import { cn } from '#lib/utils.ts';
 
   type Props = {
     /** Salesforce 18-char id; renders nothing when absent. */

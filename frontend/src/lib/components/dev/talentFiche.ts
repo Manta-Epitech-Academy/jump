@@ -24,5 +24,5 @@ import { resolve } from '$app/paths';
 export function talentFicheHref(talentId: string, eventId: string): string {
   const params = new URLSearchParams();
   params.set('event', eventId);
-  return `${resolve(`/staff/dev/students/${talentId}`)}?${params}`;
+  return `${resolve(`staff/dev/students/${talentId}`)}?${params}`;
 }

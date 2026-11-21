@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { enter, stagger } from '$lib/motion';
+  import { enter, stagger } from '#lib/motion/index.ts';
   import { enhance } from '$app/forms';
   import { onboardingSubmit } from '../stepSubmit';
-  import { Label } from '$lib/components/ui/label';
-  import { Textarea } from '$lib/components/ui/textarea';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { Textarea } from '#lib/components/ui/textarea/index.ts';
   import Code from '@lucide/svelte/icons/code';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import ContinueButton from './ContinueButton.svelte';

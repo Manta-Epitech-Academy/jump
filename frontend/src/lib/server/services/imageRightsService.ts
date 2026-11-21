@@ -1,10 +1,10 @@
 import type {
   ImageRightsDecision,
   ImageRightsDecisionSummary,
-} from '$lib/domain/imageRights';
+} from '#lib/domain/imageRights.ts';
 import type { ImageRightsDecisionSource, Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { CURRENT_DROIT_IMAGE_VERSION } from '$lib/content/droit-image';
+import { prisma } from '#lib/server/db.ts';
+import { CURRENT_DROIT_IMAGE_VERSION } from '#lib/content/droit-image/index.ts';
 import {
   guardianActSchoolYear,
   upsertOnboardingYearRecord,

@@ -25,13 +25,13 @@
 
 import { Prisma } from '@prisma/client';
 import { recomputeAttendance } from './attendance';
-import { prisma } from '$lib/server/db';
-import { dropLogin } from '$lib/server/authIdentityRepairCore';
+import { prisma } from '#lib/server/db.ts';
+import { dropLogin } from '#lib/server/authIdentityRepairCore.ts';
 import {
   moveTalentGrants,
   recomputeEventsCount,
-} from '$lib/server/services/xpService';
-import { recomputeSchoolingProjection } from '$lib/server/services/schoolingService';
+} from '#lib/server/services/xpService.ts';
+import { recomputeSchoolingProjection } from '#lib/server/services/schoolingService.ts';
 
 /**
  * A table whose rows move from an absorbed talent to the survivor: the column

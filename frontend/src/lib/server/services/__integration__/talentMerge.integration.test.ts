@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { schoolYearOf } from '$lib/domain/schoolYear';
+import { prisma } from '#lib/server/db.ts';
+import { schoolYearOf } from '#lib/domain/schoolYear.ts';
 import { assertTestDatabase } from './testDatabase';
 import { mergeTalents } from '../talentMergeService';
 

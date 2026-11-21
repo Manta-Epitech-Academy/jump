@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderMarkdown } from '$lib/markdown';
+import { renderMarkdown } from '#lib/markdown.ts';
 import {
   DROIT_IMAGE_VERSIONS,
   CURRENT_DROIT_IMAGE_VERSION,
@@ -7,7 +7,7 @@ import {
   droitImageDocumentFor,
   droitImageClausesFor,
 } from './index';
-import { IMAGE_RIGHTS_DECISIONS } from '$lib/domain/imageRights';
+import { IMAGE_RIGHTS_DECISIONS } from '#lib/domain/imageRights.ts';
 
 /**
  * The droit-à-l'image PDF is regenerated from DB state on every change of mind

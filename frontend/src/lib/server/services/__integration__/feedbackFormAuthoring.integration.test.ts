@@ -11,7 +11,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
 
@@ -35,7 +35,7 @@ import { createAdminAccount } from './adminApiAccount';
  */
 const objects = new Map<string, Uint8Array>();
 
-vi.mock('$lib/server/infra/storage', () => ({
+vi.mock('#lib/server/infra/storage.ts', () => ({
   getStorage: () => ({
     save: async (key: string, data: Uint8Array) => {
       objects.set(key, data);
@@ -54,13 +54,13 @@ vi.mock('$lib/server/infra/storage', () => ({
   isObjectNotFound: () => false,
 }));
 
-vi.mock('$lib/server/infra/publicAddress', () => ({
+vi.mock('#lib/server/infra/publicAddress.ts', () => ({
   isPublicAddress: vi.fn(() => true),
 }));
 
-vi.mock('$lib/server/images/process', async (importOriginal) => {
+vi.mock('#lib/server/images/process.ts', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('$lib/server/images/process')>();
+    await importOriginal<typeof import('#lib/server/images/process.ts')>();
   return {
     ...actual,
     processImage: vi.fn(async (input: Uint8Array) => ({
@@ -72,10 +72,10 @@ vi.mock('$lib/server/images/process', async (importOriginal) => {
   };
 });
 
-const { mintToken } = await import('$lib/server/adminApi/tokens');
-const { adminApiWrite } = await import('$lib/server/adminApi/route');
+const { mintToken } = await import('#lib/server/adminApi/tokens.ts');
+const { adminApiWrite } = await import('#lib/server/adminApi/route.ts');
 const { ADMIN_API_OPERATIONS } =
-  await import('$lib/server/adminApi/operations');
+  await import('#lib/server/adminApi/operations.ts');
 
 const postForm = adminApiWrite('write_feedback_form');
 const postCopy = adminApiWrite('write_feedback_form_copy');
@@ -613,7 +613,7 @@ describe('feedback forms authored over the API (integration)', () => {
   it('copies a persona icon once, keeps it when unmentioned, and drops it on null', async () => {
     const iconUrl = `${host}/canard.png`;
     const { writeFeedbackForm } =
-      await import('$lib/server/adminApi/writes/feedbackForms');
+      await import('#lib/server/adminApi/writes/feedbackForms.ts');
     // Called under the wire, since the schema only accepts https and the
     // picture host of this test is plain http on loopback.
     const apply = async (body: Record<string, unknown>) => {

@@ -1,9 +1,9 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
-import { isOnboardingEligible } from '$lib/domain/niveau';
-import { charteSchema } from '$lib/validation/onboarding';
+import { prisma } from '#lib/server/db.ts';
+import { isOnboardingEligible } from '#lib/domain/niveau.ts';
+import { charteSchema } from '#lib/validation/onboarding.ts';
 
 /**
  * Standalone Charte Informatique et Éthique.
@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     locals.talent.charterAcceptedAt ||
     isOnboardingEligible(locals.talent.niveau)
   ) {
-    throw redirect(303, resolve('/'));
+    throw redirect(303, resolve(''));
   }
 
   return { prenom: locals.talent.prenom };
@@ -49,6 +49,6 @@ export const actions: Actions = {
       data: { charterAcceptedAt: new Date() },
     });
 
-    throw redirect(303, resolve('/'));
+    throw redirect(303, resolve(''));
   },
 };

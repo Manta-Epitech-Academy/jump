@@ -1,8 +1,8 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireWorkerToken } from '$lib/server/auth/workerToken';
-import { workerEventsPayloadSchema } from '$lib/validation/workerSync';
-import { syncEvents } from '$lib/server/services/syncService';
+import { requireWorkerToken } from '#lib/server/auth/workerToken.ts';
+import { workerEventsPayloadSchema } from '#lib/validation/workerSync.ts';
+import { syncEvents } from '#lib/server/services/syncService.ts';
 
 /**
  * The whole event list of a run, in one call, with the campus on each event.
@@ -23,5 +23,5 @@ export const POST: RequestHandler = async ({ request }) => {
   if (!parsed.success)
     throw error(400, 'Invalid payload: expected { events: [...] }');
 
-  return json(await syncEvents(parsed.data.events));
+  return Response.json(await syncEvents(parsed.data.events));
 };

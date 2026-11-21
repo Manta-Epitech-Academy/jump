@@ -1,4 +1,4 @@
-import type { ChartTone } from '$lib/domain/chartSeries';
+import type { ChartTone } from '#lib/domain/chartSeries.ts';
 
 /**
  * A chart tone as classes: the ring's stroke, the disc's fill and the legend's

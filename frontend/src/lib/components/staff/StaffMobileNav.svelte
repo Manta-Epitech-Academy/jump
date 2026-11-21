@@ -2,9 +2,9 @@
   import type { Snippet } from 'svelte';
   import { afterNavigate } from '$app/navigation';
   import Menu from '@lucide/svelte/icons/menu';
-  import * as Drawer from '$lib/components/ui/drawer';
-  import { buttonVariants } from '$lib/components/ui/button';
-  import { cn } from '$lib/utils';
+  import * as Drawer from '#lib/components/ui/drawer/index.ts';
+  import { buttonVariants } from '#lib/components/ui/button/index.ts';
+  import { cn } from '#lib/utils.ts';
 
   /**
    * The staff sidebar on a phone: a drawer from the left holding whatever the

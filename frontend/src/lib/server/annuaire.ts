@@ -13,7 +13,7 @@
  * the city as free text: a UAI resolves to name + commune + postal/INSEE here.
  */
 
-import { queryTokens } from '$lib/server/db/textSearch';
+import { queryTokens } from '#lib/server/db/textSearch.ts';
 
 const API_URL =
   'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-annuaire-education/records';

@@ -25,8 +25,8 @@
  * (`Campus.timezone`), so 10:00 means 10:00 there, correct for La Réunion
  * (UTC+4) as well as metropolitan campuses (UTC+2 in June). The wall-clock to
  * instant conversion is inlined from src/lib/domain/planningTime.ts because
- * this script must run against the production image, where `$lib` does not
- * resolve (no Vite), same reason scripts/backfill-xp-ledger.ts inlines its
+ * this script must run against the production image, which ships no `src/`,
+ * same reason scripts/backfill-xp-ledger.ts inlines its
  * domain constants. `@internationalized/date` is a plain npm dep, so importing
  * it directly is fine. Keep the conversion in sync with planningTime.ts.
  *

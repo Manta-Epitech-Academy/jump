@@ -1,7 +1,7 @@
-import type { User, Session } from '$lib/server/auth';
+import type { User, Session } from '#lib/server/auth.ts';
 import type { StaffProfile, Talent, Campus } from '@prisma/client';
-import type { StaffGroup } from '$lib/domain/permissions';
-import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
+import type { StaffGroup } from '#lib/domain/permissions.ts';
+import type { EventLifecycleStatus } from '#lib/domain/eventLifecycle.ts';
 
 declare global {
   namespace App {
@@ -57,7 +57,7 @@ declare global {
       } | null;
       /**
        * Whether the current user has armed "real sends" on a trapped env (see
-       * `$lib/server/armRealSends`). Drives the global red banner; the trap
+       * `#lib/server/armRealSends`). Drives the global red banner; the trap
        * itself reads it via the request context.
        */
       armedRealSends: boolean;
@@ -65,7 +65,7 @@ declare global {
       armedRealSendsUntil: Date | null;
       /**
        * An armed dev-redirect pin for a logged-out request (see
-       * `$lib/server/devRedirectPin`): routes trapped login (OTP) mail to the
+       * `#lib/server/devRedirectPin`): routes trapped login (OTP) mail to the
        * pinned admin so they can test the real logged-out login flow. Drives
        * the global amber banner; `to` is the predicted destination, `until` the
        * auto-clear deadline. Null when no valid pin is present.

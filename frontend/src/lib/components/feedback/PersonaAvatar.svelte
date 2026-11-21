@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onImageBroken } from '$lib/actions/onImageBroken';
-  import { DEFAULT_PERSONA } from '$lib/domain/feedbackForms/schema';
-  import { cn } from '$lib/utils';
+  import { onImageBroken } from '#lib/actions/onImageBroken.ts';
+  import { DEFAULT_PERSONA } from '#lib/domain/feedbackForms/schema.ts';
+  import { cn } from '#lib/utils.ts';
 
   // The face of a form's persona, round. A form's own icon is a stored object,
   // and a stored object can be missing: a generated database holds the key and

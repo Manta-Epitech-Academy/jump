@@ -42,17 +42,17 @@ import {
   SOON_WITHIN_DAYS,
   type EventConfigState,
   type PreparationHorizon,
-} from '$lib/domain/eventReadiness';
-import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
-import type { EventModuleKey } from '$lib/domain/eventModules';
+} from '#lib/domain/eventReadiness.ts';
+import type { EventLifecycleStatus } from '#lib/domain/eventLifecycle.ts';
+import type { EventModuleKey } from '#lib/domain/eventModules.ts';
 import {
   HIDDEN_PARTICIPATION_DEFINITION,
   SYNCED_PARTICIPATION_DEFINITION,
   VISIBLE_PARTICIPATION_DEFINITION,
-} from '$lib/domain/sfMemberStatus';
-import { metric, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
-import type { AdminEventVM } from '$lib/server/services/events';
+} from '#lib/domain/sfMemberStatus.ts';
+import { metric, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
+import type { AdminEventVM } from '#lib/server/services/events.ts';
 import { hiddenEnrolmentsByEvent, scopedEvents } from './cohort';
 import {
   sinceLabelFr,

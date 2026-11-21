@@ -1,11 +1,11 @@
 <script lang="ts">
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import MapPin from '@lucide/svelte/icons/map-pin';
-  import { toDateKey } from '$lib/domain/planningTime';
-  import { arrivalLabel, talentDaysLabel } from '$lib/domain/talentHome';
-  import { dateKeyParts } from '$lib/domain/eventPresence';
-  import { eventPlace } from '$lib/domain/eventHero';
-  import type { HeroEvent } from '$lib/domain/talentHome';
+  import { toDateKey } from '#lib/domain/planningTime.ts';
+  import { arrivalLabel, talentDaysLabel } from '#lib/domain/talentHome.ts';
+  import { dateKeyParts } from '#lib/domain/eventPresence.ts';
+  import { eventPlace } from '#lib/domain/eventHero.ts';
+  import type { HeroEvent } from '#lib/domain/talentHome.ts';
 
   // When and where an event takes place, the two lines the mockup draws under
   // its name in the hero: its days (« Du 27 au 30 octobre ») with, once the

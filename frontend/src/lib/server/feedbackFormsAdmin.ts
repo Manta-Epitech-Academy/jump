@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { getFormGraphById } from '$lib/server/feedbackForms';
-import { getStorage } from '$lib/server/infra/storage';
-import { copyPersonaIcon } from '$lib/server/feedbackForms/personaIcon';
+import { prisma } from '#lib/server/db.ts';
+import { getFormGraphById } from '#lib/server/feedbackForms.ts';
+import { getStorage } from '#lib/server/infra/storage.ts';
+import { copyPersonaIcon } from '#lib/server/feedbackForms/personaIcon.ts';
 
 /**
  * The form-level mutations: creating and copying a form (the admin API's

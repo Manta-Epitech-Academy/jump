@@ -1,7 +1,7 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { markWorkshopRewardsSeen } from '$lib/server/services/workshopService';
-import { workshopRewardAckSchema } from '$lib/validation/workshops';
+import { markWorkshopRewardsSeen } from '#lib/server/services/workshopService.ts';
+import { workshopRewardAckSchema } from '#lib/validation/workshops.ts';
 
 /**
  * Mark a talent's activity XP as celebrated, up to what the dashboard showed.
@@ -22,5 +22,5 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   if (!parsed.success) throw error(400, 'Invalid payload: expected { upTo }');
 
   await markWorkshopRewardsSeen(locals.talent.id, parsed.data.upTo);
-  return json({ ok: true });
+  return Response.json({ ok: true });
 };

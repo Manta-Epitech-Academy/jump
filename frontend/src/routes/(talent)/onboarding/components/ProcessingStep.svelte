@@ -3,7 +3,7 @@
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import Sparkles from '@lucide/svelte/icons/sparkles';
-  import { fade } from '$lib/motion';
+  import { fade } from '#lib/motion/index.ts';
 
   let formEl: HTMLFormElement;
   let textIndex = $state(0);

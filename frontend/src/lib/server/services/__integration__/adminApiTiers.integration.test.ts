@@ -9,18 +9,18 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
-import { mintToken } from '$lib/server/adminApi/tokens';
+import { mintToken } from '#lib/server/adminApi/tokens.ts';
 import {
   authenticateAdminApi,
   authorizeOperation,
   type AdminApiCredential,
-} from '$lib/server/adminApi/guard';
-import { ADMIN_API_OPERATIONS } from '$lib/server/adminApi/operations';
-import { serveOpenApiDocument } from '$lib/server/adminApi/openapi';
-import { TRANSPORT_OPERATIONS } from '$lib/server/adminApi/audit';
+} from '#lib/server/adminApi/guard.ts';
+import { ADMIN_API_OPERATIONS } from '#lib/server/adminApi/operations.ts';
+import { serveOpenApiDocument } from '#lib/server/adminApi/openapi.ts';
+import { TRANSPORT_OPERATIONS } from '#lib/server/adminApi/audit.ts';
 
 const LEADERSHIP_OPERATION = ADMIN_API_OPERATIONS.stats_cohort_profile;
 const CORE_ONLY_OPERATION = ADMIN_API_OPERATIONS.ops_pdf_jobs_health;

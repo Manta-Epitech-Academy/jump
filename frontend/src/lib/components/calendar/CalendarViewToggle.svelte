@@ -6,7 +6,7 @@
   import { onMount } from 'svelte';
   import SegmentedFilter, {
     type SegmentOption,
-  } from '$lib/components/staff/SegmentedFilter.svelte';
+  } from '#lib/components/staff/SegmentedFilter.svelte';
 
   // The campus calendar's two views. Which one a person reads is a display
   // preference of theirs, kept per browser like the planning's week layout

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import EventCategoryChip from '$lib/components/events/EventCategoryChip.svelte';
-  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
-  import type { CampusCalendar } from '$lib/domain/campusCalendar';
+  import EventCategoryChip from '#lib/components/events/EventCategoryChip.svelte';
+  import { InfoTooltip } from '#lib/components/ui/info-tooltip/index.ts';
+  import type { CampusCalendar } from '#lib/domain/campusCalendar.ts';
 
   // What the colours on the calendar mean. An indication, never a filter: the
   // mockup draws it as plain labels, and so does this.

@@ -4,8 +4,8 @@ import {
   resolveLeaderboardScope,
   getCampusLeaderboard,
   getUnseenMinigameRankReward,
-} from '$lib/server/services/minigameService';
-import { prisma } from '$lib/server/db';
+} from '#lib/server/services/minigameService.ts';
+import { prisma } from '#lib/server/db.ts';
 
 /**
  * Talent-facing leaderboard, scoped to the board the viewer was ranked on: the

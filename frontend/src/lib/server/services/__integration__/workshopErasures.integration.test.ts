@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createHmac } from 'node:crypto';
 import { isHttpError } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { workshopKeys } from '$lib/server/workshops/ticket';
+import { prisma } from '#lib/server/db.ts';
+import { workshopKeys } from '#lib/server/workshops/ticket.ts';
 import {
   AnonymizationService,
   anonymizeTalent,
-} from '$lib/server/services/anonymizationService';
-import { WORKSHOP_ERASURE_BATCH_MAX } from '$lib/server/services/workshopService';
+} from '#lib/server/services/anonymizationService.ts';
+import { WORKSHOP_ERASURE_BATCH_MAX } from '#lib/server/services/workshopService.ts';
 import { POST } from '../../../../routes/api/workshops/erasures/+server';
 import { assertTestDatabase } from './testDatabase';
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { noMatchLine } from '$lib/domain/devVoice';
+  import { noMatchLine } from '#lib/domain/devVoice.ts';
   import { page } from '$app/state';
   import X from '@lucide/svelte/icons/x';
   import Check from '@lucide/svelte/icons/check';
@@ -7,52 +7,52 @@
   import Clock from '@lucide/svelte/icons/clock';
   import Unplug from '@lucide/svelte/icons/unplug';
   import Sparkles from '@lucide/svelte/icons/sparkles';
-  import { Badge } from '$lib/components/ui/badge';
-  import * as Table from '$lib/components/ui/table';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import { cn } from '$lib/utils';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import { cn } from '#lib/utils.ts';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
   import {
     clearListFilters,
     setListParams,
-  } from '$lib/components/staff/datatable/urlList';
-  import { facetControls } from '$lib/components/staff/datatable/facetControls';
-  import type { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
-  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
-  import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  } from '#lib/components/staff/datatable/urlList.ts';
+  import { facetControls } from '#lib/components/staff/datatable/facetControls.ts';
+  import type { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
+  import EmptyCohortNotice from '#lib/components/dev/EmptyCohortNotice.svelte';
+  import DataTableToolbar from '#lib/components/staff/datatable/DataTableToolbar.svelte';
+  import ActiveFilterChips from '#lib/components/staff/ActiveFilterChips.svelte';
+  import type { ColumnDef } from '#lib/components/staff/datatable/types.ts';
   import {
     statusBadgeClass,
     type StatusTone,
-  } from '$lib/components/staff/statusBadge';
-  import { talentFicheHref } from '$lib/components/dev/talentFiche';
-  import { niveauLabel } from '$lib/domain/niveau';
-  import { cohortNounForms } from '$lib/domain/event';
+  } from '#lib/components/staff/statusBadge.ts';
+  import { talentFicheHref } from '#lib/components/dev/talentFiche.ts';
+  import { niveauLabel } from '#lib/domain/niveau.ts';
+  import { cohortNounForms } from '#lib/domain/event.ts';
   import {
     civiliteLabel,
     civiliteShortTitle,
     formatGivenName,
-  } from '$lib/domain/profile';
-  import { parcoursLabel } from '$lib/domain/visitHistory';
+  } from '#lib/domain/profile.ts';
+  import { parcoursLabel } from '#lib/domain/visitHistory.ts';
   import {
     INSCRITS_SORT_DEFAULT_DIR,
     type InscritsFacet,
     type InscritsSortKey,
     INSCRITS_VIEW,
-  } from '$lib/domain/inscritsView';
+  } from '#lib/domain/inscritsView.ts';
   import {
     RULES_STATUS_LABELS,
     NO_DOSSIER_HINT,
     INSCRIT_STATUS_LABELS,
     type RulesStatus,
     type InscritStatus,
-  } from '$lib/domain/dossierCompliance';
+  } from '#lib/domain/dossierCompliance.ts';
   import {
     IMAGE_RIGHTS_DISPLAY_LABELS,
     imageRightsDisplayStatus,
     type ImageRightsDisplayStatus,
-  } from '$lib/domain/imageRights';
+  } from '#lib/domain/imageRights.ts';
 
   import {
     rosterFacets,
@@ -60,12 +60,12 @@
     type InscritInterest,
     type InscritRow,
     type InscritsCohort,
-  } from '$lib/domain/inscritsRoster';
-  import { nextSort } from '$lib/components/staff/datatable/sort';
+  } from '#lib/domain/inscritsRoster.ts';
+  import { nextSort } from '#lib/components/staff/datatable/sort.ts';
 
   // The streamed cohort payload plus the cheap shell values the table needs.
   // The view it shows (filters, sort, search) is not held here: it is read off
-  // the address (`$lib/domain/inscritsView`) and every control writes there, so
+  // the address (`#lib/domain/inscritsView`) and every control writes there, so
   // a reload, a shared link and the Back button all show the same list.
   let {
     rows,

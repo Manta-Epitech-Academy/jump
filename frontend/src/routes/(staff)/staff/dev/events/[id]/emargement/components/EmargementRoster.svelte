@@ -1,11 +1,11 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { noMatchLine } from '$lib/domain/devVoice';
-  import type { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import { noMatchLine } from '#lib/domain/devVoice.ts';
+  import type { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
   import { SvelteMap } from 'svelte/reactivity';
   import { invalidate } from '$app/navigation';
   import { enhance as formEnhance, deserialize } from '$app/forms';
-  import type { ActionResult } from '@sveltejs/kit';
+  import type { ActionResult } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import Phone from '@lucide/svelte/icons/phone';
@@ -13,22 +13,22 @@
   import Lock from '@lucide/svelte/icons/lock';
   import LockOpen from '@lucide/svelte/icons/lock-open';
   import CheckCheck from '@lucide/svelte/icons/check-check';
-  import * as Table from '$lib/components/ui/table';
-  import * as Dialog from '$lib/components/ui/dialog';
-  import { Button } from '$lib/components/ui/button';
-  import { cn } from '$lib/utils';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
-  import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
-  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { cn } from '#lib/utils.ts';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
+  import EmptyCohortNotice from '#lib/components/dev/EmptyCohortNotice.svelte';
+  import ResultsLayout from '#lib/components/staff/ResultsLayout.svelte';
+  import DataTableToolbar from '#lib/components/staff/datatable/DataTableToolbar.svelte';
   import type {
     ColumnDef,
     SortDir,
-  } from '$lib/components/staff/datatable/types';
-  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
-  import { talentFicheHref } from '$lib/components/dev/talentFiche';
+  } from '#lib/components/staff/datatable/types.ts';
+  import FilterSelect from '#lib/components/staff/FilterSelect.svelte';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import TalentAvatar from '#lib/components/students/TalentAvatar.svelte';
+  import { talentFicheHref } from '#lib/components/dev/talentFiche.ts';
   import {
     slotLabelFr,
     statusLabelFr,
@@ -39,8 +39,8 @@
     type CellStatus,
     type PresenceCell as PresenceCellData,
     type EventSlot,
-  } from '$lib/domain/eventPresence';
-  import { cohortNounForms } from '$lib/domain/event';
+  } from '#lib/domain/eventPresence.ts';
+  import { cohortNounForms } from '#lib/domain/event.ts';
   import type { PresenceRow, PresenceSortKey, EmargementCohort } from './types';
   import PresenceSwitch from './PresenceSwitch.svelte';
   import ContactDialog from './ContactDialog.svelte';
@@ -52,8 +52,8 @@
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
-  import { nextSort } from '$lib/components/staff/datatable/sort';
+  } from '#lib/components/staff/datatable/search.ts';
+  import { nextSort } from '#lib/components/staff/datatable/sort.ts';
 
   // The streamed roster plus the slot context the shell owns. `activeSlotKey` is
   // bound back to the shell so its header QR button stays in sync with the slot

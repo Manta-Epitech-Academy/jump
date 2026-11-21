@@ -11,7 +11,7 @@
 // A form is retired by archiving it; deleting an unanswered draft stays on the
 // admin list, a click away.
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   formIntegrityProblems,
   referenceProblems,
@@ -20,28 +20,28 @@ import {
   allQuestions,
   type AuthoredForm,
   type AuthoredQuestion,
-} from '$lib/domain/feedbackForms/authoring';
+} from '#lib/domain/feedbackForms/authoring.ts';
 import type {
   IdentityField,
   InputKind,
   QuestionType,
-} from '$lib/domain/feedbackForms/schema';
-import type { FormStatusValue } from '$lib/domain/feedbackForms/status';
+} from '#lib/domain/feedbackForms/schema.ts';
+import type { FormStatusValue } from '#lib/domain/feedbackForms/status.ts';
 import {
   readFeedbackFormContent,
   authoredFormOf,
   type FeedbackFormContent,
-} from '$lib/server/feedbackForms/content';
+} from '#lib/server/feedbackForms/content.ts';
 import {
   copyRemotePersonaIcon,
   newPersonaIconKey,
-} from '$lib/server/feedbackForms/personaIcon';
-import { createForm, duplicateForm } from '$lib/server/feedbackFormsAdmin';
-import { feedbackFormPreviewLink } from '$lib/server/feedbackForms';
+} from '#lib/server/feedbackForms/personaIcon.ts';
+import { createForm, duplicateForm } from '#lib/server/feedbackFormsAdmin.ts';
+import { feedbackFormPreviewLink } from '#lib/server/feedbackForms.ts';
 import {
   RemoteImageRefusal,
   swapStoredImages,
-} from '$lib/server/images/remote';
+} from '#lib/server/images/remote.ts';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import { UnknownScopeError } from '../scope';

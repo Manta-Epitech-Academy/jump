@@ -3,9 +3,9 @@
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
+  } from '#lib/components/staff/datatable/search.ts';
   import { enhance } from '$app/forms';
-  import { FORMER_STAFF_LABEL } from '$lib/domain/staff';
+  import { FORMER_STAFF_LABEL } from '#lib/domain/staff.ts';
   import Upload from '@lucide/svelte/icons/upload';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Download from '@lucide/svelte/icons/download';
@@ -15,18 +15,23 @@
   import FileArchive from '@lucide/svelte/icons/file-archive';
   import FileVideo from '@lucide/svelte/icons/file-video';
   import FileAudio from '@lucide/svelte/icons/file-audio';
-  import { Button } from '$lib/components/ui/button';
-  import * as Table from '$lib/components/ui/table';
-  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
   import { toast } from 'svelte-sonner';
-  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import type { ColumnDef } from '$lib/components/staff/datatable/types';
-  import { track, errReason, bucketBytes, daysBetween } from '$lib/analytics';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import { nextSort } from '$lib/components/staff/datatable/sort';
+  import ConfirmDeleteDialog from '#lib/components/admin/ConfirmDeleteDialog.svelte';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '#lib/components/staff/datatable/DataTableToolbar.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import type { ColumnDef } from '#lib/components/staff/datatable/types.ts';
+  import {
+    track,
+    errReason,
+    bucketBytes,
+    daysBetween,
+  } from '#lib/analytics.ts';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import { nextSort } from '#lib/components/staff/datatable/sort.ts';
 
   let { data } = $props();
 

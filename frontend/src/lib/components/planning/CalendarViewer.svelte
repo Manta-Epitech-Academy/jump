@@ -21,14 +21,14 @@
 
 <script lang="ts" generics="S extends ViewerSlot">
   import { onMount, untrack } from 'svelte';
-  import { cn } from '$lib/utils';
-  import { activityTypeStyles } from '$lib/validation/templates';
+  import { cn } from '#lib/utils.ts';
+  import { activityTypeStyles } from '#lib/validation/templates.ts';
   import {
     sameDay,
     weekDaysFrom,
     WEEK_VIEW_DAYS,
     type WeekView,
-  } from '$lib/domain/calendarWeek';
+  } from '#lib/domain/calendarWeek.ts';
 
   let {
     slots,

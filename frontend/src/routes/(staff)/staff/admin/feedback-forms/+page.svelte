@@ -3,47 +3,46 @@
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
+  } from '#lib/components/staff/datatable/search.ts';
   import { page } from '$app/state';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Eye from '@lucide/svelte/icons/eye';
   import MessageSquare from '@lucide/svelte/icons/message-square';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import type { ColumnDef } from '$lib/components/staff/datatable/types';
-  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
-  import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import ConfirmDeleteDialog from '#lib/components/admin/ConfirmDeleteDialog.svelte';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '#lib/components/staff/datatable/DataTableToolbar.svelte';
+  import { createStreamedCohort } from '#lib/components/staff/streamedCohort.svelte.ts';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import type { ColumnDef } from '#lib/components/staff/datatable/types.ts';
+  import ActiveFilterChips from '#lib/components/staff/ActiveFilterChips.svelte';
+  import { facetControls } from '#lib/components/staff/datatable/facetControls.ts';
   import {
     clearListFilters,
     setListParams,
-  } from '$lib/components/staff/datatable/urlList';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import { listFacets, matchesListFacets } from '$lib/domain/listFacets';
+  } from '#lib/components/staff/datatable/urlList.ts';
+  import { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
+  import { listFacets, matchesListFacets } from '#lib/domain/listFacets.ts';
   import {
     FORMS_FACET_DEFS,
     FORMS_SORT_DEFAULT_DIR,
     FORMS_VIEW,
     type FormsSortKey,
   } from './view';
-  import { Button } from '$lib/components/ui/button';
-  import { Badge } from '$lib/components/ui/badge';
-  import * as Table from '$lib/components/ui/table';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import CopyButton from '$lib/components/ui/CopyButton.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import CopyButton from '#lib/components/ui/CopyButton.svelte';
   import {
     FORM_STATUS_BADGE_CLASS,
     FORM_STATUS_LABELS,
     type FormStatusValue,
-  } from '$lib/domain/feedbackForms/status';
-  import { publicFormPath } from '$lib/domain/feedback';
+  } from '#lib/domain/feedbackForms/status.ts';
   import { resolve } from '$app/paths';
   import type { PageData } from './$types';
   import type { FormListRow, FormsCohort } from './+page.server';
-  import { nextSort } from '$lib/components/staff/datatable/sort';
+  import { nextSort } from '#lib/components/staff/datatable/sort.ts';
 
   let { data }: { data: PageData } = $props();
 
@@ -201,7 +200,7 @@
       {#snippet row(r: FormListRow)}
         <Table.Cell>
           <a
-            href={resolve(`/staff/admin/feedback-forms/${r.id}`)}
+            href={resolve(`staff/admin/feedback-forms/${r.id}`)}
             class="font-medium hover:underline"
           >
             {r.title}
@@ -211,9 +210,9 @@
             <span
               class="mt-0.5 flex items-center gap-1 font-mono text-xs text-muted-foreground"
             >
-              {publicFormPath(r.slug)}
+              {resolve('/f/[slug]', { slug: r.slug })}
               <CopyButton
-                value={`${page.url.origin}${publicFormPath(r.slug)}`}
+                value={`${page.url.origin}${resolve('/f/[slug]', { slug: r.slug })}`}
                 label="Copier le lien public"
               />
             </span>
@@ -257,7 +256,7 @@
                     size="icon"
                     class="h-8 w-8"
                     href={resolve(
-                      `/staff/admin/feedback-forms/${r.id}/responses`,
+                      `staff/admin/feedback-forms/${r.id}/responses`,
                     )}
                   >
                     <MessageSquare class="h-4 w-4" />
@@ -275,7 +274,7 @@
                     variant="ghost"
                     size="icon"
                     class="h-8 w-8"
-                    href={resolve(`/staff/admin/feedback-forms/${r.id}`)}
+                    href={resolve(`staff/admin/feedback-forms/${r.id}`)}
                   >
                     <Eye class="h-4 w-4" />
                     <span class="sr-only">Aperçu</span>

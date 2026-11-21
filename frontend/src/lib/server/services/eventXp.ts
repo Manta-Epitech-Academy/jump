@@ -1,4 +1,4 @@
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 
 /**
  * The XP earned on one event's activities, per talent, and whether the event offers the

@@ -1,12 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { drainOnboardingPdfJobs } from './onboardingPdfJobs';
 import { reachRulesStep } from './onboardingLadder';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
-import { parentBlockedWhere } from '$lib/server/db/dossierCompliance';
-import { isParentDossierComplete } from '$lib/domain/dossierCompliance';
-import { imageRightsStance, imageRightsStatus } from '$lib/domain/imageRights';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
+import { parentBlockedWhere } from '#lib/server/db/dossierCompliance.ts';
+import { isParentDossierComplete } from '#lib/domain/dossierCompliance.ts';
+import {
+  imageRightsStance,
+  imageRightsStatus,
+} from '#lib/domain/imageRights.ts';
 
 /**
  * The droit à l'image, decided once per school year.
@@ -30,7 +33,7 @@ vi.mock('../onboardingDocumentGenerator', () => ({
   }),
 }));
 
-vi.mock('$lib/server/infra/storage', () => ({
+vi.mock('#lib/server/infra/storage.ts', () => ({
   getStorage: () => ({
     save: async (key: string) => {
       // Count writes per key: an overwrite is invisible in a plain key set, and

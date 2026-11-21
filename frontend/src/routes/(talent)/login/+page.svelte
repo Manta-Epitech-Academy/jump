@@ -2,16 +2,16 @@
   import { superForm } from 'sveltekit-superforms';
   import { resolve } from '$app/paths';
   import { untrack } from 'svelte';
-  import { stepIn, stepOut } from '$lib/motion';
+  import { stepIn, stepOut } from '#lib/motion/index.ts';
 
-  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
-  import LoginBrandPanel from '$lib/components/layout/LoginBrandPanel.svelte';
-  import LoginFooter from '$lib/components/layout/LoginFooter.svelte';
+  import EpitechLogo from '#lib/components/layout/EpitechLogo.svelte';
+  import LoginBrandPanel from '#lib/components/layout/LoginBrandPanel.svelte';
+  import LoginFooter from '#lib/components/layout/LoginFooter.svelte';
   import LoginEmailStep from './components/LoginEmailStep.svelte';
-  import LoginOtpStep from '$lib/components/auth/LoginOtpStep.svelte';
-  import { track, errReason, secondsBetween } from '$lib/analytics';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import CodeTag from '$lib/components/layout/CodeTag.svelte';
+  import LoginOtpStep from '#lib/components/auth/LoginOtpStep.svelte';
+  import { track, errReason, secondsBetween } from '#lib/analytics.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import CodeTag from '#lib/components/layout/CodeTag.svelte';
 
   let { data } = $props();
 
@@ -171,7 +171,7 @@
       <LoginFooter
         prompt="Vous faites partie du staff ?"
         linkLabel="Espace staff"
-        linkHref={resolve('/staff/login')}
+        linkHref={resolve('staff/login')}
       />
     </div>
   </main>

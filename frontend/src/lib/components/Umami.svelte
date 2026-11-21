@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { env } from '$env/dynamic/public';
+  import { PUBLIC_UMAMI_WEBSITE_ID } from '$app/env/public';
 
   // Host is constant across all environments, hardcoded here to match the
-  // value whitelisted in svelte.config.js CSP. The website ID comes from the
+  // value whitelisted in vite.config.ts CSP. The website ID comes from the
   // runtime container env (per-environment k8s deployment).
   //
   // PAGE VIEWS AND NAMED EVENTS ONLY. The session recorder that used to load
@@ -14,7 +14,7 @@
   // display them. It was also the only reason the CSP carried
   // `'unsafe-inline'`. See issue #275.
   const HOST = 'https://jump-umami.epiboost.eu';
-  const websiteId = env.PUBLIC_UMAMI_WEBSITE_ID ?? '';
+  const websiteId = PUBLIC_UMAMI_WEBSITE_ID ?? '';
   const enabled = websiteId !== '';
 </script>
 

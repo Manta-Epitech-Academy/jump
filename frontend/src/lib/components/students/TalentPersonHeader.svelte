@@ -1,9 +1,9 @@
 <script lang="ts">
   import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
   import TalentAvatar from './TalentAvatar.svelte';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import { formatGivenName } from '$lib/domain/profile';
-  import { cn } from '$lib/utils';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import { formatGivenName } from '#lib/domain/profile.ts';
+  import { cn } from '#lib/utils.ts';
 
   /**
    * The header of a staff page that is ABOUT ONE PERSON rather than about a list,

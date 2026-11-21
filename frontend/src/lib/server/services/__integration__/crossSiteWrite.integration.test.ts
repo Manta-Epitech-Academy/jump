@@ -10,8 +10,8 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { prisma } from '$lib/server/db';
+import { ORIGIN } from '$app/env/private';
+import { prisma } from '#lib/server/db.ts';
 import { handle } from '../../../../hooks.server';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
@@ -22,7 +22,7 @@ const stamp = Date.now();
 /** One POST to the test-send route as the admin, through the whole hook. */
 async function postTestSend(cookie: string, headers: Record<string, string>) {
   const jar = cookieJar(cookie);
-  const url = new URL(`${env.ORIGIN}/staff/admin/broadcasts/templates/test`);
+  const url = new URL(`${ORIGIN}/staff/admin/broadcasts/templates/test`);
   const event = {
     request: new Request(url, {
       method: 'POST',
@@ -79,7 +79,7 @@ describe('cross-site writes (integration)', () => {
   it('lets the same POST from Jump itself reach the route', async () => {
     const { response, resolved } = await postTestSend(adminCookie, {
       'sec-fetch-site': 'same-origin',
-      origin: env.ORIGIN!,
+      origin: ORIGIN!,
     });
     expect(resolved).toBe(true);
     expect(response.status).toBe(200);

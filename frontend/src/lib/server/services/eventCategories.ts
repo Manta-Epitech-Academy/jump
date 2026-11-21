@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import type { EventCategoryView } from '$lib/domain/eventCategory';
+import { prisma } from '#lib/server/db.ts';
+import type { EventCategoryView } from '#lib/domain/eventCategory.ts';
 
 /**
  * The event category catalogue (`EventConfig_Category`), as every reader sees it:

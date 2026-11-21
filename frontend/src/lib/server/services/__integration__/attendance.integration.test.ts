@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { syncEvents, syncParticipations, syncTalents } from '../syncService';
 import { markAllPresentInSlot, writePresenceCell } from '../presenceService';
 import { persistClosing } from '../closingService';
@@ -21,11 +21,11 @@ import { resetTalentToImport } from '../talentAccount';
 import { mergeTalents } from '../talentMergeService';
 import { enterWorkshop } from '../workshopService';
 import { recomputeAttendance } from '../attendance';
-import { attendedBeforeWhere } from '$lib/domain/attendance';
-import { writeEventConfig } from '$lib/server/adminApi/writes/events';
-import { bulkEventConfig } from '$lib/server/adminApi/writes/bulk';
-import { writeSyncMemberStatus } from '$lib/server/adminApi/writes/sync';
-import type { CellStatus } from '$lib/domain/eventPresence';
+import { attendedBeforeWhere } from '#lib/domain/attendance.ts';
+import { writeEventConfig } from '#lib/server/adminApi/writes/events.ts';
+import { bulkEventConfig } from '#lib/server/adminApi/writes/bulk.ts';
+import { writeSyncMemberStatus } from '#lib/server/adminApi/writes/sync.ts';
+import type { CellStatus } from '#lib/domain/eventPresence.ts';
 import { assertTestDatabase } from './testDatabase';
 
 const stamp = Date.now();

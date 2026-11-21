@@ -9,7 +9,7 @@
 </script>
 
 <script lang="ts">
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
 
   // A one-click radio rendered as a button group. Each option maps to a single
   // value; picking one calls `onChange`. Distinct from `Select` (used for the

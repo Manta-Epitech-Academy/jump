@@ -21,7 +21,7 @@ import {
   decideSync,
   type SyncCadence,
   type SyncRequests,
-} from '$lib/domain/syncSchedule';
+} from '#lib/domain/syncSchedule.ts';
 import { workerConfigAnswerSchema } from './workerSync';
 
 const CADENCES: SyncCadence[] = [
@@ -62,7 +62,7 @@ function answerFor(
   };
 }
 
-/** What the worker actually receives, not what we handed to `json()`. */
+/** What the worker actually receives, not what we handed to `Response.json()`. */
 function overTheWire(answer: unknown): unknown {
   return JSON.parse(JSON.stringify(answer));
 }

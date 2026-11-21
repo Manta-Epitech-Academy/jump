@@ -34,21 +34,21 @@
   import type { Snippet, Component } from 'svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { cn } from '$lib/utils';
-  import { track, secondsBetween } from '$lib/analytics';
-  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
-  import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import { Button } from '$lib/components/ui/button';
+  import { cn } from '#lib/utils.ts';
+  import { track, secondsBetween } from '#lib/analytics.ts';
+  import EpitechLogo from '#lib/components/layout/EpitechLogo.svelte';
+  import ModeToggle from '#lib/components/ModeToggle.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Settings from '@lucide/svelte/icons/settings';
   import LogOut from '@lucide/svelte/icons/log-out';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
 
   let {
     title,
     subtitle,
     icon: Icon,
-    backHref = resolve('/'),
+    backHref = resolve(''),
     backLabel = 'Retour',
     actions,
     lead,
@@ -73,7 +73,7 @@
     <div
       class="flex flex-wrap items-center gap-x-3 gap-y-3 sm:flex-nowrap sm:gap-x-4"
     >
-      <a href={resolve('/')} aria-label="Accueil" class="shrink-0">
+      <a href={resolve('')} aria-label="Accueil" class="shrink-0">
         <EpitechLogo class="h-8 w-auto" />
       </a>
 
@@ -92,14 +92,14 @@
         <Button
           variant="ghost"
           size="icon"
-          href={resolve('/settings')}
+          href={resolve('settings')}
           class="h-8 w-8 text-muted-foreground hover:text-foreground-secondary"
         >
           <Settings class="h-4 w-4" />
           <span class="sr-only">Paramètres</span>
         </Button>
         <form
-          action="{resolve('/logout')}?type=student"
+          action="{resolve('logout')}?type=student"
           method="POST"
           onsubmit={() =>
             track('logout', {

@@ -10,11 +10,11 @@
   // one that did stood out of the row (PO, 29/10/2026). The brand icon still
   // says where it leads, and the tile's tooltip says it opens Salesforce.
   import ExternalLink from '@lucide/svelte/icons/external-link';
-  import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
-  import { Button, type ButtonProps } from '$lib/components/ui/button';
-  import { salesforceUrl } from '$lib/domain/salesforce';
-  import { ACTION_TILE_CLASS } from '$lib/components/events/actionTile';
-  import { cn } from '$lib/utils';
+  import SalesforceIcon from '#lib/components/icons/SalesforceIcon.svelte';
+  import { Button, type ButtonProps } from '#lib/components/ui/button/index.ts';
+  import { salesforceUrl } from '#lib/domain/salesforce.ts';
+  import { ACTION_TILE_CLASS } from '#lib/components/events/actionTile.ts';
+  import { cn } from '#lib/utils.ts';
 
   type Props = Omit<ButtonProps, 'href' | 'children' | 'class'> & {
     /** Salesforce 18-char id; renders nothing when absent. */

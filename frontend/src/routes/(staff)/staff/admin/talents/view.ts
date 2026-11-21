@@ -1,8 +1,9 @@
-import { defineListView, type SortedListView } from '$lib/domain/listView';
+import type { ListParams } from '#lib/domain/listView.ts';
+import { defineListView, type SortedListView } from '#lib/domain/listView.ts';
 
 /**
  * The talent directory's view, in the address every staff list shares
- * (`$lib/domain/listView`). Client-safe, unlike `./query`: the page reads it to
+ * (`#lib/domain/listView`). Client-safe, unlike `./query`: the page reads it to
  * write its filters and sort, the server to read them back.
  *
  * Each facet filters from its column: the niveau (`niveau`, a `Niveau` code),
@@ -44,7 +45,7 @@ export type TalentFilters = SortedListView<TalentsFacet, TalentsSortKey> & {
  * an unknown param or sort is ignored, and a facet value the directory does
  * not carry is dropped by `resolveTalentFilters` before any query runs.
  */
-export function parseTalentFilters(params: URLSearchParams): TalentFilters {
+export function parseTalentFilters(params: ListParams): TalentFilters {
   return {
     ...TALENTS_VIEW.parse(params),
     q: params.get('q') || '',

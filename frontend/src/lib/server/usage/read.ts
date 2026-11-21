@@ -29,12 +29,15 @@
  */
 
 import { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { USAGE_RAW_RETENTION_MONTHS, usageRawCutoff } from '$lib/domain/usage';
-import { schoolYearBounds } from '$lib/domain/schoolYear';
-import { OperationRefusedError } from '$lib/server/adminApi/errors';
-import { metric, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+import { prisma } from '#lib/server/db.ts';
+import {
+  USAGE_RAW_RETENTION_MONTHS,
+  usageRawCutoff,
+} from '#lib/domain/usage.ts';
+import { schoolYearBounds } from '#lib/domain/schoolYear.ts';
+import { OperationRefusedError } from '#lib/server/adminApi/errors.ts';
+import { metric, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { monthBounds, monthsCovering } from './months';
 
 /** Which store answered, so an answer can never look more exact than it is. */

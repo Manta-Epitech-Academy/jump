@@ -20,20 +20,20 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 import {
   getFeatureUsage,
   getFeatureAdoptionGaps,
   getCampusFeatureCoverage,
   USAGE_SMALL_CELL_FLOOR,
-} from '$lib/server/services/adminStats/featureUsage';
-import { getStaffActivity } from '$lib/server/services/adminStats/staffActivity';
-import { rollUpUsage } from '$lib/server/usage/rollup';
-import { usageMonth } from '$lib/server/usage/actorHash';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
-import { OperationRefusedError } from '$lib/server/adminApi/errors';
+} from '#lib/server/services/adminStats/featureUsage.ts';
+import { getStaffActivity } from '#lib/server/services/adminStats/staffActivity.ts';
+import { rollUpUsage } from '#lib/server/usage/rollup.ts';
+import { usageMonth } from '#lib/server/usage/actorHash.ts';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
+import { OperationRefusedError } from '#lib/server/adminApi/errors.ts';
 
 const SCHOOL_YEAR = currentSchoolYearLabel();
 /** Far enough ahead that today's rows sit outside the detailed window. */
