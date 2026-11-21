@@ -1,8 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { base } from '$app/paths';
 import { prisma } from '$lib/server/db';
-import { shownEventWhere } from '$lib/domain/eventReadiness';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { shownEnrolmentWhere } from '$lib/domain/eventReadiness';
 import type {
   FormSchema,
   Question,
@@ -164,7 +163,7 @@ export async function resolveEventNudgeForm(
 export function feedbackParticipationWhere(
   talentId: string,
 ): Prisma.ParticipationWhereInput {
-  return { talentId, ...visibleParticipationWhere, event: shownEventWhere };
+  return { talentId, ...shownEnrolmentWhere() };
 }
 
 function projectQuestion(q: GraphQuestion): Question {

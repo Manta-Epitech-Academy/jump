@@ -2,8 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { shownEventWhere } from '$lib/domain/eventReadiness';
+import { shownEnrolmentWhere } from '$lib/domain/eventReadiness';
 import { toCalendarPlanning } from '$lib/domain/talentPlanning';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
@@ -19,11 +18,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
   // hero: a withdrawn talent's event is not on their timeline, and neither is a
   // campaign nobody prepared (#516).
   const participations = await prisma.participation.findMany({
-    where: {
-      talentId: locals.talent.id,
-      ...visibleParticipationWhere,
-      event: shownEventWhere,
-    },
+    where: { talentId: locals.talent.id, ...shownEnrolmentWhere() },
     select: {
       event: {
         select: {

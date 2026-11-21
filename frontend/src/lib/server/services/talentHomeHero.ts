@@ -13,8 +13,7 @@
  */
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { shownEventWhere } from '$lib/domain/eventReadiness';
+import { shownEnrolmentWhere } from '$lib/domain/eventReadiness';
 import { eventPublicName, UNNAMED_EVENT_NAME } from '$lib/domain/event';
 import { toDateKey } from '$lib/domain/planningTime';
 import {
@@ -53,14 +52,12 @@ export function enrolledNotOverWhere(
   const since = new Date(now.getTime() - ENDED_SLACK_MS);
   return {
     talentId,
-    ...visibleParticipationWhere,
-    event: {
-      ...shownEventWhere,
+    ...shownEnrolmentWhere({
       OR: [
         { endDate: { gte: since } },
         { endDate: null, date: { gte: since } },
       ],
-    },
+    }),
   };
 }
 
@@ -180,12 +177,7 @@ export async function enrolledEventCalendar(
   eventId: string,
 ): Promise<IcsEvent | null> {
   const participation = await prisma.participation.findFirst({
-    where: {
-      talentId,
-      eventId,
-      ...visibleParticipationWhere,
-      event: shownEventWhere,
-    },
+    where: { talentId, eventId, ...shownEnrolmentWhere() },
     select: {
       event: {
         select: {

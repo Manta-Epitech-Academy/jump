@@ -1,7 +1,6 @@
 import type { LayoutServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { shownEventWhere } from '$lib/domain/eventReadiness';
+import { shownEnrolmentWhere } from '$lib/domain/eventReadiness';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   // Planning is data-driven (no campus flag): the talent has a calendar iff at
@@ -14,11 +13,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     const planned = await prisma.participation.findFirst({
       where: {
         talentId: locals.talent.id,
-        ...visibleParticipationWhere,
-        event: {
-          ...shownEventWhere,
+        ...shownEnrolmentWhere({
           planningSlots: { some: { activityType: { not: 'orga' } } },
-        },
+        }),
       },
       select: { id: true },
     });

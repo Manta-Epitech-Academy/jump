@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { EventLifecycleStatus } from './eventLifecycle';
+import { visibleParticipationWhere } from './sfMemberStatus';
 
 /**
  * The events anyone but an admin is shown: an admin activated it
@@ -31,6 +32,23 @@ export const shownEventWhere = {
   devActivatedAt: { not: null },
   modules: { some: {} },
 } satisfies Prisma.EventWhereInput;
+
+/**
+ * The enrolments a talent's own space and their parent's read: one the dev
+ * space shows (`visibleParticipationWhere`, a withdrawn talent is not expected
+ * anywhere), on an event an admin activated ({@link shownEventWhere}). Spread
+ * into a `Participation` where; `event` narrows the events further and is
+ * ANDed with the rule rather than spread over it, so a caller's own `modules`
+ * or `OR` cannot replace a half of it.
+ */
+export function shownEnrolmentWhere(
+  event?: Prisma.EventWhereInput,
+): Prisma.ParticipationWhereInput {
+  return {
+    ...visibleParticipationWhere,
+    event: event ? { AND: [shownEventWhere, event] } : shownEventWhere,
+  };
+}
 
 /** {@link shownEventWhere} for a row already loaded. */
 export function isEventShown(event: {
