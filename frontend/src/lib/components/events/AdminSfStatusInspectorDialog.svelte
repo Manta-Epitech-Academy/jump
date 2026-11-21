@@ -20,33 +20,11 @@
     SF_STATUS_CLASS_LABELS,
     type SfStatusClass,
   } from '#lib/domain/sfMemberStatus.ts';
+  import { sfMembers } from './sfMembers.remote';
 
-  type ParticipationRow = {
-    id: string;
-    talentId: string;
-    nom: string;
-    prenom: string;
-    email: string | null;
-    phone: string | null;
-    schoolName: string | null;
-    sfMemberStatus: string | null;
-    statusClass: SfStatusClass;
-    isVisibleInDevSpace: boolean;
-    updatedAt: string;
-  };
-
-  type InspectorData = {
-    event: {
-      id: string;
-      displayName: string;
-      externalId: string | null;
-    };
-    total: number;
-    totalVisible: number;
-    totalHidden: number;
-    totalUnrecognised: number;
-    participations: ParticipationRow[];
-  };
+  type ParticipationRow = NonNullable<
+    ReturnType<typeof sfMembers>['current']
+  >['participations'][number];
 
   let {
     open = $bindable(false),
@@ -58,38 +36,20 @@
     eventTitle?: string;
   } = $props();
 
-  let loading = $state(false);
-  let errorMsg = $state<string | null>(null);
-  let data = $state<InspectorData | null>(null);
   let search = $state('');
   let filterVisibility = $state<'all' | 'visible' | 'hidden'>('all');
 
-  async function loadData() {
-    if (!eventId) return;
-    loading = true;
-    errorMsg = null;
-    try {
-      const res = await fetch(`/api/admin/events/${eventId}/participations`);
-      if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`);
-      data = await res.json();
-    } catch (e) {
-      errorMsg = e instanceof Error ? e.message : 'Erreur de chargement';
-    } finally {
-      loading = false;
-    }
-  }
+  // Asked while the dialog is open, one query per event: the body always reads
+  // the event the dialog is open on, and an answer for one opened before lands
+  // on a query nothing reads any more.
+  const inspection = $derived(open && eventId ? sfMembers(eventId) : null);
+  const data = $derived(inspection?.current);
 
-  let loadedFor = $state<string | null>(null);
-
+  // A closed dialog starts the next one from the whole list.
   $effect(() => {
-    if (open && eventId && eventId !== loadedFor) {
-      loadData();
-      loadedFor = eventId;
-    } else if (!open && loadedFor !== null) {
-      loadedFor = null;
-      search = '';
-      filterVisibility = 'all';
-    }
+    if (open) return;
+    search = '';
+    filterVisibility = 'all';
   });
 
   const filteredRows = $derived.by(() => {
@@ -171,19 +131,19 @@
     </Dialog.Header>
 
     <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      {#if loading && !data}
+      {#if inspection && !inspection.ready && !inspection.error}
         <div
           class="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground"
         >
           <LoaderCircle class="h-4 w-4 animate-spin" />
           Chargement…
         </div>
-      {:else if errorMsg}
+      {:else if inspection?.error}
         <div
           class="m-4 flex items-center gap-2 rounded-sm border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive sm:m-6"
         >
           <TriangleAlert class="h-4 w-4 shrink-0" />
-          {errorMsg}
+          Chargement impossible. Réessayez dans un instant.
         </div>
       {:else if data}
         {#if unknownWords.length > 0}
