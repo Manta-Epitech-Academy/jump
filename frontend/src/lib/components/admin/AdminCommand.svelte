@@ -10,6 +10,7 @@
   import type { LucideIcon } from '@lucide/svelte';
   import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
   import { ADMIN_NAV } from '#lib/components/admin/adminNav.ts';
+  import { searchPeople } from './people.remote';
   import {
     buildHaystack,
     matchesAllTokens,
@@ -26,19 +27,31 @@
   // Reuses the same ui/command kit.
   let { open = $bindable(false) }: { open?: boolean } = $props();
 
-  type PersonResult = {
-    type: 'talent' | 'parent' | 'staff';
-    id: string;
-    name: string;
-    email: string | null;
-    sub: string | null;
-    navQ: string;
-  };
+  type PersonResult = NonNullable<
+    ReturnType<typeof searchPeople>['current']
+  >[number];
 
   let inputValue = $state('');
-  let results = $state<PersonResult[]>([]);
-  let searching = $state(false);
-  let searchTimeout: ReturnType<typeof setTimeout>;
+  // What the people search is asked: the input once typing pauses for 250ms.
+  let term = $state('');
+  let debounceTimer: ReturnType<typeof setTimeout>;
+  $effect(() => {
+    const q = inputValue.trim();
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => (term = q), 250);
+    return () => clearTimeout(debounceTimer);
+  });
+
+  // One query per term, so the people listed always answer the term in force:
+  // an answer to an earlier one lands on its own query, which nothing reads.
+  const people = $derived(term.length >= 2 ? searchPeople(term) : null);
+  const results = $derived(
+    inputValue.trim().length >= 2 ? (people?.current ?? []) : [],
+  );
+  const searching = $derived(
+    inputValue.trim().length >= 2 &&
+      (term !== inputValue.trim() || (people?.loading ?? false)),
+  );
 
   // Navigation is the same `ADMIN_NAV` the sidebar renders, grouped by section
   // so the short labels stay unambiguous (a section heading supplies the
@@ -91,26 +104,6 @@
       go(`${resolve('staff/admin/talents')}?q=${q}`);
     }
   }
-
-  $effect(() => {
-    const q = inputValue.trim();
-    if (q.length < 2) {
-      results = [];
-      return;
-    }
-    searching = true;
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `${resolve('api/admin/people')}?q=${encodeURIComponent(q)}`,
-        );
-        if (res.ok) results = await res.json();
-      } finally {
-        searching = false;
-      }
-    }, 250);
-  });
 
   const talents = $derived(results.filter((r) => r.type === 'talent'));
   const parents = $derived(results.filter((r) => r.type === 'parent'));

@@ -5,7 +5,7 @@ import { buildTalentWhere } from '../../../../routes/(staff)/staff/admin/talents
 import { parseTalentFilters } from '../../../../routes/(staff)/staff/admin/talents/view';
 import { buildNoteWhere } from '../../../../routes/(staff)/staff/admin/notes/query';
 import { parseNoteFilters } from '../../../../routes/(staff)/staff/admin/notes/view';
-import { GET as searchPeople } from '../../../../routes/api/admin/people/+server';
+import { findPeople } from '#lib/server/services/peopleSearch.ts';
 
 /**
  * A multi-word search matches word by word (#360).
@@ -51,14 +51,7 @@ describe('multi-word staff search (integration)', () => {
 
   /** The command palette's typeahead, as the ids it returns per kind of person. */
   const palette = async (q: string) => {
-    // The handler reads the query and the admin gate, nothing else.
-    const response = await searchPeople({
-      url: new URL(
-        `http://localhost/api/admin/people?${new URLSearchParams({ q })}`,
-      ),
-      locals: { staffProfile: { staffRole: 'admin' } },
-    } as unknown as Parameters<typeof searchPeople>[0]);
-    const results: { type: string; id: string }[] = await response.json();
+    const results = await findPeople(q);
     const idsOf = (type: string) =>
       results.filter((r) => r.type === type).map((r) => r.id);
     return {
