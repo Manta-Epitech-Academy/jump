@@ -8,6 +8,8 @@ description: How Jump sends transactional email and SMS - the MAIL_PROVIDER / SM
 **The floor, always true:** mail and SMS are trapped unless `OUTBOUND_MODE=real`, which only prod
 sets. Recipients are minors (RGPD). Never widen the gate to debug something.
 
+**A log line never names a recipient.** No address, no number, no message text (it can carry a sign-in code): log the row id (`BroadcastRecipient.id`, a talent or user id) instead. The pod log is kept 31 days and the RGPD erasure cannot reach it, while the row it points to is erased with the person. What the providers write is covered at the façade: every failure `message` leaving `$lib/server/email` or `$lib/server/sms` has gone through `redactContacts`, so a provider repeating the address it rejected never reaches a log or a row (#518).
+
 ## `MAIL_PROVIDER`
 
 Picks the transactional mail backend. Lives behind a façade in `$lib/server/email/`: flipping the env swaps the active provider with no code change.

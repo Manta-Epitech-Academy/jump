@@ -21,6 +21,10 @@ import { adminDigestRecipients } from '$lib/server/services/adminStats/adminDige
 import { sendAdminDigest } from '$lib/server/services/adminDigest';
 import { updateStaffRole } from '$lib/server/services/staffAdminService';
 
+/** The addresses the digest would go to, which is what these tests assert on. */
+const recipientAddresses = async () =>
+  (await adminDigestRecipients()).map((r) => r.address);
+
 const sendEmail = vi.hoisted(() => vi.fn());
 vi.mock('$lib/server/email', () => ({
   sendEmail,
@@ -107,7 +111,7 @@ describe('weekly admin digest recipients (integration)', () => {
       address: chosenAddress,
       receivesDigest: false,
     });
-    expect(await adminDigestRecipients()).not.toContain(chosenAddress);
+    expect(await recipientAddresses()).not.toContain(chosenAddress);
   });
 
   it('sends it to a chosen admin only, and says so on the audit row', async () => {
@@ -194,11 +198,11 @@ describe('weekly admin digest recipients (integration)', () => {
       address: otherAddress,
       receivesDigest: true,
     });
-    expect(await adminDigestRecipients()).toContain(otherAddress);
+    expect(await recipientAddresses()).toContain(otherAddress);
 
     expect(await updateStaffRole(otherId, 'dev')).toEqual({ ok: true });
 
-    expect(await adminDigestRecipients()).not.toContain(otherAddress);
+    expect(await recipientAddresses()).not.toContain(otherAddress);
     expect(await adminRow(otherAddress)).toBeUndefined();
     const { status } = await call(postRecipient, secret, {
       address: otherAddress,

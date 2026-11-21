@@ -11,12 +11,16 @@
  * which backend is active. Each send may steer the trap's destination via
  * `SendOptions.devRedirect`; the trap itself is gated by `OUTBOUND_MODE`
  * (`$lib/server/outbound`); see `resolveMailRouting`.
+ *
+ * Every failure leaves through `redactFailure`, so a provider error that
+ * repeats the address it rejected never reaches a log or a row with it.
  */
 
 import { mailProviderKind } from './config';
 import { resendProvider } from './providers/resend';
 import { mailjetProvider } from './providers/mailjet';
 import { resolveMailRouting, applyDevRedirect } from './dev-redirect';
+import { redactFailure } from '$lib/server/redactContacts';
 import type {
   MailMessage,
   MailProvider,
@@ -58,7 +62,7 @@ export async function sendEmail(
     routing.kind === 'redirect'
       ? applyDevRedirect(payload, routing.to)
       : payload;
-  return provider.send(final);
+  return redactFailure(await provider.send(final));
 }
 
 export async function sendEmailBatch(
@@ -80,5 +84,5 @@ export async function sendEmailBatch(
     routing.kind === 'redirect'
       ? payloads.map((p) => applyDevRedirect(p, routing.to))
       : payloads;
-  return provider.sendBatch(finalPayloads);
+  return (await provider.sendBatch(finalPayloads)).map(redactFailure);
 }

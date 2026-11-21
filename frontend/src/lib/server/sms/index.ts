@@ -10,6 +10,9 @@
  * provider sees the payload, so it works uniformly regardless of backend, and
  * so a misconfigured dev env can never text a real minor. The trap is gated by
  * `OUTBOUND_MODE` (`$lib/server/outbound`); see `resolveSmsRouting`.
+ *
+ * Every failure leaves through `redactFailure`, so a provider error that
+ * repeats the number it rejected never reaches a log or a row with it.
  */
 
 import { smsProviderKind } from './config';
@@ -17,6 +20,7 @@ import { brevoSmsProvider } from './providers/brevo';
 import { nullSmsProvider } from './providers/null';
 import { resolveSmsRouting, applyDevRedirect } from './dev-redirect';
 import { toBrevoRecipient } from '$lib/domain/phone';
+import { redactFailure } from '$lib/server/redactContacts';
 import type {
   SmsMessage,
   SmsProvider,
@@ -52,7 +56,8 @@ export async function sendSms(
   }
 
   // Production path: a single SMS to the real recipient (one Brevo call).
-  if (routing.kind === 'real') return provider.send(payload);
+  if (routing.kind === 'real')
+    return redactFailure(await provider.send(payload));
 
   // Dev override: fan out one copy per debug number (parity with mail). Each
   // number is normalized like a real recipient, falling back to the raw value
@@ -65,5 +70,5 @@ export async function sendSms(
       provider.send(applyDevRedirect(payload, toBrevoRecipient(raw) ?? raw)),
     ),
   );
-  return results.find((r) => !r.ok) ?? results[0];
+  return redactFailure(results.find((r) => !r.ok) ?? results[0]);
 }

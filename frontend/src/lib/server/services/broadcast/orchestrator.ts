@@ -753,7 +753,7 @@ async function buildPersonalization(
           recipientId: recipient.id,
         })
           .then(buildFastloginLink)
-          .catch(logMintFailure('fastlogin', talentEmail))
+          .catch(logMintFailure('fastlogin', recipient.id))
       : Promise.resolve(null),
     needs.parentFastlogin && parentOf && parentEmail
       ? mintParentFastloginToken({
@@ -762,10 +762,10 @@ async function buildPersonalization(
           recipientId: recipient.id,
         })
           .then(buildParentFastloginLink)
-          .catch(logMintFailure('parent fastlogin', parentEmail))
+          .catch(logMintFailure('parent fastlogin', recipient.id))
       : Promise.resolve(null),
     needs.otp
-      ? mintSigninOtp(ownEmail).catch(logMintFailure('otp', ownEmail))
+      ? mintSigninOtp(ownEmail).catch(logMintFailure('otp', recipient.id))
       : Promise.resolve(null),
   ]);
 
@@ -775,11 +775,18 @@ async function buildPersonalization(
 /**
  * Swallow a per-recipient mint failure: log it with context and resolve to
  * null so the batch carries on and that recipient's variable renders empty.
+ *
+ * The context is the `BroadcastRecipient` id, never the address: the row
+ * already holds the address, and the log, unlike the row, is beyond the reach
+ * of the RGPD erasure.
  */
-function logMintFailure(kind: string, email: string) {
+function logMintFailure(kind: string, recipientId: string) {
   return (err: unknown): null => {
     // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
-    console.error(`[broadcast] ${kind} mint failed for ${email}:`, err);
+    console.error(
+      `[broadcast] ${kind} mint failed for recipient ${recipientId}:`,
+      err,
+    );
     return null;
   };
 }
