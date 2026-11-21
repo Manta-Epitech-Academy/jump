@@ -159,6 +159,7 @@ describe('the campus content on a talent’s home (integration)', () => {
   let pastEventId = '';
   /** Upcoming, on another campus. */
   let elsewhereEventId = '';
+  let inactiveEventId = '';
 
   const words = {
     title: 'Les Ateliers TECH',
@@ -192,16 +193,20 @@ describe('the campus content on a talent’s home (integration)', () => {
       campusId: string;
       signupUrl?: string;
       unnamed?: true;
+      inactive?: true;
     }) =>
       (
         await prisma.event.create({
           data: {
-            // Named the way an event a campus puts forward has to be.
+            // Named and activated, the way an event a campus puts forward has
+            // to be.
             titre: data.titre,
             publicName: data.unnamed ? null : data.titre,
             date: new Date(Date.now() + data.offset * DAY),
             campusId: data.campusId,
             signupUrl: data.signupUrl,
+            devActivatedAt: data.inactive ? null : new Date(),
+            modules: { create: { moduleKey: 'inscrits' } },
           },
         })
       ).id;
@@ -234,6 +239,13 @@ describe('the campus content on a talent’s home (integration)', () => {
       offset: 10,
       campusId: otherCampusId,
       signupUrl,
+    });
+    inactiveEventId = await event({
+      titre: `Pas encore activé ${stamp}`,
+      offset: 10,
+      campusId,
+      signupUrl,
+      inactive: true,
     });
   });
 
@@ -394,9 +406,10 @@ describe('the campus content on a talent’s home (integration)', () => {
     });
   });
 
-  it('refuses an event of another campus, one already started, one with no public name, or one with no sign-up form', async () => {
+  it('refuses an event of another campus, one no admin activated, one already started, one with no public name, or one with no sign-up form', async () => {
     for (const eventId of [
       elsewhereEventId,
+      inactiveEventId,
       pastEventId,
       unnamedEventId,
       formlessEventId,
@@ -420,22 +433,60 @@ describe('the campus content on a talent’s home (integration)', () => {
     ).toBe(campEventId);
   });
 
+  // The public name is the activation rule's to keep (a campus points only at
+  // an activated event, #516); the sign-up form is the highlight's own.
   it('refuses to take the public name or the sign-up form from an event a campus puts forward', async () => {
-    for (const field of ['publicName', 'signupUrl']) {
-      const refused = await post(adminApiWrite('write_event_config'), secret, {
+    const write = (field: string) =>
+      post(adminApiWrite('write_event_config'), secret, {
         eventId: campEventId,
         [field]: null,
       });
-      expect(refused.status).toBe(400);
-      expect(String(refused.payload.error)).toContain(campusName);
-      expect(String(refused.payload.error)).toContain(field);
-    }
+    const nameless = await write('publicName');
+    expect(nameless.status).toBe(400);
+    expect(String(nameless.payload.error)).toContain('nom public');
+    const formless = await write('signupUrl');
+    expect(formless.status).toBe(400);
+    expect(String(formless.payload.error)).toContain(campusName);
+    expect(String(formless.payload.error)).toContain('signupUrl');
     expect(
       await prisma.event.findUnique({
         where: { id: campEventId },
         select: { publicName: true, signupUrl: true },
       }),
     ).toEqual({ publicName: `Halloween Camp ${stamp}`, signupUrl });
+  });
+
+  // #516: deactivating is allowed, and takes the event off the home like every
+  // other non-admin screen; the admin read says why.
+  it('hides an event an admin deactivates, saying why, and shows it again once reactivated', async () => {
+    await prisma.event.update({
+      where: { id: campEventId },
+      data: { devActivatedAt: null },
+    });
+    try {
+      expect((await getTalentHome(campusId)).highlight?.event).toBeNull();
+      const payload = await read(
+        secret,
+        `campus=${encodeURIComponent(campusName)}`,
+      );
+      const [row] = (payload.campuses as { value: { highlight: unknown }[] })
+        .value;
+      expect(row?.highlight).toMatchObject({
+        event: {
+          eventId: campEventId,
+          shown: false,
+          notShownBecause: expect.stringContaining("n'est pas activé"),
+        },
+      });
+    } finally {
+      await prisma.event.update({
+        where: { id: campEventId },
+        data: { devActivatedAt: new Date() },
+      });
+    }
+    expect((await getTalentHome(campusId)).highlight?.event).toMatchObject({
+      id: campEventId,
+    });
   });
 
   // Only a change is checked: a call repeated, or the read sent back, is never
@@ -463,6 +514,8 @@ describe('the campus content on a talent’s home (integration)', () => {
         date: new Date(Date.now() + 10 * DAY),
         campusId,
         signupUrl,
+        devActivatedAt: new Date(),
+        modules: { create: { moduleKey: 'inscrits' } },
       },
     });
     await writeTalentHomeHighlight({ campus: campusName, eventId: doomed.id });

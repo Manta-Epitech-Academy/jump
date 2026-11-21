@@ -636,29 +636,32 @@ export async function lockEvent(tx: Prisma.TransactionClient, eventId: string) {
 }
 
 /**
- * What a campus pointing at an event shows its talents of it, and so what a
- * save of its configuration may not take away while one does: its public name,
- * which the invitation is titled with, and its sign-up form, which the
+ * What a campus pointing at an event needs of it that a save of its
+ * configuration could take away while one does: its sign-up form, which the
  * invitation's button opens (`pointedEventShown`). Read under the event's
  * lock, which the write pointing a campus at it takes too, so neither can slip
- * in between the other's check and its save. Only a field being cleared is
+ * in between the other's check and its save. Only a form being cleared is
  * refused: saving one already empty again (sending back what was read) is not
  * a change.
+ *
+ * The public name, which the invitation is titled with, used to be guarded
+ * here too. A campus now points only at an activated event (#516), and an
+ * activated event cannot lose its public name (`activationRefusal`, checked
+ * by `updateEventConfig` on every save that keeps it activated), so
+ * the activation rule holds it, and a deactivated event leaves the home
+ * whatever it is called.
  */
 async function refuseUnpointingEvent(
   tx: Prisma.TransactionClient,
   eventId: string,
-  next: { publicName: string | null; signupUrl: string | null },
+  signupUrl: string | null,
 ) {
+  if (signupUrl) return;
   const stored = await tx.event.findUniqueOrThrow({
     where: { id: eventId },
-    select: { publicName: true, signupUrl: true },
+    select: { signupUrl: true },
   });
-  const cleared = [
-    stored.publicName?.trim() && !next.publicName ? 'publicName' : null,
-    stored.signupUrl && !next.signupUrl ? 'signupUrl' : null,
-  ].filter((field): field is string => field !== null);
-  if (cleared.length === 0) return;
+  if (!stored.signupUrl) return;
   const pointing = await tx.talentHome_Highlight.findMany({
     where: { eventId },
     select: { campus: { select: { name: true } } },
@@ -667,7 +670,7 @@ async function refuseUnpointingEvent(
   if (pointing.length === 0) return;
   throw error(
     400,
-    `${pointing.map((row) => row.campus.name).join(', ')} met cet événement en avant sur l'accueil de ses talents, qui l'annonce sous son nom public et dont le bouton mène à son formulaire d'inscription. Retirez-le d'abord avec write_talent_home_highlight (eventId à null), ou gardez son ${cleared.join(' et son ')}.`,
+    `${pointing.map((row) => row.campus.name).join(', ')} met cet événement en avant sur l'accueil de ses talents, dont le bouton mène à son formulaire d'inscription. Retirez-le d'abord avec write_talent_home_highlight (eventId à null), ou gardez son signupUrl.`,
   );
 }
 
@@ -739,8 +742,8 @@ export const EventService = {
       attendanceStatuses: string[];
       /**
        * The event's sign-up form, https, checked by the caller; `''` = none.
-       * Neither it nor `publicName` may be cleared while a campus points at the
-       * event (`refuseUnpointingEvent`).
+       * It may not be cleared while a campus points at the event
+       * (`refuseUnpointingEvent`).
        */
       signupUrl: string;
       workshops?: readonly EventWorkshopLink[];
@@ -832,7 +835,7 @@ export const EventService = {
     const signupUrl = data.signupUrl.trim() || null;
     const save = async (tx: Prisma.TransactionClient) => {
       await lockEvent(tx, eventId);
-      await refuseUnpointingEvent(tx, eventId, { publicName, signupUrl });
+      await refuseUnpointingEvent(tx, eventId, signupUrl);
       await applyModuleDiff(tx, eventId, data.modules, data.moduleSettings);
       // Refuses a word the catalogue does not hold, which rolls the whole save
       // back: a configuration is saved entirely or not at all.

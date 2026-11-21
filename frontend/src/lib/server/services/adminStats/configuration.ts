@@ -843,6 +843,8 @@ export async function getTalentHomeContent(
               date: true,
               campusId: true,
               signupUrl: true,
+              devActivatedAt: true,
+              modules: { select: { moduleKey: true } },
             },
           },
         },

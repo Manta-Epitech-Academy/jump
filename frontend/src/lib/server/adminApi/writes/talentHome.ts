@@ -29,6 +29,7 @@ import {
 } from '$lib/markdown';
 import { toDateKey } from '$lib/domain/planningTime';
 import { eventDisplayName, eventPublicName } from '$lib/domain/event';
+import { isEventShown } from '$lib/domain/eventReadiness';
 import {
   HERO_BUTTON_MAX,
   HERO_TEXT_MAX,
@@ -291,12 +292,13 @@ export function checkSignupUrl(url: string): void {
 }
 
 /**
- * The event a campus may put forward: one of its own, still inviting (until
- * the end of its first day on the campus clock), named, and with a sign-up
- * form for the hero's button to open: what `pointedEventShown` reads back on
- * the talent's home. Checked inside the write's transaction, under the event's
- * lock, which a save of its configuration takes too before it clears either
- * field (`EventService.updateEventConfig`).
+ * The event a campus may put forward: one of its own, activated (a talent is
+ * shown no other event, #516), still inviting (until the end of its first day
+ * on the campus clock), named, and with a sign-up form for the hero's button
+ * to open: what `pointedEventShown` reads back on the talent's home. Checked
+ * inside the write's transaction, under the event's lock, which a save of its
+ * configuration takes too before it clears the sign-up form
+ * (`EventService.updateEventConfig`).
  */
 async function checkHighlightedEvent(
   tx: Prisma.TransactionClient,
@@ -312,6 +314,8 @@ async function checkHighlightedEvent(
       publicName: true,
       date: true,
       signupUrl: true,
+      devActivatedAt: true,
+      modules: { select: { moduleKey: true } },
       campus: { select: { id: true, name: true, timezone: true } },
     },
   });
@@ -323,6 +327,10 @@ async function checkHighlightedEvent(
   if (event.campus.id !== campus.id)
     throw new OperationRefusedError(
       `« ${name} » est un événement de ${event.campus.name}, pas de ${campus.name} : un campus ne met en avant que ses propres événements.`,
+    );
+  if (!isEventShown(event))
+    throw new OperationRefusedError(
+      `« ${name} » n'est pas activé, et un talent ne voit que les événements activés. Rendez-le d'abord visible avec write_event_config (visible).`,
     );
   if (!isInvitationOpen(event, event.campus.timezone, now))
     throw new OperationRefusedError(

@@ -65,6 +65,8 @@ describe('pointedEventShown', () => {
     ...startsOn('2026-10-13T22:00:00Z'),
     publicName: 'Halloween Camp',
     signupUrl: 'https://www.epitech.invalid/inscription',
+    devActivatedAt: new Date('2026-09-01T08:00:00Z'),
+    modules: ['inscrits'],
   };
   const before = new Date('2026-10-01T08:00:00Z');
 
@@ -90,6 +92,22 @@ describe('pointedEventShown', () => {
     ).toEqual({
       shown: false,
       because: "L'événement n'a plus de nom public (publicName).",
+    });
+  });
+
+  // #516: a talent is shown no event an admin has not activated.
+  it('hides an event no admin activated, and says so', () => {
+    expect(
+      pointedEventShown(
+        'paris',
+        'Europe/Paris',
+        { ...pointed, devActivatedAt: null },
+        before,
+      ),
+    ).toEqual({
+      shown: false,
+      because:
+        "L'événement n'est pas activé, et un talent ne voit que les événements activés.",
     });
   });
 });

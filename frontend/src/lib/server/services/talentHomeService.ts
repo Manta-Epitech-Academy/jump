@@ -106,6 +106,8 @@ export async function getTalentHome(
               startMinutes: true,
               signupUrl: true,
               campusId: true,
+              devActivatedAt: true,
+              modules: { select: { moduleKey: true } },
               category: { select: { color: true } },
               heroes: {
                 where: { stage: 'invitation' },
