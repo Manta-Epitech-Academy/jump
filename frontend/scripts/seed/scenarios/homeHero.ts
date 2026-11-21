@@ -40,6 +40,7 @@ import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
 import type { HomeHeroState } from '../../../src/lib/domain/talentHome';
 import type { CampusRef, EventRef, TalentRef, World } from '../world';
 import type { Scenario } from './types';
+import { SHOWN_TO_TALENTS } from './helpers';
 
 function workshop(slug: string) {
   const spec = WORKSHOPS.find((w) => w.slug === slug);
@@ -106,6 +107,7 @@ export const homeHero: Scenario = {
 
     // ── Pendant : trois sujets au choix, l'un commencé ─────────────────────
     const choice = world.addEvent({
+      ...SHOWN_TO_TALENTS,
       key: 'bandeau-stage-choix',
       titre: `${paris.name}-${clock.dateKey(running[0]!)}-StageSeconde`,
       publicName: 'Stage de seconde',
@@ -150,6 +152,7 @@ export const homeHero: Scenario = {
 
     // ── Pendant : un seul sujet ────────────────────────────────────────────
     const single = world.addEvent({
+      ...SHOWN_TO_TALENTS,
       key: 'bandeau-club-sujet',
       titre: `${paris.name}-${clock.dateKey(running[0]!)}-CampSujet`,
       publicName: 'Camp de la Toussaint',
@@ -173,6 +176,7 @@ export const homeHero: Scenario = {
 
     // ── Pendant : aucun sujet à ce moment ──────────────────────────────────
     const quiet = world.addEvent({
+      ...SHOWN_TO_TALENTS,
       key: 'bandeau-stage-sans-sujet',
       titre: `${paris.name}-${clock.dateKey(running[0]!)}-StageSansSujet`,
       publicName: 'Stage de troisième',
@@ -196,6 +200,7 @@ export const homeHero: Scenario = {
 
     // ── Inscrit, avec une heure d'accueil ──────────────────────────────────
     const expected = world.addEvent({
+      ...SHOWN_TO_TALENTS,
       key: 'bandeau-club-attendu',
       titre: `${paris.name}-${clock.dateKey(clock.days(5))}-CodingClub`,
       publicName: 'Coding Club Pac-Man',
@@ -225,6 +230,7 @@ export const homeHero: Scenario = {
 
     // ── Inscrit, le jour seul ──────────────────────────────────────────────
     const dayOnly = world.addEvent({
+      ...SHOWN_TO_TALENTS,
       key: 'bandeau-camp-jour',
       titre: `${lyon.name}-${clock.dateKey(clock.days(12))}-Camp`,
       publicName: 'Camp robotique',
@@ -246,8 +252,13 @@ export const homeHero: Scenario = {
     });
 
     // ── Venus il y a quelques semaines : leur campus parle pour eux ────────
-    const past = (campus: CampusRef, key: string, offset: number) =>
-      world.addEvent({
+    // A visit weeks ago: what makes the campus a talent's
+    // (`resolveTalentCampus`, any event), and, for the talent with a subject to
+    // carry on, what offers it, which only an activated event does.
+    const past = (campus: CampusRef, key: string, offset: number) => {
+      const offersSubject = key.endsWith('continuer');
+      return world.addEvent({
+        ...(offersSubject ? SHOWN_TO_TALENTS : {}),
         key,
         titre: `${campus.name}-${clock.dateKey(clock.days(offset))}-CodingClub`,
         publicName: 'Coding Club',
@@ -256,10 +267,9 @@ export const homeHero: Scenario = {
         campus,
         days: [clock.days(offset)],
         startMinutes: 14 * 60,
-        workshops: key.endsWith('continuer')
-          ? [{ slug: 'santa-shooter' }]
-          : undefined,
+        workshops: offersSubject ? [{ slug: 'santa-shooter' }] : undefined,
       });
+    };
 
     placed.push({
       state: 'invitation',
