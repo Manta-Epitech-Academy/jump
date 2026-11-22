@@ -100,7 +100,7 @@ These three concepts are distinct and must not be confused in code or documentat
 | Term in Jump           | Definition & Context                                                                                                                                                         | Model / Code                            |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
 | **EpiDuck**            | The blue duck in every talent header, Jump's one mascot. Each talent names and dresses their own, and he hosts their questionnaires. Replaced « Bernard le canard » (#539). | `Talent.mascot*`, `components/mascot/` |
-| **Moment** (du canard) | A point where EpiDuck speaks (a tap, the day's hello, going to sleep...). A closed list in code; what he says at each one is data the PO writes.                            | `MASCOT_MOMENTS`, `Mascot_Line`         |
+| **Moment** (du canard) | A point where EpiDuck speaks (a tap, the hello on arrival, going to sleep...). A closed list in code; what he says at each one is data the PO writes.                            | `MASCOT_MOMENTS`, `Mascot_Line`         |
 
 ---
 

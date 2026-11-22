@@ -20,9 +20,12 @@ describe('the accessory catalogues', () => {
 });
 
 describe('greetingFor', () => {
-  it('stays silent for a first meeting and once the talent was greeted today', () => {
+  it('leaves a first meeting to #540 and greets a talent back the same day', () => {
     expect(greetingFor(null, '2026-11-22')).toBeNull();
-    expect(greetingFor('2026-11-22', '2026-11-22')).toBeNull();
+    expect(greetingFor('2026-11-22', '2026-11-22')).toEqual({
+      moment: 'hello',
+      daysAway: 0,
+    });
   });
 
   it('says hello after a short gap and welcomes back after a long one', () => {

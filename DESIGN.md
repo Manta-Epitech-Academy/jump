@@ -869,11 +869,15 @@ as an icon:
   character, and no control may borrow them: a button still presses 1px down.
 
 None of it blocks anything: he never covers a control, and his bubble sits
-under him for five seconds and asks nothing.
+under him for five seconds and asks nothing. He stops swimming while he speaks,
+so the bubble stays where it was said. Asleep, he is under the water and nothing
+marks the spot but the sleep button's « zz »: a talent who sends him to sleep
+asked for calm, and bubbles rising from an empty stretch of header read as
+coming from nowhere.
 
-**Less motion, still a duck.** Asked for less motion, he sits still at the
-start of his lane, does not bob, squash or follow the pointer, and his dives are
-200 ms fades. His bubble fades in like any other entrance.
+**Less motion, still a duck.** Asked for less motion, he sits still where he
+was, does not bob, squash or follow the pointer, and his dives are 200 ms fades.
+His bubble fades in like any other entrance.
 
 **Where he is drawn**: the talent header, the talent's « Mon EpiDuck » card, and
 the avatar of a questionnaire that names no persona of its own. Never in the

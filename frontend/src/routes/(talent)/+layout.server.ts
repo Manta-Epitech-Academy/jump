@@ -34,10 +34,10 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
 /**
  * What the header's EpiDuck needs beyond the talent's own row (#539): what he
- * may say today, and whether this first request of the day owes the talent a
- * greeting. `streakLastDay` is still the previous visit's day here, since the
- * streak write does not touch the loaded row, so the greeting is read off it
- * before anything moves it.
+ * may say today, and how he greets the talent: a hello, or a welcome back when
+ * the previous visit is weeks old. `streakLastDay` is still the previous
+ * visit's day here, since the streak write does not touch the loaded row, so
+ * the greeting is read off it before anything moves it.
  */
 async function mascotFor(
   talent: NonNullable<App.Locals['talent']>,

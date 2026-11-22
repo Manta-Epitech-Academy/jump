@@ -1,8 +1,9 @@
 <!--
   The talent app bar. Every in-app talent page renders this at the very top, so
-  the chrome is pixel-identical wherever it appears: the Epitech logo (home)
-  flush to the left and the account controls (theme, settings, logout) flush to
-  the right. The header is transparent (no background or border) and sits in
+  the chrome is pixel-identical wherever it appears: the Epitech logo and the
+  JUMP_ wordmark (home) flush to the left, as the 2027 mockup draws them, and
+  the account controls (sleep, theme, settings, logout) flush to the right,
+  each named by a tooltip since an icon alone does not say what it does. The header is transparent (no background or border) and sits in
   normal flow, never sticky or fixed: on a flowing page it scrolls with the body,
   and on a full-height (`h-dvh`) page it stays put because an inner pane scrolls
   under it, not the header itself. Its content is centered at the talent content
@@ -10,19 +11,18 @@
   structurally the same on every page, so navigating from one page to another
   never moves it an inch.
 
-  Two optional, page-specific extras layer ON the fixed bar without shifting it:
-    - lead   a greeting in the first row, between the logo and the controls. The
-             dashboard's "Salut, {prenom}" is the one thing unique to home; it
-             wraps to its own line on mobile so a long name never truncates.
-    - title  a page title in a second row, preceded by a back button. `subtitle`,
-             `icon` and `actions` decorate that row. Omit `title` and there is no
-             second row at all (the dashboard, which carries a `lead` instead).
+  One optional, page-specific extra layers ON the fixed bar without shifting it:
+  a page title in a second row, preceded by a back button. `subtitle`, `icon`
+  and `actions` decorate that row. Omit `title` and there is no second row at
+  all (the dashboard).
 
-  Whatever those extras are, the first row (logo + controls) keeps the same
-  position and height on every page: that is the part that must not move.
+  The first row is the same on every page, content included: that is the part
+  that must not move. The dashboard once put « Salut, {prenom} » in it; the
+  mockup gave that greeting to the duck, who stops to say it when the talent
+  arrives, and a row that changed width from page to page moved his water too.
 
   The talent's EpiDuck (#539) swims in the first row's free space, between the
-  greeting and the controls, with his sleep button beside the theme switch.
+  wordmark and the controls, with his sleep button beside the theme switch.
   He takes that space without adding height: he rises into the top padding.
 
   Props:
@@ -32,7 +32,6 @@
     backHref  back-button target (default the dashboard, '/').
     backLabel accessible label for the back button (default 'Retour').
     actions   page controls on the right of the second row (week nav, etc.).
-    lead      home greeting shown in the first row.
 -->
 <script lang="ts">
   import type { Snippet, Component } from 'svelte';
@@ -43,6 +42,7 @@
   import EpitechLogo from '#lib/components/layout/EpitechLogo.svelte';
   import ModeToggle from '#lib/components/ModeToggle.svelte';
   import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Settings from '@lucide/svelte/icons/settings';
   import LogOut from '@lucide/svelte/icons/log-out';
@@ -57,7 +57,6 @@
     backHref = resolve(''),
     backLabel = 'Retour',
     actions,
-    lead,
     class: className,
   }: {
     title?: string;
@@ -66,7 +65,6 @@
     backHref?: string;
     backLabel?: string;
     actions?: Snippet;
-    lead?: Snippet;
     class?: string;
   } = $props();
 </script>
@@ -75,38 +73,46 @@
   <!-- Transparent header: content centered at the talent width so the logo and
        controls line up with the page body and sit in the same spot everywhere. -->
   <div class="mx-auto w-full max-w-5xl px-4 py-4 md:px-8">
-    <!-- Row 1: brand + greeting + account controls. Fixed on every page. -->
-    <div
-      class="flex flex-wrap items-center gap-x-3 gap-y-3 sm:flex-nowrap sm:gap-x-4"
-    >
-      <a href={resolve('')} aria-label="Accueil" class="shrink-0">
+    <!-- Row 1: brand + duck + account controls. Identical on every page. On
+         a phone the wordmark gives its room to the duck: the logo already
+         says where you are. -->
+    <div class="flex items-center gap-x-3 sm:gap-x-4">
+      <a
+        href={resolve('')}
+        aria-label="Accueil"
+        class="flex shrink-0 items-center gap-3 sm:gap-4"
+      >
         <EpitechLogo class="h-8 w-auto" />
+        <span class="hidden h-8 w-px bg-muted sm:block" aria-hidden="true"
+        ></span>
+        <span
+          class="hidden font-heading text-display-m leading-none text-foreground sm:block"
+          aria-hidden="true">JUMP<TitleCursor /></span
+        >
       </a>
-
-      {#if lead}
-        <div
-          class="hidden h-8 w-px shrink-0 bg-muted sm:block"
-          aria-hidden="true"
-        ></div>
-        <div class="order-last w-full min-w-0 sm:order-none sm:w-auto">
-          {@render lead()}
-        </div>
-      {/if}
 
       <MascotLane />
 
       <div class="ml-auto flex shrink-0 items-center gap-1">
         <MascotSleepButton />
         <ModeToggle />
-        <Button
-          variant="ghost"
-          size="icon"
-          href={resolve('settings')}
-          class="h-8 w-8 text-muted-foreground hover:text-foreground-secondary"
-        >
-          <Settings class="h-4 w-4" />
-          <span class="sr-only">Paramètres</span>
-        </Button>
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <Button
+                {...props}
+                variant="ghost"
+                size="icon"
+                href={resolve('settings')}
+                class="h-8 w-8 text-muted-foreground hover:text-foreground-secondary"
+              >
+                <Settings class="h-4 w-4" />
+                <span class="sr-only">Paramètres</span>
+              </Button>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content side="bottom"><p>Paramètres</p></Tooltip.Content>
+        </Tooltip.Root>
         <form
           action="{resolve('logout')}?type=student"
           method="POST"
@@ -118,15 +124,23 @@
               ),
             })}
         >
-          <Button
-            type="submit"
-            variant="ghost"
-            size="icon"
-            class="h-8 w-8 text-muted-foreground hover:text-destructive"
-          >
-            <LogOut class="h-4 w-4" />
-            <span class="sr-only">Déconnexion</span>
-          </Button>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  type="submit"
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                >
+                  <LogOut class="h-4 w-4" />
+                  <span class="sr-only">Déconnexion</span>
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content side="bottom"><p>Déconnexion</p></Tooltip.Content>
+          </Tooltip.Root>
         </form>
       </div>
     </div>
@@ -138,13 +152,21 @@
         class="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2"
       >
         <div class="flex min-w-0 items-center gap-2 sm:gap-3">
-          <a
-            href={backHref}
-            aria-label={backLabel}
-            class="-ml-1 inline-flex shrink-0 items-center justify-center rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-epi-blue"
-          >
-            <ArrowLeft class="h-5 w-5" />
-          </a>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <a
+                  {...props}
+                  href={backHref}
+                  aria-label={backLabel}
+                  class="-ml-1 inline-flex shrink-0 items-center justify-center rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-epi-blue"
+                >
+                  <ArrowLeft class="h-5 w-5" />
+                </a>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content side="bottom"><p>{backLabel}</p></Tooltip.Content>
+          </Tooltip.Root>
           <div class="flex min-w-0 items-center gap-2.5">
             {#if Icon}
               <Icon class="h-6 w-6 shrink-0 text-epi-blue" />

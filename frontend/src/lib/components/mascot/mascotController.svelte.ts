@@ -45,16 +45,15 @@ const SULK_MS = 6000;
 const BUBBLE_MS = 5000;
 /** How long after arrival he greets: the page settles first. */
 const GREETING_DELAY_MS = 2000;
+/**
+ * Marks a tab whose talent he already greeted: once per visit, not on every
+ * page and not again on a reload. Per tab and per browser, which is what a
+ * visit is; losing it (private window, blocked storage) only means one more
+ * hello.
+ */
+const GREETED_KEY = 'epiduck:greeted';
 
 export type MascotBubble = { text: string; id: number };
-
-/** One leg of his swim, kept so the next header can pick it up mid-way. */
-export type SwimLeg = {
-  from: number;
-  to: number;
-  startedAt: number;
-  durationMs: number;
-};
 
 export type MascotControllerInit = {
   talentId: string;
@@ -73,10 +72,13 @@ export class MascotController {
   facingTalent = $derived(this.bubble !== null && this.state.phase === 'awake');
   asleep = $derived(isAsleep(this.state));
 
-  /** Where the last header left him, in pixels from the lane's left edge. */
-  x = 0;
+  /**
+   * Where the last header left him, in pixels from the window's left edge, so
+   * the next one puts him back on the same spot even if its lane starts
+   * elsewhere. Null until a header has drawn him.
+   */
+  x: number | null = null;
   facingLeft = false;
-  leg: SwimLeg | null = null;
 
   #init: MascotControllerInit;
   #pokes: number[] = [];
@@ -113,12 +115,18 @@ export class MascotController {
     this.#say(lines[(start + this.#pokeTurn++) % lines.length]);
   }
 
-  /** The sleep button: optimistic, and put back if the server refuses. */
+  /**
+   * The sleep button: optimistic, and put back if the server refuses. He says
+   * goodnight only if he is in sight: sent to sleep while sulking under the
+   * water, he simply stays there, and a line with no duck under it would come
+   * from nowhere.
+   */
   async setAsleep(asleep: boolean): Promise<void> {
     if (asleep === this.asleep) return;
     const before = this.state;
+    const inSight = before.phase === 'awake' || before.phase === 'emerging';
     this.#dispatch(asleep ? 'sleep' : 'wake');
-    this.#sayMoment(asleep ? 'sleep' : 'wake');
+    if (!asleep || inSight) this.#sayMoment(asleep ? 'sleep' : 'wake');
     try {
       await putMascotToSleep({ asleep });
     } catch {
@@ -134,13 +142,15 @@ export class MascotController {
   }
 
   /**
-   * The day's greeting, once per load: a talent already greeted today has a
-   * null greeting, and a duck asleep says nothing.
+   * He stops and says hello when the talent arrives, as the mockup has him
+   * do: once per visit, never on each page change, where by the third click it
+   * would be noise. A duck asleep or already talking says nothing.
    */
   greet(): void {
     const greeting = this.#init.greeting;
-    if (this.#greeted || !greeting) return;
+    if (this.#greeted || !greeting || this.#greetedThisVisit()) return;
     this.#greeted = true;
+    this.#rememberGreeted();
     setTimeout(() => {
       if (this.state.phase !== 'awake' || this.bubble) return;
       const lines = this.#init.voice()[greeting.moment] ?? [];
@@ -149,6 +159,22 @@ export class MascotController {
         jours: String(greeting.daysAway),
       });
     }, GREETING_DELAY_MS);
+  }
+
+  #greetedThisVisit(): boolean {
+    try {
+      return sessionStorage.getItem(GREETED_KEY) === this.#init.talentId;
+    } catch {
+      return false;
+    }
+  }
+
+  #rememberGreeted(): void {
+    try {
+      sessionStorage.setItem(GREETED_KEY, this.#init.talentId);
+    } catch {
+      // Storage refused: the next load greets again, which is harmless.
+    }
   }
 
   #sayMoment(moment: MascotMomentKey): void {

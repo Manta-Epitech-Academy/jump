@@ -57,9 +57,13 @@ test.describe('le canard EpiDuck d’un talent', () => {
     await expect(beanie).toHaveAttribute('aria-pressed', 'true');
 
     // Asleep, he stays asleep on the next page, until he is woken.
-    await stored(page.getByRole('button', { name: 'Endormir Gaston' }));
+    await stored(
+      page.getByRole('button', { name: 'Endormir ton canard Gaston' }),
+    );
     await page.goto('/parcours');
-    const wake = page.getByRole('button', { name: 'Réveiller Gaston' });
+    const wake = page.getByRole('button', {
+      name: 'Réveiller ton canard Gaston',
+    });
     await expect(wake).toHaveAttribute('aria-pressed', 'true');
     await expect(
       page.getByRole('button', { name: 'Parler à Gaston' }),

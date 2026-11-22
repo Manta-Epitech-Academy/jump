@@ -6,14 +6,23 @@
   Everything here is how he moves; what he does and says is the controller's
   (`mascotController.svelte.ts`), which outlives the page. The lane only reads
   it, and writes back where he was when the page changes, so the next header
-  picks him up mid-pond.
+  puts him back on the same spot of the screen. That spot is read off his swim
+  animation, never off the page: by the time a page's teardown runs, its
+  elements are already out of the document and measure nothing.
+
+  He stops whenever he is not free to swim: while he speaks (he turns to the
+  talent, and his bubble stays under him), and on his way under the water.
 
   The row keeps its height: the lane is as tall as the controls, and the duck
   sits on its bottom edge (the water line) and rises into the header's top
   padding. What goes under the water line is clipped, which is how he dives.
 
-  Less motion asked: he stays put on the left, does not bob, squash or follow
-  the pointer, and his dives are fades. His bubble still fades in.
+  Less motion asked: he stays put, does not bob, squash or follow the
+  pointer, and his dives are fades. His bubble still fades in.
+
+  Asleep, he is under the water and nothing marks the spot, as in the mockup:
+  the sleep button's « zz » says where he went, and a talent who sent him to
+  sleep asked for calm.
 
   The randomness is the client's alone (nothing is drawn on the server, which
   renders him still), so it breaks no "rotate by a key" rule: that one is for
@@ -57,20 +66,33 @@
   let front = $derived(
     phase === 'awake' && (mascot?.facingTalent || idleFront),
   );
-  let sleeping = $derived(mascot?.asleep ?? false);
   let swimming = $derived(phase === 'awake' && !mascot?.facingTalent);
 
-  let swimAnimation: Animation | null = null;
+  // State, so the effect that pauses the swim follows each new leg.
+  let swimAnimation = $state.raw<Animation | null>(null);
+  /** The current leg, in pixels from the lane's left edge. */
+  let leg = { from: 0, to: 0 };
+  /** The lane's left edge on screen, read while it is in the document. */
+  let laneLeft = 0;
 
   const rand = (min: number, max: number) => min + Math.random() * (max - min);
 
-  /** Where he is right now, read off the element rather than computed. */
+  /**
+   * Where he is right now in the lane, from the swim animation's own clock:
+   * valid mid-leg, paused, and after the page has left the document.
+   */
   function currentX(): number {
-    if (!swimmer) return 0;
-    return new DOMMatrix(getComputedStyle(swimmer).transform).m41;
+    const progress = swimAnimation?.effect?.getComputedTiming().progress;
+    if (progress == null) return leg.to;
+    return leg.from + (leg.to - leg.from) * progress;
+  }
+
+  function measureLane(): void {
+    if (lane?.isConnected) laneLeft = lane.getBoundingClientRect().left;
   }
 
   function place(x: number): void {
+    leg = { from: x, to: x };
     swimmer?.animate([{ transform: `translateX(${x}px)` }], {
       duration: 0,
       fill: 'forwards',
@@ -177,7 +199,13 @@
       });
     const maxX = () => Math.max(0, (lane?.clientWidth ?? 0) - DUCK_WIDTH);
 
-    let x = mascot.reducedMotion ? 0 : Math.min(mascot.x, maxX());
+    // Back on the spot the last page left him. On a first draw, where the
+    // server put him: the lane's left edge.
+    measureLane();
+    let x =
+      mascot.x === null
+        ? 0
+        : Math.min(Math.max(0, mascot.x - laneLeft), maxX());
     place(x);
     mascot.greet();
 
@@ -223,6 +251,8 @@
         const left = to < x;
         if (left !== facingLeft) await turn(() => (facingLeft = left));
         const durationMs = Math.max(1500, (Math.abs(to - x) / SPEED) * 1000);
+        measureLane();
+        leg = { from: x, to };
         swimAnimation = swimmer!.animate(
           [
             { transform: `translateX(${x}px)` },
@@ -234,11 +264,13 @@
         try {
           await swimAnimation.finished;
         } catch {
-          return; // cancelled on the way out
+          // Cancelled: on the way out, or cut short by a narrower lane, which
+          // has already put him back inside it.
+          if (!alive) return;
+          x = leg.to;
+          continue;
         }
         x = to;
-        mascot!.x = x;
-        mascot!.facingLeft = facingLeft;
         if (alive) await idle();
       }
     }
@@ -277,6 +309,20 @@
     };
     window.addEventListener('pointermove', onPointer, { passive: true });
 
+    // A narrower window (a phone turned, a window resized) would leave him
+    // over the controls: bring him back to the lane's new end.
+    const resized = new ResizeObserver(() => {
+      measureLane();
+      if (currentX() <= maxX()) return;
+      // Dropped, not only cancelled: a cancelled animation that is played
+      // again starts its leg over.
+      swimAnimation?.cancel();
+      swimAnimation = null;
+      x = maxX();
+      place(x);
+    });
+    resized.observe(lane);
+
     void swim();
     void blink();
 
@@ -285,7 +331,8 @@
       for (const t of timers) clearTimeout(t);
       cancelAnimationFrame(frame);
       window.removeEventListener('pointermove', onPointer);
-      mascot.x = currentX();
+      resized.disconnect();
+      mascot.x = laneLeft + currentX();
       mascot.facingLeft = facingLeft;
       swimAnimation?.cancel();
     };
@@ -339,19 +386,6 @@
               </div>
             </div>
           </div>
-        {:else if sleeping}
-          <!-- Asleep under the water: a few bubbles where he went down. -->
-          <div
-            class="absolute bottom-0 left-1/2 -translate-x-1/2"
-            aria-hidden="true"
-          >
-            <span
-              class="sleep-bubble absolute bottom-0 -left-2 size-1.5 rounded-full border border-primary/60"
-            ></span>
-            <span
-              class="sleep-bubble sleep-bubble-late absolute bottom-0 left-1 size-2 rounded-full border border-primary/60"
-            ></span>
-          </div>
         {/if}
       </div>
 
@@ -386,12 +420,6 @@
       animation: mascot-bob 2.3s ease-in-out infinite;
       transform-origin: 50% 85%;
     }
-    .sleep-bubble {
-      animation: mascot-sleep-bubble 2.6s ease-in infinite;
-    }
-    .sleep-bubble-late {
-      animation-delay: 1.3s;
-    }
   }
 
   @keyframes mascot-bob {
@@ -401,20 +429,6 @@
     }
     50% {
       transform: translateY(-3px) rotate(3deg);
-    }
-  }
-
-  @keyframes mascot-sleep-bubble {
-    0% {
-      opacity: 0;
-      transform: translateY(0);
-    }
-    20% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0;
-      transform: translateY(-22px);
     }
   }
 </style>

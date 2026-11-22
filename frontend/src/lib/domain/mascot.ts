@@ -63,9 +63,9 @@ export const MASCOT_MOMENTS = {
     tokens: ['prenom', 'canard'],
   },
   hello: {
-    label: 'Bonjour du jour',
+    label: 'Bonjour',
     description:
-      "Première visite du jour d'un talent déjà venu, deux secondes après son arrivée. Une phrase par jour, toujours la même ce jour-là.",
+      "Chaque visite d'un talent déjà venu, deux secondes après son arrivée : le canard s'arrête pour le saluer, une fois par visite et non à chaque page. Une phrase par jour, toujours la même ce jour-là.",
     tokens: ['prenom', 'canard'],
   },
   away: {
@@ -196,8 +196,9 @@ export type MascotGreeting = {
  * `previousDay` is `Talent.streakLastDay` as the request loaded it: on the
  * first request of a day it still holds the previous visit, since the streak
  * write does not touch the loaded row. Null means no visit ever recorded, which
- * is the first meeting and not a greeting. A previous day of today means the
- * talent was already greeted.
+ * is the first meeting and not a greeting (#540). A talent back the same day
+ * gets a hello: the duck greets each visit, and the controller keeps it to
+ * one per visit.
  */
 export function greetingFor(
   previousDay: DateKey | null,
@@ -206,7 +207,6 @@ export function greetingFor(
   if (!previousDay) return null;
   // A CalendarDate compares as a count of days.
   const daysAway = parseDate(today).compare(parseDate(previousDay));
-  if (daysAway <= 0) return null;
   return {
     moment: daysAway >= MASCOT_AWAY_DAYS ? 'away' : 'hello',
     daysAway,
