@@ -820,7 +820,7 @@ Short, direct, purposeful. The brand is flat and confident: it does not bounce.
 **How long.**
 
 - **Answering a gesture takes `base` at most:** a press, a tooltip, a menu, a popover, a select. Changing place takes `slow` at most: a dialog, a wizard step, a block entering a page. `duration-500` and `duration-700` used to be in the code and read as lag. A one-shot celebration is a different thing and states its own duration (the XP float runs 2.2s on purpose).
-- **Leaving is faster than arriving.** An exit takes `fast`: the person has already decided, and the interface should get out of the way. A wizard step leaves in 120ms, then the next one arrives in 200ms, so the whole change stays within the 320ms ceiling.
+- **Leaving is faster than arriving.** An exit takes `fast`: the person has already decided, and the interface should get out of the way. A wizard step leaves in 120ms, then the next one arrives in 200ms, so the whole change stays within the 320ms ceiling. The planning's week pages the same way (`stepIn` / `stepOut` with a `direction`), arriving from the side time moved to, and only its dates and slots move: the hours and the scroll stay put.
 - **What opens from the keyboard does not animate.** A shortcut is used many times a day, and any entrance reads as lag between the keystroke and the answer: the admin ⌘K search opens at once (`instant` on `Dialog.Content`).
 - **A page does not make anyone wait for its content.** The first block enters with no delay. A list that enters together staggers 40ms per item and stops at 160ms, however long the list is: the interest chips once waited 50ms each, without a cap.
 
