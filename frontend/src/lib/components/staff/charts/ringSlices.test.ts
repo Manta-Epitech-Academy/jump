@@ -23,12 +23,17 @@ describe('ringSlices', () => {
     // The « Inscrits par niveau » ring of 22/11/2026: 107 and 1. As a dash on a
     // stroked circle, the 1 ended on the circle's own start and came out
     // notched.
-    const [, terminale] = ringSlices(
+    const [premiere, terminale] = ringSlices(
       [
         { key: 'premiere', count: 107 },
         { key: 'terminale', count: 1 },
       ],
       RING,
+    );
+    // Past half a turn, both edges take the long way round: the hole's edge
+    // too, or the 107 would cut across the middle.
+    expect(premiere.path).toMatch(
+      /^M 60 5 A 55 55 0 1 1 [\d.]+ [\d.]+ L [\d.]+ [\d.]+ A 45 45 0 1 0 60 15 Z$/,
     );
     expect(terminale.path).toMatch(
       /^M [\d.]+ [\d.]+ A 55 55 0 0 1 60 5 L 60 15 A 45 45 0 0 0 [\d.]+ [\d.]+ Z$/,
