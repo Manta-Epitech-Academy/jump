@@ -48,7 +48,7 @@ export async function sendActionEmail(
   });
 
   if (!mapping) {
-    const message = `No template mapped for action "${actionKey}": skipping send to ${recipient}.`;
+    const message = `No template mapped for action "${actionKey}": skipping send.`;
     console.warn(`[email-action] ${message}`);
     return { ok: false, reason: 'no_template', message };
   }

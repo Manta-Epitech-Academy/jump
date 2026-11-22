@@ -18,7 +18,11 @@
   import RealSendsBanner from '#lib/components/layout/RealSendsBanner.svelte';
   import DevRedirectPinBanner from '#lib/components/layout/DevRedirectPinBanner.svelte';
   import NavigationProgress from '#lib/components/layout/NavigationProgress.svelte';
-  import { identify, reset } from '#lib/analytics.ts';
+  import {
+    analyticsIdentity,
+    identify,
+    setAnalyticsSubject,
+  } from '#lib/analytics.ts';
 
   // Import SVGs as URLs using Vite's ?url suffix
   import faviconProd from '#lib/assets/favicon.svg?url';
@@ -52,68 +56,18 @@
   // Access staff campus from page data (via layout.server.ts -> hooks)
   let userCampusName = $derived(page.data.staffProfile?.campus?.name);
 
-  // Functional distinct_id is the StaffProfile.id / Talent.id (cuid, stable
-  // across sessions, decoupled from auth provider). Properties shape per
-  // product spec: account_type, role (staff role only, null for talents),
-  // campus name, email.
-  //
-  // Impersonation: when an admin uses login-as, BetterAuth swaps the active
-  // session to the target user. Without special handling, every analytics
-  // event during the impersonation would be attributed to the target: admin
-  // debug clicks polluting the user's funnels and replays. Instead, we
-  // identify as the real admin and tag the target via `impersonating_target_id`
-  // so admin-driven sessions stay filterable from genuine user behavior.
-  let identityKey = $state<string | null>(null);
+  // Who Umami measures on this page (`analyticsIdentity`, where the rules
+  // live). The subject is set on every change, because `beforeSend` enforces
+  // it on every payload; `identify` is called only when the properties change,
+  // since the tracker keeps them for the rest of the tab's life.
+  let identified: string | null = null;
   $effect(() => {
-    const user = page.data.user;
-    const staff = page.data.staffProfile;
-    const talent = page.data.talent;
-    const impersonator = page.data.impersonator;
-    let next: {
-      id: string;
-      data: Record<string, string | number | null>;
-    } | null = null;
-    if (impersonator) {
-      const adminId = impersonator.staffProfileId ?? impersonator.userId;
-      next = {
-        id: adminId,
-        data: {
-          account_type: 'staff',
-          role: impersonator.staffRole ?? null,
-          campus: impersonator.campusName ?? null,
-          email: impersonator.email ?? null,
-          impersonating_target_id: staff?.id ?? talent?.id ?? null,
-        },
-      };
-    } else if (staff) {
-      next = {
-        id: staff.id,
-        data: {
-          account_type: 'staff',
-          role: staff.staffRole ?? null,
-          campus: staff.campus?.name ?? null,
-          email: user?.email ?? null,
-        },
-      };
-    } else if (talent) {
-      next = {
-        id: talent.id,
-        data: {
-          account_type: 'talent',
-          role: null,
-          campus: page.data.talentCampusName ?? null,
-          // RGPD: talents can be minors, never ship their email to Umami.
-          email: null,
-        },
-      };
-    }
-    const key = next
-      ? `${next.id}|${next.data.account_type}|${next.data.impersonating_target_id ?? ''}`
-      : null;
-    if (key === identityKey) return;
-    identityKey = key;
-    if (next) identify(next.id, next.data);
-    else reset();
+    const { subject, properties } = analyticsIdentity(page.data);
+    setAnalyticsSubject(subject);
+    const key = properties && JSON.stringify([subject.distinctId, properties]);
+    if (key === identified) return;
+    identified = key;
+    if (properties) identify(properties);
   });
 </script>
 

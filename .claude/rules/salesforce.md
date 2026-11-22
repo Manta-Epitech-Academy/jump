@@ -209,8 +209,9 @@ One bearer check, `requireWorkerToken`, in front of all six. An unset
 `WORKER_API_TOKEN` refuses everything rather than letting anything through.
 
 Worth knowing rather than discovering: `/api/worker/*` sits **outside** the
-`/api/admin` and `/api/mcp` prefixes that `admin-api.md` assumes are
-rate-limited at the edge, and it writes no per-call audit row. What stands in for
+`/api/admin` and `/api/mcp` prefixes, so whatever rate control `admin-api.md`
+records for those (none today, and the paragraph there says what a future one
+covers) never reaches it, and it writes no per-call audit row. What stands in for
 both is that the credential is machine-only, the surface is six fixed operations,
 and every real run leaves a `Sync_Run`. Mounting a seventh route by copying a block
 is how that stops being true.

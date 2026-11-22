@@ -375,10 +375,12 @@ model Talent {
   /// and the reset to import.
   streakDays                  Int                  @default(0)
   streakLastDay               DateTime?            @db.Date
-  /// When this talent objected to usage measurement (RGPD art. 21). Set, and the
-  /// recorder writes nothing for them. Null means no objection, which is the
-  /// default: the basis is legitimate interest, not consent, so measurement runs
-  /// until it is refused. Objection is per person and permanent until cleared.
+  /// When this talent objected to usage measurement (RGPD art. 21). Set, and
+  /// nothing measures them: the recorder writes nothing and the browser sends
+  /// nothing to Umami (`objectedToUsageMeasurement`). Null means no objection,
+  /// which is the default: the basis is legitimate interest, not consent, so
+  /// measurement runs until it is refused. Objection is per person and permanent
+  /// until cleared.
   usageAnalyticsOptOutAt      DateTime?
   welcomeSeenAt               DateTime?
   /// When `anonymizeTalent` erased this talent, stamped once and never cleared.

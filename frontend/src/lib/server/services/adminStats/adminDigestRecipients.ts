@@ -40,13 +40,19 @@ const RECIPIENT = {
  */
 export const ADMIN_ACCOUNTS_LIMIT = 100;
 
-/** Login addresses the digest is sent to. Empty means no digest goes out. */
-export async function adminDigestRecipients(): Promise<string[]> {
+/**
+ * The admins the digest is sent to: the login address it goes to, and the
+ * account id a failed send is logged under, since an address never goes to a
+ * log. Empty means no digest goes out.
+ */
+export async function adminDigestRecipients(): Promise<
+  { userId: string; address: string }[]
+> {
   const rows = await prisma.bauth_user.findMany({
     where: RECIPIENT,
-    select: { email: true },
+    select: { id: true, email: true },
   });
-  return rows.map((r) => r.email);
+  return rows.map((r) => ({ userId: r.id, address: r.email }));
 }
 
 export async function getAdminDigestRecipients() {

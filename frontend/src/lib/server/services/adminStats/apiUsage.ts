@@ -31,7 +31,8 @@ export const RECOVERY_WINDOW_MINUTES = 5;
  * MCP endpoint refusing a request before any tool is named, the HTTP reference
  * being read). Not operations, so they are kept out of both friction lists: at
  * the top of a refusal ranking one reads as a broken tool when it is in fact
- * unauthenticated traffic, which is what the edge rate limit is for.
+ * unauthenticated traffic, which no tool can fix (what bounds it, and that
+ * nothing does today, is stated in `.claude/rules/admin-api.md`).
  */
 const TRANSPORT_NAMES: ReadonlySet<string> = new Set(
   Object.values(TRANSPORT_OPERATIONS),

@@ -2,6 +2,8 @@
 paths:
   - "frontend/src/lib/server/usage/**"
   - "frontend/src/lib/domain/usage.ts"
+  - "frontend/src/lib/analytics.ts"
+  - "frontend/src/lib/components/Umami.svelte"
   - "frontend/src/hooks.server.ts"
   - "frontend/src/lib/server/services/adminStats/{featureUsage,staffActivity}.ts"
 ---
@@ -63,6 +65,17 @@ catalogue both read.
   Views come from `USAGE_VIEW_ROUTES` in `hooks.server.ts` and connections from
   the space prefix beside it, both after the guards, which also keeps writes out
   of `load` functions that SvelteKit runs on hover-preload.
+- **Umami runs in the browser, so it holds itself to the two talent rules here
+  rather than escaping them.** No stable id: a talent is never `identify`'d by
+  id, so Umami keys them on its own session hash, whose salt rotates monthly,
+  exactly as `actorHash` does; staff keep their profile id, the same asymmetry as
+  above. And one objection stops both systems: `objectedToUsageMeasurement`
+  (`domain/usage.ts`) is read by the recorder and by the browser, which renders
+  no Umami script for an objector and drops every send through the
+  `data-before-send` hook in `#lib/analytics.ts` for a tracker already loaded. Both
+  shipped broken: the layout identified talents by `Talent.id`, and only the
+  recorder read the objection while the switch promised « plus rien ne sera
+  alors enregistré » (#518).
 - **Where a use is recorded is a rule, not a judgement call per site.** An endpoint
   that produces an artifact records once the artifact exists, so an event issuing
   no certificate never counts a 404 as a render. Everything else records when the

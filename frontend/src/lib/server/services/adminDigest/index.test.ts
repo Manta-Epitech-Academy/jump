@@ -787,9 +787,10 @@ describe('buildAdminDigest', () => {
 
 describe('sendAdminDigest', () => {
   beforeEach(() => {
-    adminDigestRecipients
-      .mockReset()
-      .mockResolvedValue(['a@x.test', 'b@x.test']);
+    adminDigestRecipients.mockReset().mockResolvedValue([
+      { userId: 'user_a', address: 'a@x.test' },
+      { userId: 'user_b', address: 'b@x.test' },
+    ]);
     sendEmail.mockReset().mockResolvedValue({ ok: true });
     ledger.digestBaseline.mockReset().mockResolvedValue(baseline);
     ledger.adoptionDue.mockReset().mockResolvedValue(false);

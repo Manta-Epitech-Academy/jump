@@ -1,19 +1,163 @@
 import { browser } from '$app/env';
+import { objectedToUsageMeasurement } from '#lib/domain/usage.ts';
 
 type Primitive = string | number | boolean | null | undefined;
 export type EventData = Record<string, Primitive>;
 
+/**
+ * The tracker's API as Jump uses it (Umami v3, `src/tracker/index.ts`). It has
+ * no `reset()`, and Jump called one on every sign-out, so an identity was
+ * never cleared: clearing it is done in {@link beforeSend} rather than by a
+ * call.
+ */
 interface UmamiTracker {
   track: (name: string, data?: EventData) => void;
-  identify: (id: string, data?: EventData) => void;
-  reset: () => void;
+  identify: (idOrData: string | EventData, data?: EventData) => void;
 }
+
+/** What the tracker hands `data-before-send` and posts if it gets it back. */
+type UmamiPayload = Record<string, unknown> & { id?: string };
+
+/**
+ * The global the tracker looks up by name on every send (`data-before-send`
+ * on its `<script>`, see `Umami.svelte`). A name rather than a function because
+ * the script tag is static markup.
+ */
+export const UMAMI_BEFORE_SEND = 'jumpUmamiBeforeSend';
 
 declare global {
   interface Window {
     umami?: UmamiTracker;
+    [UMAMI_BEFORE_SEND]?: (
+      type: string,
+      payload: UmamiPayload,
+    ) => UmamiPayload | null;
   }
 }
+
+/**
+ * Who the browser is measuring, and whether at all. `measured: false` is a
+ * talent who objected (`objectedToUsageMeasurement`); `distinctId` is set for
+ * staff only, because a talent's activity is never tied to a stable id at a
+ * measurement tool: without one, Umami falls back to its own session hash,
+ * whose salt rotates monthly, which is the rule `actorHash` applies to Jump's
+ * own measurement.
+ */
+export type AnalyticsSubject = { measured: boolean; distinctId?: string };
+
+let subject: AnalyticsSubject = { measured: true };
+
+/** Set by the root layout whenever the person behind the page changes. */
+export function setAnalyticsSubject(next: AnalyticsSubject): void {
+  subject = next;
+}
+
+/** The slice of the root layout's page data a subject is read from. */
+export type AnalyticsPageData = {
+  user?: { email?: string | null } | null;
+  staffProfile?: {
+    id: string;
+    staffRole?: string | null;
+    campus?: { name: string } | null;
+  } | null;
+  talent?: { usageAnalyticsOptOutAt: Date | string | null } | null;
+  talentCampusName?: string | null;
+  impersonator?: {
+    userId: string;
+    staffProfileId?: string | null;
+    staffRole?: string | null;
+    campusName?: string | null;
+    email?: string | null;
+  } | null;
+};
+
+/**
+ * Who the browser measures on a page, and the session properties `identify`
+ * attaches (null when there is nobody to identify, or nothing may be sent).
+ *
+ * Staff are identified by their StaffProfile.id (stable across sessions,
+ * decoupled from the auth provider): adults, employees, and per-person history
+ * is what was asked for, the same regime as Jump's own measurement. A talent
+ * never is (see {@link AnalyticsSubject}), and a talent who objected is not
+ * measured at all. The email goes along for staff only, since talents can be
+ * minors.
+ *
+ * Under impersonation (login-as), BetterAuth swaps the session to the target,
+ * so without this every event would be attributed to them: admin debug clicks
+ * polluting their funnels. The admin is measured instead, with the kind of
+ * account they act as, so admin-driven sessions stay filterable from genuine
+ * ones. The target's id goes along only when it is a member of staff: a
+ * talent's id is exactly the stable identifier this keeps away from Umami.
+ *
+ * So a talent's objection governs the pages the talent opens, not the ones an
+ * admin opens as them: those are the admin's, the line the server's usage
+ * recorder (`resolveActor`) draws for the same request.
+ */
+export function analyticsIdentity(page: AnalyticsPageData): {
+  subject: AnalyticsSubject;
+  properties: EventData | null;
+} {
+  const { user, staffProfile: staff, talent, impersonator } = page;
+  if (impersonator) {
+    return {
+      subject: {
+        measured: true,
+        distinctId: impersonator.staffProfileId ?? impersonator.userId,
+      },
+      properties: {
+        account_type: 'staff',
+        role: impersonator.staffRole ?? null,
+        campus: impersonator.campusName ?? null,
+        email: impersonator.email ?? null,
+        impersonating: staff ? 'staff' : talent ? 'talent' : null,
+        impersonating_target_id: staff?.id ?? null,
+      },
+    };
+  }
+  if (staff) {
+    return {
+      subject: { measured: true, distinctId: staff.id },
+      properties: {
+        account_type: 'staff',
+        role: staff.staffRole ?? null,
+        campus: staff.campus?.name ?? null,
+        email: user?.email ?? null,
+      },
+    };
+  }
+  if (objectedToUsageMeasurement(talent)) {
+    return { subject: { measured: false }, properties: null };
+  }
+  return {
+    subject: { measured: true },
+    properties: talent
+      ? {
+          account_type: 'talent',
+          role: null,
+          campus: page.talentCampusName ?? null,
+        }
+      : null,
+  };
+}
+
+/**
+ * Every payload passes here at the moment it leaves, pageviews included, which
+ * Jump never sends itself: the tracker sends one 300 ms after each navigation,
+ * by which time the layout has set the subject of the page it lands on.
+ *
+ * So the two promises hold whatever the tracker remembers. An objector sends
+ * nothing at all. And the id is overwritten with the current subject's, or
+ * removed, on every payload, because the tracker keeps the last identity it
+ * was given for as long as the tab lives: a staff member signing out and a
+ * talent signing in on the same tab would otherwise carry the staff id on.
+ */
+function beforeSend(_type: string, payload: UmamiPayload): UmamiPayload | null {
+  if (!subject.measured) return null;
+  const { id: _stale, ...rest } = payload;
+  return subject.distinctId ? { ...rest, id: subject.distinctId } : rest;
+}
+
+if (browser) window[UMAMI_BEFORE_SEND] = beforeSend;
 
 const QUEUE_RETRY_MS = 100;
 const QUEUE_MAX_RETRIES = 50; // ~5s before giving up, script.js loads with `defer`.
@@ -41,12 +185,14 @@ export function track(name: string, data?: EventData): void {
   call('track', name, data);
 }
 
-export function identify(id: string, data?: EventData): void {
-  call('identify', id, data);
-}
-
-export function reset(): void {
-  call('reset');
+/**
+ * Attach session properties, and an id when the subject carries one. The id
+ * the tracker records is the subject's either way ({@link beforeSend}); this
+ * only decides which properties go with it.
+ */
+export function identify(data: EventData): void {
+  if (subject.distinctId) call('identify', subject.distinctId, data);
+  else call('identify', data);
 }
 
 // ── small helpers used at call sites ────────────────────────────────────────
