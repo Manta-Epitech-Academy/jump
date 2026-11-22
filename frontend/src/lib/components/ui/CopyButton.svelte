@@ -3,8 +3,8 @@
   import Check from '@lucide/svelte/icons/check';
   import type { Snippet } from 'svelte';
   import { toast } from 'svelte-sonner';
-  import { cn } from '$lib/utils';
-  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { cn } from '#lib/utils.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
 
   type Props = {
     value: string | null | undefined;

@@ -2,8 +2,8 @@
   import type { BroadcastChannel } from '@prisma/client';
   import Mail from '@lucide/svelte/icons/mail';
   import MessageSquare from '@lucide/svelte/icons/message-square';
-  import { BROADCAST_CHANNEL_LABELS } from '$lib/domain/broadcasts';
-  import { cn } from '$lib/utils';
+  import { BROADCAST_CHANNEL_LABELS } from '#lib/domain/broadcasts.ts';
+  import { cn } from '#lib/utils.ts';
 
   let {
     channel,

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import { buttonVariants } from '$lib/components/ui/button';
+  import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
+  import { buttonVariants } from '#lib/components/ui/button/index.ts';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';

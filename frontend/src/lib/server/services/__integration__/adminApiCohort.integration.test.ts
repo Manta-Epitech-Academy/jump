@@ -20,14 +20,14 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { schoolYearOf } from '$lib/domain/schoolYear';
-import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
-import { setEventStatusPolicy } from '$lib/server/services/devSpaceVisibility';
+import { prisma } from '#lib/server/db.ts';
+import { schoolYearOf } from '#lib/domain/schoolYear.ts';
+import { VISIBLE_PARTICIPATION_DEFINITION } from '#lib/domain/sfMemberStatus.ts';
+import { setEventStatusPolicy } from '#lib/server/services/devSpaceVisibility.ts';
 import { assertTestDatabase } from './testDatabase';
-import { resolveScope } from '$lib/server/adminApi/scope';
-import { cohortWhere } from '$lib/server/services/adminStats/cohort';
-import { getOnboardingFunnel } from '$lib/server/services/adminStats/onboardingFunnel';
+import { resolveScope } from '#lib/server/adminApi/scope.ts';
+import { cohortWhere } from '#lib/server/services/adminStats/cohort.ts';
+import { getOnboardingFunnel } from '#lib/server/services/adminStats/onboardingFunnel.ts';
 
 const stamp = Date.now();
 const CAMPUS = `CohortCampus-${stamp}`;

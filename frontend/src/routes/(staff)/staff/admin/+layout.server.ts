@@ -3,18 +3,18 @@ import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { prisma } from '$lib/server/db';
-import { countAuthIdentityConflicts } from '$lib/server/services/authIdentityService';
-import { staffDevRedirectSchema } from '$lib/validation/staffSettings';
-import { outboundTrapped } from '$lib/server/outbound';
-import { canArmRealSends } from '$lib/server/armRealSends';
-import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
+import { prisma } from '#lib/server/db.ts';
+import { countAuthIdentityConflicts } from '#lib/server/services/authIdentityService.ts';
+import { staffDevRedirectSchema } from '#lib/validation/staffSettings.ts';
+import { outboundTrapped } from '#lib/server/outbound.ts';
+import { canArmRealSends } from '#lib/server/armRealSends.ts';
+import { staffBulkDevRedirectEmails } from '#lib/server/email/dev-redirect.ts';
 
 export const load: LayoutServerLoad = async ({ parent, locals }) => {
   const { user, staffProfile } = await parent();
 
   if (!user || staffProfile?.staffRole !== 'admin') {
-    throw redirect(302, resolve('/staff/login'));
+    throw redirect(302, resolve('staff/login'));
   }
 
   const [deletionRequestsPending, authConflictsPending, settingsForm] =

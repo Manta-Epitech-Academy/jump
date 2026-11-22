@@ -24,7 +24,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { syncEvents, syncParticipations, syncTalents } from '../syncService';
 import { anonymizeTalent } from '../anonymizationService';
 import {
@@ -34,10 +34,10 @@ import {
 } from '../talentDeletionService';
 import { assertTestDatabase } from './testDatabase';
 
-vi.mock('$lib/server/email/actionMail', () => ({
+vi.mock('#lib/server/email/actionMail.ts', () => ({
   sendActionEmail: vi.fn(async () => ({ ok: true })),
 }));
-vi.mock('$lib/server/infra/storage', () => ({
+vi.mock('#lib/server/infra/storage.ts', () => ({
   getStorage: () => ({ delete: async () => {} }),
 }));
 

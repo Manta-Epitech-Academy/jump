@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { loadOpenSyncErrors } from '$lib/server/services/syncErrorQueue';
+import { loadOpenSyncErrors } from '#lib/server/services/syncErrorQueue.ts';
 
 // Read-only: the sync opens and closes these errors, nobody resolves one here.
 // Streamed, because naming who holds each address reads every talent's

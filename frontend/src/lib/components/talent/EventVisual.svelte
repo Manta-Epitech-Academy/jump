@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { eventVisualAccent } from '$lib/domain/eventHero';
-  import { cn } from '$lib/utils';
+  import { eventVisualAccent } from '#lib/domain/eventHero.ts';
+  import { cn } from '#lib/utils.ts';
 
   // The 2027 mockup's visual for an event that has no picture of its own: the
   // brand's signature over the event's name, its last word in the colour of

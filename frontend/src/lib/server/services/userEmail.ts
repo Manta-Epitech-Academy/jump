@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { isParentOrStaffEmail } from '$lib/server/auth/emailIdentity';
+import { prisma } from '#lib/server/db.ts';
+import { isParentOrStaffEmail } from '#lib/server/auth/emailIdentity.ts';
 
 /**
  * Raised when a login email can't be moved onto `newEmail`: either the address

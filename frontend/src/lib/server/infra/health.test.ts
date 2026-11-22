@@ -7,9 +7,9 @@
  * one does too, rather than throwing out of the route as a 500.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 
-vi.mock('$lib/server/db', () => ({ prisma: { $queryRaw: vi.fn() } }));
+vi.mock('#lib/server/db.ts', () => ({ prisma: { $queryRaw: vi.fn() } }));
 
 const { checkReadiness } = await import('./health');
 const queryRaw = vi.mocked(prisma.$queryRaw);

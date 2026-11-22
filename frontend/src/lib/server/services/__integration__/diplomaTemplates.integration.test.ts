@@ -10,12 +10,12 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
-import { mintToken } from '$lib/server/adminApi/tokens';
-import { adminApiWrite } from '$lib/server/adminApi/route';
-import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
+import { mintToken } from '#lib/server/adminApi/tokens.ts';
+import { adminApiWrite } from '#lib/server/adminApi/route.ts';
+import { getDiplomaTemplatePreview } from '#lib/server/diplomaTemplates.ts';
 
 const postTemplate = adminApiWrite('write_diploma_template');
 const postEventConfig = adminApiWrite('write_event_config');

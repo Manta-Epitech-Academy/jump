@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { RECO_QUESTION_KEY } from '$lib/domain/feedback';
+import { prisma } from '#lib/server/db.ts';
+import { RECO_QUESTION_KEY } from '#lib/domain/feedback.ts';
 import {
   loadCohortSubmissions,
   recoQuestionOf,
-} from '$lib/server/feedbackStats';
-import { getFormGraphById } from '$lib/server/feedbackForms';
+} from '#lib/server/feedbackStats.ts';
+import { getFormGraphById } from '#lib/server/feedbackForms.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

@@ -11,10 +11,10 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { isHttpError } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { prisma } from '$lib/server/db';
-import { auth } from '$lib/server/auth';
-import { startImpersonation } from '$lib/server/auth/impersonate';
+import { ORIGIN } from '$app/env/private';
+import { prisma } from '#lib/server/db.ts';
+import { auth } from '#lib/server/auth.ts';
+import { startImpersonation } from '#lib/server/auth/impersonate.ts';
 import { POST as stopRoute } from '../../../../routes/api/impersonation/stop/+server';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
@@ -23,7 +23,7 @@ import { cookieJar, pathSpellings, postAuth, sessionCookie } from './authHttp';
 const stamp = Date.now();
 
 function requestWith(cookie: string): Request {
-  return new Request(`${env.ORIGIN}/staff/admin/impersonate`, {
+  return new Request(`${ORIGIN}/staff/admin/impersonate`, {
     method: 'POST',
     headers: { cookie },
   });
@@ -35,7 +35,7 @@ function requestWith(cookie: string): Request {
  * over. Answers the status, a refusal's included, and the cookies it set.
  */
 async function stop(cookie: string) {
-  const request = new Request(`${env.ORIGIN}/api/impersonation/stop`, {
+  const request = new Request(`${ORIGIN}/api/impersonation/stop`, {
     method: 'POST',
     headers: { cookie },
   });

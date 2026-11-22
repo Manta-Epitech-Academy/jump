@@ -3,20 +3,20 @@
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
+  } from '#lib/components/staff/datatable/search.ts';
   import { enhance } from '$app/forms';
-  import * as Card from '$lib/components/ui/card';
-  import * as Table from '$lib/components/ui/table';
-  import * as Tabs from '$lib/components/ui/tabs';
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import { Badge } from '$lib/components/ui/badge';
-  import { Button, buttonVariants } from '$lib/components/ui/button';
-  import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
+  import * as Card from '#lib/components/ui/card/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import * as Tabs from '#lib/components/ui/tabs/index.ts';
+  import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
+  import Pagination from '#lib/components/staff/datatable/Pagination.svelte';
   import {
     pageCount,
     paginate,
-  } from '$lib/components/staff/datatable/paginate';
-  import SalesforceIconLink from '$lib/components/salesforce/SalesforceIconLink.svelte';
+  } from '#lib/components/staff/datatable/paginate.ts';
+  import SalesforceIconLink from '#lib/components/salesforce/SalesforceIconLink.svelte';
   import CloudDownload from '@lucide/svelte/icons/cloud-download';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import CheckCheck from '@lucide/svelte/icons/check-check';
@@ -26,8 +26,8 @@
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import { toast } from 'svelte-sonner';
-  import { civiliteLabel } from '$lib/domain/profile';
-  import { FIELD_LABELS, type DiffField } from '$lib/domain/reconciliation';
+  import { civiliteLabel } from '#lib/domain/profile.ts';
+  import { FIELD_LABELS, type DiffField } from '#lib/domain/reconciliation.ts';
   import {
     VERDICT_LABELS,
     ACTION_LABELS,
@@ -36,10 +36,10 @@
     type AuthConflict,
     type AuthAccountSummary,
     type AuthRepairAction,
-  } from '$lib/domain/authIdentity';
+  } from '#lib/domain/authIdentity.ts';
   import type { SfConflictsData } from './types';
   import SfExportMenu from './SfExportMenu.svelte';
-  import CodeTag from '$lib/components/layout/CodeTag.svelte';
+  import CodeTag from '#lib/components/layout/CodeTag.svelte';
 
   // The streamed reconciliation payload plus the shell's search box value. This
   // component owns every data-dependent projection, both tabs and the two repair

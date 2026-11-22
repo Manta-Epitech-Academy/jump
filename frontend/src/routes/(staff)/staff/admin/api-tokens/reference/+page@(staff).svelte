@@ -24,8 +24,8 @@
   import { resolve } from '$app/paths';
   import { mode } from 'mode-watcher';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-  import BrandMark from '$lib/components/layout/BrandMark.svelte';
-  import ModeToggle from '$lib/components/ModeToggle.svelte';
+  import BrandMark from '#lib/components/layout/BrandMark.svelte';
+  import ModeToggle from '#lib/components/ModeToggle.svelte';
   import type { createApiReference } from '@scalar/api-reference';
 
   let { data } = $props();
@@ -137,7 +137,7 @@
     class="on-dark sticky top-0 z-50 flex h-15 items-center justify-between gap-4 border-b border-chrome-border bg-chrome px-4 md:px-6"
   >
     <BrandMark
-      href={resolve('/staff/admin')}
+      href={resolve('staff/admin')}
       sublabel="Admin"
       accent="pink"
       orientation="inline"
@@ -145,7 +145,7 @@
 
     <div class="flex items-center gap-2 text-chrome-foreground-muted">
       <a
-        href={resolve('/staff/admin/api-tokens')}
+        href={resolve('staff/admin/api-tokens')}
         class="inline-flex cursor-pointer items-center gap-1.5 text-sm hover:text-chrome-foreground"
       >
         <ArrowLeft class="h-4 w-4" /> Accès API

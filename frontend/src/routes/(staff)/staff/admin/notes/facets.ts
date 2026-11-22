@@ -1,10 +1,11 @@
-import { prisma } from '$lib/server/db';
+import type { ListParams } from '#lib/domain/listView.ts';
+import { prisma } from '#lib/server/db.ts';
 import {
   FACET_NONE,
   offerFacets,
   type CountedFacet,
   type FacetCount,
-} from '$lib/domain/listFacets';
+} from '#lib/domain/listFacets.ts';
 import { parseNoteFilters, type NoteFilters, type NotesFacet } from './view';
 
 /**
@@ -14,12 +15,12 @@ import { parseNoteFilters, type NoteFilters, type NotesFacet } from './view';
  *
  * The gallery is paged on the server, so the author facet is counted in the
  * database, over every note like every list counts its own, and goes through
- * `offerFacets`, the rules every staff list follows (`$lib/domain/listFacets`):
+ * `offerFacets`, the rules every staff list follows (`#lib/domain/listFacets`):
  * here to decide what the rows match, on the page with the ticks of its own
  * address. The campus has no column, so it is no column filter: only a ticked
  * campus that no longer exists is dropped.
  */
-export async function resolveNoteFilters(params: URLSearchParams): Promise<{
+export async function resolveNoteFilters(params: ListParams): Promise<{
   filters: NoteFilters;
   facetCounts: CountedFacet<NotesFacet>[];
   campuses: { id: string; name: string }[];

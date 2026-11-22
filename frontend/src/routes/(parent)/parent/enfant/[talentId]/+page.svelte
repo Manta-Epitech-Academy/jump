@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Badge } from '$lib/components/ui/badge';
-  import * as Collapsible from '$lib/components/ui/collapsible';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import X from '@lucide/svelte/icons/x';
@@ -12,16 +12,16 @@
   import Clock from '@lucide/svelte/icons/clock';
   import MapPin from '@lucide/svelte/icons/map-pin';
   import Settings from '@lucide/svelte/icons/settings';
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import { resolve } from '$app/paths';
-  import { enter, stagger } from '$lib/motion';
-  import { renderMarkdown } from '$lib/markdown';
+  import { enter, stagger } from '#lib/motion/index.ts';
+  import { renderMarkdown } from '#lib/markdown.ts';
   import {
     CURRENT_DROIT_IMAGE_VERSION,
     droitImageClausesFor,
-  } from '$lib/content/droit-image';
+  } from '#lib/content/droit-image/index.ts';
   import ChildSignForm from '../../signature/ChildSignForm.svelte';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
 
   let { data, form } = $props();
 
@@ -61,7 +61,7 @@
     <div class="flex items-center gap-4">
       {#if data.hasMultipleChildren}
         <a
-          href={resolve('/parent')}
+          href={resolve('parent')}
           aria-label="Revenir à la liste de vos enfants"
           class="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-card shadow-raised transition-colors hover:bg-background"
         >
@@ -82,7 +82,7 @@
         </p>
       </div>
       <a
-        href={resolve('/parent/settings')}
+        href={resolve('parent/settings')}
         class="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground-secondary"
       >
         <Settings class="h-4 w-4" />

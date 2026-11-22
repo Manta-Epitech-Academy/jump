@@ -15,12 +15,12 @@
  */
 
 import type { Prisma, Onboarding_Record } from '@prisma/client';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
 import {
   ONBOARDING_PROJECTED_FIELDS,
   type OnboardingDossierOnlyField,
   type OnboardingProjectedField,
-} from '$lib/domain/talentOnboarding';
+} from '#lib/domain/talentOnboarding.ts';
 
 /**
  * The dossier fields a signature act may set: every projected field, derived

@@ -10,7 +10,7 @@
  * provider sees the payload, so the dev-trap works uniformly regardless of
  * which backend is active. Each send may steer the trap's destination via
  * `SendOptions.devRedirect`; the trap itself is gated by `OUTBOUND_MODE`
- * (`$lib/server/outbound`); see `resolveMailRouting`.
+ * (`#lib/server/outbound`); see `resolveMailRouting`.
  *
  * Every failure leaves through `redactFailure`, so a provider error that
  * repeats the address it rejected never reaches a log or a row with it.
@@ -20,7 +20,7 @@ import { mailProviderKind } from './config';
 import { resendProvider } from './providers/resend';
 import { mailjetProvider } from './providers/mailjet';
 import { resolveMailRouting, applyDevRedirect } from './dev-redirect';
-import { redactFailure } from '$lib/server/redactContacts';
+import { redactFailure } from '#lib/server/redactContacts.ts';
 import type {
   MailMessage,
   MailProvider,

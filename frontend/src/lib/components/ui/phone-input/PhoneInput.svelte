@@ -6,14 +6,14 @@
     type CountryCode,
   } from 'libphonenumber-js';
   import { tick } from 'svelte';
-  import * as Popover from '$lib/components/ui/popover';
-  import * as Command from '$lib/components/ui/command';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
+  import * as Popover from '#lib/components/ui/popover/index.ts';
+  import * as Command from '#lib/components/ui/command/index.ts';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import Check from '@lucide/svelte/icons/check';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
   import {
     COUNTRIES,
     DEFAULT_COUNTRY,

@@ -4,7 +4,7 @@ import {
   MAIL_BATCH_MAX,
   MAIL_FROM,
   type SendEmailFailure,
-} from '$lib/server/email';
+} from '#lib/server/email/index.ts';
 import type {
   BroadcastSendOptions,
   MailMessage,

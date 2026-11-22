@@ -72,7 +72,7 @@ catalogue both read.
   above. And one objection stops both systems: `objectedToUsageMeasurement`
   (`domain/usage.ts`) is read by the recorder and by the browser, which renders
   no Umami script for an objector and drops every send through the
-  `data-before-send` hook in `$lib/analytics` for a tracker already loaded. Both
+  `data-before-send` hook in `#lib/analytics.ts` for a tracker already loaded. Both
   shipped broken: the layout identified talents by `Talent.id`, and only the
   recorder read the objection while the switch promised « plus rien ne sera
   alors enregistré » (#518).

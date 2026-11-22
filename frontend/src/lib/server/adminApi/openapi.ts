@@ -16,7 +16,7 @@
  * `z.toJSONSchema` in `input` mode the MCP SDK uses, targeting the JSON Schema
  * dialect OpenAPI 3.1 is written in.
  */
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { type RequestHandler } from '@sveltejs/kit';
 import { z } from 'zod';
 import { authenticateOrRefuse } from './guard';
 import { recordAdminApiCall, TRANSPORT_OPERATIONS } from './audit';
@@ -307,7 +307,7 @@ export const serveOpenApiDocument: RequestHandler = async (event) => {
       operation: TRANSPORT_OPERATIONS.openapi,
       status: 200,
     });
-    return json(document);
+    return Response.json(document);
   } catch (err) {
     console.error('[adminApi] openapi document failed:', err);
     await recordAdminApiCall({
@@ -315,7 +315,7 @@ export const serveOpenApiDocument: RequestHandler = async (event) => {
       operation: TRANSPORT_OPERATIONS.openapi,
       status: 500,
     });
-    return json(
+    return Response.json(
       { error: `Erreur interne (${TRANSPORT_OPERATIONS.openapi}).` },
       { status: 500 },
     );

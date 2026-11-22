@@ -1,24 +1,23 @@
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { resolve as resolvePath } from '$app/paths';
 import type { StaffRole } from '@prisma/client';
-import { getStaffRoleRedirectPath } from '$lib/domain/staff';
-import { prisma } from '$lib/server/db';
-import { can, type StaffGroup } from '$lib/domain/permissions';
+import { getStaffRoleRedirectPath } from '#lib/domain/staff.ts';
+import { prisma } from '#lib/server/db.ts';
+import { can, type StaffGroup } from '#lib/domain/permissions.ts';
 import {
   getOnboardingStep,
   onboardingFieldsForYear,
-} from '$lib/domain/talentOnboarding';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
-import { isOnboardingEligible } from '$lib/domain/niveau';
-import { parentBlockedWhere } from '$lib/server/db/dossierCompliance';
+} from '#lib/domain/talentOnboarding.ts';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
+import { isOnboardingEligible } from '#lib/domain/niveau.ts';
+import { parentBlockedWhere } from '#lib/server/db/dossierCompliance.ts';
 import {
   loginUrlWithRedirect,
   onboardingFunnelUrl,
-} from '$lib/server/auth/loginRedirect';
+} from '#lib/server/auth/loginRedirect.ts';
 
 function forbidGroup(group: StaffGroup): never {
-  throw error(403, {
-    message: 'Action réservée.',
+  throw error(403, 'Action réservée.', {
     code: 'staff_group_required',
     group,
   });
@@ -43,19 +42,18 @@ export async function applyRouteGuards(
 ): Promise<Response | null> {
   const routeId = event.route.id || '';
 
-  // Where to send someone: URLs, resolved against the base path.
-  const p = (path: string) =>
-    new URL(resolvePath(path as any), event.url).pathname;
+  // Where to send someone: root-relative pathnames, resolved against the base
+  // path (`paths.relative` is off, so `resolve()` never answers `../x`).
 
-  const pathStaffLogin = p('/staff/login');
-  const pathTalentLogin = p('/login');
-  const pathTalentRoot = p('/');
-  const pathTalentOnboarding = p('/onboarding');
-  const pathTalentWelcome = p('/welcome');
-  const pathTalentCharte = p('/charte');
-  const pathParentLogin = p('/login');
-  const pathParentWelcome = p('/parent/welcome');
-  const pathParentMerci = p('/parent/merci');
+  const pathStaffLogin = resolvePath('staff/login');
+  const pathTalentLogin = resolvePath('login');
+  const pathTalentRoot = resolvePath('');
+  const pathTalentOnboarding = resolvePath('onboarding');
+  const pathTalentWelcome = resolvePath('welcome');
+  const pathTalentCharte = resolvePath('charte');
+  const pathParentLogin = resolvePath('login');
+  const pathParentWelcome = resolvePath('parent/welcome');
+  const pathParentMerci = resolvePath('parent/merci');
 
   // Where someone is: the matched route, never event.url.pathname. The router
   // matches on the decoded path while url.pathname keeps its percent-encoding,
@@ -232,7 +230,7 @@ export async function applyRouteGuards(
       if (!can('devMember', role)) {
         const correctPath = getStaffRoleRedirectPath(role);
         if (correctPath) {
-          return seeOther(p(correctPath), event.url);
+          return seeOther(resolvePath(correctPath), event.url);
         }
         return seeOther(`${pathStaffLogin}?error=NoRole`, event.url);
       }

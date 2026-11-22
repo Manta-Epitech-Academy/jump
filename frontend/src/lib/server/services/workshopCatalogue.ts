@@ -1,12 +1,12 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   catalogueGaps,
   thumbnailOf,
   type CatalogueDomain,
   type CatalogueSubject,
-} from '$lib/domain/workshopCatalogue';
-import { supervisorJoinUrl, workshopCoverUrl } from '$lib/domain/workshops';
+} from '#lib/domain/workshopCatalogue.ts';
+import { supervisorJoinUrl, workshopCoverUrl } from '#lib/domain/workshops.ts';
 
 /**
  * The subject catalogue as its readers see it: the dev space's page lists the

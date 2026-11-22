@@ -1,15 +1,15 @@
-import { error, json } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { dateKeyToDbDate } from '$lib/domain/eventPresence';
-import { noteCreateSchema } from '$lib/validation/talentNotes';
+import { error } from '@sveltejs/kit';
+import { prisma } from '#lib/server/db.ts';
+import { dateKeyToDbDate } from '#lib/domain/eventPresence.ts';
+import { noteCreateSchema } from '#lib/validation/talentNotes.ts';
 import {
   NOTE_INCLUDE,
   requireTalentNoteAccess,
   serializeNote,
-} from '$lib/server/talentNotes';
+} from '#lib/server/talentNotes.ts';
 import type { RequestHandler } from './$types';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 /**
  * Staff notes about a talent (the multi-note feed that replaced the single
@@ -25,7 +25,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     orderBy: { createdAt: 'desc' },
     include: NOTE_INCLUDE,
   });
-  return json({ notes: notes.map(serializeNote) });
+  return Response.json({ notes: notes.map(serializeNote) });
 };
 
 /** Creates a note authored by the acting staff member. */
@@ -66,5 +66,5 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
   });
   recordUsage(USAGE_FEATURES.DEV_TALENT_NOTE_CREATE, { locals });
 
-  return json({ note: serializeNote(note) }, { status: 201 });
+  return Response.json({ note: serializeNote(note) }, { status: 201 });
 };

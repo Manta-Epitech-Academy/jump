@@ -24,7 +24,7 @@ RUN bun install --frozen-lockfile
 # Copy source and build
 COPY . .
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" bunx prisma generate
-# The commit becomes the app's version (svelte.config.js). Declared after the
+# The commit becomes the app's version (vite.config.ts). Declared after the
 # install and generate steps so a new commit does not invalidate their cache.
 ARG GIT_SHA
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" BETTER_AUTH_SECRET="build-placeholder" bun run build
@@ -35,9 +35,10 @@ RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" BETTER_AUTH_SEC
 # not be made to. It reaches `src/lib/domain` by relative path on purpose ("the
 # domain is imported, never restated"), and the runtime image ships the built app
 # and no source at all. Copying `src/` into it would trade that invariant away
-# for one tool, and the breakage would be invisible until somebody added a `$lib`
-# import to a module the generator reaches: the image would still build, and only
-# the seed would fail, only in the cluster.
+# for one tool, and the breakage would be invisible until somebody added an import
+# plain Bun cannot resolve (a SvelteKit `$app/*` module, a Vite `?raw` file) to a
+# module the generator reaches: the image would still build, and only the seed
+# would fail, only in the cluster.
 #
 # And it has to run INSIDE the cluster rather than through a port-forward from
 # somebody's machine, because `scripts/seed/guard.ts` matches `--env` against the

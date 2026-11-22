@@ -19,8 +19,8 @@
  * the path rule in `applyRouteGuards` alone.
  */
 import type { PageServerLoad } from './$types';
-import { requireAdminSession } from '$lib/server/auth/guards';
-import { buildOpenApiDocument } from '$lib/server/adminApi/openapi';
+import { requireAdminSession } from '#lib/server/auth/guards.ts';
+import { buildOpenApiDocument } from '#lib/server/adminApi/openapi.ts';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   requireAdminSession(locals);

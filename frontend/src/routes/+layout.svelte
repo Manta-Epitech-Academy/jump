@@ -7,30 +7,30 @@
   import '@fontsource/space-mono/400.css';
   import '@fontsource/space-mono/700.css';
   import './layout.css';
-  import { Toaster } from '$lib/components/ui/sonner';
-  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { Toaster } from '#lib/components/ui/sonner/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
   import { onNavigate, beforeNavigate } from '$app/navigation';
   import { ModeWatcher } from 'mode-watcher';
   import { page, updated } from '$app/state';
-  import { dev } from '$app/environment';
-  import Umami from '$lib/components/Umami.svelte';
-  import ImpersonationAutoExit from '$lib/components/ImpersonationAutoExit.svelte';
-  import RealSendsBanner from '$lib/components/layout/RealSendsBanner.svelte';
-  import DevRedirectPinBanner from '$lib/components/layout/DevRedirectPinBanner.svelte';
-  import NavigationProgress from '$lib/components/layout/NavigationProgress.svelte';
+  import { dev } from '$app/env';
+  import Umami from '#lib/components/Umami.svelte';
+  import ImpersonationAutoExit from '#lib/components/ImpersonationAutoExit.svelte';
+  import RealSendsBanner from '#lib/components/layout/RealSendsBanner.svelte';
+  import DevRedirectPinBanner from '#lib/components/layout/DevRedirectPinBanner.svelte';
+  import NavigationProgress from '#lib/components/layout/NavigationProgress.svelte';
   import {
     analyticsIdentity,
     identify,
     setAnalyticsSubject,
-  } from '$lib/analytics';
+  } from '#lib/analytics.ts';
 
   // Import SVGs as URLs using Vite's ?url suffix
-  import faviconProd from '$lib/assets/favicon.svg?url';
-  import faviconDev from '$lib/assets/favicon-dev.svg?url';
+  import faviconProd from '#lib/assets/favicon.svg?url';
+  import faviconDev from '#lib/assets/favicon-dev.svg?url';
 
   let { children } = $props();
 
-  // Stale-client recovery: once `kit.version.pollInterval` has detected a new
+  // Stale-client recovery: once kit's `version.pollInterval` has detected a new
   // deploy (`updated.current` true), turn the next client-side navigation into
   // a full page load. The fresh document references the new hashed chunks, so
   // we never try to import a chunk the new image already deleted (the 404 +
@@ -77,7 +77,7 @@
 </svelte:head>
 
 <!-- The FOUC-prevention script it would inject here carries no nonce and
-     `kit.csp` blocks it; `src/app.html` emits a nonce-carrying copy instead
+     kit's `csp` blocks it; `src/app.html` emits a nonce-carrying copy instead
      (see `THEME_INIT` in hooks.server.ts, issue #277). -->
 <ModeWatcher disableHeadScriptInjection />
 <Umami />

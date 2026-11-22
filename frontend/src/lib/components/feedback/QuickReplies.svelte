@@ -1,7 +1,10 @@
 <script lang="ts">
-  import type { Question, AnswerValue } from '$lib/domain/feedbackForms/schema';
-  import { typeset } from '$lib/domain/typography';
-  import { cn } from '$lib/utils';
+  import type {
+    Question,
+    AnswerValue,
+  } from '#lib/domain/feedbackForms/schema.ts';
+  import { typeset } from '#lib/domain/typography.ts';
+  import { cn } from '#lib/utils.ts';
 
   interface Props {
     question: Question;

@@ -14,14 +14,14 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { schoolYearOf } from '$lib/domain/schoolYear';
+import { prisma } from '#lib/server/db.ts';
+import { schoolYearOf } from '#lib/domain/schoolYear.ts';
 import { assertTestDatabase } from './testDatabase';
 import {
   ADMIN_API_OPERATIONS,
   type AdminApiOperation,
   type AdminApiOperationName,
-} from '$lib/server/adminApi/operations';
+} from '#lib/server/adminApi/operations.ts';
 
 /** Values seeded onto a real talent, then hunted for in every answer. */
 const IDENTITY = {

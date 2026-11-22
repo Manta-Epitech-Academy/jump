@@ -19,19 +19,19 @@
  * live in process memory.
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { type RequestHandler } from '@sveltejs/kit';
 import { Hono } from 'hono';
 import { StreamableHTTPTransport } from '@hono/mcp';
-import { authenticateOrRefuse } from '$lib/server/adminApi/guard';
+import { authenticateOrRefuse } from '#lib/server/adminApi/guard.ts';
 import {
   recordAdminApiCall,
   TRANSPORT_OPERATIONS,
-} from '$lib/server/adminApi/audit';
+} from '#lib/server/adminApi/audit.ts';
 import {
   buildAdminMcpServer,
   auditUnreachedToolCall,
   envelopeRefusal,
-} from '$lib/server/adminApi/mcpServer';
+} from '#lib/server/adminApi/mcpServer.ts';
 
 /**
  * Largest envelope this endpoint reads.
@@ -88,7 +88,7 @@ const handle: RequestHandler = async (event) => {
       operation: TRANSPORT_OPERATIONS.mcp,
       status: 413,
     });
-    return json(
+    return Response.json(
       {
         error: `Requête trop volumineuse (limite ${MAX_ENVELOPE_BYTES / 1024} Ko). Les opérations de cette API prennent des identifiants et des années scolaires, jamais un document.`,
       },
@@ -109,7 +109,10 @@ const handle: RequestHandler = async (event) => {
       operation: TRANSPORT_OPERATIONS.mcp,
       status: refusal.status,
     });
-    return json({ error: refusal.message }, { status: refusal.status });
+    return Response.json(
+      { error: refusal.message },
+      { status: refusal.status },
+    );
   }
 
   await auditUnreachedToolCall(body, credential);

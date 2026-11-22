@@ -1,13 +1,13 @@
-import { prisma } from '$lib/server/db';
-import { mintGameJwt } from '$lib/server/jwt';
-import { MINIGAME_XP_REWARD, minigameRankBonus } from '$lib/domain/xp';
-import { formatPeerName } from '$lib/domain/profile';
-import { grantXp } from '$lib/server/services/xpService';
+import { prisma } from '#lib/server/db.ts';
+import { mintGameJwt } from '#lib/server/jwt.ts';
+import { MINIGAME_XP_REWARD, minigameRankBonus } from '#lib/domain/xp.ts';
+import { formatPeerName } from '#lib/domain/profile.ts';
+import { grantXp } from '#lib/server/services/xpService.ts';
 import {
   getGameCatalog,
   scoringTypeFor,
   type CatalogGame,
-} from '$lib/server/services/minigameCatalog';
+} from '#lib/server/services/minigameCatalog.ts';
 import type {
   MinigameAttempt,
   MinigamePublication,

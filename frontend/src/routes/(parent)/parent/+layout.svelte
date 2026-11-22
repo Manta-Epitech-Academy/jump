@@ -1,9 +1,9 @@
 <script lang="ts">
   import '../../layout.css';
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import LogOut from '@lucide/svelte/icons/log-out';
   import { resolve } from '$app/paths';
-  import Crisp from '$lib/components/Crisp.svelte';
+  import Crisp from '#lib/components/Crisp.svelte';
   import { BitsConfig } from 'bits-ui';
 
   let { data, children } = $props();

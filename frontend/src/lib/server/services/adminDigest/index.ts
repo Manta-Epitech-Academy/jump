@@ -22,30 +22,30 @@
  * Every actionable figure links straight to the admin page that acts on it. A
  * recipient who isn't logged in yet still lands there: the staff login guard
  * carries the target through `?redirect=` and replays it after Microsoft OAuth
- * (`$lib/server/auth/loginRedirect.ts`), so the link works whether the click
+ * (`#lib/server/auth/loginRedirect.ts`), so the link works whether the click
  * happens before or after signing in.
  *
  * The mail is described once (`findings.ts`) and rendered twice (`render.ts`),
  * so its HTML and text parts cannot say different things.
  *
- * Same branded shell as every other Jump mail (`$lib/domain/emailBrandShell`),
+ * Same branded shell as every other Jump mail (`#lib/domain/emailBrandShell`),
  * wrapped as a full HTML document: a bare fragment scores Gmail/Outlook's
  * auto-generated-spam heuristic, which is exactly the defect the shared shell
  * exists to avoid.
  */
 
-import { env } from '$env/dynamic/private';
-import { sendEmail, MAIL_FROM } from '$lib/server/email';
-import { adminDigestRecipients } from '$lib/server/services/adminStats/adminDigestRecipients';
-import { getEventsConfigList } from '$lib/server/services/adminStats/eventsList';
-import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
-import { getDataFreshness } from '$lib/server/services/adminStats/dataFreshness';
+import { ORIGIN } from '$app/env/private';
+import { sendEmail, MAIL_FROM } from '#lib/server/email/index.ts';
+import { adminDigestRecipients } from '#lib/server/services/adminStats/adminDigestRecipients.ts';
+import { getEventsConfigList } from '#lib/server/services/adminStats/eventsList.ts';
+import { getSyncHealth } from '#lib/server/services/adminStats/syncHealth.ts';
+import { getDataFreshness } from '#lib/server/services/adminStats/dataFreshness.ts';
 import {
   getPdfJobsHealth,
   getAccountDeletionQueue,
-} from '$lib/server/services/adminStats/opsQueues';
-import { getFeatureAdoptionGaps } from '$lib/server/services/adminStats/featureUsage';
-import { getEmargementCoverage } from '$lib/server/services/adminStats/emargementCoverage';
+} from '#lib/server/services/adminStats/opsQueues.ts';
+import { getFeatureAdoptionGaps } from '#lib/server/services/adminStats/featureUsage.ts';
+import { getEmargementCoverage } from '#lib/server/services/adminStats/emargementCoverage.ts';
 import {
   ADOPTION_WINDOW_DAYS,
   composeDigest,
@@ -153,7 +153,7 @@ function summarise(input: DigestInput): AdminDigest['summary'] {
 
 /**
  * Build the digest against `context` (`digestContext`). `baseUrl` (pass
- * `env.ORIGIN`) turns every page link and the shell's logo into an absolute URL,
+ * `ORIGIN`) turns every page link and the shell's logo into an absolute URL,
  * the way a recipient's mail client needs it; the default empty string is only
  * for tests, which assert on the relative path.
  */
@@ -202,10 +202,7 @@ export async function sendAdminDigest(
     digestBaseline(now),
     adoptionDue(now),
   ]);
-  const digest = await buildAdminDigest(
-    { baseline, adoption },
-    env.ORIGIN ?? '',
-  );
+  const digest = await buildAdminDigest({ baseline, adoption }, ORIGIN ?? '');
 
   // Claimed before anything is sent, so a second trigger this week stops here
   // instead of mailing every admin again.

@@ -15,14 +15,20 @@
  */
 
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { EventService, type AdminEventVM } from '$lib/server/services/events';
+import { prisma } from '#lib/server/db.ts';
+import {
+  EventService,
+  type AdminEventVM,
+} from '#lib/server/services/events.ts';
 import {
   hiddenParticipationWhere,
   visibleParticipationWhere,
-} from '$lib/domain/sfMemberStatus';
-import { onboardingEligibleWhere } from '$lib/server/db/onboardingEligibility';
-import { assertKnownSchoolYear, type Scope } from '$lib/server/adminApi/scope';
+} from '#lib/domain/sfMemberStatus.ts';
+import { onboardingEligibleWhere } from '#lib/server/db/onboardingEligibility.ts';
+import {
+  assertKnownSchoolYear,
+  type Scope,
+} from '#lib/server/adminApi/scope.ts';
 
 export type ScopedEvents = {
   /** The events the scope selects, newest start date first. */

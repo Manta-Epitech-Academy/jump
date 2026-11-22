@@ -11,15 +11,15 @@
  * because they are the names the talent reads.
  */
 
-import { prisma } from '$lib/server/db';
-import { JUMP_LEVELS, levelXpFilter, xpRangeForLevel } from '$lib/domain/xp';
+import { prisma } from '#lib/server/db.ts';
+import { JUMP_LEVELS, levelXpFilter, xpRangeForLevel } from '#lib/domain/xp.ts';
 import {
   metric,
   share,
   median,
   type Metric,
-} from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+} from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { cohortWhere, scopeLabels } from './cohort';
 
 export type LevelRow = {

@@ -1,11 +1,11 @@
 <script lang="ts">
   import Trophy from '@lucide/svelte/icons/trophy';
-  import * as Card from '$lib/components/ui/card';
-  import * as Avatar from '$lib/components/ui/avatar';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import { getInitials } from '$lib/avatar';
-  import { cn } from '$lib/utils';
-  import { FIRST_PLACE_LINE } from '$lib/domain/devVoice';
+  import * as Card from '#lib/components/ui/card/index.ts';
+  import * as Avatar from '#lib/components/ui/avatar/index.ts';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import { getInitials } from '#lib/avatar.ts';
+  import { cn } from '#lib/utils.ts';
+  import { FIRST_PLACE_LINE } from '#lib/domain/devVoice.ts';
   import type { StaffTally } from './types';
 
   let {

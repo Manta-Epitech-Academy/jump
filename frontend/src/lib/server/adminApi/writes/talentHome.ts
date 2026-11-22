@@ -20,32 +20,32 @@
  */
 
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { lockEvent } from '$lib/server/services/events';
+import { prisma } from '#lib/server/db.ts';
+import { lockEvent } from '#lib/server/services/events.ts';
 import {
   authoredImageSources,
   authoredMarkdownProblems,
   authoredTextLength,
-} from '$lib/markdown';
-import { toDateKey } from '$lib/domain/planningTime';
-import { eventDisplayName, eventPublicName } from '$lib/domain/event';
+} from '#lib/markdown.ts';
+import { toDateKey } from '#lib/domain/planningTime.ts';
+import { eventDisplayName, eventPublicName } from '#lib/domain/event.ts';
 import {
   HERO_BUTTON_MAX,
   HERO_TEXT_MAX,
   HERO_TITLE_MAX,
-} from '$lib/domain/eventHero';
+} from '#lib/domain/eventHero.ts';
 import {
   isInvitationOpen,
   TALENT_HOME_NOTE_MAX,
   TALENT_HOME_NOTE_MAX_IMAGES,
   highlightImageKey,
   noteImageKey,
-} from '$lib/domain/talentHome';
+} from '#lib/domain/talentHome.ts';
 import {
   replacePictures,
   swapStoredImages,
   type StoredPicture,
-} from '$lib/server/images/remote';
+} from '#lib/server/images/remote.ts';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';

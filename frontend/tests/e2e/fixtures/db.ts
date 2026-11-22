@@ -1,9 +1,8 @@
 /**
  * The Prisma client the E2E fixtures write with.
  *
- * Its own client rather than `$lib/server/db`: this file runs under Playwright's
- * Node runner, outside Vite, so the `$lib` alias does not resolve and the pool
- * tuning that matters for a pod does not matter for a seeder.
+ * Its own client rather than the app's (`#lib/server/db.ts`): the pool tuning
+ * that matters for a pod does not matter for a seeder.
  *
  * The safety rail is deliberately NOT its own copy. `assertTestDatabase` lives
  * with the integration suites and is imported here across the tree, because what

@@ -17,12 +17,12 @@
  */
 
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { metric } from '$lib/server/adminApi/metrics';
+import { prisma } from '#lib/server/db.ts';
+import { metric } from '#lib/server/adminApi/metrics.ts';
 import {
   digestBaseline,
   lastDigestRun,
-} from '$lib/server/services/adminDigest/ledger';
+} from '#lib/server/services/adminDigest/ledger.ts';
 
 /** Every admin account, whether it receives the digest or not. */
 const ADMIN_ACCOUNT = {

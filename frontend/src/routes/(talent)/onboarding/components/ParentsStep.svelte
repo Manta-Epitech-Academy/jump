@@ -2,13 +2,16 @@
   import { untrack } from 'svelte';
   import { enhance } from '$app/forms';
   import { onboardingSubmit } from '../stepSubmit';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import { PhoneInput } from '$lib/components/ui/phone-input';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { PhoneInput } from '#lib/components/ui/phone-input/index.ts';
   import Users from '@lucide/svelte/icons/users';
   import Plus from '@lucide/svelte/icons/plus';
   import X from '@lucide/svelte/icons/x';
-  import { CIVILITE_OPTIONS, PARENT_TYPE_OPTIONS } from '$lib/domain/profile';
+  import {
+    CIVILITE_OPTIONS,
+    PARENT_TYPE_OPTIONS,
+  } from '#lib/domain/profile.ts';
   import ContinueButton from './ContinueButton.svelte';
   import { fieldInput, fieldPopover } from './fieldSkin';
 

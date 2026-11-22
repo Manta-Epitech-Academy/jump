@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { isHttpError } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   applyWorkshopProgress,
   getUnseenWorkshopReward,
   markWorkshopRewardsSeen,
-} from '$lib/server/services/workshopService';
+} from '#lib/server/services/workshopService.ts';
 import { POST as ackRoute } from '../../../../routes/api/workshops/rewards-seen/+server';
 import { assertTestDatabase } from './testDatabase';
 

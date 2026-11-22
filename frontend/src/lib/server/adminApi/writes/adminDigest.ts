@@ -9,7 +9,7 @@
  * anywhere. The rule it writes for is `services/adminStats/adminDigestRecipients.ts`'s.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';

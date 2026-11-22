@@ -3,8 +3,8 @@
  *
  * These are read off the catalogue directories rather than imported from
  * `content/reglement` and `content/droit-image`, and the reason is a hard one:
- * those modules pull their text through Vite's `?raw` imports and reach `$lib`,
- * so they do not resolve under plain `bun`. The rest of `src/lib/domain` does,
+ * those modules pull their text through Vite's `?raw` imports, so they do not
+ * resolve under plain `bun`. The rest of `src/lib/domain` does,
  * which is why everything else here is imported rather than restated.
  *
  * Reading the directory is not the same as restating a constant. The version

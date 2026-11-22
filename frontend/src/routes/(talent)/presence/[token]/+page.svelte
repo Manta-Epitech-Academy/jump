@@ -8,9 +8,9 @@
   import UserX from '@lucide/svelte/icons/user-x';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import House from '@lucide/svelte/icons/house';
-  import { Button } from '$lib/components/ui/button';
-  import { statusLabelFr } from '$lib/domain/eventPresence';
-  import { triggerConfetti } from '$lib/actions/confetti';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { statusLabelFr } from '#lib/domain/eventPresence.ts';
+  import { triggerConfetti } from '#lib/actions/confetti.ts';
 
   let { data } = $props();
 
@@ -25,7 +25,7 @@
       blob: 'bg-epi-tech-ink/25',
       celebrate: true,
       ctaLabel: 'Retour à mon espace',
-      ctaTo: '/',
+      ctaTo: '',
     },
     already: {
       Icon: CalendarCheck,
@@ -34,7 +34,7 @@
       blob: 'bg-primary/20',
       celebrate: false,
       ctaLabel: 'Retour à mon espace',
-      ctaTo: '/',
+      ctaTo: '',
     },
     closed: {
       Icon: Clock,
@@ -43,7 +43,7 @@
       blob: 'bg-warning/20',
       celebrate: false,
       ctaLabel: 'Retour à mon espace',
-      ctaTo: '/',
+      ctaTo: '',
     },
     not_registered: {
       Icon: UserX,
@@ -52,7 +52,7 @@
       blob: 'bg-destructive/15',
       celebrate: false,
       ctaLabel: 'Retour à mon espace',
-      ctaTo: '/',
+      ctaTo: '',
     },
     invalid: {
       Icon: TriangleAlert,
@@ -61,7 +61,7 @@
       blob: 'bg-muted-foreground/10',
       celebrate: false,
       ctaLabel: 'Retour à mon espace',
-      ctaTo: '/',
+      ctaTo: '',
     },
   } as const;
 

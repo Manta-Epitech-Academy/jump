@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { fetchSchoolByUai } from '$lib/server/annuaire';
+import { prisma } from '#lib/server/db.ts';
+import { fetchSchoolByUai } from '#lib/server/annuaire.ts';
 
 /**
  * Resolve a national UAI to a canonical `School.id`, creating the row lazily on

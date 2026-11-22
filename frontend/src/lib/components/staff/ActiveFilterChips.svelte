@@ -1,7 +1,7 @@
 <script lang="ts">
   import X from '@lucide/svelte/icons/x';
   import FilterX from '@lucide/svelte/icons/filter-x';
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import type { ActiveFilterChip } from './datatable/types';
 
   // Every filter value in force, each one removable, and one control that

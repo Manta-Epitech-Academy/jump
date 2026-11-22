@@ -1,8 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { resolve } from '$app/paths';
-import { auth } from '$lib/server/auth';
-import { forwardAuthCookies } from '$lib/server/auth/cookies';
+import { auth } from '#lib/server/auth.ts';
+import { forwardAuthCookies } from '#lib/server/auth/cookies.ts';
 
 export const actions: Actions = {
   default: async ({ request, url, cookies }) => {
@@ -27,13 +27,13 @@ export const actions: Actions = {
     cookies.delete('better-auth.session_data', { path: '/' });
 
     if (type === 'admin') {
-      throw redirect(303, resolve('/staff/login'));
+      throw redirect(303, resolve('staff/login'));
     } else if (type === 'student') {
-      throw redirect(303, resolve('/login'));
+      throw redirect(303, resolve('login'));
     } else if (type === 'parent') {
-      throw redirect(303, resolve('/parent/login'));
+      throw redirect(303, resolve('parent/login'));
     } else {
-      throw redirect(303, resolve('/staff/login'));
+      throw redirect(303, resolve('staff/login'));
     }
   },
 };

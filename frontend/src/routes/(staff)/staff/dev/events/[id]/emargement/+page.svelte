@@ -4,25 +4,25 @@
   import { invalidate } from '$app/navigation';
   import QrCode from '@lucide/svelte/icons/qr-code';
   import Download from '@lucide/svelte/icons/download';
-  import { Button } from '$lib/components/ui/button';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import { can } from '$lib/domain/permissions';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import { can } from '#lib/domain/permissions.ts';
   import {
     dayLabelFr,
     defaultActiveSlotKey,
     slotLabelFr,
-  } from '$lib/domain/eventPresence';
-  import { cohortNounForms, eventDisplayName } from '$lib/domain/event';
+  } from '#lib/domain/eventPresence.ts';
+  import { cohortNounForms, eventDisplayName } from '#lib/domain/event.ts';
   import type { PageData } from './$types';
   import type { EmargementCohort } from './components/types';
-  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
-  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import QrProjectionDialog from '$lib/components/staff/QrProjectionDialog.svelte';
+  import { createStreamedCohort } from '#lib/components/staff/streamedCohort.svelte.ts';
+  import ResultsSkeleton from '#lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import QrProjectionDialog from '#lib/components/staff/QrProjectionDialog.svelte';
   import EmargementRoster from './components/EmargementRoster.svelte';
-  import TitleLineSearch from '$lib/components/staff/datatable/TitleLineSearch.svelte';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import TitleLineSearch from '#lib/components/staff/datatable/TitleLineSearch.svelte';
+  import { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
 
   let { data }: { data: PageData } = $props();
 

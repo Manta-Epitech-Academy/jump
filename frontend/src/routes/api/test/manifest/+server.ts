@@ -1,9 +1,9 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   assertLoadTestAuth,
   buildLoadManifest,
-} from '$lib/server/services/loadTestService';
+} from '#lib/server/services/loadTestService.ts';
 
 /**
  * Load-test helper: build the k6 manifest server-side and return it as JSON, so
@@ -25,5 +25,5 @@ export const GET: RequestHandler = async ({ request, url }) => {
   }
 
   const manifest = await buildLoadManifest(sample);
-  return json(manifest);
+  return Response.json(manifest);
 };

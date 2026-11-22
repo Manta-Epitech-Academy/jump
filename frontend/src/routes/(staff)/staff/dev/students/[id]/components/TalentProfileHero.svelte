@@ -1,16 +1,16 @@
 <script lang="ts">
-  import SalesforceLinkButton from '$lib/components/salesforce/SalesforceLinkButton.svelte';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
-  import { formatGivenName } from '$lib/domain/profile';
-  import { niveauLabel } from '$lib/domain/niveau';
+  import SalesforceLinkButton from '#lib/components/salesforce/SalesforceLinkButton.svelte';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import TalentAvatar from '#lib/components/students/TalentAvatar.svelte';
+  import { formatGivenName } from '#lib/domain/profile.ts';
+  import { niveauLabel } from '#lib/domain/niveau.ts';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Sparkles from '@lucide/svelte/icons/sparkles';
-  import type { XpStory } from '$lib/domain/xpStory';
+  import type { XpStory } from '#lib/domain/xpStory.ts';
   import TalentXpDetailDialog from './TalentXpDetailDialog.svelte';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import SeasonalPixels from '$lib/components/dev/SeasonalPixels.svelte';
-  import type { Season } from '$lib/domain/season';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import SeasonalPixels from '#lib/components/dev/SeasonalPixels.svelte';
+  import type { Season } from '#lib/domain/season.ts';
 
   // Blueprint-blue band: square avatar + name with the neon-teal `_` cursor.
   // Firstname leads (light), surname follows in Anton uppercase. The XP medallion

@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
-  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import { createStreamedCohort } from '#lib/components/staff/streamedCohort.svelte.ts';
+  import ResultsSkeleton from '#lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
   import NotesResults from './components/NotesResults.svelte';
   import type { NotesCohort } from './query';
 

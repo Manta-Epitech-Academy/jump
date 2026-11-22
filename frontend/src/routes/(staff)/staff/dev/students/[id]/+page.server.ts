@@ -3,27 +3,27 @@ import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
-} from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
-import { NOTE_INCLUDE, serializeNote } from '$lib/server/talentNotes';
-import { getTalentJourney } from '$lib/server/services/talentJourneyService';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
-import { toDateKey } from '$lib/domain/planningTime';
-import { seasonOn } from '$lib/domain/season';
+} from '#lib/server/db/scoped.ts';
+import { requireStaffGroup } from '#lib/server/auth/guards.ts';
+import { NOTE_INCLUDE, serializeNote } from '#lib/server/talentNotes.ts';
+import { getTalentJourney } from '#lib/server/services/talentJourneyService.ts';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
+import { toDateKey } from '#lib/domain/planningTime.ts';
+import { seasonOn } from '#lib/domain/season.ts';
 import {
   LATEST_IMAGE_RIGHTS_DECISION_ORDER,
   recordImageRightsDecision,
-} from '$lib/server/services/imageRightsService';
-import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
-import type { Communication } from '$lib/domain/communications';
-import { getTalentXpStory } from '$lib/server/services/xpStoryService';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+} from '#lib/server/services/imageRightsService.ts';
+import { imageRightsCorrectionSchema } from '#lib/validation/imageRights.ts';
+import type { Communication } from '#lib/domain/communications.ts';
+import { getTalentXpStory } from '#lib/server/services/xpStoryService.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // The scoped-down fiche keeps only the latest handful of communications, shown
 // one-line each in the sticky right rail, no pagination. Volume per talent is

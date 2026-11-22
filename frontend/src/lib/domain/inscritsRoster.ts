@@ -1,11 +1,11 @@
-import { CIVILITE_OPTIONS } from '$lib/domain/profile';
-import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
+import { CIVILITE_OPTIONS } from '#lib/domain/profile.ts';
+import { compareNiveaux, niveauLabel } from '#lib/domain/niveau.ts';
 import {
   INSCRIT_STATUS_LABELS,
   type InscritStatus,
   type RulesStatus,
-} from '$lib/domain/dossierCompliance';
-import type { ImageRightsStatus } from '$lib/domain/imageRights';
+} from '#lib/domain/dossierCompliance.ts';
+import type { ImageRightsStatus } from '#lib/domain/imageRights.ts';
 import {
   byCount,
   countFacet,
@@ -15,20 +15,20 @@ import {
   type FacetCount,
   type FacetDef,
   type ListFacet,
-} from '$lib/domain/listFacets';
+} from '#lib/domain/listFacets.ts';
 import {
   buildHaystack,
   matchesAllTokens,
   searchTokens,
-} from '$lib/components/staff/datatable/search';
-import { rowComparator } from '$lib/components/staff/datatable/sort';
+} from '#lib/components/staff/datatable/search.ts';
+import { rowComparator } from '#lib/components/staff/datatable/sort.ts';
 import {
   INSCRITS_FACETS,
   INSCRITS_NONE,
   type InscritsFacet,
   type InscritsSortKey,
   type InscritsView,
-} from '$lib/domain/inscritsView';
+} from '#lib/domain/inscritsView.ts';
 
 /**
  * An interest as a row carries it: enough for a chip and a filter value. The
@@ -56,7 +56,7 @@ export type InscritRow = {
   // Cumulative XP, drives the sortable XP column + its explainer tooltip.
   xp: number;
   // Visits on the campus at earlier events: the Parcours column
-  // (`$lib/domain/visitHistory`).
+  // (`#lib/domain/visitHistory`).
   priorVisits: number;
   // Declared tech interests, in the catalogue's own order.
   techInterests: InscritInterest[];
@@ -89,7 +89,7 @@ export type InscritsCohort = {
 /**
  * What the Inscrits table filters and sorts on, kept out of the component so
  * the rules can be read, and tested, on their own. The filter rules are every
- * roster list's (`$lib/domain/listFacets`); what is the Inscrits page's own:
+ * roster list's (`#lib/domain/listFacets`); what is the Inscrits page's own:
  *
  * - **A facet the campus does not use is not offered**, and its param, if an
  *   address carries one, is ignored: no Statut where the campus does not

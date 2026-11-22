@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { facetControls } from './facetControls';
-import type { ListFacet } from '$lib/domain/listFacets';
+import type { ListFacet } from '#lib/domain/listFacets.ts';
 
 /**
  * Every filtered staff list builds its header filters and its chips here, so a

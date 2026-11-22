@@ -1,6 +1,6 @@
 import { SignJWT } from 'jose';
 import { randomUUID } from 'node:crypto';
-import { env } from '$env/dynamic/private';
+import { JUMP_GAMES_SECRET } from '$app/env/private';
 
 export interface MintedJwt {
   token: string;
@@ -12,7 +12,7 @@ export async function mintGameJwt(
   game: string,
   level: number,
 ): Promise<MintedJwt> {
-  const secret = env.JUMP_GAMES_SECRET;
+  const secret = JUMP_GAMES_SECRET;
   if (!secret) {
     throw new Error('JUMP_GAMES_SECRET is not configured');
   }

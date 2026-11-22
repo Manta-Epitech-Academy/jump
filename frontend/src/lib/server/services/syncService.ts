@@ -8,47 +8,47 @@
  * The rules behind each of those, and the incidents that set them, are in
  * `.claude/rules/salesforce.md`.
  */
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { Prisma, type Sync_ErrorKind } from '@prisma/client';
-import { defaultEventModules } from '$lib/domain/eventModules';
-import { isNiveau, type Niveau } from '$lib/domain/niveau';
-import { normalizePhoneToE164 } from '$lib/domain/phone';
-import { resolveSchoolByUai } from '$lib/server/services/schoolService';
-import { autoResolveAuthIdentity } from '$lib/server/services/authIdentityRepairService';
-import { claimSalesforcePerson } from '$lib/server/services/talentMergeService';
+import { defaultEventModules } from '#lib/domain/eventModules.ts';
+import { isNiveau, type Niveau } from '#lib/domain/niveau.ts';
+import { normalizePhoneToE164 } from '#lib/domain/phone.ts';
+import { resolveSchoolByUai } from '#lib/server/services/schoolService.ts';
+import { autoResolveAuthIdentity } from '#lib/server/services/authIdentityRepairService.ts';
+import { claimSalesforcePerson } from '#lib/server/services/talentMergeService.ts';
 import {
   clearContactErrors,
   recordContactError,
   settleLoginError,
   type LoginFailure,
-} from '$lib/server/services/syncErrorService';
+} from '#lib/server/services/syncErrorService.ts';
 import {
   ensureTalentUser,
   TalentAccountError,
-} from '$lib/server/services/talentAccount';
+} from '#lib/server/services/talentAccount.ts';
 import {
   changeUserEmail,
   EmailChangeConflict,
-} from '$lib/server/services/userEmail';
+} from '#lib/server/services/userEmail.ts';
 import {
   isShownInDevSpace,
   normalizeSfStatus,
-} from '$lib/domain/sfMemberStatus';
+} from '#lib/domain/sfMemberStatus.ts';
 import {
   defaultShownStatuses,
   recomputeShownInDevSpace,
   shownStatusesByEvent,
-} from '$lib/server/services/devSpaceVisibility';
-import { schoolYearOf } from '$lib/domain/schoolYear';
-import { recomputeAttendance } from '$lib/server/services/attendance';
-import { eventEndInstant, eventStartInstant } from '$lib/domain/event';
-import { isCalendarDay, type DateKey } from '$lib/domain/planningTime';
-import { upsertSchoolingYearRecord } from '$lib/server/services/schoolingService';
+} from '#lib/server/services/devSpaceVisibility.ts';
+import { schoolYearOf } from '#lib/domain/schoolYear.ts';
+import { recomputeAttendance } from '#lib/server/services/attendance.ts';
+import { eventEndInstant, eventStartInstant } from '#lib/domain/event.ts';
+import { isCalendarDay, type DateKey } from '#lib/domain/planningTime.ts';
+import { upsertSchoolingYearRecord } from '#lib/server/services/schoolingService.ts';
 import type {
   WorkerEvent,
   WorkerSyncMode,
   WorkerTalent,
-} from '$lib/validation/workerSync';
+} from '#lib/validation/workerSync.ts';
 
 // Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
 // the rest of the app uses. SF has no equivalent for 'autre', so it stays null.

@@ -9,10 +9,10 @@
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { Card } from '$lib/components/ui/card';
-  import LevelBadge from '$lib/components/talent/LevelBadge.svelte';
-  import { levelProgress, levelToNext } from '$lib/domain/xp';
-  import CardAction from '$lib/components/talent/CardAction.svelte';
+  import { Card } from '#lib/components/ui/card/index.ts';
+  import LevelBadge from '#lib/components/talent/LevelBadge.svelte';
+  import { levelProgress, levelToNext } from '#lib/domain/xp.ts';
+  import CardAction from '#lib/components/talent/CardAction.svelte';
 
   let { xp, toDoCount }: { xp: number; toDoCount: number } = $props();
 
@@ -24,7 +24,7 @@
 </script>
 
 <a
-  href={resolve('/parcours')}
+  href={resolve('parcours')}
   class="group block cursor-pointer rounded-xl transition-ui active:translate-y-px"
 >
   <Card class="h-full gap-4 p-6 transition-ui group-hover:bg-muted/40">

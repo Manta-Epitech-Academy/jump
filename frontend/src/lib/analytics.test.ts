@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 
-vi.mock('$app/environment', () => ({ browser: true }));
+vi.mock('$app/env', () => ({ browser: true }));
 
 type Hook = (
   type: string,

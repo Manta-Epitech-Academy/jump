@@ -14,16 +14,16 @@
  * a deploy ships before an admin configures templates.
  */
 
-import { env } from '$env/dynamic/private';
-import { prisma } from '$lib/server/db';
-import { sendEmail, MAIL_FROM } from '$lib/server/email';
+import { ORIGIN } from '$app/env/private';
+import { prisma } from '#lib/server/db.ts';
+import { sendEmail, MAIL_FROM } from '#lib/server/email/index.ts';
 import {
   substituteVariables,
   EMPTY_VARIABLE_CONTEXT,
   type VariableContext,
-} from '$lib/domain/broadcastVariables';
-import { renderBroadcastEmail } from '$lib/domain/broadcastMarkdown';
-import type { EmailActionKey } from '$lib/domain/emailActions';
+} from '#lib/domain/broadcastVariables.ts';
+import { renderBroadcastEmail } from '#lib/domain/broadcastMarkdown.ts';
+import type { EmailActionKey } from '#lib/domain/emailActions.ts';
 
 export type ActionSendResult =
   | { ok: true; id: string }
@@ -72,7 +72,7 @@ export async function sendActionEmail(
   );
   const { html, text } = renderBroadcastEmail(
     bodyWithVars,
-    env.ORIGIN ?? '',
+    ORIGIN ?? '',
     subject,
   );
 

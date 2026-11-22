@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { enter, stagger } from '$lib/motion';
-  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
-  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
-  import LevelCard from '$lib/components/talent/LevelCard.svelte';
-  import ParcoursTimeline from '$lib/components/talent/ParcoursTimeline.svelte';
+  import { enter, stagger } from '#lib/motion/index.ts';
+  import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
+  import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
+  import LevelCard from '#lib/components/talent/LevelCard.svelte';
+  import ParcoursTimeline from '#lib/components/talent/ParcoursTimeline.svelte';
 
   // « Mon parcours » after the 2027 mockup (#445): the level, then the journey
   // event by event. The badge collection (#448) will sit beside the journey.

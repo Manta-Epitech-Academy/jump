@@ -134,7 +134,7 @@ const devReaders = [
   ...walk('src/lib').filter(
     (f) =>
       !f.endsWith('db/scoped.ts') &&
-      readFileSync(f, 'utf-8').includes('$lib/server/db/scoped'),
+      readFileSync(f, 'utf-8').includes('#lib/server/db/scoped.ts'),
   ),
 ].filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
 

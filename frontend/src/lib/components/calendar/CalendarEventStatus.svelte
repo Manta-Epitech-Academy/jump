@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { cn } from '$lib/utils';
-  import type { CalendarEvent } from '$lib/domain/campusCalendar';
+  import { cn } from '#lib/utils.ts';
+  import type { CalendarEvent } from '#lib/domain/campusCalendar.ts';
 
   // Where an event stands, as the 2027 mockup writes it: the countdown to its
   // first day, then « en cours », then « terminé ». One pill for the list and

@@ -1,14 +1,14 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   generateClosingPdf,
   closingPdfFilename,
   closingPdfSelect,
-} from '$lib/server/services/closingPdfGenerator';
-import { resolveClosingGridById } from '$lib/server/closingTemplates';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+} from '#lib/server/services/closingPdfGenerator.ts';
+import { resolveClosingGridById } from '#lib/server/closingTemplates.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
   recordUsage(USAGE_FEATURES.ADMIN_CLOSING_PDF_SINGLE, { locals });

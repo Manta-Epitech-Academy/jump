@@ -19,11 +19,11 @@
  * the activity (`write_workshop`).
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   WORKSHOP_DOMAIN_SELECT,
   workshopDomainView,
-} from '$lib/server/services/workshopCatalogue';
+} from '#lib/server/services/workshopCatalogue.ts';
 import { OperationRefusedError } from '../errors';
 import { archivedAtFor, refusingRaces } from './catalogue';
 import type { WriteOutcome } from '../plan';

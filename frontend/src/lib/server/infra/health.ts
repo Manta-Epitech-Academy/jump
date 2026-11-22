@@ -1,4 +1,4 @@
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 
 /**
  * Whether this pod can serve a request, for the probes and the monitoring of

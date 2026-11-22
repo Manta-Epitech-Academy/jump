@@ -2,10 +2,10 @@
   import type { Snippet } from 'svelte';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import type { HomeTalent } from '$lib/domain/eventHome';
-  import { formatGivenName } from '$lib/domain/profile';
-  import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
-  import { talentFicheHref } from '$lib/components/dev/talentFiche';
+  import type { HomeTalent } from '#lib/domain/eventHome.ts';
+  import { formatGivenName } from '#lib/domain/profile.ts';
+  import TalentAvatar from '#lib/components/students/TalentAvatar.svelte';
+  import { talentFicheHref } from '#lib/components/dev/talentFiche.ts';
   import HomeCard, { type HomeCardEmpty } from './HomeCard.svelte';
 
   // A short list of talents, each opening their fiche, as the 2027 mockup draws

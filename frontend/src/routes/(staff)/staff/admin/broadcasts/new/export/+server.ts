@@ -1,20 +1,20 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { resolveRecipients } from '$lib/server/services/broadcast/recipients';
+import { prisma } from '#lib/server/db.ts';
+import { resolveRecipients } from '#lib/server/services/broadcast/recipients.ts';
 import {
   broadcastFiltersSchema,
   broadcastSourceFilterSchema,
-} from '$lib/validation/broadcasts';
+} from '#lib/validation/broadcasts.ts';
 import {
   BROADCAST_AUDIENCES,
   RECIPIENT_ROLE_LABELS,
   RECIPIENT_EXCLUSION_REASON_LABELS,
-} from '$lib/domain/broadcasts';
+} from '#lib/domain/broadcasts.ts';
 import type { BroadcastAudience, BroadcastSourceFilter } from '@prisma/client';
-import { csvResponse } from '$lib/server/csv';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { csvResponse } from '#lib/server/csv.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 const HEADERS = [
   'Prénom',

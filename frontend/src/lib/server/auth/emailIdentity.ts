@@ -1,4 +1,4 @@
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 
 /**
  * True when `email` belongs to a parent contact or a staff / parent account:

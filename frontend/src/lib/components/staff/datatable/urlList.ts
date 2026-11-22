@@ -20,21 +20,24 @@ import { page } from '$app/state';
 
 /** Set (or, for an empty value, drop) querystring params, back to page 1. */
 export function setListParams(params: Record<string, string>): void {
-  const url = new URL(page.url);
+  const url = new URL(page.url.href);
   url.searchParams.delete('page');
   for (const [key, value] of Object.entries(params)) {
     if (value) url.searchParams.set(key, value);
     else url.searchParams.delete(key);
   }
-  void goto(url.toString(), { keepFocus: true, noScroll: true });
+  void goto(url.toString(), { reset: false });
 }
 
 /** Move to a page, dropping the param entirely for page 1 so URLs stay clean. */
 export function goToListPage(target: number): void {
-  const url = new URL(page.url);
+  const url = new URL(page.url.href);
   if (target > 1) url.searchParams.set('page', String(target));
   else url.searchParams.delete('page');
-  void goto(url.toString(), { keepFocus: true });
+  // `reset: false` keeps focus on the pager. The new page still opens at its
+  // top: the staff layouts scroll their `<main>` rather than the window, and
+  // `scrollTopOnNavigate` sends it back up after every navigation.
+  void goto(url.toString(), { reset: false });
 }
 
 /**

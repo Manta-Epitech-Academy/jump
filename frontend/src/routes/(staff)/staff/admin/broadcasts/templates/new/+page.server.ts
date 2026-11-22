@@ -2,11 +2,11 @@ import type { Actions, PageServerLoad } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { prisma } from '$lib/server/db';
-import { messageTemplateSchema } from '$lib/validation/broadcasts';
-import { isSmsEnabled } from '$lib/server/sms';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { prisma } from '#lib/server/db.ts';
+import { messageTemplateSchema } from '#lib/validation/broadcasts.ts';
+import { isSmsEnabled } from '#lib/server/sms/index.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const form = await superValidate(zod4(messageTemplateSchema), {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import type { WorkerTalent } from '$lib/validation/workerSync';
+import { prisma } from '#lib/server/db.ts';
+import type { WorkerTalent } from '#lib/validation/workerSync.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**
@@ -15,9 +15,9 @@ import { assertTestDatabase } from './testDatabase';
  * throw; everything else, conflicts included, is the real code.
  */
 
-vi.mock('$lib/server/services/talentAccount', async (importOriginal) => ({
+vi.mock('#lib/server/services/talentAccount.ts', async (importOriginal) => ({
   ...(await importOriginal<
-    typeof import('$lib/server/services/talentAccount')
+    typeof import('#lib/server/services/talentAccount.ts')
   >()),
   ensureTalentUser: vi.fn(async () => {
     throw new Error('Timed out fetching a new connection from the pool.');
@@ -25,10 +25,10 @@ vi.mock('$lib/server/services/talentAccount', async (importOriginal) => ({
 }));
 
 vi.mock(
-  '$lib/server/services/authIdentityRepairService',
+  '#lib/server/services/authIdentityRepairService.ts',
   async (importOriginal) => ({
     ...(await importOriginal<
-      typeof import('$lib/server/services/authIdentityRepairService')
+      typeof import('#lib/server/services/authIdentityRepairService.ts')
     >()),
     autoResolveAuthIdentity: vi.fn(async () => {
       throw new Error('deadlock detected');
@@ -36,7 +36,7 @@ vi.mock(
   }),
 );
 
-const { syncTalents } = await import('$lib/server/services/syncService');
+const { syncTalents } = await import('#lib/server/services/syncService.ts');
 
 describe('a login failure never fails the sync (integration)', () => {
   const stamp = Date.now();

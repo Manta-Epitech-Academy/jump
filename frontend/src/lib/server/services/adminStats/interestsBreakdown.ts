@@ -12,16 +12,16 @@
  * to the cohort is exactly the mistake the wording has to prevent.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   rankInterestsByCohort,
   toBreakdown,
   type BreakdownTail,
   type InterestStat,
-} from '$lib/server/services/cohortOverview';
-import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+} from '#lib/server/services/cohortOverview.ts';
+import { VISIBLE_PARTICIPATION_DEFINITION } from '#lib/domain/sfMemberStatus.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { cohortWhere, scopeLabels } from './cohort';
 
 /** Interests listed by name before the tail is summarised. */

@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { env } from '$env/dynamic/public';
+  import { PUBLIC_UMAMI_WEBSITE_ID } from '$app/env/public';
   import { page } from '$app/state';
-  import { UMAMI_BEFORE_SEND, analyticsIdentity } from '$lib/analytics';
+  import { UMAMI_BEFORE_SEND, analyticsIdentity } from '#lib/analytics.ts';
 
   // Host is constant across all environments, hardcoded here to match the
-  // value whitelisted in svelte.config.js CSP. The website ID comes from the
+  // value whitelisted in vite.config.ts CSP. The website ID comes from the
   // runtime container env (per-environment k8s deployment).
   //
   // PAGE VIEWS AND NAMED EVENTS ONLY. The session recorder that used to load
@@ -20,7 +20,7 @@
   // page never contacts the Umami host, so not even their address reaches it.
   // That cannot cover a tracker already running when they arrive (signed in on
   // a tab that loaded it while signed out), and nothing can unload one, so
-  // every send also passes through `beforeSend` in `$lib/analytics`, which
+  // every send also passes through `beforeSend` in `#lib/analytics.ts`, which
   // drops it. The two together are what makes the settings switch true
   // (#518).
   //
@@ -31,7 +31,7 @@
   // objects and withdraws it on the same tab is enough. An objection made
   // after the script loaded is `beforeSend`'s to enforce, as above.
   const HOST = 'https://jump-umami.epiboost.eu';
-  const websiteId = env.PUBLIC_UMAMI_WEBSITE_ID ?? '';
+  const websiteId = PUBLIC_UMAMI_WEBSITE_ID ?? '';
   let rendered = false;
   const enabled = $derived.by(
     () =>

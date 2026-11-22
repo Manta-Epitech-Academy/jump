@@ -274,12 +274,11 @@ function surfaceSegment(key: SegmentSurface): SegmentSurface {
   return key === 'planning' ? 'planning' : EVENT_MODULE_DEFS[key].segment;
 }
 
-/** The address of an event's surface, as a literal union rather than a bare
- *  `string`, so `resolve()` at the call sites can check it against the route
- *  tree. */
+/** The address of an event's surface, as `resolve()` from `$app/paths` takes
+ *  it, and as a literal union rather than a bare `string`, so `resolve()` at
+ *  the call sites can check it against the route tree. */
 export type EventSurfacePath =
-  | `/staff/dev/events/${string}`
-  | `/staff/dev/events/${string}/${SegmentSurface}`;
+  `staff/dev/events/${string}` | `staff/dev/events/${string}/${SegmentSurface}`;
 
 /**
  * Where a surface of an event lives: the home at the event's own address, every
@@ -291,8 +290,8 @@ export function eventSurfacePath(
   key: EventSurfaceKey,
 ): EventSurfacePath {
   return key === 'home'
-    ? `/staff/dev/events/${eventId}`
-    : `/staff/dev/events/${eventId}/${surfaceSegment(key)}`;
+    ? `staff/dev/events/${eventId}`
+    : `staff/dev/events/${eventId}/${surfaceSegment(key)}`;
 }
 
 /**

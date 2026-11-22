@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import ResultsSkeleton from '#lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
   import SyncErrorsResults from './components/SyncErrorsResults.svelte';
 
   let { data }: { data: PageData } = $props();

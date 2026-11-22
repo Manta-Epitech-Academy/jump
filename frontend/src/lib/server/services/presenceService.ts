@@ -1,16 +1,16 @@
-import { prisma } from '$lib/server/db';
-import { scopedPrisma } from '$lib/server/db/scoped';
+import { prisma } from '#lib/server/db.ts';
+import { scopedPrisma } from '#lib/server/db/scoped.ts';
 import {
   recomputeEventsCount,
   recomputeEventsCountBulk,
-} from '$lib/server/services/xpService';
+} from '#lib/server/services/xpService.ts';
 import { recomputeAttendance } from './attendance';
 import type {
   CellStatus,
   PresenceSlot,
   PresenceSource,
-} from '$lib/domain/eventPresence';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+} from '#lib/domain/eventPresence.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
 
 // Émargement is autonomous from Participation, but the roster of who is expected
 // is still read from Participation (the Salesforce campaign-member mirror).

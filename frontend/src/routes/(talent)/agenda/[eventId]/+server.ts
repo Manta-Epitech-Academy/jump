@@ -1,9 +1,9 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { buildEventIcs } from '$lib/domain/ics';
-import { USAGE_FEATURES } from '$lib/domain/usage';
-import { recordUsage } from '$lib/server/usage/record';
-import { enrolledEventCalendar } from '$lib/server/services/talentHomeHero';
+import { buildEventIcs } from '#lib/domain/ics.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { enrolledEventCalendar } from '#lib/server/services/talentHomeHero.ts';
 
 /**
  * « Ajouter à mon agenda » (#501, AC4): an event the talent is enrolled in, as

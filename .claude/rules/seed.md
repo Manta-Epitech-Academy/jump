@@ -157,10 +157,11 @@ Nine rules, and each is enforced rather than hoped for:
   Salesforce mirror was listed as a partial-mirror case the sync refuses to
   create.
 
-- **The domain is imported, never restated.** `src/lib/domain` is alias-free, so
-  a plain `bun` script reaches it by relative path. The services are not: they
-  reach `$lib/server/db` and do not resolve outside Vite, so the generator writes
-  rows and `--check` runs the domain's own functions over the result. The
+- **The domain is imported, never restated.** `src/lib/domain` imports no
+  SvelteKit module, so a plain `bun` script reaches it. The services are not
+  run: many of them reach SvelteKit's `$app/*` modules, which resolve only under
+  Vite, so the generator writes rows and `--check` runs the domain's own
+  functions over the result. The
   generator constructs, the domain verifies.
 - **The measured shape of production lives in `frontend/scripts/seed/PROFILE.md`**
   and is not re-measured. It was taken once, in aggregates, with no row ever read;

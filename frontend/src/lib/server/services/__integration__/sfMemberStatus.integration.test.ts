@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { syncParticipations, syncTalents } from '../syncService';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { hiddenEnrolmentsByEvent } from '$lib/server/services/adminStats/cohort';
-import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { hiddenEnrolmentsByEvent } from '#lib/server/services/adminStats/cohort.ts';
+import { getSyncHealth } from '#lib/server/services/adminStats/syncHealth.ts';
 import { assertTestDatabase } from './testDatabase';
 
 describe('Salesforce member status sync (integration)', () => {

@@ -1,14 +1,14 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { verifyCallbackSignature } from '$lib/server/hmac';
+import { JUMP_GAMES_SECRET } from '$app/env/private';
+import { verifyCallbackSignature } from '#lib/server/hmac.ts';
 import {
   applyCallback,
   type CallbackPayload,
-} from '$lib/server/services/minigameService';
+} from '#lib/server/services/minigameService.ts';
 
 export const POST: RequestHandler = async ({ request }) => {
-  const secret = env.JUMP_GAMES_SECRET;
+  const secret = JUMP_GAMES_SECRET;
   if (!secret) {
     console.error('[minigames/callback] JUMP_GAMES_SECRET not configured.');
     throw error(500, 'misconfigured');
@@ -46,5 +46,5 @@ export const POST: RequestHandler = async ({ request }) => {
     throw error(500, 'persist failed');
   }
 
-  return json({ ok: true });
+  return Response.json({ ok: true });
 };

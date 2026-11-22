@@ -3,31 +3,31 @@
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
+  } from '#lib/components/staff/datatable/search.ts';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { Button } from '$lib/components/ui/button';
-  import * as Table from '$lib/components/ui/table';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
   import Plus from '@lucide/svelte/icons/plus';
   import Send from '@lucide/svelte/icons/send';
   import MailCheck from '@lucide/svelte/icons/mail-check';
   import Eye from '@lucide/svelte/icons/eye';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import KpiTile from '$lib/components/staff/KpiTile.svelte';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
-  import type { ColumnDef } from '$lib/components/staff/datatable/types';
-  import { facetControls } from '$lib/components/staff/datatable/facetControls';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import KpiTile from '#lib/components/staff/KpiTile.svelte';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '#lib/components/staff/datatable/DataTableToolbar.svelte';
+  import ActiveFilterChips from '#lib/components/staff/ActiveFilterChips.svelte';
+  import type { ColumnDef } from '#lib/components/staff/datatable/types.ts';
+  import { facetControls } from '#lib/components/staff/datatable/facetControls.ts';
   import {
     clearListFilters,
     setListParams,
-  } from '$lib/components/staff/datatable/urlList';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import { listFacets, matchesListFacets } from '$lib/domain/listFacets';
-  import BroadcastStatusBadge from '$lib/components/admin/broadcasts/BroadcastStatusBadge.svelte';
-  import ChannelBadge from '$lib/components/admin/broadcasts/ChannelBadge.svelte';
+  } from '#lib/components/staff/datatable/urlList.ts';
+  import { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
+  import { listFacets, matchesListFacets } from '#lib/domain/listFacets.ts';
+  import BroadcastStatusBadge from '#lib/components/admin/broadcasts/BroadcastStatusBadge.svelte';
+  import ChannelBadge from '#lib/components/admin/broadcasts/ChannelBadge.svelte';
   import { BROADCASTS_FACET_DEFS, BROADCASTS_VIEW } from './view';
 
   let { data } = $props();
@@ -94,7 +94,7 @@
 </script>
 
 {#snippet newBroadcast()}
-  <Button href={resolve('/staff/admin/broadcasts/new')}>
+  <Button href={resolve('staff/admin/broadcasts/new')}>
     <Plus class="mr-1 h-4 w-4" /> Nouvel envoi
   </Button>
 {/snippet}
@@ -198,7 +198,7 @@
           <Button
             variant="ghost"
             size="sm"
-            href={resolve(`/staff/admin/broadcasts/${b.id}`)}
+            href={resolve(`staff/admin/broadcasts/${b.id}`)}
           >
             Détail
           </Button>

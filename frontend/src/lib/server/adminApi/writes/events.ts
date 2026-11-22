@@ -28,7 +28,7 @@
  */
 
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   EventService,
   eventHeroOf,
@@ -42,8 +42,8 @@ import {
   type EventHeroState,
   type EventWorkshopLink,
   type EventWorkshopState,
-} from '$lib/server/services/events';
-import { replacePictures } from '$lib/server/images/remote';
+} from '#lib/server/services/events.ts';
+import { replacePictures } from '#lib/server/images/remote.ts';
 import {
   EVENT_HERO_STAGES,
   HERO_BUTTON_MAX,
@@ -52,24 +52,24 @@ import {
   eventHeroImageKey,
   heroStageHasPicture,
   type EventHeroStage,
-} from '$lib/domain/eventHero';
+} from '#lib/domain/eventHero.ts';
 import { checkSignupUrl } from './talentHome';
-import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
+import { EventConfigTemplateService } from '#lib/server/services/eventConfigTemplates.ts';
 import {
   isEventModuleKey,
   parseModuleSettings,
   EVENT_MODULE_KEYS,
   type EventModuleSettings,
-} from '$lib/domain/eventModules';
-import { EVENT_CONFIG_STATE_LABELS } from '$lib/domain/eventReadiness';
-import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
-import { slotLabelFr, type PresenceSlot } from '$lib/domain/eventPresence';
-import { hhmmToMinutes } from '$lib/domain/event';
+} from '#lib/domain/eventModules.ts';
+import { EVENT_CONFIG_STATE_LABELS } from '#lib/domain/eventReadiness.ts';
+import { normalizeSfStatus } from '#lib/domain/sfMemberStatus.ts';
+import { slotLabelFr, type PresenceSlot } from '#lib/domain/eventPresence.ts';
+import { hhmmToMinutes } from '#lib/domain/event.ts';
 import {
   eventMoments,
   momentOutsideEvent,
   type EventWorkshopMoment,
-} from '$lib/domain/workshops';
+} from '#lib/domain/workshops.ts';
 import { UnknownScopeError } from '../scope';
 import { archivedAtFor } from './catalogue';
 import { OperationRefusedError } from '../errors';

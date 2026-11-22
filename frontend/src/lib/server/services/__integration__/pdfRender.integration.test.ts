@@ -17,8 +17,8 @@
  * fixture, so what is under test is the certificate Jump actually ships.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { renderPdf, renderPng } from '$lib/server/infra/documentRenderer';
+import { prisma } from '#lib/server/db.ts';
+import { renderPdf, renderPng } from '#lib/server/infra/documentRenderer.ts';
 import { generateDiplomasPDF } from '../diplomaGenerator';
 import { renderBadgePreviewPng } from '../badgeGenerator';
 import { assertTestDatabase } from './testDatabase';

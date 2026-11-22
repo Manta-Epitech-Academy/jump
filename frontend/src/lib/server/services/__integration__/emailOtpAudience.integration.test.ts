@@ -22,7 +22,7 @@ import {
   afterAll,
   vi,
 } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
 import { pathSpellings, postAuth } from './authHttp';
@@ -30,13 +30,13 @@ import { pathSpellings, postAuth } from './authHttp';
 // The two OTP mail senders, so the template a recipient gets is observable.
 // Nothing else in the chain is: with no `EmailActionMapping` row in the test
 // database, `sendActionEmail` is a silent no-op by design.
-vi.mock('$lib/server/otp', () => ({
+vi.mock('#lib/server/otp.ts', () => ({
   sendOtpEmail: vi.fn(async () => {}),
   sendParentOtpEmail: vi.fn(async () => {}),
 }));
 
-const { auth } = await import('$lib/server/auth');
-const { sendOtpEmail, sendParentOtpEmail } = await import('$lib/server/otp');
+const { auth } = await import('#lib/server/auth.ts');
+const { sendOtpEmail, sendParentOtpEmail } = await import('#lib/server/otp.ts');
 
 const stamp = Date.now();
 const staffEmail = `otp.staff.${stamp}@epitech.eu`;

@@ -1,14 +1,17 @@
 import type { RequestHandler } from './$types';
-import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { imageRightsStance, imageRightsStatus } from '$lib/domain/imageRights';
-import { latestImageRightsDecisions } from '$lib/server/services/imageRightsService';
-import { generateBadgesPDF } from '$lib/server/services/badgeGenerator';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { getCampusId, scopedPrisma } from '#lib/server/db/scoped.ts';
+import { requireStaffGroup } from '#lib/server/auth/guards.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import {
+  imageRightsStance,
+  imageRightsStatus,
+} from '#lib/domain/imageRights.ts';
+import { latestImageRightsDecisions } from '#lib/server/services/imageRightsService.ts';
+import { generateBadgesPDF } from '#lib/server/services/badgeGenerator.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // Generates the printable badge sheet for every talent registered to this event
 // (no selection, all inscrits). Campus-scoped via the event load. The `mode`

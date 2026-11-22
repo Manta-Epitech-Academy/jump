@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import User from '@lucide/svelte/icons/user';
   import Mail from '@lucide/svelte/icons/mail';
@@ -7,10 +7,10 @@
   import Moon from '@lucide/svelte/icons/moon';
   import SunMoon from '@lucide/svelte/icons/sun-moon';
   import { resolve } from '$app/paths';
-  import { enter, stagger } from '$lib/motion';
-  import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import { track } from '$lib/analytics';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import { enter, stagger } from '#lib/motion/index.ts';
+  import ModeToggle from '#lib/components/ModeToggle.svelte';
+  import { track } from '#lib/analytics.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
 
   let { data } = $props();
 </script>
@@ -29,7 +29,7 @@
         <Button
           variant="ghost"
           size="icon"
-          href={resolve('/parent')}
+          href={resolve('parent')}
           class="h-10 w-10 rounded-xl text-muted-foreground hover:text-foreground-secondary"
         >
           <ArrowLeft class="h-5 w-5" />
@@ -110,7 +110,7 @@
           Session
         </h2>
         <form
-          action="{resolve('/logout')}?type=parent"
+          action="{resolve('logout')}?type=parent"
           method="POST"
           onsubmit={() => track('logout', { kind: 'parent' })}
         >

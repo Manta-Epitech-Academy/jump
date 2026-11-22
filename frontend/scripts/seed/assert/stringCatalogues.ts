@@ -27,7 +27,8 @@
  *
  * Two vocabularies are deliberately absent because they cannot be reached from a
  * plain `bun` script: `ADMIN_API_OPERATION_NAMES` and the document-type keys in
- * `ONBOARDING_DOCUMENTS` both live in server modules that import `$lib`.
+ * `ONBOARDING_DOCUMENTS` both live in server modules that reach SvelteKit's
+ * `$app/*` modules.
  */
 
 import type { PrismaClient } from '@prisma/client';

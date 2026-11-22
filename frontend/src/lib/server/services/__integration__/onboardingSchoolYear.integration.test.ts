@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
 import {
   getOnboardingStep,
   onboardingFieldsForYear,
-} from '$lib/domain/talentOnboarding';
+} from '#lib/domain/talentOnboarding.ts';
 import {
   patchCurrentOnboardingRecord,
   upsertOnboardingYearRecord,
@@ -13,8 +13,8 @@ import {
 import { getOnboardingFunnel } from '../adminStats/onboardingFunnel';
 import { signOnboardingRules } from '../onboardingService';
 import { reachRulesStep } from './onboardingLadder';
-import { CURRENT_REGLEMENT_VERSION } from '$lib/content/reglement';
-import { resolveScope } from '$lib/server/adminApi/scope';
+import { CURRENT_REGLEMENT_VERSION } from '#lib/content/reglement/index.ts';
+import { resolveScope } from '#lib/server/adminApi/scope.ts';
 
 /**
  * The onboarding dossier is per school year, and this is the invariant the model

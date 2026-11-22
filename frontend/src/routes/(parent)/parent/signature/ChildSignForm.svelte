@@ -1,13 +1,13 @@
 <script lang="ts">
   import Check from '@lucide/svelte/icons/check';
   import X from '@lucide/svelte/icons/x';
-  import { cn } from '$lib/utils';
-  import ParentSignatureForm from '$lib/components/parent/ParentSignatureForm.svelte';
-  import { track, errReason } from '$lib/analytics';
+  import { cn } from '#lib/utils.ts';
+  import ParentSignatureForm from '#lib/components/parent/ParentSignatureForm.svelte';
+  import { track, errReason } from '#lib/analytics.ts';
   import type {
     ImageRightsDecision,
     ImageRightsDecisionSummary,
-  } from '$lib/domain/imageRights';
+  } from '#lib/domain/imageRights.ts';
 
   interface Props {
     child: {

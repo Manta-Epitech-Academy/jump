@@ -7,9 +7,9 @@ import {
   CLOSING_RECOMMENDATIONS,
   RETIRED_SECTION_TITLE,
   type ClosingGrid,
-} from '$lib/domain/closing';
+} from '#lib/domain/closing.ts';
 import type { ClosingRecommendation, Prisma } from '@prisma/client';
-import { FORMER_STAFF_LABEL } from '$lib/domain/staff';
+import { FORMER_STAFF_LABEL } from '#lib/domain/staff.ts';
 
 /**
  * The synthesis PDF for one closing, generated on demand and never stored: it is

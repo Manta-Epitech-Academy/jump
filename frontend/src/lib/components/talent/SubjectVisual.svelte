@@ -1,7 +1,7 @@
 <script lang="ts">
-  import CopiedPicture from '$lib/components/talent/CopiedPicture.svelte';
-  import EventVisual from '$lib/components/talent/EventVisual.svelte';
-  import type { WorkshopActivity } from '$lib/domain/workshops';
+  import CopiedPicture from '#lib/components/talent/CopiedPicture.svelte';
+  import EventVisual from '#lib/components/talent/EventVisual.svelte';
+  import type { WorkshopActivity } from '#lib/domain/workshops.ts';
 
   // How a subject shows itself in the home's hero: its cover, authored over
   // the API (`write_workshop`, `cover`) and copied into Jump, moving or still.

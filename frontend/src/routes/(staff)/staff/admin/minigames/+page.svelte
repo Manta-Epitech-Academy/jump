@@ -13,18 +13,18 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import Trophy from '@lucide/svelte/icons/trophy';
   import Timer from '@lucide/svelte/icons/timer';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import { Switch } from '$lib/components/ui/switch';
-  import { Badge } from '$lib/components/ui/badge';
-  import * as Dialog from '$lib/components/ui/dialog';
-  import * as Table from '$lib/components/ui/table';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { Switch } from '#lib/components/ui/switch/index.ts';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
   import SearchableSelect, {
     type SelectOption,
-  } from '$lib/components/staff/SearchableSelect.svelte';
-  import { cn } from '$lib/utils';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  } from '#lib/components/staff/SearchableSelect.svelte';
+  import { cn } from '#lib/utils.ts';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
 
   let { data }: { data: PageData } = $props();
 

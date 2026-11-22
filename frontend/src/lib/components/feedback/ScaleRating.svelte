@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { typeset } from '$lib/domain/typography';
+  import { typeset } from '#lib/domain/typography.ts';
   import { scaleEmoji, scaleLevelColor } from './scale';
 
   interface Props {

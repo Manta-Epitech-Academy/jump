@@ -3,10 +3,10 @@
   import { toast } from 'svelte-sonner';
   import Award from '@lucide/svelte/icons/award';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { Button } from '$lib/components/ui/button';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import LoadingCeremony from '$lib/components/LoadingCeremony.svelte';
-  import { ACTION_TILE_CLASS } from '$lib/components/events/actionTile';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import LoadingCeremony from '#lib/components/LoadingCeremony.svelte';
+  import { ACTION_TILE_CLASS } from '#lib/components/events/actionTile.ts';
   import DocumentPreview from './DocumentPreview.svelte';
 
   // « Générer certificats »: whichever certificate the event issues, one page
@@ -62,7 +62,7 @@
       // cache-by-extension on `.pdf` can't return a stale edge copy; `no-store`
       // bypasses the browser's own HTTP cache.
       const res = await fetch(
-        `${resolve(`/staff/dev/events/${eventId}/diplomes.pdf`)}?t=${Date.now()}`,
+        `${resolve(`staff/dev/events/${eventId}/diplomes.pdf`)}?t=${Date.now()}`,
         { cache: 'no-store' },
       );
       if (!res.ok) throw new Error(`Certificates failed: ${res.status}`);
@@ -106,7 +106,7 @@
   </Tooltip.Trigger>
   <Tooltip.Content>
     <DocumentPreview
-      src={resolve(`/staff/dev/events/${eventId}/diplomes.png`)}
+      src={resolve(`staff/dev/events/${eventId}/diplomes.png`)}
       alt={`Aperçu : ${label}`}
       aspectClass="aspect-[1.414/1]"
       caption={`Aperçu · ${count} ${count > 1 ? 'certificats' : 'certificat'} à générer`}

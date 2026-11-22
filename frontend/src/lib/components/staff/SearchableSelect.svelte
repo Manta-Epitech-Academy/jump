@@ -8,11 +8,11 @@
 </script>
 
 <script lang="ts">
-  import * as Command from '$lib/components/ui/command';
-  import * as Popover from '$lib/components/ui/popover';
+  import * as Command from '#lib/components/ui/command/index.ts';
+  import * as Popover from '#lib/components/ui/popover/index.ts';
   import Check from '@lucide/svelte/icons/check';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
 
   // Searchable filter with a built-in search box (Popover + Command). Same
   // surface as the plain Select but typeable, for long option lists (lycées,

@@ -8,11 +8,11 @@ description: How Jump sends transactional email and SMS - the MAIL_PROVIDER / SM
 **The floor, always true:** mail and SMS are trapped unless `OUTBOUND_MODE=real`, which only prod
 sets. Recipients are minors (RGPD). Never widen the gate to debug something.
 
-**A log line never names a recipient.** No address, no number, no message text (it can carry a sign-in code): log the row id (`BroadcastRecipient.id`, a talent or user id) instead. The pod log is kept 31 days and the RGPD erasure cannot reach it, while the row it points to is erased with the person. What the providers write is covered at the façade: every failure `message` leaving `$lib/server/email` or `$lib/server/sms` has gone through `redactContacts`, so a provider repeating the address it rejected never reaches a log or a row (#518).
+**A log line never names a recipient.** No address, no number, no message text (it can carry a sign-in code): log the row id (`BroadcastRecipient.id`, a talent or user id) instead. The pod log is kept 31 days and the RGPD erasure cannot reach it, while the row it points to is erased with the person. What the providers write is covered at the façade: every failure `message` leaving `#lib/server/email` or `#lib/server/sms` has gone through `redactContacts`, so a provider repeating the address it rejected never reaches a log or a row (#518).
 
 ## `MAIL_PROVIDER`
 
-Picks the transactional mail backend. Lives behind a façade in `$lib/server/email/`: flipping the env swaps the active provider with no code change.
+Picks the transactional mail backend. Lives behind a façade in `#lib/server/email/`: flipping the env swaps the active provider with no code change.
 
 | Value              | Behavior                                                                                                |
 | ------------------ | ------------------------------------------------------------------------------------------------------- |
@@ -23,13 +23,13 @@ Picks the transactional mail backend. Lives behind a façade in `$lib/server/ema
 
 ## Dev-redirect
 
-Two concerns kept apart: the **gate** (`$lib/server/outbound.ts`) and the **destination** (`$lib/server/{email,sms}/dev-redirect.ts`).
+Two concerns kept apart: the **gate** (`#lib/server/outbound.ts`) and the **destination** (`#lib/server/{email,sms}/dev-redirect.ts`).
 
 - **The gate: `OUTBOUND_MODE` (`outboundTrapped()`).** One env var for **both** channels, **fail-safe**: only `OUTBOUND_MODE=real` reaches real recipients; anything else (unset, blank, typo) means `redirect` (trapped). So a forgotten var never mails/texts a minor, worst case is real users not getting mail, never the reverse. **Prod is the only place that sets `real`.** It's an env var, not a DB flag, on purpose: it's the one signal bound to the *environment* not the *data*, so it can't ride a `pg_dump` from prod into staging, and the running app can't flip it. (This replaced the old design where `EMAIL_DEV_RECIPIENTS`/`SMS_DEV_RECIPIENTS` each gated their own channel: set one, forget the other, and that channel quietly went live. Those vars are now pure fallback destinations, see below.)
 
 - **The destination**: `resolveMailRouting` / `resolveSmsRouting` return a tagged `OutboundRouting` (`real` | `redirect` | `drop`), only consulted once trapped. Priority order:
   1. **`'bypass'`** (per-send `SendOptions.devRedirect`) → the real recipient. A single, explicit, human-typed **test-send** (the "Tester" button): a real preview from dev/staging without a redeploy.
-  2. **Armed real sends** (`$lib/server/armRealSends.ts`) → the real recipient. An **admin** (`realSendArmers` = `['admin']`) can **arm** real sends from the **settings dialog** (`StaffSettingsDialog`, opened from the admin profile dropdown; there is no standalone `/staff/settings` page; the route is action-only). While armed, every send *their own session* drives bypasses the trap. Gun safety: per-user (a signed cookie bound to their id, never another session or a cookieless background cron), auto-expiring (15 min), role-gated, loud (red banner via root layout, disarm button). Endpoint `POST /api/dev/real-sends`.
+  2. **Armed real sends** (`#lib/server/armRealSends.ts`) → the real recipient. An **admin** (`realSendArmers` = `['admin']`) can **arm** real sends from the **settings dialog** (`StaffSettingsDialog`, opened from the admin profile dropdown; there is no standalone `/staff/settings` page; the route is action-only). While armed, every send *their own session* drives bypasses the trap. Gun safety: per-user (a signed cookie bound to their id, never another session or a cookieless background cron), auto-expiring (15 min), role-gated, loud (red banner via root layout, disarm button). Endpoint `POST /api/dev/real-sends`.
   3. **`string[]`** (per-send) → those addresses. Bulk broadcasts pass their **creator**'s configured list (or login email), resolved from the row so a worker-run send still lands with the right tester. (Bulk SMS has no such route, staff carry no phone, so it falls through to the env fallback.)
   4. **The acting staff member's personal list**: admins set their own dev-redirect emails + phones in the settings dialog (`StaffProfile.devRedirect{Emails,Phones}`). With no explicit control, the trap routes to the human driving the request (`requestContext.ts` `AsyncLocalStorage`, captured in `hooks.server.ts`): the **impersonator** when impersonating, else the logged-in staff. So an admin testing talent onboarding by impersonating gets the parent / image-rights mail in *their own* inbox.
   5. **The acting human's login email** (mail only): default when no personal list is set.
@@ -40,7 +40,7 @@ Two concerns kept apart: the **gate** (`$lib/server/outbound.ts`) and the **dest
 
 ## `SMS_PROVIDER`
 
-Picks the transactional SMS backend. Lives behind a façade in `$lib/server/sms/` (mirrors `$lib/server/email/`): flipping the env swaps the active provider with no code change. Powers the SMS broadcast channel.
+Picks the transactional SMS backend. Lives behind a façade in `#lib/server/sms/` (mirrors `#lib/server/email/`): flipping the env swaps the active provider with no code change. Powers the SMS broadcast channel.
 
 | Value           | Behavior                                                                                                                                                            |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -49,4 +49,4 @@ Picks the transactional SMS backend. Lives behind a façade in `$lib/server/sms/
 
 `SMS_DEV_RECIPIENTS` is the SMS **fallback destination** (comma-separated; every listed number gets a copy), mirroring `EMAIL_DEV_RECIPIENTS`. It is **not** the gate: the gate is `OUTBOUND_MODE`, shared with mail (see the dev-redirect note above for the gate/destination split).
 
-**SMS broadcasts.** SMS is a broadcast channel alongside mail (`services/broadcast/providers/sms.ts`). An SMS carries **no action link**: it names the recipient's own mailbox and tells them to check it. A recipient needs a usable phone (`noPhone` skip otherwise); numbers are normalized to Brevo's format by `$lib/domain/phone` → `toBrevoRecipient`. The onboarding relance escalation this channel was first built for is gone, so "relance" now survives only as broadcast-audience wording ("relancer les parents bloqués").
+**SMS broadcasts.** SMS is a broadcast channel alongside mail (`services/broadcast/providers/sms.ts`). An SMS carries **no action link**: it names the recipient's own mailbox and tells them to check it. A recipient needs a usable phone (`noPhone` skip otherwise); numbers are normalized to Brevo's format by `#lib/domain/phone` → `toBrevoRecipient`. The onboarding relance escalation this channel was first built for is gone, so "relance" now survives only as broadcast-audience wording ("relancer les parents bloqués").

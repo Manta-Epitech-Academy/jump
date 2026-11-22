@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import SegmentedFilter, {
     type SegmentOption,
-  } from '$lib/components/staff/SegmentedFilter.svelte';
-  import type { WeekView } from '$lib/domain/calendarWeek';
+  } from '#lib/components/staff/SegmentedFilter.svelte';
+  import type { WeekView } from '#lib/domain/calendarWeek.ts';
 
   // Switch between the work-week (Mon-Fri) and full-week (Mon-Sun) calendar
   // layouts. Shared by the talent calendar and the dev event planning so the two

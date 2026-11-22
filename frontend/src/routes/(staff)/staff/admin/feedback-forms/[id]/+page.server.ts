@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
-import { getFormGraphById, toFormSchema } from '$lib/server/feedbackForms';
-import { requireAdmin } from '$lib/server/feedbackFormsAdmin';
+import { getFormGraphById, toFormSchema } from '#lib/server/feedbackForms.ts';
+import { requireAdmin } from '#lib/server/feedbackFormsAdmin.ts';
 
 // A form as its respondents meet it, drafts included: the page an admin opens
 // to see what `write_feedback_form` wrote, and the one `config_feedback_forms`

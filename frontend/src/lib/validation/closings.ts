@@ -6,7 +6,7 @@ import {
   gridQuestions,
   isClosingRecommendation,
   type ClosingGrid,
-} from '$lib/domain/closing';
+} from '#lib/domain/closing.ts';
 
 /**
  * The closing conduct payload.

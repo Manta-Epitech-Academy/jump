@@ -3,23 +3,23 @@
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
-  import * as Dialog from '$lib/components/ui/dialog';
-  import { Badge } from '$lib/components/ui/badge';
-  import * as Table from '$lib/components/ui/table';
-  import { Input } from '$lib/components/ui/input';
+  } from '#lib/components/staff/datatable/search.ts';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
   import Search from '@lucide/svelte/icons/search';
   import Database from '@lucide/svelte/icons/database';
   import Eye from '@lucide/svelte/icons/eye';
   import EyeOff from '@lucide/svelte/icons/eye-off';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import { InfoTooltip } from '#lib/components/ui/info-tooltip/index.ts';
   import {
     SF_STATUS_CLASS_LABELS,
     type SfStatusClass,
-  } from '$lib/domain/sfMemberStatus';
+  } from '#lib/domain/sfMemberStatus.ts';
 
   type ParticipationRow = {
     id: string;

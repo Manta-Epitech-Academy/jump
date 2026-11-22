@@ -1,11 +1,11 @@
-import type { ScopedPrismaClient } from '$lib/server/db/scoped';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { closingListStatus } from '$lib/domain/closing';
+import type { ScopedPrismaClient } from '#lib/server/db/scoped.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { closingListStatus } from '#lib/domain/closing.ts';
 import {
   tallyClosings,
   type ClosingRow,
   type ClosingsRoster,
-} from '$lib/domain/closingsRoster';
+} from '#lib/domain/closingsRoster.ts';
 
 /**
  * An event's closings roster, as the Closings page lists it and the event home

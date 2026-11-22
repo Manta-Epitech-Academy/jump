@@ -1,9 +1,9 @@
 import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
-import { getParentLastName } from '$lib/domain/parent';
-import { imageRightsStatus } from '$lib/domain/imageRights';
+import { prisma } from '#lib/server/db.ts';
+import { getParentLastName } from '#lib/domain/parent.ts';
+import { imageRightsStatus } from '#lib/domain/imageRights.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   // Single child: redirect directly to detail page
   if (children.length === 1) {
-    throw redirect(303, resolve(`/parent/enfant/${children[0].id}`));
+    throw redirect(303, resolve(`parent/enfant/${children[0].id}`));
   }
 
   // For each child, fetch the upcoming event

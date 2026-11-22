@@ -7,10 +7,10 @@ import {
   afterAll,
   vi,
 } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { drainOnboardingPdfJobs } from './onboardingPdfJobs';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
 
 /**
  * One render per job, even when two callers fire it at once.
@@ -47,7 +47,7 @@ vi.mock('../onboardingDocumentGenerator', () => ({
   generateOnboardingPDF: vi.fn(async () => new Uint8Array([1, 2, 3])),
 }));
 
-vi.mock('$lib/server/infra/storage', () => ({
+vi.mock('#lib/server/infra/storage.ts', () => ({
   getStorage: () => ({
     save: async (key: string) => {
       saved.set(key, (saved.get(key) ?? 0) + 1);

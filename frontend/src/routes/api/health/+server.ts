@@ -1,6 +1,5 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { checkReadiness } from '$lib/server/infra/health';
+import { checkReadiness } from '#lib/server/infra/health.ts';
 
 /**
  * The route the hosting team's probes and monitoring call: 200 when this pod
@@ -18,7 +17,7 @@ import { checkReadiness } from '$lib/server/infra/health';
  */
 export const GET: RequestHandler = async () => {
   const { ready } = await checkReadiness();
-  return json(
+  return Response.json(
     { status: ready ? 'ok' : 'unavailable' },
     {
       status: ready ? 200 : 503,

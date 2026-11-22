@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import EventPlanningView from './components/EventPlanningView.svelte';
-  import { eventDisplayName } from '$lib/domain/event';
+  import { eventDisplayName } from '#lib/domain/event.ts';
 
   let { data }: { data: PageData } = $props();
 </script>

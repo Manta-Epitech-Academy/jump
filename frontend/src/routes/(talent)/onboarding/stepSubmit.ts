@@ -1,10 +1,10 @@
-import type { SubmitFunction } from '@sveltejs/kit';
+import type { SubmitFunction } from '$app/forms';
 
 /**
  * Shared submit behaviour for every onboarding step form (and the go-back form).
  *
  * The wizard never navigates between steps: `data.step` is recomputed from the
- * DB on each `invalidateAll`, so SvelteKit never clears the page `form` prop on
+ * DB on each `refreshAll`, so SvelteKit never clears the page `form` prop on
  * its own. `update()` is what keeps `form` in sync with the step now shown: on
  * success it applies the (error-free) result and invalidates the load, advancing
  * the step; on failure it applies the field errors in place.

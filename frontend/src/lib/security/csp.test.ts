@@ -3,7 +3,7 @@
  * `design/contract.test.ts` does for DESIGN.md.
  *
  * Issue #277 removed `'unsafe-inline'` and `'unsafe-hashes'` from `script-src`
- * by moving the fixed directives to `kit.csp`, which hands out a real
+ * by moving the fixed directives to kit's `csp`, which hands out a real
  * per-request nonce. The header itself is asserted end to end in
  * `tests/e2e/csp.spec.ts`, against a real server, because that is the only place
  * the nonce exists.
@@ -29,7 +29,7 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 const SELF = 'src/lib/security/csp.test.ts';
-const CONFIG = 'svelte.config.js';
+const CONFIG = 'vite.config.ts';
 const HOOKS = 'src/hooks.server.ts';
 
 const sourceFiles = walk('src').filter(
@@ -75,7 +75,7 @@ describe('the script-src concession is gone, and stays gone', () => {
    * hashing the inline scripts it emitted: a valid policy that silently covers
    * nothing added afterwards, and a header that still looks hardened.
    */
-  it('lets kit.csp issue a nonce rather than hashing what it happened to emit', () => {
+  it('lets the csp option issue a nonce rather than hashing what it happened to emit', () => {
     expect(code(CONFIG)).toMatch(/mode:\s*'auto'/);
   });
 
@@ -193,10 +193,10 @@ describe('a directive computed per request is declared nowhere else', () => {
   /**
    * A header repeating a directive keeps the FIRST occurrence and ignores the
    * rest, unlike two policies, which intersect. So a `frame-src` or a
-   * `form-action` left in `kit.csp` would silently win over the computed one,
+   * `form-action` left in kit's `csp` would silently win over the computed one,
    * and the append would read as if it worked while allowing nothing.
    */
-  it('keeps frame-src and form-action out of kit.csp', () => {
+  it('keeps frame-src and form-action out of the csp option', () => {
     const directives = code(CONFIG);
     expect(directives).not.toMatch(/'frame-src':/);
     expect(directives).not.toMatch(/'form-action':/);

@@ -5,13 +5,16 @@
   import { resolve } from '$app/paths';
   import { onMount, untrack } from 'svelte';
   import { mode } from 'mode-watcher';
-  import { Button } from '$lib/components/ui/button';
-  import { triggerConfetti, triggerSideCannons } from '$lib/actions/confetti';
-  import { minigameRewardToast } from '$lib/components/talent/rewardToast';
-  import { MINIGAME_XP_REWARD } from '$lib/domain/xp';
-  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
-  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
-  import XpFloat from '$lib/components/talent/XpFloat.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import {
+    triggerConfetti,
+    triggerSideCannons,
+  } from '#lib/actions/confetti.ts';
+  import { minigameRewardToast } from '#lib/components/talent/rewardToast.ts';
+  import { MINIGAME_XP_REWARD } from '#lib/domain/xp.ts';
+  import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
+  import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
+  import XpFloat from '#lib/components/talent/XpFloat.svelte';
   import Home from '@lucide/svelte/icons/home';
   import Loader2 from '@lucide/svelte/icons/loader-circle';
 
@@ -128,9 +131,9 @@
       if (!iframeEl || e.source !== iframeEl.contentWindow) return;
       const msg = e.data;
       if (msg?.type === 'jumpgames:exit') {
-        goto(resolve('/'));
+        goto(resolve(''));
       } else if (msg?.type === 'jumpgames:leaderboard') {
-        goto(resolve(`/minigames/${data.publication.id}/leaderboard`));
+        goto(resolve(`minigames/${data.publication.id}/leaderboard`));
       } else if (msg?.type === 'jumpgames:resize') {
         if (typeof msg.height === 'number' && msg.height > 0) {
           contentHeight = Math.ceil(msg.height);
@@ -221,7 +224,7 @@
           <p class="text-sm text-muted-foreground">
             Impossible de lancer l'entraînement pour le moment.
           </p>
-          <Button href={resolve('/')} variant="outline">
+          <Button href={resolve('')} variant="outline">
             <Home class="mr-2 h-4 w-4" /> Retour à l'accueil
           </Button>
         {:else}

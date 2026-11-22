@@ -262,7 +262,7 @@ export function usageRawCutoff(now: Date = new Date()): Date {
  *
  * One objection, and it stops every measurement Jump makes of them: the
  * catalogue's recorder (`recordUsage`) and the audience measurement
- * the browser sends to Umami (`$lib/analytics`). The settings switch promises
+ * the browser sends to Umami (`#lib/analytics.ts`). The settings switch promises
  * that « plus rien ne sera alors enregistré », so the two read this one rule
  * rather than each its own copy of it: Umami kept following objectors for as
  * long as only the recorder checked (#518).
@@ -1370,7 +1370,7 @@ export function isUsageFeatureKey(value: string): value is UsageFeatureKey {
  * `record.test.ts` pins each of those three.
  *
  * Here in the domain rather than beside the recorder because it has a second
- * caller that cannot reach `$lib/server`: the seed generator, which has to write
+ * caller that cannot reach `#lib/server`: the seed generator, which has to write
  * rows the recorder would recognise. It restated the shape instead, in a
  * different separator and with no time component at all, which capped a seeded
  * member at one row per feature - so their connection count could never exceed

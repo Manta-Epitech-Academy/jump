@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 
 /**
  * Mutation core for auth-identity repairs. Deliberately depends on NOTHING but
- * `@prisma/client` (no `$lib/server/db` singleton, no SvelteKit), so the core
+ * `@prisma/client` (no `#lib/server/db` singleton, no SvelteKit), so the core
  * stays decoupled from the request layer and reusable. Its driver is the admin
  * UI service (`authIdentityRepairService.ts`), which wraps these in the request's
  * prisma singleton + admin actor (and which the Salesforce sync calls through

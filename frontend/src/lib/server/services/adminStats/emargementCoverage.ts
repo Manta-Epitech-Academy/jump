@@ -21,8 +21,8 @@
  * would turn a deliberate choice into a failure.
  */
 
-import { prisma } from '$lib/server/db';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { prisma } from '#lib/server/db.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
 import {
   presenceSlots,
   dbDateToKey,
@@ -30,13 +30,16 @@ import {
   statusLabelFr,
   type PresenceSlot,
   type PresenceStatus,
-} from '$lib/domain/eventPresence';
-import { isSlotClosed } from '$lib/server/presence/slotClosure';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+} from '#lib/domain/eventPresence.ts';
+import { isSlotClosed } from '#lib/server/presence/slotClosure.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { scopedEvents, scopeLabels } from './cohort';
 import { sinceLabelFr, type SinceFilter } from './since';
-import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
+import {
+  getEventStatus,
+  getLifecycleBounds,
+} from '#lib/domain/eventLifecycle.ts';
 
 /** Events detailed one by one before the answer stops listing them. */
 export const EMARGEMENT_EVENTS_LIMIT = 40;

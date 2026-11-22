@@ -214,8 +214,8 @@ describe('the catalogue and the code cannot drift', () => {
    */
   it('never reaches the recorder from client code', () => {
     // `src/hooks.server.ts` is server code by SvelteKit's own convention even
-    // though it sits outside `$lib/server`, and it is where visits and
-    // connections are counted. Everything else outside `$lib/server` and `src/routes` ships
+    // though it sits outside `#lib/server`, and it is where visits and
+    // connections are counted. Everything else outside `#lib/server` and `src/routes` ships
     // to a browser.
     const serverOnly = new Set(['src/hooks.server.ts']);
     const offenders = sourceFiles

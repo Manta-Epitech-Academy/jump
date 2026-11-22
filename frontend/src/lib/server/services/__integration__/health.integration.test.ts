@@ -4,7 +4,7 @@
  * a probe when the pod is fine.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { checkReadiness } from '$lib/server/infra/health';
+import { checkReadiness } from '#lib/server/infra/health.ts';
 import { assertTestDatabase } from './testDatabase';
 
 describe('readiness (integration)', () => {

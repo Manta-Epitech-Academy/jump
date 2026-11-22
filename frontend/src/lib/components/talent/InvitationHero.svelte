@@ -1,13 +1,13 @@
 <script lang="ts">
-  import CopiedPicture from '$lib/components/talent/CopiedPicture.svelte';
-  import EventFacts from '$lib/components/talent/EventFacts.svelte';
-  import EventVisual from '$lib/components/talent/EventVisual.svelte';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import { Button } from '$lib/components/ui/button';
+  import CopiedPicture from '#lib/components/talent/CopiedPicture.svelte';
+  import EventFacts from '#lib/components/talent/EventFacts.svelte';
+  import EventVisual from '#lib/components/talent/EventVisual.svelte';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import ExternalLink from '@lucide/svelte/icons/external-link';
-  import type { HomeHero } from '$lib/domain/talentHome';
+  import type { HomeHero } from '#lib/domain/talentHome.ts';
 
   // « À ne pas manquer »: what a campus invites its talents to, to a talent
   // not enrolled in it (`pickHomeHero`). Either an event the campus puts

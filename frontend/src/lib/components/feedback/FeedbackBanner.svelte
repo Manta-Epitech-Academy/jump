@@ -2,7 +2,7 @@
   import { resolve } from '$app/paths';
   import X from '@lucide/svelte/icons/x';
   import PersonaAvatar from './PersonaAvatar.svelte';
-  import CardAction from '$lib/components/talent/CardAction.svelte';
+  import CardAction from '#lib/components/talent/CardAction.svelte';
 
   let {
     eventId,
@@ -26,7 +26,7 @@
          button: the home's heavy action is the hero's. Not « C'est parti »
          either, which the training card beside it already says. -->
     <CardAction
-      href={resolve(`/feedback/${eventId}/${formId}`)}
+      href={resolve(`feedback/${eventId}/${formId}`)}
       class="shrink-0 self-center">Donner mon avis</CardAction
     >
     <button

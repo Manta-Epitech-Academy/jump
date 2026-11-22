@@ -1,15 +1,15 @@
 import type { BroadcastChannel, BroadcastStatus } from '@prisma/client';
-import type { FacetDef } from '$lib/domain/listFacets';
-import { defineListView } from '$lib/domain/listView';
+import type { FacetDef } from '#lib/domain/listFacets.ts';
+import { defineListView } from '#lib/domain/listView.ts';
 import {
   BROADCAST_CHANNEL_LABELS,
   BROADCAST_CHANNELS,
   BROADCAST_STATUS_LABELS,
-} from '$lib/domain/broadcasts';
+} from '#lib/domain/broadcasts.ts';
 
 /**
  * The send list's view, in the address every staff list shares
- * (`$lib/domain/listView`): the channel (`canal`) and the send's state
+ * (`#lib/domain/listView`): the channel (`canal`) and the send's state
  * (`statut`) filter from their columns. The list is the 50 most recent sends,
  * newest first, and does not sort.
  */

@@ -1,17 +1,17 @@
 import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { hhmmToMinutes, minutesToHHMM } from '$lib/domain/event';
+import { prisma } from '#lib/server/db.ts';
+import { hhmmToMinutes, minutesToHHMM } from '#lib/domain/event.ts';
 import {
   EVENT_MODULES,
   isEventModuleKey,
   parseModuleSettings,
   type EventModuleKey,
-} from '$lib/domain/eventModules';
+} from '#lib/domain/eventModules.ts';
 import {
   refuseAttendingNotShown,
   resolveKnownStatuses,
-} from '$lib/server/services/devSpaceVisibility';
+} from '#lib/server/services/devSpaceVisibility.ts';
 
 /**
  * Service for `EventConfig_Template` - reusable, named, global event-config

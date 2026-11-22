@@ -18,8 +18,8 @@
  * the list is newest first, which answers the question without inventing a date.
  */
 
-import { metric, type Metric } from '$lib/server/adminApi/metrics';
-import { listCampusNames } from '$lib/server/adminApi/scope';
+import { metric, type Metric } from '#lib/server/adminApi/metrics.ts';
+import { listCampusNames } from '#lib/server/adminApi/scope.ts';
 import { scopedEvents } from './cohort';
 
 export type CampusVocabulary = {

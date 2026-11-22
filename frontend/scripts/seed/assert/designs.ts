@@ -9,8 +9,8 @@
  * have kept, or the dataset shows a design no author could have produced.
  *
  * The same functions the write calls, not a restatement of them. The sanitiser
- * lives under `server/` but imports nothing through `$lib`, which is what lets a
- * plain `bun` script reach it, as it reaches the domain.
+ * lives under `server/` but reaches no `$app/*` module and no Vite-only import,
+ * which is what lets a plain `bun` script reach it, as it reaches the domain.
  */
 
 import type { PrismaClient } from '@prisma/client';

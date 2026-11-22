@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import type { ChatMessage } from '$lib/domain/feedbackForms/conversation.svelte';
+  import type { ChatMessage } from '#lib/domain/feedbackForms/conversation.svelte.ts';
   import MessageBubble from './MessageBubble.svelte';
   import TypingIndicator from './TypingIndicator.svelte';
 

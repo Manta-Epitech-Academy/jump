@@ -10,7 +10,7 @@ import {
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { isHttpError } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**
@@ -36,7 +36,7 @@ let stillSize = { width: 800, height: 450 };
 /** Set to the canvas the stubbed pipeline should find too large to decode. */
 let tooLarge: { width: number; height: number } | null = null;
 
-vi.mock('$lib/server/infra/storage', () => ({
+vi.mock('#lib/server/infra/storage.ts', () => ({
   getStorage: () => ({
     save: async (key: string, data: Uint8Array) => {
       objects.set(key, data);
@@ -55,13 +55,13 @@ vi.mock('$lib/server/infra/storage', () => ({
   isObjectNotFound: () => false,
 }));
 
-vi.mock('$lib/server/infra/publicAddress', () => ({
+vi.mock('#lib/server/infra/publicAddress.ts', () => ({
   isPublicAddress: vi.fn(() => true),
 }));
 
-vi.mock('$lib/server/images/process', async (importOriginal) => {
+vi.mock('#lib/server/images/process.ts', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('$lib/server/images/process')>();
+    await importOriginal<typeof import('#lib/server/images/process.ts')>();
   return {
     ...actual,
     processImage: vi.fn(async (input: Uint8Array) => {
@@ -77,13 +77,14 @@ vi.mock('$lib/server/images/process', async (importOriginal) => {
 });
 
 const { writeWorkshop, writeWorkshopInstance } =
-  await import('$lib/server/adminApi/writes/workshops');
+  await import('#lib/server/adminApi/writes/workshops.ts');
 const { ADMIN_API_OPERATIONS } =
-  await import('$lib/server/adminApi/operations');
-const { OperationRefusedError } = await import('$lib/server/adminApi/errors');
+  await import('#lib/server/adminApi/operations.ts');
+const { OperationRefusedError } =
+  await import('#lib/server/adminApi/errors.ts');
 const { REMOTE_ANIMATION_MAX_BYTES, REMOTE_DOWNLOAD_MAX_BYTES } =
-  await import('$lib/server/images/remote');
-const { isPublicAddress } = await import('$lib/server/infra/publicAddress');
+  await import('#lib/server/images/remote.ts');
+const { isPublicAddress } = await import('#lib/server/infra/publicAddress.ts');
 const { GET: coverProxy } =
   await import('../../../../routes/api/workshops/covers/[activityId]/[file]/+server');
 

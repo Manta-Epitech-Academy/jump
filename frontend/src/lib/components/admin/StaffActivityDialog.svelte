@@ -21,11 +21,11 @@
   stops an empty coverage from reading as an absent member.
 -->
 <script lang="ts">
-  import * as Dialog from '$lib/components/ui/dialog';
-  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
-  import { lastActiveLabel } from '$lib/components/staff/lastActive';
-  import { countNounForm } from '$lib/components/staff/datatable/countLabel';
-  import { formatDateFr, formatDateTimeFr } from '$lib/utils';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import { InfoTooltip } from '#lib/components/ui/info-tooltip/index.ts';
+  import { lastActiveLabel } from '#lib/components/staff/lastActive.ts';
+  import { countNounForm } from '#lib/components/staff/datatable/countLabel.ts';
+  import { formatDateFr, formatDateTimeFr } from '#lib/utils.ts';
   import Loader from '@lucide/svelte/icons/loader';
   import Eye from '@lucide/svelte/icons/eye';
 

@@ -9,10 +9,10 @@
 </script>
 
 <script lang="ts">
-  import * as Command from '$lib/components/ui/command';
+  import * as Command from '#lib/components/ui/command/index.ts';
   import Check from '@lucide/svelte/icons/check';
-  import { Button } from '$lib/components/ui/button';
-  import { cn } from '$lib/utils';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { cn } from '#lib/utils.ts';
   import type { FacetOption } from './types';
   import { buildHaystack, matchesAllTokens, searchTokens } from './search';
 

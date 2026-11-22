@@ -1,9 +1,9 @@
 <script lang="ts">
-  import * as Dialog from '$lib/components/ui/dialog';
-  import { Button, buttonVariants } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import { Checkbox } from '$lib/components/ui/checkbox';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';

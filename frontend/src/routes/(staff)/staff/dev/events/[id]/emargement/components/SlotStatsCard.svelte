@@ -3,11 +3,11 @@
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import Lock from '@lucide/svelte/icons/lock';
   import CheckCheck from '@lucide/svelte/icons/check-check';
-  import * as Card from '$lib/components/ui/card';
-  import { cn } from '$lib/utils';
-  import { statusBadgeClass } from '$lib/components/staff/statusBadge';
-  import type { SlotStats } from '$lib/domain/eventPresence';
-  import { allPresentLine } from '$lib/domain/devVoice';
+  import * as Card from '#lib/components/ui/card/index.ts';
+  import { cn } from '#lib/utils.ts';
+  import { statusBadgeClass } from '#lib/components/staff/statusBadge.ts';
+  import type { SlotStats } from '#lib/domain/eventPresence.ts';
+  import { allPresentLine } from '#lib/domain/devVoice.ts';
 
   let {
     slotLabel,

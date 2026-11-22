@@ -4,11 +4,11 @@ import {
   listSalesforceDiffs,
   listSalesforceEnrichment,
   recordSfExport,
-} from '$lib/server/services/reconciliationService';
-import { FIELD_LABELS } from '$lib/domain/reconciliation';
-import { csvResponse } from '$lib/server/csv';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+} from '#lib/server/services/reconciliationService.ts';
+import { FIELD_LABELS } from '#lib/domain/reconciliation.ts';
+import { csvResponse } from '#lib/server/csv.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // One row per (talent, field): the actionable unit for whoever pushes the data
 // back into Salesforce. `type` separates a real divergence (SF disagrees) from

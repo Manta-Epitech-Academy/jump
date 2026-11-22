@@ -1,7 +1,7 @@
 import type { RequestEvent } from '@sveltejs/kit';
-import { can } from '$lib/domain/permissions';
-import { outboundTrapped } from '$lib/server/outbound';
-import { parseCookieToken, signCookieToken } from '$lib/server/signedCookie';
+import { can } from '#lib/domain/permissions.ts';
+import { outboundTrapped } from '#lib/server/outbound.ts';
+import { parseCookieToken, signCookieToken } from '#lib/server/signedCookie.ts';
 
 /**
  * "Real sends" arming: the gun safety for outbound on a trapped env.

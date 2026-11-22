@@ -1,7 +1,7 @@
 <script lang="ts">
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '#lib/components/ui/button/index.ts';
 
   // Shared prev / "x / y" / next control for paginated staff lists. The parent
   // owns where the page number actually lives (a URL param, a $state, …): this

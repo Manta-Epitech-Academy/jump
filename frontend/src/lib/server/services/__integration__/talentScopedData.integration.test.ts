@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { anonymizeTalent } from '$lib/server/services/anonymizationService';
+import { prisma } from '#lib/server/db.ts';
+import { anonymizeTalent } from '#lib/server/services/anonymizationService.ts';
 import {
   resetTalentToImport,
   TalentAlreadyErased,
-} from '$lib/server/services/talentAccount';
-import { mergeTalents } from '$lib/server/services/talentMergeService';
+} from '#lib/server/services/talentAccount.ts';
+import { mergeTalents } from '#lib/server/services/talentMergeService.ts';
 import { loadDatamodel } from '../../../../../scripts/seed/schema';
 import { assertTestDatabase } from './testDatabase';
 
@@ -39,7 +39,7 @@ import { assertTestDatabase } from './testDatabase';
  */
 
 const deletedObjects = vi.hoisted(() => [] as string[]);
-vi.mock('$lib/server/infra/storage', () => ({
+vi.mock('#lib/server/infra/storage.ts', () => ({
   getStorage: () => ({
     delete: async (key: string) => {
       deletedObjects.push(key);

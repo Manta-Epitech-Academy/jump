@@ -16,14 +16,14 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
-import { UnknownScopeError } from '$lib/server/adminApi/scope';
+import { UnknownScopeError } from '#lib/server/adminApi/scope.ts';
 import {
   ADMIN_API_OPERATIONS,
   type AdminApiOperation,
   type AdminApiOperationName,
-} from '$lib/server/adminApi/operations';
+} from '#lib/server/adminApi/operations.ts';
 
 const stamp = Date.now();
 /** Well-formed, and deliberately not a campus / event anybody has. */

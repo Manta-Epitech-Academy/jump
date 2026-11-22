@@ -1,11 +1,11 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   getFormGraphById,
   type FeedbackFormGraph,
-} from '$lib/server/feedbackForms';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { RECO_QUESTION_KEY } from '$lib/domain/feedback';
+} from '#lib/server/feedbackForms.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { RECO_QUESTION_KEY } from '#lib/domain/feedback.ts';
 
 /**
  * Aggregation for the feedback dashboards (dev "Bilan" page + admin views).

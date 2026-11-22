@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { ChatRole } from '$lib/domain/feedbackForms/conversation.svelte';
-  import { typeset } from '$lib/domain/typography';
-  import { cn } from '$lib/utils';
+  import type { ChatRole } from '#lib/domain/feedbackForms/conversation.svelte.ts';
+  import { typeset } from '#lib/domain/typography.ts';
+  import { cn } from '#lib/utils.ts';
 
   interface Props {
     role: ChatRole;

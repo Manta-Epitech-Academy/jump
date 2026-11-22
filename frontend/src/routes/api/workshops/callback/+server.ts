@@ -1,12 +1,12 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { verifyCallbackSignature } from '$lib/server/hmac';
-import { workshopKeys } from '$lib/server/workshops/ticket';
+import { WORKSHOP_TICKET_SECRET } from '$app/env/private';
+import { verifyCallbackSignature } from '#lib/server/hmac.ts';
+import { workshopKeys } from '#lib/server/workshops/ticket.ts';
 import {
   applyWorkshopProgress,
   type WorkshopCallbackPayload,
-} from '$lib/server/services/workshopService';
+} from '#lib/server/services/workshopService.ts';
 
 /**
  * What a CTFd instance reports after a talent validates a step.
@@ -32,7 +32,7 @@ import {
  * costs nothing.
  */
 export const POST: RequestHandler = async ({ request }) => {
-  const secret = env.WORKSHOP_TICKET_SECRET;
+  const secret = WORKSHOP_TICKET_SECRET;
   if (!secret) {
     console.error(
       '[workshops/callback] WORKSHOP_TICKET_SECRET not configured.',
@@ -79,5 +79,5 @@ export const POST: RequestHandler = async ({ request }) => {
     throw error(500, 'persist failed');
   }
 
-  return json({ ok: true });
+  return Response.json({ ok: true });
 };

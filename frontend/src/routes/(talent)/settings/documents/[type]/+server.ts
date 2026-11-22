@@ -1,13 +1,13 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getStorage } from '$lib/server/infra/storage';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { downloadUrlOrigin, getStorage } from '#lib/server/infra/storage.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 import {
   isTalentViewableDocument,
   onboardingDownloadFilename,
   resolveTalentDocumentKey,
-} from '$lib/server/services/onboardingDocuments';
+} from '#lib/server/services/onboardingDocuments.ts';
 
 /**
  * Serves a talent their own signed onboarding PDF. The key is resolved from the
@@ -47,5 +47,5 @@ export const GET: RequestHandler = async ({ params, url: reqUrl, locals }) => {
   });
   recordUsage(USAGE_FEATURES.TALENT_DOCUMENT_VIEW, { locals });
 
-  throw redirect(302, url);
+  throw redirect(302, url, { external: [downloadUrlOrigin()] });
 };

@@ -1,13 +1,13 @@
 import type { Actions, PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { JUMP_GAMES_URL } from '$app/env/private';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 import {
   checkTalentEligibility,
   mintAttempt,
   markMinigameRewardsSeen,
-} from '$lib/server/services/minigameService';
+} from '#lib/server/services/minigameService.ts';
 
 /**
  * Read-only: never mints here. `load` runs on speculative hover-preload, so a
@@ -17,7 +17,7 @@ import {
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
-  const jumpGamesUrl = env.JUMP_GAMES_URL;
+  const jumpGamesUrl = JUMP_GAMES_URL;
   if (!jumpGamesUrl) {
     console.error('[minigames] JUMP_GAMES_URL not configured.');
     throw error(503, 'Entraînements temporairement indisponibles.');
@@ -41,7 +41,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 export const actions: Actions = {
   play: async ({ locals, params }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
-    if (!env.JUMP_GAMES_URL) {
+    if (!JUMP_GAMES_URL) {
       throw error(503, 'Entraînements temporairement indisponibles.');
     }
 

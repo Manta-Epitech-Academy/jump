@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Collapsible as CollapsiblePrimitive } from 'bits-ui';
-  import { cn } from '$lib/utils.js';
+  import { cn } from '#lib/utils.ts';
 
   let { class: className, ...restProps }: CollapsiblePrimitive.TriggerProps =
     $props();

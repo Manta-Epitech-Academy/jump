@@ -1,5 +1,5 @@
-import { browser } from '$app/environment';
-import { objectedToUsageMeasurement } from '$lib/domain/usage';
+import { browser } from '$app/env';
+import { objectedToUsageMeasurement } from '#lib/domain/usage.ts';
 
 type Primitive = string | number | boolean | null | undefined;
 export type EventData = Record<string, Primitive>;

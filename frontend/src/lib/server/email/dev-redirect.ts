@@ -1,17 +1,17 @@
-import { env } from '$env/dynamic/private';
+import { EMAIL_DEV_RECIPIENTS } from '$app/env/private';
 import {
   currentActorEmail,
   currentArmedRealSends,
   currentDevRedirectEmails,
-} from '$lib/server/requestContext';
-import { outboundTrapped, type OutboundRouting } from '$lib/server/outbound';
+} from '#lib/server/requestContext.ts';
+import { outboundTrapped, type OutboundRouting } from '#lib/server/outbound.ts';
 import type { DevRedirectControl, MailMessage } from './types';
 
 /**
  * Dev-redirect splits into two concerns:
  *
  *   1. THE GATE: "is this environment allowed to reach real recipients?"
- *      Owned by `OUTBOUND_MODE` (see `$lib/server/outbound`), shared with SMS,
+ *      Owned by `OUTBOUND_MODE` (see `#lib/server/outbound`), shared with SMS,
  *      fail-safe and env-only. Not this file's concern beyond consulting it.
  *
  *   2. THE DESTINATION: "when trapped, where does the copy land?" Resolved
@@ -23,7 +23,7 @@ import type { DevRedirectControl, MailMessage } from './types';
  * who would have received it in prod.
  */
 function parseDevRecipients(): string[] | null {
-  const raw = env.EMAIL_DEV_RECIPIENTS?.trim();
+  const raw = EMAIL_DEV_RECIPIENTS?.trim();
   if (!raw) return null;
   const list = raw
     .split(',')

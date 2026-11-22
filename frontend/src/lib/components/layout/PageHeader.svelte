@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
   import CodeTag from './CodeTag.svelte';
   import TitleCursor from './TitleCursor.svelte';
   import TypedText from './TypedText.svelte';

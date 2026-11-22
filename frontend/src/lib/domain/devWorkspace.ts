@@ -5,7 +5,7 @@ import type { EventSurfaceGates } from './eventModules';
  * The dev workspace's view of one of its events, as both ends of the wire see
  * it: the server passes a `WorkspaceEventEntry`, the browser passes what devalue
  * delivered. Structural on purpose, so neither side has to import the other's
- * type (`$lib/server` must not be reachable from the domain layer).
+ * type (`#lib/server` must not be reachable from the domain layer).
  *
  * `date` is loose because only ordering reads it, through `new Date(...)`, which
  * takes a `Date` and an ISO string alike.

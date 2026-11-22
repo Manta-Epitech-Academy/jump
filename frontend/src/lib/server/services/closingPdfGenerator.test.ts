@@ -5,7 +5,10 @@ import {
   renderClosingHtml,
   type ClosingForPdf,
 } from './closingPdfGenerator';
-import { toClosingGrid, type StoredClosingTemplate } from '$lib/domain/closing';
+import {
+  toClosingGrid,
+  type StoredClosingTemplate,
+} from '#lib/domain/closing.ts';
 
 /**
  * What the synthesis document says about a closing.

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import { Alert, AlertDescription } from '$lib/components/ui/alert';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { Alert, AlertDescription } from '#lib/components/ui/alert/index.ts';
   import CircleAlert from '@lucide/svelte/icons/circle-alert';
   import Sparkles from '@lucide/svelte/icons/sparkles';
 

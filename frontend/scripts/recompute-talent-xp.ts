@@ -20,8 +20,8 @@
  * recomputed sum are written; the rest are left untouched. Idempotent: a second
  * run reports zero drift. Does NOT touch `eventsCount` (a separate projection).
  *
- * Self-contained on purpose (no `$lib` import): like the sibling scripts it must
- * run against the production image where Vite aliases do not resolve.
+ * Self-contained on purpose (nothing imported from `src/`): like the sibling
+ * scripts it must run against the production image, which ships no `src/`.
  *
  * Safety: a dry run writes nothing. A live write against a non-local
  * DATABASE_URL (e.g. prod) requires `--force`. Always --dry-run first to read

@@ -11,23 +11,26 @@
  * arrival celebration.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   WELCOME_XP_BONUS,
   onboardingEarlyBirdBonus,
   ONBOARDING_EARLY_BIRD_LIMIT,
-} from '$lib/domain/xp';
-import { grantXp } from '$lib/server/services/xpService';
+} from '#lib/domain/xp.ts';
+import { grantXp } from '#lib/server/services/xpService.ts';
 import {
   resolveTalentCampus,
   countCampusEarlyBirdPosition,
-} from '$lib/server/services/talentCampus';
-import { enqueueOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
+} from '#lib/server/services/talentCampus.ts';
+import { enqueueOnboardingPdfJob } from '#lib/server/services/onboardingPdfJobService.ts';
 import type { ServiceResult } from './result';
-import { CURRENT_REGLEMENT_VERSION } from '$lib/content/reglement';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
-import { getOnboardingStep } from '$lib/domain/talentOnboarding';
-import { offeredInterestWhere, type InterestKind } from '$lib/domain/interests';
+import { CURRENT_REGLEMENT_VERSION } from '#lib/content/reglement/index.ts';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
+import { getOnboardingStep } from '#lib/domain/talentOnboarding.ts';
+import {
+  offeredInterestWhere,
+  type InterestKind,
+} from '#lib/domain/interests.ts';
 import {
   lockTalent,
   patchCurrentOnboardingRecord,

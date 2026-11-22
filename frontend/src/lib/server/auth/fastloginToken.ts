@@ -8,7 +8,7 @@
  *     signed with a separate audience claim and consumed by the parent
  *     route, which signs in the `bauth_user` with `role: 'parent'`.
  *
- * Kept free of any `$lib/server/auth` import on purpose: BetterAuth's OTP
+ * Kept free of any `#lib/server/auth` import on purpose: BetterAuth's OTP
  * callback imports `otp.ts`, which mints parent links here, so routing the
  * token helpers through `auth` would close an import cycle. The sibling that
  * does need the BetterAuth instance is `otpSession.ts`, which mints and
@@ -38,8 +38,8 @@
  */
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
-import { env } from '$env/dynamic/private';
-import { base } from '$app/paths';
+import { BETTER_AUTH_SECRET, ORIGIN } from '$app/env/private';
+import { resolve } from '$app/paths';
 
 // 30 days: long enough to cover the full onboarding relance cadence
 // (T+0 / T+7 / T+14 / T+21 emails) with slack, so the first email's link
@@ -54,7 +54,7 @@ const AUDIENCE = 'jump:fastlogin';
 const PARENT_AUDIENCE = 'jump:parent_fastlogin';
 
 function getKey(): Uint8Array {
-  const secret = env.BETTER_AUTH_SECRET;
+  const secret = BETTER_AUTH_SECRET;
   if (!secret) throw new Error('BETTER_AUTH_SECRET is not configured');
   return new TextEncoder().encode(secret);
 }
@@ -123,9 +123,9 @@ export function verifyFastloginToken(token: string): Promise<FastloginPayload> {
 }
 
 export function buildFastloginLink(token: string): string {
-  const origin = env.ORIGIN;
+  const origin = ORIGIN;
   if (!origin) throw new Error('ORIGIN is not configured');
-  return `${origin}${base}/fastlogin?token=${encodeURIComponent(token)}`;
+  return `${origin}${resolve('fastlogin')}?token=${encodeURIComponent(token)}`;
 }
 
 /**
@@ -151,7 +151,7 @@ export function verifyParentFastloginToken(
 }
 
 export function buildParentFastloginLink(token: string): string {
-  const origin = env.ORIGIN;
+  const origin = ORIGIN;
   if (!origin) throw new Error('ORIGIN is not configured');
-  return `${origin}${base}/parent/fastlogin?token=${encodeURIComponent(token)}`;
+  return `${origin}${resolve('/(parent)/parent/fastlogin')}?token=${encodeURIComponent(token)}`;
 }

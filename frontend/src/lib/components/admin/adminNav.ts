@@ -60,32 +60,32 @@ export const ADMIN_NAV: AdminNavSection[] = [
     items: [
       {
         label: "Vue d'ensemble",
-        href: resolve('/staff/admin'),
+        href: resolve('staff/admin'),
         icon: LayoutDashboard,
         keywords: ['dashboard', 'accueil', 'overview'],
       },
       {
         label: 'Erreurs de Sync',
-        href: resolve('/staff/admin/sync-errors'),
+        href: resolve('staff/admin/sync-errors'),
         icon: TriangleAlert,
         keywords: ['synchro', 'salesforce', 'erreur'],
       },
       {
         label: 'Divergences Salesforce',
-        href: resolve('/staff/admin/sf-conflicts'),
+        href: resolve('staff/admin/sf-conflicts'),
         icon: GitCompareArrows,
         keywords: ['sf', 'conflit', 'conflits', 'reconciliation'],
         badge: 'authConflicts',
       },
       {
         label: 'Génération PDF onboarding',
-        href: resolve('/staff/admin/onboarding-pdfs'),
+        href: resolve('staff/admin/onboarding-pdfs'),
         icon: FileCog,
         keywords: ['pdf', 'documents', 'signes', 'export'],
       },
       {
         label: 'PDF Closings',
-        href: resolve('/staff/admin/closing-pdfs'),
+        href: resolve('staff/admin/closing-pdfs'),
         icon: ClipboardList,
         // 'entretien' stays a search keyword: the business renamed the act, and
         // staff who learnt the old word still type it into the palette.
@@ -93,7 +93,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
       },
       {
         label: 'Accès API',
-        href: resolve('/staff/admin/api-tokens'),
+        href: resolve('staff/admin/api-tokens'),
         icon: KeyRound,
         // 'mcp' and 'claude' are what somebody types when what they actually
         // want is the command to connect their client, which this page carries,
@@ -113,7 +113,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
       },
       {
         label: '[DEV] S3 Test',
-        href: resolve('/staff/admin/files'),
+        href: resolve('staff/admin/files'),
         icon: FolderOpen,
         keywords: ['s3', 'partage', 'fichiers', 'files'],
       },
@@ -124,14 +124,14 @@ export const ADMIN_NAV: AdminNavSection[] = [
     items: [
       {
         label: 'Envoi en masse',
-        href: resolve('/staff/admin/broadcasts'),
+        href: resolve('staff/admin/broadcasts'),
         icon: Send,
         keywords: ['broadcast', 'campagne', 'email', 'sms'],
-        activeExclude: resolve('/staff/admin/broadcasts/templates'),
+        activeExclude: resolve('staff/admin/broadcasts/templates'),
       },
       {
         label: 'Templates',
-        href: resolve('/staff/admin/broadcasts/templates'),
+        href: resolve('staff/admin/broadcasts/templates'),
         icon: Mails,
         keywords: ['modele', 'broadcast'],
       },
@@ -142,37 +142,37 @@ export const ADMIN_NAV: AdminNavSection[] = [
     items: [
       {
         label: 'Événements',
-        href: resolve('/staff/admin/events'),
+        href: resolve('staff/admin/events'),
         icon: CalendarCog,
         keywords: ['evenement', 'event', 'module', 'stage', 'coding', 'nom'],
       },
       {
         label: 'Signataires',
-        href: resolve('/staff/admin/signatures'),
+        href: resolve('staff/admin/signatures'),
         icon: Signature,
         keywords: ['signature', 'signataire', 'diplome', 'certificat', 'stage'],
       },
       {
         label: 'Membres & invitations',
-        href: resolve('/staff/admin/users'),
+        href: resolve('staff/admin/users'),
         icon: Users,
         keywords: ['staff', 'utilisateur', 'invitation', 'role'],
       },
       {
         label: 'Talents',
-        href: resolve('/staff/admin/talents'),
+        href: resolve('staff/admin/talents'),
         icon: GraduationCap,
         keywords: ['eleve', 'etudiant', 'annuaire'],
       },
       {
         label: 'Notes',
-        href: resolve('/staff/admin/notes'),
+        href: resolve('staff/admin/notes'),
         icon: NotebookPen,
         keywords: ['note'],
       },
       {
         label: 'Suppressions',
-        href: resolve('/staff/admin/account-deletions'),
+        href: resolve('staff/admin/account-deletions'),
         icon: UserX,
         keywords: ['rgpd', 'suppression', 'anonymisation', 'compte'],
         badge: 'deletions',
@@ -184,13 +184,13 @@ export const ADMIN_NAV: AdminNavSection[] = [
     items: [
       {
         label: 'Mini-jeux',
-        href: resolve('/staff/admin/minigames'),
+        href: resolve('staff/admin/minigames'),
         icon: Gamepad2,
         keywords: ['jeu', 'game', 'rotation'],
       },
       {
         label: 'Formulaires de feedback',
-        href: resolve('/staff/admin/feedback-forms'),
+        href: resolve('staff/admin/feedback-forms'),
         icon: ListChecks,
         keywords: [
           'formulaire',

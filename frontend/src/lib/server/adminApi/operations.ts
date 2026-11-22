@@ -65,104 +65,104 @@ import {
   EVENT_MODULES,
   EVENT_MODULE_KEYS,
   type EventModuleKey,
-} from '$lib/domain/eventModules';
-import { isCalendarDay, isWallClock } from '$lib/domain/planningTime';
+} from '#lib/domain/eventModules.ts';
+import { isCalendarDay, isWallClock } from '#lib/domain/planningTime.ts';
 import {
   EVENT_CATEGORY_COLOR_PATTERN,
   EVENT_CATEGORY_KEY_MAX,
   EVENT_CATEGORY_LABEL_MAX,
-} from '$lib/domain/eventCategory';
-import { CATALOGUE_KEY_PATTERN } from '$lib/domain/catalogueKey';
+} from '#lib/domain/eventCategory.ts';
+import { CATALOGUE_KEY_PATTERN } from '#lib/domain/catalogueKey.ts';
 import {
   NOTIONS_MAX,
   NOTION_LABEL_MAX,
   WORKSHOP_DOMAIN_KEY_MAX,
   WORKSHOP_DOMAIN_LABEL_MAX,
   WORKSHOP_LEVELS,
-} from '$lib/domain/workshopCatalogue';
-import { SUPERVISOR_CODE_MAX } from '$lib/domain/workshops';
+} from '#lib/domain/workshopCatalogue.ts';
+import { SUPERVISOR_CODE_MAX } from '#lib/domain/workshops.ts';
 import {
   HERO_BUTTON_MAX,
   HERO_TEXT_MAX,
   HERO_TITLE_MAX,
-} from '$lib/domain/eventHero';
+} from '#lib/domain/eventHero.ts';
 import {
   SYNC_CADENCE_MAX_MINUTES,
   SYNC_CADENCE_MIN_MINUTES,
   SYNC_WORKER_TICK_MINUTES,
-} from '$lib/domain/syncSchedule';
+} from '#lib/domain/syncSchedule.ts';
 import {
   TALENT_HOME_NOTE_MAX,
   TALENT_HOME_NOTE_MAX_IMAGES,
-} from '$lib/domain/talentHome';
+} from '#lib/domain/talentHome.ts';
 import { resolveScope, UnknownScopeError } from './scope';
 import { handleDescribe, handleProvenanceFr } from './handles';
 import type { WriteOutcome } from './plan';
-import { getOnboardingFunnel } from '$lib/server/services/adminStats/onboardingFunnel';
+import { getOnboardingFunnel } from '#lib/server/services/adminStats/onboardingFunnel.ts';
 import {
   getEventsConfigList,
   getEventsDirectory,
   EVENTS_LIST_LIMIT,
   EVENTS_LIST_STATES,
-} from '$lib/server/services/adminStats/eventsList';
+} from '#lib/server/services/adminStats/eventsList.ts';
 import {
   getSyncHealth,
   getSyncRuns,
   getSyncSources,
   SYNC_RUNS_LIMIT,
-} from '$lib/server/services/adminStats/syncHealth';
-import { getDataFreshness } from '$lib/server/services/adminStats/dataFreshness';
-import { getScopeVocabulary } from '$lib/server/services/adminStats/scopeVocabulary';
-import { getCampusComparison } from '$lib/server/services/adminStats/campusComparison';
+} from '#lib/server/services/adminStats/syncHealth.ts';
+import { getDataFreshness } from '#lib/server/services/adminStats/dataFreshness.ts';
+import { getScopeVocabulary } from '#lib/server/services/adminStats/scopeVocabulary.ts';
+import { getCampusComparison } from '#lib/server/services/adminStats/campusComparison.ts';
 import {
   getSchoolChurn,
   CHURN_SCHOOLS_LIMIT,
-} from '$lib/server/services/adminStats/schoolChurn';
+} from '#lib/server/services/adminStats/schoolChurn.ts';
 import {
   getApiUsage,
   API_USAGE_DEFAULT_DAYS,
   API_USAGE_MAX_DAYS,
   type ApiUsage,
-} from '$lib/server/services/adminStats/apiUsage';
-import { getCohortProfile } from '$lib/server/services/adminStats/cohortProfile';
+} from '#lib/server/services/adminStats/apiUsage.ts';
+import { getCohortProfile } from '#lib/server/services/adminStats/cohortProfile.ts';
 import {
   getSchoolsReach,
   SCHOOLS_TOP_N,
-} from '$lib/server/services/adminStats/schoolsReach';
+} from '#lib/server/services/adminStats/schoolsReach.ts';
 import {
   getInterestsBreakdown,
   INTERESTS_TOP_N,
-} from '$lib/server/services/adminStats/interestsBreakdown';
-import { getTalentRetention } from '$lib/server/services/adminStats/talentRetention';
-import { getClosingInsights } from '$lib/server/services/adminStats/closingInsights';
+} from '#lib/server/services/adminStats/interestsBreakdown.ts';
+import { getTalentRetention } from '#lib/server/services/adminStats/talentRetention.ts';
+import { getClosingInsights } from '#lib/server/services/adminStats/closingInsights.ts';
 import {
   getClosingQuestion,
   CLOSING_QUESTION_GROUPS_LIMIT,
-} from '$lib/server/services/adminStats/closingQuestion';
+} from '#lib/server/services/adminStats/closingQuestion.ts';
 import {
   getClosingQuestions,
   getClosingTemplates,
-} from '$lib/server/services/adminStats/closingConfiguration';
+} from '#lib/server/services/adminStats/closingConfiguration.ts';
 import {
   getClosingTestimonials,
   TESTIMONIALS_DEFAULT_LIMIT,
   TESTIMONIALS_MAX_LIMIT,
-} from '$lib/server/services/adminStats/closingTestimonials';
+} from '#lib/server/services/adminStats/closingTestimonials.ts';
 import {
   getFeedbackResults,
   FEEDBACK_FORMS_LIMIT,
-} from '$lib/server/services/adminStats/feedbackResults';
+} from '#lib/server/services/adminStats/feedbackResults.ts';
 import {
   getFeedbackQuestion,
   FEEDBACK_QUESTION_GROUPS_LIMIT,
-} from '$lib/server/services/adminStats/feedbackQuestion';
+} from '#lib/server/services/adminStats/feedbackQuestion.ts';
 import {
   getOnboardingVelocity,
   VELOCITY_DEFAULT_DAYS,
   VELOCITY_MAX_DAYS,
-} from '$lib/server/services/adminStats/onboardingVelocity';
-import { getComplianceStatus } from '$lib/server/services/adminStats/complianceStatus';
-import { getEngagement } from '$lib/server/services/adminStats/engagement';
+} from '#lib/server/services/adminStats/onboardingVelocity.ts';
+import { getComplianceStatus } from '#lib/server/services/adminStats/complianceStatus.ts';
+import { getEngagement } from '#lib/server/services/adminStats/engagement.ts';
 import {
   getDiplomaTemplates,
   getEventDetail,
@@ -174,10 +174,10 @@ import {
   getInterests,
   getWorkshops,
   getTalentHomeContent,
-} from '$lib/server/services/adminStats/configuration';
-import { getDiplomaTemplatePreview } from '$lib/server/diplomaTemplates';
-import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
-import { getAdminDigestRecipients } from '$lib/server/services/adminStats/adminDigestRecipients';
+} from '#lib/server/services/adminStats/configuration.ts';
+import { getDiplomaTemplatePreview } from '#lib/server/diplomaTemplates.ts';
+import { getSchoolYearReview } from '#lib/server/services/adminStats/schoolYearReview.ts';
+import { getAdminDigestRecipients } from '#lib/server/services/adminStats/adminDigestRecipients.ts';
 import { writeDiplomaTemplate } from './writes/diplomas';
 import { writeWorkshop, writeWorkshopInstance } from './writes/workshops';
 import { writeWorkshopDomain } from './writes/workshopDomains';
@@ -190,8 +190,8 @@ import { writeEventCategory } from './writes/eventCategories';
 import { writeEmailAction } from './writes/emailActions';
 import { writeInterest } from './writes/interests';
 import { writeCampus } from './writes/campuses';
-import { EMAIL_ACTION_KEYS } from '$lib/domain/emailActions';
-import { INTEREST_KINDS } from '$lib/domain/interests';
+import { EMAIL_ACTION_KEYS } from '#lib/domain/emailActions.ts';
+import { INTEREST_KINDS } from '#lib/domain/interests.ts';
 import {
   retryPdfJob,
   resolveSchools,
@@ -214,12 +214,12 @@ import {
   questionFields,
   sectionFields,
   withQuestionRules,
-} from '$lib/validation/feedbackForms';
+} from '#lib/validation/feedbackForms.ts';
 import { bulkEventConfig, BULK_EVENTS_LIMIT } from './writes/bulk';
 import {
   getEmargementCoverage,
   EMARGEMENT_EVENTS_LIMIT,
-} from '$lib/server/services/adminStats/emargementCoverage';
+} from '#lib/server/services/adminStats/emargementCoverage.ts';
 import {
   getPdfJobsHealth,
   getAccountDeletionQueue,
@@ -229,17 +229,17 @@ import {
   BROADCASTS_LIMIT,
   BROADCASTS_DEFAULT_DAYS,
   BROADCASTS_MAX_DAYS,
-} from '$lib/server/services/adminStats/opsQueues';
+} from '#lib/server/services/adminStats/opsQueues.ts';
 import {
   getFeatureUsage,
   getFeatureAdoptionGaps,
   getCampusFeatureCoverage,
-} from '$lib/server/services/adminStats/featureUsage';
-import { getStaffActivity } from '$lib/server/services/adminStats/staffActivity';
+} from '#lib/server/services/adminStats/featureUsage.ts';
+import { getStaffActivity } from '#lib/server/services/adminStats/staffActivity.ts';
 import {
   USAGE_FEATURE_KEYS,
   USAGE_RAW_RETENTION_MONTHS,
-} from '$lib/domain/usage';
+} from '#lib/domain/usage.ts';
 
 // When a change to the sync's steering is picked up. Built from the tick Jump
 // mirrors, so the four sync tools cannot each quote their own figure, as they

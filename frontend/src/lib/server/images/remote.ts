@@ -31,11 +31,11 @@ import { get as httpsGet } from 'node:https';
 import { isIP, type LookupFunction } from 'node:net';
 import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { isPublicAddress } from '$lib/server/infra/publicAddress';
-import { getStorage } from '$lib/server/infra/storage';
+import { prisma } from '#lib/server/db.ts';
+import { isPublicAddress } from '#lib/server/infra/publicAddress.ts';
+import { getStorage } from '#lib/server/infra/storage.ts';
 import { randomBytes } from 'node:crypto';
-import { stillKeyOf } from '$lib/domain/pictures';
+import { stillKeyOf } from '#lib/domain/pictures.ts';
 import {
   CanvasTooLargeError,
   describeCanvas,

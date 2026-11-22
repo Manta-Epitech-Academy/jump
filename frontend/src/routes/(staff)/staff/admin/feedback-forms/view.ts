@@ -1,11 +1,11 @@
-import type { FacetDef } from '$lib/domain/listFacets';
-import { defineListView } from '$lib/domain/listView';
-import { FORM_STATUS_OPTIONS } from '$lib/domain/feedbackForms/status';
+import type { FacetDef } from '#lib/domain/listFacets.ts';
+import { defineListView } from '#lib/domain/listView.ts';
+import { FORM_STATUS_OPTIONS } from '#lib/domain/feedbackForms/status.ts';
 import type { FormListRow } from './+page.server';
 
 /**
  * The feedback-form list's view, in the address every staff list shares
- * (`$lib/domain/listView`): the form's lifecycle state (`statut`) filters from
+ * (`#lib/domain/listView`): the form's lifecycle state (`statut`) filters from
  * the Statut column, the title, the counts and the last edit sort.
  */
 

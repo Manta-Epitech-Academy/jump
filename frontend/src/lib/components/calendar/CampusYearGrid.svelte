@@ -1,16 +1,16 @@
 <script lang="ts">
   import { mergeProps } from 'bits-ui';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import { Button } from '$lib/components/ui/button';
-  import * as Popover from '$lib/components/ui/popover';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import { cn } from '$lib/utils';
-  import { FILL_INKS, UNCATEGORISED_FILL } from '$lib/design/color';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Popover from '#lib/components/ui/popover/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import { cn } from '#lib/utils.ts';
+  import { FILL_INKS, UNCATEGORISED_FILL } from '#lib/design/color.ts';
   import type {
     CalendarCell,
     CalendarEvent,
     CampusCalendar,
-  } from '$lib/domain/campusCalendar';
+  } from '#lib/domain/campusCalendar.ts';
   import CalendarEventStatus from './CalendarEventStatus.svelte';
 
   // The year view of the 2027 mockup: twelve small months, each event a band of
