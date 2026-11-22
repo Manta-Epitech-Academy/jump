@@ -105,10 +105,11 @@ describe('the usage catalogue', () => {
       'utf-8',
     );
     expect(charte).toContain('{{usageRetentionMonths}}');
-    // And the talent settings page states the same delay. It used to state it
-    // as a literal, which is the drift the constant exists to prevent.
+    // And the talent settings' privacy section states the same delay. It used
+    // to state it as a literal, which is the drift the constant exists to
+    // prevent.
     const settings = readFileSync(
-      'src/routes/(talent)/settings/+page.svelte',
+      'src/lib/components/talent/settings/PrivacySection.svelte',
       'utf-8',
     );
     expect(settings).toContain('USAGE_RAW_RETENTION_MONTHS');

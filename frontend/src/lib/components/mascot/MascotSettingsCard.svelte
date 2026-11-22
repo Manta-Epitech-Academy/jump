@@ -1,6 +1,7 @@
 <!--
   « Mon EpiDuck » in the talent's settings (#539), as the mockup draws it: the
-  duck in profile and facing the talent, his name, and three rows of choices.
+  duck in profile and facing the talent with his name under him, and beside
+  them (under them on a phone) his name field and three rows of choices.
   A choice applies at once, the name when the field is left or confirmed; the
   preview follows the form before the server has answered, the header once it
   has. Every accessory is free: the body is the one thing that never changes.
@@ -11,6 +12,7 @@
   import { toast } from 'svelte-sonner';
   import { Input } from '#lib/components/ui/input/index.ts';
   import { Label } from '#lib/components/ui/label/index.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
   import {
     MASCOT_DEFAULT_NAME,
     MASCOT_GLASSES,
@@ -19,6 +21,7 @@
     MASCOT_SCARVES,
   } from '#lib/domain/mascot.ts';
   import type { MascotLookForm } from '#lib/validation/mascot.ts';
+  import SettingsSection from '#lib/components/talent/settings/SettingsSection.svelte';
   import EpiDuck from './EpiDuck.svelte';
   import { DUCK } from './art/palette';
 
@@ -63,77 +66,82 @@
   }
 </script>
 
-<div class="rounded-xl border border-border bg-card p-5 shadow-raised">
-  <h2
-    class="mb-3 text-base font-bold tracking-widest text-muted-foreground uppercase"
-  >
-    Mon EpiDuck
-  </h2>
-
-  <div
-    class="flex items-end justify-center gap-6 rounded-lg bg-primary/10 px-4 pt-5 pb-3"
-  >
-    <EpiDuck pose="side" look={$form} class="h-20 w-22" />
-    <EpiDuck pose="front" look={$form} class="h-20 w-18" />
-  </div>
-  <p class="mt-3 text-center font-heading text-display-s text-foreground">
-    {shownName.toUpperCase()}<span class="text-epi-tech-ink">_</span>
-  </p>
-
-  <form method="POST" action="?/saveMascot" use:enhance class="mt-4 space-y-4">
-    <div class="space-y-1.5">
-      <Label for="mascot-name" class="epi-overline text-muted-foreground"
-        >Nom de ton canard</Label
+<SettingsSection title="Mon EpiDuck">
+  <div class="flex flex-wrap items-start gap-x-7 gap-y-5">
+    <div class="mx-auto flex flex-none flex-col items-center gap-2">
+      <div
+        class="flex items-end justify-center gap-4 rounded-xl bg-primary/10 px-5 pt-5 pb-4"
       >
-      <Input
-        id="mascot-name"
-        name="name"
-        bind:value={$form.name}
-        maxlength={MASCOT_NAME_MAX}
-        placeholder={MASCOT_DEFAULT_NAME}
-        autocomplete="off"
-        onchange={() => submit()}
-        aria-invalid={$errors.name ? 'true' : undefined}
-      />
-      {#if $errors.name}
-        <p class="text-sm text-destructive">{$errors.name}</p>
-      {/if}
+        <EpiDuck pose="side" look={$form} class="h-24 w-26" />
+        <EpiDuck pose="front" look={$form} class="h-28 w-26" />
+      </div>
+      <p class="font-heading text-display-s text-primary">
+        {shownName.toUpperCase()}<TitleCursor />
+      </p>
     </div>
 
-    {#each ROWS as row (row.field)}
-      <input type="hidden" name={row.field} value={$form[row.field]} />
-      <fieldset class="space-y-1.5">
-        <legend class="mb-1.5 epi-overline text-muted-foreground"
-          >{row.label}</legend
+    <form
+      method="POST"
+      action="?/saveMascot"
+      use:enhance
+      class="min-w-0 flex-[1_1_16rem] space-y-4"
+    >
+      <div class="space-y-1.5">
+        <Label for="mascot-name" class="epi-overline text-muted-foreground"
+          >Nom de ton canard</Label
         >
-        <div class="flex flex-wrap gap-2">
-          {#each Object.entries(row.options) as [value, label] (value)}
-            {@const on = $form[row.field] === value}
-            {@const colour = row.field === 'scarf' ? scarfColour(value) : null}
-            <button
-              type="button"
-              aria-pressed={on}
-              onclick={() => choose(row.field, value)}
-              class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors {on
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-card text-foreground hover:bg-muted'}"
-            >
-              {#if colour}
-                <span
-                  class="size-3 rounded-full bg-[var(--dot)] ring-1 ring-border"
-                  style:--dot={colour}
-                  aria-hidden="true"
-                ></span>
-              {/if}
-              {label}
-            </button>
-          {/each}
-        </div>
-      </fieldset>
-    {/each}
+        <Input
+          id="mascot-name"
+          name="name"
+          bind:value={$form.name}
+          maxlength={MASCOT_NAME_MAX}
+          placeholder={MASCOT_DEFAULT_NAME}
+          autocomplete="off"
+          onchange={() => submit()}
+          aria-invalid={$errors.name ? 'true' : undefined}
+        />
+        {#if $errors.name}
+          <p class="text-sm text-destructive">{$errors.name}</p>
+        {/if}
+      </div>
 
-    <p class="text-sm text-muted-foreground">
-      Ton EpiDuck reste toujours bleu Epitech : seuls ses accessoires changent.
-    </p>
-  </form>
-</div>
+      {#each ROWS as row (row.field)}
+        <input type="hidden" name={row.field} value={$form[row.field]} />
+        <fieldset class="space-y-1.5">
+          <legend class="mb-1.5 epi-overline text-muted-foreground"
+            >{row.label}</legend
+          >
+          <div class="flex flex-wrap gap-2">
+            {#each Object.entries(row.options) as [value, label] (value)}
+              {@const on = $form[row.field] === value}
+              {@const colour =
+                row.field === 'scarf' ? scarfColour(value) : null}
+              <button
+                type="button"
+                aria-pressed={on}
+                onclick={() => choose(row.field, value)}
+                class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors {on
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border bg-card text-foreground hover:bg-muted'}"
+              >
+                {#if colour}
+                  <span
+                    class="size-3 rounded-full bg-[var(--dot)] ring-1 ring-border"
+                    style:--dot={colour}
+                    aria-hidden="true"
+                  ></span>
+                {/if}
+                {label}
+              </button>
+            {/each}
+          </div>
+        </fieldset>
+      {/each}
+
+      <p class="text-sm text-muted-foreground">
+        Ton EpiDuck reste toujours bleu Epitech : seuls ses accessoires
+        changent.
+      </p>
+    </form>
+  </div>
+</SettingsSection>
