@@ -2,6 +2,7 @@
 paths:
   - "frontend/src/lib/domain/mascot.ts"
   - "frontend/src/lib/components/mascot/**"
+  - "frontend/scripts/epiduck/**"
   - "frontend/src/lib/server/services/mascotService.ts"
   - "frontend/src/lib/server/adminApi/writes/mascot.ts"
   - "frontend/src/lib/components/feedback/{PersonaAvatar,ChatScreen}.svelte"
@@ -41,6 +42,10 @@ The tool description of `write_mascot_line` carries these rules to the model tha
 
 ## Drawing and moving him
 
-He is an illustration, so `DESIGN.md` § Mascot holds his palette (`art/palette.ts`, the only place his colours are written) and the one licence he has from § Motion: a character moves continuously, overshoots and squashes, which a control never does. Asked for less motion, he stays put, does not bob, squash or follow the pointer, and his dives are fades. The sprite sheets the mockup was built with are not shipped: the SVG layers they were drawn from are (`EpiDuck.svelte`), because a sheet is raster, weighs megabytes and cannot blink.
+He is an illustration, so `DESIGN.md` § Mascot holds his palette (`art/palette.json`, the only place his colours are written) and the one licence he has from § Motion: a character moves continuously, overshoots and squashes, which a control never does. Asked for less motion, he stays put, does not bob, squash or follow the pointer, and his dives are fades.
+
+- **He is modelled in Blender, and the script is the source** (`frontend/scripts/epiduck/build.py`, run by `bun run art:epiduck`). The first duck was hand-drawn SVG, refused before merge: a duck drawn twice, once per pose, never agreed with itself, and the front one was a stack of circles. One model gives both poses. Never edit `art/epiduck.webp` or `art/epiduck.json` by hand, and never commit a `.blend`: change the script and run it, so a review reads what changed.
+- **One atlas of layers, never a picture per look.** Each layer (body, pupils, lids, every hair, pair of glasses and scarf colour) is rendered alone with the body as a holdout, so stacking the ones a talent chose draws the dressed duck, and a new accessory adds one cell per pose rather than multiplying the combinations. `epiduckAtlas.test.ts` fails on an accessory of the catalogue the atlas does not draw.
+- **He still blinks and looks around**, because his eyes are layers: the lids replace the pupils, and a gaze moves the pupils within the eye. The white sticker outline is drawn round the whole stack by the component, never baked into a layer, so it follows whatever he wears.
 
 Accessories are all free (decided 22/11/2026). Earning one is a possible later reward and would be a rule on the badge side, never a lock in this code.

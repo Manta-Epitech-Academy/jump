@@ -847,14 +847,22 @@ doctrine (when he speaks, what he says, where he lives) is
 [`.claude/rules/mascot.md`](.claude/rules/mascot.md); what concerns his look is
 here.
 
-**His colours are his own, written once.** `components/mascot/art/palette.ts`
-is the only place they exist, and no screen reads one as a role. Where the
-drawing meets the charte it uses the charte's value: the body is `epiBlue`, the
-orange crest and scarf `epiTogether`, the pink scarf `epiTomorrow`. The beak's
-red, the wing's lighter blue, the green scarf and his inks come from the sprites
-the PO's mockup was drawn with and are listed in the deviations below. They do
-not change with the theme: his white outline is what keeps him legible on a
-dark page, as a sticker would be.
+**He is a cel-shaded toy with a sticker's outline.** He is modelled in Blender
+and rendered flat: three tones per material (shade, base, light) under one sun
+from the upper left, no shadow, no gradient, no texture, so at the header's
+44px he reads as a shape and his colours stay the brand's. The white outline
+goes round whatever he wears and scales with him. How he is rendered and
+stacked is [`mascot.md`](.claude/rules/mascot.md) § Drawing.
+
+**His colours are his own, written once.** `components/mascot/art/palette.json`
+is the only place they exist, read by the script that renders him and by the
+settings card's swatches, and no screen reads one as a role. Where the drawing
+meets the charte its base tone uses the charte's value: the body is `epiBlue`,
+the orange crest and scarf `epiTogether`, the pink scarf `epiTomorrow`. The
+beak's red, the wing's lighter blue, the green scarf, his inks and every shade
+and light tone are the character's own and are listed in the deviations below.
+They do not change with the theme: his white outline is what keeps him legible
+on a dark page, as a sticker would be.
 
 **He has the one licence to move that a control never has.** A character on the
 water moves all the time, and that is what makes him read as alive rather than
@@ -911,7 +919,7 @@ oversight, and nothing here should be "fixed" back.
 | 12px and 16px radii in talent and parent | 0 to 4px, square | Soft corners on those two spaces only | The audience is 15-year-olds and their parents, on a phone, in a moment that should feel welcoming rather than administrative. Staff spaces stay square, so the brand's rigidity is still visible where the volume of the product lives. |
 | Emoji in talent copy | No emoji | Allowed in talent copy only | The charte's substitutes are typographic and read as technical. A reward toast for a 15-year-old is the one place a `🎉` outperforms a `_`. |
 | Anton for numbers, conditionally | Anton for all display | Anton only for figures that do not tick | Measured: Anton has no tabular figures, so a countdown drifts 20px per tick. |
-| EpiDuck's own colours | Four accents and their tints | The mascot's beak is red (`#E52521`), his wing a lighter blue, one scarf green, his eyes and glasses near-black inks, all in `art/palette.ts` | He is an illustration drawn before this file knew him, and a duck with an orange beak stops being the one the PO chose. No screen reads these values as roles, so they add no hue to the interface. |
+| EpiDuck's own colours | Four accents and their tints | The mascot's beak is red (`#E52521`), his wing a lighter blue, one scarf green, his eyes and glasses near-black inks, and a shade and a light tone for each, all in `art/palette.json` | He is an illustration drawn before this file knew him, and a duck with an orange beak stops being the one the PO chose. No screen reads these values as roles, so they add no hue to the interface. |
 | Magenta as the admin signature | Magenta is the vision accent, used sparingly | Admin page titles, active nav and tile accents are magenta | Two staff spaces sit one click apart and are easy to confuse. A per-space accent is the cheapest orientation cue there is, and it uses the palette rather than adding to it. |
 
 ### Rejected
