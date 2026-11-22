@@ -1,0 +1,57 @@
+{
+  "width": 4718,
+  "height": 664,
+  "outline": 9,
+  "poses": {
+    "side": {
+      "y": 0,
+      "width": 337,
+      "height": 332,
+      "cells": {
+        "body": 0,
+        "pupils": 337,
+        "lids": 674,
+        "hair.tuft": 1011,
+        "hair.crest": 1348,
+        "hair.fringe": 1685,
+        "hair.beanie": 2022,
+        "glasses.round": 2359,
+        "glasses.sun": 2696,
+        "glasses.geek": 3033,
+        "scarf.red": 3370,
+        "scarf.green": 3707,
+        "scarf.orange": 4044,
+        "scarf.pink": 4381
+      },
+      "pupilTravel": {
+        "x": 6.84,
+        "y": 5.7
+      }
+    },
+    "front": {
+      "y": 332,
+      "width": 218,
+      "height": 332,
+      "cells": {
+        "body": 0,
+        "pupils": 218,
+        "lids": 436,
+        "hair.tuft": 654,
+        "hair.crest": 872,
+        "hair.fringe": 1090,
+        "hair.beanie": 1308,
+        "glasses.round": 1526,
+        "glasses.sun": 1744,
+        "glasses.geek": 1962,
+        "scarf.red": 2180,
+        "scarf.green": 2398,
+        "scarf.orange": 2616,
+        "scarf.pink": 2834
+      },
+      "pupilTravel": {
+        "x": 6.84,
+        "y": 5.7
+      }
+    }
+  }
+}
