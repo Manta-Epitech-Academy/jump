@@ -80,8 +80,8 @@
   let rosterDialogOpen = $state(false);
   const anyDialogOpen = $derived(qrOpen || rosterDialogOpen);
 
-  // Poll so QR self-check-ins surface within seconds (the active créneau is
-  // refined to the real wall-clock hour by the anchoring effect above). Polling
+  // Poll so QR self-check-ins surface within seconds. The poll never moves the
+  // active créneau: the effect above re-anchors on a new event only. Polling
   // pauses while a dialog is open so a mid-edit form isn't resynced.
   onMount(() => {
     const id = setInterval(() => {

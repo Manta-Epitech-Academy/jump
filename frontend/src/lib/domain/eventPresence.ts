@@ -14,6 +14,7 @@
  * downstream is a plain calendar date with no timezone, matching the `@db.Date`
  * column (which Prisma round-trips as a UTC-midnight Date).
  */
+import { clockAt } from './planningTime';
 
 export type PresenceSlot = 'morning' | 'afternoon';
 export type PresenceStatus = 'present' | 'late' | 'absent' | 'excused';
@@ -242,16 +243,19 @@ export function slotLabelLong(s: EventSlot): string {
 /**
  * The créneau to land on when opening the page: today's half-day when the stage
  * is running, otherwise the next upcoming créneau, falling back to the last one
- * once the stage is over. `todayKey` and `nowHour` are both read on the campus
- * clock, never the reader's: the half-day is the one the campus is living.
+ * once the stage is over. Today and its half-day are read here, on the campus
+ * clock `timezone`, never the reader's: the half-day is the one the campus is
+ * living, so a recruiter abroad opens on it too.
  */
 export function defaultActiveSlotKey(
   slots: EventSlot[],
-  todayKey: DateKey,
-  nowHour: number,
+  timezone: string,
+  now: Date,
 ): string {
   if (slots.length === 0) return '';
-  const wanted = halfDayAt(nowHour * 60);
+  const todayKey = toDateKey(now, timezone);
+  const { hour, minute } = clockAt(now, timezone);
+  const wanted = halfDayAt(hour * 60 + minute);
   const todayExact = slots.find((s) => s.day === todayKey && s.slot === wanted);
   if (todayExact) return todayExact.key;
   const todayAny = slots.find((s) => s.day === todayKey);

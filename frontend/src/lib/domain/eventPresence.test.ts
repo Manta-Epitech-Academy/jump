@@ -193,10 +193,35 @@ describe('eventPresence Domain Logic & Projections', () => {
         { day: '2026-06-16', slot: 'morning', key: '2026-06-16|morning' },
         { day: '2026-06-16', slot: 'afternoon', key: '2026-06-16|afternoon' },
       ];
-      expect(defaultActiveSlotKey(slots as any, '2026-06-16', 10)).toBe(
-        '2026-06-16|morning',
-      );
-      expect(defaultActiveSlotKey(slots as any, '2026-06-16', 14)).toBe(
+      // 10:00 and 14:00 in Paris (summer, UTC+2).
+      expect(
+        defaultActiveSlotKey(
+          slots as any,
+          'Europe/Paris',
+          new Date('2026-06-16T08:00:00Z'),
+        ),
+      ).toBe('2026-06-16|morning');
+      expect(
+        defaultActiveSlotKey(
+          slots as any,
+          'Europe/Paris',
+          new Date('2026-06-16T12:00:00Z'),
+        ),
+      ).toBe('2026-06-16|afternoon');
+    });
+
+    // A recruiter in Montréal opened the page on the morning while the campus
+    // was already in its afternoon: the half-day is the campus's, whatever
+    // clock the reader or the pod runs on.
+    it("reads the half-day on the campus's clock", () => {
+      const slots = [
+        { day: '2026-06-16', slot: 'morning', key: '2026-06-16|morning' },
+        { day: '2026-06-16', slot: 'afternoon', key: '2026-06-16|afternoon' },
+      ];
+      // 13:30 at La Réunion, 05:30 in Montréal.
+      const now = new Date('2026-06-16T09:30:00Z');
+
+      expect(defaultActiveSlotKey(slots as any, 'Indian/Reunion', now)).toBe(
         '2026-06-16|afternoon',
       );
     });
@@ -206,9 +231,13 @@ describe('eventPresence Domain Logic & Projections', () => {
         { day: '2026-09-19', slot: 'morning', key: '2026-09-19|morning' },
         { day: '2026-09-19', slot: 'afternoon', key: '2026-09-19|afternoon' },
       ];
-      expect(defaultActiveSlotKey(slots as any, '2026-07-22', 10)).toBe(
-        '2026-09-19|morning',
-      );
+      expect(
+        defaultActiveSlotKey(
+          slots as any,
+          'Europe/Paris',
+          new Date('2026-07-22T08:00:00Z'),
+        ),
+      ).toBe('2026-09-19|morning');
     });
   });
 });
