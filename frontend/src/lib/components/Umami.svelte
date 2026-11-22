@@ -1,8 +1,7 @@
 <script lang="ts">
   import { env } from '$env/dynamic/public';
   import { page } from '$app/state';
-  import { objectedToUsageMeasurement } from '$lib/domain/usage';
-  import { UMAMI_BEFORE_SEND } from '$lib/analytics';
+  import { UMAMI_BEFORE_SEND, analyticsIdentity } from '$lib/analytics';
 
   // Host is constant across all environments, hardcoded here to match the
   // value whitelisted in svelte.config.js CSP. The website ID comes from the
@@ -27,7 +26,7 @@
   const HOST = 'https://jump-umami.epiboost.eu';
   const websiteId = env.PUBLIC_UMAMI_WEBSITE_ID ?? '';
   const enabled = $derived(
-    websiteId !== '' && !objectedToUsageMeasurement(page.data.talent),
+    websiteId !== '' && analyticsIdentity(page.data).subject.measured,
   );
 </script>
 

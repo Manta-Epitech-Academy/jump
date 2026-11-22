@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { objectedToUsageMeasurement } from '$lib/domain/usage';
 
 type Primitive = string | number | boolean | null | undefined;
 export type EventData = Record<string, Primitive>;
@@ -49,6 +50,94 @@ let subject: AnalyticsSubject = { measured: true };
 /** Set by the root layout whenever the person behind the page changes. */
 export function setAnalyticsSubject(next: AnalyticsSubject): void {
   subject = next;
+}
+
+/** The slice of the root layout's page data a subject is read from. */
+export type AnalyticsPageData = {
+  user?: { email?: string | null } | null;
+  staffProfile?: {
+    id: string;
+    staffRole?: string | null;
+    campus?: { name: string } | null;
+  } | null;
+  talent?: { usageAnalyticsOptOutAt: Date | string | null } | null;
+  talentCampusName?: string | null;
+  impersonator?: {
+    userId: string;
+    staffProfileId?: string | null;
+    staffRole?: string | null;
+    campusName?: string | null;
+    email?: string | null;
+  } | null;
+};
+
+/**
+ * Who the browser measures on a page, and the session properties `identify`
+ * attaches (null when there is nobody to identify, or nothing may be sent).
+ *
+ * Staff are identified by their StaffProfile.id (stable across sessions,
+ * decoupled from the auth provider): adults, employees, and per-person history
+ * is what was asked for, the same regime as Jump's own measurement. A talent
+ * never is (see {@link AnalyticsSubject}), and a talent who objected is not
+ * measured at all. The email goes along for staff only, since talents can be
+ * minors.
+ *
+ * Under impersonation (login-as), BetterAuth swaps the session to the target,
+ * so without this every event would be attributed to them: admin debug clicks
+ * polluting their funnels. The admin is measured instead, with the kind of
+ * account they act as, so admin-driven sessions stay filterable from genuine
+ * ones. The target's id goes along only when it is a member of staff: a
+ * talent's id is exactly the stable identifier this keeps away from Umami.
+ *
+ * So a talent's objection governs the pages the talent opens, not the ones an
+ * admin opens as them: those are the admin's, the line the server's usage
+ * recorder (`resolveActor`) draws for the same request.
+ */
+export function analyticsIdentity(page: AnalyticsPageData): {
+  subject: AnalyticsSubject;
+  properties: EventData | null;
+} {
+  const { user, staffProfile: staff, talent, impersonator } = page;
+  if (impersonator) {
+    return {
+      subject: {
+        measured: true,
+        distinctId: impersonator.staffProfileId ?? impersonator.userId,
+      },
+      properties: {
+        account_type: 'staff',
+        role: impersonator.staffRole ?? null,
+        campus: impersonator.campusName ?? null,
+        email: impersonator.email ?? null,
+        impersonating: staff ? 'staff' : talent ? 'talent' : null,
+        impersonating_target_id: staff?.id ?? null,
+      },
+    };
+  }
+  if (staff) {
+    return {
+      subject: { measured: true, distinctId: staff.id },
+      properties: {
+        account_type: 'staff',
+        role: staff.staffRole ?? null,
+        campus: staff.campus?.name ?? null,
+        email: user?.email ?? null,
+      },
+    };
+  }
+  if (objectedToUsageMeasurement(talent)) {
+    return { subject: { measured: false }, properties: null };
+  }
+  return {
+    subject: { measured: true },
+    properties: talent
+      ? {
+          account_type: 'talent',
+          role: null,
+          campus: page.talentCampusName ?? null,
+        }
+      : null,
+  };
 }
 
 /**
