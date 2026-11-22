@@ -18,6 +18,7 @@ import {
   dateKeyToDbDate,
   dbDateToKey,
   toDateKey,
+  defaultActiveSlotKey,
   effectiveStatus,
   computeAttendanceRate,
   indexPresences,
@@ -26,6 +27,7 @@ import {
   type PresenceSlot,
   type CellStatus,
 } from '#lib/domain/eventPresence.ts';
+import { clockAt } from '#lib/domain/planningTime.ts';
 import {
   isSlotClosed,
   isSlotPastCutoff,
@@ -173,7 +175,14 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
     },
     timezone,
     slots,
-    todayKey: toDateKey(now, timezone),
+    // The créneau the page opens on: today's half-day on the campus clock, read
+    // here so the server render and the page agree, and so a recruiter in
+    // another timezone opens on the half-day the campus is living.
+    defaultSlotKey: defaultActiveSlotKey(
+      slots,
+      toDateKey(now, timezone),
+      clockAt(now, timezone).hour,
+    ),
     closedKeys,
     pastCutoffKeys,
     // The header offers its search only when someone is there to search for.

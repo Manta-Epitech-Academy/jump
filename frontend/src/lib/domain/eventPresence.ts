@@ -240,9 +240,10 @@ export function slotLabelLong(s: EventSlot): string {
 }
 
 /**
- * The créneau to land on when opening the page: today's half-day by the clock
- * when the stage is running, otherwise the next upcoming créneau, falling back to
- * the last one once the stage is over.
+ * The créneau to land on when opening the page: today's half-day when the stage
+ * is running, otherwise the next upcoming créneau, falling back to the last one
+ * once the stage is over. `todayKey` and `nowHour` are both read on the campus
+ * clock, never the reader's: the half-day is the one the campus is living.
  */
 export function defaultActiveSlotKey(
   slots: EventSlot[],
