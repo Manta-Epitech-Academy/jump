@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCampusCalendar,
   calendarYearOf,
+  calendarYearOfEvent,
   type CalendarEventInput,
   type CampusCalendar,
 } from './campusCalendar';
@@ -320,5 +321,19 @@ describe('calendarYearOf', () => {
     // Arrange / Act / Assert: 31 July already opens the next school year,
     // but its cell is in the July closing this grid.
     expect(calendarYearOf(day)).toBe(year);
+  });
+});
+
+describe('calendarYearOfEvent', () => {
+  it.each([
+    // 31 July at midnight in Paris: `schoolYearOf` already says 2027-2028,
+    // but the event is listed in the July closing 2026-2027.
+    ['2027-07-30T22:00:00Z', '2026-2027'],
+    // 00:30 on 1 August in Paris, still 31 July in UTC: the campus clock
+    // decides which grid lists it.
+    ['2027-07-31T22:30:00Z', '2027-2028'],
+  ])('should list an event starting at %s on the %s grid', (start, year) => {
+    // Arrange / Act / Assert
+    expect(calendarYearOfEvent(new Date(start), 'Europe/Paris')).toBe(year);
   });
 });

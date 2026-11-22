@@ -37,6 +37,7 @@
   } from '#lib/domain/devWorkspace.ts';
   import { eventDaysLabel, eventDisplayName } from '#lib/domain/event.ts';
   import { schoolYearOf } from '#lib/domain/schoolYear.ts';
+  import { calendarYearOfEvent } from '#lib/domain/campusCalendar.ts';
   import { getStaffRoleLabel } from '#lib/domain/staff.ts';
   import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
   import { provideSelectedEvent } from '#lib/components/dev/selectedEvent.ts';
@@ -121,9 +122,18 @@
 
   // Back to the calendar lands on the year in view, not today's: someone
   // browsing last year's events who opens one and comes back is still on last
-  // year. With no year in view, the calendar picks the one holding today.
+  // year. From an event, that is the calendar listing it, which is not its
+  // `schoolYear.label` when it starts on 31 July. With no year in view, the
+  // calendar picks the one holding today.
+  const calendarYearInView = $derived(
+    onCalendar || !currentEvent
+      ? yearInView
+      : calendarYearOfEvent(currentEvent.date, data.timezone),
+  );
   const calendarHref = $derived(
-    yearInView ? calendarHrefOf(yearInView) : resolve('staff/dev'),
+    calendarYearInView
+      ? calendarHrefOf(calendarYearInView)
+      : resolve('staff/dev'),
   );
   const campusLinks = $derived<NavLink[]>([
     {

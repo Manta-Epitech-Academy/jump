@@ -254,6 +254,16 @@ export function calendarYearOf(day: DateKey): string {
 }
 
 /**
+ * The year whose calendar lists an event: the one holding its first day on the
+ * campus clock, as `buildCampusCalendar` lists it. Not the event's
+ * `schoolYearOf` label, which names the next year for an event starting on
+ * 31 July.
+ */
+export function calendarYearOfEvent(date: Date, timezone: string): string {
+  return calendarYearOf(eventDayKeys(date, null, timezone).first);
+}
+
+/**
  * Lay out a campus's school year, as its twelve months from August to July.
  *
  * The grid paints every event day that falls in those months, an event that
