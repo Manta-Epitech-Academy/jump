@@ -95,9 +95,20 @@ describe('loadTalentParcours', () => {
     // Came to the stage on a Salesforce status alone: the dev space's « venu ».
     await event('stage', '2026-06-15');
     await enrol('stage', { attended: true });
-    // Came to an event no admin ever activated.
+    // Came to an event no admin ever activated, and walked an activity there:
+    // neither the visit nor the grant may bring the event into the parcours.
     await event('hidden', '2026-09-12', { activated: false });
     await enrol('hidden', { attended: true });
+    await prisma.xpGrant.create({
+      data: {
+        talentId,
+        campusId,
+        source: 'workshop',
+        sourceId: workshopGrantSourceId(`${slug}-hidden`, talentId),
+        amount: 40,
+        eventId: ids.hidden,
+      },
+    });
     // No proof of a visit, but an activity walked there.
     await event('club', '2026-10-07');
     await enrol('club', {});
