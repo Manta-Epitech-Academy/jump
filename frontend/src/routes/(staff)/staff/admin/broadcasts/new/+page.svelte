@@ -32,7 +32,10 @@
   } from '#lib/domain/broadcasts.ts';
   import { broadcastFiltersSchema } from '#lib/validation/broadcasts.ts';
   import { cn } from '#lib/utils.ts';
-  import { refreshWhenReused } from '#lib/components/remoteQuery.svelte.ts';
+  import {
+    refreshWhenReused,
+    settledAnswer,
+  } from '#lib/components/remoteQuery.svelte.ts';
   import {
     recipientsPreview,
     type RecipientTargeting,
@@ -311,12 +314,13 @@
 
   // The answer for the targeting on screen, and only that one, settled: what
   // the send button and the confirmation's count read. Sending is irreversible,
-  // so a roster that answered an earlier targeting, or is being asked again,
-  // never stands in for it.
+  // so a roster that answered an earlier targeting, is being asked again or
+  // failed to be asked again never stands in for it.
   const preview = $derived(
-    recipients?.ready && !recipients.loading && asked?.key === targetingKey
-      ? recipients.current
-      : null,
+    settledAnswer(recipients, {
+      asked: asked?.key ?? null,
+      onScreen: targetingKey,
+    }),
   );
 
   // What the panel shows: the latest answer, held while the next one loads so
