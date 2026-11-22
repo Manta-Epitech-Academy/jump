@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { eventDaysLabel, eventDisplayName } from '#lib/domain/event.ts';
+  import { eventDayKeys } from '#lib/domain/campusCalendar.ts';
   import CalendarViewer from '#lib/components/planning/CalendarViewer.svelte';
   import WeekNavigator from '#lib/components/planning/WeekNavigator.svelte';
   import WeekViewToggle from '#lib/components/planning/WeekViewToggle.svelte';
@@ -8,9 +9,9 @@
   import {
     pickInitialWeek,
     pickInitialWeekView,
-    startOfDay,
     type WeekView,
   } from '#lib/domain/calendarWeek.ts';
+  import type { DateKey } from '#lib/domain/planningTime.ts';
   import type { PlanningSlot } from '#lib/types.ts';
   import type { PageData } from '../$types';
   import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
@@ -33,20 +34,20 @@
     serverNow: PageData['serverNow'];
   } = $props();
 
-  let range = $derived({
-    start: startOfDay(new Date(event.date)),
-    end: startOfDay(new Date(event.endDate ?? event.date)),
-  });
+  // The event's days and the grid are read on the campus clock, as its header
+  // and the activity dialog are: one page, one clock.
+  let days = $derived(eventDayKeys(event.date, event.endDate, timezone));
+  let range = $derived({ start: days.first, end: days.last });
 
-  let weekStart = $state<Date>(
-    untrack(() =>
-      pickInitialWeek(serverNow, slots, startOfDay(new Date(event.date))),
-    ),
+  let weekStart = $state<DateKey>(
+    untrack(() => pickInitialWeek(serverNow, slots, days.first, timezone)),
   );
 
   // Open full-week when the event has a weekend slot, else work-week, so the
   // default never hides a slot. WeekViewToggle's stored choice overrides it.
-  let weekView = $state<WeekView>(untrack(() => pickInitialWeekView(slots)));
+  let weekView = $state<WeekView>(
+    untrack(() => pickInitialWeekView(slots, timezone)),
+  );
 
   let previewSlot = $state<PlanningSlot | null>(null);
   let previewOpen = $state(false);
@@ -86,6 +87,7 @@
       {slots}
       {weekStart}
       {weekView}
+      {timezone}
       {serverNow}
       dimUnstarted={false}
       onSlotClick={(slot) => {

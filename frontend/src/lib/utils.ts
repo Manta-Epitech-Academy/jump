@@ -2,7 +2,6 @@ import { clsx, type ClassValue } from 'clsx';
 import { extendTailwindMerge } from 'tailwind-merge';
 import {
   getLocalTimeZone,
-  now,
   type CalendarDateTime,
 } from '@internationalized/date';
 
@@ -84,17 +83,6 @@ export function formatDateTimeFr(date: Date | string | undefined): string {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-export function getStartOfDay(timezone: string): string {
-  const tzNow = now(timezone);
-  const startOfDay = tzNow.set({
-    hour: 0,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
-  return startOfDay.toDate().toISOString().replace('T', ' ');
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

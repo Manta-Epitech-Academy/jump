@@ -23,27 +23,39 @@
   import { onMount, untrack } from 'svelte';
   import { cn } from '#lib/utils.ts';
   import { activityTypeStyles } from '#lib/validation/templates.ts';
+  import { parseDate } from '@internationalized/date';
   import {
-    sameDay,
     weekDaysFrom,
     WEEK_VIEW_DAYS,
     type WeekView,
   } from '#lib/domain/calendarWeek.ts';
+  import {
+    clockAt,
+    toDateKey,
+    type DateKey,
+  } from '#lib/domain/planningTime.ts';
 
   let {
     slots,
     weekStart,
     weekView = 'work',
+    timezone,
     serverNow,
     dimUnstarted = false,
     onSlotClick,
     class: className,
   }: {
     slots: S[];
-    /** Monday of the visible week, owned by the parent. */
-    weekStart: Date;
+    /** Monday of the visible week, a campus day, owned by the parent. */
+    weekStart: DateKey;
     /** Work week (Mon-Fri) or full week (Mon-Sun). Drives the column count. */
     weekView?: WeekView;
+    /**
+     * The campus clock the whole grid is read on: columns, hours, today and
+     * the now line. Never the browser's: a 9h workshop is at 9h for a reader
+     * in another timezone too, as the activity's own dialog says.
+     */
+    timezone: string;
     /** Server timestamp seed so SSR and first client render agree. */
     serverNow: number;
     /** Dim slots that haven't started yet (talent), or show them at full
@@ -153,21 +165,15 @@
     return out;
   }
 
-  function dayKey(d: Date): string {
-    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-  }
-
   let slotsByDay = $derived.by(() => {
     const map = new Map<number, PackedSlot[]>();
-    const dayIndexByKey = new Map<string, number>();
+    const dayIndexByKey = new Map<DateKey, number>();
     for (let i = 0; i < weekDays.length; i++) {
-      dayIndexByKey.set(dayKey(weekDays[i]), i);
+      dayIndexByKey.set(weekDays[i], i);
     }
     const byDay = new Map<number, S[]>();
     for (const s of slots) {
-      const slotDay = new Date(s.startTime);
-      slotDay.setHours(0, 0, 0, 0);
-      const dayIdx = dayIndexByKey.get(dayKey(slotDay));
+      const dayIdx = dayIndexByKey.get(toDateKey(s.startTime, timezone));
       if (dayIdx === undefined) continue;
       const arr = byDay.get(dayIdx) ?? [];
       arr.push(s);
@@ -187,10 +193,10 @@
     let minH = 23;
     let maxH = 0;
     for (const s of visible) {
-      const a = new Date(s.startTime);
-      const b = new Date(s.endTime);
-      if (a.getHours() < minH) minH = a.getHours();
-      const endH = b.getHours() + (b.getMinutes() > 0 ? 1 : 0);
+      const a = clockAt(s.startTime, timezone);
+      const b = clockAt(s.endTime, timezone);
+      if (a.hour < minH) minH = a.hour;
+      const endH = b.hour + (b.minute > 0 ? 1 : 0);
       if (endH > maxH) maxH = endH;
     }
     return {
@@ -210,8 +216,8 @@
   );
 
   function minutesIntoDay(d: Date | string): number {
-    const x = new Date(d);
-    return x.getHours() * 60 + x.getMinutes();
+    const { hour, minute } = clockAt(d, timezone);
+    return hour * 60 + minute;
   }
 
   function pixelsFromTime(d: Date | string): number {
@@ -222,10 +228,12 @@
     return new Date(date).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: timezone,
     });
   }
 
-  let todayIdx = $derived(weekDays.findIndex((d) => sameDay(d, nowTime)));
+  let today = $derived(toDateKey(nowTime, timezone));
+  let todayIdx = $derived(weekDays.indexOf(today));
   let nowLineTop = $derived(pixelsFromTime(nowTime));
   let nowLineVisible = $derived(
     todayIdx >= 0 && nowLineTop >= 0 && nowLineTop <= gridHeightPx,
@@ -240,7 +248,7 @@
   >
     <div></div>
     {#each weekDays as d, i (i)}
-      {@const isToday = sameDay(d, nowTime)}
+      {@const isToday = d === today}
       <div
         class="flex flex-col items-center justify-center gap-0.5 py-2 text-center"
       >
@@ -260,7 +268,7 @@
               : 'text-foreground-secondary',
           )}
         >
-          {d.getDate()}
+          {parseDate(d).day}
         </span>
       </div>
     {/each}

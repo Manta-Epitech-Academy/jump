@@ -4,11 +4,12 @@ import { resolve } from '$app/paths';
 import {
   getCampusId,
   getCampusTimezone,
+  getReaderTimezone,
   scopedPrisma,
 } from '#lib/server/db/scoped.ts';
 import { loadCampusCalendar } from '#lib/server/services/campusCalendar.ts';
 import { calendarYearOf } from '#lib/domain/campusCalendar.ts';
-import { campusClock, toDateKey } from '#lib/domain/planningTime.ts';
+import { clockAt, toDateKey } from '#lib/domain/planningTime.ts';
 import { isSchoolYearLabel } from '#lib/domain/schoolYear.ts';
 import { firstNameOf } from '#lib/domain/profile.ts';
 import { greetingFor } from '#lib/domain/devVoice.ts';
@@ -20,11 +21,13 @@ import { greetingFor } from '#lib/domain/devVoice.ts';
  * because it is what this page is about, as an event is what an event page is
  * about.
  *
- * It also greets whoever opens it, by the campus clock rather than the
- * server's or the browser's, and computed here so the server render and the
- * page agree on it.
+ * It also greets whoever opens it. The greeting speaks of the reader's day
+ * (« Encore là ? », « Bonne semaine »), so its hour and weekday are the
+ * reader's, a recruiter on a trip included; « C'est le jour J » speaks of the
+ * campus's, so today stays the campus's day. Both are read here, so the
+ * server render and the page agree on the line.
  */
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (!locals.user) {
     throw error(401, 'Authentification requise');
   }
@@ -43,7 +46,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     departement: locals.staffProfile?.campus?.departement ?? null,
     schoolYear,
   });
-  const { hour, weekday } = campusClock(now, timezone);
+  const { hour, weekday } = clockAt(now, getReaderTimezone(cookies, timezone));
 
   return {
     calendar,

@@ -3,12 +3,13 @@
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import {
-    startOfDay,
+    addWeeks,
     weekDaysFrom,
     weekLabel,
     WEEK_VIEW_DAYS,
     type WeekView,
   } from '#lib/domain/calendarWeek.ts';
+  import type { DateKey } from '#lib/domain/planningTime.ts';
 
   let {
     range,
@@ -16,10 +17,13 @@
     weekView = 'work',
     onNavigate,
   }: {
-    /** Overall span the week may page across; null hides the controls. */
-    range: { start: Date; end: Date } | null;
-    /** Monday of the visible week, two-way bound with the parent. */
-    weekStart: Date;
+    /**
+     * Overall span the week may page across, first and last campus day; null
+     * hides the controls.
+     */
+    range: { start: DateKey; end: DateKey } | null;
+    /** Monday of the visible week, a campus day, two-way bound with the parent. */
+    weekStart: DateKey;
     /** Work week or full week; only changes the label span, not the paging. */
     weekView?: WeekView;
     /** Fired after a successful page, for analytics. */
@@ -30,23 +34,18 @@
   // the bounds check the full 7-day span; only the label follows the view.
   let weekDays = $derived(weekDaysFrom(weekStart));
   let labelDays = $derived(weekDaysFrom(weekStart, WEEK_VIEW_DAYS[weekView]));
-  let rangeStart = $derived(range ? startOfDay(range.start) : null);
-  let rangeEnd = $derived(range ? startOfDay(range.end) : null);
-  let canGoPrev = $derived(rangeStart != null && weekDays[6] > rangeStart);
-  let canGoNext = $derived(rangeEnd != null && weekDays[0] < rangeEnd);
+  // Keys are ISO days, so comparing them as strings compares the days.
+  let canGoPrev = $derived(range != null && weekDays[6] > range.start);
+  let canGoNext = $derived(range != null && weekDays[0] < range.end);
 
   function prevWeek() {
     if (!canGoPrev) return;
-    const n = new Date(weekStart);
-    n.setDate(n.getDate() - 7);
-    weekStart = n;
+    weekStart = addWeeks(weekStart, -1);
     onNavigate?.('prev');
   }
   function nextWeek() {
     if (!canGoNext) return;
-    const n = new Date(weekStart);
-    n.setDate(n.getDate() + 7);
-    weekStart = n;
+    weekStart = addWeeks(weekStart, 1);
     onNavigate?.('next');
   }
 </script>

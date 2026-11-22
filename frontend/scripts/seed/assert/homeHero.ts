@@ -24,7 +24,7 @@ import {
 } from '../../../src/lib/domain/eventLifecycle';
 import { dbDateToKey } from '../../../src/lib/domain/eventPresence';
 import { isEventShown } from '../../../src/lib/domain/eventReadiness';
-import { campusClock, toDateKey } from '../../../src/lib/domain/planningTime';
+import { clockAt, toDateKey } from '../../../src/lib/domain/planningTime';
 import {
   heroEventPhase,
   homeHeroState,
@@ -165,7 +165,7 @@ export async function seededHomeHeroStates(
       shown.flatMap(({ eventId, shownInDevSpace, event }) => {
         const timezone = event.campus.timezone;
         const status = getEventStatus(event, getLifecycleBounds(timezone, now));
-        const { hour, minute } = campusClock(now, timezone);
+        const { hour, minute } = clockAt(now, timezone);
         const clock = {
           today: toDateKey(now, timezone),
           minutes: hour * 60 + minute,

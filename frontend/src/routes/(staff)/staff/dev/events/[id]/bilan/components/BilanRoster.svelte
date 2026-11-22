@@ -46,12 +46,16 @@
     recoOptions,
     eventId,
     cohortNoun,
+    timezone,
     search,
   }: {
     rows: BilanRow[];
     recoOptions: RecoOption[];
     eventId: string;
     cohortNoun: string | null;
+    /** The campus's timezone: an answer is dated on the campus clock, as every
+     *  other date of the dev space. */
+    timezone: string;
     /** The search box on the page's title line, as on Inscrits. */
     search: ReturnType<typeof createUrlSearch>;
   } = $props();
@@ -104,12 +108,15 @@
     ];
   });
 
-  const dateFmt = new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const dateFmt = $derived(
+    new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: timezone,
+    }),
+  );
   function fmtDate(iso: string | null): string {
     return iso ? dateFmt.format(new Date(iso)) : '-';
   }

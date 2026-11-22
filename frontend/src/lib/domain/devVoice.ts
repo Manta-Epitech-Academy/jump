@@ -9,12 +9,12 @@
  */
 
 export type GreetingInput = {
-  /** Hour on the campus clock, 0 to 23 (`campusClock`). */
+  /** Hour on the reader's clock, 0 to 23 (`clockAt`): the line is about their day. */
   hour: number;
-  /** ISO weekday on the campus clock, 1 Monday to 7 Sunday. */
+  /** ISO weekday on the reader's clock, 1 Monday to 7 Sunday. */
   weekday: number;
   firstName: string | null;
-  /** An event of the campus starts today. */
+  /** An event of the campus starts today, the campus's day. */
   startsToday: boolean;
 };
 
