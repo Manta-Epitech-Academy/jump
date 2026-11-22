@@ -54,7 +54,9 @@
   ];
 
   const scarfColour = (value: string) =>
-    value in DUCK.scarf ? DUCK.scarf[value as keyof typeof DUCK.scarf] : null;
+    value in DUCK.scarf
+      ? DUCK.scarf[value as keyof typeof DUCK.scarf].base
+      : null;
 
   // The form posts what its fields hold, so the hidden field has to carry the
   // choice before it is sent.
