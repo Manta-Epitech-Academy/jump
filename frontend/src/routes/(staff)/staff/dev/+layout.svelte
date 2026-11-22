@@ -66,15 +66,8 @@
   // view, the resources every event shares. A section with no page yet is not
   // shown, so no entry leads to an empty page: the calendar (#440) fills the
   // campus one, the catalogue (#439) the resources one, where Contribuer (#441)
-  // will join it.
-  const CAMPUS_LINKS: NavLink[] = [
-    {
-      href: resolve('staff/dev'),
-      label: 'Calendrier',
-      icon: CalendarDays,
-      exact: true,
-    },
-  ];
+  // will join it. The campus one is derived below: the calendar's link carries
+  // the year in view.
   const RESOURCE_LINKS: NavLink[] = [
     {
       href: resolve('staff/dev/catalogue'),
@@ -105,17 +98,41 @@
   /** The campus calendar, whose school year is its own address (`?year=`). */
   const onCalendar = $derived(page.route.id === '/(staff)/staff/dev');
 
-  // The academic year shown in the header. On the calendar, the year the page
-  // shows. Elsewhere, a context readout of the event in view, falling back to
-  // the live school year only when the campus has no events. Single-sourced
-  // through `schoolYearOf` so the label format matches the events' own
-  // `schoolYear.label`.
-  const selectedSchoolYear = $derived(
+  /** The calendar of `year`: the year is the calendar's address. */
+  const calendarHrefOf = (year: string) =>
+    `${resolve('staff/dev')}?year=${year}`;
+
+  // The school year someone is looking at: on the calendar, the year the page
+  // shows; elsewhere, the year of the event in view. Null only off the
+  // calendar on a campus with no event, where nobody picked a year.
+  const yearInView = $derived(
     onCalendar
       ? (page.data.calendar.schoolYear as string)
-      : (currentEvent?.schoolYear.label ??
-          schoolYearOf(new Date(), data.timezone).label),
+      : (currentEvent?.schoolYear.label ?? null),
   );
+
+  // The academic year shown in the header: the year in view, falling back to
+  // the live school year only when there is none. Single-sourced through
+  // `schoolYearOf` so the label format matches the events' own
+  // `schoolYear.label`.
+  const selectedSchoolYear = $derived(
+    yearInView ?? schoolYearOf(new Date(), data.timezone).label,
+  );
+
+  // Back to the calendar lands on the year in view, not today's: someone
+  // browsing last year's events who opens one and comes back is still on last
+  // year. With no year in view, the calendar picks the one holding today.
+  const calendarHref = $derived(
+    yearInView ? calendarHrefOf(yearInView) : resolve('staff/dev'),
+  );
+  const campusLinks = $derived<NavLink[]>([
+    {
+      href: calendarHref,
+      label: 'Calendrier',
+      icon: CalendarDays,
+      exact: true,
+    },
+  ]);
 
   /** The years you can actually go to: those with an event, and on the
       calendar the year it shows, which may have none. Empty on a campus
@@ -172,7 +189,7 @@
   function changeSchoolYear(year: string) {
     if (year === selectedSchoolYear) return;
     if (onCalendar) {
-      goto(`${resolve('staff/dev')}?year=${year}`);
+      goto(calendarHrefOf(year));
       return;
     }
     const target = defaultEventOfYear(workspace.events, year);
@@ -180,10 +197,13 @@
   }
 
   // Links carry resolved hrefs, so a page nested under an entry keeps it lit.
-  const isActive = (link: NavLink) =>
-    link.exact
-      ? page.url.pathname === link.href
-      : page.url.pathname.startsWith(link.href);
+  // Compared on the path alone: the calendar's href carries its `?year=`.
+  const isActive = (link: NavLink) => {
+    const path = new URL(link.href, page.url.origin).pathname;
+    return link.exact
+      ? page.url.pathname === path
+      : page.url.pathname.startsWith(path);
+  };
 
   const navLinkClass = (active: boolean) => `
     flex items-center gap-3 px-3 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer
@@ -202,7 +222,7 @@
 
 {#snippet sidebarBrand()}
   <a
-    href={resolve('staff/dev')}
+    href={calendarHref}
     class="flex items-center gap-2.5 px-4 py-4.5 text-white transition-opacity hover:opacity-95"
   >
     <EpitechLogo tone="dark" class="h-7 w-auto shrink-0" />
@@ -229,19 +249,19 @@
        split differently. `divide-y` draws a rule between the sections actually
        rendered, whichever are hidden. With none to render (a campus with no
        event yet) there is no menu at all, not an empty navigation landmark. -->
-  {#if CAMPUS_LINKS.length || currentEvent || RESOURCE_LINKS.length}
+  {#if campusLinks.length || currentEvent || RESOURCE_LINKS.length}
     <nav
       aria-label="Menu de l'espace dev"
       class="divide-y divide-chrome-border"
     >
-      {#if CAMPUS_LINKS.length}
+      {#if campusLinks.length}
         <section class="py-4">
           <!-- Anton, as the event name below: the mockup makes this heading the
                campus dashboard's link, a screen not asked for yet (#450). -->
           <h2 class="mb-2 font-heading text-display-s text-chrome-foreground">
             Campus<TitleCursor />
           </h2>
-          {@render navLinks(CAMPUS_LINKS)}
+          {@render navLinks(campusLinks)}
         </section>
       {/if}
       {#if currentEvent}
