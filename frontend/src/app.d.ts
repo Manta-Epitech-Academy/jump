@@ -31,6 +31,14 @@ declare global {
        */
       talentCampusId: string | null;
       /**
+       * The IANA timezone the current talent's days are read in, from the same
+       * resolve: their campus's, or `Europe/Paris` (the `Campus.timezone`
+       * default) for a talent with no enrolment. Null for staff and anonymous
+       * requests. What "today" means for a talent, on the server and the page
+       * alike: their sign-in day, and the day EpiDuck greets them on.
+       */
+      talentTimezone: string | null;
+      /**
        * Dev-tooling override of the perceived stage phase. Only set when
        * an admin is impersonating a dev/superdev *and* on a /staff/dev
        * path. Lets developers preview phase-specific UI without mutating

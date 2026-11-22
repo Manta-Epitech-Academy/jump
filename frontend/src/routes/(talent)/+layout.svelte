@@ -1,11 +1,43 @@
 <script lang="ts">
   import '../../routes/layout.css';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { BitsConfig } from 'bits-ui';
   import TalentImpersonationBanner from '#lib/components/TalentImpersonationBanner.svelte';
   import Crisp from '#lib/components/Crisp.svelte';
+  import {
+    MascotController,
+    provideMascot,
+  } from '#lib/components/mascot/mascotController.svelte.ts';
+  import { mascotLookOf } from '#lib/domain/mascot.ts';
 
-  let { children } = $props();
+  let { data, children } = $props();
+
+  // The talent's EpiDuck, made once per talent for the layout so he outlives
+  // the page (the header that draws him remounts on every navigation). Keyed on
+  // the talent alone: the layout's data reloads after every settings save, and
+  // a duck rebuilt then would forget he was mid-pond. Signing in without
+  // leaving the layout makes him; the sign-in page draws no header anyway.
+  let talentId = $derived(data.talent?.id ?? null);
+  const mascot = $derived.by(() => {
+    if (!talentId) return null;
+    const id = talentId;
+    return untrack(() => {
+      const first = data.mascot;
+      if (!first || !data.talent) return null;
+      return new MascotController({
+        talentId: id,
+        asleep: data.talent.mascotAsleepAt !== null,
+        voice: () => data.mascot?.voice ?? first.voice,
+        tokens: () => ({
+          prenom: data.talent?.prenom ?? '',
+          canard: data.talent ? mascotLookOf(data.talent).name : '',
+        }),
+        greeting: first.greeting,
+        today: first.today,
+      });
+    });
+  });
+  provideMascot(() => mascot);
 
   onMount(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;

@@ -1,0 +1,420 @@
+<!--
+  EpiDuck's stretch of water in the talent header (#539): the free space
+  between the logo and the account controls, where he swims, stops, turns to
+  the talent, blinks, looks around, preens and answers a tap.
+
+  Everything here is how he moves; what he does and says is the controller's
+  (`mascotController.svelte.ts`), which outlives the page. The lane only reads
+  it, and writes back where he was when the page changes, so the next header
+  picks him up mid-pond.
+
+  The row keeps its height: the lane is as tall as the controls, and the duck
+  sits on its bottom edge (the water line) and rises into the header's top
+  padding. What goes under the water line is clipped, which is how he dives.
+
+  Less motion asked: he stays put on the left, does not bob, squash or follow
+  the pointer, and his dives are fades. His bubble still fades in.
+
+  The randomness is the client's alone (nothing is drawn on the server, which
+  renders him still), so it breaks no "rotate by a key" rule: that one is for
+  lines, and what he says is picked by the controller.
+-->
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { page } from '$app/state';
+  import { fade } from '#lib/motion/index.ts';
+  import { DEFAULT_MASCOT_LOOK, mascotLookOf } from '#lib/domain/mascot.ts';
+  import EpiDuck from './EpiDuck.svelte';
+  import { DIVE_MS, EMERGE_MS, useMascot } from './mascotController.svelte.ts';
+
+  // Read once: the lane is remounted with the page, and a sign-in that makes
+  // the duck happens on a page that draws no header.
+  const mascot = useMascot()();
+
+  /** Width of the duck in profile, at the header's size (h-11). */
+  const DUCK_WIDTH = 48;
+  /** Swimming speed, pixels per second: unhurried, a duck on a pond. */
+  const SPEED = 28;
+
+  let look = $derived(
+    page.data.talent ? mascotLookOf(page.data.talent) : DEFAULT_MASCOT_LOOK,
+  );
+
+  let lane = $state<HTMLDivElement>();
+  let swimmer = $state<HTMLDivElement>();
+  let diver = $state<HTMLDivElement>();
+  let squasher = $state<HTMLDivElement>();
+  let turner = $state<HTMLDivElement>();
+
+  let facingLeft = $state(mascot?.facingLeft ?? false);
+  let idleFront = $state(false);
+  let eyesClosed = $state(false);
+  let gaze = $state({ x: 0, y: 0 });
+  let lookingAround = false;
+  let bubbleAlign = $state<'start' | 'center' | 'end'>('center');
+
+  let phase = $derived(mascot?.state.phase ?? 'awake');
+  let front = $derived(
+    phase === 'awake' && (mascot?.facingTalent || idleFront),
+  );
+  let sleeping = $derived(mascot?.asleep ?? false);
+  let swimming = $derived(phase === 'awake' && !mascot?.facingTalent);
+
+  let swimAnimation: Animation | null = null;
+
+  const rand = (min: number, max: number) => min + Math.random() * (max - min);
+
+  /** Where he is right now, read off the element rather than computed. */
+  function currentX(): number {
+    if (!swimmer) return 0;
+    return new DOMMatrix(getComputedStyle(swimmer).transform).m41;
+  }
+
+  function place(x: number): void {
+    swimmer?.animate([{ transform: `translateX(${x}px)` }], {
+      duration: 0,
+      fill: 'forwards',
+    });
+  }
+
+  /** A quick squeeze to nothing and back: how a flat drawing turns round. */
+  async function turn(change: () => void): Promise<void> {
+    if (!turner || mascot?.reducedMotion) {
+      change();
+      return;
+    }
+    await turner.animate(
+      [{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }],
+      { duration: 110, easing: 'ease-in' },
+    ).finished;
+    change();
+    await turner.animate(
+      [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
+      { duration: 110, easing: 'ease-out' },
+    ).finished;
+  }
+
+  function onPoke(): void {
+    if (!mascot || phase !== 'awake') return;
+    mascot.poke();
+    if (squasher && !mascot.reducedMotion) {
+      squasher.animate(
+        [
+          { transform: 'scale(1, 1)' },
+          { transform: 'scale(1.12, 0.86)' },
+          { transform: 'scale(0.96, 1.05)' },
+          { transform: 'scale(1, 1)' },
+        ],
+        { duration: 320, easing: 'ease-out' },
+      );
+    }
+  }
+
+  // Pause the swim while he talks, sleeps or dives; resume where he stopped.
+  $effect(() => {
+    if (!swimAnimation) return;
+    if (swimming) swimAnimation.play();
+    else swimAnimation.pause();
+  });
+
+  // Down and up. The controller times the phases; this only draws them.
+  $effect(() => {
+    if (!diver) return;
+    const reduced = mascot?.reducedMotion;
+    if (phase === 'diving') {
+      diver.animate(
+        reduced
+          ? [{ opacity: 1 }, { opacity: 0 }]
+          : [
+              { transform: 'translateY(0) rotate(0)' },
+              { transform: 'translateY(-6px) rotate(-12deg)', offset: 0.35 },
+              { transform: 'translateY(60px) rotate(35deg)' },
+            ],
+        {
+          duration: reduced ? 200 : DIVE_MS,
+          easing: 'ease-in',
+          fill: 'forwards',
+        },
+      );
+    } else if (phase === 'emerging') {
+      diver.animate(
+        reduced
+          ? [{ opacity: 0 }, { opacity: 1 }]
+          : [
+              { transform: 'translateY(60px) rotate(-25deg)' },
+              { transform: 'translateY(-6px) rotate(6deg)', offset: 0.7 },
+              { transform: 'translateY(0) rotate(0)' },
+            ],
+        {
+          duration: reduced ? 200 : EMERGE_MS,
+          easing: 'ease-out',
+          fill: 'forwards',
+        },
+      );
+    }
+  });
+
+  // Keep his bubble on screen: centred under him, or pinned to the lane's
+  // edge he is near.
+  $effect(() => {
+    if (!mascot?.bubble || !lane) return;
+    const x = currentX();
+    const room = lane.clientWidth;
+    bubbleAlign = x < 90 ? 'start' : x > room - 140 ? 'end' : 'center';
+  });
+
+  onMount(() => {
+    if (!mascot || !lane || !swimmer) return;
+    let alive = true;
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => {
+        const t = setTimeout(() => {
+          timers.delete(t);
+          resolve();
+        }, ms);
+        timers.add(t);
+      });
+    const maxX = () => Math.max(0, (lane?.clientWidth ?? 0) - DUCK_WIDTH);
+
+    let x = mascot.reducedMotion ? 0 : Math.min(mascot.x, maxX());
+    place(x);
+    mascot.greet();
+
+    /** What he does at a stop: turn to the talent, look around, preen. */
+    async function idle(): Promise<void> {
+      const roll = Math.random();
+      if (roll < 0.35) {
+        idleFront = true;
+        await wait(rand(1400, 2200));
+        idleFront = false;
+      } else if (roll < 0.6) {
+        lookingAround = true;
+        for (const x of [-1, 1, 0]) {
+          gaze = { x, y: 0 };
+          await wait(rand(450, 700));
+        }
+        lookingAround = false;
+      } else if (roll < 0.8 && squasher) {
+        // Preening: a shake of the feathers.
+        await squasher.animate(
+          [
+            { transform: 'rotate(0)' },
+            { transform: 'rotate(-9deg)' },
+            { transform: 'rotate(8deg)' },
+            { transform: 'rotate(-4deg)' },
+            { transform: 'rotate(0)' },
+          ],
+          { duration: 640, easing: 'ease-in-out' },
+        ).finished;
+      }
+      await wait(rand(1500, 3500));
+    }
+
+    async function swim(): Promise<void> {
+      while (alive) {
+        const room = maxX();
+        if (mascot!.reducedMotion || room < 24 || !swimming) {
+          await wait(800);
+          continue;
+        }
+        let to = rand(0, room);
+        if (Math.abs(to - x) < room * 0.25) to = x < room / 2 ? room : 0;
+        const left = to < x;
+        if (left !== facingLeft) await turn(() => (facingLeft = left));
+        const durationMs = Math.max(1500, (Math.abs(to - x) / SPEED) * 1000);
+        swimAnimation = swimmer!.animate(
+          [
+            { transform: `translateX(${x}px)` },
+            { transform: `translateX(${to}px)` },
+          ],
+          { duration: durationMs, easing: 'ease-in-out', fill: 'forwards' },
+        );
+        if (!swimming) swimAnimation.pause();
+        try {
+          await swimAnimation.finished;
+        } catch {
+          return; // cancelled on the way out
+        }
+        x = to;
+        mascot!.x = x;
+        mascot!.facingLeft = facingLeft;
+        if (alive) await idle();
+      }
+    }
+
+    async function blink(): Promise<void> {
+      while (alive) {
+        await wait(rand(2500, 6000));
+        if (mascot!.reducedMotion) continue;
+        eyesClosed = true;
+        await wait(130);
+        eyesClosed = false;
+        if (Math.random() < 0.2) {
+          await wait(160);
+          eyesClosed = true;
+          await wait(110);
+          eyesClosed = false;
+        }
+      }
+    }
+
+    // His eyes follow a mouse nearby; a finger has nothing to follow.
+    let frame = 0;
+    const finePointer = window.matchMedia('(pointer: fine)');
+    const onPointer = (event: PointerEvent) => {
+      if (!finePointer.matches || lookingAround || mascot!.reducedMotion) {
+        return;
+      }
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!swimmer) return;
+        const box = swimmer.getBoundingClientRect();
+        const dx = (event.clientX - (box.left + box.width / 2)) / 220;
+        const dy = (event.clientY - (box.top + box.height / 3)) / 220;
+        gaze = { x: front ? dx : facingLeft ? -dx : dx, y: dy };
+      });
+    };
+    window.addEventListener('pointermove', onPointer, { passive: true });
+
+    void swim();
+    void blink();
+
+    return () => {
+      alive = false;
+      for (const t of timers) clearTimeout(t);
+      cancelAnimationFrame(frame);
+      window.removeEventListener('pointermove', onPointer);
+      mascot.x = currentX();
+      mascot.facingLeft = facingLeft;
+      swimAnimation?.cancel();
+    };
+  });
+</script>
+
+{#if mascot}
+  <div
+    bind:this={lane}
+    class="relative h-8 min-w-12 flex-1 self-stretch sm:min-w-24"
+  >
+    <div bind:this={swimmer} class="absolute bottom-0 left-0 w-12">
+      <!-- The water line is this box's bottom edge. -->
+      <div
+        class="absolute bottom-0 left-1/2 h-12 w-16 -translate-x-1/2 overflow-hidden"
+      >
+        {#if phase !== 'under'}
+          <div
+            bind:this={diver}
+            class="absolute inset-x-0 bottom-0 flex justify-center"
+          >
+            <div class="bob">
+              <div bind:this={squasher} class="origin-bottom">
+                <div bind:this={turner}>
+                  <button
+                    type="button"
+                    onclick={onPoke}
+                    disabled={phase !== 'awake'}
+                    aria-label="Parler à {look.name}"
+                    class="block cursor-pointer rounded-full disabled:cursor-default"
+                  >
+                    {#if front}
+                      <EpiDuck
+                        pose="front"
+                        {look}
+                        {eyesClosed}
+                        {gaze}
+                        class="h-11 w-10"
+                      />
+                    {:else}
+                      <EpiDuck
+                        pose="side"
+                        {look}
+                        {eyesClosed}
+                        {gaze}
+                        class="h-11 w-12 {facingLeft ? '-scale-x-100' : ''}"
+                      />
+                    {/if}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        {:else if sleeping}
+          <!-- Asleep under the water: a few bubbles where he went down. -->
+          <div
+            class="absolute bottom-0 left-1/2 -translate-x-1/2"
+            aria-hidden="true"
+          >
+            <span
+              class="sleep-bubble absolute bottom-0 -left-2 size-1.5 rounded-full border border-primary/60"
+            ></span>
+            <span
+              class="sleep-bubble sleep-bubble-late absolute bottom-0 left-1 size-2 rounded-full border border-primary/60"
+            ></span>
+          </div>
+        {/if}
+      </div>
+
+      {#if mascot.bubble}
+        {#key mascot.bubble.id}
+          <p
+            in:fade
+            out:fade
+            aria-hidden="true"
+            class="absolute top-full z-30 mt-2 w-max max-w-56 rounded-xl border border-border bg-card px-3 py-2 text-center font-mono text-xs leading-snug font-bold text-primary shadow-overlay
+              {bubbleAlign === 'start'
+              ? 'left-0'
+              : bubbleAlign === 'end'
+                ? 'right-0'
+                : 'left-1/2 -translate-x-1/2'}"
+          >
+            {mascot.bubble.text}
+          </p>
+        {/key}
+      {/if}
+    </div>
+    <!-- One live region for everything he says, so a screen reader hears each
+         line once; the drawn bubble is for the eyes. -->
+    <p class="sr-only" aria-live="polite">{mascot.bubble?.text ?? ''}</p>
+  </div>
+{/if}
+
+<style>
+  /* The bob of a duck on water: the one loop he runs while awake. */
+  @media (prefers-reduced-motion: no-preference) {
+    .bob {
+      animation: mascot-bob 2.3s ease-in-out infinite;
+      transform-origin: 50% 85%;
+    }
+    .sleep-bubble {
+      animation: mascot-sleep-bubble 2.6s ease-in infinite;
+    }
+    .sleep-bubble-late {
+      animation-delay: 1.3s;
+    }
+  }
+
+  @keyframes mascot-bob {
+    0%,
+    100% {
+      transform: translateY(0) rotate(-3deg);
+    }
+    50% {
+      transform: translateY(-3px) rotate(3deg);
+    }
+  }
+
+  @keyframes mascot-sleep-bubble {
+    0% {
+      opacity: 0;
+      transform: translateY(0);
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-22px);
+    }
+  }
+</style>

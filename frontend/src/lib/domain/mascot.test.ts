@@ -7,7 +7,6 @@ import {
   MASCOT_SCARVES,
   fillLine,
   greetingFor,
-  isLineLiveOn,
   mascotLookOf,
   unknownMascotTokens,
 } from './mascot';
@@ -43,26 +42,6 @@ describe('greetingFor', () => {
 
   it('counts days across a month and a year', () => {
     expect(greetingFor('2025-12-31', '2026-01-01')?.daysAway).toBe(1);
-  });
-});
-
-describe('isLineLiveOn', () => {
-  const christmas = { startsOn: '2026-12-01', endsOn: '2026-12-24' } as const;
-
-  it('holds both bounds inclusive', () => {
-    expect(isLineLiveOn(christmas, '2026-12-01')).toBe(true);
-    expect(isLineLiveOn(christmas, '2026-12-24')).toBe(true);
-    expect(isLineLiveOn(christmas, '2026-11-30')).toBe(false);
-    expect(isLineLiveOn(christmas, '2026-12-25')).toBe(false);
-  });
-
-  it('reads an open bound as unbounded', () => {
-    expect(isLineLiveOn({ startsOn: null, endsOn: null }, '2030-01-01')).toBe(
-      true,
-    );
-    expect(
-      isLineLiveOn({ startsOn: '2026-12-01', endsOn: null }, '2027-06-01'),
-    ).toBe(true);
   });
 });
 

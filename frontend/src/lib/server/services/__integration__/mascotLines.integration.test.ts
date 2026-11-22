@@ -14,6 +14,7 @@ import { createAdminAccount } from './adminApiAccount';
 import { mintToken } from '#lib/server/adminApi/tokens.ts';
 import { adminApiWrite } from '#lib/server/adminApi/route.ts';
 import { getMascotLines } from '#lib/server/services/adminStats/configuration.ts';
+import { loadMascotVoice } from '#lib/server/services/mascotService.ts';
 import { MASCOT_LINE_MAX, MASCOT_MOMENT_KEYS } from '#lib/domain/mascot.ts';
 
 const postLine = adminApiWrite('write_mascot_line');
@@ -170,5 +171,30 @@ describe('write_mascot_line (integration)', () => {
     const nothing = await call(postLine, secret, { text: 'Coin' });
     expect(nothing.status).toBe(400);
     expect(String(nothing.payload.error)).toContain('config_mascot_lines');
+  });
+
+  it('says on a day only the lines live that day, never an archived one', async () => {
+    const always = await create({ moment: 'wake', text: `Toujours ${stamp}` });
+    const december = await create({
+      moment: 'wake',
+      text: `Décembre ${stamp}`,
+      startsOn: '2026-12-01',
+      endsOn: '2026-12-24',
+    });
+    const archived = await create({
+      moment: 'wake',
+      text: `Archivée ${stamp}`,
+      archived: true,
+    });
+
+    const said = async (day: string) =>
+      ((await loadMascotVoice(day)).wake ?? []).filter((text) =>
+        text.endsWith(String(stamp)),
+      );
+
+    expect(await said('2026-11-30')).toEqual([always.text]);
+    expect(await said('2026-12-24')).toEqual([always.text, december.text]);
+    expect(await said('2026-12-25')).toEqual([always.text]);
+    expect(await said('2026-12-10')).not.toContain(archived.text);
   });
 });

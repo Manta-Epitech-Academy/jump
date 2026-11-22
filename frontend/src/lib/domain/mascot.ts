@@ -213,20 +213,7 @@ export function greetingFor(
   };
 }
 
-// ---- Which lines are live ------------------------------------------------------
-
-export interface MascotLineWindow {
-  startsOn: DateKey | null;
-  endsOn: DateKey | null;
-}
-
-/** A line is live on a day inside its window; an open bound is unbounded. */
-export function isLineLiveOn(line: MascotLineWindow, day: DateKey): boolean {
-  return (
-    (line.startsOn === null || line.startsOn <= day) &&
-    (line.endsOn === null || day <= line.endsOn)
-  );
-}
+// ---- What the duck may say today ---------------------------------------------
 
 /** The duck's live lines, grouped by moment. A moment with none is absent. */
 export type MascotVoice = Partial<Record<MascotMomentKey, string[]>>;

@@ -21,6 +21,10 @@
   Whatever those extras are, the first row (logo + controls) keeps the same
   position and height on every page: that is the part that must not move.
 
+  The talent's EpiDuck (#539) swims in the first row's free space, between the
+  greeting and the controls, with his sleep button beside the theme switch.
+  He takes that space without adding height: he rises into the top padding.
+
   Props:
     title     page title; when set, renders the back + title second row.
     subtitle  secondary line under the title.
@@ -43,6 +47,8 @@
   import Settings from '@lucide/svelte/icons/settings';
   import LogOut from '@lucide/svelte/icons/log-out';
   import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import MascotLane from '#lib/components/mascot/MascotLane.svelte';
+  import MascotSleepButton from '#lib/components/mascot/MascotSleepButton.svelte';
 
   let {
     title,
@@ -87,7 +93,10 @@
         </div>
       {/if}
 
+      <MascotLane />
+
       <div class="ml-auto flex shrink-0 items-center gap-1">
+        <MascotSleepButton />
         <ModeToggle />
         <Button
           variant="ghost"
