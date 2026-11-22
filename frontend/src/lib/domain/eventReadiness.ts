@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { EventLifecycleStatus } from './eventLifecycle';
 import { visibleParticipationWhere } from './sfMemberStatus';
+import { daysBetween } from './planningTime';
 
 /**
  * The events anyone but an admin is shown: an admin activated it
@@ -167,17 +168,6 @@ export const PREPARATION_HORIZONS = [
 export const IMMINENT_WITHIN_DAYS = 7;
 /** Three weeks: enough lead time to name it, configure it and announce it. */
 export const SOON_WITHIN_DAYS = 21;
-
-const DAY_MS = 86_400_000;
-
-/** Whole calendar days from `from` to `to`, both `YYYY-MM-DD`. */
-function daysBetween(from: string, to: string): number {
-  const utc = (key: string) => {
-    const [y, m, d] = key.split('-').map(Number);
-    return Date.UTC(y, m - 1, d);
-  };
-  return Math.round((utc(to) - utc(from)) / DAY_MS);
-}
 
 /**
  * The band an event falls in. `startDay` and `today` are calendar days

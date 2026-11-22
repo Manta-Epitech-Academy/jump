@@ -69,6 +69,15 @@ export function toDateKey(instant: Date | string, tz: string): DateKey {
 }
 
 /**
+ * Whole calendar days from `from` to `to`: negative when `to` comes first. Two
+ * keys are two campus days already, so no timezone, daylight saving or runtime
+ * clock can bend the count.
+ */
+export function daysBetween(from: DateKey, to: DateKey): number {
+  return parseDate(to).compare(parseDate(from));
+}
+
+/**
  * The wall clock of a timezone at an instant: the hour (0 to 23), the minute and
  * the ISO weekday (1 Monday to 7 Sunday). The campus's for a campus fact, the
  * reader's for a greeting. `Date.getHours()` would answer in the server's

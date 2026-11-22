@@ -7,7 +7,7 @@ import {
 import { inkOn, type FillInk } from '../design/color';
 import type { EventCategoryTag } from './eventCategory';
 import type { EventLifecycleStatus } from './eventLifecycle';
-import { toDateKey, type DateKey } from './planningTime';
+import { daysBetween, toDateKey, type DateKey } from './planningTime';
 import { MOIS_FR } from './schoolYear';
 import { knowsSchoolHolidays, offDays, type OffDay } from './schoolHolidays';
 
@@ -149,9 +149,6 @@ const JOURS_COURTS = [
 
 /** Monday 0 ... Sunday 6, whatever the runtime's locale. */
 const weekdayOf = (date: CalendarDate) => getDayOfWeek(date, 'fr-FR');
-
-const daysBetween = (from: DateKey, to: DateKey) =>
-  parseDate(to).compare(parseDate(from));
 
 function daysLabel(first: DateKey, last: DateKey): string {
   const a = parseDate(first);
