@@ -23,10 +23,20 @@
   // every send also passes through `beforeSend` in `$lib/analytics`, which
   // drops it. The two together are what makes the settings switch true
   // (#518).
+  //
+  // ONCE RENDERED, THE TAG STAYS. Removing it leaves the tracker running, and
+  // adding it back starts a second one beside it (each instance keeps its own
+  // `initialized` flag and hooks `history.pushState` again), so every
+  // navigation would be counted twice for the rest of the tab: a talent who
+  // objects and withdraws it on the same tab is enough. An objection made
+  // after the script loaded is `beforeSend`'s to enforce, as above.
   const HOST = 'https://jump-umami.epiboost.eu';
   const websiteId = env.PUBLIC_UMAMI_WEBSITE_ID ?? '';
-  const enabled = $derived(
-    websiteId !== '' && analyticsIdentity(page.data).subject.measured,
+  let rendered = false;
+  const enabled = $derived.by(
+    () =>
+      (rendered ||=
+        websiteId !== '' && analyticsIdentity(page.data).subject.measured),
   );
 </script>
 
