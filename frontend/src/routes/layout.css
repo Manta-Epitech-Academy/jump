@@ -523,14 +523,6 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
-
-  .app-header {
-    view-transition-name: main-header;
-  }
-
-  .app-sidebar {
-    view-transition-name: main-sidebar;
-  }
 }
 
 /* --- Markdown Prose Overrides (Notion-like with Epitech branding) --- */
