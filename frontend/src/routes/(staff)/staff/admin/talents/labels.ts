@@ -1,6 +1,6 @@
 /**
  * Client-safe labels + status types for the admin talents directory. Kept apart
- * from ./query because that module imports `$lib/server/*` (Prisma where
+ * from ./query because that module imports `#lib/server/*` (Prisma where
  * fragments) and so cannot be pulled into the browser bundle: the page badges
  * and the export both read these labels, so they live in this leaf module with
  * no server imports. Single-sourced so the table and the XLSX export agree.

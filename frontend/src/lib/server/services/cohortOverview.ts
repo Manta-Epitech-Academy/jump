@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import type { ScopedPrismaClient } from '$lib/server/db/scoped';
-import { prisma } from '$lib/server/db';
+import type { ScopedPrismaClient } from '#lib/server/db/scoped.ts';
+import { prisma } from '#lib/server/db.ts';
 
 /**
  * Origin breakdowns for a cohort: "where do these talents come from" (top

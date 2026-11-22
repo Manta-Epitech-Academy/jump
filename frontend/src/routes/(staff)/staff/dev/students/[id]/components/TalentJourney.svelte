@@ -2,13 +2,13 @@
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import { resolve } from '$app/paths';
-  import * as Avatar from '$lib/components/ui/avatar';
-  import { getInitials } from '$lib/avatar';
-  import PullQuote from '$lib/components/staff/PullQuote.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import ClosingVerdictChip from '$lib/components/dev/closings/ClosingVerdictChip.svelte';
-  import type { TalentJourney } from '$lib/domain/talentJourney';
-  import { formatGivenName } from '$lib/domain/profile';
+  import * as Avatar from '#lib/components/ui/avatar/index.ts';
+  import { getInitials } from '#lib/avatar.ts';
+  import PullQuote from '#lib/components/staff/PullQuote.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import ClosingVerdictChip from '#lib/components/dev/closings/ClosingVerdictChip.svelte';
+  import type { TalentJourney } from '#lib/domain/talentJourney.ts';
+  import { formatGivenName } from '#lib/domain/profile.ts';
 
   /**
    * Everything this talent has done with us, and what came of it.
@@ -130,7 +130,7 @@
               {/if}
               <a
                 href={resolve(
-                  `/staff/dev/events/${entry.eventId}/closings/${journey.talentId}`,
+                  `staff/dev/events/${entry.eventId}/closings/${journey.talentId}`,
                 )}
                 class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1 text-xs font-medium text-epi-blue transition-colors hover:underline"
               >

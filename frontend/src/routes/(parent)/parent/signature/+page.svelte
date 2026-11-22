@@ -1,13 +1,13 @@
 <script lang="ts">
   import Camera from '@lucide/svelte/icons/camera';
   import CheckCircle from '@lucide/svelte/icons/check-circle';
-  import { renderMarkdown } from '$lib/markdown';
+  import { renderMarkdown } from '#lib/markdown.ts';
   import {
     CURRENT_DROIT_IMAGE_VERSION,
     droitImageClausesFor,
-  } from '$lib/content/droit-image';
-  import { enter } from '$lib/motion';
-  import ParentFlowShell from '$lib/components/parent/ParentFlowShell.svelte';
+  } from '#lib/content/droit-image/index.ts';
+  import { enter } from '#lib/motion/index.ts';
+  import ParentFlowShell from '#lib/components/parent/ParentFlowShell.svelte';
   import ChildSignForm from './ChildSignForm.svelte';
 
   // The clauses of the document about to be signed, taken FROM that document

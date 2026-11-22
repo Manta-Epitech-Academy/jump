@@ -11,10 +11,9 @@
  * `check-seed-profiles.sh` between its two generations, so the second one meets
  * the state the deployed job leaves.
  *
- * A COPY of `rollUpUsage` (`src/lib/server/usage/rollup.ts`), not a call to it.
- * That module reaches `$lib/server/db`, which does not resolve outside Vite, and
- * a generation runs under plain `bun` (`.claude/rules/seed.md`, "The domain is
- * imported, never restated"). The cutoff is the domain's own `usageRawCutoff`,
+ * A COPY of `rollUpUsage` (`src/lib/server/usage/rollup.ts`), not a call to it:
+ * a generation runs no service, only the domain (`.claude/rules/seed.md`, "The
+ * domain is imported, never restated"). The cutoff is the domain's own `usageRawCutoff`,
  * imported. If the job's fold changes, this copy follows it.
  *
  * `--at` is the job's clock. The generator never reads the wall clock and

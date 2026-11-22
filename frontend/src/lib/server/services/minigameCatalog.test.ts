@@ -1,7 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const dynamicEnv: Record<string, string | undefined> = {};
-vi.mock('$env/dynamic/private', () => ({ env: dynamicEnv }));
+// Getters, so each test's writes to `dynamicEnv` reach the module's imports.
+vi.mock('$app/env/private', () => ({
+  get JUMP_GAMES_URL() {
+    return dynamicEnv.JUMP_GAMES_URL;
+  },
+  get JUMP_GAMES_INTERNAL_URL() {
+    return dynamicEnv.JUMP_GAMES_INTERNAL_URL;
+  },
+}));
 
 const { getCatalogPreview, getGameCatalog, parseCatalog } =
   await import('./minigameCatalog');

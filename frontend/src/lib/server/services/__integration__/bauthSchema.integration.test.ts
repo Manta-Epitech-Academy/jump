@@ -30,8 +30,8 @@ import {
   getExpectedSchema,
   type IntrospectedTable,
 } from '@better-auth/core/db/internal';
-import { createAuthOptions } from '$lib/server/auth';
-import { prisma } from '$lib/server/db';
+import { createAuthOptions } from '#lib/server/auth.ts';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 
 type ColumnRow = {

@@ -16,8 +16,8 @@
  */
 
 import { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { ATTENDANCE_PROOF_SQL } from '$lib/domain/attendance';
+import { prisma } from '#lib/server/db.ts';
+import { ATTENDANCE_PROOF_SQL } from '#lib/domain/attendance.ts';
 
 type Db = Prisma.TransactionClient | typeof prisma;
 

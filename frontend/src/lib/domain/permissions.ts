@@ -17,7 +17,7 @@ import type { StaffRole } from '@prisma/client';
  *
  * Usage:
  *   • Client:  can('devMember', page.data.staffProfile?.staffRole)  in a $derived
- *   • Server:  requireStaffGroup(locals, 'devMember')  in $lib/server/auth/guards,
+ *   • Server:  requireStaffGroup(locals, 'devMember')  in #lib/server/auth/guards,
  *              at the top of a `load` to gate a route, or in an action to gate
  *              one mutation
  *
@@ -33,7 +33,7 @@ const STAFF_GROUPS = {
   // recipients: dangerous, recipients are minors) and arming a login-redirect
   // pin (routing trapped OTP mail to themselves: benign, stays trapped).
   // Restricted to admin only; the controls live in the admin space. See
-  // `$lib/server/armRealSends` and `$lib/server/devRedirectPin`.
+  // `#lib/server/armRealSends` and `#lib/server/devRedirectPin`.
   realSendArmers: ['admin'],
 } as const satisfies Record<string, readonly StaffRole[]>;
 

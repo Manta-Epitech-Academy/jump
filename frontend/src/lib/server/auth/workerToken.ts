@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
+import { WORKER_API_TOKEN } from '$app/env/private';
 import { safeTokenEquals } from './safeTokenCompare';
 
 /**
@@ -22,10 +22,6 @@ import { safeTokenEquals } from './safeTokenCompare';
  */
 export function requireWorkerToken(request: Request): void {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  if (
-    !env.WORKER_API_TOKEN ||
-    !token ||
-    !safeTokenEquals(token, env.WORKER_API_TOKEN)
-  )
+  if (!WORKER_API_TOKEN || !token || !safeTokenEquals(token, WORKER_API_TOKEN))
     throw error(401, 'Unauthorized: Invalid or missing token');
 }

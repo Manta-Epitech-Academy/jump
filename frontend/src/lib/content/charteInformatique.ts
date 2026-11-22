@@ -1,5 +1,5 @@
-import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
-import { USAGE_RAW_RETENTION_MONTHS } from '$lib/domain/usage';
+import { DATA_RETENTION_MONTHS } from '#lib/domain/retention.ts';
+import { USAGE_RAW_RETENTION_MONTHS } from '#lib/domain/usage.ts';
 import charteMd from './charte-informatique.md?raw';
 
 /**

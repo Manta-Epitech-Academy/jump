@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button';
-  import { Label } from '$lib/components/ui/label';
-  import { Alert, AlertDescription } from '$lib/components/ui/alert';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { Alert, AlertDescription } from '#lib/components/ui/alert/index.ts';
   import CircleAlert from '@lucide/svelte/icons/circle-alert';
   import Lock from '@lucide/svelte/icons/lock';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
 
   let { otpForm, otpErrors, otpEnhance, otpDelayed, otpMessage, goBack } =
     $props();

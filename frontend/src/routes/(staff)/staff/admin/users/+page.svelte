@@ -3,7 +3,7 @@
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
+  } from '#lib/components/staff/datatable/search.ts';
   import { onMount, untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
   import { SvelteSet } from 'svelte/reactivity';
@@ -14,51 +14,51 @@
   import LogIn from '@lucide/svelte/icons/log-in';
   import Users from '@lucide/svelte/icons/users';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import * as Dialog from '$lib/components/ui/dialog';
-  import * as Table from '$lib/components/ui/table';
-  import * as Select from '$lib/components/ui/select';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import * as Avatar from '$lib/components/ui/avatar';
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import * as Collapsible from '$lib/components/ui/collapsible';
-  import { Badge } from '$lib/components/ui/badge';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import * as Select from '#lib/components/ui/select/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import * as Avatar from '#lib/components/ui/avatar/index.ts';
+  import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
+  import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
-  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
+  import ConfirmDeleteDialog from '#lib/components/admin/ConfirmDeleteDialog.svelte';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '#lib/components/staff/datatable/DataTableToolbar.svelte';
+  import Pagination from '#lib/components/staff/datatable/Pagination.svelte';
   import {
     pageCount,
     paginate,
-  } from '$lib/components/staff/datatable/paginate';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  } from '#lib/components/staff/datatable/paginate.ts';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
   import SearchableSelect, {
     type SelectOption,
-  } from '$lib/components/staff/SearchableSelect.svelte';
-  import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  } from '#lib/components/staff/SearchableSelect.svelte';
+  import type { ColumnDef } from '#lib/components/staff/datatable/types.ts';
   import {
     STAFF_ROLES,
     STAFF_SPACES,
     getStaffRoleLabel,
     staffRoles,
     type StaffSpaceId,
-  } from '$lib/domain/staff';
-  import { can } from '$lib/domain/permissions';
+  } from '#lib/domain/staff.ts';
+  import { can } from '#lib/domain/permissions.ts';
   import type { StaffRole } from '@prisma/client';
-  import { track, errReason } from '$lib/analytics';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import StaffActivityDialog from '$lib/components/admin/StaffActivityDialog.svelte';
+  import { track, errReason } from '#lib/analytics.ts';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import StaffActivityDialog from '#lib/components/admin/StaffActivityDialog.svelte';
   import {
     compareLastActive,
     lastActiveLabel,
-  } from '$lib/components/staff/lastActive';
-  import { rowComparator } from '$lib/components/staff/datatable/sort';
+  } from '#lib/components/staff/lastActive.ts';
+  import { rowComparator } from '#lib/components/staff/datatable/sort.ts';
   let { data } = $props();
 
   type MemberRow = (typeof data)['members'][number];
@@ -399,7 +399,7 @@
     if (impersonating) return;
     impersonating = userId;
     try {
-      const res = await fetch(resolve('/staff/admin/impersonate'), {
+      const res = await fetch(resolve('staff/admin/impersonate'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ kind: 'staff', id: userId, reason }),

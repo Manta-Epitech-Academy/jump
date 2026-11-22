@@ -16,7 +16,7 @@ const questionFindUnique = vi.fn();
 const templateQuestionFindMany = vi.fn();
 const recordFindMany = vi.fn();
 
-vi.mock('$lib/server/db', () => ({
+vi.mock('#lib/server/db.ts', () => ({
   prisma: {
     closing_Question: {
       findUnique: (args: unknown) => questionFindUnique(args),

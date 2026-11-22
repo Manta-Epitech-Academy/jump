@@ -1,8 +1,7 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { loadFinishedOnboardingTimeline } from '$lib/server/services/onboardingDocuments';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { loadFinishedOnboardingTimeline } from '#lib/server/services/onboardingDocuments.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // Completion timeline of every finished onboarding document (type + instant, no
 // identity). It feeds only the bulk-download menu's per-period / per-type counts,
@@ -15,7 +14,7 @@ export const GET: RequestHandler = async ({ locals }) => {
   const timeline = await loadFinishedOnboardingTimeline();
   // One shape for every export-menu timeline (`{ at, type? }`), so the menu needs
   // no per-caller parser.
-  return json({
+  return Response.json({
     timeline: timeline.map((d) => ({
       at: d.finishedAt.toISOString(),
       type: d.type,

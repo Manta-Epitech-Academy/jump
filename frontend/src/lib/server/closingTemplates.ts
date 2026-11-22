@@ -1,6 +1,6 @@
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import type { Prisma } from '@prisma/client';
-import { toClosingGrid, type ClosingGrid } from '$lib/domain/closing';
+import { toClosingGrid, type ClosingGrid } from '#lib/domain/closing.ts';
 
 /**
  * Which closing grid an event uses, resolved from the one explicit FK on the

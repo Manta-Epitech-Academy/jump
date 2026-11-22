@@ -1,5 +1,5 @@
 <script module lang="ts">
-  import type { LevelTone } from '$lib/domain/xp';
+  import type { LevelTone } from '#lib/domain/xp.ts';
 
   // Each level's colour, from the tone its row in `domain/xp.ts` gives it (the
   // badge reads the same tone). The bar takes the raw accent. The top level's
@@ -15,11 +15,11 @@
 </script>
 
 <script lang="ts">
-  import { Card } from '$lib/components/ui/card';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import LevelBadge from '$lib/components/talent/LevelBadge.svelte';
-  import { levelLadder, levelProgress, levelToNext } from '$lib/domain/xp';
-  import { cn } from '$lib/utils';
+  import { Card } from '#lib/components/ui/card/index.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import LevelBadge from '#lib/components/talent/LevelBadge.svelte';
+  import { levelLadder, levelProgress, levelToNext } from '#lib/domain/xp.ts';
+  import { cn } from '#lib/utils.ts';
 
   // A talent's Jump level at the head of Mon parcours: the badge, the level's
   // name and line, the bar, the XP earned and what is left to the next one,

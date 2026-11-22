@@ -79,7 +79,7 @@
  *     so failing closed here is consistent with the rest of the path.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 
 export type AttemptBucket = 'request' | 'verify' | 'parent_welcome';
 

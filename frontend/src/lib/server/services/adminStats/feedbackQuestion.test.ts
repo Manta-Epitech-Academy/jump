@@ -15,13 +15,13 @@ const answerFindMany = vi.fn();
 const submissionCount = vi.fn();
 const getFormGraphById = vi.fn();
 
-vi.mock('$lib/server/db', () => ({
+vi.mock('#lib/server/db.ts', () => ({
   prisma: {
     feedback_Answer: { findMany: (args: unknown) => answerFindMany(args) },
     feedback_Submission: { count: (args: unknown) => submissionCount(args) },
   },
 }));
-vi.mock('$lib/server/feedbackForms', () => ({
+vi.mock('#lib/server/feedbackForms.ts', () => ({
   getFormGraphById: (id: string) => getFormGraphById(id),
 }));
 

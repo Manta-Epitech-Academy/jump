@@ -1,10 +1,10 @@
-import { zonedWallClockInstant } from '$lib/server/eventTime';
+import { zonedWallClockInstant } from '#lib/server/eventTime.ts';
 import {
   dateKeyParts,
   dbDateToKey,
   type DateKey,
   type PresenceSlot,
-} from '$lib/domain/eventPresence';
+} from '#lib/domain/eventPresence.ts';
 
 /**
  * Wall-clock cutoff per half-day, minutes from local midnight (campus tz):

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, type Snippet } from 'svelte';
-  import { Skeleton } from '$lib/components/ui/skeleton';
+  import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
   import ResultsLayout from './ResultsLayout.svelte';
 
   // Pending placeholder for a streamed results region. It occupies the same

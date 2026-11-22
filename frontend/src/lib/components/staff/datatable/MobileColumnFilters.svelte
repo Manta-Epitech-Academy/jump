@@ -1,8 +1,8 @@
 <script lang="ts">
-  import * as Drawer from '$lib/components/ui/drawer';
-  import { Button } from '$lib/components/ui/button';
+  import * as Drawer from '#lib/components/ui/drawer/index.ts';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import Funnel from '@lucide/svelte/icons/funnel';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
   import FilterDrillMenu from './FilterDrillMenu.svelte';
   import type { ColumnDef, NamedFilter } from './types';
 

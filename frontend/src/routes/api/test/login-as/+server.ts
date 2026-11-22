@@ -1,9 +1,9 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
+import { BETTER_AUTH_SECRET } from '$app/env/private';
 import { randomBytes, createHmac } from 'node:crypto';
-import { prisma } from '$lib/server/db';
-import { assertLoadTestAuth } from '$lib/server/services/loadTestService';
+import { prisma } from '#lib/server/db.ts';
+import { assertLoadTestAuth } from '#lib/server/services/loadTestService.ts';
 
 /**
  * Load-test helper: mints a BetterAuth session for an arbitrary user by
@@ -36,7 +36,7 @@ function signCookieValue(value: string, secret: string): string {
 export const POST: RequestHandler = async ({ request }) => {
   assertLoadTestAuth(request);
 
-  const authSecret = env.BETTER_AUTH_SECRET;
+  const authSecret = BETTER_AUTH_SECRET;
   if (!authSecret) throw error(500, 'BETTER_AUTH_SECRET not configured');
 
   const body = (await request.json().catch(() => null)) as {

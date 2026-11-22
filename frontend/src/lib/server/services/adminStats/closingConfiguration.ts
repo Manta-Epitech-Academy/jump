@@ -9,10 +9,10 @@
  * not have to be a deliberate error.
  */
 
-import { prisma } from '$lib/server/db';
-import { metric, type Metric } from '$lib/server/adminApi/metrics';
-import { UnknownScopeError } from '$lib/server/adminApi/scope';
-import { CHOICE_ICON_TOKENS, CHOICE_TONES } from '$lib/domain/closing';
+import { prisma } from '#lib/server/db.ts';
+import { metric, type Metric } from '#lib/server/adminApi/metrics.ts';
+import { UnknownScopeError } from '#lib/server/adminApi/scope.ts';
+import { CHOICE_ICON_TOKENS, CHOICE_TONES } from '#lib/domain/closing.ts';
 
 const AUTHORING_CONTRACT = [
   "Une question appartient à la banque, pas à une grille : la même question posée par un stage et par un Coding Club est UNE seule question, et c'est ce qui permet d'agréger les deux ensemble. Pour poser une question existante dans une nouvelle grille, référencez sa clé ; n'en créez pas une deuxième avec un libellé différent.",

@@ -1,9 +1,9 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   assertLoadTestAuth,
   seedLoadTalents,
-} from '$lib/server/services/loadTestService';
+} from '#lib/server/services/loadTestService.ts';
 
 /**
  * Load-test helper: seed N throwaway @loadtest.invalid talents directly in THIS
@@ -34,5 +34,5 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 
   const result = await seedLoadTalents(count, start);
-  return json(result);
+  return Response.json(result);
 };

@@ -4,8 +4,8 @@ import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
-} from '$lib/server/db/scoped';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
+} from '#lib/server/db/scoped.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const campusId = getCampusId(locals);

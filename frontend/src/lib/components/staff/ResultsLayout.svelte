@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
 
   // The 70/30 split every stage-seconde dev page and its skeleton draw: the
   // working list on the left, a glanceable rail on the right. Written out at

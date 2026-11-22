@@ -10,13 +10,13 @@
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { prisma } from '$lib/server/db';
-import { startImpersonation } from '$lib/server/auth/impersonate';
+import { ORIGIN } from '$app/env/private';
+import { prisma } from '#lib/server/db.ts';
+import { startImpersonation } from '#lib/server/auth/impersonate.ts';
 import {
   deleteStaffUser,
   updateStaffRole,
-} from '$lib/server/services/staffAdminService';
+} from '#lib/server/services/staffAdminService.ts';
 import { handle } from '../../../../hooks.server';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
@@ -29,7 +29,7 @@ const stamp = Date.now();
  * the `Cookie` header the browser sends next, read off the response.
  */
 async function visitDevSpace(cookie: string) {
-  const url = new URL(`${env.ORIGIN}/staff/dev`);
+  const url = new URL(`${ORIGIN}/staff/dev`);
   const event = {
     request: new Request(url, { headers: { cookie } }),
     url,
@@ -81,7 +81,7 @@ describe('impersonation authority (integration)', () => {
     const jar = cookieJar(adminCookie);
     const started = await startImpersonation(
       { kind: 'staff', id: devId },
-      new Request(`${env.ORIGIN}/staff/admin/impersonate`, {
+      new Request(`${ORIGIN}/staff/admin/impersonate`, {
         method: 'POST',
         headers: { cookie: adminCookie },
       }),
@@ -131,7 +131,7 @@ describe('impersonation authority (integration)', () => {
     const { response, next } = await visitDevSpace(impersonationCookie);
 
     expect(response.status).toBe(303);
-    expect(response.headers.get('location')).toBe(`${env.ORIGIN}/staff/dev`);
+    expect(response.headers.get('location')).toBe(`${ORIGIN}/staff/dev`);
     expect(await openSessions()).toBe(0);
     expect(await openWindows()).toBe(0);
 

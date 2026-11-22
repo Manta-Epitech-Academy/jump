@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
   import {
     isActivityFinished,
     type WorkshopActivity,
-  } from '$lib/domain/workshops';
+  } from '#lib/domain/workshops.ts';
 
   // How far a talent is on one subject, in the hero: the 2027 mockup's step
   // panel, a darker inset on the blue with one segment per step and the step

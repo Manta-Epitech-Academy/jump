@@ -4,8 +4,24 @@ import {
   type S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { env } from '$env/dynamic/private';
+import {
+  S3_ACCESS_KEY_ID,
+  S3_BUCKET,
+  S3_ENDPOINT,
+  S3_PUBLIC_ENDPOINT,
+  S3_REGION,
+  S3_SECRET_ACCESS_KEY,
+} from '$app/env/private';
 import { putObject, s3Client, s3Settings } from './s3';
+
+const settings = s3Settings({
+  S3_ACCESS_KEY_ID,
+  S3_BUCKET,
+  S3_ENDPOINT,
+  S3_PUBLIC_ENDPOINT,
+  S3_REGION,
+  S3_SECRET_ACCESS_KEY,
+});
 
 const SIGNED_URL_EXPIRES_IN = 3600; // 1 hour
 
@@ -14,7 +30,6 @@ let publicClient: S3Client | null = null;
 
 function s3(): S3Client {
   if (!client) {
-    const settings = s3Settings(env);
     client = s3Client(settings, settings.endpoint!);
   }
   return client;
@@ -24,7 +39,6 @@ function s3(): S3Client {
 // (`publicEndpoint`).
 function s3Public(): S3Client {
   if (!publicClient) {
-    const settings = s3Settings(env);
     publicClient = s3Client(settings, settings.publicEndpoint!);
   }
   return publicClient;
@@ -149,11 +163,21 @@ export function isObjectNotFound(err: unknown): boolean {
   return e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
 }
 
+/**
+ * The origin every URL from {@link StorageService.getDownloadUrl} points at:
+ * the public endpoint, with the bucket in the path rather than the host
+ * (`forcePathStyle`). A redirect to such a URL names it as its one allowed
+ * external origin.
+ */
+export function downloadUrlOrigin(): string {
+  return new URL(settings.publicEndpoint!).origin;
+}
+
 let instance: StorageService | null = null;
 
 export function getStorage(): StorageService {
   if (!instance) {
-    instance = new S3StorageService(s3Settings(env).bucket);
+    instance = new S3StorageService(settings.bucket);
   }
   return instance;
 }

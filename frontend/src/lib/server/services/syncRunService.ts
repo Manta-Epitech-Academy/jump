@@ -12,10 +12,10 @@
  * performed rather than times the CronJob fired.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import type { SyncMode, SyncRunStatus } from '@prisma/client';
-import type { SyncRunMark } from '$lib/domain/syncSchedule';
-import { dropErrorsNotSeenSince } from '$lib/server/services/syncErrorService';
+import type { SyncRunMark } from '#lib/domain/syncSchedule.ts';
+import { dropErrorsNotSeenSince } from '#lib/server/services/syncErrorService.ts';
 
 /**
  * How long a run report is kept.

@@ -6,17 +6,17 @@ Built for the **stage de seconde** (2-week high school internship, ~2000 student
 
 ## Tech Stack
 
-| Layer      | Technology                                        |
-| ---------- | ------------------------------------------------- |
-| Framework  | SvelteKit 2 (Node adapter)                        |
-| Language   | TypeScript (strict)                               |
-| Database   | PostgreSQL 18 + Prisma 7                          |
-| Auth       | BetterAuth (Microsoft OAuth, email OTP)           |
-| Styling    | Tailwind CSS 4 + Shadcn/Svelte                    |
-| PDF        | Puppeteer (diplomas & certificates)               |
-| Email      | Resend (OTP delivery)                             |
-| Runtime    | Bun                                               |
-| Deployment | Docker + GitHub Actions                           |
+| Layer      | Technology                              |
+| ---------- | --------------------------------------- |
+| Framework  | SvelteKit 3 (Node adapter)              |
+| Language   | TypeScript (strict)                     |
+| Database   | PostgreSQL 18 + Prisma 7                |
+| Auth       | BetterAuth (Microsoft OAuth, email OTP) |
+| Styling    | Tailwind CSS 4 + Shadcn/Svelte          |
+| PDF        | Puppeteer (diplomas & certificates)     |
+| Email      | Resend (OTP delivery)                   |
+| Runtime    | Bun                                     |
+| Deployment | Docker + GitHub Actions                 |
 
 ## Getting Started
 
@@ -130,17 +130,17 @@ CI builds and pushes Docker images to GHCR on pushes to `main`, `staging`, and `
 
 ## Environment Variables
 
-| Variable                  | Purpose                       |
-| ------------------------- | ----------------------------- |
-| `DATABASE_URL`            | PostgreSQL connection string  |
-| `BETTER_AUTH_SECRET`      | Session signing secret        |
-| `MICROSOFT_CLIENT_ID`     | Azure OAuth app ID            |
-| `MICROSOFT_CLIENT_SECRET` | Azure OAuth secret            |
-| `MICROSOFT_TENANT_ID`     | Azure AD tenant               |
-| `MAIL_PROVIDER`           | `resend` (default) or `mailjet` |
-| `MAIL_FROM`               | Sender address for transactional emails |
-| `RESEND_API_KEY`          | Resend API key (when `MAIL_PROVIDER=resend`) |
-| `MAILJET_API_KEY`         | Mailjet API key (when `MAIL_PROVIDER=mailjet`) |
+| Variable                  | Purpose                                           |
+| ------------------------- | ------------------------------------------------- |
+| `DATABASE_URL`            | PostgreSQL connection string                      |
+| `BETTER_AUTH_SECRET`      | Session signing secret                            |
+| `MICROSOFT_CLIENT_ID`     | Azure OAuth app ID                                |
+| `MICROSOFT_CLIENT_SECRET` | Azure OAuth secret                                |
+| `MICROSOFT_TENANT_ID`     | Azure AD tenant                                   |
+| `MAIL_PROVIDER`           | `resend` (default) or `mailjet`                   |
+| `MAIL_FROM`               | Sender address for transactional emails           |
+| `RESEND_API_KEY`          | Resend API key (when `MAIL_PROVIDER=resend`)      |
+| `MAILJET_API_KEY`         | Mailjet API key (when `MAIL_PROVIDER=mailjet`)    |
 | `MAILJET_API_SECRET`      | Mailjet API secret (when `MAIL_PROVIDER=mailjet`) |
 
 See [`.env.example`](.env.example) for the full template.

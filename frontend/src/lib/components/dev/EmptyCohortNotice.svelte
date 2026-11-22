@@ -1,8 +1,8 @@
 <script lang="ts">
   import Users from '@lucide/svelte/icons/users';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import { cohortNounForms } from '$lib/domain/event';
-  import { emptyCohortLine } from '$lib/domain/devVoice';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import { cohortNounForms } from '#lib/domain/event.ts';
+  import { emptyCohortLine } from '#lib/domain/devVoice.ts';
 
   // What every page of an event says while it has no one in the dev space: the
   // home, Inscrits, Closings, Émargement and Feedback. The same state was

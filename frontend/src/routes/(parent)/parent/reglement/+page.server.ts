@@ -1,9 +1,9 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
-import { recordParentRulesSignature } from '$lib/server/services/parentRulesService';
-import { applicableReglementVersion } from '$lib/content/reglement';
+import { prisma } from '#lib/server/db.ts';
+import { recordParentRulesSignature } from '#lib/server/services/parentRulesService.ts';
+import { applicableReglementVersion } from '#lib/content/reglement/index.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   // Règlement done for everyone, move on to the image-rights step (which in
   // turn forwards to /parent/merci once it too is settled).
   if (unsignedChildren.length === 0) {
-    throw redirect(303, resolve('/parent/signature'));
+    throw redirect(303, resolve('parent/signature'));
   }
 
   return {
@@ -134,7 +134,7 @@ export const actions: Actions = {
     });
 
     if (remaining === 0) {
-      throw redirect(303, resolve('/parent/signature'));
+      throw redirect(303, resolve('parent/signature'));
     }
 
     return { success: studentName };

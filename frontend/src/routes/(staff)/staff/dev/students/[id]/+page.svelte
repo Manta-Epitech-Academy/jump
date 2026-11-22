@@ -3,9 +3,9 @@
 
   import Plus from '@lucide/svelte/icons/plus';
 
-  import { Button } from '$lib/components/ui/button';
-  import EpiSection from '$lib/components/staff/EpiSection.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import EpiSection from '#lib/components/staff/EpiSection.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
 
   import TalentProfileHero from './components/TalentProfileHero.svelte';
   import TalentInterestChips from './components/TalentInterestChips.svelte';
@@ -13,10 +13,10 @@
   import TalentJourney from './components/TalentJourney.svelte';
   import ContactCard from './components/ContactCard.svelte';
   import RightRailCard from './components/RightRailCard.svelte';
-  import TalentNotesFeed from '$lib/components/dev/notes/TalentNotesFeed.svelte';
+  import TalentNotesFeed from '#lib/components/dev/notes/TalentNotesFeed.svelte';
 
-  import { formatGivenName, formatPersonName } from '$lib/domain/profile';
-  import { cn } from '$lib/utils';
+  import { formatGivenName, formatPersonName } from '#lib/domain/profile.ts';
+  import { cn } from '#lib/utils.ts';
 
   let { data }: { data: PageData } = $props();
 

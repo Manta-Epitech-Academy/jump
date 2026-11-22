@@ -1,9 +1,9 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { Zip, ZipPassThrough } from 'fflate';
-import { getStorage, isObjectNotFound } from '$lib/server/infra/storage';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { getStorage, isObjectNotFound } from '#lib/server/infra/storage.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 import {
   collectFinishedOnboardingDocs,
   isExportableDocumentType,
@@ -11,7 +11,7 @@ import {
   type DateRange,
   type ExportableDocumentType,
   type FinishedOnboardingDoc,
-} from '$lib/server/services/onboardingDocuments';
+} from '#lib/server/services/onboardingDocuments.ts';
 
 // How many PDFs to pull from S3 at once. Firing one GET per talent
 // simultaneously would open hundreds of sockets at once; eight keeps the pipe

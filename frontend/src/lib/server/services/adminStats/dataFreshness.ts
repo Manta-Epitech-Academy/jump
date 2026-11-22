@@ -22,14 +22,14 @@
  * are now derived from `Sync_Cadence`, in `domain/syncSchedule.ts`.
  */
 
-import { metric, type Metric } from '$lib/server/adminApi/metrics';
-import { lastSuccessfulLanding } from '$lib/server/services/syncRunService';
-import { listCadences } from '$lib/server/services/syncConfigService';
+import { metric, type Metric } from '#lib/server/adminApi/metrics.ts';
+import { lastSuccessfulLanding } from '#lib/server/services/syncRunService.ts';
+import { listCadences } from '#lib/server/services/syncConfigService.ts';
 import {
   staleAfterHours,
   syncCadenceNote,
   type SyncMode,
-} from '$lib/domain/syncSchedule';
+} from '#lib/domain/syncSchedule.ts';
 
 /** Age in hours, one decimal. Shared so two answers cannot round differently. */
 export const hoursSince = (date: Date) =>

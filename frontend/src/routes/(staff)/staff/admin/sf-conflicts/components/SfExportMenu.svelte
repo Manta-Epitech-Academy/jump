@@ -2,15 +2,15 @@
   import Download from '@lucide/svelte/icons/download';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import { resolve } from '$app/paths';
-  import { buttonVariants } from '$lib/components/ui/button';
-  import * as Popover from '$lib/components/ui/popover';
-  import ExportSinceCard from '$lib/components/staff/export/ExportSinceCard.svelte';
-  import ExportWindowPicker from '$lib/components/staff/export/ExportWindowPicker.svelte';
+  import { buttonVariants } from '#lib/components/ui/button/index.ts';
+  import * as Popover from '#lib/components/ui/popover/index.ts';
+  import ExportSinceCard from '#lib/components/staff/export/ExportSinceCard.svelte';
+  import ExportWindowPicker from '#lib/components/staff/export/ExportWindowPicker.svelte';
   import {
     createExportWindow,
     exportHref,
-  } from '$lib/components/staff/export/exportWindow.svelte';
-  import { cn } from '$lib/utils';
+  } from '#lib/components/staff/export/exportWindow.svelte.ts';
+  import { cn } from '#lib/utils.ts';
   import { toast } from 'svelte-sonner';
 
   // The CSV-export affordance for the Données tab. Unlike the two PDF menus, its
@@ -27,7 +27,7 @@
     lastExportAt: string | null;
   } = $props();
 
-  const exportBase = resolve('/staff/admin/sf-conflicts/export');
+  const exportBase = resolve('staff/admin/sf-conflicts/export');
 
   const items = $derived(
     timeline.map((t) => ({ at: new Date(t.confirmedAt).getTime() })),

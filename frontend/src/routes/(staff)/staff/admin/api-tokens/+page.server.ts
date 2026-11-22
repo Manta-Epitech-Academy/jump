@@ -28,15 +28,15 @@ import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { requireAdminSession } from '$lib/server/auth/guards';
+import { requireAdminSession } from '#lib/server/auth/guards.ts';
 import {
   listTokens,
   mintToken,
   revokeToken,
-} from '$lib/server/adminApi/tokens';
-import { createApiTokenSchema } from '$lib/validation/adminApiToken';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+} from '#lib/server/adminApi/tokens.ts';
+import { createApiTokenSchema } from '#lib/validation/adminApiToken.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 export const load: PageServerLoad = async ({ url }) => {
   return {

@@ -1,8 +1,8 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireWorkerToken } from '$lib/server/auth/workerToken';
-import { workerTalentsPayloadSchema } from '$lib/validation/workerSync';
-import { syncTalents } from '$lib/server/services/syncService';
+import { requireWorkerToken } from '#lib/server/auth/workerToken.ts';
+import { workerTalentsPayloadSchema } from '#lib/validation/workerSync.ts';
+import { syncTalents } from '#lib/server/services/syncService.ts';
 
 /**
  * Talent identities for the whole run, deduplicated by the worker and paginated
@@ -29,5 +29,5 @@ export const POST: RequestHandler = async ({ request }) => {
   if (!parsed.success)
     throw error(400, 'Invalid payload: expected { talents: [...] }');
 
-  return json(await syncTalents(parsed.data.talents));
+  return Response.json(await syncTalents(parsed.data.talents));
 };

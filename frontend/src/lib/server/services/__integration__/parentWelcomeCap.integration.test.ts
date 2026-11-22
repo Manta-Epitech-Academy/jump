@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 
 const sendParentWelcomeEmail = vi.hoisted(() =>
   vi.fn(async (..._args: unknown[]) => {}),
 );
-vi.mock('$lib/server/otp', () => ({ sendParentWelcomeEmail }));
+vi.mock('#lib/server/otp.ts', () => ({ sendParentWelcomeEmail }));
 
 const { actions } =
   await import('../../../../routes/(talent)/onboarding/+page.server');

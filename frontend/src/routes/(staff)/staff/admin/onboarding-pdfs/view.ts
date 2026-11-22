@@ -1,8 +1,8 @@
-import { defineListChoice, defineListView } from '$lib/domain/listView';
+import { defineListChoice, defineListView } from '#lib/domain/listView.ts';
 
 /**
  * The PDF job feed's view, in the address every staff list shares
- * (`$lib/domain/listView`), read by the load and written by the page.
+ * (`#lib/domain/listView`), read by the load and written by the page.
  *
  * - **`document`** (`rules`, `charter`, `image-rights`) filters from the
  *   Document column, counted in the database over every job.

@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { triggerConfetti } from '$lib/actions/confetti';
-  import XpFloat from '$lib/components/talent/XpFloat.svelte';
+  import { triggerConfetti } from '#lib/actions/confetti.ts';
+  import XpFloat from '#lib/components/talent/XpFloat.svelte';
   import {
     minigameRewardToast,
     minigameRankRewardToast,
-  } from '$lib/components/talent/rewardToast';
+  } from '#lib/components/talent/rewardToast.ts';
 
   // The daily-finish reward and the rank bonus are both granted server-side at
   // finish. The play page floats the finish reward in the moment; this component

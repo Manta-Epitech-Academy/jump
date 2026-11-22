@@ -11,14 +11,14 @@
  * whole tier exists so that a share is read, not derived.
  */
 
-import { prisma } from '$lib/server/db';
-import { CIVILITE_OPTIONS } from '$lib/domain/profile';
-import { NIVEAUX, niveauLabel, compareNiveaux } from '$lib/domain/niveau';
-import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+import { prisma } from '#lib/server/db.ts';
+import { CIVILITE_OPTIONS } from '#lib/domain/profile.ts';
+import { NIVEAUX, niveauLabel, compareNiveaux } from '#lib/domain/niveau.ts';
+import { VISIBLE_PARTICIPATION_DEFINITION } from '#lib/domain/sfMemberStatus.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { cohortWhere, onboardingCompleteWhere, scopeLabels } from './cohort';
-import { onboardingEligibleWhere } from '$lib/server/db/onboardingEligibility';
+import { onboardingEligibleWhere } from '#lib/server/db/onboardingEligibility.ts';
 
 /** How an absent value is named in every breakdown here. */
 const UNKNOWN_LABEL = 'Non renseigné';

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!--
       Light/dark before first paint. `<ModeWatcher />` normally injects this
-      itself, but the script it injects carries no nonce, so `kit.csp` blocks it
+      itself, but the script it injects carries no nonce, so kit's `csp` blocks it
       and every full page load flashes the wrong theme (issue #277). The nonce is
       only substituted here, in the app template, so this is the one place the
       script can live. `hooks.server.ts` fills the body in from mode-watcher's own

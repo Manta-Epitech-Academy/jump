@@ -1,13 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { prisma } from '#lib/server/db.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
-vi.mock('$lib/server/db', () => ({
+vi.mock('#lib/server/db.ts', () => ({
   prisma: { usage_FeatureUse: { createMany: vi.fn() } },
 }));
 
 const dynamicEnv: Record<string, string | undefined> = { USAGE_SALT: 'pepper' };
-vi.mock('$env/dynamic/private', () => ({ env: dynamicEnv }));
+// A getter, so each test's write to `dynamicEnv` reaches `actorHash`'s import.
+vi.mock('$app/env/private', () => ({
+  get USAGE_SALT() {
+    return dynamicEnv.USAGE_SALT;
+  },
+}));
 
 const { recordUsage } = await import('./record');
 

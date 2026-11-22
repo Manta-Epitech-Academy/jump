@@ -25,20 +25,23 @@
 // its host is `Restrict` so a hand-deletion of one still in use fails loudly.
 import { randomUUID } from 'node:crypto';
 import { Prisma, type WorkshopLevel } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';
-import { replacePictures, type StoredPicture } from '$lib/server/images/remote';
+import {
+  replacePictures,
+  type StoredPicture,
+} from '#lib/server/images/remote.ts';
 import {
   WORKSHOP_COVER_MAX_EDGE,
   workshopCoverKey,
   type WorkshopCoverKind,
-} from '$lib/domain/workshops';
+} from '#lib/domain/workshops.ts';
 import {
   archivedDomainRefusal,
   cleanNotions,
-} from '$lib/domain/workshopCatalogue';
+} from '#lib/domain/workshopCatalogue.ts';
 
 /**
  * An origin and nothing else: no path, no query, no trailing slash, because the

@@ -12,10 +12,10 @@
  * marked désisté in Salesforce is not counted as having come.
  */
 
-import { prisma } from '$lib/server/db';
-import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+import { prisma } from '#lib/server/db.ts';
+import { VISIBLE_PARTICIPATION_DEFINITION } from '#lib/domain/sfMemberStatus.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { participationWhere, scopeLabels } from './cohort';
 
 /** Everything at or above this many events is one bucket. */

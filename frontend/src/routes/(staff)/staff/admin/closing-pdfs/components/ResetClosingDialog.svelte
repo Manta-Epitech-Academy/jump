@@ -1,11 +1,11 @@
 <script lang="ts">
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import { buttonVariants } from '$lib/components/ui/button';
-  import { Label } from '$lib/components/ui/label';
-  import { Textarea } from '$lib/components/ui/textarea';
+  import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
+  import { buttonVariants } from '#lib/components/ui/button/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { Textarea } from '#lib/components/ui/textarea/index.ts';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
-  import { formatDateTimeFr } from '$lib/utils';
+  import { formatDateTimeFr } from '#lib/utils.ts';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 
   type ResetTarget = {

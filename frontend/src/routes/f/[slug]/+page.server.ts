@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
-import { getFormGraphBySlug, toFormSchema } from '$lib/server/feedbackForms';
+import { getFormGraphBySlug, toFormSchema } from '#lib/server/feedbackForms.ts';
 
 // Public, unauthenticated entry point for a feedback form, shared by link
 // (parents, families, an event's audience, or a campus not yet onboarded on

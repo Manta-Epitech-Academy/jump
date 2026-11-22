@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { schoolYearOf } from '$lib/domain/schoolYear';
+import { schoolYearOf } from '#lib/domain/schoolYear.ts';
 
 export type SchoolingSource = 'sync' | 'onboarding' | 'staff';
 

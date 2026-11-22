@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import {
   adoptionDue,
@@ -18,7 +18,7 @@ import {
   digestBaseline,
   finishDigestRun,
   recordDigestSend,
-} from '$lib/server/services/adminDigest/ledger';
+} from '#lib/server/services/adminDigest/ledger.ts';
 
 const MINUTE = 60 * 1000;
 

@@ -26,8 +26,8 @@
  */
 
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { academieOf } from '$lib/domain/school';
+import { prisma } from '#lib/server/db.ts';
+import { academieOf } from '#lib/domain/school.ts';
 import { OperationRefusedError } from '../errors';
 import type { WriteOutcome } from '../plan';
 import { refusingRaces } from './catalogue';

@@ -1,14 +1,17 @@
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
-import { eventDisplayName } from '$lib/domain/event';
-import { EVENT_MODULES, eventHasModule } from '$lib/domain/eventModules';
-import { isDevVisibleEvent } from '$lib/server/services/stageContext';
-import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
-import { attendedBeforeWhere } from '$lib/domain/attendance';
+import { prisma } from '#lib/server/db.ts';
+import { eventDisplayName } from '#lib/domain/event.ts';
+import { EVENT_MODULES, eventHasModule } from '#lib/domain/eventModules.ts';
+import { isDevVisibleEvent } from '#lib/server/services/stageContext.ts';
+import {
+  getEventStatus,
+  getLifecycleBounds,
+} from '#lib/domain/eventLifecycle.ts';
+import { attendedBeforeWhere } from '#lib/domain/attendance.ts';
 import type {
   TalentJourney,
   TalentJourneyEntry,
-} from '$lib/domain/talentJourney';
+} from '#lib/domain/talentJourney.ts';
 
 /**
  * Build a talent's journey: the events they came to, newest first, each with
@@ -117,7 +120,7 @@ export async function getTalentJourney(
     if (!isDevVisibleEvent(event)) return null;
     const modules = event.modules.map((m) => m.moduleKey);
     if (!eventHasModule(modules, EVENT_MODULES.INSCRITS)) return null;
-    return resolve(`/staff/dev/events/${event.id}/inscrits`);
+    return resolve(`staff/dev/events/${event.id}/inscrits`);
   };
 
   const bounds = getLifecycleBounds(timezone);

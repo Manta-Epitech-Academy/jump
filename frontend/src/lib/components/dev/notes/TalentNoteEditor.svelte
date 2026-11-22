@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { Textarea } from '$lib/components/ui/textarea';
-  import { Button } from '$lib/components/ui/button';
+  import { Textarea } from '#lib/components/ui/textarea/index.ts';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import { toast } from 'svelte-sonner';
-  import { base } from '$app/paths';
+  import { resolve } from '$app/paths';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import type { PresenceSlot } from '@prisma/client';
-  import type { SerializedNote } from '$lib/domain/talentNotes';
+  import type { SerializedNote } from '#lib/domain/talentNotes.ts';
 
   // Composer for a single staff note: create (note=null) or edit an existing
   // one. Shared by the fiche feed and the émargement dialog. Editing uses
@@ -54,8 +54,11 @@
     saving = true;
     try {
       const url = isEdit
-        ? `${base}/staff/dev/students/${talentId}/notes/${note!.id}`
-        : `${base}/staff/dev/students/${talentId}/notes`;
+        ? resolve('/(staff)/staff/dev/students/[id]/notes/[noteId]', {
+            id: talentId,
+            noteId: note!.id,
+          })
+        : resolve('/(staff)/staff/dev/students/[id]/notes', { id: talentId });
       const payload = isEdit
         ? {
             body: value,

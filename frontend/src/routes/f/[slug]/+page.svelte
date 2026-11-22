@@ -1,9 +1,9 @@
 <script lang="ts">
   import { toast } from 'svelte-sonner';
-  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
-  import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import ChatScreen from '$lib/components/feedback/ChatScreen.svelte';
-  import type { Answers } from '$lib/domain/feedbackForms/schema';
+  import EpitechLogo from '#lib/components/layout/EpitechLogo.svelte';
+  import ModeToggle from '#lib/components/ModeToggle.svelte';
+  import ChatScreen from '#lib/components/feedback/ChatScreen.svelte';
+  import type { Answers } from '#lib/domain/feedbackForms/schema.ts';
 
   let { data } = $props();
 

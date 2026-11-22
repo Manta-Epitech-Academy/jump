@@ -31,14 +31,14 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { StaffRole } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import {
   USAGE_FEATURES,
   USAGE_FEATURE_DEFS,
   USAGE_FEATURE_KEYS,
-} from '$lib/domain/usage';
-import { getMemberActivity } from '$lib/server/usage/memberActivity';
+} from '#lib/domain/usage.ts';
+import { getMemberActivity } from '#lib/server/usage/memberActivity.ts';
 
 const stamp = Date.now();
 const CAMPUS = `MemberActivity-${stamp}`;

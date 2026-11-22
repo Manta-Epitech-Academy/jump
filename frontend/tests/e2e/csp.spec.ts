@@ -7,7 +7,7 @@
  * response Jump produces each end up with the right policy.
  *
  * That last part is the subtle one and the reason this suite exists rather than a
- * single spot check. `kit.csp` sets its header on a RENDERED PAGE only, so a
+ * single spot check. Kit's `csp` sets its header on a RENDERED PAGE only, so a
  * guard redirect and a `+server.ts` endpoint reach `setSecurityHeaders` with no
  * header at all; before #277 they were handed the permissive policy written for
  * pages, and it would be entirely invisible if they went back to carrying none.
@@ -44,21 +44,21 @@ async function expectHardenedPage(
   const scriptSrc = csp.get('script-src');
 
   expect(scriptSrc, `${where}: no script-src`).toBeTruthy();
-  // The nonce is the whole point of the move to `kit.csp`, and its absence is
+  // The nonce is the whole point of the move to kit's `csp`, and its absence is
   // what would make the two assertions below pass while protecting nothing.
   expect(scriptSrc, `${where}: no per-request nonce`).toMatch(/'nonce-[^']+'/);
   expect(scriptSrc, where).not.toContain('unsafe-inline');
   expect(scriptSrc, where).not.toContain('unsafe-hashes');
 
   // Appended by `hooks.server.ts` onto the header kit already set. Both being
-  // present is what proves the append, since `kit.csp` declares no `frame-src`
+  // present is what proves the append, since kit's `csp` declares no `frame-src`
   // and `hooks.server.ts` declares no `script-src`.
   expect(csp.get('frame-src'), `${where}: frame-src not appended`).toContain(
     'https://*.epiboost.eu',
   );
 
   // Same append, and it carries the curated activity origins on top of `'self'`.
-  // Asserted here rather than only in the unit test because `kit.csp` declaring
+  // Asserted here rather than only in the unit test because kit's `csp` declaring
   // one too would silently win: a repeated directive keeps the first occurrence.
   expect(
     csp.get('form-action'),
@@ -182,7 +182,7 @@ test.describe('le chargement réel d’une page', () => {
    * cannot see.
    *
    * `<ModeWatcher />` injects its own FOUC-prevention script, and that copy
-   * carries no nonce, so moving to `kit.csp` blocked it: the header looked
+   * carries no nonce, so moving to kit's `csp` blocked it: the header looked
    * perfect, every page still rendered, and a talent whose mode is dark got a
    * flash of the light theme on every full page load. Nothing in the gate
    * noticed, because nothing read the console.

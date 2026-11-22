@@ -16,11 +16,11 @@
  * a retry needs, and a job id identifies a document, not a person.
  */
 
-import { prisma } from '$lib/server/db';
-import { isOnboardingPdfJobRetryable } from '$lib/server/services/onboardingPdfJobService';
-import { isDeletionRequestOverdue } from '$lib/server/services/talentDeletionService';
-import { listSalesforceDiffs } from '$lib/server/services/reconciliationService';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
+import { prisma } from '#lib/server/db.ts';
+import { isOnboardingPdfJobRetryable } from '#lib/server/services/onboardingPdfJobService.ts';
+import { isDeletionRequestOverdue } from '#lib/server/services/talentDeletionService.ts';
+import { listSalesforceDiffs } from '#lib/server/services/reconciliationService.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
 import {
   sinceLabelFr,
   withSince,

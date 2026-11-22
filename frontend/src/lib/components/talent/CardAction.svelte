@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
 
   // The one secondary action of a talent card (DESIGN.md, « Actions on a
   // talent screen »): the 2027 mockup's tinted pill with its arrow, whatever

@@ -19,7 +19,7 @@
  * signed. `ImageRightsDecisionRecord.version` pins what each fact committed to,
  * and the year's dossier carries the same value for the render.
  */
-import type { ImageRightsDecision } from '$lib/domain/imageRights';
+import type { ImageRightsDecision } from '#lib/domain/imageRights.ts';
 import { createVersionedDocument } from '../versionedDocument';
 
 import autorisation20252026 from './2025-2026-autorisation.md?raw';

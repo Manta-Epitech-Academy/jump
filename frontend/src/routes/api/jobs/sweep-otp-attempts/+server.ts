@@ -1,8 +1,8 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
-import { sweepExpiredAttempts } from '$lib/server/auth/rateLimiter';
+import { CRON_SECRET } from '$app/env/private';
+import { safeTokenEquals } from '#lib/server/auth/safeTokenCompare.ts';
+import { sweepExpiredAttempts } from '#lib/server/auth/rateLimiter.ts';
 
 /**
  * Drops each `OtpAttempt` row once its bucket's rate-limit window is over
@@ -17,7 +17,7 @@ import { sweepExpiredAttempts } from '$lib/server/auth/rateLimiter';
  */
 export const POST: RequestHandler = async ({ request }) => {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  const cronSecret = env.CRON_SECRET;
+  const cronSecret = CRON_SECRET;
 
   if (!cronSecret || !token || !safeTokenEquals(token, cronSecret)) {
     throw error(401, 'Unauthorized: Invalid or missing token');
@@ -26,7 +26,7 @@ export const POST: RequestHandler = async ({ request }) => {
   try {
     const count = await sweepExpiredAttempts();
     console.log(`[Job] OTP attempt sweep: ${count} rows deleted.`);
-    return json({ success: true, deleted: count });
+    return Response.json({ success: true, deleted: count });
   } catch (err) {
     console.error('[Job] OTP attempt sweep failed:', err);
     throw error(500, 'Internal Server Error');

@@ -1,6 +1,6 @@
 <script lang="ts">
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-  import { BROADCAST_CHANNEL_LABELS } from '$lib/domain/broadcasts';
+  import { BROADCAST_CHANNEL_LABELS } from '#lib/domain/broadcasts.ts';
 
   let { data, children } = $props();
 </script>

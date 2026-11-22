@@ -23,6 +23,17 @@
  * belongs to the list.
  */
 
+/**
+ * A querystring a list view is read from, which it never writes: what
+ * `page.url.searchParams` is on the client (read-only there) and what a load's
+ * `url.searchParams` is on the server. The same shape as SvelteKit's
+ * `ReadonlyURLSearchParams`, written out so the domain imports no framework.
+ */
+export type ListParams = Omit<
+  URLSearchParams,
+  'set' | 'append' | 'delete' | 'sort'
+>;
+
 export type SortDir = 'asc' | 'desc';
 
 /** The sortable columns of a list, each with its first-click direction (XP
@@ -54,7 +65,7 @@ type FacetAddress<F extends string> = {
 
 export type FacetListAddress<F extends string> = FacetAddress<F> & {
   /** Read the view off a querystring. */
-  parse: (params: URLSearchParams) => FacetListView<F>;
+  parse: (params: ListParams) => FacetListView<F>;
 };
 
 export type SortedListAddress<
@@ -62,7 +73,7 @@ export type SortedListAddress<
   S extends string,
 > = FacetAddress<F> & {
   /** Read the view off a querystring. */
-  parse: (params: URLSearchParams) => SortedListView<F, S>;
+  parse: (params: ListParams) => SortedListView<F, S>;
   /** The params a sort writes. The default sort writes none, and a direction
    *  is written only when it is not the column's first-click one. */
   sortParams: (sort: S, dir: SortDir) => Record<string, string>;
@@ -90,7 +101,7 @@ export function defineListView<F extends string, S extends string>(spec: {
       Object.fromEntries(facets.map((facet) => [facet, ''])),
   };
 
-  const parseFacets = (params: URLSearchParams) =>
+  const parseFacets = (params: ListParams) =>
     Object.fromEntries(
       facets.map((facet) => [facet, parseFacetValues(params.get(facet))]),
     ) as Record<F, string[]>;
@@ -132,7 +143,7 @@ export type ListChoice<V extends string> = {
   param: string;
   values: readonly V[];
   defaultValue: V;
-  parse: (params: URLSearchParams) => V;
+  parse: (params: ListParams) => V;
   params: (value: V) => Record<string, string>;
 };
 

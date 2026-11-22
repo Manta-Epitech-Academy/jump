@@ -12,17 +12,17 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
-import { mintToken } from '$lib/server/adminApi/tokens';
-import { adminApiRead, adminApiWrite } from '$lib/server/adminApi/route';
-import { adminDigestRecipients } from '$lib/server/services/adminStats/adminDigestRecipients';
-import { sendAdminDigest } from '$lib/server/services/adminDigest';
-import { updateStaffRole } from '$lib/server/services/staffAdminService';
+import { mintToken } from '#lib/server/adminApi/tokens.ts';
+import { adminApiRead, adminApiWrite } from '#lib/server/adminApi/route.ts';
+import { adminDigestRecipients } from '#lib/server/services/adminStats/adminDigestRecipients.ts';
+import { sendAdminDigest } from '#lib/server/services/adminDigest/index.ts';
+import { updateStaffRole } from '#lib/server/services/staffAdminService.ts';
 
 const sendEmail = vi.hoisted(() => vi.fn());
-vi.mock('$lib/server/email', () => ({
+vi.mock('#lib/server/email/index.ts', () => ({
   sendEmail,
   MAIL_FROM: 'Jump <noreply@example.test>',
 }));

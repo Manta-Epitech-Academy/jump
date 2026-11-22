@@ -4,12 +4,12 @@ import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
-} from '$lib/server/db/scoped';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { resolveEventClosingIdentity } from '$lib/server/closingTemplates';
-import { loadClosingsRoster } from '$lib/server/services/closingsRoster';
-import { countShownCohort } from '$lib/server/services/inscritsCohort';
+} from '#lib/server/db/scoped.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
+import { resolveEventClosingIdentity } from '#lib/server/closingTemplates.ts';
+import { loadClosingsRoster } from '#lib/server/services/closingsRoster.ts';
+import { countShownCohort } from '#lib/server/services/inscritsCohort.ts';
 import type { StaffTally, ClosingsCohort } from './components/types';
 
 const TOP_STAFF = 5;

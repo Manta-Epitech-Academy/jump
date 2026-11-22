@@ -4,16 +4,16 @@ import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
-} from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
+} from '#lib/server/db/scoped.ts';
+import { requireStaffGroup } from '#lib/server/auth/guards.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
 import {
   eventWorkbookSheets,
   planEventWorkbook,
-} from '$lib/server/services/eventSheets';
-import { asciiFilename, buildXlsx, xlsxResponse } from '$lib/server/xlsx';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+} from '#lib/server/services/eventSheets.ts';
+import { asciiFilename, buildXlsx, xlsxResponse } from '#lib/server/xlsx.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 /**
  * The whole event as one workbook, from its home: one sheet per section the

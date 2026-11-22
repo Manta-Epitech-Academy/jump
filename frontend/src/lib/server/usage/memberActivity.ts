@@ -39,8 +39,8 @@
  */
 
 import { Prisma, type StaffRole } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { staffSpaceForRole } from '$lib/domain/staff';
+import { prisma } from '#lib/server/db.ts';
+import { staffSpaceForRole } from '#lib/domain/staff.ts';
 import {
   USAGE_FEATURE_DEFS,
   USAGE_FEATURE_KEYS,
@@ -50,7 +50,7 @@ import {
   usageRawCutoff,
   usageConnectionFeatures,
   type UsageSpace,
-} from '$lib/domain/usage';
+} from '#lib/domain/usage.ts';
 
 const CONNECTION_FEATURES = usageConnectionFeatures('staff');
 

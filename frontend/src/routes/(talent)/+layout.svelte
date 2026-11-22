@@ -2,8 +2,8 @@
   import '../../routes/layout.css';
   import { onMount } from 'svelte';
   import { BitsConfig } from 'bits-ui';
-  import TalentImpersonationBanner from '$lib/components/TalentImpersonationBanner.svelte';
-  import Crisp from '$lib/components/Crisp.svelte';
+  import TalentImpersonationBanner from '#lib/components/TalentImpersonationBanner.svelte';
+  import Crisp from '#lib/components/Crisp.svelte';
 
   let { children } = $props();
 

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import { enter } from '$lib/motion';
-  import { stopImpersonating } from '$lib/impersonation';
+  import { enter } from '#lib/motion/index.ts';
+  import { stopImpersonating } from '#lib/impersonation.ts';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import LogOut from '@lucide/svelte/icons/log-out';
   import { toast } from 'svelte-sonner';
@@ -43,7 +43,7 @@
       // would not: Crisp injects a side-effecting widget into the document
       // with no Svelte teardown, so an in-app `goto` left its chat bubble
       // floating over the admin space.
-      window.location.href = resolve('/staff/admin/talents');
+      window.location.href = resolve('staff/admin/talents');
     } catch (err) {
       console.error(err);
       toast.error('Impossible de revenir au compte admin.');

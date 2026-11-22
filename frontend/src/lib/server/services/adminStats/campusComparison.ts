@@ -27,10 +27,10 @@
  * This answer only adds the framing of its own axis.
  */
 
-import { prisma } from '$lib/server/db';
-import { CLOSING_FAVOURABLE_RECOMMENDATIONS } from '$lib/domain/closing';
-import { adminEventRunsClosings } from '$lib/server/services/events';
-import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
+import { prisma } from '#lib/server/db.ts';
+import { CLOSING_FAVOURABLE_RECOMMENDATIONS } from '#lib/domain/closing.ts';
+import { adminEventRunsClosings } from '#lib/server/services/events.ts';
+import { VISIBLE_PARTICIPATION_DEFINITION } from '#lib/domain/sfMemberStatus.ts';
 import {
   metric,
   rank,
@@ -39,8 +39,8 @@ import {
   share,
   type Metric,
   type Ranked,
-} from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+} from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import {
   scopedEvents,
   participationWhere,
@@ -52,7 +52,7 @@ import {
   WOMEN_SHARE_RULE,
   ONBOARDING_COMPLETED_SHARE_RULE,
 } from './cohortProfile';
-import { isOnboardingEligible } from '$lib/domain/niveau';
+import { isOnboardingEligible } from '#lib/domain/niveau.ts';
 import {
   CLOSING_COVERAGE_RULE,
   FAVOURABLE_VERDICT_RULE,

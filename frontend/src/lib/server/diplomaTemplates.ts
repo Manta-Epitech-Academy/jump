@@ -1,14 +1,14 @@
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import type { Prisma } from '@prisma/client';
-import { base } from '$app/paths';
+import { resolve } from '$app/paths';
 import {
   renderCertificatePreviewPng,
   type CertificateData,
-} from '$lib/server/services/diplomaGenerator';
-import { getStorage, isObjectNotFound } from '$lib/server/infra/storage';
-import { eventWindowEnd } from '$lib/domain/event';
-import { formatDateFr } from '$lib/utils';
-import { UnknownScopeError } from '$lib/server/adminApi/scope';
+} from '#lib/server/services/diplomaGenerator.ts';
+import { getStorage, isObjectNotFound } from '#lib/server/infra/storage.ts';
+import { eventWindowEnd } from '#lib/domain/event.ts';
+import { formatDateFr } from '#lib/utils.ts';
+import { UnknownScopeError } from '#lib/server/adminApi/scope.ts';
 
 /**
  * Which certificate an event issues, resolved from the one explicit FK on the
@@ -172,7 +172,7 @@ export function diplomaTemplatePreviewLink(template: {
   label: string;
   origin: string;
 }): { url: string; apercu: string } {
-  const url = `${template.origin}${base}/api/admin/config/diploma-template-preview?code=${encodeURIComponent(template.code)}`;
+  const url = `${template.origin}${resolve('api/admin/config/diploma-template-preview')}?code=${encodeURIComponent(template.code)}`;
   return {
     url,
     apercu: `Aperçu de « ${template.label} » : ${url} (nom, dates, ville et signataire sont des exemples, aucune donnée de jeune n'y figure). Ouvrez ce lien pour voir le certificat.`,

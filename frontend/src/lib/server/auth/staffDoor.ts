@@ -1,6 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth';
-import { prisma } from '$lib/server/db';
-import { isStaffEmailAddress } from '$lib/domain/staff';
+import { prisma } from '#lib/server/db.ts';
+import { isStaffEmailAddress } from '#lib/domain/staff.ts';
 
 /**
  * Why the staff Microsoft door turns someone away. Each value is also the

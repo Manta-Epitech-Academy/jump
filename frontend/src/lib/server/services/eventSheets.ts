@@ -1,34 +1,37 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import type { ScopedPrismaClient } from '$lib/server/db/scoped';
-import type { EventRecord } from '$lib/server/services/stageContext';
+import { prisma } from '#lib/server/db.ts';
+import type { ScopedPrismaClient } from '#lib/server/db/scoped.ts';
+import type { EventRecord } from '#lib/server/services/stageContext.ts';
 import {
   resolvePublishedEventForm,
   type FeedbackFormGraph,
-} from '$lib/server/feedbackForms';
-import { resolveEventClosingIdentity } from '$lib/server/closingTemplates';
-import { answerCells, buildSubmissionWhere } from '$lib/server/feedbackStats';
-import { isSlotClosed } from '$lib/server/presence/slotClosure';
-import { loadInscritsCohort } from '$lib/server/services/inscritsCohort';
-import { loadClosingsRoster } from '$lib/server/services/closingsRoster';
-import type { XlsxSheet } from '$lib/server/xlsx';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+} from '#lib/server/feedbackForms.ts';
+import { resolveEventClosingIdentity } from '#lib/server/closingTemplates.ts';
+import {
+  answerCells,
+  buildSubmissionWhere,
+} from '#lib/server/feedbackStats.ts';
+import { isSlotClosed } from '#lib/server/presence/slotClosure.ts';
+import { loadInscritsCohort } from '#lib/server/services/inscritsCohort.ts';
+import { loadClosingsRoster } from '#lib/server/services/closingsRoster.ts';
+import type { XlsxSheet } from '#lib/server/xlsx.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
 import {
   EVENT_MODULES,
   eventHasModule,
   type EventModuleKey,
-} from '$lib/domain/eventModules';
-import { niveauLabel } from '$lib/domain/niveau';
-import { civiliteLabel } from '$lib/domain/profile';
-import { parcoursLabel } from '$lib/domain/visitHistory';
+} from '#lib/domain/eventModules.ts';
+import { niveauLabel } from '#lib/domain/niveau.ts';
+import { civiliteLabel } from '#lib/domain/profile.ts';
+import { parcoursLabel } from '#lib/domain/visitHistory.ts';
 import {
   INSCRIT_STATUS_LABELS,
   RULES_STATUS_LABELS,
-} from '$lib/domain/dossierCompliance';
+} from '#lib/domain/dossierCompliance.ts';
 import {
   imageRightsDisplayStatus,
   IMAGE_RIGHTS_DISPLAY_LABELS,
-} from '$lib/domain/imageRights';
+} from '#lib/domain/imageRights.ts';
 import {
   presenceSlots,
   slotLabelLong,
@@ -37,12 +40,12 @@ import {
   dbDateToKey,
   indexPresences,
   cellOf,
-} from '$lib/domain/eventPresence';
+} from '#lib/domain/eventPresence.ts';
 import {
   CLOSING_RECOMMENDATIONS,
   CLOSING_STATUS_LABELS,
-} from '$lib/domain/closing';
-import { closingVerdict, conductorLabel } from '$lib/domain/closingsRoster';
+} from '#lib/domain/closing.ts';
+import { closingVerdict, conductorLabel } from '#lib/domain/closingsRoster.ts';
 
 /**
  * The sheets of an event's export, one builder per section, gathered by the

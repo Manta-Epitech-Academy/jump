@@ -6,19 +6,19 @@
   import KeyRound from '@lucide/svelte/icons/key-round';
   import Plug from '@lucide/svelte/icons/plug';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import { Badge } from '$lib/components/ui/badge';
-  import { Checkbox } from '$lib/components/ui/checkbox';
-  import * as RadioGroup from '$lib/components/ui/radio-group';
-  import * as Collapsible from '$lib/components/ui/collapsible';
-  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
-  import AdminApiConnectSnippet from '$lib/components/admin/AdminApiConnectSnippet.svelte';
-  import { TOKEN_PLACEHOLDER } from '$lib/domain/adminApiConnect';
-  import CommandBlock from '$lib/components/admin/CommandBlock.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
+  import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
+  import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
+  import { InfoTooltip } from '#lib/components/ui/info-tooltip/index.ts';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import ConfirmDeleteDialog from '#lib/components/admin/ConfirmDeleteDialog.svelte';
+  import AdminApiConnectSnippet from '#lib/components/admin/AdminApiConnectSnippet.svelte';
+  import { TOKEN_PLACEHOLDER } from '#lib/domain/adminApiConnect.ts';
+  import CommandBlock from '#lib/components/admin/CommandBlock.svelte';
 
   let { data, form } = $props();
 
@@ -82,7 +82,7 @@
   // secret: nothing clears it in place, so there is no second copy to reason
   // about.
   const acknowledge = () =>
-    goto(resolve('/staff/admin/api-tokens'), { noScroll: true });
+    goto(resolve('staff/admin/api-tokens'), { reset: false });
 
   const dateLabel = (value: Date | string | null) =>
     value

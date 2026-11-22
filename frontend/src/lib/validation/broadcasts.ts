@@ -4,14 +4,14 @@ import {
   BROADCAST_CHANNELS,
   IMAGE_RIGHTS_FILTER_OPTIONS,
   JUMP_LEVELS,
-} from '$lib/domain/broadcasts';
+} from '#lib/domain/broadcasts.ts';
 import {
   SMS_BROADCAST_MAX_CHARS,
   SMS_MAX_SEGMENTS,
   estimateSmsLength,
   smsSegments,
-} from '$lib/domain/sms';
-import { NIVEAUX } from '$lib/domain/niveau';
+} from '#lib/domain/sms.ts';
+import { NIVEAUX } from '#lib/domain/niveau.ts';
 
 const tristate = z.enum(['yes', 'no', 'any']);
 

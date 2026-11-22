@@ -6,29 +6,29 @@ import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
-} from '$lib/server/db/scoped';
-import { prisma } from '$lib/server/db';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { requireStaffGroup } from '$lib/server/auth/guards';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { resolveClosingGridById } from '$lib/server/closingTemplates';
+} from '#lib/server/db/scoped.ts';
+import { prisma } from '#lib/server/db.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
+import { requireStaffGroup } from '#lib/server/auth/guards.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { resolveClosingGridById } from '#lib/server/closingTemplates.ts';
 import {
   gridQuestions,
   recordSynthesisSections,
   type StoredClosingQuestion,
-} from '$lib/domain/closing';
+} from '#lib/domain/closing.ts';
 import {
   closingAnswersIssues,
   closingConductSchema,
   type ClosingConductForm,
-} from '$lib/validation/closings';
+} from '#lib/validation/closings.ts';
 import {
   persistClosing,
   type ClosingMode,
-} from '$lib/server/services/closingService';
-import { loadClosingsRoster } from '$lib/server/services/closingsRoster';
-import { formatPersonName } from '$lib/domain/profile';
+} from '#lib/server/services/closingService.ts';
+import { loadClosingsRoster } from '#lib/server/services/closingsRoster.ts';
+import { formatPersonName } from '#lib/domain/profile.ts';
 
 /**
  * Conducting one closing, on its own page under its event.

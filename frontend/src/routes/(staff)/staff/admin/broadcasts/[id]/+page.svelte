@@ -3,10 +3,10 @@
   import { goto } from '$app/navigation';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
-  import { goToListPage } from '$lib/components/staff/datatable/urlList';
+  import { goToListPage } from '#lib/components/staff/datatable/urlList.ts';
   import { toast } from 'svelte-sonner';
-  import { Button } from '$lib/components/ui/button';
-  import * as Table from '$lib/components/ui/table';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import Users from '@lucide/svelte/icons/users';
@@ -14,13 +14,13 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import Eye from '@lucide/svelte/icons/eye';
   import Activity from '@lucide/svelte/icons/activity';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import KpiTile from '$lib/components/staff/KpiTile.svelte';
-  import BroadcastStatusBadge from '$lib/components/admin/broadcasts/BroadcastStatusBadge.svelte';
-  import ChannelBadge from '$lib/components/admin/broadcasts/ChannelBadge.svelte';
-  import RecipientStatusBadge from '$lib/components/admin/broadcasts/RecipientStatusBadge.svelte';
-  import { BROADCAST_AUDIENCE_LABELS } from '$lib/domain/broadcasts';
-  import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import KpiTile from '#lib/components/staff/KpiTile.svelte';
+  import BroadcastStatusBadge from '#lib/components/admin/broadcasts/BroadcastStatusBadge.svelte';
+  import ChannelBadge from '#lib/components/admin/broadcasts/ChannelBadge.svelte';
+  import RecipientStatusBadge from '#lib/components/admin/broadcasts/RecipientStatusBadge.svelte';
+  import { BROADCAST_AUDIENCE_LABELS } from '#lib/domain/broadcasts.ts';
+  import { renderBroadcastMail } from '#lib/domain/broadcastMarkdown.ts';
 
   let { data } = $props();
 
@@ -65,7 +65,7 @@
 {/snippet}
 
 <div class="space-y-5">
-  <Button variant="ghost" size="sm" href={resolve('/staff/admin/broadcasts')}>
+  <Button variant="ghost" size="sm" href={resolve('staff/admin/broadcasts')}>
     <ArrowLeft class="mr-1 h-4 w-4" /> Retour aux envois
   </Button>
 

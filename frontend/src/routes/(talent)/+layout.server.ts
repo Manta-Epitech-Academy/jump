@@ -1,6 +1,6 @@
 import type { LayoutServerLoad } from './$types';
-import { prisma } from '$lib/server/db';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { prisma } from '#lib/server/db.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   // Planning is data-driven (no campus flag): the talent has a calendar iff at

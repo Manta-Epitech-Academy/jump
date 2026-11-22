@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { triggerConfetti } from '$lib/actions/confetti';
-  import XpFloat from '$lib/components/talent/XpFloat.svelte';
-  import { workshopRewardToast } from '$lib/components/talent/rewardToast';
-  import type { WorkshopReward } from '$lib/server/services/workshopService';
+  import { triggerConfetti } from '#lib/actions/confetti.ts';
+  import XpFloat from '#lib/components/talent/XpFloat.svelte';
+  import { workshopRewardToast } from '#lib/components/talent/rewardToast.ts';
+  import type { WorkshopReward } from '#lib/server/services/workshopService.ts';
 
   // An activity is walked in a second tab, and often in the evening at home, so
   // nothing on the Jump side witnesses the moment XP are earned: the callback

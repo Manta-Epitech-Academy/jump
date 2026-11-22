@@ -13,14 +13,14 @@
 import type { RequestHandler } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
-import { establishOtpSession } from '$lib/server/auth/otpSession';
-import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
-import { ensureTalentUser } from '$lib/server/services/talentAccount';
-import { verifyFastloginToken } from '$lib/server/auth/fastloginToken';
+import { prisma } from '#lib/server/db.ts';
+import { establishOtpSession } from '#lib/server/auth/otpSession.ts';
+import { markRecipientOpened } from '#lib/server/services/broadcast/tracking.ts';
+import { ensureTalentUser } from '#lib/server/services/talentAccount.ts';
+import { verifyFastloginToken } from '#lib/server/auth/fastloginToken.ts';
 
 // No rate-limit on purpose; security model + known replay gap documented
-// in `$lib/server/auth/fastloginToken`.
+// in `#lib/server/auth/fastloginToken`.
 export const GET: RequestHandler = async ({ url, request, cookies }) => {
   const token = url.searchParams.get('token');
   if (!token) throw error(400, 'Missing token');
@@ -50,5 +50,5 @@ export const GET: RequestHandler = async ({ url, request, cookies }) => {
   await ensureTalentUser(user.talent.id);
 
   await establishOtpSession({ email, request, cookies });
-  throw redirect(303, resolve('/'));
+  throw redirect(303, resolve(''));
 };

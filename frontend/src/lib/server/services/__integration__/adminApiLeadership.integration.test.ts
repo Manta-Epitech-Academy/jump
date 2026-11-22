@@ -14,13 +14,13 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { schoolYearOf } from '$lib/domain/schoolYear';
+import { prisma } from '#lib/server/db.ts';
+import { schoolYearOf } from '#lib/domain/schoolYear.ts';
 import { assertTestDatabase } from './testDatabase';
-import { getCampusComparison } from '$lib/server/services/adminStats/campusComparison';
-import { getSchoolChurn } from '$lib/server/services/adminStats/schoolChurn';
-import { getSchoolYearReview } from '$lib/server/services/adminStats/schoolYearReview';
-import { getSchoolsReach } from '$lib/server/services/adminStats/schoolsReach';
+import { getCampusComparison } from '#lib/server/services/adminStats/campusComparison.ts';
+import { getSchoolChurn } from '#lib/server/services/adminStats/schoolChurn.ts';
+import { getSchoolYearReview } from '#lib/server/services/adminStats/schoolYearReview.ts';
+import { getSchoolsReach } from '#lib/server/services/adminStats/schoolsReach.ts';
 
 const stamp = Date.now();
 const TZ = 'Europe/Paris';

@@ -1,12 +1,13 @@
 import type { Cookies } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { auth } from '$lib/server/auth';
-import { forwardAuthCookies } from '$lib/server/auth/cookies';
+import { resolve } from '$app/paths';
+import { prisma } from '#lib/server/db.ts';
+import { auth } from '#lib/server/auth.ts';
+import { forwardAuthCookies } from '#lib/server/auth/cookies.ts';
 import {
   ensureTalentUser,
   TalentAccountError,
-} from '$lib/server/services/talentAccount';
-import { getStaffRoleRedirectPath } from '$lib/domain/staff';
+} from '#lib/server/services/talentAccount.ts';
+import { getStaffRoleRedirectPath } from '#lib/domain/staff.ts';
 
 export type ImpersonationTarget =
   // `id` is a Talent id: a seeded talent may have no login account yet, so it is
@@ -51,7 +52,7 @@ export async function startImpersonation(
       throw err;
     }
     // Impersonated talents land wherever the talent route guards funnel them.
-    redirect = '/';
+    redirect = resolve('');
   } else {
     userId = target.id;
     const profile = await prisma.staffProfile.findUnique({
@@ -60,7 +61,7 @@ export async function startImpersonation(
     });
     const path = getStaffRoleRedirectPath(profile?.staffRole);
     if (!path) return { ok: false, reason: 'failed' };
-    redirect = path;
+    redirect = resolve(path);
   }
 
   const res = await auth.api.impersonateUser({

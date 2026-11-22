@@ -22,8 +22,8 @@ import {
   shellOpen,
   shellClose,
   wrapEmailDocument,
-} from '$lib/domain/emailBrandShell';
-import { escapeHtml } from '$lib/domain/htmlEscape';
+} from '#lib/domain/emailBrandShell.ts';
+import { escapeHtml } from '#lib/domain/htmlEscape.ts';
 
 /** A run of copy: plain, emphasised, or a link to the page that acts on it. */
 export type Segment =

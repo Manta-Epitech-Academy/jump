@@ -6,7 +6,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
  * through call signatures.
  *
  * It carries the identity of the human driving the request, so the dev-redirect
- * trap (`$lib/server/{email,sms}/dev-redirect.ts`) can route a trapped copy to
+ * trap (`#lib/server/{email,sms}/dev-redirect.ts`) can route a trapped copy to
  * whoever *caused* a send instead of the shared `*_DEV_RECIPIENTS` list: on a
  * shared dev/staging env each tester then only receives their own traffic.
  * Sends with no request actor (cron, worker, logged-out OTP) find no store and

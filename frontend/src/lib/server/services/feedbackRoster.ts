@@ -1,9 +1,9 @@
-import type { ScopedPrismaClient } from '$lib/server/db/scoped';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import type { ScopedPrismaClient } from '#lib/server/db/scoped.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
 import {
   loadCohortSubmissions,
   type RecoQuestion,
-} from '$lib/server/feedbackStats';
+} from '#lib/server/feedbackStats.ts';
 
 /** One enrolment the dev space shows, with its feedback answer if any. */
 export type FeedbackRosterRow = {

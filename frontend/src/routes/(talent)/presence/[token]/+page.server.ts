@@ -1,12 +1,12 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { writePresenceCell } from '$lib/server/services/presenceService';
-import { verifyCheckinToken } from '$lib/server/presence/checkinToken';
-import { isSlotClosed } from '$lib/server/presence/slotClosure';
-import { eventDisplayName } from '$lib/domain/event';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { prisma } from '#lib/server/db.ts';
+import { writePresenceCell } from '#lib/server/services/presenceService.ts';
+import { verifyCheckinToken } from '#lib/server/presence/checkinToken.ts';
+import { isSlotClosed } from '#lib/server/presence/slotClosure.ts';
+import { eventDisplayName } from '#lib/domain/event.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
 import {
   dateKeyToDbDate,
   dayLabelFr,
@@ -14,7 +14,7 @@ import {
   slotLabelFr,
   type CellStatus,
   type PresenceSlot,
-} from '$lib/domain/eventPresence';
+} from '#lib/domain/eventPresence.ts';
 
 type CheckinState =
   'present' | 'already' | 'closed' | 'not_registered' | 'invalid';

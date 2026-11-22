@@ -2,16 +2,16 @@
   import type { SuperValidated } from 'sveltekit-superforms';
   import { superForm } from 'sveltekit-superforms';
   import { toast } from 'svelte-sonner';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import PhoneInput from '$lib/components/ui/phone-input/PhoneInput.svelte';
-  import { Label } from '$lib/components/ui/label';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import PhoneInput from '#lib/components/ui/phone-input/PhoneInput.svelte';
+  import { Label } from '#lib/components/ui/label/index.ts';
   import Send from '@lucide/svelte/icons/send';
-  import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
+  import SegmentedFilter from '#lib/components/staff/SegmentedFilter.svelte';
   import MessageBodyEditor from './MessageBodyEditor.svelte';
   import MessagePreview from './MessagePreview.svelte';
-  import { BROADCAST_CHANNEL_LABELS } from '$lib/domain/broadcasts';
-  import type { MessageTemplateForm } from '$lib/validation/broadcasts';
+  import { BROADCAST_CHANNEL_LABELS } from '#lib/domain/broadcasts.ts';
+  import type { MessageTemplateForm } from '#lib/validation/broadcasts.ts';
 
   type Props = {
     data: SuperValidated<MessageTemplateForm>;

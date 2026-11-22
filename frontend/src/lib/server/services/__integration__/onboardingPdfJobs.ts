@@ -1,4 +1,4 @@
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 
 /**
  * Waits until a talent's onboarding PDF queue is empty, running what it can.

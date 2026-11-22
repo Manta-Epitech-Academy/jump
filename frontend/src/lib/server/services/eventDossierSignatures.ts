@@ -1,6 +1,6 @@
-import type { ScopedPrismaClient } from '$lib/server/db/scoped';
-import type { ImageRightsDecision } from '$lib/domain/imageRights';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import type { ScopedPrismaClient } from '#lib/server/db/scoped.ts';
+import type { ImageRightsDecision } from '#lib/domain/imageRights.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
 
 /**
  * The dossier state the inscrits table shows for one talent: the two règlement

@@ -4,18 +4,18 @@ import type {
   Prisma,
   StaffRole,
 } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import type {
   BroadcastFilters,
   ExcludedRecipient,
   RecipientExclusionReason,
   RecipientRole,
-} from '$lib/domain/broadcasts';
-import { levelXpFilter } from '$lib/domain/xp';
+} from '#lib/domain/broadcasts.ts';
+import { levelXpFilter } from '#lib/domain/xp.ts';
 import {
   parentBlockedWhere,
   parentCompleteWhere,
-} from '$lib/server/db/dossierCompliance';
+} from '#lib/server/db/dossierCompliance.ts';
 
 export interface RecipientSpec {
   campusId: string;

@@ -1,18 +1,18 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getCampusId } from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { renderCertificatePreviewPng } from '$lib/server/services/diplomaGenerator';
+import { getCampusId } from '#lib/server/db/scoped.ts';
+import { requireStaffGroup } from '#lib/server/auth/guards.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
+import { renderCertificatePreviewPng } from '#lib/server/services/diplomaGenerator.ts';
 import {
   loadEventCertificateContext,
   resolveEventDiplomaDesign,
-} from '$lib/server/diplomaTemplates';
+} from '#lib/server/diplomaTemplates.ts';
 import {
   PREVIEW_RECIPIENT,
   previewPngResponse,
-} from '$lib/server/documentPreview';
+} from '#lib/server/documentPreview.ts';
 
 // The certificate the event home previews before generating them: this event's
 // own design, city, dates and signatories, through the very render

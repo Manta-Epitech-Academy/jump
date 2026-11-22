@@ -3,23 +3,23 @@
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
+  } from '#lib/components/staff/datatable/search.ts';
   import {
     RECIPIENT_ROLE_LABELS,
     RECIPIENT_EXCLUSION_REASON_LABELS,
     type IncludedRecipient,
     type ExcludedRecipient,
-  } from '$lib/domain/broadcasts';
-  import { buttonVariants } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { ScrollArea } from '$lib/components/ui/scroll-area';
-  import * as Collapsible from '$lib/components/ui/collapsible';
+  } from '#lib/domain/broadcasts.ts';
+  import { buttonVariants } from '#lib/components/ui/button/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { ScrollArea } from '#lib/components/ui/scroll-area/index.ts';
+  import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
   import Users from '@lucide/svelte/icons/users';
   import Search from '@lucide/svelte/icons/search';
   import Download from '@lucide/svelte/icons/download';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import { cn } from '$lib/utils';
-  import { formatPhoneForDisplay } from '$lib/domain/phone';
+  import { cn } from '#lib/utils.ts';
+  import { formatPhoneForDisplay } from '#lib/domain/phone.ts';
 
   type Props = {
     total: number;

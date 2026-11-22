@@ -31,8 +31,8 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 // Inlined from `src/lib/domain/xp.ts` so the script can run inside the
-// production image, which only ships the built app (no raw `src/`, and the
-// `$lib` alias resolves only under Vite). Keep in sync by inspection with the
+// production image, which only ships the built app (no raw `src/`). Keep in
+// sync by inspection with the
 // upstream definition: the value below is deploy-critical (a drift here
 // silently rebuilds wrong balances).
 

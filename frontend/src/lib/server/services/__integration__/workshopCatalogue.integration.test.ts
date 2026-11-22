@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { WorkshopCatalogueService } from '$lib/server/services/workshopCatalogue';
-import { stillKeyOf } from '$lib/domain/pictures';
-import { workshopCoverKey, workshopCoverUrl } from '$lib/domain/workshops';
-import type { CatalogueGap } from '$lib/domain/workshopCatalogue';
+import { prisma } from '#lib/server/db.ts';
+import { WorkshopCatalogueService } from '#lib/server/services/workshopCatalogue.ts';
+import { stillKeyOf } from '#lib/domain/pictures.ts';
+import { workshopCoverKey, workshopCoverUrl } from '#lib/domain/workshops.ts';
+import type { CatalogueGap } from '#lib/domain/workshopCatalogue.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

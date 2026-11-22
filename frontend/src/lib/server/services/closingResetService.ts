@@ -1,4 +1,4 @@
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { recomputeAttendance } from './attendance';
 
 /**

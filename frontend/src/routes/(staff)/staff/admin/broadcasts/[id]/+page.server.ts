@@ -1,9 +1,9 @@
 import type { Actions, PageServerLoad } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { processBroadcast } from '$lib/server/services/broadcast/orchestrator';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { prisma } from '#lib/server/db.ts';
+import { processBroadcast } from '#lib/server/services/broadcast/orchestrator.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 const RECIPIENTS_PAGE_SIZE = 100;
 

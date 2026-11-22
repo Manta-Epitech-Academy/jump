@@ -51,7 +51,8 @@ export function getStaffRoleLabel(role: string | null | undefined): string {
   return STAFF_ROLES.find((r) => r.value === role)?.label ?? 'Aucun rôle';
 }
 
-export type StaffSpacePath = '/staff/admin' | '/staff/dev';
+/** A staff space's address, as `resolve()` from `$app/paths` takes it. */
+export type StaffSpacePath = 'staff/admin' | 'staff/dev';
 
 /**
  * Which staff space a role works in, `null` for a profile carrying no role at
@@ -82,9 +83,9 @@ export function getStaffRoleRedirectPath(
 ): StaffSpacePath | null {
   const space = staffSpaceForRole(staffRole);
   return space === 'admin'
-    ? '/staff/admin'
+    ? 'staff/admin'
     : space === 'dev'
-      ? '/staff/dev'
+      ? 'staff/dev'
       : null;
 }
 
@@ -125,7 +126,7 @@ export function bauthRoleForStaffRole(
  * Derived from `bauthRoleForStaffRole` over every `StaffRole` rather than
  * written out, so it is exactly what that mapping can produce and cannot come
  * to disagree with it. The OTP audience resolver
- * (`$lib/server/auth/otpAudience`) refuses on this in addition to the presence
+ * (`#lib/server/auth/otpAudience`) refuses on this in addition to the presence
  * of a `StaffProfile`: the profile is the truth about what someone can do in
  * the app, but this column is what BetterAuth's admin plugin gates
  * impersonation on, so a row carrying it is staff-capable even with no profile

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import ParentFlowShell from '$lib/components/parent/ParentFlowShell.svelte';
+  import ParentFlowShell from '#lib/components/parent/ParentFlowShell.svelte';
   import CheckCircle from '@lucide/svelte/icons/check-circle';
 
   let { data } = $props();

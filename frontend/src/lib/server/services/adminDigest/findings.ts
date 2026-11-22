@@ -24,26 +24,26 @@
 import type {
   EventsConfigList,
   EventsConfigSince,
-} from '$lib/server/services/adminStats/eventsList';
+} from '#lib/server/services/adminStats/eventsList.ts';
 import type {
   SyncHealth,
   SyncHealthSince,
-} from '$lib/server/services/adminStats/syncHealth';
-import type { getDataFreshness } from '$lib/server/services/adminStats/dataFreshness';
+} from '#lib/server/services/adminStats/syncHealth.ts';
+import type { getDataFreshness } from '#lib/server/services/adminStats/dataFreshness.ts';
 import type {
   DeletionQueue,
   DeletionQueueSince,
   PdfJobsHealth,
   PdfJobsSince,
-} from '$lib/server/services/adminStats/opsQueues';
-import type { getFeatureAdoptionGaps } from '$lib/server/services/adminStats/featureUsage';
-import type { EmargementCoverage } from '$lib/server/services/adminStats/emargementCoverage';
+} from '#lib/server/services/adminStats/opsQueues.ts';
+import type { getFeatureAdoptionGaps } from '#lib/server/services/adminStats/featureUsage.ts';
+import type { EmargementCoverage } from '#lib/server/services/adminStats/emargementCoverage.ts';
 import {
   EVENT_MISSING_LABELS,
   IMMINENT_WITHIN_DAYS,
   SOON_WITHIN_DAYS,
   type PreparationHorizon,
-} from '$lib/domain/eventReadiness';
+} from '#lib/domain/eventReadiness.ts';
 import type { DigestBlock, DigestDocument, Segment } from './render';
 
 /** How many events to list per band before deferring to the cockpit. */

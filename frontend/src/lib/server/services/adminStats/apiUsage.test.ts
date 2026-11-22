@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const callFindMany = vi.fn();
 const tokenFindMany = vi.fn();
 
-vi.mock('$lib/server/db', () => ({
+vi.mock('#lib/server/db.ts', () => ({
   prisma: {
     adminApi_Call: { findMany: () => callFindMany() },
     adminApi_Token: { findMany: () => tokenFindMany() },

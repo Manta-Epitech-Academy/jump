@@ -15,7 +15,7 @@
  * startup error rather than a surprise in production.
  */
 
-import { json, type RequestEvent, type RequestHandler } from '@sveltejs/kit';
+import { type RequestEvent, type RequestHandler } from '@sveltejs/kit';
 import { z } from 'zod';
 import { authenticateOrRefuse } from './guard';
 import { recordAdminApiCall } from './audit';
@@ -61,7 +61,7 @@ function handlerFor(
   operation: AdminApiOperation,
   readParams: (event: RequestEvent) => Promise<unknown>,
   /** How a served answer is encoded. Refusals are always JSON. */
-  encode: (data: unknown) => Response = json,
+  encode: (data: unknown) => Response = (data) => Response.json(data),
 ): RequestHandler {
   return async (event) => {
     const credential = await authenticateOrRefuse(event, name);
@@ -79,7 +79,7 @@ function handlerFor(
         operation: name,
         status: 400,
       });
-      return json(
+      return Response.json(
         {
           error: 'Paramètres invalides.',
           details: z.treeifyError(parsed.error),
@@ -97,7 +97,7 @@ function handlerFor(
     });
     return outcome.ok
       ? encode(outcome.data)
-      : json({ error: outcome.message }, { status: outcome.status });
+      : Response.json({ error: outcome.message }, { status: outcome.status });
   };
 }
 
@@ -180,7 +180,7 @@ export function adminApiImage(name: AdminApiOperationName): RequestHandler {
       if (!image) {
         // The operation stopped carrying an image: a caller expecting a picture
         // must not receive a JSON body typed as one.
-        return json(
+        return Response.json(
           { error: `L'opération ${name} n'a pas renvoyé d'image.` },
           { status: 500 },
         );

@@ -17,13 +17,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
-import { mintToken } from '$lib/server/adminApi/tokens';
-import { authenticateAdminApi } from '$lib/server/adminApi/guard';
-import { buildAdminMcpServer } from '$lib/server/adminApi/mcpServer';
-import { ANONYMOUS_ACTOR } from '$lib/server/adminApi/audit';
+import { mintToken } from '#lib/server/adminApi/tokens.ts';
+import { authenticateAdminApi } from '#lib/server/adminApi/guard.ts';
+import { buildAdminMcpServer } from '#lib/server/adminApi/mcpServer.ts';
+import { ANONYMOUS_ACTOR } from '#lib/server/adminApi/audit.ts';
 import { POST as mcpEndpoint } from '../../../../routes/api/mcp/+server';
 
 /** A client already connected to a server built for this token. */

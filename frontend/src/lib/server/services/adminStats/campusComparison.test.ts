@@ -5,22 +5,22 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { AdminEventVM } from '$lib/server/services/events';
+import type { AdminEventVM } from '#lib/server/services/events.ts';
 
 const listAdminEvents = vi.fn();
 // Only the query is stubbed; the rest of the module stays real. The rule under
 // the coverage denominator is read from there, so replacing the module wholesale
 // would leave the closing tests below agreeing with a stub instead of with the
 // gate.
-vi.mock('$lib/server/services/events', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$lib/server/services/events')>()),
+vi.mock('#lib/server/services/events.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#lib/server/services/events.ts')>()),
   EventService: { listAdminEvents: () => listAdminEvents() },
 }));
 
 const participationFindMany = vi.fn();
 const talentFindMany = vi.fn();
 const closingFindMany = vi.fn();
-vi.mock('$lib/server/db', () => ({
+vi.mock('#lib/server/db.ts', () => ({
   prisma: {
     participation: { findMany: (args: unknown) => participationFindMany(args) },
     talent: { findMany: (args: unknown) => talentFindMany(args) },

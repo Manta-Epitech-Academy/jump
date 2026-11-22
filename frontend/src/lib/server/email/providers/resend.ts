@@ -10,12 +10,12 @@
  */
 
 import { Resend, type CreateEmailOptions } from 'resend';
-import { env } from '$env/dynamic/private';
+import { RESEND_API_KEY } from '$app/env/private';
 import type { MailMessage, MailProvider, SendEmailResult } from '../types';
 
 let client: Resend | null = null;
 function getClient(): Resend {
-  if (!client) client = new Resend(env.RESEND_API_KEY);
+  if (!client) client = new Resend(RESEND_API_KEY);
   return client;
 }
 

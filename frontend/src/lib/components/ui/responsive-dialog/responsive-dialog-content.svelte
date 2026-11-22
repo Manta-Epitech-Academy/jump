@@ -1,8 +1,8 @@
 <script lang="ts">
-  import * as Dialog from '$lib/components/ui/dialog';
-  import * as Drawer from '$lib/components/ui/drawer';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import * as Drawer from '#lib/components/ui/drawer/index.ts';
   import type { Snippet } from 'svelte';
-  import { cn } from '$lib/utils.js';
+  import { cn } from '#lib/utils.ts';
   import { useResponsiveDialog } from './context.js';
 
   let {

@@ -1,8 +1,8 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
-import { parentBlockedWhere } from '$lib/server/db/dossierCompliance';
+import { prisma } from '#lib/server/db.ts';
+import { parentBlockedWhere } from '#lib/server/db/dossierCompliance.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   });
 
   if (!child) {
-    throw redirect(303, resolve('/parent/merci'));
+    throw redirect(303, resolve('parent/merci'));
   }
 
   return { childPrenom: child.prenom };

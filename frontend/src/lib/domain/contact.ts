@@ -6,7 +6,7 @@
  * talents list, the dev student dossier and the émargement roster: each caller
  * maps its own row onto this. It lives in `domain/` rather than beside the
  * component because the mapping below runs server-side, and server code does not
- * import from `$lib/components`.
+ * import from `#lib/components`.
  */
 export type ContactPerson = {
   civilite?: string | null;

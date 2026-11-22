@@ -1,63 +1,63 @@
 <script lang="ts">
-  import { noMatchLine } from '$lib/domain/devVoice';
+  import { noMatchLine } from '#lib/domain/devVoice.ts';
   import { page } from '$app/state';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
   import Circle from '@lucide/svelte/icons/circle';
-  import * as Table from '$lib/components/ui/table';
-  import { cn } from '$lib/utils';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import ResultsLayout from '$lib/components/staff/ResultsLayout.svelte';
-  import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
-  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import type { ColumnDef } from '$lib/components/staff/datatable/types';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import { cn } from '#lib/utils.ts';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
+  import ResultsLayout from '#lib/components/staff/ResultsLayout.svelte';
+  import EmptyCohortNotice from '#lib/components/dev/EmptyCohortNotice.svelte';
+  import DataTableToolbar from '#lib/components/staff/datatable/DataTableToolbar.svelte';
+  import type { ColumnDef } from '#lib/components/staff/datatable/types.ts';
   import {
     clearListFilters,
     setListParams,
-  } from '$lib/components/staff/datatable/urlList';
-  import { facetControls } from '$lib/components/staff/datatable/facetControls';
-  import type { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
-  import ClosingVerdictChip from '$lib/components/dev/closings/ClosingVerdictChip.svelte';
-  import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
+  } from '#lib/components/staff/datatable/urlList.ts';
+  import { facetControls } from '#lib/components/staff/datatable/facetControls.ts';
+  import type { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
+  import ActiveFilterChips from '#lib/components/staff/ActiveFilterChips.svelte';
+  import ClosingVerdictChip from '#lib/components/dev/closings/ClosingVerdictChip.svelte';
+  import TalentAvatar from '#lib/components/students/TalentAvatar.svelte';
   import { resolve } from '$app/paths';
-  import * as Avatar from '$lib/components/ui/avatar';
-  import { getInitials } from '$lib/avatar';
-  import { formatGivenName } from '$lib/domain/profile';
+  import * as Avatar from '#lib/components/ui/avatar/index.ts';
+  import { getInitials } from '#lib/avatar.ts';
+  import { formatGivenName } from '#lib/domain/profile.ts';
   import {
     CLOSING_STATUS_LABELS,
     type ClosingListStatus,
-  } from '$lib/domain/closing';
+  } from '#lib/domain/closing.ts';
   import {
     CLOSINGS_SORT_DEFAULT_DIR,
     type ClosingsFacet,
     type ClosingsSortKey,
     CLOSINGS_VIEW,
-  } from '$lib/domain/closingsView';
+  } from '#lib/domain/closingsView.ts';
   import {
     NOT_CONDUCTED_LABEL,
     closingVerdict,
     closingsFacets,
     conductorLabel,
     matchesClosingsFacets,
-  } from '$lib/domain/closingsRoster';
+  } from '#lib/domain/closingsRoster.ts';
   import type { ClosingRow, ClosingsCohort } from './types';
   import SynthesisCard from './SynthesisCard.svelte';
   import StaffTallyCard from './StaffTallyCard.svelte';
-  import GuideCard from '$lib/components/dev/closings/GuideCard.svelte';
+  import GuideCard from '#lib/components/dev/closings/GuideCard.svelte';
   import {
     statusBadgeClass,
     type StatusTone,
-  } from '$lib/components/staff/statusBadge';
+  } from '#lib/components/staff/statusBadge.ts';
   import {
     buildHaystack,
     matchesAllTokens,
     searchTokens,
-  } from '$lib/components/staff/datatable/search';
+  } from '#lib/components/staff/datatable/search.ts';
   import {
     nextSort,
     rowComparator,
-  } from '$lib/components/staff/datatable/sort';
+  } from '#lib/components/staff/datatable/sort.ts';
 
   // The streamed cohort payload plus the two cheap shell values the table/rail
   // need (timezone for date formatting, currentStaffId to highlight the leader-
@@ -95,7 +95,7 @@
     in_progress: 'warning',
     done: 'success',
   };
-  // Filters, sort and search live in the address (`$lib/domain/closingsView`),
+  // Filters, sort and search live in the address (`#lib/domain/closingsView`),
   // so the event home's cards can open this list already filtered.
   const view = $derived(CLOSINGS_VIEW.parse(page.url.searchParams));
 
@@ -209,7 +209,7 @@
   // to conducting one, so the dev lands on the questions rather than on the
   // dossier with a toggle left to find.
   const conductHref = (r: ClosingRow) =>
-    resolve(`/staff/dev/events/${eventId}/closings/${r.talentId}`);
+    resolve(`staff/dev/events/${eventId}/closings/${r.talentId}`);
 </script>
 
 {#snippet statusBadge(status: ClosingListStatus, full: boolean)}

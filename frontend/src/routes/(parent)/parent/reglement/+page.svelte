@@ -1,10 +1,10 @@
 <script lang="ts">
   import BookOpen from '@lucide/svelte/icons/book-open';
   import CheckCircle from '@lucide/svelte/icons/check-circle';
-  import { renderMarkdown } from '$lib/markdown';
-  import { reglementTextFor } from '$lib/content/reglement';
-  import { enter } from '$lib/motion';
-  import ParentFlowShell from '$lib/components/parent/ParentFlowShell.svelte';
+  import { renderMarkdown } from '#lib/markdown.ts';
+  import { reglementTextFor } from '#lib/content/reglement/index.ts';
+  import { enter } from '#lib/motion/index.ts';
+  import ParentFlowShell from '#lib/components/parent/ParentFlowShell.svelte';
   import ChildRulesForm from './ChildRulesForm.svelte';
 
   let { data, form } = $props();

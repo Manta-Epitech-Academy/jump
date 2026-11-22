@@ -3,7 +3,10 @@
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import ChartColumn from '@lucide/svelte/icons/chart-column';
   import MessagesSquare from '@lucide/svelte/icons/messages-square';
-  import { EVENT_MODULES, type EventModuleKey } from '$lib/domain/eventModules';
+  import {
+    EVENT_MODULES,
+    type EventModuleKey,
+  } from '#lib/domain/eventModules.ts';
 
   // One recognizable glyph per module, shared by the admin list cell and the
   // config dialog so a module reads the same wherever it appears.

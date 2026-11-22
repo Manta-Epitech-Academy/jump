@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { dateKeyToDbDate, toDateKey } from '$lib/domain/eventPresence';
-import { closePresenceSlot } from '$lib/server/services/presenceService';
+import { prisma } from '#lib/server/db.ts';
+import { dateKeyToDbDate, toDateKey } from '#lib/domain/eventPresence.ts';
+import { closePresenceSlot } from '#lib/server/services/presenceService.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

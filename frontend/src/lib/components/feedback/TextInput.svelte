@@ -1,6 +1,9 @@
 <script lang="ts">
-  import type { Question, AnswerValue } from '$lib/domain/feedbackForms/schema';
-  import { cn } from '$lib/utils';
+  import type {
+    Question,
+    AnswerValue,
+  } from '#lib/domain/feedbackForms/schema.ts';
+  import { cn } from '#lib/utils.ts';
   import Send from '@lucide/svelte/icons/send';
 
   interface Props {

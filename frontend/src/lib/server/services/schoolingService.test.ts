@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { upsertSchoolingYearRecord } from './schoolingService';
 import type { Prisma } from '@prisma/client';
-import { schoolYearOf } from '$lib/domain/schoolYear';
+import { schoolYearOf } from '#lib/domain/schoolYear.ts';
 
 describe('schoolingService', () => {
   it('upsertSchoolingYearRecord upserts the record and refreshes the Talent projection for the current school year', async () => {

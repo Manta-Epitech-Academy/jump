@@ -132,7 +132,7 @@ describe('validateAge', () => {
 ```typescript
 // src/lib/server/services/__integration__/student.integration.test.ts
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { studentService } from '../studentService';
 
@@ -544,14 +544,14 @@ Deux détails qui trompent, et que le script gère à votre place :
 
 ### Fichiers de configuration
 
-| Fichier                         | Rôle                                                                                                                                                                                                                                         |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vitest.config.ts`              | Deux projets : **unit** (les `*.test.ts` de `src/`, sans base) et **integration** (les `__integration__/*.integration.test.ts`, un fichier à la fois). Fixe aussi `KIT_OUTDIR` pour ne pas écrire dans le `.svelte-kit/` d'un serveur vivant |
-| `playwright.config.ts`          | Le projet `setup` (graine + sessions) et le projet `chromium` qui en dépend. Le `webServer` **build et lève le serveur de prod**, avec la même commande en local et en CI, et ne réutilise jamais un serveur qu'il n'a pas démarré           |
-| `scripts/with-test-db.sh`       | Le provisionnement, et tout ce qui doit différer d'un worktree à l'autre : conteneur, base, port + `ORIGIN`, migrations. Trois consommateurs (`test:integration`, `test:e2e`, la CI)                                                         |
-| `scripts/check-schema-drift.sh` | Compare `schema.prisma` à la base que `migrate deploy` vient de construire                                                                                                                                                                   |
-| `docker-compose.test.yml`       | Le Postgres jetable du port `5434`. Ne rien y créer à la main : le script s'en charge                                                                                                                                                        |
-| `.env.test.defaults`            | Versionné, et chargé tel quel par le wrapper : l'environnement des suites (secrets jetables). Rien à copier. Pas de `DATABASE_URL`, `PORT` ni `ORIGIN`, voir plus haut. `.env.test` (gitignoré) ne sert qu'à surcharger une clé en local     |
+| Fichier                         | Rôle                                                                                                                                                                                                                                                                                     |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vitest.config.ts`              | Deux projets : **unit** (les `*.test.ts` de `src/`, sans base) et **integration** (les `__integration__/*.integration.test.ts`, un fichier à la fois), sur la config de `vite.config.ts`, qui lui donne son propre `.svelte-kit-test/` pour ne pas écrire dans celui d'un serveur vivant |
+| `playwright.config.ts`          | Le projet `setup` (graine + sessions) et le projet `chromium` qui en dépend. Le `webServer` **build et lève le serveur de prod**, avec la même commande en local et en CI, et ne réutilise jamais un serveur qu'il n'a pas démarré                                                       |
+| `scripts/with-test-db.sh`       | Le provisionnement, et tout ce qui doit différer d'un worktree à l'autre : conteneur, base, port + `ORIGIN`, migrations. Trois consommateurs (`test:integration`, `test:e2e`, la CI)                                                                                                     |
+| `scripts/check-schema-drift.sh` | Compare `schema.prisma` à la base que `migrate deploy` vient de construire                                                                                                                                                                                                               |
+| `docker-compose.test.yml`       | Le Postgres jetable du port `5434`. Ne rien y créer à la main : le script s'en charge                                                                                                                                                                                                    |
+| `.env.test.defaults`            | Versionné, et chargé tel quel par le wrapper : l'environnement des suites (secrets jetables). Rien à copier. Pas de `DATABASE_URL`, `PORT` ni `ORIGIN`, voir plus haut. `.env.test` (gitignoré) ne sert qu'à surcharger une clé en local                                                 |
 
 ---
 

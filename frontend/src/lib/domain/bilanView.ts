@@ -1,8 +1,8 @@
-import { defineListView, type SortedListView } from '$lib/domain/listView';
+import { defineListView, type SortedListView } from '#lib/domain/listView.ts';
 
 /**
  * The Feedback page's view, carried in its address, in the format every staff
- * list shares (`$lib/domain/listView`): a reload, a shared link, the
+ * list shares (`#lib/domain/listView`): a reload, a shared link, the
  * browser's Back button and the event home's recommendation card all land on
  * the same list. Search lives in `?q`, through `createUrlSearch`.
  *

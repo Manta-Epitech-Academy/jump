@@ -1,5 +1,5 @@
-import { prisma } from '$lib/server/db';
-import { IMPERSONATION_IDLE_WINDOW_SEC } from '$lib/domain/impersonation';
+import { prisma } from '#lib/server/db.ts';
+import { IMPERSONATION_IDLE_WINDOW_SEC } from '#lib/domain/impersonation.ts';
 
 // BetterAuth creates an impersonation session with a *fixed* `expiresAt`
 // (now + the window). Its normal sliding refresh never reliably fires inside so

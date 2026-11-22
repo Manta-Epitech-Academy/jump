@@ -1,13 +1,13 @@
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { buildXlsx } from '$lib/server/xlsx';
-import { niveauLabel } from '$lib/domain/niveau';
-import { civiliteLabel } from '$lib/domain/profile';
+import { prisma } from '#lib/server/db.ts';
+import { buildXlsx } from '#lib/server/xlsx.ts';
+import { niveauLabel } from '#lib/domain/niveau.ts';
+import { civiliteLabel } from '#lib/domain/profile.ts';
 import {
   imageRightsStatus,
   IMAGE_RIGHTS_STATUS_LABELS,
-} from '$lib/domain/imageRights';
+} from '#lib/domain/imageRights.ts';
 import {
   buildTalentWhere,
   buildOrderBy,
@@ -16,8 +16,8 @@ import {
 } from '../query';
 import { resolveTalentFilters } from '../facets';
 import { TALENT_STATUS_LABELS, PARENT_STATUS_LABELS } from '../labels';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 /**
  * Filtered-directory XLSX export. The admin talents list is server paginated

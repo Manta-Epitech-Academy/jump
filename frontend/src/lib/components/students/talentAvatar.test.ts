@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contrastRatio } from '$lib/design/color';
+import { contrastRatio } from '#lib/design/color.ts';
 import { AVATAR_GROUNDS, talentGround } from './talentAvatar';
 
 describe('talent avatar grounds', () => {

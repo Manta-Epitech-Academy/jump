@@ -27,7 +27,7 @@
  * browser still has the admin UI.
  */
 
-import { json, type RequestEvent } from '@sveltejs/kit';
+import { type RequestEvent } from '@sveltejs/kit';
 import { verifyToken } from './tokens';
 import {
   ANONYMOUS_ACTOR,
@@ -86,7 +86,7 @@ export async function authenticateOrRefuse(
     operation,
     status: auth.status,
   });
-  return json({ error: auth.message }, { status: auth.status });
+  return Response.json({ error: auth.message }, { status: auth.status });
 }
 
 /**

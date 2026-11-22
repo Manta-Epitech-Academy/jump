@@ -15,35 +15,35 @@
   import {
     clearListFilters,
     setListParams,
-  } from '$lib/components/staff/datatable/urlList';
-  import type { ActiveFilterChip } from '$lib/components/staff/datatable/types';
-  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
+  } from '#lib/components/staff/datatable/urlList.ts';
+  import type { ActiveFilterChip } from '#lib/components/staff/datatable/types.ts';
+  import ActiveFilterChips from '#lib/components/staff/ActiveFilterChips.svelte';
   import { CLOSING_VERDICT_FILTER } from './view';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import { Badge } from '$lib/components/ui/badge';
-  import { Button } from '$lib/components/ui/button';
-  import * as Card from '$lib/components/ui/card';
-  import { Input } from '$lib/components/ui/input';
-  import * as Table from '$lib/components/ui/table';
-  import KpiTile, { type KpiTone } from '$lib/components/staff/KpiTile.svelte';
+  import { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Card from '#lib/components/ui/card/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import KpiTile, { type KpiTone } from '#lib/components/staff/KpiTile.svelte';
   import type { LucideIcon } from '@lucide/svelte';
   import {
     CLOSING_RECOMMENDATIONS,
     CLOSING_RECOMMENDATION_DISPLAY_ORDER,
     type RecommendationToneToken,
     type RecommendationIconToken,
-  } from '$lib/domain/closing';
+  } from '#lib/domain/closing.ts';
   import type { ClosingRecommendation } from '@prisma/client';
-  import { cn, formatDateTimeFr } from '$lib/utils';
+  import { cn, formatDateTimeFr } from '#lib/utils.ts';
   import { toast } from 'svelte-sonner';
-  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
-  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import { createStreamedCohort } from '#lib/components/staff/streamedCohort.svelte.ts';
+  import ResultsSkeleton from '#lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
   import ExportMenu from './components/ExportMenu.svelte';
   import ResetClosingDialog from './components/ResetClosingDialog.svelte';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import CodeTag from '$lib/components/layout/CodeTag.svelte';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import CodeTag from '#lib/components/layout/CodeTag.svelte';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -275,9 +275,7 @@
                 </Table.Cell>
                 <Table.Cell class="text-right">
                   <a
-                    href={resolve(
-                      `/staff/admin/closing-pdfs/${closing.id}/pdf`,
-                    )}
+                    href={resolve(`staff/admin/closing-pdfs/${closing.id}/pdf`)}
                     target="_blank"
                     rel="noopener"
                     class="inline-flex items-center gap-1.5 text-xs text-epi-blue hover:underline"

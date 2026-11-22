@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { reachRulesStep } from './onboardingLadder';
 import {
@@ -8,8 +8,8 @@ import {
   validateTalentInterests,
 } from '../onboardingService';
 import { getOnboardingFunnel } from '../adminStats/onboardingFunnel';
-import { resolveScope, UnknownScopeError } from '$lib/server/adminApi/scope';
-import { WELCOME_XP_BONUS } from '$lib/domain/xp';
+import { resolveScope, UnknownScopeError } from '#lib/server/adminApi/scope.ts';
+import { WELCOME_XP_BONUS } from '#lib/domain/xp.ts';
 import { patchCurrentOnboardingRecord } from '../onboardingYearService';
 
 /**

@@ -40,8 +40,8 @@ Inside a workspace, role-based gating goes through **one table** of named role g
 | `devMember`      | `superdev`, `dev` | Dev workspace daily ops (participants, closings, update) |
 | `realSendArmers` | `admin`           | Arming real outbound sends / login-redirect pin          |
 
-- **Client:** `const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole))`, then apply one of the UI patterns below. Import: `$lib/domain/permissions`.
-- **Server:** `requireStaffGroup(locals, 'devMember')`. Import: `$lib/server/auth/guards`. Call it in every mutating action, or at the top of a `load` to gate a whole route.
+- **Client:** `const canEdit = $derived(can('devMember', page.data.staffProfile?.staffRole))`, then apply one of the UI patterns below. Import: `#lib/domain/permissions`.
+- **Server:** `requireStaffGroup(locals, 'devMember')`. Import: `#lib/server/auth/guards`. Call it in every mutating action, or at the top of a `load` to gate a whole route.
 
 **There is no superdev-only group today.** `superdev` and `dev` are permission-identical; the only thing the enum still separates is which roles a superdev may invite (`INVITABLE_STAFF_ROLES`, a catalogue, not a gate). Add a group back to `STAFF_GROUPS` the day a lead-only action exists. Never inline a `['superdev']` array at a call site.
 

@@ -20,17 +20,17 @@
  * collected for communication and has its own operation.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   CLOSING_FAVOURABLE_RECOMMENDATIONS,
   CLOSING_RECOMMENDATIONS,
   CLOSING_RECOMMENDATION_DISPLAY_ORDER,
   CLOSING_STATUS_LABELS,
   VERDICT_SECTION,
-} from '$lib/domain/closing';
-import { adminEventRunsClosings } from '$lib/server/services/events';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+} from '#lib/domain/closing.ts';
+import { adminEventRunsClosings } from '#lib/server/services/events.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import {
   enrolmentKey,
   scopedEnrolments,

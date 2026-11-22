@@ -1,7 +1,10 @@
 <script lang="ts">
-  import { RECO_QUESTION_KEY, RECO_VERDICT_LABEL } from '$lib/domain/feedback';
-  import { cohortNounForms } from '$lib/domain/event';
-  import type { FormStats } from '$lib/server/feedbackStats';
+  import {
+    RECO_QUESTION_KEY,
+    RECO_VERDICT_LABEL,
+  } from '#lib/domain/feedback.ts';
+  import { cohortNounForms } from '#lib/domain/event.ts';
+  import type { FormStats } from '#lib/server/feedbackStats.ts';
 
   let {
     respondedCount,

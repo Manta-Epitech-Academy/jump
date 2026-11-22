@@ -1,8 +1,8 @@
 import type { TalentDeletionRequest } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { anonymizeTalent } from '$lib/server/services/anonymizationService';
-import { deleteDocumentObjects } from '$lib/server/services/onboardingDocuments';
-import { sendActionEmail } from '$lib/server/email/actionMail';
+import { prisma } from '#lib/server/db.ts';
+import { anonymizeTalent } from '#lib/server/services/anonymizationService.ts';
+import { deleteDocumentObjects } from '#lib/server/services/onboardingDocuments.ts';
+import { sendActionEmail } from '#lib/server/email/actionMail.ts';
 
 /**
  * Account deletion as a request workflow rather than an instant wipe.

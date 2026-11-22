@@ -35,7 +35,7 @@ Run from `frontend/` with Bun. The shell's cwd persists between commands, so anc
 
 - **`bun run verify` is the gate**, the same chain the required CI checks run (the chain is in `frontend/package.json`, each link is explained in [`frontend/TESTING.md`](frontend/TESTING.md)). Run it before you say something is verified. Database suites provision their own per-worktree database (`frontend/scripts/with-test-db.sh`): no `docker compose up`, no `migrate deploy`.
 - **Use `bun run <script>` when one exists**, never the bare tool: the scripts set env vars and flags (`KIT_OUTDIR`, `--tsconfig ./tsconfig.check.json`) that `bunx svelte-check` silently skips.
-- **`.svelte-kit/` belongs to the dev server.** A new command that loads the SvelteKit vite plugin gets its own `KIT_OUTDIR` and an entry in `server.watch.ignored`, or it blanks a running dev server (`vitest.config.ts` says why).
+- **`.svelte-kit/` belongs to the dev server.** A new command that loads the SvelteKit vite plugin gets its own `KIT_OUTDIR` and an entry in `server.watch.ignored`, or it blanks a running dev server (`outDir` in `vite.config.ts` says why).
 - **Add a worktree with `sh scripts/new-worktree.sh <type>-<issue>-<slug>`**, which Claude Code's `WorktreeCreate` hook also runs. It places the worktree outside the checkout and names its branch; the directory name becomes its test database and E2E port, so it is load-bearing.
 - **Tests:** critical paths only (domain logic, permissions, regressions, critical E2E flows), never placeholder tests. See `frontend/TESTING.md` §1.
 - **Two hooks in `.claude/settings.json` answer back:** the prose lint on every file you write (it warns), and a gate that refuses to end a turn while a database-free lint is red. Both fail open on their own errors; `verify` stays the gate.
@@ -58,7 +58,7 @@ The protocol is [`CONTRIBUTING.md`](.github/CONTRIBUTING.md), and parts of it ar
 - **No developer jargon in copy a person reads** ("scan", "QR", "flag", "mini games"): describe what they experience.
 - **Talents and parents read « Epitech », never « Epitech Academy »,** as Jump's default mails sign: they do not know the second name and nothing needs to teach it (`onboardingDocumentGenerator.test.ts` holds one document to it).
 - **Forms:** sveltekit-superforms with Zod, never raw `<form>` handling.
-- **Database:** import `prisma` from `$lib/server/db` (a singleton, never passed as a parameter) and scope staff and student data by `campusId`.
+- **Database:** import `prisma` from `#lib/server/db.ts` (a singleton, never passed as a parameter) and scope staff and student data by `campusId`.
 - **Auth:** never call BetterAuth in a `load`; `hooks.server.ts` already hydrates `locals.{user, staffProfile, talent}`.
 - **Interface work** follows [`DESIGN.md`](DESIGN.md) and [`.claude/rules/ui.md`](.claude/rules/ui.md): shadcn components, `cursor-pointer`, copy density, scrolling lists, filter controls, Lucide imports.
 - **No em-dash (`—`) and no en-dash (`–`)** in anything you write: comments, docs, commits, PRs, chat. Use `-`, a comma, a colon, parentheses or two sentences; they read as machine-written. `lint:prose` enforces it on files.

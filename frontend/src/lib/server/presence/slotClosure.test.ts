@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { PresenceSlot } from '$lib/domain/eventPresence';
+import type { PresenceSlot } from '#lib/domain/eventPresence.ts';
 import { isSlotClosed, isSlotPastCutoff } from './slotClosure';
 
 /**

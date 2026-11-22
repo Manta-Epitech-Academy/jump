@@ -1,7 +1,7 @@
 <script lang="ts">
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import type { HomeBar, HomeLink } from '$lib/domain/eventHome';
-  import { cn } from '$lib/utils';
+  import type { HomeBar, HomeLink } from '#lib/domain/eventHome.ts';
+  import { cn } from '#lib/utils.ts';
   import HomeCard, { type HomeCardEmpty } from './HomeCard.svelte';
 
   // The most carried values of a facet (lycées, tech interests), each a bar

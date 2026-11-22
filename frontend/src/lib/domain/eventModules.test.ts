@@ -67,10 +67,8 @@ describe('reachableSurfaces', () => {
 
 describe('eventSurfacePath', () => {
   it('should put the home at the event address and the rest below it', () => {
-    expect(eventSurfacePath('abc', 'home')).toBe('/staff/dev/events/abc');
-    expect(eventSurfacePath('abc', 'bilan')).toBe(
-      '/staff/dev/events/abc/bilan',
-    );
+    expect(eventSurfacePath('abc', 'home')).toBe('staff/dev/events/abc');
+    expect(eventSurfacePath('abc', 'bilan')).toBe('staff/dev/events/abc/bilan');
   });
 
   it('should read back every surface it writes', () => {
@@ -80,7 +78,8 @@ describe('eventSurfacePath', () => {
         modules: ['inscrits', 'emargement', 'bilan', 'closings'],
       }),
     ))
-      expect(surfaceFromPath(eventSurfacePath('abc', key))).toBe(key);
+      // Read back from the pathname `resolve()` makes of it, from the root.
+      expect(surfaceFromPath(`/${eventSurfacePath('abc', key)}`)).toBe(key);
   });
 });
 

@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import { OUTBOUND_MODE } from '$app/env/private';
 
 /**
  * THE OUTBOUND GATE: the single, environment-bound switch that decides whether
@@ -30,9 +30,7 @@ import { env } from '$env/dynamic/private';
 type OutboundMode = 'real' | 'redirect';
 
 function outboundMode(): OutboundMode {
-  return env.OUTBOUND_MODE?.trim().toLowerCase() === 'real'
-    ? 'real'
-    : 'redirect';
+  return OUTBOUND_MODE?.trim().toLowerCase() === 'real' ? 'real' : 'redirect';
 }
 
 /** Whether outbound is trapped (redirected away from real recipients). */

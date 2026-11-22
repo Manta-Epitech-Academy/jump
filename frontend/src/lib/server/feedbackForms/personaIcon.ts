@@ -11,14 +11,14 @@
 // same guarded download every authored picture uses (`images/remote.ts`).
 // `personaIconSourceUrl` records that address, and is null for an upload.
 
-import { prisma } from '$lib/server/db';
-import { getStorage } from '$lib/server/infra/storage';
-import { copyRemoteImage } from '$lib/server/images/remote';
+import { prisma } from '#lib/server/db.ts';
+import { getStorage } from '#lib/server/infra/storage.ts';
+import { copyRemoteImage } from '#lib/server/images/remote.ts';
 import {
   processImage,
   IMAGE_INPUT_TYPES,
   type ProcessedImage,
-} from '$lib/server/images/process';
+} from '#lib/server/images/process.ts';
 
 /** Accepted upload mime types (JPEG/PNG/WebP), the shared pipeline's. */
 export const PERSONA_ICON_INPUT_TYPES = IMAGE_INPUT_TYPES;

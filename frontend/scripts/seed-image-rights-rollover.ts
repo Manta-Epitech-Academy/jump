@@ -252,7 +252,7 @@ async function main() {
         // The two documents this dossier owes, queued and left `pending`.
         //
         // The renderer cannot run from a plain script - it reaches
-        // `$env/dynamic/private` through the storage client, which only
+        // `$app/env/private` through the storage client, which only
         // resolves inside the SvelteKit build - so the honest state to leave
         // behind is a queued job, not a fabricated `filePath`. Pointing the new
         // dossier at last year's PDF would be worse than leaving it empty: the

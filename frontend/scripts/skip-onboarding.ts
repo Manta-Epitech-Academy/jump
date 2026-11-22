@@ -28,23 +28,10 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { schoolYearOf } from '../src/lib/domain/schoolYear';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
-
-// Mirrors `schoolYearOf` in src/lib/domain/schoolYear.ts: the Epitech school
-// year opens on 31 July, so 30 Jul 2026 still belongs to 2025-2026 while
-// 31 Jul 2026 opens 2026-2027. Duplicated rather than imported for the same
-// reason as in the seed: this script runs standalone, with no $lib resolution.
-function currentSchoolYearLabel(at: Date): string {
-  const key = at.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
-  const year = Number(key.slice(0, 4));
-  const month = Number(key.slice(5, 7));
-  const day = Number(key.slice(8, 10));
-  const afterCutoff = month > 7 || (month === 7 && day >= 31);
-  const startYear = afterCutoff ? year : year - 1;
-  return `${startYear}-${startYear + 1}`;
-}
 
 // Mirrors CURRENT_REGLEMENT_VERSION / CURRENT_DROIT_IMAGE_VERSION in
 // src/lib/content. A signature or decision with no version is a state the
@@ -83,7 +70,8 @@ async function main() {
   const signerNom = talent.imageRightsSignerNom ?? talent.parentNom ?? 'Test';
   // The dossier this fakes a walk through: the one the talent already has, else
   // the year in progress. Same resolution as `guardianActSchoolYear` server-side.
-  const schoolYear = talent.onboardingSchoolYear ?? currentSchoolYearLabel(now);
+  const schoolYear =
+    talent.onboardingSchoolYear ?? schoolYearOf(now, 'Europe/Paris').label;
 
   // What the walk records, written to the dossier AND mirrored onto the talent
   // as its projection. Both, because either alone is a state the runtime cannot

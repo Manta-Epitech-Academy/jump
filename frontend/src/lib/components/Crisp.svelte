@@ -1,12 +1,12 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { env } from '$env/dynamic/public';
-  import { isSupportSurface } from '$lib/domain/supportSurfaces';
+  import { PUBLIC_CRISP_WEBSITE_ID } from '$app/env/public';
+  import { isSupportSurface } from '#lib/domain/supportSurfaces.ts';
 
   // Live-chat widget. The website ID comes from the runtime container env
   // (per-environment k8s deployment), like Umami. Empty/unset -> never loads, so
   // Crisp is fully hidden. The crisp.chat hosts are whitelisted in the CSP
-  // (svelte.config.js, `kit.csp.directives`: `script-src`, `style-src`,
+  // (vite.config.ts, `csp.directives`: `script-src`, `style-src`,
   // `font-src` and `connect-src`, the last one for the `wss://` relay).
   //
   // Scoped to the login + onboarding surfaces only (see supportSurfaces): we help
@@ -21,7 +21,7 @@
   // chat:hide on each client-side route change. (Across route groups the
   // component unmounts before it can hide, so a talent->staff exit must still be
   // a full-page nav -- see TalentImpersonationBanner.returnToAdmin.)
-  const websiteId = env.PUBLIC_CRISP_WEBSITE_ID ?? '';
+  const websiteId = PUBLIC_CRISP_WEBSITE_ID ?? '';
 
   type CrispWindow = { $crisp?: unknown[]; CRISP_WEBSITE_ID?: string };
 

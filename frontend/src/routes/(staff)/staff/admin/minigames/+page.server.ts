@@ -2,23 +2,23 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { prisma } from '$lib/server/db';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { prisma } from '#lib/server/db.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 import {
   forcePublication,
   getActivePublication,
-} from '$lib/server/services/minigameService';
+} from '#lib/server/services/minigameService.ts';
 import {
   getGameCatalog,
   getCatalogGame,
   scoringTypeFor,
   type CatalogGame,
-} from '$lib/server/services/minigameCatalog';
+} from '#lib/server/services/minigameCatalog.ts';
 import {
   forcePublicationSchema,
   gameConfigSchema,
-} from '$lib/validation/minigames';
+} from '#lib/validation/minigames.ts';
 
 /**
  * A catalogue game merged with its host-side rotation curation. Its preview is

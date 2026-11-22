@@ -13,13 +13,13 @@
 // Every refusal below names the construct and says why, because the author is
 // usually a language model relaying to a human: "refusé" with no reason produces
 // another attempt at the same thing.
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   isChoiceIconToken,
   isChoiceTone,
   CHOICE_ICON_TOKENS,
   CHOICE_TONES,
-} from '$lib/domain/closing';
+} from '#lib/domain/closing.ts';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import { runTwoStep, type WriteOutcome } from '../plan';

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import * as Dialog from '$lib/components/ui/dialog';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
 
   // A QR code projected on a TV for a room full of talents: the bilan form's
   // link and the émargement check-in both do this, and both had written the

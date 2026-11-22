@@ -1,14 +1,14 @@
 <script lang="ts">
-  import * as Avatar from '$lib/components/ui/avatar';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import { buttonVariants } from '$lib/components/ui/button';
+  import * as Avatar from '#lib/components/ui/avatar/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+  import { buttonVariants } from '#lib/components/ui/button/index.ts';
   import Pencil from '@lucide/svelte/icons/pencil';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Ellipsis from '@lucide/svelte/icons/ellipsis';
-  import { getInitials } from '$lib/avatar';
-  import { cn } from '$lib/utils';
-  import type { SerializedNote } from '$lib/domain/talentNotes';
+  import { getInitials } from '#lib/avatar.ts';
+  import { cn } from '#lib/utils.ts';
+  import type { SerializedNote } from '#lib/domain/talentNotes.ts';
 
   let {
     note,

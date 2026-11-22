@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { scopedPrisma } from '$lib/server/db/scoped';
+import { prisma } from '#lib/server/db.ts';
+import { scopedPrisma } from '#lib/server/db/scoped.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

@@ -1,10 +1,10 @@
 import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
-import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
-import { dbDateToKey, slotKey } from '$lib/domain/eventPresence';
-import { eventDisplayName } from '$lib/domain/event';
-import type { SerializedNote } from '$lib/domain/talentNotes';
+import { getCampusId, scopedPrisma } from '#lib/server/db/scoped.ts';
+import { requireStaffGroup } from '#lib/server/auth/guards.ts';
+import { dbDateToKey, slotKey } from '#lib/domain/eventPresence.ts';
+import { eventDisplayName } from '#lib/domain/event.ts';
+import type { SerializedNote } from '#lib/domain/talentNotes.ts';
 
 /** Author/editor identity + optional event anchor, for rendering the feed. */
 export const NOTE_INCLUDE = {

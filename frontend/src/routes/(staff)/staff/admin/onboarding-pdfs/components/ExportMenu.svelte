@@ -10,15 +10,15 @@
   import ScrollText from '@lucide/svelte/icons/scroll-text';
   import type { LucideIcon } from '@lucide/svelte';
   import { resolve } from '$app/paths';
-  import { buttonVariants } from '$lib/components/ui/button';
-  import * as Popover from '$lib/components/ui/popover';
-  import ExportSinceCard from '$lib/components/staff/export/ExportSinceCard.svelte';
-  import ExportWindowPicker from '$lib/components/staff/export/ExportWindowPicker.svelte';
+  import { buttonVariants } from '#lib/components/ui/button/index.ts';
+  import * as Popover from '#lib/components/ui/popover/index.ts';
+  import ExportSinceCard from '#lib/components/staff/export/ExportSinceCard.svelte';
+  import ExportWindowPicker from '#lib/components/staff/export/ExportWindowPicker.svelte';
   import {
     createExportWindow,
     exportHref,
-  } from '$lib/components/staff/export/exportWindow.svelte';
-  import { cn } from '$lib/utils';
+  } from '#lib/components/staff/export/exportWindow.svelte.ts';
+  import { cn } from '#lib/utils.ts';
   import { toast } from 'svelte-sonner';
 
   let { lastExportAt }: { lastExportAt: string | null } = $props();
@@ -33,8 +33,8 @@
   // then, then keeps the last data on subsequent re-opens while it refetches.
   let loaded = $state(false);
 
-  const exportBase = resolve('/staff/admin/onboarding-pdfs/export');
-  const timelineHref = resolve('/staff/admin/onboarding-pdfs/export-timeline');
+  const exportBase = resolve('staff/admin/onboarding-pdfs/export');
+  const timelineHref = resolve('staff/admin/onboarding-pdfs/export-timeline');
 
   async function loadTimeline() {
     try {

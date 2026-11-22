@@ -20,18 +20,18 @@
   import Trophy from '@lucide/svelte/icons/trophy';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import MessageSquareText from '@lucide/svelte/icons/message-square-text';
-  import { Button } from '$lib/components/ui/button';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import EmptyCohortNotice from '$lib/components/dev/EmptyCohortNotice.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import EmptyCohortNotice from '#lib/components/dev/EmptyCohortNotice.svelte';
   import {
     eventSurfacePath,
     type EventSurfaceKey,
-  } from '$lib/domain/eventModules';
+  } from '#lib/domain/eventModules.ts';
   import {
     HOME_LINKS,
     type EventHomeFigures,
     type HomeLink,
-  } from '$lib/domain/eventHome';
+  } from '#lib/domain/eventHome.ts';
   import type { HomeCardEmpty } from './HomeCard.svelte';
   import BreakdownCard from './BreakdownCard.svelte';
   import RankedBarsCard from './RankedBarsCard.svelte';

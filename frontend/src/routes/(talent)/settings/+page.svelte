@@ -1,11 +1,11 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { Button } from '$lib/components/ui/button';
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
   import { resolve } from '$app/paths';
   import { enhance } from '$app/forms';
-  import { enter } from '$lib/motion';
-  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
+  import { enter } from '#lib/motion/index.ts';
+  import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import User from '@lucide/svelte/icons/user';
   import Mail from '@lucide/svelte/icons/mail';
@@ -15,18 +15,18 @@
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import Loader from '@lucide/svelte/icons/loader';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
-  import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import { Switch } from '$lib/components/ui/switch';
-  import * as Collapsible from '$lib/components/ui/collapsible';
+  import ModeToggle from '#lib/components/ModeToggle.svelte';
+  import { Switch } from '#lib/components/ui/switch/index.ts';
+  import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
   import BarChart3 from '@lucide/svelte/icons/bar-chart-3';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import { track, daysBetween } from '$lib/analytics';
+  import { track, daysBetween } from '#lib/analytics.ts';
   import { toast } from 'svelte-sonner';
-  import { formatDateFr } from '$lib/utils';
+  import { formatDateFr } from '#lib/utils.ts';
   // The same constant the purge reads. This sentence is a retention promise
   // made to a minor, so it must never be able to state a delay we do not keep,
   // which is exactly what a literal here did.
-  import { USAGE_RAW_RETENTION_MONTHS } from '$lib/domain/usage';
+  import { USAGE_RAW_RETENTION_MONTHS } from '#lib/domain/usage.ts';
 
   let { data }: { data: PageData } = $props();
 
@@ -229,8 +229,8 @@
                 variant="outline"
                 size="sm"
                 href={doc.schoolYear
-                  ? `${resolve(`/settings/documents/${doc.type}`)}?annee=${doc.schoolYear}`
-                  : resolve(`/settings/documents/${doc.type}`)}
+                  ? `${resolve(`settings/documents/${doc.type}`)}?annee=${doc.schoolYear}`
+                  : resolve(`settings/documents/${doc.type}`)}
                 target="_blank"
                 rel="noopener"
                 class="h-9 shrink-0 rounded-xl text-xs font-bold"

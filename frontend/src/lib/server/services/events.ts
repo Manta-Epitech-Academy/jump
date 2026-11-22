@@ -1,46 +1,49 @@
 import { error } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   eventDaysLabel,
   hhmmToMinutes,
   minutesToHHMM,
-} from '$lib/domain/event';
+} from '#lib/domain/event.ts';
 import {
   eventRunsClosings,
   isEventModuleKey,
   parseModuleSettings,
   type EventModuleKey,
-} from '$lib/domain/eventModules';
-import { toDateKey } from '$lib/domain/planningTime';
-import { dateKeyToDbDate, dbDateToKey } from '$lib/domain/eventPresence';
-import type { EventWorkshopMoment } from '$lib/domain/workshops';
-import { EVENT_HERO_STAGES, type EventHeroStage } from '$lib/domain/eventHero';
-import type { StoredPicture } from '$lib/server/images/remote';
+} from '#lib/domain/eventModules.ts';
+import { toDateKey } from '#lib/domain/planningTime.ts';
+import { dateKeyToDbDate, dbDateToKey } from '#lib/domain/eventPresence.ts';
+import type { EventWorkshopMoment } from '#lib/domain/workshops.ts';
+import {
+  EVENT_HERO_STAGES,
+  type EventHeroStage,
+} from '#lib/domain/eventHero.ts';
+import type { StoredPicture } from '#lib/server/images/remote.ts';
 import {
   getEventStatus,
   getLifecycleBounds,
   type LifecycleBounds,
   type EventLifecycleStatus,
-} from '$lib/domain/eventLifecycle';
+} from '#lib/domain/eventLifecycle.ts';
 import {
   activationRefusal,
   eventConfigState,
   preparationHorizon,
   type EventConfigState,
   type PreparationHorizon,
-} from '$lib/domain/eventReadiness';
-import { schoolYearOf } from '$lib/domain/schoolYear';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+} from '#lib/domain/eventReadiness.ts';
+import { schoolYearOf } from '#lib/domain/schoolYear.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
 import {
   archivedCategoryRefusal,
   type EventCategoryView,
-} from '$lib/domain/eventCategory';
-import { setEventStatusPolicy } from '$lib/server/services/devSpaceVisibility';
+} from '#lib/domain/eventCategory.ts';
+import { setEventStatusPolicy } from '#lib/server/services/devSpaceVisibility.ts';
 import {
   EVENT_CATEGORY_SELECT,
   eventCategoryView,
-} from '$lib/server/services/eventCategories';
+} from '#lib/server/services/eventCategories.ts';
 
 /**
  * The per-event view model the admin surfaces consume: the events cockpit

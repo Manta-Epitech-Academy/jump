@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { getOnboardingFunnel } from '../adminStats/onboardingFunnel';
 import { getCohortProfile } from '../adminStats/cohortProfile';
-import { resolveScope } from '$lib/server/adminApi/scope';
+import { resolveScope } from '#lib/server/adminApi/scope.ts';
 import {
   patchCurrentOnboardingRecord,
   type OnboardingRecordPatch,
 } from '../onboardingYearService';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
 
 /**
  * Collégiens have no onboarding, by seminar decision. Counted into the funnel

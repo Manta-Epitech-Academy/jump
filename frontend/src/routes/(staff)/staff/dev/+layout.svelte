@@ -1,6 +1,6 @@
 <script lang="ts">
-  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
-  import { scrollTopOnNavigate } from '$lib/actions/scrollTopOnNavigate';
+  import EpitechLogo from '#lib/components/layout/EpitechLogo.svelte';
+  import { scrollTopOnNavigate } from '#lib/actions/scrollTopOnNavigate.ts';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Users from '@lucide/svelte/icons/users';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -13,15 +13,15 @@
   import LayoutGrid from '@lucide/svelte/icons/layout-grid';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import { page } from '$app/state';
-  import * as Avatar from '$lib/components/ui/avatar';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import { track, secondsBetween } from '$lib/analytics';
+  import * as Avatar from '#lib/components/ui/avatar/index.ts';
+  import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+  import ModeToggle from '#lib/components/ModeToggle.svelte';
+  import { track, secondsBetween } from '#lib/analytics.ts';
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
-  import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
-  import StaffMobileNav from '$lib/components/staff/StaffMobileNav.svelte';
-  import SchoolYearMenu from '$lib/components/dev/SchoolYearMenu.svelte';
+  import ImpersonationCard from '#lib/components/ImpersonationCard.svelte';
+  import StaffMobileNav from '#lib/components/staff/StaffMobileNav.svelte';
+  import SchoolYearMenu from '#lib/components/dev/SchoolYearMenu.svelte';
   import {
     eventSurfacePath,
     landingSurface,
@@ -29,17 +29,17 @@
     surfaceFromPath,
     surfaceLabel,
     type EventSurfaceKey,
-  } from '$lib/domain/eventModules';
+  } from '#lib/domain/eventModules.ts';
   import {
     defaultEventOfYear,
     navigableSchoolYears,
     type DevWorkspaceEvent,
-  } from '$lib/domain/devWorkspace';
-  import { eventDaysLabel, eventDisplayName } from '$lib/domain/event';
-  import { schoolYearOf } from '$lib/domain/schoolYear';
-  import { getStaffRoleLabel } from '$lib/domain/staff';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import { provideSelectedEvent } from '$lib/components/dev/selectedEvent';
+  } from '#lib/domain/devWorkspace.ts';
+  import { eventDaysLabel, eventDisplayName } from '#lib/domain/event.ts';
+  import { schoolYearOf } from '#lib/domain/schoolYear.ts';
+  import { getStaffRoleLabel } from '#lib/domain/staff.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import { provideSelectedEvent } from '#lib/components/dev/selectedEvent.ts';
 
   // Icons live with the component (Svelte components can't sit in the domain
   // layer); order/label/reachability are single-sourced in `eventModules`.
@@ -69,7 +69,7 @@
   // will join it.
   const CAMPUS_LINKS: NavLink[] = [
     {
-      href: resolve('/staff/dev'),
+      href: resolve('staff/dev'),
       label: 'Calendrier',
       icon: CalendarDays,
       exact: true,
@@ -77,7 +77,7 @@
   ];
   const RESOURCE_LINKS: NavLink[] = [
     {
-      href: resolve('/staff/dev/catalogue'),
+      href: resolve('staff/dev/catalogue'),
       label: 'Catalogue',
       icon: LayoutGrid,
     },
@@ -172,7 +172,7 @@
   function changeSchoolYear(year: string) {
     if (year === selectedSchoolYear) return;
     if (onCalendar) {
-      goto(`${resolve('/staff/dev')}?year=${year}`);
+      goto(`${resolve('staff/dev')}?year=${year}`);
       return;
     }
     const target = defaultEventOfYear(workspace.events, year);
@@ -202,7 +202,7 @@
 
 {#snippet sidebarBrand()}
   <a
-    href={resolve('/staff/dev')}
+    href={resolve('staff/dev')}
     class="flex items-center gap-2.5 px-4 py-4.5 text-white transition-opacity hover:opacity-95"
   >
     <EpitechLogo tone="dark" class="h-7 w-auto shrink-0" />
@@ -348,7 +348,7 @@
           <DropdownMenu.Label>Mon profil</DropdownMenu.Label>
           <DropdownMenu.Separator />
           <form
-            action={resolve('/logout')}
+            action={resolve('logout')}
             method="POST"
             onsubmit={() =>
               track('logout', {
@@ -426,7 +426,7 @@
             <DropdownMenu.Label>Mon profil</DropdownMenu.Label>
             <DropdownMenu.Separator />
             <form
-              action={resolve('/logout')}
+              action={resolve('logout')}
               method="POST"
               onsubmit={() =>
                 track('logout', {

@@ -1,12 +1,12 @@
 <script lang="ts">
-  import * as Dialog from '$lib/components/ui/dialog';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
   import Clock from '@lucide/svelte/icons/clock';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
   import {
     activityTypeLabels,
     activityTypeStyles,
-  } from '$lib/validation/templates';
-  import type { PlanningSlot } from '$lib/types';
+  } from '#lib/validation/templates.ts';
+  import type { PlanningSlot } from '#lib/types.ts';
 
   // Read-only preview: the dev planning view mounts it with `slot` + `timezone`
   // to inspect an activity. There is no edit/train footer (planning is authored

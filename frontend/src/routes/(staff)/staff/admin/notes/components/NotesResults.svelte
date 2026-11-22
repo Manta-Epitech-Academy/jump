@@ -1,27 +1,27 @@
 <script lang="ts">
-  import { adminTalentHref } from '$lib/components/admin/adminTalentHref';
+  import { adminTalentHref } from '#lib/components/admin/adminTalentHref.ts';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import Funnel from '@lucide/svelte/icons/funnel';
   import StickyNote from '@lucide/svelte/icons/sticky-note';
-  import { Button } from '$lib/components/ui/button';
-  import * as Table from '$lib/components/ui/table';
-  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import DataTableToolbar from '#lib/components/staff/datatable/DataTableToolbar.svelte';
+  import Pagination from '#lib/components/staff/datatable/Pagination.svelte';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
   import type {
     ActiveFilterChip,
     ColumnDef,
-  } from '$lib/components/staff/datatable/types';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import SearchableSelect from '$lib/components/staff/SearchableSelect.svelte';
-  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
-  import { facetControls } from '$lib/components/staff/datatable/facetControls';
-  import { offerFacets } from '$lib/domain/listFacets';
+  } from '#lib/components/staff/datatable/types.ts';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import SearchableSelect from '#lib/components/staff/SearchableSelect.svelte';
+  import ActiveFilterChips from '#lib/components/staff/ActiveFilterChips.svelte';
+  import { facetControls } from '#lib/components/staff/datatable/facetControls.ts';
+  import { offerFacets } from '#lib/domain/listFacets.ts';
   import { page } from '$app/state';
-  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
-  import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
-  import { civiliteCourtesyTitle } from '$lib/domain/profile';
+  import ConfirmDeleteDialog from '#lib/components/admin/ConfirmDeleteDialog.svelte';
+  import StudentAvatarItem from '#lib/components/students/StudentAvatarItem.svelte';
+  import { civiliteCourtesyTitle } from '#lib/domain/profile.ts';
   import type { NotesCohort } from '../query';
   import {
     NOTES_SORT_DEFAULT_DIR,
@@ -29,13 +29,13 @@
     parseNoteFilters,
     type NotesSortKey,
   } from '../view';
-  import { nextSort } from '$lib/components/staff/datatable/sort';
+  import { nextSort } from '#lib/components/staff/datatable/sort.ts';
   import {
     clearListFilters,
     goToListPage,
     setListParams,
-  } from '$lib/components/staff/datatable/urlList';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  } from '#lib/components/staff/datatable/urlList.ts';
+  import { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
 
   let { notes, facetCounts, campuses, totalItems, totalPages }: NotesCohort =
     $props();

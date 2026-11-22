@@ -7,9 +7,9 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { scopedPrisma } from '$lib/server/db/scoped';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { prisma } from '#lib/server/db.ts';
+import { scopedPrisma } from '#lib/server/db/scoped.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
 import { loadCampusCalendar } from '../campusCalendar';
 import { assertTestDatabase } from './testDatabase';
 

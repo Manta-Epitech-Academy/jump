@@ -1,23 +1,23 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
+  import { refreshAll } from '$app/navigation';
   import Plus from '@lucide/svelte/icons/plus';
   import Pencil from '@lucide/svelte/icons/pencil';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Signature from '@lucide/svelte/icons/signature';
   import Globe from '@lucide/svelte/icons/globe';
   import Building2 from '@lucide/svelte/icons/building-2';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import * as Dialog from '$lib/components/ui/dialog';
-  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { Label } from '#lib/components/ui/label/index.ts';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
   import { toast } from 'svelte-sonner';
-  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import ConfirmDeleteDialog from '#lib/components/admin/ConfirmDeleteDialog.svelte';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
   import SearchableSelect, {
     type SelectOption,
-  } from '$lib/components/staff/SearchableSelect.svelte';
+  } from '#lib/components/staff/SearchableSelect.svelte';
 
   type Signatory = {
     id: string;
@@ -240,7 +240,7 @@
             if (result.type === 'success') {
               open = false;
               toast.success('Signataire enregistré.');
-              await invalidateAll();
+              await refreshAll();
             } else if (result.type === 'failure') {
               toast.error(
                 (result.data as { message?: string })?.message ||

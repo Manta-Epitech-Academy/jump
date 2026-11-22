@@ -1,17 +1,20 @@
 <script lang="ts">
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import CopiedPicture from '$lib/components/talent/CopiedPicture.svelte';
-  import StepProgress from '$lib/components/talent/StepProgress.svelte';
-  import SubjectVisual from '$lib/components/talent/SubjectVisual.svelte';
-  import { Button } from '$lib/components/ui/button';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import CopiedPicture from '#lib/components/talent/CopiedPicture.svelte';
+  import StepProgress from '#lib/components/talent/StepProgress.svelte';
+  import SubjectVisual from '#lib/components/talent/SubjectVisual.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import { resolve } from '$app/paths';
-  import { cn } from '$lib/utils';
-  import { HERO_DEFAULT_BUTTON, liveHeroHeader } from '$lib/domain/eventHero';
-  import type { HomeHero } from '$lib/domain/talentHome';
-  import type { WorkshopActivity } from '$lib/domain/workshops';
+  import { cn } from '#lib/utils.ts';
+  import {
+    HERO_DEFAULT_BUTTON,
+    liveHeroHeader,
+  } from '#lib/domain/eventHero.ts';
+  import type { HomeHero } from '#lib/domain/talentHome.ts';
+  import type { WorkshopActivity } from '#lib/domain/workshops.ts';
 
   // The hero of a day the talent is at an event (`live`), and of a day with
   // nothing else to suggest but a subject they started (`continue`). On an
@@ -102,7 +105,7 @@
 
 {#snippet planningLink()}
   <Button
-    href={resolve('/calendar')}
+    href={resolve('calendar')}
     variant="overlay"
     class="h-11 w-full px-5 sm:w-auto"
   >

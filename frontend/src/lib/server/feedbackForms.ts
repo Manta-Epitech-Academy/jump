@@ -1,17 +1,17 @@
 import type { Prisma } from '@prisma/client';
-import { base } from '$app/paths';
-import { prisma } from '$lib/server/db';
+import { resolve } from '$app/paths';
+import { prisma } from '#lib/server/db.ts';
 import type {
   FormSchema,
   Question,
   QuestionType,
   InputKind,
   IdentityField,
-} from '$lib/domain/feedbackForms/schema';
+} from '#lib/domain/feedbackForms/schema.ts';
 import {
   projectQuestionToSchema,
   buildPersonaIconUrl,
-} from '$lib/domain/feedbackForms/schema';
+} from '#lib/domain/feedbackForms/schema.ts';
 
 /** Who a projected form is rendered for; mirrors Feedback_SubmissionSource. */
 export type FormAudience = 'public' | 'authenticated';
@@ -199,6 +199,19 @@ export function toFormSchema(
 }
 
 /**
+ * Route path a talent opens to answer a form for an event: the authenticated
+ * bilan link. Single-sourced so the projected QR image and the shareable URL
+ * shown beside it always target the exact same route. Callers prepend `ORIGIN`
+ * for an absolute URL.
+ */
+export function feedbackFormPath(eventId: string, formSlug: string): string {
+  return resolve('/(talent)/feedback/[eventId]/[formId]', {
+    eventId,
+    formId: formSlug,
+  });
+}
+
+/**
  * Where an admin sees a form as its respondents meet it, drafts included: its
  * page in the admin space. Handed to the admin API's reads and writes as a
  * finished French sentence (`apercu`), the way a certificate's preview is
@@ -211,7 +224,7 @@ export function feedbackFormPreviewLink(form: {
   title: string;
   origin: string;
 }): { url: string; apercu: string } {
-  const url = `${form.origin}${base}/staff/admin/feedback-forms/${encodeURIComponent(form.formId)}`;
+  const url = `${form.origin}${resolve('/(staff)/staff/admin/feedback-forms/[id]', { id: encodeURIComponent(form.formId) })}`;
   return {
     url,
     apercu: `Aperçu de « ${form.title} » : ${url} (le formulaire tel qu'un talent ou un répondant public le voit, brouillon compris ; rien n'y est enregistré). Ouvrez ce lien pour le voir.`,
