@@ -50,21 +50,12 @@ function campusToday(): { date: Date; endDate: Date } {
 
 /** Drop everything this fixture owns. Safe to run against a dirty database. */
 export async function purgeE2eData(): Promise<void> {
-  // The event first: EventConfig_Module, Participation, EventPresence and the
-  // closures all cascade off it.
+  // The events first: EventConfig_Module, Participation, EventPresence and the
+  // closures all cascade off them. Every event on the fixture's campuses, not a
+  // list of ids: an event a past run seeded under an id since renamed would
+  // otherwise survive and hold its campus in place below.
   await prisma.event.deleteMany({
-    where: {
-      id: {
-        in: [
-          E2E.eventId,
-          E2E.upcomingEventId,
-          E2E.rosterEventId,
-          E2E.highlightedEventId,
-          E2E.pastEventId,
-          E2E.genericPastEventId,
-        ],
-      },
-    },
+    where: { campusId: { in: [E2E.campusId, E2E.genericCampusId] } },
   });
   // Then the talents. Talent -> bauth_user is SetNull, not Cascade, so deleting
   // the accounts first would leave orphan Talent rows behind (the same order the
@@ -262,6 +253,23 @@ export async function seedE2eData(): Promise<void> {
       },
     });
   }
+
+  // ── An event of a past school year, for the calendar's way back ─────────
+  // A fixed 31 July, so always in a year other than today's, and on the one
+  // day its school year (`schoolYearOf`, already the next one) and the
+  // calendar listing it (the July closing the year before) differ.
+  await prisma.event.create({
+    data: {
+      id: E2E.pastJulyEventId,
+      titre: 'E2E-Fin-Juillet',
+      publicName: E2E.pastJulyEventName,
+      date: eventStartInstant(E2E.pastJulyEventDay, CAMPUS_TIMEZONE),
+      endDate: eventEndInstant(E2E.pastJulyEventDay, CAMPUS_TIMEZONE),
+      campusId: E2E.campusId,
+      devActivatedAt: now,
+      modules: { create: { moduleKey: EVENT_MODULES.INSCRITS } },
+    },
+  });
 
   // ── The roster the Inscrits filters run on ───────────────────────────────
   // Ten days out: off today's calendar cell, which the calendar spec reads.
