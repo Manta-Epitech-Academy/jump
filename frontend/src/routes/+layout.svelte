@@ -9,6 +9,7 @@
   import './layout.css';
   import { Toaster } from '#lib/components/ui/sonner/index.ts';
   import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import { onMount } from 'svelte';
   import { onNavigate, beforeNavigate } from '$app/navigation';
   import { ModeWatcher } from 'mode-watcher';
   import { page, updated } from '$app/state';
@@ -23,6 +24,7 @@
     identify,
     setAnalyticsSubject,
   } from '#lib/analytics.ts';
+  import { READER_TIMEZONE_COOKIE } from '#lib/domain/planningTime.ts';
 
   // Import SVGs as URLs using Vite's ?url suffix
   import faviconProd from '#lib/assets/favicon.svg?url';
@@ -39,6 +41,18 @@
     if (updated.current && navigation.to?.url && !navigation.willUnload) {
       navigation.cancel();
       window.location.href = navigation.to.url.href;
+    }
+  });
+
+  // The reader's timezone, kept for the server so a line about the reader (the
+  // dev space's greeting) is read on the reader's clock from the first render
+  // (`getReaderTimezone`). Set from every space, since any of them may be the
+  // first one a staff member opens.
+  onMount(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const cookie = `${READER_TIMEZONE_COOKIE}=${tz}`;
+    if (!document.cookie.split('; ').includes(cookie)) {
+      document.cookie = `${cookie};path=/;max-age=31536000;SameSite=Lax`;
     }
   });
 

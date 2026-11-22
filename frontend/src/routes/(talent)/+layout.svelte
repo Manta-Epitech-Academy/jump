@@ -1,18 +1,10 @@
 <script lang="ts">
   import '../../routes/layout.css';
-  import { onMount } from 'svelte';
   import { BitsConfig } from 'bits-ui';
   import TalentImpersonationBanner from '#lib/components/TalentImpersonationBanner.svelte';
   import Crisp from '#lib/components/Crisp.svelte';
 
   let { children } = $props();
-
-  onMount(() => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (!document.cookie.includes(`tz=${tz}`)) {
-      document.cookie = `tz=${tz};path=/;max-age=31536000;SameSite=Lax`;
-    }
-  });
 </script>
 
 <!-- The "Friendly Tech" Camper Wrapper. It carries the talent skin (radius,

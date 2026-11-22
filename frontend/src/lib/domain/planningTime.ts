@@ -14,6 +14,22 @@ import {
 // pixel layout) must go through here. Calling `Date.getHours()` directly
 // silently uses the browser's TZ, which is the bug class this module exists
 // to prevent.
+//
+// Two clocks, then, and each question has one:
+// - A campus fact (an activity at 9h, an event's day, a half-day of émargement,
+//   when a talent answered) is read on the campus clock: the talent, the
+//   parents, the team on site and the mails all say « 9h », and so does a
+//   recruiter reading the planning from Montréal.
+// - A line about the reader (the dev space's greeting) is read on the reader's
+//   clock: the browser's timezone, kept in the `READER_TIMEZONE_COOKIE` by the
+//   root layout and read back by `getReaderTimezone`, the campus's until then.
+// Both are read in the `load`, so the server render and the page agree.
+
+/**
+ * The cookie the browser's timezone travels in, so a `load` can read the
+ * reader's clock on the server render too. Set by the root layout.
+ */
+export const READER_TIMEZONE_COOKIE = 'tz';
 
 /** Calendar day in the campus timezone, ISO 8601 format `YYYY-MM-DD`. */
 export type DateKey = string;
