@@ -34,7 +34,8 @@
 
   // Asked on each open, one query per talent: an answer for a row opened
   // before lands on a query nothing reads any more, and a reopened row is asked
-  // again, since another member of staff may have added notes since.
+  // again, since another member of staff may have added notes since. The feed
+  // takes the new answer when it lands (`TalentNotesFeed`'s `items`).
   const notes = $derived(open && row ? talentNotes(row.talentId) : null);
   refreshWhenReused(() => notes);
 </script>

@@ -18,6 +18,7 @@
  * roster row carries exactly one switch.
  */
 import { test, expect, type Page } from '@playwright/test';
+import { prisma } from './fixtures/db';
 import { E2E, storageStatePath } from './fixtures/identities';
 
 test.use({ storageState: storageStatePath(E2E.dev.email) });
@@ -82,15 +83,17 @@ test.describe("l'émargement", () => {
     await expect(afterReload).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('écrit une note que la fenêtre relit à la réouverture', async ({
+  test('écrit une note, et relit à la réouverture celle d’un autre', async ({
     page,
   }) => {
     // The notes are remote functions: the dialog reads `talentNotes`, the
     // composer calls `createTalentNote`, and neither meets the route guard, so
     // this is the run that proves the dev gate admits the team member it should
     // and that a query's answer reaches the screen. Unique per run, since a CI
-    // retry reopens on the note the previous attempt wrote.
-    const body = `Note E2E ${Date.now()}`;
+    // retry reopens on the notes the previous attempt wrote.
+    const stamp = Date.now();
+    const mine = `Note E2E ${stamp}`;
+    const theirs = `Note E2E d'un collègue ${stamp}`;
     await page.goto(EMARGEMENT_URL);
     const notesOf = page.getByRole('button', {
       name: `Notes de ${E2E.talentReady.prenom} ${E2E.talentReady.nom}`,
@@ -99,16 +102,26 @@ test.describe("l'émargement", () => {
     await notesOf.first().click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('button', { name: 'Ajouter une note' }).click();
-    await dialog.getByRole('textbox').fill(body);
+    await dialog.getByRole('textbox').fill(mine);
     await dialog.getByRole('button', { name: 'Ajouter', exact: true }).click();
-    await expect(dialog.getByText(body)).toBeVisible();
+    await expect(dialog.getByText(mine)).toBeVisible();
 
-    // Closing drops the query, so reopening asks the server again: the note
-    // has to come back from the database, not from the feed's own list.
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
+
+    // Another member of staff writes a note while the dialog is closed. Kit
+    // keeps the first answer until it is garbage collected, which the write
+    // above refreshed and this one did not, so the reopened dialog shows it at
+    // once: the note written since has to come from asking again, and reach
+    // the feed on screen rather than stop at the query.
+    await prisma.note_TalentNote.create({
+      data: { talentId: E2E.talentReady.talentId, body: theirs },
+    });
+
     await notesOf.first().click();
-    await expect(page.getByRole('dialog').getByText(body)).toBeVisible();
+    const reopened = page.getByRole('dialog');
+    await expect(reopened.getByText(theirs)).toBeVisible();
+    await expect(reopened.getByText(mine)).toBeVisible();
   });
 
   test("refuse l'accès à un administrateur", async ({ browser }) => {
