@@ -42,11 +42,13 @@
     special: 'Spécial',
   };
 
-  function formatTime(dateString: string | Date | undefined) {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleTimeString('fr-FR', {
+  // An hour of the programme, on the event's campus clock: the one it was
+  // announced on, wherever the parent reads it from.
+  function formatTime(date: string | Date, timeZone: string) {
+    return new Date(date).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
+      timeZone,
     });
   }
 </script>
@@ -185,7 +187,12 @@
             <span>{data.todayPlanning.eventName}</span>
             <span class="text-muted-foreground">•</span>
             <Clock class="h-4 w-4" />
-            <span>{formatTime(data.todayPlanning.eventDate)}</span>
+            <span
+              >{formatTime(
+                data.todayPlanning.eventDate,
+                data.todayPlanning.timezone,
+              )}</span
+            >
           </div>
         </div>
 
@@ -201,7 +208,8 @@
                   <div class="mb-2 flex items-center gap-2">
                     <Clock class="h-3.5 w-3.5 shrink-0 text-epi-blue" />
                     <span class="epi-overline text-muted-foreground">
-                      {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                      {formatTime(slot.startTime, data.todayPlanning.timezone)} -
+                      {formatTime(slot.endTime, data.todayPlanning.timezone)}
                     </span>
                   </div>
 
@@ -318,8 +326,9 @@
                                 class="h-3.5 w-3.5 shrink-0 text-epi-blue"
                               />
                               <span class="epi-overline text-muted-foreground">
-                                {formatTime(slot.startTime)} - {formatTime(
+                                {formatTime(slot.startTime, event.timezone)} - {formatTime(
                                   slot.endTime,
+                                  event.timezone,
                                 )}
                               </span>
                             </div>

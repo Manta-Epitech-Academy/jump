@@ -2,10 +2,10 @@ import type { Actions, PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '#lib/server/db.ts';
-import { now } from '@internationalized/date';
-import { getBrowserTimezone } from '#lib/server/db/scoped.ts';
-import { getStartOfDay } from '#lib/utils.ts';
-import { getParentLastName } from '#lib/domain/parent.ts';
+import {
+  getParentLastName,
+  splitTodayAndUpcoming,
+} from '#lib/domain/parent.ts';
 import { eventPublicName, UNNAMED_EVENT_NAME } from '#lib/domain/event.ts';
 import { shownEnrolmentWhere } from '#lib/domain/eventReadiness.ts';
 import {
@@ -19,7 +19,7 @@ import {
   recordImageRightsDecision,
 } from '#lib/server/services/imageRightsService.ts';
 
-export const load: PageServerLoad = async ({ locals, params, cookies }) => {
+export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.user || locals.user.role !== 'parent') {
     throw error(401, 'Non autorisé');
   }
@@ -63,19 +63,6 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     where: { parentEmail },
   });
 
-  // Calculate today boundaries
-  const tz = getBrowserTimezone(cookies);
-  const filterDateStart = getStartOfDay(tz);
-  const tzNow = now(tz);
-  const endOfDay = tzNow.set({
-    hour: 23,
-    minute: 59,
-    second: 59,
-    millisecond: 999,
-  });
-  const filterDateEnd = endOfDay.toDate();
-  const filterDateStartDate = new Date(filterDateStart);
-
   const planningInclude = {
     event: {
       include: {
@@ -87,26 +74,26 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   };
 
   // Today's and the upcoming events, with their programme slots: the enrolments
-  // the child's own space shows (#516), never a campaign nobody prepared.
-  const todayParticipation = await prisma.participation.findFirst({
-    where: {
-      talentId,
-      ...shownEnrolmentWhere({
-        date: { gte: filterDateStartDate, lte: filterDateEnd },
+  // the child's own space shows (#516), never a campaign nobody prepared. Which
+  // day is today is each event's campus's question (`splitTodayAndUpcoming`);
+  // the query only leaves out what is past on every clock. A campus day began
+  // at most 25 hours ago (on the night its clocks go back), so two days back
+  // never drops the event of today, wherever its campus is.
+  const now = new Date();
+  const { today: todayParticipation, upcoming: upcomingParticipations } =
+    splitTodayAndUpcoming(
+      await prisma.participation.findMany({
+        where: {
+          talentId,
+          ...shownEnrolmentWhere({
+            date: { gte: new Date(now.getTime() - 2 * 86_400_000) },
+          }),
+        },
+        include: planningInclude,
+        orderBy: { event: { date: 'asc' } },
       }),
-    },
-    include: planningInclude,
-    orderBy: { event: { date: 'asc' } },
-  });
-
-  const upcomingParticipations = await prisma.participation.findMany({
-    where: {
-      talentId,
-      ...shownEnrolmentWhere({ date: { gt: filterDateEnd } }),
-    },
-    include: planningInclude,
-    orderBy: { event: { date: 'asc' } },
-  });
+      now,
+    );
 
   return {
     parentLastName: getParentLastName(locals.user.name),
@@ -116,6 +103,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
           eventName:
             eventPublicName(todayParticipation.event) ?? UNNAMED_EVENT_NAME,
           eventDate: todayParticipation.event.date,
+          timezone: todayParticipation.event.campus.timezone,
           timeSlots: todayParticipation.event.planningSlots
             .filter((slot) => slot.activityType !== 'orga')
             .map(toParentSlot),
