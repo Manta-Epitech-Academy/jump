@@ -136,7 +136,10 @@ export async function getTalentJourney(
   // participation left to join it is exactly a closing whose enrolment the
   // Salesforce sync has since pruned, and it must stay on this list for that
   // reason, not fall off it - being un-deletable in the database and being
-  // shown here are the same guarantee, not two.
+  // shown here are the same guarantee against the sync, not two. Deactivating
+  // the event is the one thing that takes it off (both queries read
+  // `shownEventWhere`), deliberately and not for good: an admin hides the
+  // event from the team, and reactivating it brings the closing back.
   const eventIds = new Set([...participationOf.keys(), ...closingOf.keys()]);
 
   // Past events, and any event a closing has already been conducted at. An event
