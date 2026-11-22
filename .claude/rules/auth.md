@@ -53,6 +53,16 @@ Inside a workspace, role-based gating goes through **one table** of named role g
 | Disable + tooltip | Mutating controls visible on shared screens              |
 | Redirect / 403    | Direct URL access, via `requireStaffGroup` in the `load` |
 
+### Remote functions carry their own gate
+
+No route guard reaches a remote function. `applyRouteGuards` reads `event.route.id`: a `query` arrives on `/_app/remote/…` with no route at all, and a `command` names the page it came from in `x-sveltekit-pathname`, a header the caller writes. So a remote function is declared only through `gatedQuery` / `gatedCommand` (`#lib/server/remoteFunctions.ts`), which take a `RemoteGate` and run it before the schema and the body; `remoteFunctions.test.ts` refuses kit's own `query`, `command`, `form` and `prerender` anywhere else.
+
+- `{ admin: true }` and `{ staff: group }` are `requireAdminSession` and `requireStaffGroup`.
+- `{ talent: 'appOpen' }` is what every talent page past the welcome splash, the wizard and `/charte` asks, read off `talentStanding`, which the route guards read too. `{ talent: 'signedIn' }` is for what the wizard itself needs, never for the talent's own data before the charte.
+- `form` stays out: Jump's forms are superforms, and a second form system is a decision for the whole codebase.
+
+A file named `remote.<ext>` is a remote module to kit wherever it sits, so name a server helper otherwise (`images/copy.ts` was `images/remote.ts`).
+
 ## Auth System
 
 Uses **BetterAuth** (`src/lib/server/auth.ts`) with two methods:

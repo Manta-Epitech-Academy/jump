@@ -131,7 +131,7 @@ test.describe('une réponse que kit n’a pas rendue', () => {
     // Unauthenticated on purpose: the point is the response CLASS, and a refusal
     // is a `+server.ts` response like any other. The curated admin API audits
     // every call including this one, which is its documented behaviour.
-    const response = await request.get('/api/admin/people');
+    const response = await request.get('/api/admin/stats/events');
     expect(response.status()).toBeGreaterThanOrEqual(400);
 
     const csp = directives(response.headers()['content-security-policy']);

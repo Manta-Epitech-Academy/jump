@@ -64,6 +64,7 @@ export default defineConfig(({ mode }) => ({
       // Consult https://svelte.dev/docs/kit/integrations
       // for more information about preprocessors
       preprocess: vitePreprocess(),
+      experimental: { remoteFunctions: true },
       outDir: kitOutDir(mode),
       adapter: adapter(),
       // `resolve()` returns a root-relative path, never one relative to the page

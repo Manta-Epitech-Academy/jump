@@ -2,16 +2,17 @@
   import { Textarea } from '#lib/components/ui/textarea/index.ts';
   import { Button } from '#lib/components/ui/button/index.ts';
   import { toast } from 'svelte-sonner';
-  import { resolve } from '$app/paths';
+  import { isHttpError } from '@sveltejs/kit';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import type { PresenceSlot } from '@prisma/client';
   import type { SerializedNote } from '#lib/domain/talentNotes.ts';
+  import { createTalentNote, editTalentNote } from './talentNotes.remote';
 
   // Composer for a single staff note: create (note=null) or edit an existing
   // one. Shared by the fiche feed and the émargement dialog. Editing uses
-  // per-note optimistic concurrency: it posts the `updatedAt` it loaded and, on a
-  // 409, surfaces the concurrent version instead of clobbering it.
+  // per-note optimistic concurrency: it sends the `updatedAt` it loaded and, on a
+  // conflict, surfaces the concurrent version instead of clobbering it.
   let {
     talentId,
     note = null,
@@ -53,60 +54,44 @@
     if (saving || !value.trim()) return;
     saving = true;
     try {
-      const url = isEdit
-        ? resolve('/(staff)/staff/dev/students/[id]/notes/[noteId]', {
-            id: talentId,
-            noteId: note!.id,
-          })
-        : resolve('/(staff)/staff/dev/students/[id]/notes', { id: talentId });
-      const payload = isEdit
-        ? {
+      let saved: SerializedNote;
+      if (isEdit) {
+        const result = await editTalentNote({
+          talentId,
+          noteId: note!.id,
+          edit: {
             body: value,
-            baseUpdatedAt: force ? conflict!.updatedAt : baseUpdatedAt,
-          }
-        : {
+            baseUpdatedAt: force ? conflict!.updatedAt : baseUpdatedAt!,
+          },
+        });
+        if (result.outcome === 'conflict') {
+          conflict = result.note;
+          return;
+        }
+        saved = result.note;
+      } else {
+        saved = await createTalentNote({
+          talentId,
+          note: {
             body: value,
             eventId: eventId ?? undefined,
             presenceDay: presenceDay ?? undefined,
             presenceSlot: presenceSlot ?? undefined,
-          };
-      const res = await fetch(url, {
-        method: isEdit ? 'PATCH' : 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.status === 409) {
-        conflict = (await res.json()).current as SerializedNote;
-        return;
+          },
+        });
       }
-      if (!res.ok) {
-        saveFailed(res.status < 500 ? await refusalOf(res) : undefined);
-        return;
-      }
-      const saved = (await res.json()).note as SerializedNote;
       conflict = null;
       onSaved?.(saved);
       toast.success('Note enregistrée.');
     } catch (e) {
-      // A lost connection or an answer that is not JSON: the browser's own
-      // English says nothing to act on.
+      // A refusal carries the server's own reason, in French. A crash or a lost
+      // connection is left out: SvelteKit's « Internal Error » and the
+      // browser's own English say nothing to act on.
       console.error('save talent note', e);
-      saveFailed();
+      saveFailed(isHttpError(e) && e.status < 500 ? e.body.message : undefined);
     } finally {
       saving = false;
     }
-  }
-
-  /**
-   * The endpoint's own reason for a refusal (a 4xx it wrote, in French). A
-   * crash is left out by the caller: its body is SvelteKit's « Internal
-   * Error ».
-   */
-  async function refusalOf(res: Response): Promise<string | undefined> {
-    const body = (await res.json().catch(() => null)) as {
-      message?: string;
-    } | null;
-    return body?.message;
   }
 
   // The text stays in the editor, which is the one thing the person needs to

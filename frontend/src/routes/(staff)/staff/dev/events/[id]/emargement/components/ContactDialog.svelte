@@ -1,15 +1,13 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import * as Dialog from '#lib/components/ui/dialog/index.ts';
   import StudentContactDetails from '#lib/components/students/StudentContactDetails.svelte';
   import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
-  import type { ContactPerson } from '#lib/domain/contact.ts';
   import { cohortNounForms } from '#lib/domain/event.ts';
   import type { PresenceRow } from './types';
+  import { emargementContact } from '../contact.remote';
+  import { refreshWhenReused } from '#lib/components/remoteQuery.svelte.ts';
 
-  // Coordinates for one row of the roster, fetched on open rather than carried
-  // by the cohort: the roster streams ~200 rows and none of them needs to hold a
-  // phone number until somebody asks for one.
+  // Coordinates for one row of the roster, asked on open (`emargementContact`).
   //
   // The rendering goes through the shared `StudentContactDetails`, the same one
   // the admin directory and the student dossier use. It used to repeat that
@@ -30,36 +28,12 @@
 
   const noun = $derived(cohortNounForms(cohortNoun));
 
-  type ContactDetails = {
-    student: ContactPerson;
-    guardians: ContactPerson[];
-  };
-
-  let loading = $state(false);
-  let loadError = $state(false);
-  let details = $state<ContactDetails | null>(null);
-
-  async function loadContactDetails(talentId: string): Promise<void> {
-    loading = true;
-    loadError = false;
-    details = null;
-    try {
-      const res = await fetch(
-        resolve(`staff/dev/events/${eventId}/emargement/contact/${talentId}`),
-      );
-      if (!res.ok) throw new Error('request_failed');
-      details = (await res.json()) as ContactDetails;
-    } catch {
-      loadError = true;
-    } finally {
-      loading = false;
-    }
-  }
-
-  $effect(() => {
-    if (!open || !row) return;
-    void loadContactDetails(row.talentId);
-  });
+  // One query per row, so the dialog always shows the row it is open on: an
+  // answer for a row opened before lands on a query nothing reads any more.
+  const contact = $derived(
+    open && row ? emargementContact({ eventId, talentId: row.talentId }) : null,
+  );
+  refreshWhenReused(() => contact);
 </script>
 
 <Dialog.Root bind:open>
@@ -72,21 +46,19 @@
         </Dialog.Description>
       </Dialog.Header>
 
-      {#if loading}
-        <p class="text-sm text-muted-foreground italic">Chargement…</p>
-      {:else if loadError}
+      {#if contact?.error}
         <ResultsNotice
           compact
           title="Chargement impossible"
           description="Les coordonnées n'ont pas pu être chargées. Fermez cette fenêtre puis rouvrez-la pour réessayer."
         />
-      {:else if details}
+      {:else if contact?.ready}
         <StudentContactDetails
-          student={details.student}
-          guardians={details.guardians}
+          student={contact.current.student}
+          guardians={contact.current.guardians}
         />
       {:else}
-        <p class="text-sm text-muted-foreground italic">Aucune coordonnée</p>
+        <p class="text-sm text-muted-foreground italic">Chargement…</p>
       {/if}
     {/if}
   </Dialog.Content>

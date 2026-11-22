@@ -169,15 +169,15 @@ const SHOWN_MARKERS = [
 ] as const;
 
 /**
- * What a talent and a parent read events through: every route of their spaces,
- * the feedback form's submission, and the services the talent's home and
- * parcours are built from. The dev workspace has its own gates
+ * What a talent and a parent read events through: every route of their spaces
+ * and the remote functions declared beside them (the feedback form's
+ * submission, `submitFeedback`, among them), and the services the talent's
+ * home and parcours are built from. The dev workspace has its own gates
  * (`loadEventOr404`, `resolveWorkspaceEvents`) and its own guard.
  */
 const familyReaders = [
   ...walk('src/routes/(talent)'),
   ...walk('src/routes/(parent)'),
-  ...walk('src/routes/api/feedback'),
   'src/lib/server/services/talentHomeHero.ts',
   'src/lib/server/services/workshopService.ts',
   'src/lib/server/talent/parcours.ts',

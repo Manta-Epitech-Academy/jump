@@ -96,6 +96,12 @@ export async function purgeE2eData(): Promise<void> {
   await prisma.campus.deleteMany({
     where: { id: { in: [E2E.campusId, E2E.genericCampusId] } },
   });
+  // A submission Restricts onto its form, so the answers the feedback spec sent
+  // go first; sections, questions and options cascade off the form.
+  await prisma.feedback_Submission.deleteMany({
+    where: { formId: E2E.feedbackFormId },
+  });
+  await prisma.feedback_Form.deleteMany({ where: { id: E2E.feedbackFormId } });
 }
 
 /** A day `offset` days from today on the campus clock, stored as the sync does. */
@@ -517,6 +523,28 @@ export async function seedE2eData(): Promise<void> {
               sfMemberStatus: 'READY',
             },
           },
+        },
+      },
+    },
+  });
+
+  // ── Feedback form ────────────────────────────────────────────────────────
+  // One required free-text question: the chat asks it, the talent answers, and
+  // the conversation ends on the submit the spec asserts.
+  await prisma.feedback_Form.create({
+    data: {
+      id: E2E.feedbackFormId,
+      slug: E2E.feedbackFormSlug,
+      title: 'Feedback E2E',
+      status: 'published',
+      allowsAuthenticatedAccess: true,
+      questions: {
+        create: {
+          key: 'avis',
+          position: 0,
+          prompt: "Qu'as-tu pensé de la journée ?",
+          type: 'textarea',
+          required: true,
         },
       },
     },

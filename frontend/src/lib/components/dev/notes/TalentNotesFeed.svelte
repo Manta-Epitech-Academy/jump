@@ -5,7 +5,7 @@
   import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
   import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
   import { toast } from 'svelte-sonner';
-  import { resolve } from '$app/paths';
+  import { deleteTalentNote } from './talentNotes.remote';
   import { cn } from '#lib/utils.ts';
   import { slotKey } from '#lib/domain/eventPresence.ts';
   import type { PresenceSlot } from '@prisma/client';
@@ -45,8 +45,8 @@
     // Null on the fiche, where notes carry no créneau. Ignored when editing.
     presenceDay?: string | null;
     presenceSlot?: PresenceSlot | null;
-    // Fired with the new note count after a create/delete, so a host (the
-    // émargement dialog) can keep its roster icon tint in sync.
+    // Fired with the note count whenever the list changes length, so a host
+    // (the émargement dialog) can keep its roster icon tint in sync.
     onCountChange?: (count: number) => void;
     // The composer is bindable so a host can drive it from outside the feed: the
     // dev fiche opens it from the "Ajouter une note" button in the card header.
@@ -67,10 +67,16 @@
     highlightLabel?: string;
   } = $props();
 
-  // The feed owns the list after mount, applying create/edit/delete results so it
-  // never re-fetches the page. Seeding from the prop once is intentional.
-  // svelte-ignore state_referenced_locally
-  let items = $state<SerializedNote[]>([...notes]);
+  // The list on screen: the host's `notes`, with this feed's own creates, edits
+  // and deletes applied on top so a write shows without a round-trip. A new
+  // `notes` replaces it, because the host's list is the server's: the émargement
+  // dialog's query refreshed under a reopened dialog, or the fiche's page data.
+  // Seeding it once instead kept a reopened dialog on the list it read the first
+  // time, so a note another member of staff wrote since never showed. Each local
+  // write is applied by id, so it lands once whether or not the host's refresh
+  // already carries it.
+  let items = $derived<SerializedNote[]>([...notes]);
+  $effect(() => onCountChange?.(items.length));
   let editingId = $state<string | null>(null);
   let deleteOpen = $state(false);
   let deleteTarget = $state<SerializedNote | null>(null);
@@ -104,16 +110,8 @@
     if (deleting) return;
     deleting = true;
     try {
-      const res = await fetch(
-        resolve('/(staff)/staff/dev/students/[id]/notes/[noteId]', {
-          id: talentId,
-          noteId: note.id,
-        }),
-        { method: 'DELETE' },
-      );
-      if (!res.ok) throw new Error(String(res.status));
+      await deleteTalentNote({ talentId, noteId: note.id });
       items = items.filter((n) => n.id !== note.id);
-      onCountChange?.(items.length);
       toast.success('Note supprimée.');
       // bits-ui's AlertDialog.Action is a plain button (no auto-close), so the
       // confirm only dismisses if we close it ourselves. Close on success;
@@ -177,8 +175,7 @@
         {presenceDay}
         {presenceSlot}
         onSaved={(saved) => {
-          items = [saved, ...items];
-          onCountChange?.(items.length);
+          items = [saved, ...items.filter((n) => n.id !== saved.id)];
           composing = false;
         }}
         onCancel={() => (composing = false)}

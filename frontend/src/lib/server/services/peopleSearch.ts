@@ -1,15 +1,14 @@
-import type { RequestHandler } from './$types';
 import { prisma } from '#lib/server/db.ts';
 import {
   containsToken,
   everyTokenMatches,
   talentSearchWhere,
 } from '#lib/server/db/textSearch.ts';
-import { requireAdminSession } from '#lib/server/auth/guards.ts';
 import { getStaffRoleLabel } from '#lib/domain/staff.ts';
 import { niveauLabel } from '#lib/domain/niveau.ts';
 
-// Global "find a person" typeahead for the admin command palette. Admin is
+// Global "find a person" typeahead for the admin command palette
+// (`searchPeople`, `components/admin/people.remote.ts`). Admin is
 // campus-agnostic, so this is intentionally un-scoped. Three kinds in one call:
 // talents, their parent-1 contacts, and staff members. Each result carries the
 // `navQ` to drop into the destination list's `?q=` so the palette stays dumb.
@@ -18,13 +17,22 @@ const LIMIT = 6;
 const fullName = (prenom: string | null, nom: string | null) =>
   `${prenom ?? ''} ${nom ?? ''}`.trim();
 
-export const GET: RequestHandler = async ({ url, locals }) => {
-  requireAdminSession(locals);
+export type PersonResult = {
+  type: 'talent' | 'parent' | 'staff';
+  id: string;
+  name: string;
+  email: string | null;
+  sub: string | null;
+  navQ: string;
+};
 
-  // Word by word, like the talents directory the result links into, so
-  // "Dupont Léa" finds Léa Dupont whichever kind of person she is.
-  const q = (url.searchParams.get('q') ?? '').trim();
-  if (q.length < 2) return Response.json([]);
+/**
+ * Word by word, like the talents directory the result links into, so
+ * "Dupont Léa" finds Léa Dupont whichever kind of person she is.
+ */
+export async function findPeople(query: string): Promise<PersonResult[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
 
   const [talents, parents, staff] = await Promise.all([
     prisma.talent.findMany({
@@ -81,7 +89,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     }),
   ]);
 
-  const results = [
+  const results: PersonResult[] = [
     ...talents.map((t) => ({
       type: 'talent' as const,
       id: t.id,
@@ -116,5 +124,5 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     })),
   ];
 
-  return Response.json(results);
-};
+  return results;
+}

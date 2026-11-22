@@ -12,6 +12,7 @@
   import MessagePreview from './MessagePreview.svelte';
   import { BROADCAST_CHANNEL_LABELS } from '#lib/domain/broadcasts.ts';
   import type { MessageTemplateForm } from '#lib/validation/broadcasts.ts';
+  import { sendTemplateTest } from './templateTest.remote';
 
   type Props = {
     data: SuperValidated<MessageTemplateForm>;
@@ -65,21 +66,16 @@
   async function sendTest() {
     testing = true;
     try {
-      const res = await fetch('/staff/admin/broadcasts/templates/test', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          channel: $form.channel,
-          subject: $form.subject ?? null,
-          body: $form.body ?? '',
-          to: testRecipient.trim(),
-        }),
+      const result = await sendTemplateTest({
+        channel: $form.channel,
+        subject: $form.subject ?? null,
+        body: $form.body ?? '',
+        to: testRecipient.trim(),
       });
-      const result = (await res.json()) as { ok: boolean; message?: string };
       if (result.ok) toast.success(`Test envoyé à ${testRecipient.trim()}.`);
       else toast.error(result.message ?? "Échec de l'envoi.");
     } catch {
-      toast.error('Erreur réseau.');
+      toast.error("L'envoi test n'a pas abouti. Réessayez.");
     } finally {
       testing = false;
     }

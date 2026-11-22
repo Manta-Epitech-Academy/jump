@@ -83,7 +83,7 @@ const { ADMIN_API_OPERATIONS } =
 const { OperationRefusedError } =
   await import('#lib/server/adminApi/errors.ts');
 const { REMOTE_ANIMATION_MAX_BYTES, REMOTE_DOWNLOAD_MAX_BYTES } =
-  await import('#lib/server/images/remote.ts');
+  await import('#lib/server/images/copy.ts');
 const { isPublicAddress } = await import('#lib/server/infra/publicAddress.ts');
 const { GET: coverProxy } =
   await import('../../../../routes/api/workshops/covers/[activityId]/[file]/+server');

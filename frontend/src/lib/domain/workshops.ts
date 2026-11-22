@@ -54,7 +54,7 @@ export function workshopSlugFromSourceId(
  * those bytes only: a later write that restates the same address keeps it, and
  * one that gives another address mints a new key. That is what lets the proxy
  * cache a picture forever, and what lets each key have exactly one party that
- * may delete it (`images/remote.ts`, `replacePictures`).
+ * may delete it (`images/copy.ts`, `replacePictures`).
  */
 export type WorkshopCoverKind = 'media' | 'poster' | 'mascot';
 

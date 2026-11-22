@@ -97,18 +97,22 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     // second return revalidates while the server still owes the same XP. That
     // is the window where the page has to know it already celebrated them, and
     // where re-running the effect must not cut the float it is already playing.
-    const acks: unknown[] = [];
+    // Kit mounts the command at `/_app/remote/<module hash>/<export name>`.
+    const isAck = (url: string) =>
+      new URL(url).pathname.endsWith('/ackWorkshopRewards');
+    let acks = 0;
     page.on('request', (sent) => {
-      if (new URL(sent.url()).pathname === '/api/workshops/rewards-seen') {
-        acks.push(sent.postDataJSON());
-      }
+      if (isAck(sent.url())) acks += 1;
     });
     let releaseAck!: () => void;
     const ackHeld = new Promise<void>((resolve) => (releaseAck = resolve));
-    await page.route('**/api/workshops/rewards-seen', async (route) => {
-      await ackHeld;
-      await route.continue();
-    });
+    await page.route(
+      (url) => isAck(url.href),
+      async (route) => {
+        await ackHeld;
+        await route.continue();
+      },
+    );
     const revalidated = () =>
       page.waitForResponse((response) =>
         response.url().includes('__data.json'),
@@ -125,9 +129,7 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
       document.dispatchEvent(new Event('visibilitychange')),
     );
     await revalidation;
-    const ackLanded = page.waitForResponse((response) =>
-      response.url().endsWith('/api/workshops/rewards-seen'),
-    );
+    const ackLanded = page.waitForResponse((response) => isAck(response.url()));
     releaseAck();
     expect((await ackLanded).status()).toBe(200);
 
@@ -138,10 +140,9 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     const toast = page.getByText('Tu gagnes +300 XP', { exact: false });
     await expect(toast).toBeVisible();
     await expect(toast).toHaveCount(1);
-    // Acknowledged once, with the amount that was on screen.
-    expect(acks).toEqual([
-      { upTo: [{ activityId: E2E.workshopActivityId, amount: 300 }] },
-    ]);
+    // Acknowledged once. That it carried the amount on screen is what the
+    // reload below asserts: nothing is owed any more.
+    expect(acks).toBe(1);
     await expect(page.getByText('Activité en cours')).toBeVisible();
     await expect(hero).toContainText('Étape 6 / 10');
 

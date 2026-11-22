@@ -46,6 +46,7 @@
         "@playwright/test": "^1.64.1",
         "@prisma/internals": "^7.10.1",
         "@scalar/api-reference": "1.76.0",
+        "@standard-schema/spec": "^1.1.0",
         "@sveltejs/adapter-node": "^6.0.5",
         "@sveltejs/kit": "^3.4.0",
         "@sveltejs/vite-plugin-svelte": "^7.3.1",

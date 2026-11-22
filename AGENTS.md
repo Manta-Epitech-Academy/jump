@@ -58,6 +58,7 @@ The protocol is [`CONTRIBUTING.md`](.github/CONTRIBUTING.md), and parts of it ar
 - **No developer jargon in copy a person reads** ("scan", "QR", "flag", "mini games"): describe what they experience.
 - **Talents and parents read « Epitech », never « Epitech Academy »,** as Jump's default mails sign: they do not know the second name and nothing needs to teach it (`onboardingDocumentGenerator.test.ts` holds one document to it).
 - **Forms:** sveltekit-superforms with Zod, never raw `<form>` handling.
+- **A browser call outside a `load` or a form is a remote function** (`gatedQuery` / `gatedCommand` in a `*.remote.ts`), never a JSON `+server.ts` the page fetches: one query per argument is what keeps a late answer off the screen, and no route guard reaches it, so it names its own gate ([`auth.md`](.claude/rules/auth.md#remote-functions-carry-their-own-gate)). Downloads, uploads, session flows and anything a client outside Jump calls stay routes.
 - **Database:** import `prisma` from `#lib/server/db.ts` (a singleton, never passed as a parameter) and scope staff and student data by `campusId`.
 - **Auth:** never call BetterAuth in a `load`; `hooks.server.ts` already hydrates `locals.{user, staffProfile, talent}`.
 - **Interface work** follows [`DESIGN.md`](DESIGN.md) and [`.claude/rules/ui.md`](.claude/rules/ui.md): shadcn components, `cursor-pointer`, copy density, scrolling lists, filter controls, Lucide imports.

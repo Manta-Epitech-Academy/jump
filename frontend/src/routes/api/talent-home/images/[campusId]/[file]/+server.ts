@@ -1,12 +1,12 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { findTalentHomeImage } from '#lib/server/services/talentHomeService.ts';
-import { storedImageResponse } from '#lib/server/images/remote.ts';
+import { storedImageResponse } from '#lib/server/images/copy.ts';
 import { talentHomeImageKeyFromPath } from '#lib/domain/talentHome.ts';
 
 // A picture of a campus's home (its highlighted event's, those its note names),
 // copied into storage when an admin wrote it (`write_talent_home_highlight`,
-// `write_talent_home_note`, `#lib/server/images/remote.ts`).
+// `write_talent_home_note`, `#lib/server/images/copy.ts`).
 // The browser never asks the host it came from, which is the point of the copy.
 //
 // Served only for a key a highlight or a note still references (the picture,

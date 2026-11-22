@@ -4,7 +4,7 @@ import { isCrossSiteWrite } from './crossSite';
 const ORIGIN = 'https://jump.epiboost.fr';
 
 function request(method: string, headers: Record<string, string> = {}) {
-  return new Request(`${ORIGIN}/staff/admin/broadcasts/templates/test`, {
+  return new Request(`${ORIGIN}/api/feedback-forms/form-1/persona-icon`, {
     method,
     headers,
   });

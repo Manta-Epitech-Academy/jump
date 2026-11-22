@@ -11,8 +11,7 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import ContinueButton from './ContinueButton.svelte';
   import { fieldInput } from './fieldSkin';
-
-  type Lycee = { uai: string; nom: string; ville: string };
+  import { searchLycees } from '../annuaire.remote';
 
   let {
     profile,
@@ -30,11 +29,20 @@
   let selectedVille = $state(untrack(() => profile.schoolCity));
   let selectedUai = $state(untrack(() => profile.schoolUai));
   let changing = $state(untrack(() => !profile.schoolName));
-  let suggestions = $state<Lycee[]>([]);
   let freeTextMode = $state(false);
-  let loading = $state(false);
-  let searched = $state(false);
+  // What the directory is asked: the box's value once typing pauses for 300ms,
+  // so a talent typing a name sends one request, not one per letter.
+  let term = $state('');
   let debounceTimer: ReturnType<typeof setTimeout>;
+
+  // One query per term, so the suggestions shown are always the answer to the
+  // term in force: an answer to an earlier term lands on its own query, which
+  // nothing reads any more, however late it arrives.
+  const search = $derived(term.length >= 2 ? searchLycees(term) : null);
+  const suggestions = $derived(search?.current ?? []);
+  const settled = $derived(
+    search !== null && !search.loading && term === query.trim(),
+  );
 
   const fieldLabel = 'mb-1 block text-xs font-medium text-muted-foreground';
   // Secondary toggles (free-text / back-to-search): given real button chrome
@@ -42,31 +50,12 @@
   const toggleButton =
     'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground-secondary transition-colors hover:border-epi-blue/40 hover:bg-epi-blue/5 hover:text-epi-blue dark:hover:bg-epi-blue/10';
 
-  async function searchLycee(q: string) {
-    if (q.length < 2) {
-      suggestions = [];
-      searched = false;
-      return;
-    }
-    loading = true;
-    try {
-      const res = await fetch(`/api/lycees?q=${encodeURIComponent(q)}`);
-      suggestions = await res.json();
-    } catch {
-      suggestions = [];
-    } finally {
-      loading = false;
-      searched = true;
-    }
-  }
-
   function handleLyceeInput() {
-    searched = false;
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => searchLycee(query), 300);
+    debounceTimer = setTimeout(() => (term = query.trim()), 300);
   }
 
-  function selectLycee(s: Lycee) {
+  function selectLycee(s: (typeof suggestions)[number]) {
     query = s.nom;
     selectedNom = s.nom;
     selectedVille = s.ville;
@@ -87,8 +76,8 @@
     changing = true;
     freeTextMode = false;
     query = '';
-    suggestions = [];
-    searched = false;
+    clearTimeout(debounceTimer);
+    term = '';
   }
 </script>
 
@@ -189,7 +178,7 @@
           class="text-foreground placeholder:text-muted-foreground"
         />
         <Command.List class="max-h-72">
-          {#if loading}
+          {#if search?.loading}
             <div
               class="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground"
             >
@@ -199,7 +188,11 @@
             <p class="py-6 text-center text-sm text-muted-foreground">
               Tape au moins 2 caractères.
             </p>
-          {:else if searched && suggestions.length === 0}
+          {:else if settled && search?.error}
+            <p class="py-6 text-center text-sm text-muted-foreground">
+              La recherche n'a pas abouti. Réessaie dans un instant.
+            </p>
+          {:else if settled && suggestions.length === 0}
             <p class="py-6 text-center text-sm text-muted-foreground">
               Aucun lycée trouvé.
             </p>

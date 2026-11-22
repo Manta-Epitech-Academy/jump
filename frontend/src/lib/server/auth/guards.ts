@@ -1,6 +1,6 @@
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { resolve as resolvePath } from '$app/paths';
-import type { StaffRole } from '@prisma/client';
+import type { StaffRole, Talent } from '@prisma/client';
 import { getStaffRoleRedirectPath } from '#lib/domain/staff.ts';
 import { prisma } from '#lib/server/db.ts';
 import { can, type StaffGroup } from '#lib/domain/permissions.ts';
@@ -15,6 +15,123 @@ import {
   loginUrlWithRedirect,
   onboardingFunnelUrl,
 } from '#lib/server/auth/loginRedirect.ts';
+
+/**
+ * Where a talent stands against the gates in front of the app, read once so the
+ * route guards and the remote-function gate (`admitCaller`) cannot disagree.
+ */
+export type TalentStanding = {
+  /**
+   * Whether the talent walks the onboarding ladder at all. Collégiens do not:
+   * the seminar settled that Jump holds no reliable guardian contact for them,
+   * so they reach the app without a dossier. Kept out of `getOnboardingStep`,
+   * whose contract is that the step is a pure function of the timestamps set;
+   * eligibility is a property of the talent's level, layered on top here.
+   */
+  walksOnboarding: boolean;
+  /**
+   * Whether this school year's dossier still has a step to do.
+   * `getOnboardingStep` is the single source of truth shared with the wizard's
+   * resume logic and the admin progress label, so a step added there is gated
+   * here automatically, with no parallel field list to keep in sync. The flat
+   * columns on `Talent` hold the most recent dossier, which for a talent
+   * returning after the summer is last year's; `onboardingFieldsForYear` reads
+   * them as "nothing done" unless they are this year's, so a returning talent
+   * is sent back through the wizard instead of walking in on last year's
+   * signature.
+   */
+  dossierOpen: boolean;
+  /**
+   * Whether the welcome splash is still due: never seen, with this year's
+   * dossier still open. It is due to a collégien too, whose dossier never
+   * closes: the splash is where every talent starts, ladder or not.
+   */
+  owesWelcome: boolean;
+  /**
+   * Whether the app is open to them: the welcome splash seen, the RGPD charte
+   * signed, and the dossier done for a talent who walks the ladder. Everything
+   * outside the welcome splash, the wizard and `/charte` waits on this.
+   */
+  appOpen: boolean;
+};
+
+export function talentStanding(talent: Talent): TalentStanding {
+  const walksOnboarding = isOnboardingEligible(talent.niveau);
+  const dossierOpen =
+    getOnboardingStep(
+      onboardingFieldsForYear(talent, currentSchoolYearLabel()),
+    ) !== null;
+  const owesWelcome = talent.welcomeSeenAt == null && dossierOpen;
+  return {
+    walksOnboarding,
+    dossierOpen,
+    owesWelcome,
+    appOpen:
+      talent.charterAcceptedAt != null &&
+      !owesWelcome &&
+      !(walksOnboarding && dossierOpen),
+  };
+}
+
+/**
+ * Who may call a remote function (`#lib/server/remoteFunctions.ts`).
+ *
+ * The route guards cannot answer it. They read `event.route.id`, and a remote
+ * call has none to read: a `query` arrives on `/_app/remote/…` with no route at
+ * all, so `applyRouteGuards` lets it through as a 404 it never is, and a
+ * `command` names the page it came from in `x-sveltekit-pathname`, a header the
+ * caller writes. Either way the function's own gate is the only one.
+ *
+ * - `{ admin: true }`: an admin session, as `requireAdminSession`.
+ * - `{ staff: group }`: a staff role in the group, as `requireStaffGroup`.
+ * - `{ talent: 'appOpen' }`: a talent the app is open to (`talentStanding`):
+ *   what every talent page past the welcome splash, the wizard and `/charte`
+ *   asks for, the RGPD charte included.
+ * - `{ talent: 'signedIn' }`: any talent session, the wizard's included. Only
+ *   for what the wizard itself needs, and nothing that reads the talent's data
+ *   before the charte is signed.
+ */
+export type RemoteGate =
+  { admin: true } | { staff: StaffGroup } | { talent: 'appOpen' | 'signedIn' };
+
+type StaffCaller = {
+  locals: App.Locals;
+  staffProfile: NonNullable<App.Locals['staffProfile']> & {
+    staffRole: StaffRole;
+  };
+};
+
+type TalentCaller = {
+  locals: App.Locals;
+  talent: NonNullable<App.Locals['talent']>;
+};
+
+/** What a remote function learns about who called it, by gate. */
+export type RemoteCaller<G extends RemoteGate> = G extends { talent: string }
+  ? TalentCaller
+  : StaffCaller;
+
+/**
+ * Admit the caller through `gate` or throw: 401 without the session the gate
+ * names, 403 with one that falls short of it.
+ */
+export function admitCaller<G extends RemoteGate>(
+  gate: G,
+  locals: App.Locals,
+): RemoteCaller<G> {
+  if ('talent' in gate) {
+    const talent = locals.talent;
+    if (!talent) throw error(401, 'Connexion requise.');
+    if (gate.talent === 'appOpen' && !talentStanding(talent).appOpen) {
+      throw error(403, 'Termine ton inscription pour continuer.');
+    }
+    return { locals, talent } as RemoteCaller<G>;
+  }
+  if (!locals.staffProfile) throw error(401, 'Connexion requise.');
+  if ('admin' in gate) requireAdminSession(locals);
+  else requireStaffGroup(locals, gate.staff);
+  return { locals, staffProfile: locals.staffProfile } as RemoteCaller<G>;
+}
 
 function forbidGroup(group: StaffGroup): never {
   throw error(403, 'Action réservée.', {
@@ -88,12 +205,10 @@ export async function applyRouteGuards(
       return seeOther(pathTalentRoot, event.url);
     }
 
-    // The school year both onboarding guards below ask about. The flat columns
-    // on `Talent` hold the most recent dossier, which for a talent returning
-    // after the summer is last year's; `onboardingFieldsForYear` reads them as
-    // "nothing done" unless they are this year's, so a returning talent is sent
-    // back through the wizard instead of walking in on last year's signature.
-    const currentYear = currentSchoolYearLabel();
+    const standing = event.locals.talent
+      ? talentStanding(event.locals.talent)
+      : null;
+    const walksOnboarding = standing?.walksOnboarding ?? false;
 
     // Welcome guard: a fresh talent sees the welcome splash once, before
     // onboarding. `markSeen` sets `welcomeSeenAt` and hands off to onboarding, so
@@ -102,11 +217,7 @@ export async function applyRouteGuards(
     // splash copy is generic and owned by the page. The CMS `welcome` row feeds
     // only the dashboard's Actualité card, a separate surface.
     if (
-      event.locals.talent &&
-      !event.locals.talent.welcomeSeenAt &&
-      getOnboardingStep(
-        onboardingFieldsForYear(event.locals.talent, currentYear),
-      ) !== null &&
+      standing?.owesWelcome &&
       !onTalentWelcome &&
       !onTalentOnboarding &&
       !onTalentLogin
@@ -117,24 +228,10 @@ export async function applyRouteGuards(
       );
     }
 
-    // Who walks the ladder at all. Collégiens do not: the seminar settled that
-    // Jump holds no reliable guardian contact for them, so they reach the app
-    // without a dossier. Kept out of `getOnboardingStep`, whose contract is that
-    // the step is a pure function of the timestamps set; eligibility is a
-    // property of the talent's level, layered on top here.
-    const walksOnboarding =
-      event.locals.talent != null &&
-      isOnboardingEligible(event.locals.talent.niveau);
-
     // Onboarding guard: redirect until every step of the canonical ladder is
-    // done. `getOnboardingStep` is the single source of truth shared with the
-    // wizard's resume logic and the admin progress label, so a step added there
-    // is gated here automatically, with no parallel field list to keep in sync.
+    // done.
     if (event.locals.talent && walksOnboarding) {
-      const needsOnboarding =
-        getOnboardingStep(
-          onboardingFieldsForYear(event.locals.talent, currentYear),
-        ) !== null;
+      const needsOnboarding = standing?.dossierOpen ?? false;
 
       if (
         needsOnboarding &&

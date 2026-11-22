@@ -2,7 +2,7 @@
  * Whether an IP address belongs to the public internet.
  *
  * For an address somebody else chose and Jump connects to from inside the
- * cluster (an activity's cover, `images/remote.ts`). The pod reaches the
+ * cluster (an activity's cover, `images/copy.ts`). The pod reaches the
  * cluster's own services, the node, and whatever the cloud exposes on
  * link-local, none of which an admin, or a model holding an admin's token, has
  * any business pointing Jump at. So everything the special-purpose registries

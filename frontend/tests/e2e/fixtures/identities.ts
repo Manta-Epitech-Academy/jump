@@ -55,6 +55,13 @@ export const E2E = {
   /** A session three days out, the only event of `talentIdle`. */
   upcomingEventId: 'e2e-event-upcoming',
   upcomingEventName: 'Coding Club E2E',
+  /**
+   * A published feedback form with one free-text question, open to a signed-in
+   * talent. No event names it: the page and its command read the form by slug
+   * and the participation by event, so `talentReady` reaches it on `eventId`.
+   */
+  feedbackFormId: 'e2e-feedback-form',
+  feedbackFormSlug: 'e2e-feedback',
 
   /**
    * An event whose only section is Inscrits, ten days out, with three talents

@@ -7,9 +7,8 @@
  * that every operation is mounted exactly once rest on the same answer rather
  * than on a second list of paths that could drift from the files.
  *
- * Only handlers built by `route.ts` count. The two admin-session endpoints that
- * sit under the same prefix (`people`, `events/[id]/participations`) are not
- * operations and have no business in a reference handed to a token holder.
+ * Only handlers built by `route.ts` count: a route under the prefix that is not
+ * an operation has no business in a reference handed to a token holder.
  */
 import { mountedOperationOf, type MountedOperation } from './route';
 

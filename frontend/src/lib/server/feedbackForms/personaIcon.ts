@@ -8,12 +8,12 @@
 // It arrives through two doors: bytes uploaded on the form's preview page
 // (`/staff/admin/feedback-forms/[id]`), or an https
 // address given to the admin API's whole-form write, which copies it through the
-// same guarded download every authored picture uses (`images/remote.ts`).
+// same guarded download every authored picture uses (`images/copy.ts`).
 // `personaIconSourceUrl` records that address, and is null for an upload.
 
 import { prisma } from '#lib/server/db.ts';
 import { getStorage } from '#lib/server/infra/storage.ts';
-import { copyRemoteImage } from '#lib/server/images/remote.ts';
+import { copyRemoteImage } from '#lib/server/images/copy.ts';
 import {
   processImage,
   IMAGE_INPUT_TYPES,

@@ -187,7 +187,7 @@ export function pointedEventShown(
  * path segments back into the key and the two directions must not drift. A key
  * is minted by the write that copies the picture and names those bytes only,
  * so a new picture is a new URL and the proxy can cache one forever
- * (`images/remote.ts`, `replacePictures`).
+ * (`images/copy.ts`, `replacePictures`).
  */
 const IMAGE_PREFIX = 'talent-home';
 

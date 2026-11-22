@@ -1,6 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { prisma } from '#lib/server/db.ts';
+import { callAs } from '#lib/testing/kitRemote.ts';
 import { assertTestDatabase } from './testDatabase';
+
+vi.mock('$app/server', () => import('#lib/testing/kitRemote.ts'));
 
 const { load: loadTalentLayout } =
   await import('../../../../routes/(talent)/+layout.server');
@@ -8,8 +11,8 @@ const { load: loadCalendar } =
   await import('../../../../routes/(talent)/calendar/+page.server');
 const { load: loadFeedbackPage } =
   await import('../../../../routes/(talent)/feedback/[eventId]/[formId]/+page.server');
-const { POST: postFeedback } =
-  await import('../../../../routes/api/feedback/[eventId]/[formId]/+server');
+const { submitFeedback } =
+  await import('../../../../routes/(talent)/feedback/[eventId]/[formId]/feedback.remote');
 const { load: loadParentHome } =
   await import('../../../../routes/(parent)/parent/+page.server');
 const { load: loadParentChild } =
@@ -20,9 +23,9 @@ const { load: loadParentChild } =
  * services the talent's home and parcours read are held to it in their own
  * suites; this one holds the route loads that read events themselves: the
  * talent's planning and what guards it, the feedback form's page and
- * submission, and the parent space. Each reads an activated event and one
- * nobody activated, enrolled the same way, so the only difference is the
- * activation.
+ * submission (`submitFeedback`), and the parent space. Each reads an activated
+ * event and one nobody activated, enrolled the same way, so the only
+ * difference is the activation.
  */
 describe('events a talent is shown (integration)', () => {
   const stamp = Date.now();
@@ -160,15 +163,22 @@ describe('events a talent is shown (integration)', () => {
   });
 
   it('refuses an answer on an event no admin activated', async () => {
+    // A talent the app is open to, so the command's gate admits them and what
+    // refuses is the enrolment rule (`feedbackParticipationWhere`).
+    callAs({
+      talent: {
+        ...talent(),
+        niveau: '4eme',
+        welcomeSeenAt: new Date(),
+        charterAcceptedAt: new Date(),
+      } as unknown as App.Locals['talent'],
+    });
     await expect(
-      postFeedback({
-        locals: { talent: talent() },
-        params: { eventId: hiddenId, formId: formSlug },
-        request: new Request('http://jump.test', {
-          method: 'POST',
-          body: JSON.stringify({ answers: { avis: 'Top' } }),
-        }),
-      } as unknown as Parameters<typeof postFeedback>[0]),
+      submitFeedback({
+        eventId: hiddenId,
+        formId: formSlug,
+        answers: { avis: 'Top' },
+      }),
     ).rejects.toMatchObject({ status: 404 });
     expect(
       await prisma.feedback_Submission.count({

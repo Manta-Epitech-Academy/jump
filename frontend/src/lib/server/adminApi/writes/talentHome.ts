@@ -49,7 +49,7 @@ import {
   replacePictures,
   swapStoredImages,
   type StoredPicture,
-} from '#lib/server/images/remote.ts';
+} from '#lib/server/images/copy.ts';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import type { WriteOutcome } from '../plan';

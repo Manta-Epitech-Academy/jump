@@ -12,6 +12,7 @@
   import { resolve } from '$app/paths';
   import { buttonVariants } from '#lib/components/ui/button/index.ts';
   import * as Popover from '#lib/components/ui/popover/index.ts';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
   import ExportSinceCard from '#lib/components/staff/export/ExportSinceCard.svelte';
   import ExportWindowPicker from '#lib/components/staff/export/ExportWindowPicker.svelte';
   import {
@@ -20,40 +21,23 @@
   } from '#lib/components/staff/export/exportWindow.svelte.ts';
   import { cn } from '#lib/utils.ts';
   import { toast } from 'svelte-sonner';
+  import { refreshWhenReused } from '#lib/components/remoteQuery.svelte.ts';
+  import { onboardingExportTimeline } from './exportTimeline.remote.ts';
 
   let { lastExportAt }: { lastExportAt: string | null } = $props();
 
-  // The completion timeline is fetched lazily when the popover opens rather than
-  // passed down from the page load: it's a full talent-table scan and that load
-  // re-runs every 5s (live job feed), so keeping it off the load avoids the scan
-  // on every tick. Refetched on each open so the per-period counts and the
-  // "depuis le dernier export" delta stay fresh without a standing query.
-  let timeline = $state<{ at: number; type: DocType }[]>([]);
-  // First successful fetch flips this; the popover body shows a spinner until
-  // then, then keeps the last data on subsequent re-opens while it refetches.
-  let loaded = $state(false);
+  // The completion timeline is asked for when the popover opens, not shipped
+  // with the page load: it is a full talent-table scan, and that load re-runs
+  // every 5s for the live job feed. A reopened popover shows what it read last
+  // and asks again under it, so the per-period counts and the "depuis le dernier
+  // export" delta stay fresh without a standing query.
+  let open = $state(false);
+  const timeline = $derived(open ? onboardingExportTimeline() : null);
+  refreshWhenReused(() => timeline);
 
   const exportBase = resolve('staff/admin/onboarding-pdfs/export');
-  const timelineHref = resolve('staff/admin/onboarding-pdfs/export-timeline');
 
-  async function loadTimeline() {
-    try {
-      const res = await fetch(timelineHref);
-      if (!res.ok) throw new Error(`timeline ${res.status}`);
-      const data: { timeline: { at: string; type: DocType }[] } =
-        await res.json();
-      timeline = data.timeline.map((d) => ({
-        at: new Date(d.at).getTime(),
-        type: d.type,
-      }));
-      loaded = true;
-    } catch (err) {
-      console.error('[onboarding-pdfs] timeline fetch failed', err);
-      toast.error("Impossible de charger l'historique des exports.");
-    }
-  }
-
-  const exportWindow = createExportWindow(() => timeline);
+  const exportWindow = createExportWindow(() => timeline?.current ?? []);
   const sinceRange = $derived(exportWindow.sinceRange(lastExportAt));
   const sinceCount = $derived(
     sinceRange ? exportWindow.countIn(sinceRange) : 0,
@@ -114,7 +98,7 @@
   {/if}
 {/snippet}
 
-<Popover.Root onOpenChange={(open) => open && loadTimeline()}>
+<Popover.Root bind:open>
   <Popover.Trigger class={cn(buttonVariants({ variant: 'default' }), 'gap-2')}>
     <Archive class="h-4 w-4" />
     Télécharger les PDF signés
@@ -127,9 +111,15 @@
       Documents signés
     </p>
 
-    {#if !loaded}
+    {#if timeline?.error}
+      <ResultsNotice
+        compact
+        description="L'historique des exports n'a pas pu être chargé. Rouvrez le menu pour réessayer."
+      />
+    {:else if !timeline?.ready}
       <div
         class="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"
+        aria-live="polite"
       >
         <LoaderCircle class="h-4 w-4 animate-spin" />
         Chargement de l'historique…

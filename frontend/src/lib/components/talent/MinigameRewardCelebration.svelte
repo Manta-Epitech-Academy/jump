@@ -6,6 +6,7 @@
     minigameRewardToast,
     minigameRankRewardToast,
   } from '#lib/components/talent/rewardToast.ts';
+  import { ackMinigameRewards } from './rewardsSeen.remote';
 
   // The daily-finish reward and the rank bonus are both granted server-side at
   // finish. The play page floats the finish reward in the moment; this component
@@ -58,11 +59,7 @@
 
     // Stamp every shown reward seen up front (idempotent) so a reload can't
     // replay it; the visual plays out regardless.
-    void fetch('/api/minigames/rewards-seen', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ kinds: queue.map((q) => q.kind) }),
-    });
+    void ackMinigameRewards({ kinds: queue.map((q) => q.kind) });
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     const STEP = 2800; // just past the 2500ms float hide, so floats don't stack

@@ -4,7 +4,7 @@
  *
  * Two access shapes:
  *   - `searchAnnuaire(q)`: type-ahead by name/city, used by the onboarding lycée
- *     picker (`/api/lycees`).
+ *     picker (`searchLycees`, `onboarding/annuaire.remote.ts`).
  *   - `fetchSchoolByUai(uai)`: exact lookup by UAI, used to lazily enrich a
  *     canonical `School` row the first time a UAI is seen (Salesforce sync or a
  *     talent picking from the list).

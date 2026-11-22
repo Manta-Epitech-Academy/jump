@@ -1,12 +1,12 @@
 <script lang="ts">
   import * as Dialog from '#lib/components/ui/dialog/index.ts';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { resolve } from '$app/paths';
   import TalentNotesFeed from '#lib/components/dev/notes/TalentNotesFeed.svelte';
   import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
-  import type { SerializedNote } from '#lib/domain/talentNotes.ts';
+  import { talentNotes } from '#lib/components/dev/notes/talentNotes.remote.ts';
   import { slotLabelLong, type EventSlot } from '#lib/domain/eventPresence.ts';
   import type { PresenceRow } from './types';
+  import { refreshWhenReused } from '#lib/components/remoteQuery.svelte.ts';
 
   // Per-row notes modal: shows the talent's full notes feed without leaving the
   // émargement table. The roster carries only a count, so the bodies are
@@ -32,35 +32,12 @@
     onCountChange?: (talentId: string, count: number) => void;
   } = $props();
 
-  let notes = $state<SerializedNote[] | null>(null);
-  let loadError = $state(false);
-  let requestedFor = $state<string | null>(null);
-
-  // Fetch fresh on each open, once per targeted talent. Closing resets the guard
-  // so the next open re-pulls (another staff member may have added notes since).
-  $effect(() => {
-    if (!open) {
-      requestedFor = null;
-      return;
-    }
-    if (!row || requestedFor === row.talentId) return;
-    const talentId = row.talentId;
-    requestedFor = talentId;
-    notes = null;
-    loadError = false;
-    fetch(resolve('/(staff)/staff/dev/students/[id]/notes', { id: talentId }))
-      .then((res) => {
-        if (!res.ok) throw new Error(String(res.status));
-        return res.json();
-      })
-      .then((data) => {
-        notes = data.notes as SerializedNote[];
-      })
-      .catch((e) => {
-        console.error('load talent notes', e);
-        loadError = true;
-      });
-  });
+  // Asked on each open, one query per talent: an answer for a row opened
+  // before lands on a query nothing reads any more, and a reopened row is asked
+  // again, since another member of staff may have added notes since. The feed
+  // takes the new answer when it lands (`TalentNotesFeed`'s `items`).
+  const notes = $derived(open && row ? talentNotes(row.talentId) : null);
+  refreshWhenReused(() => notes);
 </script>
 
 <Dialog.Root bind:open>
@@ -72,13 +49,13 @@
           Réservées au staff (retard, administratif, pédagogique…).
         </Dialog.Description>
       </Dialog.Header>
-      {#if loadError}
+      {#if notes?.error}
         <ResultsNotice
           compact
           title="Chargement impossible"
           description="Les notes n'ont pas pu être chargées. Fermez cette fenêtre puis rouvrez-la pour réessayer."
         />
-      {:else if notes === null}
+      {:else if !notes?.ready}
         <div
           class="flex items-center justify-center py-8 text-muted-foreground"
         >
@@ -88,7 +65,7 @@
         {#key row.talentId}
           <TalentNotesFeed
             talentId={row.talentId}
-            {notes}
+            notes={notes.current}
             {timezone}
             {eventId}
             highlightLabel={activeSlot

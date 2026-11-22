@@ -43,7 +43,7 @@ import {
   type EventWorkshopLink,
   type EventWorkshopState,
 } from '#lib/server/services/events.ts';
-import { replacePictures } from '#lib/server/images/remote.ts';
+import { replacePictures } from '#lib/server/images/copy.ts';
 import {
   EVENT_HERO_STAGES,
   HERO_BUTTON_MAX,

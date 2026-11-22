@@ -19,10 +19,10 @@ import { cookieJar, sessionCookie } from './authHttp';
 
 const stamp = Date.now();
 
-/** One POST to the test-send route as the admin, through the whole hook. */
+/** One POST to an admin JSON write (a persona icon) through the whole hook. */
 async function postTestSend(cookie: string, headers: Record<string, string>) {
   const jar = cookieJar(cookie);
-  const url = new URL(`${ORIGIN}/staff/admin/broadcasts/templates/test`);
+  const url = new URL(`${ORIGIN}/api/feedback-forms/form-1/persona-icon`);
   const event = {
     request: new Request(url, {
       method: 'POST',
@@ -32,7 +32,7 @@ async function postTestSend(cookie: string, headers: Record<string, string>) {
     url,
     cookies: jar.cookies,
     locals: {},
-    route: { id: '/(staff)/staff/admin/broadcasts/templates/test' },
+    route: { id: '/api/feedback-forms/[id]/persona-icon' },
     params: {},
   } as unknown as RequestEvent;
   let resolved = false;
