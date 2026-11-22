@@ -4,6 +4,8 @@ import { resolve } from '$app/paths';
 import { prisma } from '#lib/server/db.ts';
 import { getParentLastName } from '#lib/domain/parent.ts';
 import { imageRightsStatus } from '#lib/domain/imageRights.ts';
+import { eventPublicName, UNNAMED_EVENT_NAME } from '#lib/domain/event.ts';
+import { shownEnrolmentWhere } from '#lib/domain/eventReadiness.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -19,8 +21,10 @@ export const load: PageServerLoad = async ({ locals }) => {
       prenom: true,
       nom: true,
       imageRightsDecision: true,
+      // The enrolments the child's own space shows (#516): a parent never
+      // counts, nor sees below, a campaign nobody prepared.
       _count: {
-        select: { participations: true },
+        select: { participations: { where: shownEnrolmentWhere() } },
       },
     },
   });
@@ -36,13 +40,13 @@ export const load: PageServerLoad = async ({ locals }) => {
       const upcomingParticipation = await prisma.participation.findFirst({
         where: {
           talentId: child.id,
-          event: { date: { gt: new Date() } },
+          ...shownEnrolmentWhere({ date: { gt: new Date() } }),
         },
         include: {
           event: {
             select: {
               id: true,
-              titre: true,
+              publicName: true,
               date: true,
               // The day is read on the event's campus clock, not the reader's.
               campus: { select: { timezone: true } },
@@ -60,7 +64,9 @@ export const load: PageServerLoad = async ({ locals }) => {
         eventsCount: child._count.participations,
         upcomingEvent: upcomingParticipation
           ? {
-              titre: upcomingParticipation.event.titre,
+              name:
+                eventPublicName(upcomingParticipation.event) ??
+                UNNAMED_EVENT_NAME,
               date: upcomingParticipation.event.date,
               timezone: upcomingParticipation.event.campus.timezone,
             }

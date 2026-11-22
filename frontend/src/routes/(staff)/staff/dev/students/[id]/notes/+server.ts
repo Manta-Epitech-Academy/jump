@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { prisma } from '#lib/server/db.ts';
 import { dateKeyToDbDate } from '#lib/domain/eventPresence.ts';
+import { shownEventWhere } from '#lib/domain/eventReadiness.ts';
 import { noteCreateSchema } from '#lib/validation/talentNotes.ts';
 import {
   NOTE_INCLUDE,
@@ -41,11 +42,12 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
   }
   const { body, eventId, presenceDay, presenceSlot } = parsed.data;
 
-  // Optional context anchor: only accept an event on this staff's campus, so a
-  // forged id can't link a note to another campus's event.
+  // Optional context anchor: only accept an event of this staff's workspace (its
+  // campus, activated by an admin), so a forged id can't link a note to another
+  // campus's event or to one the team is not shown.
   if (eventId) {
     const ok = await prisma.event.findFirst({
-      where: { id: eventId, campusId },
+      where: { id: eventId, campusId, ...shownEventWhere },
       select: { id: true },
     });
     if (!ok) throw error(400, 'Événement introuvable.');

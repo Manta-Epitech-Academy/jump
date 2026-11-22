@@ -36,7 +36,12 @@ import {
 import {
   ACTIVATION_BLOCKERS,
   activationBlockerKeys,
+  isEventShown,
 } from '../../../src/lib/domain/eventReadiness';
+import {
+  getEventStatus,
+  getLifecycleBounds,
+} from '../../../src/lib/domain/eventLifecycle';
 
 export async function reachabilityFailures(
   prisma: PrismaClient,
@@ -203,6 +208,47 @@ export async function reachabilityFailures(
       );
     }
   }
+
+  // And from a talent's side (#516). The talent's home, planning and
+  // activities read only the events an admin activated, so the example that
+  // shows the gate holding is a talent the dev space counts, enrolled in an
+  // event nobody activated that is not over and carries what those three
+  // screens list: a schedule and a subject. Without one, every seeded talent's
+  // events are shown, and a read that forgets the rule renders the same
+  // screens as one that keeps it.
+  const enrolledWithScreens = await prisma.participation.findMany({
+    where: {
+      talentId: { startsWith: 'sd_' },
+      shownInDevSpace: true,
+      event: {
+        planningSlots: { some: { activityType: { not: 'orga' } } },
+        workshops: { some: {} },
+      },
+    },
+    select: {
+      event: {
+        select: {
+          date: true,
+          endDate: true,
+          devActivatedAt: true,
+          modules: { select: { moduleKey: true } },
+          campus: { select: { timezone: true } },
+        },
+      },
+    },
+  });
+  const hiddenFromItsTalent = enrolledWithScreens.some(
+    ({ event }) =>
+      !isEventShown(event) &&
+      getEventStatus(
+        event,
+        getLifecycleBounds(event.campus.timezone, anchor),
+      ) !== 'past',
+  );
+  if (!hiddenFromItsTalent)
+    failures.push(
+      "Aucun talent inscrit à un événement en cours ou à venir que personne n'a activé, avec un planning et un sujet : rien ne montre que son accueil, son planning et ses activités le taisent",
+    );
 
   // The school-year switcher's own list: at least two years' worth of
   // navigable events, or `SchoolYearMenu` has nothing to switch between.

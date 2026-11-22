@@ -34,12 +34,13 @@ describe('a talent scanning the émargement code (integration)', () => {
   monday.setUTCHours(7, 0, 0, 0);
   const day = toDateKey(monday, tz);
 
-  async function eventWith(modules: string[]) {
+  async function eventWith(modules: string[], { activated = true } = {}) {
     const event = await prisma.event.create({
       data: {
         titre: `Scan ${stamp}`,
         campusId,
         date: monday,
+        devActivatedAt: activated ? new Date() : null,
         modules: { create: modules.map((moduleKey) => ({ moduleKey })) },
       },
     });
@@ -112,6 +113,14 @@ describe('a talent scanning the émargement code (integration)', () => {
 
   it('reads a code as dead once the event has its émargement off', async () => {
     const eventId = await eventWith([EVENT_MODULES.INSCRITS]);
+    const talent = await talentOn(eventId, true);
+    expect(await scan(talent, eventId)).toEqual({ state: 'invalid', marks: 0 });
+  });
+
+  it('reads a code as dead on an event no admin activated', async () => {
+    const eventId = await eventWith([EVENT_MODULES.EMARGEMENT], {
+      activated: false,
+    });
     const talent = await talentOn(eventId, true);
     expect(await scan(talent, eventId)).toEqual({ state: 'invalid', marks: 0 });
   });

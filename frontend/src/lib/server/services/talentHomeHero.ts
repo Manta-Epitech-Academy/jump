@@ -13,7 +13,7 @@
  */
 import type { Prisma } from '@prisma/client';
 import { prisma } from '#lib/server/db.ts';
-import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { shownEnrolmentWhere } from '#lib/domain/eventReadiness.ts';
 import { eventPublicName, UNNAMED_EVENT_NAME } from '#lib/domain/event.ts';
 import { toDateKey } from '#lib/domain/planningTime.ts';
 import {
@@ -40,10 +40,10 @@ const ENDED_SLACK_MS = 36 * 60 * 60 * 1000;
 
 /**
  * The talent's enrolments that count as « inscrit » (shown in the dev space)
- * on an event that may not be over yet. Coarse on purpose: whether it is over
- * is read on the event's campus clock (`heroEventPhase`), which a `where`
- * cannot do. Shared by the home hero and Mon parcours, so both say « inscrit »
- * about the same events.
+ * on an event an admin activated (`shownEventWhere`, #516) that may not be over
+ * yet. Coarse on purpose: whether it is over is read on the event's campus
+ * clock (`heroEventPhase`), which a `where` cannot do. Shared by the home hero
+ * and Mon parcours, so both say « inscrit » about the same events.
  */
 export function enrolledNotOverWhere(
   talentId: string,
@@ -52,13 +52,12 @@ export function enrolledNotOverWhere(
   const since = new Date(now.getTime() - ENDED_SLACK_MS);
   return {
     talentId,
-    ...visibleParticipationWhere,
-    event: {
+    ...shownEnrolmentWhere({
       OR: [
         { endDate: { gte: since } },
         { endDate: null, date: { gte: since } },
       ],
-    },
+    }),
   };
 }
 
@@ -168,16 +167,17 @@ export async function loadHomeHero(
 
 /**
  * The calendar entry behind the hero's « Ajouter à mon agenda », for an event
- * this talent is enrolled in (an enrolment the dev space shows, the rule the
- * hero offers it under); null for any other event, so nobody downloads an
- * event they are not expected at. Read on the event's campus clock.
+ * this talent is enrolled in (an enrolment the dev space shows, on an event an
+ * admin activated: the rules the hero offers it under); null for any other
+ * event, so nobody downloads an event they are not expected at. Read on the
+ * event's campus clock.
  */
 export async function enrolledEventCalendar(
   talentId: string,
   eventId: string,
 ): Promise<IcsEvent | null> {
   const participation = await prisma.participation.findFirst({
-    where: { talentId, eventId, ...visibleParticipationWhere },
+    where: { talentId, eventId, ...shownEnrolmentWhere() },
     select: {
       event: {
         select: {

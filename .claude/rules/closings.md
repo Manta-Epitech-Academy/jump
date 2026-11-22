@@ -92,7 +92,10 @@ Rules, each of which a reasonable-looking change breaks quietly rather than loud
 - **A closing is 1:1 with a participation, and a regular has many.** Eight to ten
   a year is the expected shape, deliberately: the successive verdicts and how they
   moved are what "Son parcours" on the fiche is for, which is also why that list
-  is bounded against the viewport rather than at a pixel cap.
+  is bounded against the viewport rather than at a pixel cap. It lists the
+  closings of activated events only (`shownEventWhere`, #516): deactivating an
+  event takes its closings off the fiche with the event, and reactivating it
+  brings them back. Nothing is deleted.
 - **It is keyed on `(talentId, eventId)`, though, never on the participation's
   id.** That pair IS `Participation`'s natural key, so the line above still holds
   as a statement about the domain; what does not is a foreign key. `syncTalents`

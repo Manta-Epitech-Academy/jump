@@ -13,6 +13,7 @@ import {
   type TalentHomeHighlight,
 } from './talentHome';
 import type { WorkshopActivity } from './workshops';
+import { EVENT_MISSING_LABELS } from './eventReadiness';
 
 // An event's first day as the sync stores it: midnight on the campus clock.
 const startsOn = (instant: string) => ({ date: new Date(instant) });
@@ -65,6 +66,8 @@ describe('pointedEventShown', () => {
     ...startsOn('2026-10-13T22:00:00Z'),
     publicName: 'Halloween Camp',
     signupUrl: 'https://www.epitech.invalid/inscription',
+    devActivatedAt: new Date('2026-09-01T08:00:00Z'),
+    modules: ['inscrits'],
   };
   const before = new Date('2026-10-01T08:00:00Z');
 
@@ -91,6 +94,35 @@ describe('pointedEventShown', () => {
       shown: false,
       because: "L'événement n'a plus de nom public (publicName).",
     });
+  });
+
+  // #516: a talent is shown no event an admin has not activated, nor one left
+  // with no section, and the reason names which: an activated event emptied of
+  // its sections once read as « not activated » to the admin asking why.
+  it('hides an event not shown to talents, saying whether it lacks the activation or a section', () => {
+    const because = (event: {
+      devActivatedAt?: Date | null;
+      modules?: string[];
+    }) => {
+      const answer = pointedEventShown(
+        'paris',
+        'Europe/Paris',
+        { ...pointed, ...event },
+        before,
+      );
+      return answer.shown ? null : answer.because;
+    };
+    expect(because({ devActivatedAt: null })).toContain(
+      EVENT_MISSING_LABELS.activation,
+    );
+    expect(because({ modules: [] })).toContain(EVENT_MISSING_LABELS.modules);
+    expect(because({ modules: [] })).not.toContain(
+      EVENT_MISSING_LABELS.activation,
+    );
+    // Both missing: the section first, since activating alone shows nothing.
+    expect(because({ devActivatedAt: null, modules: [] })).not.toContain(
+      EVENT_MISSING_LABELS.activation,
+    );
   });
 });
 

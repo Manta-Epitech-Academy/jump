@@ -16,53 +16,7 @@ import {
 import { defaultEvent } from '#lib/domain/devWorkspace.ts';
 import { schoolYearOf, type SchoolYear } from '#lib/domain/schoolYear.ts';
 import { prisma } from '#lib/server/db.ts';
-import type { Prisma } from '@prisma/client';
-
-/**
- * An event is "visible dans l'espace dev" iff an admin activated it
- * (`devActivatedAt`) and it carries at least one module: the admin space counts
- * an event with no section as not configured yet (`eventReadiness`), and
- * refuses to activate one. Single source for the
- * dev workspace event list and for any surface that must mirror that
- * visibility: the talent's own attended-events history, and every link INTO the
- * workspace (see `isDevVisibleEvent` below).
- *
- * It is deliberately NOT what decides which rows a history LISTS. The talent
- * portal's list can afford the filter because it is built off `EventPresence`,
- * which only exists where the dev space ran the émargement, so nothing is lost;
- * the staff fiche's "Son parcours" is built off `Participation`, which is the
- * whole Salesforce history, and filtering it would answer "what does the dev
- * workspace expose" on a page whose question is "what has this person done with
- * us". So a row stays and its link is withheld.
- *
- * Not the same rule as `activatableEventWhere` in `services/events`: this one is
- * what IS visible, that one is what MAY be made visible (a stricter set, which
- * also needs a public name).
- */
-export const devVisibleEventWhere = {
-  devActivatedAt: { not: null },
-  modules: { some: {} },
-} satisfies Prisma.EventWhereInput;
-
-/**
- * The same rule as `devVisibleEventWhere`, for a row already loaded rather than
- * for a query. Kept beside it so the two halves cannot drift: a surface that
- * links INTO the workspace has to apply the membership test the workspace
- * itself applies, and it has the event in hand rather than a `where` to extend.
- *
- * Withholding a link is not cosmetic here. The dev layout resolves the event in
- * view out of `resolveWorkspaceEvents` and falls back to the workspace default
- * when the URL names an event that is not a member, so a link to a
- * non-activated event opens its page under ANOTHER event's name in the
- * menu: a cohort read under the wrong heading, which is worse than the 404
- * `loadEventOr404` does not throw (it gates on campus, never on activation).
- */
-export function isDevVisibleEvent(event: {
-  devActivatedAt: Date | null;
-  modules: unknown[];
-}): boolean {
-  return event.devActivatedAt !== null && event.modules.length > 0;
-}
+import { shownEventWhere } from '#lib/domain/eventReadiness.ts';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -128,23 +82,28 @@ export function eventModuleSettings<K extends EventModuleKey>(
 
 /**
  * Load an event of the caller's campus for one dev-workspace surface, 404ing
- * when it belongs to another campus or when `surface` is a module the event has
- * turned off, so a direct URL to such a surface behaves like a missing page.
- * A surface that is no module (`planning`) is gated on the data its own load
- * reads, as are the data gates of module surfaces (a feedback form, a closing
- * grid, a certificate design).
+ * when it belongs to another campus, when no admin activated it
+ * (`shownEventWhere`), or when `surface` is a module the event has turned off,
+ * so a direct URL to such a surface behaves like a missing page. A surface that
+ * is no module (`planning`) is gated on the data its own load reads, as are the
+ * data gates of module surfaces (a feedback form, a closing grid, a certificate
+ * design).
  *
  * The surface is a required argument because the module gate used to be a
  * second call each route had to remember, and four endpoints (both exports,
- * both émargement QR codes) forgot it.
+ * both émargement QR codes) forgot it. The activation gate is here for the same
+ * reason: the workspace's menu only ever held activated events, but every page
+ * under an event opened by its address for one it did not (#516), under
+ * another event's name in the menu, since the layout falls back to the
+ * workspace's default event when the URL names one it does not hold.
  */
 export async function loadEventOr404(
   eventId: string,
   campusId: string,
   surface: EventSurfaceKey,
 ): Promise<EventRecord> {
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
+  const event = await prisma.event.findFirst({
+    where: { id: eventId, campusId, ...shownEventWhere },
     select: {
       id: true,
       titre: true,
@@ -161,9 +120,7 @@ export async function loadEventOr404(
       modules: { select: { moduleKey: true, settings: true } },
     },
   });
-  if (!event || event.campusId !== campusId) {
-    throw error(404, 'Événement introuvable.');
-  }
+  if (!event) throw error(404, 'Événement introuvable.');
   const { modules, ...rest } = event;
   const present = modules.filter((m) => isEventModuleKey(m.moduleKey));
   const record: EventRecord = {
@@ -246,7 +203,7 @@ export type WorkspaceEvents = {
 
 /**
  * Every event that belongs to the dev cohort workspace for this (already
- * campus-scoped) client: `devVisibleEventWhere`. Each one opens on its home,
+ * campus-scoped) client: the events an admin activated (`shownEventWhere`). Each one opens on its home,
  * which every event has; modules then decide WHICH other surfaces it exposes. The workspace hosts
  * as many events as a campus activates, across school years, each opened from
  * the campus calendar.
@@ -262,7 +219,7 @@ export async function resolveWorkspaceEvents(
   // is a form. Forms are global (not campus-scoped), so they come off `prisma`.
   const [rows, liveForms] = await Promise.all([
     db.event.findMany({
-      where: devVisibleEventWhere,
+      where: shownEventWhere,
       select: {
         id: true,
         titre: true,

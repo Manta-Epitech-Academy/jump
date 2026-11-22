@@ -30,6 +30,10 @@ import {
 import { toDateKey } from '#lib/domain/planningTime.ts';
 import { eventDisplayName, eventPublicName } from '#lib/domain/event.ts';
 import {
+  EVENT_MISSING_LABELS,
+  eventNotShownBecause,
+} from '#lib/domain/eventReadiness.ts';
+import {
   HERO_BUTTON_MAX,
   HERO_TEXT_MAX,
   HERO_TITLE_MAX,
@@ -291,13 +295,29 @@ export function checkSignupUrl(url: string): void {
 }
 
 /**
- * The event a campus may put forward: one of its own, still inviting (until
- * the end of its first day on the campus clock), named, and with a sign-up
- * form for the hero's button to open: what `pointedEventShown` reads back on
- * the talent's home. Checked inside the write's transaction, under the event's
- * lock, which a save of its configuration takes too before it clears either
- * field (`EventService.updateEventConfig`).
+ * The event a campus may put forward: one of its own, activated (a talent is
+ * shown no other event, #516), still inviting (until the end of its first day
+ * on the campus clock), named, and with a sign-up form for the hero's button
+ * to open: what `pointedEventShown` reads back on the talent's home. Checked
+ * inside the write's transaction, under the event's lock, which a save of its
+ * configuration takes too before it clears the sign-up form
+ * (`EventService.updateEventConfig`).
  */
+/**
+ * What to do about each reason an event is not shown (`eventNotShownBecause`),
+ * as the refusal below says it: an event with no section needs one as well as
+ * the activation, and `write_event_config` judges both on the call's result, so
+ * they come in one call.
+ */
+const SHOW_IT_FIRST = {
+  activation: "Rendez-le d'abord visible avec write_event_config (visible).",
+  modules:
+    "Donnez-lui d'abord une section et rendez-le visible, en un seul appel à write_event_config (modules et visible).",
+} as const satisfies Record<
+  NonNullable<ReturnType<typeof eventNotShownBecause>>,
+  string
+>;
+
 async function checkHighlightedEvent(
   tx: Prisma.TransactionClient,
   campus: ResolvedCampus,
@@ -312,6 +332,8 @@ async function checkHighlightedEvent(
       publicName: true,
       date: true,
       signupUrl: true,
+      devActivatedAt: true,
+      modules: { select: { moduleKey: true } },
       campus: { select: { id: true, name: true, timezone: true } },
     },
   });
@@ -323,6 +345,11 @@ async function checkHighlightedEvent(
   if (event.campus.id !== campus.id)
     throw new OperationRefusedError(
       `« ${name} » est un événement de ${event.campus.name}, pas de ${campus.name} : un campus ne met en avant que ses propres événements.`,
+    );
+  const hidden = eventNotShownBecause(event);
+  if (hidden)
+    throw new OperationRefusedError(
+      `« ${name} » n'est montré à aucun talent (${EVENT_MISSING_LABELS[hidden]}) : un talent ne voit que les événements activés avec au moins une section. ${SHOW_IT_FIRST[hidden]}`,
     );
   if (!isInvitationOpen(event, event.campus.timezone, now))
     throw new OperationRefusedError(

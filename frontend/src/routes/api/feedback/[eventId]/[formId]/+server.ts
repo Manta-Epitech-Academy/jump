@@ -2,7 +2,10 @@ import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { prisma } from '#lib/server/db.ts';
 import type { Answers } from '#lib/domain/feedbackForms/schema.ts';
-import { getFormGraphBySlug } from '#lib/server/feedbackForms.ts';
+import {
+  feedbackParticipationWhere,
+  getFormGraphBySlug,
+} from '#lib/server/feedbackForms.ts';
 import { recordSubmission } from '#lib/server/feedbackSubmissions.ts';
 
 export const POST: RequestHandler = async ({ request, locals, params }) => {
@@ -21,7 +24,10 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 
   // The submission must belong to a real participation, mirroring the page load.
   const participation = await prisma.participation.findFirst({
-    where: { eventId: params.eventId, talentId: locals.talent.id },
+    where: {
+      eventId: params.eventId,
+      ...feedbackParticipationWhere(locals.talent.id),
+    },
     select: { id: true },
   });
   if (!participation) {

@@ -1,6 +1,7 @@
 import { fromWallClock, toDateKey, type DateKey } from './planningTime';
 import { dateKeyParts, dateKeyToDbDate } from './eventPresence';
 import { eventPublicName, minutesToHHMM } from './event';
+import { EVENT_MISSING_LABELS, eventNotShownBecause } from './eventReadiness';
 import { isActivityFinished, type WorkshopActivity } from './workshops';
 import {
   heroCopy,
@@ -127,7 +128,13 @@ export function isInvitationOpen(
  * the answer cannot claim an event the home hides. Each condition is checked
  * when the campus points at the event (`write_talent_home_highlight`); this
  * reads what has moved since: Salesforce may move the event to another campus,
- * and its first day passes.
+ * an admin may deactivate it, and its first day passes.
+ *
+ * An event no admin activated is never put forward (#516): a talent is shown
+ * no other event anywhere. Deactivating one a campus points at is allowed and
+ * hides it here, rather than being refused the way clearing its public name is
+ * (`refuseUnpointingEvent`): taking an event away from every non-admin screen
+ * is what deactivating means, the highlight included.
  */
 export function pointedEventShown(
   campusId: string,
@@ -137,6 +144,8 @@ export function pointedEventShown(
     date: Date;
     publicName: string | null;
     signupUrl: string | null;
+    devActivatedAt: Date | null;
+    modules: readonly unknown[];
   },
   now: Date,
 ):
@@ -147,6 +156,12 @@ export function pointedEventShown(
     return {
       shown: false,
       because: "L'événement a été déplacé sur un autre campus dans Salesforce.",
+    };
+  const hidden = eventNotShownBecause(event);
+  if (hidden)
+    return {
+      shown: false,
+      because: `Un talent ne voit que les événements activés avec au moins une section, et celui-ci n'en est pas un : ${EVENT_MISSING_LABELS[hidden]}.`,
     };
   if (!name)
     return {

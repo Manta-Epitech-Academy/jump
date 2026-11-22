@@ -23,6 +23,7 @@ import { codingClubPublicName, codingClubTitre } from '../catalog/events';
 import { addDossier } from '../factories/onboarding';
 import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
 import type { Scenario } from './types';
+import { SHOWN_TO_TALENTS } from './helpers';
 
 /** Days from the anchor to the persona's Coding Club, before the highlight's. */
 const SESSION_OFFSET = 3;
@@ -48,6 +49,7 @@ export const campusHome: Scenario = {
       HIGHLIGHTED_EVENT.days,
     );
     const camp = world.addEvent({
+      ...SHOWN_TO_TALENTS,
       key: 'evt-accueil-camp',
       titre: `${campus.name}-${clock.dateKey(campDays[0]!)}-HalloweenCamp`,
       publicName: HIGHLIGHTED_EVENT.publicName,
@@ -84,6 +86,7 @@ export const campusHome: Scenario = {
         PAST_HIGHLIGHTED_EVENT.days,
       );
       const openDay = world.addEvent({
+        ...SHOWN_TO_TALENTS,
         key: 'evt-accueil-jpo',
         titre: `${stale.name}-${clock.dateKey(days[0]!)}-JPO`,
         publicName: PAST_HIGHLIGHTED_EVENT.publicName,
@@ -100,6 +103,7 @@ export const campusHome: Scenario = {
 
     const days = world.eventWindow(SESSION_OFFSET, 1);
     const session = world.addEvent({
+      ...SHOWN_TO_TALENTS,
       key: 'evt-accueil-campus',
       titre: codingClubTitre({ campus: campus.name, date: days[0]! }),
       publicName: codingClubPublicName(days[0]!),

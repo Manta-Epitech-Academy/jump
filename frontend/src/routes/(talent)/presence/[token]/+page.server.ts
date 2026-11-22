@@ -4,9 +4,12 @@ import { prisma } from '#lib/server/db.ts';
 import { writePresenceCell } from '#lib/server/services/presenceService.ts';
 import { verifyCheckinToken } from '#lib/server/presence/checkinToken.ts';
 import { isSlotClosed } from '#lib/server/presence/slotClosure.ts';
-import { eventDisplayName } from '#lib/domain/event.ts';
+import { eventPublicName, UNNAMED_EVENT_NAME } from '#lib/domain/event.ts';
+import {
+  shownEnrolmentWhere,
+  shownEventWhere,
+} from '#lib/domain/eventReadiness.ts';
 import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
-import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
 import {
   dateKeyToDbDate,
   dayLabelFr,
@@ -49,15 +52,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // access gate, in place of the campus scoping the staff routes get.
   //
   // A scan writes on the sheet the émargement page shows, so it follows that
-  // sheet: the section has to be on (a code minted before it was switched off
-  // is dead), and the talent has to be on the roster the dev space lists, the
-  // one a staff member could mark (`assertOnSheet`). A masked enrolment would
-  // otherwise leave a mark nobody can see or correct.
+  // sheet: the event has to be one an admin activated and the section on (a
+  // code minted before either was switched off is dead), and the talent has to
+  // be on the roster the dev space lists, the one a staff member could mark
+  // (`assertOnSheet`). A masked enrolment would otherwise leave a mark nobody
+  // can see or correct.
   const [event, manualCloses, participation] = await Promise.all([
-    prisma.event.findUnique({
-      where: { id: eventId },
+    prisma.event.findFirst({
+      where: { id: eventId, ...shownEventWhere },
       select: {
-        titre: true,
         publicName: true,
         date: true,
         endDate: true,
@@ -74,7 +77,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       select: { day: true, slot: true },
     }),
     prisma.participation.findFirst({
-      where: { talentId: talent.id, eventId, ...visibleParticipationWhere },
+      where: { talentId: talent.id, eventId, ...shownEnrolmentWhere() },
       select: { id: true },
     }),
   ]);
@@ -88,10 +91,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   if (!isPresenceSlot(event, timezone, day, slot)) {
     return { state: 'invalid' as CheckinState, ...empty };
   }
-  // Short, friendly label: the event's public name when set, else the SF
-  // `titre` as a fallback.
+  // The event's public name, never its Salesforce title, as everywhere a talent
+  // reads: an activated event has one.
   const withLabel = {
-    eventLabel: eventDisplayName(event),
+    eventLabel: eventPublicName(event) ?? UNNAMED_EVENT_NAME,
     prenom: talent.prenom,
     ...labels,
   };

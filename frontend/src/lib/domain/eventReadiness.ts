@@ -1,4 +1,81 @@
+import type { Prisma } from '@prisma/client';
 import type { EventLifecycleStatus } from './eventLifecycle';
+import { visibleParticipationWhere } from './sfMemberStatus';
+
+/**
+ * The events anyone but an admin is shown: an admin activated it
+ * (`devActivatedAt`) and it carries at least one section. Everything a talent,
+ * a parent or the dev team reads about an event goes through this rule: the dev
+ * workspace's list and pages, the « Déjà venu » count and a talent's fiche, the
+ * talent's home, planning, activities, feedback and émargement, and the parent
+ * space (#516). Only the admin space and the admin API read every event.
+ *
+ * Before #516 it decided only what the dev workspace listed, and every other
+ * surface read the whole Salesforce history: talents and parents saw campaigns
+ * nobody had prepared, under their raw Salesforce title, and a page of the
+ * workspace opened by its address for an event the menu did not hold. An
+ * activated event has passed the activation rule ({@link activationBlockers}),
+ * so its public name is set, and that is what lets a talent surface name it.
+ *
+ * Two spellings of one rule, because a Prisma `where` cannot call a predicate:
+ * this one for a query, {@link isEventShown} for a row already loaded. They are
+ * kept beside each other and `eventReadiness.test.ts` asserts they read the
+ * same fields. It is also the `shown` state of {@link eventConfigState}, which
+ * reads the same two facts off a view model, and the same test holds the three
+ * together.
+ *
+ * Not the same rule as `activatableEventWhere` in `server/services/events`:
+ * this one is what IS shown, that one is what MAY be shown (a stricter set,
+ * which also needs a public name).
+ */
+export const shownEventWhere = {
+  devActivatedAt: { not: null },
+  modules: { some: {} },
+} satisfies Prisma.EventWhereInput;
+
+/**
+ * The enrolments a talent's own space and their parent's read: one the dev
+ * space shows (`visibleParticipationWhere`, a withdrawn talent is not expected
+ * anywhere), on an event an admin activated ({@link shownEventWhere}). Spread
+ * into a `Participation` where; `event` narrows the events further and is
+ * ANDed with the rule rather than spread over it, so a caller's own `modules`
+ * or `OR` cannot replace a half of it.
+ */
+export function shownEnrolmentWhere(
+  event?: Prisma.EventWhereInput,
+): Prisma.ParticipationWhereInput {
+  return {
+    ...visibleParticipationWhere,
+    event: event ? { AND: [shownEventWhere, event] } : shownEventWhere,
+  };
+}
+
+/** What {@link shownEventWhere} reads off a row already loaded. */
+type ShownEventFields = {
+  devActivatedAt: Date | null;
+  modules: readonly unknown[];
+};
+
+/**
+ * Why a loaded event is not shown, as a key of {@link EVENT_MISSING_LABELS},
+ * or null when it is. No section comes first, the order `eventMissingConfig`
+ * gives: an event with none shows nothing whatever its gate says, so naming the
+ * activation then would send the reader to flip a switch that changes nothing.
+ * A key rather than a sentence, because a read describes it and a refused write
+ * says what to do about it.
+ */
+export function eventNotShownBecause(
+  event: ShownEventFields,
+): 'modules' | 'activation' | null {
+  if (event.modules.length === 0) return 'modules';
+  if (event.devActivatedAt === null) return 'activation';
+  return null;
+}
+
+/** {@link shownEventWhere} for a row already loaded. */
+export function isEventShown(event: ShownEventFields): boolean {
+  return eventNotShownBecause(event) === null;
+}
 
 /**
  * The configuration state of an event, for the admin events cockpit. A pure
@@ -16,9 +93,10 @@ import type { EventLifecycleStatus } from './eventLifecycle';
  *
  *  - `unconfigured` no section enabled (nothing to show, whatever the gate says)
  *  - `ready`        sections enabled but hidden - one toggle from live
- *  - `shown`        activated AND >=1 section: live for the dev team. Mirrors
- *                   `resolveWorkspaceEvents`' membership rule, so this state and
- *                   the dev workspace agree on what "in the dev space" means.
+ *  - `shown`        activated AND >=1 section: live for everyone but admins,
+ *                   the dev team, the event's talents and their parents. The
+ *                   view-model spelling of `shownEventWhere`, so this state
+ *                   and every non-admin screen agree on what "shown" means.
  */
 export type EventConfigState = 'shown' | 'ready' | 'unconfigured';
 
@@ -29,9 +107,10 @@ export const EVENT_CONFIG_STATE_LABELS: Record<EventConfigState, string> = {
 };
 
 export const EVENT_CONFIG_STATE_HINTS: Record<EventConfigState, string> = {
-  shown: "Activé et visible dans l'espace dev.",
+  shown:
+    "Activé : visible dans l'espace dev, et par ses talents et leurs parents.",
   ready:
-    "Configuré mais masqué : activez-le pour le rendre visible dans l'espace dev.",
+    "Configuré mais masqué : activez-le pour le montrer à l'espace dev, à ses talents et à leurs parents.",
   unconfigured:
     "Aucune section activée : configurez l'événement pour le préparer.",
 };
@@ -143,7 +222,7 @@ export const EVENT_MISSING_LABELS = {
   publicName: 'nom public',
   cohortNoun: 'nom des participants',
   modules: 'aucune section activée',
-  activation: "pas encore activé pour l'espace dev",
+  activation: 'pas encore activé',
 } as const;
 
 /**

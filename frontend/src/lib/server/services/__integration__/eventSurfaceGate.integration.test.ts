@@ -6,9 +6,10 @@ import { assertTestDatabase } from './testDatabase';
 
 /**
  * The gate every dev event route goes through. A route names the surface it
- * serves, and the load answers 404 for another campus's event or for a module
- * the event has turned off, so no endpoint can serve a section the event does
- * not expose (four once did, because the module check was a second call).
+ * serves, and the load answers 404 for another campus's event, for an event no
+ * admin activated (#516), or for a module the event has turned off, so no
+ * endpoint can serve a section the event does not expose (four once did,
+ * because the module check was a second call).
  */
 describe('loading an event for a dev surface (integration)', () => {
   const stamp = Date.now();
@@ -30,6 +31,7 @@ describe('loading an event for a dev surface (integration)', () => {
           titre: 'Gate Event',
           campusId,
           date: new Date('2026-09-01T09:00:00.000Z'),
+          devActivatedAt: new Date(),
           modules: { create: { moduleKey: EVENT_MODULES.INSCRITS } },
         },
       })
@@ -67,5 +69,26 @@ describe('loading an event for a dev surface (integration)', () => {
   it('leaves a surface that is no module to its own load', async () => {
     const event = await loadEventOr404(eventId, campusId, 'planning');
     expect(event.modules.has(EVENT_MODULES.INSCRITS)).toBe(true);
+  });
+
+  it('answers 404 on every surface of an event no admin activated, and opens again once one does', async () => {
+    const surfaces = [EVENT_MODULES.INSCRITS, 'home', 'planning'] as const;
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { devActivatedAt: null },
+    });
+    for (const surface of surfaces) {
+      await expect(
+        loadEventOr404(eventId, campusId, surface),
+      ).rejects.toMatchObject({ status: 404 });
+    }
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { devActivatedAt: new Date() },
+    });
+    for (const surface of surfaces) {
+      const event = await loadEventOr404(eventId, campusId, surface);
+      expect(event.id).toBe(eventId);
+    }
   });
 });

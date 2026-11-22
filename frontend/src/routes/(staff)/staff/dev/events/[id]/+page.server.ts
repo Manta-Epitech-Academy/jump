@@ -48,9 +48,10 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
   const event = await loadEventOr404(params.id, campusId, 'home');
 
   // The workspace's own entry for the event: the sidebar reads its gates from
-  // it, so the cards link to exactly the pages the menu offers. An event that
-  // is not a member of the workspace (not activated for the dev space) has no
-  // home here, rather than one under another event's name in the menu.
+  // it, so the cards link to exactly the pages the menu offers. Both read
+  // `shownEventWhere`, so `loadEventOr404` has already refused an event the
+  // workspace does not hold; the check stays for the entry it narrows, and for
+  // an event deactivated between the layout's read and this one.
   const { workspace } = await parent();
   const entry = workspace.events.find((e) => e.id === event.id);
   if (!entry) throw error(404, 'Événement introuvable.');
