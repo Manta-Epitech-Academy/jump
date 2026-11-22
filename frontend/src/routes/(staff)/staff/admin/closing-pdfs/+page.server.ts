@@ -29,8 +29,8 @@ export const load: PageServerLoad = async ({ url, locals, depends }) => {
   // row page, the total match count and the per-recommendation KPI counts (the
   // blocking query cost) resolve behind the shell skeleton. Mirrors the talents
   // / sf-conflicts admin tables. The export timeline used to ride this load too,
-  // but it's an unbounded scan only the export popover needs, so it moved to
-  // ./export-timeline and the menu fetches it lazily on open.
+  // but it's an unbounded scan only the export popover needs, so the menu asks
+  // for it on open (`closingExportTimeline`).
   const cohort = (async () => {
     const [closings, matchCount, recoCounts] = await Promise.all([
       prisma.closing_Record.findMany({

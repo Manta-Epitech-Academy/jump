@@ -5,6 +5,7 @@
   import { resolve } from '$app/paths';
   import { buttonVariants } from '#lib/components/ui/button/index.ts';
   import * as Popover from '#lib/components/ui/popover/index.ts';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
   import ExportSinceCard from '#lib/components/staff/export/ExportSinceCard.svelte';
   import ExportWindowPicker from '#lib/components/staff/export/ExportWindowPicker.svelte';
   import {
@@ -13,36 +14,23 @@
   } from '#lib/components/staff/export/exportWindow.svelte.ts';
   import { cn } from '#lib/utils.ts';
   import { toast } from 'svelte-sonner';
+  import { refreshWhenReused } from '#lib/components/remoteQuery.svelte.ts';
+  import { closingExportTimeline } from './exportTimeline.remote.ts';
 
   let { lastExportAt }: { lastExportAt: string | null } = $props();
 
-  // The conducted-at timeline is fetched lazily when the popover opens rather
-  // than passed down from the page load: it's an unbounded scan of every done
-  // closing, needed only to count PDFs per period, so keeping it off the load
-  // lets the page chrome paint without it. Refetched on each open so the counts
-  // and the "depuis le dernier export" delta stay fresh.
-  let timeline = $state<{ at: number }[]>([]);
-  // First successful fetch flips this; the popover body shows a spinner until
-  // then, then keeps the last data on subsequent re-opens while it refetches.
-  let loaded = $state(false);
+  // The conducted-at timeline is asked for when the popover opens, not shipped
+  // with the page load: it is an unbounded scan of every done closing, needed
+  // only to count PDFs per period. A reopened popover shows what it read last and
+  // asks again under it, so the counts and the "depuis le dernier export" delta
+  // stay fresh.
+  let open = $state(false);
+  const timeline = $derived(open ? closingExportTimeline() : null);
+  refreshWhenReused(() => timeline);
 
   const exportBase = resolve('staff/admin/closing-pdfs/export');
-  const timelineHref = resolve('staff/admin/closing-pdfs/export-timeline');
 
-  async function loadTimeline() {
-    try {
-      const res = await fetch(timelineHref);
-      if (!res.ok) throw new Error(`timeline ${res.status}`);
-      const data: { timeline: { at: string }[] } = await res.json();
-      timeline = data.timeline.map((d) => ({ at: new Date(d.at).getTime() }));
-      loaded = true;
-    } catch (err) {
-      console.error('[closing-pdfs] timeline fetch failed', err);
-      toast.error("Impossible de charger l'historique des exports.");
-    }
-  }
-
-  const exportWindow = createExportWindow(() => timeline);
+  const exportWindow = createExportWindow(() => timeline?.current ?? []);
   const sinceRange = $derived(exportWindow.sinceRange(lastExportAt));
   const sinceCount = $derived(
     sinceRange ? exportWindow.countIn(sinceRange) : 0,
@@ -56,7 +44,7 @@
   }
 </script>
 
-<Popover.Root onOpenChange={(open) => open && loadTimeline()}>
+<Popover.Root bind:open>
   <Popover.Trigger class={cn(buttonVariants({ variant: 'default' }), 'gap-2')}>
     <Archive class="h-4 w-4" />
     Exporter les PDF
@@ -69,9 +57,15 @@
       Synthèses de closing
     </p>
 
-    {#if !loaded}
+    {#if timeline?.error}
+      <ResultsNotice
+        compact
+        description="L'historique des exports n'a pas pu être chargé. Rouvrez le menu pour réessayer."
+      />
+    {:else if !timeline?.ready}
       <div
         class="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"
+        aria-live="polite"
       >
         <LoaderCircle class="h-4 w-4 animate-spin" />
         Chargement de l'historique...

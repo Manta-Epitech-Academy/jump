@@ -111,8 +111,8 @@ export const load: PageServerLoad = async ({ url, depends, locals }) => {
     // This admin's high-water mark, so the menu can offer "depuis le dernier
     // export". Null until their first full export. The export *timeline* itself
     // is no longer loaded here: it's a full talent-table scan and this load
-    // re-runs every 5s (live job feed), so the menu fetches it lazily on open
-    // from ./export-timeline instead of riding the poll.
+    // re-runs every 5s (live job feed), so the menu asks for it on open
+    // (`onboardingExportTimeline`) instead of riding the poll.
     lastExportAt:
       locals.staffProfile?.onboardingDocsExportedAt?.toISOString() ?? null,
     truncated: matchCount > PAGE_SIZE,
