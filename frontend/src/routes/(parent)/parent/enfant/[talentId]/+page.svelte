@@ -185,14 +185,6 @@
           >
             <MapPin class="h-4 w-4 text-epi-blue" />
             <span>{data.todayPlanning.eventName}</span>
-            <span class="text-muted-foreground">•</span>
-            <Clock class="h-4 w-4" />
-            <span
-              >{formatTime(
-                data.todayPlanning.eventDate,
-                data.todayPlanning.timezone,
-              )}</span
-            >
           </div>
         </div>
 

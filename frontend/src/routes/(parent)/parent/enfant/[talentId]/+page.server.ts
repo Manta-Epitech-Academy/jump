@@ -102,7 +102,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       ? {
           eventName:
             eventPublicName(todayParticipation.event) ?? UNNAMED_EVENT_NAME,
-          eventDate: todayParticipation.event.date,
           timezone: todayParticipation.event.campus.timezone,
           timeSlots: todayParticipation.event.planningSlots
             .filter((slot) => slot.activityType !== 'orga')
