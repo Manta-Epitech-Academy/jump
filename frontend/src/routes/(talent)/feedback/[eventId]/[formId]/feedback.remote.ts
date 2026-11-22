@@ -1,7 +1,10 @@
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
 import { prisma } from '#lib/server/db.ts';
-import { getFormGraphBySlug } from '#lib/server/feedbackForms.ts';
+import {
+  feedbackParticipationWhere,
+  getFormGraphBySlug,
+} from '#lib/server/feedbackForms.ts';
 import { recordSubmission } from '#lib/server/feedbackSubmissions.ts';
 import { gatedCommand } from '#lib/server/remoteFunctions.ts';
 
@@ -32,10 +35,10 @@ export const submitFeedback = gatedCommand(
       error(404, 'Formulaire introuvable.');
     }
 
-    // The submission must belong to a real participation, as the page's load
-    // requires before it shows the form.
+    // The submission must belong to an enrolment the page's load would show
+    // the form through (`feedbackParticipationWhere`).
     const participation = await prisma.participation.findFirst({
-      where: { eventId, talentId: talent.id },
+      where: { eventId, ...feedbackParticipationWhere(talent.id) },
       select: { id: true },
     });
     if (!participation) error(404, 'Participation introuvable.');

@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '#lib/server/db.ts';
-import { attendedBeforeWhere } from '#lib/domain/attendance.ts';
+import { attendedShownBeforeWhere } from '#lib/domain/attendance.ts';
 import { toDateKey } from '#lib/domain/planningTime.ts';
 import { workshopSlugFromSourceId } from '#lib/domain/workshops.ts';
 import {
@@ -9,7 +9,7 @@ import {
   type ParcoursEarned,
   type ParcoursEventFacts,
 } from '#lib/domain/talentParcours.ts';
-import { devVisibleEventWhere } from '#lib/server/services/stageContext.ts';
+import { shownEventWhere } from '#lib/domain/eventReadiness.ts';
 import { enrolledNotOverWhere } from '#lib/server/services/talentHomeHero.ts';
 import { listTalentWorkshops } from '#lib/server/services/workshopService.ts';
 import { resolveGrantLabels } from '#lib/server/services/xpStoryService.ts';
@@ -18,11 +18,11 @@ import { resolveGrantLabels } from '#lib/server/services/xpStoryService.ts';
  * The facts behind a talent's « Mon parcours » (#445), arranged by
  * `buildParcours`. Three rules, each read where it is owned:
  *
- * - « Venu » is `attendedBeforeWhere`, the dev space's own, so the talent and
- *   the recruiter reading their fiche count the same visits (#491).
+ * - « Venu » is `attendedShownBeforeWhere`, the dev space's own, so the talent
+ *   and the recruiter reading their fiche count the same visits (#491).
  * - « Inscrit » is the home hero's (`enrolledNotOverWhere`): an enrolment the
- *   dev space shows.
- * - Only events an admin activated (`devVisibleEventWhere`) are read at all:
+ *   dev space shows, on an activated event.
+ * - Only events an admin activated (`shownEventWhere`) are read at all:
  *   nobody but an admin is shown another, and activating one asks for its
  *   public name.
  *
@@ -61,19 +61,18 @@ export async function loadTalentParcours(
   talentId: string,
   now: Date = new Date(),
 ): Promise<Parcours> {
-  const visible = { event: devVisibleEventWhere };
   const [attended, enrolled, grants, workshops] = await Promise.all([
     prisma.participation.findMany({
-      where: { talentId, AND: [attendedBeforeWhere(now), visible] },
+      where: { talentId, ...attendedShownBeforeWhere(now) },
       select: { event: { select: PARCOURS_EVENT_SELECT } },
     }),
     prisma.participation.findMany({
-      where: { AND: [enrolledNotOverWhere(talentId, now), visible] },
+      where: enrolledNotOverWhere(talentId, now),
       select: { event: { select: PARCOURS_EVENT_SELECT } },
     }),
     // One grant per walked activity, pinned to the event the walk began at.
     prisma.xpGrant.findMany({
-      where: { talentId, source: 'workshop', event: devVisibleEventWhere },
+      where: { talentId, source: 'workshop', event: shownEventWhere },
       orderBy: { createdAt: 'asc' },
       select: {
         source: true,
@@ -100,7 +99,7 @@ export async function loadTalentParcours(
   ];
   if (unread.length > 0) {
     const rows = await prisma.event.findMany({
-      where: { id: { in: unread }, ...devVisibleEventWhere },
+      where: { id: { in: unread }, ...shownEventWhere },
       select: PARCOURS_EVENT_SELECT,
     });
     for (const row of rows) events.set(row.id, factsOf(row));

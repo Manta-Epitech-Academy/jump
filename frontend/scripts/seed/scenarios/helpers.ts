@@ -9,6 +9,18 @@
 import { NOMS } from '../catalog/people';
 import { MANUAL_SCHOOL_NAMES } from '../catalog/schools';
 import type { World, CampusRef, TalentRef } from '../world';
+import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
+
+/**
+ * What an event a scenario places in front of a talent needs to be shown at
+ * all: an admin's activation, with a section (`shownEventWhere`, #516). The
+ * talent's home, planning and parcours read no other event, so a scenario that
+ * builds a state of them on an event left unactivated builds nothing.
+ */
+export const SHOWN_TO_TALENTS = {
+  devActivated: true,
+  modules: [EVENT_MODULES.INSCRITS],
+} as const;
 
 /** The niveau mix, from PROFILE.md. `null` is a real value: 3.9% carry none. */
 export const NIVEAU_MIX: readonly (readonly [string | null, number])[] = [

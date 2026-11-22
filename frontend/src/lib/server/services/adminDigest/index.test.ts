@@ -453,15 +453,11 @@ describe('buildAdminDigest', () => {
     getEventsConfigList.mockResolvedValue(
       eventsPayload([
         eventStub(1, {
-          missing: [
-            'nom public',
-            'nom des participants',
-            "pas encore activé pour l'espace dev",
-          ],
+          missing: ['nom public', 'nom des participants', 'pas encore activé'],
           activationBlockers: ['nom public'],
         }),
         eventStub(2, {
-          missing: ["pas encore activé pour l'espace dev"],
+          missing: ['pas encore activé'],
           activationBlockers: [],
         }),
       ]),

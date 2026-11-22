@@ -6,6 +6,8 @@ import { now } from '@internationalized/date';
 import { getBrowserTimezone } from '#lib/server/db/scoped.ts';
 import { getStartOfDay } from '#lib/utils.ts';
 import { getParentLastName } from '#lib/domain/parent.ts';
+import { eventPublicName, UNNAMED_EVENT_NAME } from '#lib/domain/event.ts';
+import { shownEnrolmentWhere } from '#lib/domain/eventReadiness.ts';
 import {
   IMAGE_RIGHTS_DECISIONS,
   imageRightsStatus,
@@ -84,23 +86,23 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     },
   };
 
-  // Fetch today's participation with its programme slots
+  // Today's and the upcoming events, with their programme slots: the enrolments
+  // the child's own space shows (#516), never a campaign nobody prepared.
   const todayParticipation = await prisma.participation.findFirst({
     where: {
       talentId,
-      event: {
+      ...shownEnrolmentWhere({
         date: { gte: filterDateStartDate, lte: filterDateEnd },
-      },
+      }),
     },
     include: planningInclude,
     orderBy: { event: { date: 'asc' } },
   });
 
-  // Fetch upcoming events with their programme slots
   const upcomingParticipations = await prisma.participation.findMany({
     where: {
       talentId,
-      event: { date: { gt: filterDateEnd } },
+      ...shownEnrolmentWhere({ date: { gt: filterDateEnd } }),
     },
     include: planningInclude,
     orderBy: { event: { date: 'asc' } },
@@ -111,7 +113,8 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     hasMultipleChildren: siblingCount > 1,
     todayPlanning: todayParticipation
       ? {
-          eventName: todayParticipation.event.titre,
+          eventName:
+            eventPublicName(todayParticipation.event) ?? UNNAMED_EVENT_NAME,
           eventDate: todayParticipation.event.date,
           timeSlots: todayParticipation.event.planningSlots
             .filter((slot) => slot.activityType !== 'orga')
@@ -137,7 +140,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     },
     upcomingEvents: upcomingParticipations.map((p) => ({
       id: p.event.id,
-      name: p.event.titre,
+      name: eventPublicName(p.event) ?? UNNAMED_EVENT_NAME,
       date: p.event.date,
       timezone: p.event.campus.timezone,
       timeSlots: p.event.planningSlots

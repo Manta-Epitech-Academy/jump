@@ -3,6 +3,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { superValidate, message, setError } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '#lib/server/db.ts';
+import { eventDisplayName } from '#lib/domain/event.ts';
 import { broadcastSchema } from '#lib/validation/broadcasts.ts';
 import {
   enqueueBroadcast,
@@ -113,7 +114,7 @@ export const actions: Actions = {
     const event = form.data.eventId
       ? await prisma.event.findUnique({
           where: { id: form.data.eventId },
-          select: { titre: true },
+          select: { titre: true, publicName: true },
         })
       : null;
 
@@ -141,7 +142,7 @@ export const actions: Actions = {
       subject,
       body,
       to,
-      eventName: event?.titre,
+      eventName: event ? eventDisplayName(event) : null,
     });
     if (!result.ok) {
       return message(

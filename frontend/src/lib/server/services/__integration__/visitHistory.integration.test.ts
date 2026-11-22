@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '#lib/server/db.ts';
 import { countPriorVisits } from '../visitHistory';
+import { getEventDetail } from '../adminStats/configuration';
 import { assertTestDatabase } from './testDatabase';
 
 /**
  * The count behind a talent's parcours (« Déjà venu 2 fois »). It has to count
  * visits, not enrolments, stay on the campus (the scoped client does not scope
  * this groupBy, so the campus is written by hand and a leak would be silent),
- * skip the enrolments the dev space masks, and count only events over before
- * the one being read: the event itself and a later one are not history.
+ * skip the enrolments the dev space masks and the events no admin activated
+ * (#516), and count only events over before the one being read: the event
+ * itself and a later one are not history.
  *
  * The proof of each visit is written as the projection holds it
  * (`attendanceAttested`); which proofs set it is `attendance.integration.test.ts`.
@@ -20,6 +22,7 @@ describe('prior visits (integration)', () => {
   let talentId = '';
   let newcomerId = '';
   const eventIds: string[] = [];
+  let notActivatedId = '';
 
   const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
@@ -42,12 +45,23 @@ describe('prior visits (integration)', () => {
       campus: string,
       date: string,
       talent: string,
-      { shown = true, came = true }: { shown?: boolean; came?: boolean } = {},
+      {
+        shown = true,
+        came = true,
+        activated = true,
+      }: { shown?: boolean; came?: boolean; activated?: boolean } = {},
     ) => {
       const event = await prisma.event.create({
-        data: { titre: `Parcours ${date}`, campusId: campus, date: day(date) },
+        data: {
+          titre: `Parcours ${date}`,
+          campusId: campus,
+          date: day(date),
+          devActivatedAt: activated ? day(date) : null,
+          modules: { create: { moduleKey: 'inscrits' } },
+        },
       });
       eventIds.push(event.id);
+      if (!activated) notActivatedId = event.id;
       await prisma.participation.create({
         data: {
           talentId: talent,
@@ -64,6 +78,7 @@ describe('prior visits (integration)', () => {
     await enrol(campusId, '2026-02-10', talentId, { came: false }); // enrolled only
     await enrol(campusId, '2026-03-10', talentId); // counts
     await enrol(campusId, '2026-04-10', talentId, { shown: false }); // masked
+    await enrol(campusId, '2026-04-20', talentId, { activated: false }); // not activated
     await enrol(otherCampusId, '2026-05-10', talentId); // other campus
     await enrol(campusId, '2026-06-10', talentId); // the event read
     await enrol(campusId, '2026-06-10', newcomerId); // same day, not history
@@ -97,5 +112,12 @@ describe('prior visits (integration)', () => {
       day('2026-03-10'),
     );
     expect(counts.get(talentId)).toBe(1);
+  });
+
+  // AC6 of #516: the visit the dev space no longer counts is still a fact the
+  // admin API reports, on the event itself, whether or not it is activated.
+  it('leaves the visit to an event no admin activated to the admin API', async () => {
+    const detail = await getEventDetail(notActivatedId);
+    expect(detail.attended.value).toBe(1);
   });
 });

@@ -2,7 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import type { PageServerLoad } from './$types';
 import { prisma } from '#lib/server/db.ts';
-import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { shownEnrolmentWhere } from '#lib/domain/eventReadiness.ts';
 import { toCalendarPlanning } from '#lib/domain/talentPlanning.ts';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
@@ -14,15 +14,16 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
   // Every event the talent participates in, past and future: the calendar is
   // their full personal timeline, not a single-event view. Non-orga activities
   // only, sorted by start so the grid's per-day packer gets ordered input. The
-  // enrolments the dev space shows, as the home's hero: a withdrawn
-  // talent's event is not on their timeline.
+  // enrolments the dev space shows, on events an admin activated, as the home's
+  // hero: a withdrawn talent's event is not on their timeline, and neither is a
+  // campaign nobody prepared (#516).
   const participations = await prisma.participation.findMany({
-    where: { talentId: locals.talent.id, ...visibleParticipationWhere },
+    where: { talentId: locals.talent.id, ...shownEnrolmentWhere() },
     select: {
       event: {
         select: {
           id: true,
-          titre: true,
+          publicName: true,
           date: true,
           endDate: true,
           planningSlots: {

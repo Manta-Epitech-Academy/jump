@@ -26,6 +26,10 @@
  * Paris points at its camp, Lyon only invites « toute l'année », Marseille's
  * pointer has been overtaken and leaves its hero to what a talent started.
  *
+ * And one talent whose only event is a stage under way that no admin activated
+ * (#516): a schedule and a subject her screens never show, the example
+ * `assert/reachability.ts` asks for.
+ *
  * Runs last, like `niveaux`, so the draws it takes move no talent, event or
  * name of the scenarios before it; every talent's career is placed, so no
  * later draw enrols them anywhere else.
@@ -40,6 +44,7 @@ import { WELCOME_XP_BONUS } from '../../../src/lib/domain/xp';
 import type { HomeHeroState } from '../../../src/lib/domain/talentHome';
 import type { CampusRef, EventRef, TalentRef, World } from '../world';
 import type { Scenario } from './types';
+import { SHOWN_TO_TALENTS } from './helpers';
 
 function workshop(slug: string) {
   const spec = WORKSHOPS.find((w) => w.slug === slug);
@@ -93,7 +98,7 @@ function persona(
 export const homeHero: Scenario = {
   name: 'bandeau-accueil',
   summary:
-    'Un talent dans chaque état du bandeau de l’accueil : pendant un événement (plusieurs sujets, un seul, aucun), inscrit à un événement à venir, invité, invitation générique, sujet à continuer, rien.',
+    'Un talent dans chaque état du bandeau de l’accueil : pendant un événement (plusieurs sujets, un seul, aucun), inscrit à un événement à venir, invité, invitation générique, sujet à continuer, rien ; et une talent inscrite à un stage que personne n’a activé.',
   run(world) {
     const { clock } = world.ctx;
     const paris = world.campus(HIGHLIGHTED_EVENT.campus);
@@ -106,6 +111,7 @@ export const homeHero: Scenario = {
 
     // ── Pendant : trois sujets au choix, l'un commencé ─────────────────────
     const choice = world.addEvent({
+      ...SHOWN_TO_TALENTS,
       key: 'bandeau-stage-choix',
       titre: `${paris.name}-${clock.dateKey(running[0]!)}-StageSeconde`,
       publicName: 'Stage de seconde',
@@ -150,6 +156,7 @@ export const homeHero: Scenario = {
 
     // ── Pendant : un seul sujet ────────────────────────────────────────────
     const single = world.addEvent({
+      ...SHOWN_TO_TALENTS,
       key: 'bandeau-club-sujet',
       titre: `${paris.name}-${clock.dateKey(running[0]!)}-CampSujet`,
       publicName: 'Camp de la Toussaint',
@@ -173,6 +180,7 @@ export const homeHero: Scenario = {
 
     // ── Pendant : aucun sujet à ce moment ──────────────────────────────────
     const quiet = world.addEvent({
+      ...SHOWN_TO_TALENTS,
       key: 'bandeau-stage-sans-sujet',
       titre: `${paris.name}-${clock.dateKey(running[0]!)}-StageSansSujet`,
       publicName: 'Stage de troisième',
@@ -196,6 +204,7 @@ export const homeHero: Scenario = {
 
     // ── Inscrit, avec une heure d'accueil ──────────────────────────────────
     const expected = world.addEvent({
+      ...SHOWN_TO_TALENTS,
       key: 'bandeau-club-attendu',
       titre: `${paris.name}-${clock.dateKey(clock.days(5))}-CodingClub`,
       publicName: 'Coding Club Pac-Man',
@@ -225,6 +234,7 @@ export const homeHero: Scenario = {
 
     // ── Inscrit, le jour seul ──────────────────────────────────────────────
     const dayOnly = world.addEvent({
+      ...SHOWN_TO_TALENTS,
       key: 'bandeau-camp-jour',
       titre: `${lyon.name}-${clock.dateKey(clock.days(12))}-Camp`,
       publicName: 'Camp robotique',
@@ -246,8 +256,13 @@ export const homeHero: Scenario = {
     });
 
     // ── Venus il y a quelques semaines : leur campus parle pour eux ────────
-    const past = (campus: CampusRef, key: string, offset: number) =>
-      world.addEvent({
+    // A visit weeks ago: what makes the campus a talent's
+    // (`resolveTalentCampus`, any event), and, for the talent with a subject to
+    // carry on, what offers it, which only an activated event does.
+    const past = (campus: CampusRef, key: string, offset: number) => {
+      const offersSubject = key.endsWith('continuer');
+      return world.addEvent({
+        ...(offersSubject ? SHOWN_TO_TALENTS : {}),
         key,
         titre: `${campus.name}-${clock.dateKey(clock.days(offset))}-CodingClub`,
         publicName: 'Coding Club',
@@ -256,10 +271,9 @@ export const homeHero: Scenario = {
         campus,
         days: [clock.days(offset)],
         startMinutes: 14 * 60,
-        workshops: key.endsWith('continuer')
-          ? [{ slug: 'santa-shooter' }]
-          : undefined,
+        workshops: offersSubject ? [{ slug: 'santa-shooter' }] : undefined,
       });
+    };
 
     placed.push({
       state: 'invitation',
@@ -316,6 +330,33 @@ export const homeHero: Scenario = {
       note: 'rien à mettre en avant : l’accueil sans bandeau',
     });
 
+    // ── Inscrite à un stage que personne n'a activé (#516) ─────────────────
+    // A Salesforce campaign under way, as the sync leaves it: raw title, no
+    // public name, no section, never activated, but with a schedule and a
+    // subject, which is everything the home, the planning and the activities
+    // would show her of an activated one. They show none of it: her hero is
+    // her campus's invitation, as if she were enrolled nowhere. Last, so its
+    // draws move nobody placed above.
+    const unprepared = world.addEvent({
+      key: 'bandeau-stage-non-active',
+      titre: `${paris.name}-${clock.dateKey(running[0]!)}-StageNonPrepare`,
+      campus: paris,
+      days: running,
+      startMinutes: 9 * 60,
+      workshops: [{ slug: 'babel-ship' }],
+    });
+    world.addPlanning(unprepared, STAGE_PLANNING);
+    placed.push({
+      state: 'invitation',
+      talent: persona(world, {
+        prenom: 'Elsa',
+        nom: 'Masquee',
+        campus: paris,
+        events: [unprepared],
+      }),
+      note: 'inscrite à un stage en cours que personne n’a activé : ni bandeau, ni planning, ni activité ne le montrent',
+    });
+
     world.ctx.manifest.push({
       scenario: homeHero.name,
       summary: homeHero.summary,
@@ -323,6 +364,7 @@ export const homeHero: Scenario = {
         'pendant un événement : trois sujets au choix sans qu’aucun ne passe devant, un sujet seul comme sur la maquette, aucun sujet à ce moment avec « Voir le planning »',
         'inscrit : le compte à rebours, l’heure d’accueil quand l’événement en a une, « Ajouter à mon agenda »',
         `invité au ${HIGHLIGHTED_EVENT.publicName} de ${HIGHLIGHTED_EVENT.campus}, l’invitation générique de Lyon, un sujet à continuer chez soi, et un accueil sans bandeau`,
+        'inscrite à un stage en cours que personne n’a activé : l’accueil, le planning et les activités le taisent, et l’espace dev ne l’ouvre pas',
       ],
       accounts: placed.map(({ state, talent, note }) => ({
         role: `talent (bandeau ${state})`,

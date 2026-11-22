@@ -552,6 +552,8 @@ describe("the talent's journey", () => {
         date: startedYesterday,
         endDate: endsNextWeek,
         campusId: ids.campus,
+        devActivatedAt: new Date(),
+        modules: { create: { moduleKey: 'closings' } },
         closingTemplateId: ids.template,
       },
     });
@@ -609,6 +611,8 @@ describe("the talent's journey", () => {
         titre: `ClosingOutlived-${stamp}`,
         date: new Date('2026-03-02T00:00:00.000Z'),
         campusId: ids.campus,
+        devActivatedAt: new Date(),
+        modules: { create: { moduleKey: 'closings' } },
         closingTemplateId: ids.template,
       },
     });
@@ -663,6 +667,8 @@ describe("the talent's journey", () => {
         titre: `ClosingFuture-${stamp}`,
         date: nextMonth,
         campusId: ids.campus,
+        devActivatedAt: new Date(),
+        modules: { create: { moduleKey: 'inscrits' } },
       },
     });
     const talent = await prisma.talent.create({
@@ -694,6 +700,8 @@ describe("the talent's journey", () => {
             titre: `${titre}-${stamp}`,
             date: new Date('2026-03-02T00:00:00.000Z'),
             campusId: ids.campus,
+            devActivatedAt: new Date(),
+            modules: { create: { moduleKey: 'inscrits' } },
           },
         }),
       ),
@@ -727,17 +735,14 @@ describe("the talent's journey", () => {
     });
   });
 
-  it('names an event as a link only where the reader can open it', async () => {
+  it('names an event as a link only where the reader can open it, and never one no admin activated', async () => {
     // A journey is not campus-scoped, and an event exposes the surfaces an admin
-    // configured, so the fiche can hold rows whose destination would 404 on both
-    // counts. The row stays either way - the event happened - but the name is
-    // only a link where it leads somewhere.
+    // configured, so the fiche can hold rows whose destination would 404 on
+    // either count. The row stays - the event happened - but the name is only a
+    // link where it leads somewhere.
     //
-    // `notActivated` is the case that does NOT 404: `loadEventOr404` gates on
-    // campus, never on activation, so the page opens - under the menu of
-    // whatever event the workspace defaults to, since the URL names
-    // one the workspace has no member for. Hence the link is withheld on dev
-    // visibility too, not only on the module.
+    // `notActivated` is no row at all (#516): the dev team is shown no event an
+    // admin has not activated, and « Déjà venu » does not count it either.
     const past = new Date('2026-03-02T09:00:00Z');
     const [open, notActivated, noModule, elsewhere] = await Promise.all([
       prisma.event.create({
@@ -803,13 +808,15 @@ describe("the talent's journey", () => {
       journey.entries.find((e) => e.eventId === eventId)?.eventHref;
 
     expect(href(open.id)).toBe(`/staff/dev/events/${open.id}/inscrits`);
-    expect(href(notActivated.id)).toBeNull();
     expect(href(noModule.id)).toBeNull();
     expect(href(elsewhere.id)).toBeNull();
 
-    // Withheld link, kept row: the events are the talent's history, not the
-    // workspace's configuration.
-    expect(journey.entries).toHaveLength(4);
+    // Withheld link, kept row, for the three activated events; no row for the
+    // one nobody activated, and the header's count agrees.
+    expect(journey.entries.map((e) => e.eventId).sort()).toEqual(
+      [open.id, noModule.id, elsewhere.id].sort(),
+    );
+    expect(journey.eventCount).toBe(3);
 
     await prisma.participation.deleteMany({ where: { talentId: talent.id } });
     await prisma.talent.delete({ where: { id: talent.id } });

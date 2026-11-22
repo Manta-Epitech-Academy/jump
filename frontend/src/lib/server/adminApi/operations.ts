@@ -733,7 +733,7 @@ export const ADMIN_API_OPERATIONS = {
         .enum(EVENTS_LIST_STATES)
         .optional()
         .describe(
-          'Keep only events in this configuration state: unconfigured (no section enabled), ready (configured but hidden), shown (live in the dev workspace), or to_prepare for anything not past that is not shown yet. Omit for every state.',
+          'Keep only events in this configuration state: unconfigured (no section enabled), ready (configured but hidden), shown (activated: live in the dev workspace and for its talents and their parents), or to_prepare for anything not past that is not shown yet. Omit for every state.',
         ),
     },
     run: async ({ status, state, since: at, ...scope }) =>
@@ -785,7 +785,7 @@ export const ADMIN_API_OPERATIONS = {
 
   config_campus_overview: defineOperation({
     description:
-      'Where the events stand, in total and per campus (every campus, even one with no event in scope): how many are visible in the dev workspace, ready to publish or still to configure, how many still need work, how many enrolments the dev workspace shows, which dev-workspace sections are in use, and the staff by role.',
+      'Where the events stand, in total and per campus (every campus, even one with no event in scope): how many are activated (shown in the dev workspace and to their talents and parents), ready to publish or still to configure, how many still need work, how many enrolments the dev workspace shows, which dev-workspace sections are in use, and the staff by role.',
     shape: { schoolYear, campus },
     run: async (params) => getCampusOverview(await resolveScope(params)),
   }),
@@ -982,7 +982,7 @@ export const ADMIN_API_OPERATIONS = {
     // It copies the pictures of the event's hero from the addresses it is given.
     openWorld: true,
     description:
-      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses and those that count as a visit, the feedback form, certificate and closing grid it uses, the online activities it offers, its talents' home hero and sign-up form, and whether the dev workspace shows it. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call.",
+      "Change anything about one event's configuration in one call: names, category, arrival time, dev-workspace sections and their options, shown Salesforce statuses and those that count as a visit, the feedback form, certificate and closing grid it uses, the online activities it offers, its talents' home hero and sign-up form, and whether it shows. Its start and end days are not here: they come from the Salesforce campaign. Patch semantics: only the fields you pass change, null clears a field, a list is sent whole, everything else is left exactly as it is. All of it is saved together or not at all, and the rules are judged on the result, so the missing pieces and visible: true can come in the same call.",
     shape: {
       eventId: z.string().min(1).describe(handleDescribe('eventId')),
       // Unset is spelled one way, on both sides: null, as config_event_detail
@@ -1040,7 +1040,7 @@ export const ADMIN_API_OPERATIONS = {
         .boolean()
         .optional()
         .describe(
-          'True to show it in the dev workspace, false to hide it. Showing needs a public name and at least one section, as saved by this call.',
+          'True to show it in the dev workspace and to its talents and parents, false to hide it. Showing needs a public name and a section, as saved by this call.',
         ),
       feedbackFormId: z
         .string()
@@ -1469,7 +1469,7 @@ export const ADMIN_API_OPERATIONS = {
     repeat: { safe: true, because: 'the same values leave the same row' },
     destructive: true,
     openWorld: true,
-    description: `Set or clear what a campus puts forward on its talents' home. Two halves, patch semantics (omitted: unchanged, null: cleared). eventId: one of the campus's own events, not past its first day, with a publicName and a signupUrl, which the event then keeps until the campus stops pointing at it (an event already pointed at is accepted again as it is); the hero invites talents not enrolled in it until the end of its first day, in the event's own words and picture (write_event_config hero.invitation), and tells enrolled ones they are expected. invitation: the generic invitation, the fallback when no event shows (e.g. « Les Ateliers TECH », all year). There is no date. Jump copies the invitation's picture. ${PICTURE_RULES} A picture that cannot be copied refuses the whole write.`,
+    description: `Set or clear what a campus puts forward on its talents' home. Two halves, patch semantics (omitted: unchanged, null: cleared). eventId: one of the campus's own events, activated (visible), not past its first day, with a publicName and a signupUrl; the event then keeps its signupUrl until the campus stops pointing at it, and deactivating it takes it off the home (an event already pointed at is accepted again as it is); the hero invites talents not enrolled in it until the end of its first day, in the event's own words and picture (write_event_config hero.invitation), and tells enrolled ones they are expected. invitation: the generic invitation, the fallback when no event shows (e.g. « Les Ateliers TECH », all year). There is no date. Jump copies the invitation's picture. ${PICTURE_RULES} A picture that cannot be copied refuses the whole write.`,
     shape: {
       campus: z.string().min(1).describe('Campus name, e.g. "Lille".'),
       eventId: z
@@ -2172,7 +2172,7 @@ export const ADMIN_API_OPERATIONS = {
     destructive: true,
     openWorld: false,
     twoStep: true,
-    description: `Change the configuration of many events in one plan, named by eventIds or matched by a filter: their dev-workspace sections, the Salesforce statuses they show, their category, and whether the dev workspace shows them. Patch semantics: only the fields you pass change. Call it without planDigest for the list of events that would change and how (events that cannot be shown are listed with what they lack, judged after the sections this call sets), then with the planDigest to apply it all in one transaction. At most ${BULK_EVENTS_LIMIT} events per call.`,
+    description: `Change the configuration of many events in one plan, named by eventIds or matched by a filter: their dev-workspace sections, the Salesforce statuses they show, their category, and whether they are activated (shown in the dev workspace and to their talents and parents). Patch semantics: only the fields you pass change. Call it without planDigest for the list of events that would change and how (events that cannot be shown are listed with what they lack, judged after the sections this call sets), then with the planDigest to apply it all in one transaction. At most ${BULK_EVENTS_LIMIT} events per call.`,
     shape: {
       eventIds: z
         .array(z.string().min(1))
@@ -2244,7 +2244,7 @@ export const ADMIN_API_OPERATIONS = {
         .boolean()
         .optional()
         .describe(
-          'True to show them in the dev workspace, false to hide them.',
+          'True to show them in the dev workspace and to their talents and parents, false to hide them.',
         ),
       planDigest: z
         .string()

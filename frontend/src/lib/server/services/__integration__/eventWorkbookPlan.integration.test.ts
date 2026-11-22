@@ -36,6 +36,7 @@ describe("the event's whole export (integration)", () => {
         date: new Date('2026-09-01T09:00:00.000Z'),
         feedbackFormId: refs.form ? formId : null,
         closingTemplateId: refs.grid ? gridId : null,
+        devActivatedAt: new Date(),
         modules: { create: modules.map((moduleKey) => ({ moduleKey })) },
       },
     });

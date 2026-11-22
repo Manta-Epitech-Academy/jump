@@ -8,8 +8,9 @@
  * rows in bulk with the client the check pass is given, and hands them to the
  * same domain functions the services do: `selectWorkshopOfferings` and
  * `isOfferedNow` for the subjects, `heroEventPhase` for what is over,
- * `pointedEventShown` for the campus's event, and `pickHomeHero` for the
- * choice. What it restates is the selection of rows, not a rule.
+ * `pointedEventShown` for the campus's event, `isEventShown` for the events a
+ * talent is shown at all (#516), and `pickHomeHero` for the choice. What it
+ * restates is the selection of rows, not a rule.
  *
  * Only what decides the KIND of hero is read: words and pictures change how a
  * state looks, never which one it is.
@@ -22,6 +23,7 @@ import {
   getLifecycleBounds,
 } from '../../../src/lib/domain/eventLifecycle';
 import { dbDateToKey } from '../../../src/lib/domain/eventPresence';
+import { isEventShown } from '../../../src/lib/domain/eventReadiness';
 import { campusClock, toDateKey } from '../../../src/lib/domain/planningTime';
 import {
   heroEventPhase,
@@ -48,6 +50,8 @@ const EVENT_SELECT = {
   startMinutes: true,
   campusId: true,
   signupUrl: true,
+  devActivatedAt: true,
+  modules: { select: { moduleKey: true } },
   campus: { select: { name: true, timezone: true } },
 } as const;
 
@@ -138,11 +142,15 @@ export async function seededHomeHeroStates(
   const entriesByTalent = groupBy(entries, (entry) => entry.talentId);
   const states = new Set<HomeHeroState>();
   for (const [talentId, own] of groupBy(enrolments, (e) => e.talentId)) {
-    // `resolveTalentCampus`: the campus of the talent's latest event.
+    // `resolveTalentCampus`: the campus of the talent's latest event, any
+    // event, since it names none.
     const latest = own.reduce((a, b) =>
       b.event.date.getTime() > a.event.date.getTime() ? b : a,
     );
-    const enrolled: EnrolledEvent[] = own
+    // `enrolledNotOverWhere` and `offeredWorkshops`: only the events an admin
+    // activated are read at all.
+    const shown = own.filter(({ event }) => isEventShown(event));
+    const enrolled: EnrolledEvent[] = shown
       .filter((enrolment) => enrolment.shownInDevSpace)
       .map(({ event }) => ({
         ...heroEvent(event),
@@ -154,7 +162,7 @@ export async function seededHomeHeroStates(
 
     const started = entriesByTalent.get(talentId) ?? [];
     const offered = selectWorkshopOfferings(
-      own.flatMap(({ eventId, shownInDevSpace, event }) => {
+      shown.flatMap(({ eventId, shownInDevSpace, event }) => {
         const timezone = event.campus.timezone;
         const status = getEventStatus(event, getLifecycleBounds(timezone, now));
         const { hour, minute } = campusClock(now, timezone);

@@ -1,3 +1,5 @@
+import { eventPublicName, UNNAMED_EVENT_NAME } from './event';
+
 /**
  * The full talent calendar (route `(talent)/calendar`) is no longer scoped to a
  * single event: it lays every activity of every event the talent participates in
@@ -9,7 +11,7 @@
 export type CalendarParticipation = {
   event: {
     id: string;
-    titre: string;
+    publicName: string | null;
     date: Date;
     endDate: Date | null;
     planningSlots: Array<{
@@ -25,7 +27,8 @@ export type CalendarParticipation = {
 /**
  * One placeable slot, tagged with just enough of its parent event (its identity
  * + display name) to label which event it belongs to, with no
- * Participation/Planning shape attached.
+ * Participation/Planning shape attached. The name is the event's public one,
+ * never its Salesforce title, as everywhere a talent reads (`eventPublicName`).
  */
 export type CalendarSlot = {
   id: string;
@@ -33,7 +36,7 @@ export type CalendarSlot = {
   endTime: Date;
   nom: string;
   activityType: string;
-  event: { id: string; titre: string };
+  event: { id: string; name: string };
 };
 
 /**
@@ -78,7 +81,7 @@ export function toCalendarPlanning(
         activityType: slot.activityType,
         event: {
           id: event.id,
-          titre: event.titre,
+          name: eventPublicName(event) ?? UNNAMED_EVENT_NAME,
         },
       });
     }

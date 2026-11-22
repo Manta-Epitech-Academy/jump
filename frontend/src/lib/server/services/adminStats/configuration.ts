@@ -348,7 +348,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
     ),
     missing: metric(
       eventMissingConfig(event),
-      "Ce qu'il reste à renseigner pour que l'événement soit visible dans l'espace dev. Liste vide = rien ne manque.",
+      "Ce qu'il reste à faire pour que l'événement soit activé, donc visible dans l'espace dev et par ses talents et leurs parents. Liste vide = rien ne manque.",
     ),
     modules: metric(
       EVENT_MODULE_KEYS.map((key) => ({
@@ -508,7 +508,7 @@ export async function getCampusOverview(
     ...summariseEvents(events),
     campuses: metric(
       rows,
-      `Les mêmes chiffres campus par campus, chaque campus compris, même sans événement sur le périmètre : « events » est le total, que « visible », « readyToPublish » et « unconfigured » répartissent ; « visibleShare » est la part des événements du campus visibles dans l'espace dev ; « toPrepare » compte ceux qui ne sont pas passés et pas encore visibles ; « participants » compte les participations, ${VISIBLE_PARTICIPATION_DEFINITION} ; « modules » compte les événements où chaque section est activée, sans tenir compte de l'activation. Les effectifs d'équipe (« staff ») sont ceux d'aujourd'hui, ils ne dépendent pas de l'année scolaire demandée. « configuration » est le réglage du campus, tel que write_campus le prend : « externalName » est le nom du campus dans Salesforce (null tant que la synchronisation ne le sert pas), « timezone » son fuseau horaire, « departement » son code de département, dont « departementName » et « academie » donnent le nom et l'académie (ils décident des vacances scolaires et des jours fériés du calendrier), « contactAddress » l'adresse de contact que les mails transactionnels citent.`,
+      `Les mêmes chiffres campus par campus, chaque campus compris, même sans événement sur le périmètre : « events » est le total, que « visible », « readyToPublish » et « unconfigured » répartissent ; « visibleShare » est la part des événements du campus activés, donc visibles dans l'espace dev et par leurs talents et leurs parents ; « toPrepare » compte ceux qui ne sont pas passés et pas encore activés ; « participants » compte les participations, ${VISIBLE_PARTICIPATION_DEFINITION} ; « modules » compte les événements où chaque section est activée, sans tenir compte de l'activation. Les effectifs d'équipe (« staff ») sont ceux d'aujourd'hui, ils ne dépendent pas de l'année scolaire demandée. « configuration » est le réglage du campus, tel que write_campus le prend : « externalName » est le nom du campus dans Salesforce (null tant que la synchronisation ne le sert pas), « timezone » son fuseau horaire, « departement » son code de département, dont « departementName » et « academie » donnent le nom et l'académie (ils décident des vacances scolaires et des jours fériés du calendrier), « contactAddress » l'adresse de contact que les mails transactionnels citent.`,
     ),
   };
 }
@@ -843,6 +843,8 @@ export async function getTalentHomeContent(
               date: true,
               campusId: true,
               signupUrl: true,
+              devActivatedAt: true,
+              modules: { select: { moduleKey: true } },
             },
           },
         },
@@ -894,7 +896,7 @@ export async function getTalentHomeContent(
               : null,
         };
       }),
-      "Ce que chaque campus affiche sur l'accueil de ses talents, en plus de leurs propres inscriptions. « note » est le mot du campus tel qu'il a été écrit (Markdown, ses images écrites par l'adresse d'où Jump les a copiées), affiché dans la carte Actualité, ou null s'il n'y en a pas. « highlight » est ce que le campus met en avant dans le bandeau bleu de l'accueil, ou null s'il ne met rien en avant. « event » est l'événement du campus qu'il met en avant : son nom, son premier jour, et « shown », qui dit si l'accueil invite encore à s'y inscrire (jusqu'à la fin de son premier jour, à l'heure du campus, s'il a un nom public et un formulaire d'inscription et est toujours sur ce campus), avec « notShownBecause » qui dit pourquoi sinon. Un talent déjà inscrit à cet événement n'est pas invité à s'y inscrire : l'accueil lui dit qu'il est inscrit. « invitation » est l'invitation générique du campus (titre, texte, lien d'inscription, libellé du bouton, null pour « Je m'inscris », et « imageUrl », l'adresse d'où son image a été copiée), affichée quand l'événement ne l'est pas. « showing » dit laquelle des deux l'accueil montre aujourd'hui (« event », « invitation », ou null). Le jour où le talent a un sujet ou un événement en cours, le bandeau montre celui-ci à la place. Un talent voit le campus de son événement le plus tardif, à venir compris.",
+      "Ce que chaque campus affiche sur l'accueil de ses talents, en plus de leurs propres inscriptions. « note » est le mot du campus tel qu'il a été écrit (Markdown, ses images écrites par l'adresse d'où Jump les a copiées), affiché dans la carte Actualité, ou null s'il n'y en a pas. « highlight » est ce que le campus met en avant dans le bandeau bleu de l'accueil, ou null s'il ne met rien en avant. « event » est l'événement du campus qu'il met en avant : son nom, son premier jour, et « shown », qui dit si l'accueil invite encore à s'y inscrire (jusqu'à la fin de son premier jour, à l'heure du campus, s'il est activé avec au moins une section, a un nom public et un formulaire d'inscription et est toujours sur ce campus), avec « notShownBecause » qui dit pourquoi sinon. Un talent déjà inscrit à cet événement n'est pas invité à s'y inscrire : l'accueil lui dit qu'il est inscrit. « invitation » est l'invitation générique du campus (titre, texte, lien d'inscription, libellé du bouton, null pour « Je m'inscris », et « imageUrl », l'adresse d'où son image a été copiée), affichée quand l'événement ne l'est pas. « showing » dit laquelle des deux l'accueil montre aujourd'hui (« event », « invitation », ou null). Le jour où le talent a un sujet ou un événement en cours, le bandeau montre celui-ci à la place. Un talent voit le campus de son événement le plus tardif, à venir compris.",
     ),
   };
 }

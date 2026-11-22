@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { walk } from '#lib/testing/sourceReads.ts';
 
 /**
  * Every remote function is declared through `gatedQuery` / `gatedCommand`, so
@@ -8,15 +8,6 @@ import { join } from 'node:path';
  * (`RemoteGate` in `auth/guards.ts`), so a function declared with kit's own
  * `query` would answer anyone who can reach the server.
  */
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, out);
-    else out.push(full);
-  }
-  return out;
-}
 
 // Kit's own test for a remote module (`remote_module_pattern`).
 const REMOTE_MODULE = /[/.]remote\.[^/]+$/;
