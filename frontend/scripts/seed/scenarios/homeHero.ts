@@ -26,6 +26,10 @@
  * Paris points at its camp, Lyon only invites « toute l'année », Marseille's
  * pointer has been overtaken and leaves its hero to what a talent started.
  *
+ * And one talent whose only event is a stage under way that no admin activated
+ * (#516): a schedule and a subject her screens never show, the example
+ * `assert/reachability.ts` asks for.
+ *
  * Runs last, like `niveaux`, so the draws it takes move no talent, event or
  * name of the scenarios before it; every talent's career is placed, so no
  * later draw enrols them anywhere else.
@@ -94,7 +98,7 @@ function persona(
 export const homeHero: Scenario = {
   name: 'bandeau-accueil',
   summary:
-    'Un talent dans chaque état du bandeau de l’accueil : pendant un événement (plusieurs sujets, un seul, aucun), inscrit à un événement à venir, invité, invitation générique, sujet à continuer, rien.',
+    'Un talent dans chaque état du bandeau de l’accueil : pendant un événement (plusieurs sujets, un seul, aucun), inscrit à un événement à venir, invité, invitation générique, sujet à continuer, rien ; et une talent inscrite à un stage que personne n’a activé.',
   run(world) {
     const { clock } = world.ctx;
     const paris = world.campus(HIGHLIGHTED_EVENT.campus);
@@ -326,6 +330,33 @@ export const homeHero: Scenario = {
       note: 'rien à mettre en avant : l’accueil sans bandeau',
     });
 
+    // ── Inscrite à un stage que personne n'a activé (#516) ─────────────────
+    // A Salesforce campaign under way, as the sync leaves it: raw title, no
+    // public name, no section, never activated, but with a schedule and a
+    // subject, which is everything the home, the planning and the activities
+    // would show her of an activated one. They show none of it: her hero is
+    // her campus's invitation, as if she were enrolled nowhere. Last, so its
+    // draws move nobody placed above.
+    const unprepared = world.addEvent({
+      key: 'bandeau-stage-non-active',
+      titre: `${paris.name}-${clock.dateKey(running[0]!)}-StageNonPrepare`,
+      campus: paris,
+      days: running,
+      startMinutes: 9 * 60,
+      workshops: [{ slug: 'babel-ship' }],
+    });
+    world.addPlanning(unprepared, STAGE_PLANNING);
+    placed.push({
+      state: 'invitation',
+      talent: persona(world, {
+        prenom: 'Elsa',
+        nom: 'Masquee',
+        campus: paris,
+        events: [unprepared],
+      }),
+      note: 'inscrite à un stage en cours que personne n’a activé : ni bandeau, ni planning, ni activité ne le montrent',
+    });
+
     world.ctx.manifest.push({
       scenario: homeHero.name,
       summary: homeHero.summary,
@@ -333,6 +364,7 @@ export const homeHero: Scenario = {
         'pendant un événement : trois sujets au choix sans qu’aucun ne passe devant, un sujet seul comme sur la maquette, aucun sujet à ce moment avec « Voir le planning »',
         'inscrit : le compte à rebours, l’heure d’accueil quand l’événement en a une, « Ajouter à mon agenda »',
         `invité au ${HIGHLIGHTED_EVENT.publicName} de ${HIGHLIGHTED_EVENT.campus}, l’invitation générique de Lyon, un sujet à continuer chez soi, et un accueil sans bandeau`,
+        'inscrite à un stage en cours que personne n’a activé : l’accueil, le planning et les activités le taisent, et l’espace dev ne l’ouvre pas',
       ],
       accounts: placed.map(({ state, talent, note }) => ({
         role: `talent (bandeau ${state})`,
