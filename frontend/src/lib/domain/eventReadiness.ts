@@ -50,12 +50,31 @@ export function shownEnrolmentWhere(
   };
 }
 
-/** {@link shownEventWhere} for a row already loaded. */
-export function isEventShown(event: {
+/** What {@link shownEventWhere} reads off a row already loaded. */
+type ShownEventFields = {
   devActivatedAt: Date | null;
   modules: readonly unknown[];
-}): boolean {
-  return event.devActivatedAt !== null && event.modules.length > 0;
+};
+
+/**
+ * Why a loaded event is not shown, as a key of {@link EVENT_MISSING_LABELS},
+ * or null when it is. No section comes first, the order `eventMissingConfig`
+ * gives: an event with none shows nothing whatever its gate says, so naming the
+ * activation then would send the reader to flip a switch that changes nothing.
+ * A key rather than a sentence, because a read describes it and a refused write
+ * says what to do about it.
+ */
+export function eventNotShownBecause(
+  event: ShownEventFields,
+): 'modules' | 'activation' | null {
+  if (event.modules.length === 0) return 'modules';
+  if (event.devActivatedAt === null) return 'activation';
+  return null;
+}
+
+/** {@link shownEventWhere} for a row already loaded. */
+export function isEventShown(event: ShownEventFields): boolean {
+  return eventNotShownBecause(event) === null;
 }
 
 /**

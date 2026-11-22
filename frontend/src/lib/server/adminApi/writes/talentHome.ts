@@ -29,7 +29,10 @@ import {
 } from '$lib/markdown';
 import { toDateKey } from '$lib/domain/planningTime';
 import { eventDisplayName, eventPublicName } from '$lib/domain/event';
-import { isEventShown } from '$lib/domain/eventReadiness';
+import {
+  EVENT_MISSING_LABELS,
+  eventNotShownBecause,
+} from '$lib/domain/eventReadiness';
 import {
   HERO_BUTTON_MAX,
   HERO_TEXT_MAX,
@@ -300,6 +303,21 @@ export function checkSignupUrl(url: string): void {
  * configuration takes too before it clears the sign-up form
  * (`EventService.updateEventConfig`).
  */
+/**
+ * What to do about each reason an event is not shown (`eventNotShownBecause`),
+ * as the refusal below says it: an event with no section needs one as well as
+ * the activation, and `write_event_config` judges both on the call's result, so
+ * they come in one call.
+ */
+const SHOW_IT_FIRST = {
+  activation: "Rendez-le d'abord visible avec write_event_config (visible).",
+  modules:
+    "Donnez-lui d'abord une section et rendez-le visible, en un seul appel à write_event_config (modules et visible).",
+} as const satisfies Record<
+  NonNullable<ReturnType<typeof eventNotShownBecause>>,
+  string
+>;
+
 async function checkHighlightedEvent(
   tx: Prisma.TransactionClient,
   campus: ResolvedCampus,
@@ -328,9 +346,10 @@ async function checkHighlightedEvent(
     throw new OperationRefusedError(
       `« ${name} » est un événement de ${event.campus.name}, pas de ${campus.name} : un campus ne met en avant que ses propres événements.`,
     );
-  if (!isEventShown(event))
+  const hidden = eventNotShownBecause(event);
+  if (hidden)
     throw new OperationRefusedError(
-      `« ${name} » n'est pas activé, et un talent ne voit que les événements activés. Rendez-le d'abord visible avec write_event_config (visible).`,
+      `« ${name} » n'est montré à aucun talent (${EVENT_MISSING_LABELS[hidden]}) : un talent ne voit que les événements activés avec au moins une section. ${SHOW_IT_FIRST[hidden]}`,
     );
   if (!isInvitationOpen(event, event.campus.timezone, now))
     throw new OperationRefusedError(

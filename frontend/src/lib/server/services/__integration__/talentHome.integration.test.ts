@@ -16,6 +16,7 @@ import type { AddressInfo } from 'node:net';
 import { isHttpError } from '@sveltejs/kit';
 import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { EVENT_MISSING_LABELS } from '$lib/domain/eventReadiness';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
 import { mintToken } from '$lib/server/adminApi/tokens';
@@ -475,7 +476,9 @@ describe('the campus content on a talent’s home (integration)', () => {
         event: {
           eventId: campEventId,
           shown: false,
-          notShownBecause: expect.stringContaining("n'est pas activé"),
+          notShownBecause: expect.stringContaining(
+            EVENT_MISSING_LABELS.activation,
+          ),
         },
       });
     } finally {

@@ -13,6 +13,7 @@ import {
   type TalentHomeHighlight,
 } from './talentHome';
 import type { WorkshopActivity } from './workshops';
+import { EVENT_MISSING_LABELS } from './eventReadiness';
 
 // An event's first day as the sync stores it: midnight on the campus clock.
 const startsOn = (instant: string) => ({ date: new Date(instant) });
@@ -95,20 +96,33 @@ describe('pointedEventShown', () => {
     });
   });
 
-  // #516: a talent is shown no event an admin has not activated.
-  it('hides an event no admin activated, and says so', () => {
-    expect(
-      pointedEventShown(
+  // #516: a talent is shown no event an admin has not activated, nor one left
+  // with no section, and the reason names which: an activated event emptied of
+  // its sections once read as « not activated » to the admin asking why.
+  it('hides an event not shown to talents, saying whether it lacks the activation or a section', () => {
+    const because = (event: {
+      devActivatedAt?: Date | null;
+      modules?: string[];
+    }) => {
+      const answer = pointedEventShown(
         'paris',
         'Europe/Paris',
-        { ...pointed, devActivatedAt: null },
+        { ...pointed, ...event },
         before,
-      ),
-    ).toEqual({
-      shown: false,
-      because:
-        "L'événement n'est pas activé, et un talent ne voit que les événements activés.",
-    });
+      );
+      return answer.shown ? null : answer.because;
+    };
+    expect(because({ devActivatedAt: null })).toContain(
+      EVENT_MISSING_LABELS.activation,
+    );
+    expect(because({ modules: [] })).toContain(EVENT_MISSING_LABELS.modules);
+    expect(because({ modules: [] })).not.toContain(
+      EVENT_MISSING_LABELS.activation,
+    );
+    // Both missing: the section first, since activating alone shows nothing.
+    expect(because({ devActivatedAt: null, modules: [] })).not.toContain(
+      EVENT_MISSING_LABELS.activation,
+    );
   });
 });
 

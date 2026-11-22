@@ -1,7 +1,7 @@
 import { fromWallClock, toDateKey, type DateKey } from './planningTime';
 import { dateKeyParts, dateKeyToDbDate } from './eventPresence';
 import { eventPublicName, minutesToHHMM } from './event';
-import { isEventShown } from './eventReadiness';
+import { EVENT_MISSING_LABELS, eventNotShownBecause } from './eventReadiness';
 import { isActivityFinished, type WorkshopActivity } from './workshops';
 import {
   heroCopy,
@@ -157,11 +157,11 @@ export function pointedEventShown(
       shown: false,
       because: "L'événement a été déplacé sur un autre campus dans Salesforce.",
     };
-  if (!isEventShown(event))
+  const hidden = eventNotShownBecause(event);
+  if (hidden)
     return {
       shown: false,
-      because:
-        "L'événement n'est pas activé, et un talent ne voit que les événements activés.",
+      because: `Un talent ne voit que les événements activés avec au moins une section, et celui-ci n'en est pas un : ${EVENT_MISSING_LABELS[hidden]}.`,
     };
   if (!name)
     return {
