@@ -6,6 +6,7 @@
   import { enhance } from '$app/forms';
   import { enter } from '#lib/motion/index.ts';
   import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
+  import MascotSettingsCard from '#lib/components/mascot/MascotSettingsCard.svelte';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import User from '@lucide/svelte/icons/user';
   import Mail from '@lucide/svelte/icons/mail';
@@ -92,6 +93,8 @@
       </div>
     </div>
   </div>
+
+  <MascotSettingsCard form={data.mascotForm} />
 
   <!-- Appearance -->
   <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
