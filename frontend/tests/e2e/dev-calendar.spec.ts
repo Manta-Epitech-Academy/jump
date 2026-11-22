@@ -8,9 +8,11 @@
  * dev-visibility gate) and lands on the event's home (#443), which every event
  * opens on.
  *
- * The way back keeps the year (#533): from an event of last school year, the
+ * The way back keeps the year (#533): from an event of a past school year, the
  * menu's « Calendrier » opens the calendar that lists it, not today's, and
- * stays lit there although its address carries the year.
+ * stays lit there although its address carries the year. The event starts on
+ * 31 July, which its school year already counts in the next year: the link
+ * follows the calendar, not that label.
  */
 import { test, expect } from '@playwright/test';
 import { E2E, storageStatePath } from './fixtures/identities';
@@ -34,17 +36,19 @@ test.describe('le calendrier du campus', () => {
   });
 
   test("ramène à l'année de l'événement ouvert", async ({ page }) => {
-    await page.goto(`/staff/dev/events/${E2E.lastYearEventId}`);
+    await page.goto(`/staff/dev/events/${E2E.pastJulyEventId}`);
 
     const calendarLink = page.getByRole('link', { name: 'Calendrier' });
     await calendarLink.click();
 
     await expect(page).toHaveURL(
-      (url) => url.pathname === '/staff/dev' && url.searchParams.has('year'),
+      (url) =>
+        url.pathname === '/staff/dev' &&
+        url.searchParams.get('year') === E2E.pastJulyCalendarYear,
     );
     await expect(
       page.getByRole('button', {
-        name: new RegExp(`: ${E2E.lastYearEventName}$`),
+        name: new RegExp(`: ${E2E.pastJulyEventName}$`),
       }),
     ).toBeVisible();
     await expect(calendarLink).toHaveAttribute('aria-current', 'page');

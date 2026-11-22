@@ -245,19 +245,17 @@ export async function seedE2eData(): Promise<void> {
     });
   }
 
-  // ── An event of last school year, for the calendar's way back ───────────
-  // Today's date a year earlier, on the campus clock: the same month, so
-  // always in the calendar before today's. 29 February has no twin, and 28
-  // stands in for it.
-  const [year, month, day] = toDateKey(now, CAMPUS_TIMEZONE).split('-');
-  const lastYearDay = `${Number(year) - 1}-${month}-${month === '02' && day === '29' ? '28' : day}`;
+  // ── An event of a past school year, for the calendar's way back ─────────
+  // A fixed 31 July, so always in a year other than today's, and on the one
+  // day its school year (`schoolYearOf`, already the next one) and the
+  // calendar listing it (the July closing the year before) differ.
   await prisma.event.create({
     data: {
-      id: E2E.lastYearEventId,
-      titre: 'E2E-Annee-Passee',
-      publicName: E2E.lastYearEventName,
-      date: eventStartInstant(lastYearDay, CAMPUS_TIMEZONE),
-      endDate: eventEndInstant(lastYearDay, CAMPUS_TIMEZONE),
+      id: E2E.pastJulyEventId,
+      titre: 'E2E-Fin-Juillet',
+      publicName: E2E.pastJulyEventName,
+      date: eventStartInstant(E2E.pastJulyEventDay, CAMPUS_TIMEZONE),
+      endDate: eventEndInstant(E2E.pastJulyEventDay, CAMPUS_TIMEZONE),
       campusId: E2E.campusId,
       devActivatedAt: now,
       modules: { create: { moduleKey: EVENT_MODULES.INSCRITS } },
