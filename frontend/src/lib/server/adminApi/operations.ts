@@ -645,7 +645,7 @@ const feedbackQuestion = withQuestionRules(
       'Stable identifier of the question in this form, lowercase letters, digits and _ only. It is what identifies the question: keep it to edit the question, a new key is a new question.',
     ),
     prompt: questionFields.prompt.describe(
-      'French, what the persona asks. May cite {prenom}, {nom}, {campus}, {civilite}.',
+      'French, what the persona asks. May cite {prenom}, {nom}, {campus}, {civilite}, {canard}.',
     ),
     type: questionFields.type.describe(
       'single, multiple or scale take options (a scale lists them best first); text and textarea take a free answer and no options.',
@@ -1166,19 +1166,19 @@ export const ADMIN_API_OPERATIONS = {
         'French, the name staff see in the catalogue.',
       ),
       intro: formFields.intro.describe(
-        "French opening line the persona speaks, may cite {prenom}. Omit for Jump's default greeting.",
+        "French opening line the persona speaks, may cite {prenom} and {canard} (its name). Omit for Jump's default greeting.",
       ),
       outro: formFields.outro.describe(
         "French closing line the persona speaks. Omit for Jump's default goodbye.",
       ),
       personaName: formFields.personaName.describe(
-        'Name the persona introduces itself by. Omit for the default mascot.',
+        "Name the persona introduces itself by. Omit for each talent's own EpiDuck.",
       ),
       personaIconUrl: httpsPictureUrl
         .nullable()
         .optional()
         .describe(
-          'https address of the persona avatar. Jump downloads it and keeps a 256 px still: PNG, JPEG or WebP up to 20 MB, or a GIF up to 6 MB whose first frame is kept, from a public address. Restating the address the icon came from downloads nothing. Null puts the default mascot back. Omit to leave the icon as it is, which is the only way to keep one uploaded on the preview page of the form.',
+          'https address of the persona avatar. Jump downloads it and keeps a 256 px still: PNG, JPEG or WebP up to 20 MB, or a GIF up to 6 MB whose first frame is kept, from a public address. Restating the address the icon came from downloads nothing. Null gives the avatar back to EpiDuck. Omit to leave the icon as it is, which is the only way to keep one uploaded on the preview page of the form.',
         ),
       status: formFields.status.describe(
         'draft while it is being written, published to accept responses, archived to retire it.',

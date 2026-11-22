@@ -5,7 +5,7 @@
     Answers,
     IdentityContext,
   } from '#lib/domain/feedbackForms/schema.ts';
-  import { DEFAULT_PERSONA } from '#lib/domain/feedbackForms/schema.ts';
+  import { DEFAULT_MASCOT_LOOK, type MascotLook } from '#lib/domain/mascot.ts';
   import { Conversation } from '#lib/domain/feedbackForms/conversation.svelte.ts';
   import ChatThread from './ChatThread.svelte';
   import PersonaAvatar from './PersonaAvatar.svelte';
@@ -24,17 +24,30 @@
      * so the closer just tells them they can leave.
      */
     audience: 'public' | 'authenticated';
+    /**
+     * Who hosts the chat when the form names no persona of its own: the
+     * talent's EpiDuck (#539), or the undressed one for the public.
+     */
+    mascot?: MascotLook;
   }
 
-  let { form, onSubmit, identity = {}, audience }: Props = $props();
+  let {
+    form,
+    onSubmit,
+    identity = {},
+    audience,
+    mascot = DEFAULT_MASCOT_LOOK,
+  }: Props = $props();
 
-  // Chat persona set on the form (Mascotte), falling back to the default mascot.
-  const persona = $derived(form.personaName?.trim() || DEFAULT_PERSONA.name);
+  // The persona a form names, or the duck hosting it.
+  const persona = $derived(form.personaName?.trim() || mascot.name);
 
   // Built once: the conversation is a stateful machine, not reactive to later
   // prop changes. `untrack` makes that one-time read explicit (and silences the
-  // state_referenced_locally warning).
-  const conv = untrack(() => new Conversation(form, identity));
+  // state_referenced_locally warning). `{canard}` is whoever speaks.
+  const conv = untrack(
+    () => new Conversation(form, { canard: persona, ...identity }),
+  );
   let submitted = $state(false);
 
   $effect(() => {
@@ -71,6 +84,7 @@
     <div class="relative">
       <PersonaAvatar
         iconUrl={form.personaIconUrl}
+        look={mascot}
         alt={persona}
         class="h-8 w-8"
       />

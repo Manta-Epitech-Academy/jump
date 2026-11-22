@@ -558,7 +558,7 @@ const FEEDBACK_AUTHORING_CONTRACT = [
   "Une question à choix (single, multiple, scale) a au moins une option ; une question libre (text, textarea) n'en a aucune ; une option « extra » (hors échelle, comme « je ne sais pas ») n'existe que sur une question scale. Une question multiple ne demande pas plus de choix (minSelections) qu'elle n'a d'options. Deux options d'une même question ne portent jamais le même libellé.",
   "Une donnée d'identité (identityField) n'est collectée qu'une fois par formulaire, n'est posée qu'au public, et prend le type qui lui correspond : text pour email, phone, firstName et lastName, single pour civility et campus.",
   "Un formulaire publié et ouvert au public (allowsPublicAccess) doit demander l'e-mail ; la relance sur le tableau de bord (dashboardNudge) suppose l'accès des talents connectés (allowsAuthenticatedAccess).",
-  'Les textes du persona peuvent citer {prenom}, {nom}, {campus} et {civilite}. Une intro ou une conclusion vide laisse le message par défaut.',
+  'Les textes du persona peuvent citer {prenom}, {nom}, {campus}, {civilite} et {canard}, le nom de qui parle : le persona du formulaire, ou à défaut le canard EpiDuck du talent, sous le nom que le talent lui a donné. Une intro ou une conclusion vide laisse le message par défaut.',
   "Retirer un formulaire, c'est l'archiver (status archived). Aucune opération ne supprime un formulaire.",
 ];
 
@@ -612,7 +612,7 @@ export async function getFeedbackForms(params: {
       : null,
     form: metric(
       content,
-      "Le formulaire demandé par « formId », en entier et dans la forme exacte que write_feedback_form accepte : ses réglages, son persona, puis ses questions hors section et ses sections, dans l'ordre où un répondant les rencontre. Null si aucun formulaire n'a été demandé. « locked » vaut vrai dès qu'il a reçu une réponse : sa structure est alors figée. « personaIcon » est null pour la mascotte par défaut ; son « sourceUrl » est l'adresse d'où l'icône a été copiée, ou null si elle a été déposée sur la page d'aperçu du formulaire.",
+      "Le formulaire demandé par « formId », en entier et dans la forme exacte que write_feedback_form accepte : ses réglages, son persona, puis ses questions hors section et ses sections, dans l'ordre où un répondant les rencontre. Null si aucun formulaire n'a été demandé. « locked » vaut vrai dès qu'il a reçu une réponse : sa structure est alors figée. « personaIcon » est null quand le canard EpiDuck du talent sert d'avatar ; son « sourceUrl » est l'adresse d'où l'icône a été copiée, ou null si elle a été déposée sur la page d'aperçu du formulaire.",
     ),
     authoring: metric(
       FEEDBACK_AUTHORING_CONTRACT,

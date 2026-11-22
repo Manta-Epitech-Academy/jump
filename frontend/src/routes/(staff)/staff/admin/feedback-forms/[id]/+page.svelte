@@ -12,7 +12,7 @@
   import PersonaAvatar from '#lib/components/feedback/PersonaAvatar.svelte';
   import SegmentedFilter from '#lib/components/staff/SegmentedFilter.svelte';
   import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
-  import { DEFAULT_PERSONA } from '#lib/domain/feedbackForms/schema.ts';
+  import { MASCOT_DEFAULT_NAME } from '#lib/domain/mascot.ts';
   import FormHeader from '../components/FormHeader.svelte';
   import type { PageData } from './$types';
 
@@ -105,7 +105,7 @@
       >
         <PersonaAvatar
           iconUrl={schema.personaIconUrl}
-          alt={data.form.personaName ?? DEFAULT_PERSONA.name}
+          alt={data.form.personaName ?? MASCOT_DEFAULT_NAME}
           class="h-full w-full"
         />
         <span
@@ -128,7 +128,7 @@
         onchange={onPickIcon}
       />
       <span class="text-sm font-medium">
-        {data.form.personaName ?? DEFAULT_PERSONA.name}
+        {data.form.personaName ?? MASCOT_DEFAULT_NAME}
       </span>
       <InfoTooltip
         label="L’icône de la mascotte"

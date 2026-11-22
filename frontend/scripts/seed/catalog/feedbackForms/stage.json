@@ -1,7 +1,7 @@
 {
   "id": "stage",
   "title": "Bilan du stage de seconde",
-  "intro": "Coucou ! Moi c'est Bernard le canard 🦆. Je viens prendre ton bilan, vite fait bien fait, promis je ne mords pas.",
+  "intro": "Coucou ! Moi c'est {canard} 🦆. Je viens prendre ton bilan, vite fait bien fait, promis je ne mords pas.",
   "outro": "Et voilà, c'est fini ! Merci {prenom}, t'es au top 🦆 File profiter de ta journée… et qui sait, à bientôt chez Epitech 👋 coin coin !",
   "questions": [
     {

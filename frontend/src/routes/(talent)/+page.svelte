@@ -18,6 +18,7 @@
   import WorkshopRewardCelebration from '#lib/components/talent/WorkshopRewardCelebration.svelte';
   import { onMount } from 'svelte';
   import { cn } from '#lib/utils.ts';
+  import { mascotLookOf } from '#lib/domain/mascot.ts';
 
   let { data }: { data: PageData } = $props();
 
@@ -161,6 +162,7 @@
           eventId={pf.eventId}
           formId={pf.formId}
           personaIconUrl={pf.personaIconUrl}
+          mascot={mascotLookOf(student)}
         />
       </div>
     {/each}

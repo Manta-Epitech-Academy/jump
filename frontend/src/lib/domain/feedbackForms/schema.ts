@@ -73,6 +73,12 @@ export interface IdentityContext {
   nom?: string;
   campus?: string;
   civilite?: string;
+  /**
+   * The name of who is speaking: the form's persona name when it sets one,
+   * otherwise the talent's EpiDuck (`MASCOT_DEFAULT_NAME` for a public
+   * respondent). Filled by the chat, never by an identity question.
+   */
+  canard?: string;
 }
 
 /** Identity fields that feed an interpolation token (email/phone aren't used in copy). */
@@ -90,6 +96,7 @@ const INTERPOLATION_TOKENS: ReadonlySet<keyof IdentityContext> = new Set([
   'nom',
   'campus',
   'civilite',
+  'canard',
 ]);
 
 /**
@@ -130,9 +137,9 @@ export interface FormSchema {
   intro?: string;
   /** Closing bot line; falls back to {@link DEFAULT_OUTRO} when absent. */
   outro?: string;
-  /** Name of the chat persona; falls back to the default mascot when absent. */
+  /** Name of the chat persona; absent = the talent's EpiDuck's name. */
   personaName?: string;
-  /** Proxy URL of the persona's uploaded avatar; absent = the default mascot art. */
+  /** Proxy URL of the persona's uploaded avatar; absent = the talent's EpiDuck. */
   personaIconUrl?: string;
   questions: Question[];
 }
@@ -202,17 +209,6 @@ export function projectQuestionToSchema(
 }
 
 /**
- * The mascot shown when a form sets no custom persona. Single source for the
- * name + art so the duck is never hardcoded at a render site; every fallback
- * reads from here, and a form fully overrides both via `personaName` /
- * `personaIconUrl`.
- */
-export const DEFAULT_PERSONA = {
-  name: 'Bernard le canard',
-  iconUrl: '/canard.png',
-} as const;
-
-/**
  * Opening line the persona speaks when a form sets no custom `intro`. There is
  * always a greeting; this is what "leave the intro empty" produces. Kept free of
  * {@link interpolate} tokens so it reads correctly for a public respondent (who
@@ -232,7 +228,7 @@ export const DEFAULT_OUTRO =
 
 /**
  * Builds the public proxy URL for a form's persona icon, or `undefined` when the
- * form has no custom icon (callers fall back to {@link DEFAULT_PERSONA}). The
+ * form has no custom icon (callers draw the talent's EpiDuck instead). The
  * `?v=<key>` busts the browser cache on replace: a new upload gets a new key, so
  * the URL changes even though the path (keyed by form id) is stable. Pure, so
  * every projection produces the same URL.
