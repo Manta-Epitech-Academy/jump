@@ -145,6 +145,14 @@ const GUARDIAN_ACTS = [
   'parentRulesSignedCity',
 ] as const;
 
+/** EpiDuck's look and sleep, every column of it but the name a talent typed. */
+const MASCOT_PREFERENCES = [
+  'mascotGlasses',
+  'mascotScarf',
+  'mascotHair',
+  'mascotAsleepAt',
+] as const;
+
 /** Both guardians' contact details. */
 const GUARDIAN_CONTACTS = [
   'parentType',
@@ -270,6 +278,16 @@ const ERASURE: Policy = {
       fate: 'keep',
       why: 'A privacy preference the talent set, harmless to keep.',
       columns: ['usageAnalyticsOptOutAt'],
+    },
+    {
+      fate: 'keep',
+      why: "EpiDuck's accessories and sleep: a cosmetic preference that names nobody.",
+      columns: MASCOT_PREFERENCES,
+    },
+    {
+      fate: 'null',
+      why: 'The name the talent gave their EpiDuck, typed by a minor, can be their own nickname.',
+      columns: ['mascotName'],
     },
     {
       fate: 'rewrite',
@@ -411,6 +429,11 @@ const RESET: Policy = {
       fate: 'keep',
       why: 'A privacy preference, and the erasure fact (a reset leaves it as it found it).',
       columns: ['usageAnalyticsOptOutAt', 'anonymizedAt'],
+    },
+    {
+      fate: 'keep',
+      why: "The talent's EpiDuck: a reset re-imports Salesforce and voids the onboarding, not a preference the talent set.",
+      columns: ['mascotName', ...MASCOT_PREFERENCES],
     },
     {
       fate: 'rewrite',
@@ -567,6 +590,8 @@ const MERGE: Policy = {
         'firstLoginAt',
         'streakDays',
         'streakLastDay',
+        'mascotName',
+        ...MASCOT_PREFERENCES,
       ],
     },
     {

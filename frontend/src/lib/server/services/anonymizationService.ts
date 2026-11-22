@@ -145,6 +145,10 @@ export async function anonymizeTalent(
       // The run of consecutive days feeds only this talent's own badges, so it
       // goes with them.
       ...clearSignInStreak(),
+      // The name the talent gave their EpiDuck: typed by a minor, it can be
+      // their own nickname. The accessories and the sleep stay, a cosmetic
+      // preference that names nobody.
+      mascotName: null,
       niveau: null,
     },
   });

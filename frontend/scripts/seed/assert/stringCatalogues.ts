@@ -43,6 +43,7 @@ import {
 } from '../../../src/lib/domain/closing';
 import { SF_STATUSES, UNRECOGNISED_SF_STATUS_SAMPLE } from '../world';
 import { INTEREST_KINDS } from '../../../src/lib/domain/interests';
+import { MASCOT_MOMENT_KEYS } from '../../../src/lib/domain/mascot';
 import {
   REGLEMENT_VERSIONS,
   DROIT_IMAGE_VERSIONS,
@@ -165,6 +166,15 @@ const CATALOGUES: readonly Catalogue[] = [
     vocabulary: 'icône d’option de closing',
     columns: [{ table: 'Closing_Option', field: 'icon', ownedBy: EVERY_ROW }],
     values: () => CHOICE_ICON_TOKENS,
+    requireEveryValue: true,
+  },
+  {
+    // Every moment has a line, the migration's defaults included: a moment with
+    // none is silent, which is valid, but a dataset where one is silent never
+    // shows the duck saying it.
+    vocabulary: 'moment du canard',
+    columns: [{ table: 'Mascot_Line', field: 'momentKey', ownedBy: EVERY_ROW }],
+    values: () => MASCOT_MOMENT_KEYS,
     requireEveryValue: true,
   },
   {

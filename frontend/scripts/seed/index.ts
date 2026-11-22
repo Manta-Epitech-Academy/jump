@@ -58,6 +58,7 @@ import {
   EVENT_CATEGORY_KEYS,
   seedEventCategories,
 } from './catalog/eventCategories';
+import { seedMascotLines } from './catalog/mascotLines';
 import { STAGE_TEMPLATE_KEY } from './catalog/closings';
 
 const DEFAULT_SEED = 20260830;
@@ -326,6 +327,7 @@ async function main(): Promise<void> {
     log(
       `  catégories d’événement ${await seedEventCategories(prisma, clock.today)}`,
     );
+    log(`  phrases du canard      ${await seedMascotLines(prisma, clock)}`);
 
     const world = new World(ctx);
     await loadPreexistingRows(prisma, world);
