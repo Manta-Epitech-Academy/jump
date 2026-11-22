@@ -10,8 +10,10 @@
   import {
     pickInitialWeek,
     pickInitialWeekView,
+    weeksBetween,
     type WeekView,
   } from '#lib/domain/calendarWeek.ts';
+  import { toDateKey, type DateKey } from '#lib/domain/planningTime.ts';
   import { track } from '#lib/analytics.ts';
   import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
 
@@ -19,27 +21,35 @@
 
   let planning = $derived(data.planning);
   let timeSlots = $derived(planning.slots);
-  let range = $derived(planning.range);
+  let grid = $derived(planning.grid);
 
   type Slot = (typeof timeSlots)[number];
 
   // Land on the week of the activity closest to "now" so the talent never opens
   // onto a blank gap week between two far-apart events (or after an all-past
-  // timeline). Falls back to the range start when there are no activities.
-  let weekStart = $state<Date>(
-    untrack(() =>
-      pickInitialWeek(
-        data.serverNow,
-        data.planning.slots,
-        data.planning.range ? new Date(data.planning.range.start) : null,
-      ),
-    ),
+  // timeline). Falls back to the range start when there are no activities. No
+  // grid, no week: the page shows its empty state and never reads it.
+  let weekStart = $state<DateKey>(
+    untrack(() => {
+      const g = data.planning.grid;
+      return g
+        ? pickInitialWeek(
+            data.serverNow,
+            data.planning.slots,
+            g.start,
+            g.timezone,
+          )
+        : toDateKey(new Date(data.serverNow), 'UTC');
+    }),
   );
 
   // Open full-week when the timeline has a weekend activity, else work-week, so
   // the default never hides a slot. WeekViewToggle's stored choice overrides it.
   let weekView = $state<WeekView>(
-    untrack(() => pickInitialWeekView(data.planning.slots)),
+    untrack(() => {
+      const g = data.planning.grid;
+      return g ? pickInitialWeekView(data.planning.slots, g.timezone) : 'work';
+    }),
   );
 
   let previewSlot = $state<Slot | null>(null);
@@ -48,10 +58,10 @@
     if (!previewOpen) previewSlot = null;
   });
 
-  // Offset from "this week"; negative = past weeks, 0 = current, positive = future.
-  function weekOffset(from: Date): number {
-    const ms = from.getTime() - new Date().setHours(0, 0, 0, 0);
-    return Math.round(ms / (7 * 86_400_000));
+  // Offset from "this week" on the grid's campus clock; negative = past weeks,
+  // 0 = current, positive = future.
+  function weekOffset(from: DateKey, timezone: string): number {
+    return weeksBetween(toDateKey(new Date(), timezone), from);
   }
 
   function openPreview(slot: Slot) {
@@ -73,19 +83,20 @@
 <div class="flex h-dvh flex-col overflow-hidden bg-background">
   <TalentPageHeader title="Planning">
     {#snippet actions()}
-      {#if range}
+      {#if grid}
+        {@const timezone = grid.timezone}
         <div
           class="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3"
         >
           <WeekViewToggle bind:value={weekView} />
           <WeekNavigator
-            {range}
+            range={grid}
             bind:weekStart
             {weekView}
             onNavigate={(dir) =>
               track('calendar_week_navigated', {
                 direction: dir,
-                currentWeekOffset: weekOffset(weekStart),
+                currentWeekOffset: weekOffset(weekStart, timezone),
               })}
           />
         </div>
@@ -94,12 +105,13 @@
   </TalentPageHeader>
 
   <div class="min-h-0 flex-1 overflow-hidden bg-card">
-    {#if range}
+    {#if grid}
       <CalendarViewer
         class="mx-auto max-w-5xl px-4 md:px-8"
         slots={timeSlots}
         {weekStart}
         {weekView}
+        timezone={grid.timezone}
         serverNow={data.serverNow}
         dimUnstarted={true}
         onSlotClick={openPreview}
