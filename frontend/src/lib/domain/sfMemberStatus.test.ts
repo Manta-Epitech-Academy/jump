@@ -82,7 +82,7 @@ describe('sfMemberStatus domain logic', () => {
  */
 const COHORT_READS = [
   {
-    read: /\bparticipation\.(findMany|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|count|groupBy|aggregate)\(|\bparticipations:\s*\{/g,
+    read: /\bparticipation\.(findMany|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|count|groupBy|aggregate)\(|\bparticipations:\s*(\{|true\b)/g,
     marker: 'visibleParticipationWhere',
   },
   {

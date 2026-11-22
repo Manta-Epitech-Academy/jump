@@ -153,10 +153,12 @@ describe('shownEventWhere', () => {
 /**
  * A read of an event, or of an enrolment (a delegate call, or a relation
  * filter on them), and the names that carry the rule into it: the rule itself
- * in either spelling, and the fragments built on it.
+ * in either spelling, and the fragments built on it. `participations: true`
+ * is a read too, with no filter at all: the parent home counted a child's
+ * enrolments that way before #516.
  */
 const EVENT_READ =
-  /\b(participation|event)\.(findMany|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|count|groupBy|aggregate)\(|\bparticipations:\s*\{/g;
+  /\b(participation|event)\.(findMany|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|count|groupBy|aggregate)\(|\bparticipations:\s*(\{|true\b)/g;
 const SHOWN_MARKERS = [
   'shownEventWhere',
   'isEventShown',
@@ -205,8 +207,10 @@ describe('every talent and parent read shows only activated events', () => {
     const doctored = `prisma.participation.findMany({ where: { talentId } });
       prisma.participation.findMany({ where: { talentId, ...shownEnrolmentWhere() } });
       prisma.event.findFirst({ where: { id } });
-      _count: { select: { participations: { where: shownEnrolmentWhere() } } }`;
-    expect(readsWithout(doctored, EVENT_READ, SHOWN_MARKERS)).toHaveLength(2);
+      _count: { select: { participations: { where: shownEnrolmentWhere() } } }
+      _count: { select: { participations: true } }
+      prisma.participation.findMany({ where: { talentId, ...shownEnrolmentWhere() } });`;
+    expect(readsWithout(doctored, EVENT_READ, SHOWN_MARKERS)).toHaveLength(3);
   });
 
   it('walks both spaces', () => {

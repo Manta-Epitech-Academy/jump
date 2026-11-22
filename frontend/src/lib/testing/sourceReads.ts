@@ -35,8 +35,9 @@ export function balanced(source: string, open: number): string {
 
 /**
  * The arguments of every read in `source` that names none of its markers. A
- * read is a match of `read` ending on its opening bracket, so the argument it
- * opens is the text checked.
+ * read is a match of `read`: one ending on its opening bracket is checked on
+ * the argument it opens, and one ending anywhere else (`participations: true`)
+ * carries no argument, so it is checked on itself and names no marker.
  */
 export function readsWithout(
   source: string,
@@ -44,6 +45,9 @@ export function readsWithout(
   markers: readonly string[],
 ): string[] {
   return [...source.matchAll(read)]
-    .map((m) => balanced(source, (m.index ?? 0) + m[0].length - 1))
+    .map((m) => {
+      const end = (m.index ?? 0) + m[0].length - 1;
+      return '({'.includes(source[end]) ? balanced(source, end) : m[0];
+    })
     .filter((arg) => !markers.some((marker) => arg.includes(marker)));
 }
