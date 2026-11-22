@@ -73,6 +73,30 @@ describe('the talent calendar’s grid', () => {
     ).toBe(REUNION);
   });
 
+  // A single-day event has no end of its own: read as ending at its start, it
+  // was hours away on its own evening, and the grid went to a campus whose
+  // event only started the next day.
+  it('counts a single-day event as running for its whole day', () => {
+    const paris = participation({
+      id: 'paris',
+      date: eventStartInstant('2026-07-06', PARIS),
+      endDate: null,
+      timezone: PARIS,
+    });
+    const reunion = participation({
+      id: 'reunion',
+      date: eventStartInstant('2026-07-07', REUNION),
+      endDate: eventEndInstant('2026-07-10', REUNION),
+      timezone: REUNION,
+    });
+
+    // 20:00 in Paris, 22:00 at La Réunion: two hours before its event starts.
+    expect(
+      toCalendarPlanning([paris, reunion], new Date('2026-07-06T18:00:00Z'))
+        .grid?.timezone,
+    ).toBe(PARIS);
+  });
+
   it('has no grid without an event', () => {
     expect(toCalendarPlanning([], new Date()).grid).toBeNull();
   });

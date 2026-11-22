@@ -1,6 +1,6 @@
 import { eventDayKeys } from './campusCalendar';
 import { eventPublicName, UNNAMED_EVENT_NAME } from './event';
-import type { DateKey } from './planningTime';
+import { daysBetween, toDateKey, type DateKey } from './planningTime';
 
 /**
  * The full talent calendar (route `(talent)/calendar`) is no longer scoped to a
@@ -62,14 +62,16 @@ export type CalendarPlanning = {
   grid: { start: DateKey; end: DateKey; timezone: string } | null;
 };
 
-/** How far an event is from `now`: zero while it runs. */
-function distanceFromNow(
-  event: { date: Date; endDate: Date | null },
-  now: Date,
+/**
+ * How many days an event is from `today`, both read on its campus clock: zero
+ * on any of its days, a single-day event's whole day included.
+ */
+function daysFromToday(
+  days: { first: DateKey; last: DateKey },
+  today: DateKey,
 ): number {
-  const end = event.endDate ?? event.date;
-  if (now < event.date) return event.date.getTime() - now.getTime();
-  if (now > end) return now.getTime() - end.getTime();
+  if (today < days.first) return daysBetween(today, days.first);
+  if (today > days.last) return daysBetween(days.last, today);
   return 0;
 }
 
@@ -93,7 +95,7 @@ export function toCalendarPlanning(
     const days = eventDayKeys(event.date, event.endDate, timezone);
     if (!start || days.first < start) start = days.first;
     if (!end || days.last > end) end = days.last;
-    const distance = distanceFromNow(event, now);
+    const distance = daysFromToday(days, toDateKey(now, timezone));
     if (!closest || distance < closest.distance) {
       closest = { timezone, distance };
     }
