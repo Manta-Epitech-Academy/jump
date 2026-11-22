@@ -1,22 +1,22 @@
 import { error } from '@sveltejs/kit';
-import type { ScopedPrismaClient } from '$lib/server/db/scoped';
-import { eventWindowEnd } from '$lib/domain/event';
+import type { ScopedPrismaClient } from '#lib/server/db/scoped.ts';
+import { eventWindowEnd } from '#lib/domain/event.ts';
 import {
   type EventModuleKey,
   type EventModuleSettings,
   type EventSurfaceKey,
   isEventModuleKey,
   parseModuleSettings,
-} from '$lib/domain/eventModules';
+} from '#lib/domain/eventModules.ts';
 import {
   type EventLifecycleStatus,
   getEventStatus,
   getLifecycleBounds,
-} from '$lib/domain/eventLifecycle';
-import { defaultEvent } from '$lib/domain/devWorkspace';
-import { schoolYearOf, type SchoolYear } from '$lib/domain/schoolYear';
-import { prisma } from '$lib/server/db';
-import { shownEventWhere } from '$lib/domain/eventReadiness';
+} from '#lib/domain/eventLifecycle.ts';
+import { defaultEvent } from '#lib/domain/devWorkspace.ts';
+import { schoolYearOf, type SchoolYear } from '#lib/domain/schoolYear.ts';
+import { prisma } from '#lib/server/db.ts';
+import { shownEventWhere } from '#lib/domain/eventReadiness.ts';
 
 const MS_PER_DAY = 86_400_000;
 

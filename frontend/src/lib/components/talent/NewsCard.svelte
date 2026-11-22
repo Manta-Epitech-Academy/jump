@@ -1,9 +1,9 @@
 <script lang="ts">
-  import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
-  import CardAction from '$lib/components/talent/CardAction.svelte';
-  import { Card } from '$lib/components/ui/card';
-  import { cn } from '$lib/utils';
-  import { hideBrokenPictures } from '$lib/actions/hideBrokenPictures';
+  import * as ResponsiveDialog from '#lib/components/ui/responsive-dialog/index.ts';
+  import CardAction from '#lib/components/talent/CardAction.svelte';
+  import { Card } from '#lib/components/ui/card/index.ts';
+  import { cn } from '#lib/utils.ts';
+  import { hideBrokenPictures } from '#lib/actions/hideBrokenPictures.ts';
 
   // The campus's word to its talents (`write_talent_home_note`), already
   // rendered and sanitised server-side. The card frames it with « Actualité »,

@@ -3,8 +3,8 @@ import { renderPdf, renderPng } from '../infra/documentRenderer';
 import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import certificateTemplate from '../templates/certificate.html?raw';
-import { escapeHtml } from '$lib/domain/htmlEscape';
-import { interpolateCertificate } from '$lib/domain/diplomas';
+import { escapeHtml } from '#lib/domain/htmlEscape.ts';
+import { interpolateCertificate } from '#lib/domain/diplomas.ts';
 
 /**
  * The certificate design, as stored on a `Diploma_Template` row. Taken as a

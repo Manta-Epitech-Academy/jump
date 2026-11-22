@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { WorkshopCatalogueService } from '$lib/server/services/workshopCatalogue';
+import { WorkshopCatalogueService } from '#lib/server/services/workshopCatalogue.ts';
 
 // The subject catalogue is the same for every campus, so the load takes nothing
 // from the session beyond the dev-space guard the layout already applied. The

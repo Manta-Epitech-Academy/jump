@@ -1,8 +1,8 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
-import { sendAdminDigest } from '$lib/server/services/adminDigest';
+import { CRON_SECRET } from '$app/env/private';
+import { safeTokenEquals } from '#lib/server/auth/safeTokenCompare.ts';
+import { sendAdminDigest } from '#lib/server/services/adminDigest/index.ts';
 
 /**
  * Weekly admin digest. Expected schedule: Monday morning, Europe/Paris. As a k8s
@@ -20,7 +20,7 @@ import { sendAdminDigest } from '$lib/server/services/adminDigest';
  */
 export const POST: RequestHandler = async ({ request }) => {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  const cronSecret = env.CRON_SECRET;
+  const cronSecret = CRON_SECRET;
 
   if (!cronSecret || !token || !safeTokenEquals(token, cronSecret)) {
     throw error(401, 'Unauthorized: Invalid or missing token');
@@ -37,7 +37,7 @@ export const POST: RequestHandler = async ({ request }) => {
           ? "[Job] Admin digest: this week's digest already reached somebody or is being sent, nothing sent."
           : '[Job] Admin digest: no recipient chosen (write_admin_digest_recipient), nothing sent.';
     console.log(line);
-    return json({ success: true, ...result });
+    return Response.json({ success: true, ...result });
   } catch (err) {
     console.error('[Job] Admin digest failed:', err);
     throw error(500, 'Internal Server Error');

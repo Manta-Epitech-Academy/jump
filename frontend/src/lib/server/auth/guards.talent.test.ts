@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
 import { applyRouteGuards } from './guards';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
 
 /**
  * Where the talent funnel sends someone who does not walk the onboarding

@@ -1,8 +1,8 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { USAGE_FEATURES } from '$lib/domain/usage';
-import { getMemberActivity } from '$lib/server/usage/memberActivity';
-import { recordUsage } from '$lib/server/usage/record';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
+import { getMemberActivity } from '#lib/server/usage/memberActivity.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
 
 /**
  * One member's activity, for the dialog on `/staff/admin/users`.
@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   // for a database that is down, so a stale link and an outage looked alike.
   if (!activity) error(404, 'Membre introuvable');
 
-  return json({
+  return Response.json({
     ...activity,
     features: activity.features.map((feature) => ({
       ...feature,

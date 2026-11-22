@@ -1,6 +1,6 @@
 <script lang="ts">
   import Quote from '@lucide/svelte/icons/quote';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
 
   /**
    * A talent's own words, on a staff surface.

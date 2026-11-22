@@ -23,7 +23,7 @@
  * on read. It is also what lets the PO count « 3 - Convention validée » as
  * attended on a stage, which only means it once the stage has run.
  *
- * Kept free of `$lib` imports: the seed generator imports it under plain Bun to
+ * Kept free of SvelteKit modules: the seed generator imports it under plain Bun to
  * check its own rows against the very statement the application runs.
  */
 

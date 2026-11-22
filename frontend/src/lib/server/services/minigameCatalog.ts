@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import { JUMP_GAMES_INTERNAL_URL, JUMP_GAMES_URL } from '$app/env/private';
 import type { MinigameScoring } from '@prisma/client';
 import { z } from 'zod';
 
@@ -141,7 +141,7 @@ export function scoringTypeFor(
  * unset, the public address is used, as before.
  */
 function gamesUrl(): string | null {
-  const url = env.JUMP_GAMES_INTERNAL_URL || env.JUMP_GAMES_URL;
+  const url = JUMP_GAMES_INTERNAL_URL || JUMP_GAMES_URL;
   return url ? url.replace(/\/$/, '') : null;
 }
 

@@ -1,9 +1,9 @@
 import type { PageServerLoad } from './$types';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   getBroadcastProgress,
   getBroadcastStats,
-} from '$lib/server/services/communicationStats';
+} from '#lib/server/services/communicationStats.ts';
 
 export const load: PageServerLoad = async () => {
   const broadcasts = await prisma.broadcast.findMany({

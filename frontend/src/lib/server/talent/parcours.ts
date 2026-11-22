@@ -1,18 +1,18 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { attendedShownBeforeWhere } from '$lib/domain/attendance';
-import { toDateKey } from '$lib/domain/planningTime';
-import { workshopSlugFromSourceId } from '$lib/domain/workshops';
+import { prisma } from '#lib/server/db.ts';
+import { attendedShownBeforeWhere } from '#lib/domain/attendance.ts';
+import { toDateKey } from '#lib/domain/planningTime.ts';
+import { workshopSlugFromSourceId } from '#lib/domain/workshops.ts';
 import {
   buildParcours,
   type Parcours,
   type ParcoursEarned,
   type ParcoursEventFacts,
-} from '$lib/domain/talentParcours';
-import { shownEventWhere } from '$lib/domain/eventReadiness';
-import { enrolledNotOverWhere } from '$lib/server/services/talentHomeHero';
-import { listTalentWorkshops } from '$lib/server/services/workshopService';
-import { resolveGrantLabels } from '$lib/server/services/xpStoryService';
+} from '#lib/domain/talentParcours.ts';
+import { shownEventWhere } from '#lib/domain/eventReadiness.ts';
+import { enrolledNotOverWhere } from '#lib/server/services/talentHomeHero.ts';
+import { listTalentWorkshops } from '#lib/server/services/workshopService.ts';
+import { resolveGrantLabels } from '#lib/server/services/xpStoryService.ts';
 
 /**
  * The facts behind a talent's « Mon parcours » (#445), arranged by

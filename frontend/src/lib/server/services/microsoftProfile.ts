@@ -1,5 +1,5 @@
-import { prisma } from '$lib/server/db';
-import { getStorage } from '$lib/server/infra/storage';
+import { prisma } from '#lib/server/db.ts';
+import { getStorage } from '#lib/server/infra/storage.ts';
 
 const PHOTO_SIZE = 96;
 

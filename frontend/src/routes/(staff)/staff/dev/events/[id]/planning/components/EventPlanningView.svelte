@@ -1,19 +1,19 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { eventDaysLabel, eventDisplayName } from '$lib/domain/event';
-  import CalendarViewer from '$lib/components/planning/CalendarViewer.svelte';
-  import WeekNavigator from '$lib/components/planning/WeekNavigator.svelte';
-  import WeekViewToggle from '$lib/components/planning/WeekViewToggle.svelte';
-  import ActivityPreviewDialog from '$lib/components/events/planning/ActivityPreviewDialog.svelte';
+  import { eventDaysLabel, eventDisplayName } from '#lib/domain/event.ts';
+  import CalendarViewer from '#lib/components/planning/CalendarViewer.svelte';
+  import WeekNavigator from '#lib/components/planning/WeekNavigator.svelte';
+  import WeekViewToggle from '#lib/components/planning/WeekViewToggle.svelte';
+  import ActivityPreviewDialog from '#lib/components/events/planning/ActivityPreviewDialog.svelte';
   import {
     pickInitialWeek,
     pickInitialWeekView,
     startOfDay,
     type WeekView,
-  } from '$lib/domain/calendarWeek';
-  import type { PlanningSlot } from '$lib/types';
+  } from '#lib/domain/calendarWeek.ts';
+  import type { PlanningSlot } from '#lib/types.ts';
   import type { PageData } from '../$types';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
 
   // One event's read-only planning. The page remounts this via {#key event.id},
   // so every per-event piece of state below (the visible week, the open preview)

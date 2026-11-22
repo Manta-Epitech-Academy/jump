@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
+import { prisma } from '#lib/server/db.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

@@ -1,12 +1,12 @@
 import type { RequestHandler } from './$types';
-import { error, json } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import type { Answers } from '$lib/domain/feedbackForms/schema';
+import { error } from '@sveltejs/kit';
+import { prisma } from '#lib/server/db.ts';
+import type { Answers } from '#lib/domain/feedbackForms/schema.ts';
 import {
   feedbackParticipationWhere,
   getFormGraphBySlug,
-} from '$lib/server/feedbackForms';
-import { recordSubmission } from '$lib/server/feedbackSubmissions';
+} from '#lib/server/feedbackForms.ts';
+import { recordSubmission } from '#lib/server/feedbackSubmissions.ts';
 
 export const POST: RequestHandler = async ({ request, locals, params }) => {
   if (!locals.talent) {
@@ -38,12 +38,12 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
   try {
     body = await request.json();
   } catch {
-    return json({ message: 'JSON invalide' }, { status: 400 });
+    return Response.json({ message: 'JSON invalide' }, { status: 400 });
   }
 
   const answers = body.answers;
   if (!answers || typeof answers !== 'object') {
-    return json({ message: 'Reponses manquantes' }, { status: 400 });
+    return Response.json({ message: 'Reponses manquantes' }, { status: 400 });
   }
 
   try {
@@ -62,8 +62,8 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
         ? ((err.body as { message?: string })?.message ??
           'Erreur lors de l’enregistrement')
         : 'Erreur lors de l’enregistrement';
-    return json({ message }, { status });
+    return Response.json({ message }, { status });
   }
 
-  return json({ success: true });
+  return Response.json({ success: true });
 };

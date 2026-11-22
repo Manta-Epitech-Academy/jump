@@ -28,9 +28,9 @@
  * the exception so it reads as a decision instead of an oversight.
  */
 
-import { prisma } from '$lib/server/db';
-import { metric, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+import { prisma } from '#lib/server/db.ts';
+import { metric, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { scopedEnrolments, scopeLabels } from './cohort';
 
 export const TESTIMONIALS_DEFAULT_LIMIT = 50;

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { cn } from '$lib/utils';
-  import { statusTone, type CellStatus } from '$lib/domain/eventPresence';
+  import { cn } from '#lib/utils.ts';
+  import { statusTone, type CellStatus } from '#lib/domain/eventPresence.ts';
 
   let {
     status,

@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { prisma } from '$lib/server/db';
-import { getStorage } from '$lib/server/infra/storage';
+import { prisma } from '#lib/server/db.ts';
+import { getStorage } from '#lib/server/infra/storage.ts';
 
 // Streams a signatory's signature image from S3 for the admin preview. Unlike
 // the CMS-image proxy, a signatory keeps its id across an image replacement

@@ -1,5 +1,5 @@
 /**
- * Provider-agnostic SMS types, mirroring `$lib/server/email/types.ts`. The
+ * Provider-agnostic SMS types, mirroring `#lib/server/email/types.ts`. The
  * façade in `./index.ts` exposes these to every call site; concrete providers
  * (`./providers/{brevo,null}.ts`) translate `SmsMessage` into their own API
  * shape.
@@ -8,7 +8,7 @@
 export interface SmsMessage {
   /**
    * Recipient phone number in the digits-only, country-coded form Brevo
-   * expects (see `$lib/domain/phone` → `toBrevoRecipient`). The façade does
+   * expects (see `#lib/domain/phone` → `toBrevoRecipient`). The façade does
    * not normalize: callers pass an already-validated number.
    */
   to: string;
@@ -39,7 +39,7 @@ export type SendSmsResult = { ok: true; id: string } | SendSmsFailure;
 
 /**
  * Per-send dev-redirect destination control, mirroring the mail façade
- * (`$lib/server/email/types.ts → DevRedirectControl`). Consulted ONLY when the
+ * (`#lib/server/email/types.ts → DevRedirectControl`). Consulted ONLY when the
  * gate (`OUTBOUND_MODE != real`) traps outbound: a no-op in prod.
  *
  *   - omitted   → redirect to the env list (default; system / automatic sends)

@@ -1,11 +1,11 @@
 import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   feedbackParticipationWhere,
   getFormGraphBySlug,
   toFormSchema,
-} from '$lib/server/feedbackForms';
+} from '#lib/server/feedbackForms.ts';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.talent) {

@@ -4,36 +4,39 @@ import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
-} from '$lib/server/db/scoped';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { EVENT_CATEGORY_TAG_SELECT } from '$lib/server/services/eventCategories';
+} from '#lib/server/db/scoped.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
+import { EVENT_CATEGORY_TAG_SELECT } from '#lib/server/services/eventCategories.ts';
 import {
   countShownCohort,
   loadInscritsCohort,
-} from '$lib/server/services/inscritsCohort';
-import { loadClosingsRoster } from '$lib/server/services/closingsRoster';
-import { loadEventXp } from '$lib/server/services/eventXp';
-import { loadFeedbackRoster } from '$lib/server/services/feedbackRoster';
+} from '#lib/server/services/inscritsCohort.ts';
+import { loadClosingsRoster } from '#lib/server/services/closingsRoster.ts';
+import { loadEventXp } from '#lib/server/services/eventXp.ts';
+import { loadFeedbackRoster } from '#lib/server/services/feedbackRoster.ts';
 import {
   planEventWorkbook,
   workbookSections,
-} from '$lib/server/services/eventSheets';
-import { resolveEventDiplomaIdentity } from '$lib/server/diplomaTemplates';
-import { recoQuestionOf } from '$lib/server/feedbackStats';
-import { composeEventStartInstant } from '$lib/server/eventTime';
-import { reachableSurfaces } from '$lib/domain/eventModules';
-import { eventDisplayName, effectiveStartMinutes } from '$lib/domain/event';
+} from '#lib/server/services/eventSheets.ts';
+import { resolveEventDiplomaIdentity } from '#lib/server/diplomaTemplates.ts';
+import { recoQuestionOf } from '#lib/server/feedbackStats.ts';
+import { composeEventStartInstant } from '#lib/server/eventTime.ts';
+import { reachableSurfaces } from '#lib/domain/eventModules.ts';
+import { eventDisplayName, effectiveStartMinutes } from '#lib/domain/event.ts';
 import {
   applyPhaseOverride,
   getEventStatus,
   getLifecycleBounds,
-} from '$lib/domain/eventLifecycle';
+} from '#lib/domain/eventLifecycle.ts';
 import {
   daysLength,
   daysRangeLong,
   eventDayKeys,
-} from '$lib/domain/campusCalendar';
-import { eventHomeFigures, type EventHomeFigures } from '$lib/domain/eventHome';
+} from '#lib/domain/campusCalendar.ts';
+import {
+  eventHomeFigures,
+  type EventHomeFigures,
+} from '#lib/domain/eventHome.ts';
 
 // The event's home (#443): where it opens, with its figures and its actions.
 //

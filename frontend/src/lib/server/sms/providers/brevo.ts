@@ -12,14 +12,14 @@
  * side-effect (matches the email provider contract).
  */
 
-import { env } from '$env/dynamic/private';
+import { BREVO_API_KEY } from '$app/env/private';
 import { SMS_SENDER } from '../config';
 import type { SmsMessage, SmsProvider, SendSmsResult } from '../types';
 
 const BREVO_SMS_ENDPOINT = 'https://api.brevo.com/v3/transactionalSMS/sms';
 
 async function send({ to, body }: SmsMessage): Promise<SendSmsResult> {
-  const apiKey = env.BREVO_API_KEY;
+  const apiKey = BREVO_API_KEY;
   if (!apiKey) {
     return {
       ok: false,

@@ -1,17 +1,17 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { enhance } from '$app/forms';
-  import { goto, invalidateAll } from '$app/navigation';
+  import { goto, refreshAll } from '$app/navigation';
   import { toast } from 'svelte-sonner';
-  import { Button } from '$lib/components/ui/button';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import * as Table from '$lib/components/ui/table';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
   import Plus from '@lucide/svelte/icons/plus';
   import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
   import Copy from '@lucide/svelte/icons/copy';
   import Trash2 from '@lucide/svelte/icons/trash-2';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import ChannelBadge from '$lib/components/admin/broadcasts/ChannelBadge.svelte';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import ChannelBadge from '#lib/components/admin/broadcasts/ChannelBadge.svelte';
 
   let { data } = $props();
 
@@ -48,7 +48,7 @@
 </script>
 
 {#snippet newTemplate()}
-  <Button href={resolve('/staff/admin/broadcasts/templates/new')}>
+  <Button href={resolve('staff/admin/broadcasts/templates/new')}>
     <Plus class="mr-1 h-4 w-4" /> Nouveau template
   </Button>
 {/snippet}
@@ -127,7 +127,7 @@
                     return async ({ result }) => {
                       if (result.type === 'success') {
                         toast.success('Template supprimé.');
-                        await invalidateAll();
+                        await refreshAll();
                       } else if (result.type === 'failure') {
                         const data = result.data as
                           { deleteError?: string } | undefined;
@@ -146,7 +146,7 @@
                   <Button
                     variant="ghost"
                     size="sm"
-                    href={resolve(`/staff/admin/broadcasts/templates/${t.id}`)}
+                    href={resolve(`staff/admin/broadcasts/templates/${t.id}`)}
                   >
                     Modifier
                   </Button>

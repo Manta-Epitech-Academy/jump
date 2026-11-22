@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  import type { EventConfigState } from '$lib/domain/eventReadiness';
+  import type { EventConfigState } from '#lib/domain/eventReadiness.ts';
 
   // The État badge colour. Past events mute to grey: their config state is
   // historical, not a to-do, so it shouldn't alarm in amber.
@@ -20,12 +20,12 @@
 </script>
 
 <script lang="ts">
-  import { Badge } from '$lib/components/ui/badge';
-  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
   import {
     EVENT_CONFIG_STATE_LABELS,
     EVENT_CONFIG_STATE_HINTS,
-  } from '$lib/domain/eventReadiness';
+  } from '#lib/domain/eventReadiness.ts';
 
   // The readiness badge shared by the events cockpit (per-row "État") and the
   // admin dashboard's recent-events feed. An outline pill whose label + tooltip

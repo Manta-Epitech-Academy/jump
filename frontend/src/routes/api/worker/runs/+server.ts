@@ -1,8 +1,8 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireWorkerToken } from '$lib/server/auth/workerToken';
-import { workerRunOpenSchema } from '$lib/validation/workerSync';
-import { openRun } from '$lib/server/services/syncRunService';
+import { requireWorkerToken } from '#lib/server/auth/workerToken.ts';
+import { workerRunOpenSchema } from '#lib/validation/workerSync.ts';
+import { openRun } from '#lib/server/services/syncRunService.ts';
 
 /**
  * Open a run report, before the worker pulls anything.
@@ -21,5 +21,5 @@ export const POST: RequestHandler = async ({ request }) => {
   const parsed = workerRunOpenSchema.safeParse(await request.json());
   if (!parsed.success) throw error(400, 'Invalid payload: expected { mode }');
 
-  return json(await openRun(parsed.data.mode));
+  return Response.json(await openRun(parsed.data.mode));
 };

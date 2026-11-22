@@ -31,25 +31,28 @@ import {
   setCategoryForEvents,
   setModulesForEvents,
   type AdminEventVM,
-} from '$lib/server/services/events';
+} from '#lib/server/services/events.ts';
 import {
   replaceShownStatuses,
   resolveKnownStatuses,
   type StatusPolicy,
-} from '$lib/server/services/devSpaceVisibility';
-import { prisma } from '$lib/server/db';
-import { isEventModuleKey, EVENT_MODULE_KEYS } from '$lib/domain/eventModules';
+} from '#lib/server/services/devSpaceVisibility.ts';
+import { prisma } from '#lib/server/db.ts';
+import {
+  isEventModuleKey,
+  EVENT_MODULE_KEYS,
+} from '#lib/domain/eventModules.ts';
 import {
   activationBlockers,
   canBeMadeVisible,
   eventConfigState,
-} from '$lib/domain/eventReadiness';
-import { archivedCategoryRefusal } from '$lib/domain/eventCategory';
+} from '#lib/domain/eventReadiness.ts';
+import { archivedCategoryRefusal } from '#lib/domain/eventCategory.ts';
 import { OperationRefusedError } from '../errors';
 import { handleProvenanceFr } from '../handles';
 import { runTwoStep, type WriteOutcome } from '../plan';
 import { resolveScope, UnknownScopeError, type ScopeParams } from '../scope';
-import { scopedEvents } from '$lib/server/services/adminStats/cohort';
+import { scopedEvents } from '#lib/server/services/adminStats/cohort.ts';
 
 /** Events one bulk call will touch. Beyond this, narrow the filter. */
 export const BULK_EVENTS_LIMIT = 200;

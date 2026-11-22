@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { VERDICT_SECTION, type ClosingGrid } from '$lib/domain/closing';
-  import { cn } from '$lib/utils';
+  import { VERDICT_SECTION, type ClosingGrid } from '#lib/domain/closing.ts';
+  import { cn } from '#lib/utils.ts';
 
   // Right-rail companion to ClosingFlow while a closing is in progress: a
   // light jump-to nav over the flow's local step cursor (bound, so a click here

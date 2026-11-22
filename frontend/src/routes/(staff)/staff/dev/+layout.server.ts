@@ -5,24 +5,24 @@ import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
-} from '$lib/server/db/scoped';
-import { getStaffRoleRedirectPath } from '$lib/domain/staff';
-import { can } from '$lib/domain/permissions';
-import { resolveWorkspaceEvents } from '$lib/server/services/stageContext';
-import { isDevImpersonation } from '$lib/server/devPhaseOverride';
+} from '#lib/server/db/scoped.ts';
+import { getStaffRoleRedirectPath } from '#lib/domain/staff.ts';
+import { can } from '#lib/domain/permissions.ts';
+import { resolveWorkspaceEvents } from '#lib/server/services/stageContext.ts';
+import { isDevImpersonation } from '#lib/server/devPhaseOverride.ts';
 
 export const load: LayoutServerLoad = async ({ parent, locals }) => {
   const { user, staffProfile } = await parent();
 
   if (!user) {
-    throw redirect(302, resolve('/staff/login'));
+    throw redirect(302, resolve('staff/login'));
   }
 
   const role = staffProfile?.staffRole;
 
   if (!can('devMember', role)) {
     const target = getStaffRoleRedirectPath(role);
-    throw redirect(302, resolve(target ?? '/staff/login'));
+    throw redirect(302, resolve(target ?? 'staff/login'));
   }
 
   const db = scopedPrisma(getCampusId(locals));

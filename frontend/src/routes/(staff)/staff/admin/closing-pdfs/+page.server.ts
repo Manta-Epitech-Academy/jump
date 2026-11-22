@@ -1,12 +1,12 @@
 import type { PageServerLoad, Actions } from './$types';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { talentSearchWhere } from '$lib/server/db/textSearch';
-import { resetClosing } from '$lib/server/services/closingResetService';
+import { prisma } from '#lib/server/db.ts';
+import { talentSearchWhere } from '#lib/server/db/textSearch.ts';
+import { resetClosing } from '#lib/server/services/closingResetService.ts';
 import { fail } from '@sveltejs/kit';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
-import { FORMER_STAFF_LABEL } from '$lib/domain/staff';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
+import { FORMER_STAFF_LABEL } from '#lib/domain/staff.ts';
 import { CLOSING_VERDICT_FILTER } from './view';
 
 const RESET_REASON_MAX = 500;

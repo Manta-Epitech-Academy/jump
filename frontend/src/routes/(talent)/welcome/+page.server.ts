@@ -1,13 +1,13 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   getOnboardingStep,
   onboardingFieldsForYear,
-} from '$lib/domain/talentOnboarding';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
-import { captureOnboardingReturn } from '$lib/server/auth/loginRedirect';
+} from '#lib/domain/talentOnboarding.ts';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
+import { captureOnboardingReturn } from '#lib/server/auth/loginRedirect.ts';
 
 export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
       onboardingFieldsForYear(locals.talent, currentSchoolYearLabel()),
     ) === null
   ) {
-    throw redirect(303, resolve('/'));
+    throw redirect(303, resolve(''));
   }
 
   // The splash is showing, so the talent is entering the funnel: stash the page
@@ -52,6 +52,6 @@ export const actions: Actions = {
     // - and naming a destination here would be a second copy of it, free to
     // drift. The dashboard celebration fires later, once onboarding completes
     // and arms the one-shot arrival-celebration cookie.
-    throw redirect(303, resolve('/'));
+    throw redirect(303, resolve(''));
   },
 };

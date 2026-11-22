@@ -1,21 +1,21 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import {
     Alert,
     AlertDescription,
     AlertTitle,
-  } from '$lib/components/ui/alert';
+  } from '#lib/components/ui/alert/index.ts';
   import CircleAlert from '@lucide/svelte/icons/circle-alert';
   import Lock from '@lucide/svelte/icons/lock';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { authClient } from '$lib/auth-client';
-  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
-  import LoginBrandPanel from '$lib/components/layout/LoginBrandPanel.svelte';
-  import LoginFooter from '$lib/components/layout/LoginFooter.svelte';
+  import { authClient } from '#lib/auth-client.ts';
+  import EpitechLogo from '#lib/components/layout/EpitechLogo.svelte';
+  import LoginBrandPanel from '#lib/components/layout/LoginBrandPanel.svelte';
+  import LoginFooter from '#lib/components/layout/LoginFooter.svelte';
   import { resolve } from '$app/paths';
-  import { track } from '$lib/analytics';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import CodeTag from '$lib/components/layout/CodeTag.svelte';
+  import { track } from '#lib/analytics.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import CodeTag from '#lib/components/layout/CodeTag.svelte';
 
   let { data } = $props();
   let isLoading = $state(false);
@@ -25,7 +25,7 @@
     isLoading = true;
     await authClient.signIn.social({
       provider: 'microsoft',
-      callbackURL: resolve('/staff/oauth/callback'),
+      callbackURL: resolve('staff/oauth/callback'),
     });
   }
 </script>
@@ -134,7 +134,7 @@
       <LoginFooter
         prompt="Élève ou parent ?"
         linkLabel="Se connecter"
-        linkHref={resolve('/login')}
+        linkHref={resolve('login')}
       />
     </div>
   </main>

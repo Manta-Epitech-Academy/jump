@@ -1,16 +1,16 @@
 import type { RequestHandler } from './$types';
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { prisma } from '$lib/server/db';
-import { resolveRecipients } from '$lib/server/services/broadcast/recipients';
+import { prisma } from '#lib/server/db.ts';
+import { resolveRecipients } from '#lib/server/services/broadcast/recipients.ts';
 import {
   broadcastFiltersSchema,
   broadcastSourceFilterSchema,
-} from '$lib/validation/broadcasts';
+} from '#lib/validation/broadcasts.ts';
 import {
   BROADCAST_AUDIENCES,
   type IncludedRecipient,
-} from '$lib/domain/broadcasts';
+} from '#lib/domain/broadcasts.ts';
 
 // Live recipient preview for /staff/admin/broadcasts/new. Called from the
 // page on every relevant field change (debounced client-side). Looser than
@@ -33,7 +33,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const payload = await request.json().catch(() => null);
   const parsed = previewSchema.safeParse(payload);
   if (!parsed.success) {
-    return json({ total: 0, included: [], excluded: [], incomplete: true });
+    return Response.json({
+      total: 0,
+      included: [],
+      excluded: [],
+      incomplete: true,
+    });
   }
 
   let channel: 'mail' | 'sms' = 'mail';
@@ -66,7 +71,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     email: r.email,
     phone: r.phone,
   }));
-  return json({
+  return Response.json({
     total: recipients.length,
     included,
     excluded: excludedRecipients,

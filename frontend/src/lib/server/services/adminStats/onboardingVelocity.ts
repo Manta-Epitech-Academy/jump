@@ -13,9 +13,9 @@
  * of the answer, not noise to be filtered out.
  */
 
-import { prisma } from '$lib/server/db';
-import { metric, median, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+import { prisma } from '#lib/server/db.ts';
+import { metric, median, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { completedDossierWhere, scopeLabels } from './cohort';
 
 const DAY_MS = 86_400_000;

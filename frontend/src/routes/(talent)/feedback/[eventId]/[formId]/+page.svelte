@@ -1,9 +1,9 @@
 <script lang="ts">
   import { toast } from 'svelte-sonner';
-  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
-  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
-  import ChatScreen from '$lib/components/feedback/ChatScreen.svelte';
-  import type { Answers } from '$lib/domain/feedbackForms/schema';
+  import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
+  import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
+  import ChatScreen from '#lib/components/feedback/ChatScreen.svelte';
+  import type { Answers } from '#lib/domain/feedbackForms/schema.ts';
 
   let { data } = $props();
 

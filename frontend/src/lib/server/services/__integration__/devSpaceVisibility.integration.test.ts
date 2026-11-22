@@ -7,21 +7,21 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { syncEvents, syncParticipations, syncTalents } from '../syncService';
 import {
   defaultShownStatuses,
   setEventStatusPolicy,
 } from '../devSpaceVisibility';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
 import {
   writeEventConfig,
   writeEventTemplate,
-} from '$lib/server/adminApi/writes/events';
-import { bulkEventConfig } from '$lib/server/adminApi/writes/bulk';
+} from '#lib/server/adminApi/writes/events.ts';
+import { bulkEventConfig } from '#lib/server/adminApi/writes/bulk.ts';
 import { EventConfigTemplateService } from '../eventConfigTemplates';
-import { writeSyncMemberStatus } from '$lib/server/adminApi/writes/sync';
-import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
+import { writeSyncMemberStatus } from '#lib/server/adminApi/writes/sync.ts';
+import { getSyncHealth } from '#lib/server/services/adminStats/syncHealth.ts';
 import { assertTestDatabase } from './testDatabase';
 
 const stamp = Date.now();

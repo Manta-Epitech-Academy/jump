@@ -1,20 +1,20 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { can } from '$lib/domain/permissions';
+  import { can } from '#lib/domain/permissions.ts';
   import Mail from '@lucide/svelte/icons/mail';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import MailOpen from '@lucide/svelte/icons/mail-open';
   import Check from '@lucide/svelte/icons/check';
   import X from '@lucide/svelte/icons/x';
   import Clock from '@lucide/svelte/icons/clock';
-  import EpiSection from '$lib/components/staff/EpiSection.svelte';
-  import { Separator } from '$lib/components/ui/separator';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import { formatDateFr } from '$lib/utils';
+  import EpiSection from '#lib/components/staff/EpiSection.svelte';
+  import { Separator } from '#lib/components/ui/separator/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import { formatDateFr } from '#lib/utils.ts';
   import {
     rulesStatus,
     RULES_STATUS_LABELS,
-  } from '$lib/domain/dossierCompliance';
+  } from '#lib/domain/dossierCompliance.ts';
   import {
     IMAGE_RIGHTS_DISPLAY_LABELS,
     IMAGE_RIGHTS_STANCE_LABELS,
@@ -22,10 +22,10 @@
     imageRightsDisplayStatus,
     imageRightsStance,
     type ImageRightsDecision,
-  } from '$lib/domain/imageRights';
-  import type { Communication } from '$lib/domain/communications';
+  } from '#lib/domain/imageRights.ts';
+  import type { Communication } from '#lib/domain/communications.ts';
   import type { Infer, SuperValidated } from 'sveltekit-superforms';
-  import type { ImageRightsCorrectionSchema } from '$lib/validation/imageRights';
+  import type { ImageRightsCorrectionSchema } from '#lib/validation/imageRights.ts';
   import ImageRightsCorrectionDialog from './ImageRightsCorrectionDialog.svelte';
 
   // Decision history row as projected by the page load. Kept loose here (the

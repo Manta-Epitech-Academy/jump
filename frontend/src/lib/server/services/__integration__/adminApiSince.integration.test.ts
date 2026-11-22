@@ -8,14 +8,14 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { resolveScope } from '$lib/server/adminApi/scope';
-import { getEventsConfigList } from '$lib/server/services/adminStats/eventsList';
-import { getSyncHealth } from '$lib/server/services/adminStats/syncHealth';
+import { prisma } from '#lib/server/db.ts';
+import { resolveScope } from '#lib/server/adminApi/scope.ts';
+import { getEventsConfigList } from '#lib/server/services/adminStats/eventsList.ts';
+import { getSyncHealth } from '#lib/server/services/adminStats/syncHealth.ts';
 import {
   getAccountDeletionQueue,
   getPdfJobsHealth,
-} from '$lib/server/services/adminStats/opsQueues';
+} from '#lib/server/services/adminStats/opsQueues.ts';
 import { assertTestDatabase } from './testDatabase';
 
 const DAY = 24 * 60 * 60 * 1000;

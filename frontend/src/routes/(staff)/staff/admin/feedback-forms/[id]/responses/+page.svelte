@@ -6,11 +6,11 @@
   import FormHeader from '../../components/FormHeader.svelte';
   import SearchableSelect, {
     type SelectOption,
-  } from '$lib/components/staff/SearchableSelect.svelte';
-  import { setListParams } from '$lib/components/staff/datatable/urlList';
-  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import * as Table from '$lib/components/ui/table';
+  } from '#lib/components/staff/SearchableSelect.svelte';
+  import { setListParams } from '#lib/components/staff/datatable/urlList.ts';
+  import ResultsSkeleton from '#lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import * as Table from '#lib/components/ui/table/index.ts';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();

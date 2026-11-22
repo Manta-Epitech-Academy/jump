@@ -15,19 +15,19 @@
  */
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
-import { env } from '$env/dynamic/private';
-import { base } from '$app/paths';
+import { BETTER_AUTH_SECRET, ORIGIN } from '$app/env/private';
+import { resolve } from '$app/paths';
 import {
   PRESENCE_SLOTS,
   type DateKey,
   type PresenceSlot,
-} from '$lib/domain/eventPresence';
+} from '#lib/domain/eventPresence.ts';
 
 const ISSUER = 'jump';
 const AUDIENCE = 'jump:presence_checkin';
 
 function getKey(): Uint8Array {
-  const secret = env.BETTER_AUTH_SECRET;
+  const secret = BETTER_AUTH_SECRET;
   if (!secret) throw new Error('BETTER_AUTH_SECRET is not configured');
   return new TextEncoder().encode(secret);
 }
@@ -84,7 +84,7 @@ export async function verifyCheckinToken(
 }
 
 export function buildCheckinLink(token: string): string {
-  const origin = env.ORIGIN;
+  const origin = ORIGIN;
   if (!origin) throw new Error('ORIGIN is not configured');
-  return `${origin}${base}/presence/${encodeURIComponent(token)}`;
+  return `${origin}${resolve('/(talent)/presence/[token]', { token: encodeURIComponent(token) })}`;
 }

@@ -1,7 +1,7 @@
 import type { Prisma, OnboardingPdfJob } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { generateOnboardingPDF } from './onboardingDocumentGenerator';
-import { getStorage } from '$lib/server/infra/storage';
+import { getStorage } from '#lib/server/infra/storage.ts';
 import {
   ONBOARDING_DOCUMENTS,
   type OnboardingDocumentType,

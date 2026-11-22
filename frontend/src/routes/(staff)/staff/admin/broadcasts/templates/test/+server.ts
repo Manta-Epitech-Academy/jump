@@ -1,10 +1,10 @@
 import type { RequestHandler } from './$types';
-import { json } from '@sveltejs/kit';
+
 import { z } from 'zod';
-import { BROADCAST_CHANNELS } from '$lib/domain/broadcasts';
-import { sendTestMessage } from '$lib/server/services/broadcast/testMessage';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { BROADCAST_CHANNELS } from '#lib/domain/broadcasts.ts';
+import { sendTestMessage } from '#lib/server/services/broadcast/testMessage.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // Live test-send for the template editor (/broadcasts/templates/new + [id]).
 // Sends the in-progress draft (no saved template needed), rendered with demo
@@ -23,12 +23,18 @@ const testSchema = z.object({
 export const POST: RequestHandler = async ({ request, locals }) => {
   recordUsage(USAGE_FEATURES.ADMIN_BROADCAST_TEST_SEND, { locals });
   if (!locals.user) {
-    return json({ ok: false, message: 'Non autorisé.' }, { status: 401 });
+    return Response.json(
+      { ok: false, message: 'Non autorisé.' },
+      { status: 401 },
+    );
   }
   const payload = await request.json().catch(() => null);
   const parsed = testSchema.safeParse(payload);
   if (!parsed.success) {
-    return json({ ok: false, message: 'Données invalides.' }, { status: 400 });
+    return Response.json(
+      { ok: false, message: 'Données invalides.' },
+      { status: 400 },
+    );
   }
   const result = await sendTestMessage({
     channel: parsed.data.channel,
@@ -36,5 +42,5 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     body: parsed.data.body,
     to: parsed.data.to,
   });
-  return json(result, { status: result.ok ? 200 : 400 });
+  return Response.json(result, { status: result.ok ? 200 : 400 });
 };

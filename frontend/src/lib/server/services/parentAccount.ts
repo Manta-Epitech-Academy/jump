@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import { sendParentWelcomeEmail } from '$lib/server/otp';
-import { isStaffEmailAddress } from '$lib/domain/staff';
+import { prisma } from '#lib/server/db.ts';
+import { sendParentWelcomeEmail } from '#lib/server/otp.ts';
+import { isStaffEmailAddress } from '#lib/domain/staff.ts';
 import { lockTalent } from './onboardingYearService';
 
 const norm = (v: string | null | undefined): string =>

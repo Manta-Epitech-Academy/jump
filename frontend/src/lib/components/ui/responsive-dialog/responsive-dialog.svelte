@@ -1,6 +1,6 @@
 <script lang="ts">
-  import * as Dialog from '$lib/components/ui/dialog';
-  import * as Drawer from '$lib/components/ui/drawer';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import * as Drawer from '#lib/components/ui/drawer/index.ts';
   import { MediaQuery } from 'svelte/reactivity';
   import type { Snippet } from 'svelte';
   import { setResponsiveDialogContext } from './context.js';

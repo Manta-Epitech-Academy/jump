@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { salesforceId18 } from '$lib/domain/salesforce';
+import { salesforceId18 } from '#lib/domain/salesforce.ts';
 
 // The Salesforce id of a contact erased at their request, copied out of
 // Salesforce by the admin who lets the person come back: Jump keeps no way to

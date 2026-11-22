@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { AdminEventVM } from '$lib/server/services/events';
+import type { AdminEventVM } from '#lib/server/services/events.ts';
 
 const listAdminEvents = vi.fn();
-vi.mock('$lib/server/services/events', () => ({
+vi.mock('#lib/server/services/events.ts', () => ({
   EventService: { listAdminEvents: () => listAdminEvents() },
 }));
 
 const campusFindMany = vi.fn();
 const staffGroupBy = vi.fn();
-vi.mock('$lib/server/db', () => ({
+vi.mock('#lib/server/db.ts', () => ({
   prisma: {
     campus: { findMany: (args: unknown) => campusFindMany(args) },
     staffProfile: { groupBy: (args: unknown) => staffGroupBy(args) },

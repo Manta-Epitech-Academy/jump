@@ -1,8 +1,8 @@
 import type { PageServerLoad } from './$types';
-import { prisma } from '$lib/server/db';
-import { recentRuns } from '$lib/server/services/syncRunService';
-import { EventService } from '$lib/server/services/events';
-import { isEventToPrepare } from '$lib/domain/eventReadiness';
+import { prisma } from '#lib/server/db.ts';
+import { recentRuns } from '#lib/server/services/syncRunService.ts';
+import { EventService } from '#lib/server/services/events.ts';
+import { isEventToPrepare } from '#lib/domain/eventReadiness.ts';
 
 export const load: PageServerLoad = async () => {
   // Retrieve global statistics

@@ -19,20 +19,20 @@
  * quoted straight into a chat answer or a digest).
  */
 
-import type { AdminEventVM } from '$lib/server/services/events';
+import type { AdminEventVM } from '#lib/server/services/events.ts';
 import {
   EVENT_CONFIG_STATE_LABELS,
   EVENT_CONFIG_STATE_HINTS,
   isEventToPrepare,
   type EventConfigState,
-} from '$lib/domain/eventReadiness';
+} from '#lib/domain/eventReadiness.ts';
 import {
   EVENT_MODULE_DEFS,
   type EventModuleKey,
-} from '$lib/domain/eventModules';
-import { VISIBLE_PARTICIPATION_DEFINITION } from '$lib/domain/sfMemberStatus';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+} from '#lib/domain/eventModules.ts';
+import { VISIBLE_PARTICIPATION_DEFINITION } from '#lib/domain/sfMemberStatus.ts';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { scopedEvents } from './cohort';
 
 /** The configuration state of a list of events, counted once for any slice. */

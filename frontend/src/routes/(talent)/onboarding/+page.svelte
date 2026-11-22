@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { stepIn, stepOut } from '$lib/motion';
+  import { stepIn, stepOut } from '#lib/motion/index.ts';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import { onboardingSubmit } from './stepSubmit';
@@ -12,10 +12,10 @@
   import ProcessingStep from './components/ProcessingStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-  import { Button } from '$lib/components/ui/button';
-  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
-  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
-  import BrandBackdrop from '$lib/components/layout/BrandBackdrop.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
+  import EpitechLogo from '#lib/components/layout/EpitechLogo.svelte';
+  import BrandBackdrop from '#lib/components/layout/BrandBackdrop.svelte';
 
   let { data, form } = $props();
 
@@ -83,7 +83,7 @@
       class="mx-auto flex w-full max-w-lg items-center justify-between px-4 py-3"
     >
       <!-- Left: logo (always visible, fixed position) -->
-      <a href={resolve('/')} aria-label="Accueil">
+      <a href={resolve('')} aria-label="Accueil">
         <EpitechLogo class="h-7 w-auto" />
       </a>
 

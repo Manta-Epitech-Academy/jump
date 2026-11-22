@@ -1,20 +1,20 @@
 import { fail } from '@sveltejs/kit';
 import type { Prisma } from '@prisma/client';
 import type { PageServerLoad, Actions } from './$types';
-import { prisma } from '$lib/server/db';
-import { talentSearchWhere } from '$lib/server/db/textSearch';
-import { getStorage } from '$lib/server/infra/storage';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { prisma } from '#lib/server/db.ts';
+import { talentSearchWhere } from '#lib/server/db/textSearch.ts';
+import { getStorage } from '#lib/server/infra/storage.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 import {
   isOnboardingPdfJobRetryable,
   runOnboardingPdfJob,
-} from '$lib/server/services/onboardingPdfJobService';
+} from '#lib/server/services/onboardingPdfJobService.ts';
 import {
   onboardingDownloadFilename,
   isOnboardingDocumentType,
-} from '$lib/server/services/onboardingDocuments';
-import { offerFacets, type CountedFacet } from '$lib/domain/listFacets';
+} from '#lib/server/services/onboardingDocuments.ts';
+import { offerFacets, type CountedFacet } from '#lib/domain/listFacets.ts';
 import {
   JOB_STATUS_FILTER,
   ONBOARDING_DOCUMENT_LABELS,

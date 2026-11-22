@@ -8,8 +8,8 @@
     CLOSING_RECOMMENDATIONS,
     type RecommendationIconToken,
     type RecommendationToneToken,
-  } from '$lib/domain/closing';
-  import { cn } from '$lib/utils';
+  } from '#lib/domain/closing.ts';
+  import { cn } from '#lib/utils.ts';
 
   /**
    * The team's verdict on a talent, as a compact chip.

@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
   /**
    * Accent maps to the four DS keywords. `neutral` falls back to the muted
    * foreground: use it when the section doesn't carry a brand-vector
@@ -11,7 +11,7 @@
 
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
 
   /**
    * Section panel matching the Epitech charte: mono `< />`-wrapped overline,

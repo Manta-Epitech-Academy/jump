@@ -1,16 +1,16 @@
-import { env } from '$env/dynamic/private';
+import { SMS_DEV_RECIPIENTS } from '$app/env/private';
 import {
   currentArmedRealSends,
   currentDevRedirectPhones,
-} from '$lib/server/requestContext';
-import { outboundTrapped, type OutboundRouting } from '$lib/server/outbound';
+} from '#lib/server/requestContext.ts';
+import { outboundTrapped, type OutboundRouting } from '#lib/server/outbound.ts';
 import type { DevRedirectControl, SmsMessage } from './types';
 
 /**
- * SMS dev-redirect, mirroring `$lib/server/email/dev-redirect.ts`. Two
+ * SMS dev-redirect, mirroring `#lib/server/email/dev-redirect.ts`. Two
  * concerns, kept apart:
  *
- *   1. THE GATE: `OUTBOUND_MODE` (see `$lib/server/outbound`), shared with
+ *   1. THE GATE: `OUTBOUND_MODE` (see `#lib/server/outbound`), shared with
  *      mail, fail-safe and env-only. Texting a real number from dev/staging is
  *      a privacy incident (recipients are minors, RGPD); the gate is immutable
  *      from the running app so that can never happen by accident.
@@ -20,7 +20,7 @@ import type { DevRedirectControl, SmsMessage } from './types';
  *      number prepended to the body.
  */
 export function parseDevRecipients(): string[] | null {
-  const raw = env.SMS_DEV_RECIPIENTS?.trim();
+  const raw = SMS_DEV_RECIPIENTS?.trim();
   if (!raw) return null;
   const list = raw
     .split(',')

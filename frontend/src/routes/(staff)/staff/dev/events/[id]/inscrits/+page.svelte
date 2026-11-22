@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { cohortNounForms, eventDisplayName } from '$lib/domain/event';
+  import { cohortNounForms, eventDisplayName } from '#lib/domain/event.ts';
   import type { PageData } from './$types';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import TitleLineSearch from '$lib/components/staff/datatable/TitleLineSearch.svelte';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import ResultsSkeleton from '#lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import TitleLineSearch from '#lib/components/staff/datatable/TitleLineSearch.svelte';
+  import { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
   import InscritsResults from './components/InscritsResults.svelte';
 
   // The event's actions (badges, certificates, its Salesforce campaign, the

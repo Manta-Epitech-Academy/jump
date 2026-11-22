@@ -1,13 +1,13 @@
 import type { RequestHandler } from './$types';
 import { error, redirect } from '@sveltejs/kit';
-import { dev } from '$app/environment';
+import { dev } from '$app/env';
 import {
   ARM_REAL_SENDS_COOKIE,
   ARM_REAL_SENDS_MS,
   canArmRealSends,
   effectiveUserId,
   makeArmCookie,
-} from '$lib/server/armRealSends';
+} from '#lib/server/armRealSends.ts';
 
 /**
  * Arm / disarm "real sends" on a trapped (dev/staging) env. Lives under `/api`

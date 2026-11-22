@@ -1,11 +1,10 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { prisma } from '$lib/server/db';
-import { classifySfStatus } from '$lib/domain/sfMemberStatus';
+import { prisma } from '#lib/server/db.ts';
+import { classifySfStatus } from '#lib/domain/sfMemberStatus.ts';
 import {
   memberStatusCatalogue,
   shownStatusesByEvent,
-} from '$lib/server/services/devSpaceVisibility';
+} from '#lib/server/services/devSpaceVisibility.ts';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
   if (locals.staffProfile?.staffRole !== 'admin') {
@@ -77,7 +76,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     (r) => r.statusClass === 'unrecognised',
   ).length;
 
-  return json({
+  return Response.json({
     event: {
       id: event.id,
       displayName: event.publicName || event.titre,

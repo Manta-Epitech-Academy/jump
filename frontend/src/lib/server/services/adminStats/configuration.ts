@@ -15,7 +15,7 @@
  */
 
 import type { WorkshopLevel } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   EventService,
   eventHeroOf,
@@ -23,63 +23,63 @@ import {
   jumpOwnedFields,
   type EventHeroState,
   type EventWorkshopState,
-} from '$lib/server/services/events';
-import { EventConfigTemplateService } from '$lib/server/services/eventConfigTemplates';
-import { EventCategoryService } from '$lib/server/services/eventCategories';
-import type { EventCategoryView } from '$lib/domain/eventCategory';
+} from '#lib/server/services/events.ts';
+import { EventConfigTemplateService } from '#lib/server/services/eventConfigTemplates.ts';
+import { EventCategoryService } from '#lib/server/services/eventCategories.ts';
+import type { EventCategoryView } from '#lib/domain/eventCategory.ts';
 import {
   EVENT_MODULE_DEFS,
   EVENT_MODULE_KEYS,
   type EventModuleKey,
-} from '$lib/domain/eventModules';
+} from '#lib/domain/eventModules.ts';
 import {
   EVENT_CONFIG_STATE_LABELS,
   EVENT_CONFIG_STATE_HINTS,
   eventMissingConfig,
-} from '$lib/domain/eventReadiness';
-import { getStaffRoleLabel } from '$lib/domain/staff';
-import { academieOf, departementName } from '$lib/domain/school';
+} from '#lib/domain/eventReadiness.ts';
+import { getStaffRoleLabel } from '#lib/domain/staff.ts';
+import { academieOf, departementName } from '#lib/domain/school.ts';
 import {
   EMAIL_ACTIONS,
   EMAIL_ACTION_KEYS,
   missingRequiredVariables,
   type EmailActionKey,
-} from '$lib/domain/emailActions';
+} from '#lib/domain/emailActions.ts';
 import {
   HIDDEN_PARTICIPATION_DEFINITION,
   SYNCED_PARTICIPATION_DEFINITION,
   VISIBLE_PARTICIPATION_DEFINITION,
-} from '$lib/domain/sfMemberStatus';
-import { metric, type Metric } from '$lib/server/adminApi/metrics';
+} from '#lib/domain/sfMemberStatus.ts';
+import { metric, type Metric } from '#lib/server/adminApi/metrics.ts';
 import {
   ATTENDED_DEFINITION,
   attendedBeforeWhere,
-} from '$lib/domain/attendance';
-import { CERTIFICATE_TOKENS } from '$lib/domain/diplomas';
+} from '#lib/domain/attendance.ts';
+import { CERTIFICATE_TOKENS } from '#lib/domain/diplomas.ts';
 import {
   eventMoments,
   momentOutsideEvent,
   type WorkshopCoverKind,
-} from '$lib/domain/workshops';
+} from '#lib/domain/workshops.ts';
 import {
   catalogueGaps,
   type CatalogueGap,
-} from '$lib/domain/workshopCatalogue';
+} from '#lib/domain/workshopCatalogue.ts';
 import {
   WorkshopCatalogueService,
   type WorkshopDomainListItem,
-} from '$lib/server/services/workshopCatalogue';
-import { toDateKey } from '$lib/domain/planningTime';
-import { eventDisplayName } from '$lib/domain/event';
-import { pointedEventShown } from '$lib/domain/talentHome';
-import { UnknownScopeError, type Scope } from '$lib/server/adminApi/scope';
-import { handleProvenanceFr } from '$lib/server/adminApi/handles';
-import { STRUCTURE_LOCKED_MESSAGE } from '$lib/domain/feedbackForms/authoring';
+} from '#lib/server/services/workshopCatalogue.ts';
+import { toDateKey } from '#lib/domain/planningTime.ts';
+import { eventDisplayName } from '#lib/domain/event.ts';
+import { pointedEventShown } from '#lib/domain/talentHome.ts';
+import { UnknownScopeError, type Scope } from '#lib/server/adminApi/scope.ts';
+import { handleProvenanceFr } from '#lib/server/adminApi/handles.ts';
+import { STRUCTURE_LOCKED_MESSAGE } from '#lib/domain/feedbackForms/authoring.ts';
 import {
   readFeedbackFormContent,
   type FeedbackFormContent,
-} from '$lib/server/feedbackForms/content';
-import { feedbackFormPreviewLink } from '$lib/server/feedbackForms';
+} from '#lib/server/feedbackForms/content.ts';
+import { feedbackFormPreviewLink } from '#lib/server/feedbackForms.ts';
 import { hiddenEnrolmentsByEvent, scopedEvents, scopeLabels } from './cohort';
 import {
   eventStateCounts,

@@ -1,6 +1,6 @@
 import type { BroadcastChannel, Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
-import type { BroadcastVariableKey } from '$lib/domain/broadcasts';
+import { prisma } from '#lib/server/db.ts';
+import type { BroadcastVariableKey } from '#lib/domain/broadcasts.ts';
 
 /**
  * A `MessageTemplate` is *broadcastable* iff it carries no `EmailActionMapping`

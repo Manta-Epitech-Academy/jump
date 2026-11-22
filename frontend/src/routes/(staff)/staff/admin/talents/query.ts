@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { computeLevel } from '$lib/domain/xp';
+import { computeLevel } from '#lib/domain/xp.ts';
 import {
   deriveOnboardingStatus,
   describeOnboardingProgress,
@@ -7,27 +7,27 @@ import {
   onboardingFieldsForYear,
   type OnboardingStepFields,
   type TalentOnboardingFields,
-} from '$lib/domain/talentOnboarding';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+} from '#lib/domain/talentOnboarding.ts';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
 import {
   parentBlockedWhere,
   parentCompleteWhere,
-} from '$lib/server/db/dossierCompliance';
+} from '#lib/server/db/dossierCompliance.ts';
 import {
   onboardingEligibleWhere,
   onboardingNotApplicableWhere,
-} from '$lib/server/db/onboardingEligibility';
-import { isOnboardingEligible } from '$lib/domain/niveau';
-import { isParentDossierComplete } from '$lib/domain/dossierCompliance';
+} from '#lib/server/db/onboardingEligibility.ts';
+import { isOnboardingEligible } from '#lib/domain/niveau.ts';
+import { isParentDossierComplete } from '#lib/domain/dossierCompliance.ts';
 import type { TalentAccountStatus, ParentCompletionStatus } from './labels';
 import type { TalentFilters, TalentsFacet, TalentsSortKey } from './view';
-import type { SortDir } from '$lib/domain/listView';
-import { FACET_NONE, type CountedFacet } from '$lib/domain/listFacets';
-import { guardiansOf } from '$lib/domain/contact';
+import type { SortDir } from '#lib/domain/listView.ts';
+import { FACET_NONE, type CountedFacet } from '#lib/domain/listFacets.ts';
+import { guardiansOf } from '#lib/domain/contact.ts';
 import {
   everyTokenMatches,
   talentIdentityMatches,
-} from '$lib/server/db/textSearch';
+} from '#lib/server/db/textSearch.ts';
 
 /**
  * Single source of truth for the admin talents directory query. Both the page

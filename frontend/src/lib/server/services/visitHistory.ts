@@ -1,9 +1,9 @@
-import { prisma } from '$lib/server/db';
-import { attendedShownBeforeWhere } from '$lib/domain/attendance';
+import { prisma } from '#lib/server/db.ts';
+import { attendedShownBeforeWhere } from '#lib/domain/attendance.ts';
 
 /**
  * How many times each talent had come to an event on the campus before a given
- * date: the count behind the parcours (`$lib/domain/visitHistory`).
+ * date: the count behind the parcours (`#lib/domain/visitHistory`).
  *
  * « Came » is `attendedShownBeforeWhere`'s: a proof of attendance on an event
  * over before `before`, the start of the event being looked at, so a past

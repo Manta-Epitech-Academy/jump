@@ -14,5 +14,5 @@ export function adminTalentHref(t: {
   nom: string;
 }): string {
   const q = t.email ?? `${t.prenom} ${t.nom}`.trim();
-  return `${resolve('/staff/admin/talents')}?q=${encodeURIComponent(q)}`;
+  return `${resolve('staff/admin/talents')}?q=${encodeURIComponent(q)}`;
 }

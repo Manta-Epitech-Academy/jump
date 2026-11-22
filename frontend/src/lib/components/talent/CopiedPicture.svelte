@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onImageBroken } from '$lib/actions/onImageBroken';
-  import { reducedMotionUrl, type ShownPicture } from '$lib/domain/pictures';
-  import { cn } from '$lib/utils';
+  import { onImageBroken } from '#lib/actions/onImageBroken.ts';
+  import { reducedMotionUrl, type ShownPicture } from '#lib/domain/pictures.ts';
+  import { cn } from '#lib/utils.ts';
 
   // A picture Jump copied (`ShownPicture`), drawn as it is: any proportion, any
   // size, still or animated. Decorative wherever it is drawn: the words beside

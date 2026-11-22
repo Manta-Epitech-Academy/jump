@@ -1,7 +1,7 @@
 <script lang="ts">
-  import * as Popover from '$lib/components/ui/popover';
+  import * as Popover from '#lib/components/ui/popover/index.ts';
   import Funnel from '@lucide/svelte/icons/funnel';
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
   import FacetMenu from './FacetMenu.svelte';
   import type { ColumnFilter } from './types';
 

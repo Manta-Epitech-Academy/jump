@@ -2,10 +2,10 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { prisma } from '$lib/server/db';
-import { createAdminInvitationSchema } from '$lib/validation/staff';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+import { prisma } from '#lib/server/db.ts';
+import { createAdminInvitationSchema } from '#lib/validation/staff.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 import {
   inviteStaff,
   cancelInvitation,
@@ -13,7 +13,7 @@ import {
   updateStaffCampus,
   updateStaffRole,
   deleteStaffUser,
-} from '$lib/server/services/staffAdminService';
+} from '#lib/server/services/staffAdminService.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   // Select only the columns the page renders. `include` here used to drag the

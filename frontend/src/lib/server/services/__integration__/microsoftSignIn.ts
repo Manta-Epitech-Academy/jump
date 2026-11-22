@@ -3,7 +3,7 @@
  * staff door's actual code path rather than rows inserted by hand.
  *
  * Only BetterAuth's public surface is used, no internals:
- * - `createAuthOptions` (from `$lib/server/auth`) with the Microsoft provider
+ * - `createAuthOptions` (from `#lib/server/auth`) with the Microsoft provider
  *   pointed at a local fake HTTP server instead of login.microsoftonline.com,
  *   reusing every other real config value (Prisma adapter, `account.modelName`,
  *   `accountLinking`, `mapProfileToUser`, `validateUserInfo`, `onAPIError`) so
@@ -30,10 +30,10 @@ import {
   convertSetCookieToCookie,
 } from 'better-auth/test';
 import { betterAuth } from 'better-auth';
-import { createAuthOptions } from '$lib/server/auth';
-import { env } from '$env/dynamic/private';
+import { createAuthOptions } from '#lib/server/auth.ts';
+import { MICROSOFT_TENANT_ID, ORIGIN } from '$app/env/private';
 
-const MICROSOFT_TEST_ISSUER = `https://login.microsoftonline.com/${env.MICROSOFT_TENANT_ID}/v2.0`;
+const MICROSOFT_TEST_ISSUER = `https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/v2.0`;
 
 function base64url(input: string): string {
   return Buffer.from(input)
@@ -92,9 +92,9 @@ export async function signInWithMicrosoft(opts: {
     );
 
     const signIn = await testAuth.handler(
-      new Request(`${env.ORIGIN}/api/auth/sign-in/social`, {
+      new Request(`${ORIGIN}/api/auth/sign-in/social`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', origin: env.ORIGIN! },
+        headers: { 'content-type': 'application/json', origin: ORIGIN! },
         body: JSON.stringify({ provider: 'microsoft', callbackURL: '/' }),
       }),
     );
@@ -106,7 +106,7 @@ export async function signInWithMicrosoft(opts: {
 
     const callback = await testAuth.handler(
       new Request(
-        `${env.ORIGIN}/api/auth/callback/microsoft?state=${state}&code=fake-authorization-code`,
+        `${ORIGIN}/api/auth/callback/microsoft?state=${state}&code=fake-authorization-code`,
         { headers: { cookie } },
       ),
     );

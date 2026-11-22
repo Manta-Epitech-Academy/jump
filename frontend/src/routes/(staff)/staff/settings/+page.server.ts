@@ -1,14 +1,14 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
-import { requireAdminSession } from '$lib/server/auth/guards';
+import { requireAdminSession } from '#lib/server/auth/guards.ts';
 import { superValidate, message, setError } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   staffDevRedirectSchema,
   splitDevRedirectEntries,
-} from '$lib/validation/staffSettings';
-import { toBrevoRecipient } from '$lib/domain/phone';
+} from '#lib/validation/staffSettings.ts';
+import { toBrevoRecipient } from '#lib/domain/phone.ts';
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 

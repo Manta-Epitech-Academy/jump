@@ -1,8 +1,8 @@
 <script lang="ts">
-  import * as Dialog from '$lib/components/ui/dialog';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
   import StudentContactDetails from './StudentContactDetails.svelte';
-  import { formatPersonName } from '$lib/domain/profile';
-  import type { ContactPerson } from '$lib/domain/contact';
+  import { formatPersonName } from '#lib/domain/profile.ts';
+  import type { ContactPerson } from '#lib/domain/contact.ts';
 
   let {
     open = $bindable(),

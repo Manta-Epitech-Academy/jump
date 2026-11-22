@@ -10,7 +10,7 @@
  * provider sees the payload, so the dev-trap works uniformly regardless of
  * which backend is active. Each send may steer the trap's destination via
  * `SendOptions.devRedirect`; the trap itself is gated by `OUTBOUND_MODE`
- * (`$lib/server/outbound`); see `resolveMailRouting`.
+ * (`#lib/server/outbound`); see `resolveMailRouting`.
  */
 
 import { mailProviderKind } from './config';

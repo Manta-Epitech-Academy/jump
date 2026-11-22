@@ -1,11 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { EVENT_MODULES, type EventModuleKey } from '$lib/domain/eventModules';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
+import { prisma } from '#lib/server/db.ts';
+import {
+  EVENT_MODULES,
+  type EventModuleKey,
+} from '#lib/domain/eventModules.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
 import {
   planEventWorkbook,
   workbookSections,
-} from '$lib/server/services/eventSheets';
+} from '#lib/server/services/eventSheets.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

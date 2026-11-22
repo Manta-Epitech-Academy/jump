@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
-import { dateKeyToDbDate, toDateKey } from '$lib/domain/eventPresence';
-import { resolveScope } from '$lib/server/adminApi/scope';
-import { getEmargementCoverage } from '$lib/server/services/adminStats/emargementCoverage';
+import { prisma } from '#lib/server/db.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
+import { dateKeyToDbDate, toDateKey } from '#lib/domain/eventPresence.ts';
+import { resolveScope } from '#lib/server/adminApi/scope.ts';
+import { getEmargementCoverage } from '#lib/server/services/adminStats/emargementCoverage.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

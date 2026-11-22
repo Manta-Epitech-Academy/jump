@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { ALL_CLOSINGS_DONE_LINE } from '$lib/domain/devVoice';
+  import { ALL_CLOSINGS_DONE_LINE } from '#lib/domain/devVoice.ts';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import CheckCheck from '@lucide/svelte/icons/check-check';
-  import * as Card from '$lib/components/ui/card';
-  import { cn } from '$lib/utils';
+  import * as Card from '#lib/components/ui/card/index.ts';
+  import { cn } from '#lib/utils.ts';
   import type { ClosingRecommendation } from '@prisma/client';
   import {
     CLOSING_RECOMMENDATIONS,
     CLOSING_RECOMMENDATION_VALUES,
     type RecommendationToneToken,
-  } from '$lib/domain/closing';
+  } from '#lib/domain/closing.ts';
 
   let {
     counts,

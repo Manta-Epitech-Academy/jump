@@ -1,16 +1,16 @@
 <script lang="ts">
   import { page } from '$app/state';
   import LayoutGrid from '@lucide/svelte/icons/layout-grid';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import SubjectCard from '$lib/components/workshops/SubjectCard.svelte';
-  import { countNounForm } from '$lib/components/staff/datatable/countLabel';
-  import { setListParams } from '$lib/components/staff/datatable/urlList';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
+  import FilterSelect from '#lib/components/staff/FilterSelect.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import SubjectCard from '#lib/components/workshops/SubjectCard.svelte';
+  import { countNounForm } from '#lib/components/staff/datatable/countLabel.ts';
+  import { setListParams } from '#lib/components/staff/datatable/urlList.ts';
   import {
     catalogueDomainOptions,
     subjectsInDomain,
-  } from '$lib/domain/workshopCatalogue';
+  } from '#lib/domain/workshopCatalogue.ts';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();

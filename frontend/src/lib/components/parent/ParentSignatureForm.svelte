@@ -1,11 +1,11 @@
 <script lang="ts">
   import { untrack, type Snippet } from 'svelte';
-  import type { ActionResult } from '@sveltejs/kit';
+  import type { ActionResult } from '$app/forms';
   import { enhance } from '$app/forms';
-  import { Button } from '$lib/components/ui/button';
-  import * as Select from '$lib/components/ui/select';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Select from '#lib/components/ui/select/index.ts';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { parentSignerRelationship } from '$lib/domain/profile';
+  import { parentSignerRelationship } from '#lib/domain/profile.ts';
 
   // Shared signature shell for the parent flow's two co-signed acts: the
   // règlement intérieur (single accept) and the droit-à-l'image decision

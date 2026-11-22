@@ -16,7 +16,7 @@
  * entry did not would be a hidden activity one hand-made POST away.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import type { Prisma } from '@prisma/client';
 import {
   isOfferedNow,
@@ -27,21 +27,21 @@ import {
   type TalentWorkshops,
   type WorkshopActivity,
   type WorkshopCoverKind,
-} from '$lib/domain/workshops';
+} from '#lib/domain/workshops.ts';
 import {
   getEventStatus,
   getLifecycleBounds,
   type LifecycleBounds,
-} from '$lib/domain/eventLifecycle';
-import { eventDisplayName } from '$lib/domain/event';
-import { shownEventWhere } from '$lib/domain/eventReadiness';
-import { dbDateToKey } from '$lib/domain/eventPresence';
-import { campusClock, toDateKey } from '$lib/domain/planningTime';
-import { formatDateFr } from '$lib/utils';
+} from '#lib/domain/eventLifecycle.ts';
+import { eventDisplayName } from '#lib/domain/event.ts';
+import { shownEventWhere } from '#lib/domain/eventReadiness.ts';
+import { dbDateToKey } from '#lib/domain/eventPresence.ts';
+import { campusClock, toDateKey } from '#lib/domain/planningTime.ts';
+import { formatDateFr } from '#lib/utils.ts';
 import {
   workshopSessionLabel,
   type WorkshopSession,
-} from '$lib/server/workshops/ticket';
+} from '#lib/server/workshops/ticket.ts';
 import { grantXp } from './xpService';
 
 export type WorkshopEntry = {

@@ -1,17 +1,17 @@
 import { error } from '@sveltejs/kit';
 import { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   validateAnswer,
   isEmptyAnswer,
   IDENTITY_FIELD_TO_RESPONDENT_COLUMN,
   type Answers,
   type RespondentColumn,
-} from '$lib/domain/feedbackForms/schema';
+} from '#lib/domain/feedbackForms/schema.ts';
 import {
   toFormSchema,
   type FeedbackFormGraph,
-} from '$lib/server/feedbackForms';
+} from '#lib/server/feedbackForms.ts';
 
 /**
  * Translates the UI `Answers` map (keyed by question key, values = label or

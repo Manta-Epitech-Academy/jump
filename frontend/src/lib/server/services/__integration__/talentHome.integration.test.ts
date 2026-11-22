@@ -15,25 +15,25 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { isHttpError } from '@sveltejs/kit';
 import type { RequestEvent, RequestHandler } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
-import { EVENT_MISSING_LABELS } from '$lib/domain/eventReadiness';
+import { prisma } from '#lib/server/db.ts';
+import { EVENT_MISSING_LABELS } from '#lib/domain/eventReadiness.ts';
 import { assertTestDatabase } from './testDatabase';
 import { createAdminAccount } from './adminApiAccount';
-import { mintToken } from '$lib/server/adminApi/tokens';
-import { adminApiRead, adminApiWrite } from '$lib/server/adminApi/route';
+import { mintToken } from '#lib/server/adminApi/tokens.ts';
+import { adminApiRead, adminApiWrite } from '#lib/server/adminApi/route.ts';
 import {
   writeTalentHomeHighlight,
   writeTalentHomeNote,
-} from '$lib/server/adminApi/writes/talentHome';
-import { getTalentHome } from '$lib/server/services/talentHomeService';
-import { OperationRefusedError } from '$lib/server/adminApi/errors';
+} from '#lib/server/adminApi/writes/talentHome.ts';
+import { getTalentHome } from '#lib/server/services/talentHomeService.ts';
+import { OperationRefusedError } from '#lib/server/adminApi/errors.ts';
 import { GET as imageProxy } from '../../../../routes/api/talent-home/images/[campusId]/[file]/+server';
 
 const objects = new Map<string, Uint8Array>();
 /** The size the stubbed pipeline reports for a picture. */
 let pictureSize = { width: 1280, height: 720 };
 
-vi.mock('$lib/server/infra/storage', () => ({
+vi.mock('#lib/server/infra/storage.ts', () => ({
   getStorage: () => ({
     save: async (key: string, data: Uint8Array) => {
       objects.set(key, data);
@@ -54,7 +54,7 @@ vi.mock('$lib/server/infra/storage', () => ({
 
 // The address policy refuses loopback, which is where the test host lives, so
 // it is let through here and judged on its own in `infra/publicAddress.test.ts`.
-vi.mock('$lib/server/infra/publicAddress', () => ({
+vi.mock('#lib/server/infra/publicAddress.ts', () => ({
   isPublicAddress: vi.fn(() => true),
 }));
 
@@ -75,9 +75,9 @@ vi.mock('node:https', async (importOriginal) => {
   };
 });
 
-vi.mock('$lib/server/images/process', async (importOriginal) => {
+vi.mock('#lib/server/images/process.ts', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('$lib/server/images/process')>();
+    await importOriginal<typeof import('#lib/server/images/process.ts')>();
   return {
     ...actual,
     processImage: vi.fn(async (input: Uint8Array) => ({

@@ -20,14 +20,14 @@
  */
 
 import type { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import {
   IMAGE_RIGHTS_STATUS_LABELS,
   imageRightsStance,
-} from '$lib/domain/imageRights';
+} from '#lib/domain/imageRights.ts';
 import { latestImageRightsDecisions } from '../imageRightsService';
-import { metric, share, type Metric } from '$lib/server/adminApi/metrics';
-import type { Scope } from '$lib/server/adminApi/scope';
+import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
+import type { Scope } from '#lib/server/adminApi/scope.ts';
 import { cohortWhere, dossierSchoolYear, scopeLabels } from './cohort';
 
 export type ImageRightsRow = {

@@ -1,12 +1,12 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import type {
   AuthConflict,
   AuthConflictVerdict,
   AuthAccountSummary,
   ExposureKind,
   AccountNature,
-} from '$lib/domain/authIdentity';
+} from '#lib/domain/authIdentity.ts';
 
 /**
  * Auth-identity conflicts: the login-layer sibling of `reconciliationService`.
@@ -45,7 +45,7 @@ import type {
 const norm = (email: string | null | undefined): string | null =>
   email?.toLowerCase().trim() || null;
 
-// Verdict semantics (types live in `$lib/domain/authIdentity`):
+// Verdict semantics (types live in `#lib/domain/authIdentity`):
 //  - ORPHAN_HOLDER       held by an account with no talent/staff/parent link.
 //                        Repoint the Talent onto it (the live sessions are
 //                        there) and drop the stale account (repoint+drop).

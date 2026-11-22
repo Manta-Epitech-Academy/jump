@@ -1,8 +1,8 @@
 import type { RequestHandler } from './$types';
-import { json } from '@sveltejs/kit';
-import type { Answers } from '$lib/domain/feedbackForms/schema';
-import { getFormGraphBySlug } from '$lib/server/feedbackForms';
-import { recordSubmission } from '$lib/server/feedbackSubmissions';
+
+import type { Answers } from '#lib/domain/feedbackForms/schema.ts';
+import { getFormGraphBySlug } from '#lib/server/feedbackForms.ts';
+import { recordSubmission } from '#lib/server/feedbackSubmissions.ts';
 
 // Public submit endpoint for a feedback form (no auth). The respondent is not a
 // Jump account: their self-reported identity is stored on the submission and
@@ -11,19 +11,22 @@ import { recordSubmission } from '$lib/server/feedbackSubmissions';
 export const POST: RequestHandler = async ({ request, params }) => {
   const graph = await getFormGraphBySlug(params.slug);
   if (!graph || graph.status !== 'published' || !graph.allowsPublicAccess) {
-    return json({ message: 'Formulaire introuvable' }, { status: 404 });
+    return Response.json(
+      { message: 'Formulaire introuvable' },
+      { status: 404 },
+    );
   }
 
   let body: { answers?: Answers };
   try {
     body = await request.json();
   } catch {
-    return json({ message: 'JSON invalide' }, { status: 400 });
+    return Response.json({ message: 'JSON invalide' }, { status: 400 });
   }
 
   const answers = body.answers;
   if (!answers || typeof answers !== 'object') {
-    return json({ message: 'Réponses manquantes' }, { status: 400 });
+    return Response.json({ message: 'Réponses manquantes' }, { status: 400 });
   }
 
   try {
@@ -38,8 +41,8 @@ export const POST: RequestHandler = async ({ request, params }) => {
         ? ((err.body as { message?: string })?.message ??
           'Erreur lors de l’enregistrement')
         : 'Erreur lors de l’enregistrement';
-    return json({ message }, { status });
+    return Response.json({ message }, { status });
   }
 
-  return json({ success: true });
+  return Response.json({ success: true });
 };

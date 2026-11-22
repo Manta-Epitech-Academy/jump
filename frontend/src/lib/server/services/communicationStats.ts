@@ -9,9 +9,9 @@
  * Admin space is cross-campus by design ("global system overview"), so this
  * service aggregates globally rather than scoping to one campus.
  */
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import type { BroadcastChannel, BroadcastStatus } from '@prisma/client';
-import { BROADCAST_CHANNELS } from '$lib/domain/broadcasts';
+import { BROADCAST_CHANNELS } from '#lib/domain/broadcasts.ts';
 
 const DAY_MS = 86_400_000;
 const DEFAULT_WINDOW_DAYS = 30;

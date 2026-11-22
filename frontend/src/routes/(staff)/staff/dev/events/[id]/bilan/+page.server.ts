@@ -1,20 +1,21 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { base } from '$app/paths';
-import { env } from '$env/dynamic/private';
-import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { EVENT_MODULES } from '$lib/domain/eventModules';
+import { ORIGIN } from '$app/env/private';
+import { getCampusId, scopedPrisma } from '#lib/server/db/scoped.ts';
+import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
+import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
 import {
   computeFormStats,
   recoQuestionOf,
   type FormStats,
-} from '$lib/server/feedbackStats';
-import { loadFeedbackRoster } from '$lib/server/services/feedbackRoster';
-import { countShownCohort } from '$lib/server/services/inscritsCohort';
-import { resolvePublishedEventForm } from '$lib/server/feedbackForms';
-import { feedbackFormPath } from '$lib/domain/feedback';
-import type { BilanRow, RecoOption } from '$lib/domain/bilanRoster';
+} from '#lib/server/feedbackStats.ts';
+import { loadFeedbackRoster } from '#lib/server/services/feedbackRoster.ts';
+import { countShownCohort } from '#lib/server/services/inscritsCohort.ts';
+import {
+  feedbackFormPath,
+  resolvePublishedEventForm,
+} from '#lib/server/feedbackForms.ts';
+import type { BilanRow, RecoOption } from '#lib/domain/bilanRoster.ts';
 
 interface BilanCohort {
   rows: BilanRow[];
@@ -81,7 +82,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // the page's own origin) so the copyable URL is byte-for-byte what the QR image
   // encodes, and stays correct behind a proxy. `feedbackFormPath` is the single
   // source the QR endpoint also uses, so the two never drift.
-  const feedbackUrl = `${env.ORIGIN ?? ''}${base}${feedbackFormPath(event.id, form.slug)}`;
+  const feedbackUrl = `${ORIGIN ?? ''}${feedbackFormPath(event.id, form.slug)}`;
 
   return {
     event: {

@@ -1,13 +1,13 @@
 <script lang="ts">
-  import CopiedPicture from '$lib/components/talent/CopiedPicture.svelte';
-  import EventFacts from '$lib/components/talent/EventFacts.svelte';
-  import EventVisual from '$lib/components/talent/EventVisual.svelte';
-  import PageHero from '$lib/components/layout/PageHero.svelte';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import { Button } from '$lib/components/ui/button';
+  import CopiedPicture from '#lib/components/talent/CopiedPicture.svelte';
+  import EventFacts from '#lib/components/talent/EventFacts.svelte';
+  import EventVisual from '#lib/components/talent/EventVisual.svelte';
+  import PageHero from '#lib/components/layout/PageHero.svelte';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
   import { resolve } from '$app/paths';
-  import { countdownLabel, type HomeHero } from '$lib/domain/talentHome';
+  import { countdownLabel, type HomeHero } from '#lib/domain/talentHome.ts';
 
   // « Tu es inscrit »: the next event the talent is enrolled in, before it
   // starts (`pickHomeHero`). What a talent lives reflected back (#501): never
@@ -69,7 +69,7 @@
       </div>
 
       <Button
-        href={resolve(`/agenda/${hero.event.id}`)}
+        href={resolve(`agenda/${hero.event.id}`)}
         download
         variant="overlay"
         class="h-11 w-full px-5 sm:w-auto sm:self-start"

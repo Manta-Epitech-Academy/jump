@@ -1,16 +1,16 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
   import { resolve } from '$app/paths';
-  import { getStaffRoleRedirectPath } from '$lib/domain/staff';
-  import { describeGroup } from '$lib/domain/permissions';
-  import ErrorTerminal from '$lib/components/errors/ErrorTerminal.svelte';
+  import { getStaffRoleRedirectPath } from '#lib/domain/staff.ts';
+  import { describeGroup } from '#lib/domain/permissions.ts';
+  import ErrorTerminal from '#lib/components/errors/ErrorTerminal.svelte';
 
   const status = $derived(page.status);
   const role = $derived(page.data.staffProfile?.staffRole);
   const workspacePath = $derived(
-    getStaffRoleRedirectPath(role) ?? '/staff/login',
+    getStaffRoleRedirectPath(role) ?? 'staff/login',
   );
   const gating = $derived(
     page.error?.code === 'staff_group_required' && page.error.group

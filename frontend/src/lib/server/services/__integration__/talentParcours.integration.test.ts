@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { fromWallClock } from '$lib/domain/planningTime';
-import { workshopGrantSourceId } from '$lib/domain/workshops';
-import { loadTalentParcours } from '$lib/server/talent/parcours';
+import { prisma } from '#lib/server/db.ts';
+import { fromWallClock } from '#lib/domain/planningTime.ts';
+import { workshopGrantSourceId } from '#lib/domain/workshops.ts';
+import { loadTalentParcours } from '#lib/server/talent/parcours.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

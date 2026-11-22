@@ -1,6 +1,6 @@
-import { renderPdf } from '$lib/server/infra/documentRenderer';
-import { fontFaceCss } from '$lib/server/templates/fonts';
-import { epitechLogoSvg } from '$lib/server/templates/epitechLogo';
+import { renderPdf } from '#lib/server/infra/documentRenderer.ts';
+import { fontFaceCss } from '#lib/server/templates/fonts.ts';
+import { epitechLogoSvg } from '#lib/server/templates/epitechLogo.ts';
 
 function escapeHtml(s: string): string {
   return s

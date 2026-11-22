@@ -7,38 +7,3 @@
 # apply, so the reason can be re-checked, and expires, so the daily watch on
 # dev (.github/workflows/vulnerability-watch.yml) opens an issue for it again
 # if the fix has not landed by then rather than staying silent for good.
-
-# SvelteKit fixes these four only on its 3.x line (3.0.0 for the first two,
-# 3.1.1 for the last two), a major release: the upgrade is its own change, not a
-# patch bump (issue #520). They share one expiry so they come back together if
-# it has not landed by then.
-
-[[IgnoredVulns]]
-id = "GHSA-27mw-82g8-phjj"
-ignoreUntil = 2026-12-07
-reason = "XSS through a cache-control header set with setHeaders on a prerendered page. Jump prerenders no page: no `prerender` option anywhere under src/ or in svelte.config.js."
-
-[[IgnoredVulns]]
-id = "GHSA-pfhg-q3qv-9q6r"
-ignoreUntil = 2026-12-07
-reason = "Open redirect from use:enhance on a route that matches a path starting with //. The only catch-all is src/routes/api/auth/[...all], an endpoint under /api/auth/ with no form actions, so no page route can match such a path."
-
-[[IgnoredVulns]]
-id = "GHSA-3r8g-jcqq-3p5j"
-ignoreUntil = 2026-12-07
-reason = "Denial of service while parsing the form data of a remote function `form`. Jump defines no remote function: no `experimental.remoteFunctions` in svelte.config.js, no `*.remote.*` file and no `$app/server` import under src/."
-
-[[IgnoredVulns]]
-id = "GHSA-6cf5-gc4q-fm3x"
-ignoreUntil = 2026-12-07
-reason = "Private `query.batch` remote functions could collide and run with another call's parameters. Jump defines no remote function: no `experimental.remoteFunctions` in svelte.config.js, no `*.remote.*` file and no `$app/server` import under src/."
-
-# deepmerge has no fixed release at all. It is a build-time dependency only:
-# `bun pm why deepmerge` lists @sveltejs/vite-plugin-svelte and
-# @rollup/plugin-node-resolve (under adapter-node), and neither ships in the
-# build output.
-
-[[IgnoredVulns]]
-id = "GHSA-gcqx-w48m-w2h4"
-ignoreUntil = 2026-12-09
-reason = "Prototype poisoning of objects returned by mergeObject(). deepmerge 4.3.1 runs only at build time, where vite-plugin-svelte merges the Svelte config and plugin-node-resolve merges its own options; no request data is ever merged. The merge in the built server and client chunks is ts-deepmerge (sveltekit-superforms), a different package."

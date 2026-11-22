@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Badge } from '$lib/components/ui/badge';
-  import { Button } from '$lib/components/ui/button';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import Users from '@lucide/svelte/icons/users';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -9,8 +9,8 @@
   import X from '@lucide/svelte/icons/x';
   import Settings from '@lucide/svelte/icons/settings';
   import { resolve } from '$app/paths';
-  import { enter, stagger } from '$lib/motion';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  import { enter, stagger } from '#lib/motion/index.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
 
   let { data } = $props();
 </script>
@@ -35,7 +35,7 @@
         </p>
       </div>
       <a
-        href={resolve('/parent/settings')}
+        href={resolve('parent/settings')}
         class="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground-secondary"
       >
         <Settings class="h-4 w-4" />
@@ -63,7 +63,7 @@
     <div class="grid gap-6 sm:grid-cols-2">
       {#each data.children as child, i}
         <a
-          href={resolve(`/parent/enfant/${child.id}`)}
+          href={resolve(`parent/enfant/${child.id}`)}
           class="group"
           in:enter={{ delay: stagger(i + 1) }}
         >

@@ -1,6 +1,6 @@
 import type { RequestEvent } from '@sveltejs/kit';
-import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
-import { can } from '$lib/domain/permissions';
+import type { EventLifecycleStatus } from '#lib/domain/eventLifecycle.ts';
+import { can } from '#lib/domain/permissions.ts';
 
 /**
  * Dev-tooling: lets an admin impersonating a dev/superdev preview phase-specific

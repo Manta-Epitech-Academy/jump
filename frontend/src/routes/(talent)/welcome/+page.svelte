@@ -2,13 +2,13 @@
   import type { PageData } from './$types';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
-  import { Button } from '$lib/components/ui/button';
-  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
-  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import EpitechLogo from '#lib/components/layout/EpitechLogo.svelte';
+  import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import { onMount } from 'svelte';
-  import { track, daysBetween, secondsBetween } from '$lib/analytics';
-  import BrandBackdrop from '$lib/components/layout/BrandBackdrop.svelte';
+  import { track, daysBetween, secondsBetween } from '#lib/analytics.ts';
+  import BrandBackdrop from '#lib/components/layout/BrandBackdrop.svelte';
 
   let { data }: { data: PageData } = $props();
   const seenAt = Date.now();
@@ -28,7 +28,7 @@
   <!-- Header: logo lives in the top bar, matching the onboarding pages -->
   <header class="relative z-10 shrink-0 border-b border-border/50 bg-muted">
     <div class="mx-auto flex w-full max-w-lg items-center px-4 py-3">
-      <a href={resolve('/')} aria-label="Accueil">
+      <a href={resolve('')} aria-label="Accueil">
         <EpitechLogo class="h-7 w-auto" />
       </a>
     </div>

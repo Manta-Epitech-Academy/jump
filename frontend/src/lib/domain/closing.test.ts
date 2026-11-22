@@ -11,8 +11,8 @@ import {
   RETIRED_SECTION_TITLE,
   type StoredClosingTemplate,
 } from './closing';
-import { closingAnswersIssues } from '$lib/validation/closings';
-import type { ClosingConductForm } from '$lib/validation/closings';
+import { closingAnswersIssues } from '#lib/validation/closings.ts';
+import type { ClosingConductForm } from '#lib/validation/closings.ts';
 
 /**
  * The projection between a stored grid and every surface that renders one.

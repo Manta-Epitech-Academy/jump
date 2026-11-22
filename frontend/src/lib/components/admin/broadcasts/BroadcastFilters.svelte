@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { BroadcastAudience } from '@prisma/client';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
-  import { Button } from '$lib/components/ui/button';
-  import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import SegmentedFilter from '#lib/components/staff/SegmentedFilter.svelte';
   import {
     type BroadcastFilters,
     countActiveBroadcastFilters,
@@ -10,9 +10,9 @@
     IMAGE_RIGHTS_FILTER_OPTIONS,
     IMAGE_RIGHTS_FILTER_LABELS,
     type TristateFilter,
-  } from '$lib/domain/broadcasts';
-  import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
-  import { cn } from '$lib/utils';
+  } from '#lib/domain/broadcasts.ts';
+  import { NIVEAUX, niveauLabel } from '#lib/domain/niveau.ts';
+  import { cn } from '#lib/utils.ts';
 
   type Props = {
     /** Bindable; optional so it binds to a `BroadcastFilters | undefined`

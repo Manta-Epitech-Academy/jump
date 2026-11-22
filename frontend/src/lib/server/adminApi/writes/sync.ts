@@ -22,14 +22,14 @@
  * nobody touching the cluster.
  */
 
-import { prisma } from '$lib/server/db';
-import { normalizeSfStatus } from '$lib/domain/sfMemberStatus';
+import { prisma } from '#lib/server/db.ts';
+import { normalizeSfStatus } from '#lib/domain/sfMemberStatus.ts';
 import {
   SYNC_CADENCE_MAX_MINUTES,
   SYNC_CADENCE_MIN_MINUTES,
-} from '$lib/domain/syncSchedule';
-import { upsertMemberStatus } from '$lib/server/services/devSpaceVisibility';
-import { isServedToWorker } from '$lib/server/services/syncConfigService';
+} from '#lib/domain/syncSchedule.ts';
+import { upsertMemberStatus } from '#lib/server/services/devSpaceVisibility.ts';
+import { isServedToWorker } from '#lib/server/services/syncConfigService.ts';
 import type { SyncMode, SyncSourceKind } from '@prisma/client';
 import { OperationRefusedError } from '../errors';
 import type { WriteOutcome } from '../plan';

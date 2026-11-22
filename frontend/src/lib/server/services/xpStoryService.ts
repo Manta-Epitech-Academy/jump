@@ -1,6 +1,6 @@
-import { prisma } from '$lib/server/db';
-import { xpHistoryLabel, type XpStory } from '$lib/domain/xpStory';
-import { workshopSlugFromSourceId } from '$lib/domain/workshops';
+import { prisma } from '#lib/server/db.ts';
+import { xpHistoryLabel, type XpStory } from '#lib/domain/xpStory.ts';
+import { workshopSlugFromSourceId } from '#lib/domain/workshops.ts';
 
 /** Short French "16 juin" label in the campus timezone, for the history feed. */
 function dateLabel(date: Date, timeZone: string): string {

@@ -1,4 +1,4 @@
-import type { ListFacet } from '$lib/domain/listFacets';
+import type { ListFacet } from '#lib/domain/listFacets.ts';
 import type { ActiveFilterChip, ColumnFilter } from './types';
 
 /**

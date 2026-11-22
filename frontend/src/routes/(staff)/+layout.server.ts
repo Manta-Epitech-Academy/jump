@@ -1,9 +1,9 @@
 import type { LayoutServerLoad } from './$types';
-import { env } from '$env/dynamic/private';
+import { JUMP_GAMES_URL } from '$app/env/private';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   return {
     // Minigames are intrinsic but need the games backend wired up to be usable.
-    minigamesAvailable: !!env.JUMP_GAMES_URL,
+    minigamesAvailable: !!JUMP_GAMES_URL,
   };
 };

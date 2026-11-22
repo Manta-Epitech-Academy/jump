@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { assertTestDatabase } from './testDatabase';
 import { drainOnboardingPdfJobs } from './onboardingPdfJobs';
 import { reachRulesStep } from './onboardingLadder';
-import { currentSchoolYearLabel } from '$lib/domain/schoolYear';
+import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
 
 /**
  * One rendered règlement per dossier, not per talent.
@@ -25,7 +25,7 @@ vi.mock('../onboardingDocumentGenerator', () => ({
   generateOnboardingPDF: vi.fn(async () => new Uint8Array([1, 2, 3])),
 }));
 
-vi.mock('$lib/server/infra/storage', () => ({
+vi.mock('#lib/server/infra/storage.ts', () => ({
   getStorage: () => ({
     save: async (key: string, data: Uint8Array) => {
       // Count writes per key: an overwrite is invisible in a plain key set, and

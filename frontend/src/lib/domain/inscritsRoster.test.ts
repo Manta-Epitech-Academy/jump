@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { INSCRITS_VIEW } from '$lib/domain/inscritsView';
-import { niveauLabel } from '$lib/domain/niveau';
+import { INSCRITS_VIEW } from '#lib/domain/inscritsView.ts';
+import { niveauLabel } from '#lib/domain/niveau.ts';
 import {
   compareRows,
   matchesFacets,

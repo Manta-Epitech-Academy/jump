@@ -1,7 +1,7 @@
 <script lang="ts">
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
 
   /**
    * The dev workspace's school-year context, and the only place it changes.

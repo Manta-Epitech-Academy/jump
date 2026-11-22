@@ -2,23 +2,23 @@ import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { superValidate, message, setError } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { prisma } from '$lib/server/db';
-import { eventDisplayName } from '$lib/domain/event';
-import { broadcastSchema } from '$lib/validation/broadcasts';
+import { prisma } from '#lib/server/db.ts';
+import { eventDisplayName } from '#lib/domain/event.ts';
+import { broadcastSchema } from '#lib/validation/broadcasts.ts';
 import {
   enqueueBroadcast,
   processBroadcast,
   EmptyBroadcastError,
-} from '$lib/server/services/broadcast/orchestrator';
-import { sendTestMessage } from '$lib/server/services/broadcast/testMessage';
+} from '#lib/server/services/broadcast/orchestrator.ts';
+import { sendTestMessage } from '#lib/server/services/broadcast/testMessage.ts';
 import {
   BROADCASTABLE_TEMPLATE_WHERE,
   loadBroadcastTemplate,
-} from '$lib/server/services/broadcast/templates';
-import { isSmsEnabled } from '$lib/server/sms';
-import { SMS_BROADCAST_MAX_CHARS, estimateSmsLength } from '$lib/domain/sms';
-import { recordUsage } from '$lib/server/usage/record';
-import { USAGE_FEATURES } from '$lib/domain/usage';
+} from '#lib/server/services/broadcast/templates.ts';
+import { isSmsEnabled } from '#lib/server/sms/index.ts';
+import { SMS_BROADCAST_MAX_CHARS, estimateSmsLength } from '#lib/domain/sms.ts';
+import { recordUsage } from '#lib/server/usage/record.ts';
+import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
   const templateIdParam = url.searchParams.get('template') ?? undefined;

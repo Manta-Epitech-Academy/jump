@@ -21,12 +21,12 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 import { syncEvents, syncParticipations, syncTalents } from '../syncService';
 import { closeRun, lastOkRun, openRun } from '../syncRunService';
 import { getWorkerConfig, listWorkerSources } from '../syncConfigService';
-import { workerConfigAnswerSchema } from '$lib/validation/workerSync';
-import { requestSync } from '$lib/server/adminApi/writes/sync';
+import { workerConfigAnswerSchema } from '#lib/validation/workerSync.ts';
+import { requestSync } from '#lib/server/adminApi/writes/sync.ts';
 import { getSyncHealth, getSyncSources } from '../adminStats/syncHealth';
 import { assertTestDatabase } from './testDatabase';
 

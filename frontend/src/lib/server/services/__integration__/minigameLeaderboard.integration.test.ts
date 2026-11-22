@@ -8,8 +8,8 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { prisma } from '$lib/server/db';
-import { getCampusLeaderboard } from '$lib/server/services/minigameService';
+import { prisma } from '#lib/server/db.ts';
+import { getCampusLeaderboard } from '#lib/server/services/minigameService.ts';
 import { assertTestDatabase } from './testDatabase';
 
 describe('minigame leaderboard (integration)', () => {

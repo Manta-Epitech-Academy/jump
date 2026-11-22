@@ -6,9 +6,9 @@
   import Award from '@lucide/svelte/icons/award';
   import Coins from '@lucide/svelte/icons/coins';
   import Terminal from '@lucide/svelte/icons/terminal';
-  import * as Dialog from '$lib/components/ui/dialog';
-  import { formatGivenName } from '$lib/domain/profile';
-  import type { XpStory } from '$lib/domain/xpStory';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
+  import { formatGivenName } from '#lib/domain/profile.ts';
+  import type { XpStory } from '#lib/domain/xpStory.ts';
 
   // The full, newest-first history of how the talent earned their XP: one row per
   // grant, explicitly labelled, so a recruiter can point to exactly what the

@@ -12,7 +12,7 @@
  * pastes it, gets `Failed to connect`, and now doubts the token rather than the
  * instructions.
  *
- * `$lib/domain` on purpose: no Vite-only import, so the strings stay checkable
+ * `#lib/domain` on purpose: no Vite-only import, so the strings stay checkable
  * without a browser.
  */
 

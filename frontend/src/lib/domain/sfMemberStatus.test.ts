@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { readsWithout, walk } from '$lib/testing/sourceReads';
+import { readsWithout, walk } from '#lib/testing/sourceReads.ts';
 import {
   classifySfStatus,
   isShownInDevSpace,
@@ -109,7 +109,7 @@ const devReaders = [
   ...walk('src/lib').filter(
     (f) =>
       !f.endsWith('db/scoped.ts') &&
-      readFileSync(f, 'utf-8').includes('$lib/server/db/scoped'),
+      readFileSync(f, 'utf-8').includes('#lib/server/db/scoped.ts'),
   ),
 ].filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
 

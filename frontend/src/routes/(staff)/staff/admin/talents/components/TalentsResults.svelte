@@ -10,37 +10,40 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import Phone from '@lucide/svelte/icons/phone';
   import Pencil from '@lucide/svelte/icons/pencil';
-  import KpiTile from '$lib/components/staff/KpiTile.svelte';
-  import ActiveFilterChips from '$lib/components/staff/ActiveFilterChips.svelte';
-  import { Button, buttonVariants } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Badge } from '$lib/components/ui/badge';
-  import * as Table from '$lib/components/ui/table';
-  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
-  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
-  import Pagination from '$lib/components/staff/datatable/Pagination.svelte';
-  import type { ColumnDef } from '$lib/components/staff/datatable/types';
-  import { facetControls } from '$lib/components/staff/datatable/facetControls';
-  import { offerFacets } from '$lib/domain/listFacets';
-  import * as Tooltip from '$lib/components/ui/tooltip';
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
-  import StudentContactDialog from '$lib/components/students/StudentContactDialog.svelte';
+  import KpiTile from '#lib/components/staff/KpiTile.svelte';
+  import ActiveFilterChips from '#lib/components/staff/ActiveFilterChips.svelte';
+  import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
+  import { Input } from '#lib/components/ui/input/index.ts';
+  import { Badge } from '#lib/components/ui/badge/index.ts';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import SortableTable from '#lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '#lib/components/staff/datatable/DataTableToolbar.svelte';
+  import Pagination from '#lib/components/staff/datatable/Pagination.svelte';
+  import type { ColumnDef } from '#lib/components/staff/datatable/types.ts';
+  import { facetControls } from '#lib/components/staff/datatable/facetControls.ts';
+  import { offerFacets } from '#lib/domain/listFacets.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+  import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
+  import StudentAvatarItem from '#lib/components/students/StudentAvatarItem.svelte';
+  import StudentContactDialog from '#lib/components/students/StudentContactDialog.svelte';
   import EditParentEmailDialog from '../EditParentEmailDialog.svelte';
-  import type { ContactPerson } from '$lib/domain/contact';
+  import type { ContactPerson } from '#lib/domain/contact.ts';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
-  import { niveauLabel } from '$lib/domain/niveau';
-  import { formatPersonName, civiliteCourtesyTitle } from '$lib/domain/profile';
+  import { niveauLabel } from '#lib/domain/niveau.ts';
+  import {
+    formatPersonName,
+    civiliteCourtesyTitle,
+  } from '#lib/domain/profile.ts';
   import {
     TALENT_STATUS_LABELS,
     PARENT_STATUS_LABELS,
     NO_DOSSIER_HINT,
     type TalentAccountStatus,
   } from '../labels';
-  import { track } from '$lib/analytics';
+  import { track } from '#lib/analytics.ts';
   import type { TalentsCohort } from '../query';
   import {
     parseTalentFilters,
@@ -48,14 +51,14 @@
     TALENTS_VIEW,
     type TalentsSortKey,
   } from '../view';
-  import { nextSort } from '$lib/components/staff/datatable/sort';
+  import { nextSort } from '#lib/components/staff/datatable/sort.ts';
   import {
     clearListFilters,
     goToListPage,
     setListParams,
-  } from '$lib/components/staff/datatable/urlList';
-  import { createUrlSearch } from '$lib/components/staff/datatable/urlSearch.svelte';
-  import { lastActiveLabel } from '$lib/components/staff/lastActive';
+  } from '#lib/components/staff/datatable/urlList.ts';
+  import { createUrlSearch } from '#lib/components/staff/datatable/urlSearch.svelte.ts';
+  import { lastActiveLabel } from '#lib/components/staff/lastActive.ts';
 
   // The streamed cohort payload. This component owns every data-dependent
   // surface (KPI tiles, toolbar, table, pagination and the row dialogs), so it
@@ -84,7 +87,7 @@
     if (impersonating) return;
     impersonating = talentId;
     try {
-      const res = await fetch(resolve('/staff/admin/impersonate'), {
+      const res = await fetch(resolve('staff/admin/impersonate'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -335,7 +338,7 @@
            (the table only holds the current page of 50). -->
       <a
         href={exportHref}
-        data-sveltekit-preload-data="off"
+        data-sveltekit-preload-data="false"
         class={buttonVariants({ variant: 'outline', size: 'sm' })}
       >
         <Download class="mr-1.5 h-4 w-4" />

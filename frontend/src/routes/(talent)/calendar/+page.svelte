@@ -2,18 +2,18 @@
   import type { PageData } from './$types';
   import { untrack } from 'svelte';
   import CalendarIcon from '@lucide/svelte/icons/calendar';
-  import CalendarViewer from '$lib/components/planning/CalendarViewer.svelte';
-  import WeekNavigator from '$lib/components/planning/WeekNavigator.svelte';
-  import WeekViewToggle from '$lib/components/planning/WeekViewToggle.svelte';
-  import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
-  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
+  import CalendarViewer from '#lib/components/planning/CalendarViewer.svelte';
+  import WeekNavigator from '#lib/components/planning/WeekNavigator.svelte';
+  import WeekViewToggle from '#lib/components/planning/WeekViewToggle.svelte';
+  import ActivitySummaryDialog from '#lib/components/talent/ActivitySummaryDialog.svelte';
+  import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
   import {
     pickInitialWeek,
     pickInitialWeekView,
     type WeekView,
-  } from '$lib/domain/calendarWeek';
-  import { track } from '$lib/analytics';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
+  } from '#lib/domain/calendarWeek.ts';
+  import { track } from '#lib/analytics.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
 
   let { data }: { data: PageData } = $props();
 

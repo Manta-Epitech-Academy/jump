@@ -1,16 +1,18 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { assertLoadTestAuth } from './loadTestService';
-import { env } from '$env/dynamic/private';
+import { describe, it, expect, vi } from 'vitest';
+
+const secret: { value: string | undefined } = { value: undefined };
+// A getter, so each test's write to `secret` reaches the service's import.
+vi.mock('$app/env/private', () => ({
+  get LOAD_TEST_SECRET() {
+    return secret.value;
+  },
+}));
+
+const { assertLoadTestAuth } = await import('./loadTestService');
 
 describe('loadTestService - assertLoadTestAuth', () => {
-  const originalSecret = env.LOAD_TEST_SECRET;
-
-  afterEach(() => {
-    env.LOAD_TEST_SECRET = originalSecret;
-  });
-
   it('refuses access with 404 if secret is unset', () => {
-    env.LOAD_TEST_SECRET = '';
+    secret.value = '';
 
     const req = new Request('http://localhost/api/test/login-as', {
       headers: { authorization: 'Bearer secret123' },
@@ -20,7 +22,7 @@ describe('loadTestService - assertLoadTestAuth', () => {
   });
 
   it('refuses access with 401 if bearer token does not match secret', () => {
-    env.LOAD_TEST_SECRET = 'correct_secret';
+    secret.value = 'correct_secret';
 
     const req = new Request('http://localhost/api/test/login-as', {
       headers: { authorization: 'Bearer wrong_secret' },
@@ -30,7 +32,7 @@ describe('loadTestService - assertLoadTestAuth', () => {
   });
 
   it('grants access when bearer token matches secret', () => {
-    env.LOAD_TEST_SECRET = 'correct_secret';
+    secret.value = 'correct_secret';
 
     const req = new Request('http://localhost/api/test/login-as', {
       headers: { authorization: 'Bearer correct_secret' },

@@ -5,7 +5,7 @@
      `class` prop lets a host layout add stacking/flex context (e.g. a flex
      column footer needs `shrink-0`) without forking the markup. -->
 <script lang="ts">
-  import { cn } from '$lib/utils';
+  import { cn } from '#lib/utils.ts';
 
   let { class: className = '' }: { class?: string } = $props();
 </script>

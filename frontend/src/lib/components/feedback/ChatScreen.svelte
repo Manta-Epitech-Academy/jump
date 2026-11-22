@@ -4,9 +4,9 @@
     FormSchema,
     Answers,
     IdentityContext,
-  } from '$lib/domain/feedbackForms/schema';
-  import { DEFAULT_PERSONA } from '$lib/domain/feedbackForms/schema';
-  import { Conversation } from '$lib/domain/feedbackForms/conversation.svelte';
+  } from '#lib/domain/feedbackForms/schema.ts';
+  import { DEFAULT_PERSONA } from '#lib/domain/feedbackForms/schema.ts';
+  import { Conversation } from '#lib/domain/feedbackForms/conversation.svelte.ts';
   import ChatThread from './ChatThread.svelte';
   import PersonaAvatar from './PersonaAvatar.svelte';
   import QuickReplies from './QuickReplies.svelte';

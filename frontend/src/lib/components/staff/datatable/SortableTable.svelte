@@ -10,12 +10,12 @@
   import ArrowUp from '@lucide/svelte/icons/arrow-up';
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
   import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
-  import * as Table from '$lib/components/ui/table';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import { Checkbox } from '$lib/components/ui/checkbox';
-  import { Button } from '$lib/components/ui/button';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import { cn } from '$lib/utils';
+  import * as Table from '#lib/components/ui/table/index.ts';
+  import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+  import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import { cn } from '#lib/utils.ts';
   import type { ColumnDef, SortDir } from './types';
   import ColumnFilterButton from './ColumnFilterButton.svelte';
   import MobileColumnFilters from './MobileColumnFilters.svelte';

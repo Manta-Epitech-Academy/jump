@@ -1,19 +1,22 @@
-import type { ScopedPrismaClient } from '$lib/server/db/scoped';
+import type { ScopedPrismaClient } from '#lib/server/db/scoped.ts';
 import {
   buildCampusCalendar,
   calendarDays,
   eventDayKeys,
   type CampusCalendar,
-} from '$lib/domain/campusCalendar';
+} from '#lib/domain/campusCalendar.ts';
 import {
   eventDisplayName,
   eventEndInstant,
   eventStartInstant,
-} from '$lib/domain/event';
-import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
-import { toDateKey } from '$lib/domain/planningTime';
-import { visibleParticipationWhere } from '$lib/domain/sfMemberStatus';
-import { shownEventWhere } from '$lib/domain/eventReadiness';
+} from '#lib/domain/event.ts';
+import {
+  getEventStatus,
+  getLifecycleBounds,
+} from '#lib/domain/eventLifecycle.ts';
+import { toDateKey } from '#lib/domain/planningTime.ts';
+import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
+import { shownEventWhere } from '#lib/domain/eventReadiness.ts';
 import { EVENT_CATEGORY_TAG_SELECT } from './eventCategories';
 
 /**

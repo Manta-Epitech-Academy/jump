@@ -12,16 +12,16 @@
  * still this campus's, named, with a sign-up form, and still inviting). What the home's blue hero then
  * suggests is one pure rule, `pickHomeHero` in `domain/talentHome.ts`.
  */
-import { prisma } from '$lib/server/db';
-import type { ShownPicture } from '$lib/domain/pictures';
-import { renderAuthoredMarkdown } from '$lib/markdown';
-import { toDateKey } from '$lib/domain/planningTime';
+import { prisma } from '#lib/server/db.ts';
+import type { ShownPicture } from '#lib/domain/pictures.ts';
+import { renderAuthoredMarkdown } from '#lib/markdown.ts';
+import { toDateKey } from '#lib/domain/planningTime.ts';
 import {
   talentHomeImageUrl,
   pointedEventShown,
   type HighlightedEvent,
   type TalentHome,
-} from '$lib/domain/talentHome';
+} from '#lib/domain/talentHome.ts';
 import { shownEventHeroPicture } from './eventHeroImages';
 
 /** A copied picture of the campus's home, as a page draws it. */

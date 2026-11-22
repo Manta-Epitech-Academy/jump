@@ -1,6 +1,6 @@
 <script lang="ts">
-  import SalesforceLinkButton from '$lib/components/salesforce/SalesforceLinkButton.svelte';
-  import * as Tooltip from '$lib/components/ui/tooltip';
+  import SalesforceLinkButton from '#lib/components/salesforce/SalesforceLinkButton.svelte';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
 
   // The event's Salesforce campaign, as one of the actions on its home: a tile
   // like the others (`SalesforceLinkButton`'s `tile` layout), the brand glyph

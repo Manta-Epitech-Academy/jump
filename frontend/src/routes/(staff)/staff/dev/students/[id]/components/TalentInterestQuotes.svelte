@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { formatGivenName } from '$lib/domain/profile';
-  import PullQuote from '$lib/components/staff/PullQuote.svelte';
+  import { formatGivenName } from '#lib/domain/profile.ts';
+  import PullQuote from '#lib/components/staff/PullQuote.svelte';
 
   // Free-text the talent wrote about themselves during onboarding, surfaced as
   // warm pull-quotes so they speak in their own words: the human, "shiny"

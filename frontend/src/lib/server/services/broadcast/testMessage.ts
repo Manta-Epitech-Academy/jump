@@ -1,13 +1,13 @@
-import { env } from '$env/dynamic/private';
+import { ORIGIN } from '$app/env/private';
 import {
   substituteVariables,
   buildDemoContext,
-} from '$lib/domain/broadcastVariables';
-import { renderBroadcastEmail } from '$lib/domain/broadcastMarkdown';
+} from '#lib/domain/broadcastVariables.ts';
+import { renderBroadcastEmail } from '#lib/domain/broadcastMarkdown.ts';
 import { rewriteHtmlLinks, rewriteSmsLinks } from './linkRewriter';
-import { sendEmail, MAIL_FROM } from '$lib/server/email';
-import { sendSms } from '$lib/server/sms';
-import { toBrevoRecipient } from '$lib/domain/phone';
+import { sendEmail, MAIL_FROM } from '#lib/server/email/index.ts';
+import { sendSms } from '#lib/server/sms/index.ts';
+import { toBrevoRecipient } from '#lib/domain/phone.ts';
 
 const TEST_TRACKING_ID = 'TEST_TRACKING_ID';
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
@@ -65,7 +65,7 @@ export async function sendTestMessage(
     : '[TEST] Envoi en masse';
   const rendered = renderBroadcastEmail(
     substituteVariables(input.body, ctx, 'markdown'),
-    env.ORIGIN ?? '',
+    ORIGIN ?? '',
     subject,
   );
   const html = rewriteHtmlLinks(rendered.html, TEST_TRACKING_ID);

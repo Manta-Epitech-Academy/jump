@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { schoolYearOf } from '$lib/domain/schoolYear';
-import type { WorkerTalent } from '$lib/validation/workerSync';
-import { syncTalents } from '$lib/server/services/syncService';
-import { loadOpenSyncErrors } from '$lib/server/services/syncErrorQueue';
+import { prisma } from '#lib/server/db.ts';
+import { schoolYearOf } from '#lib/domain/schoolYear.ts';
+import type { WorkerTalent } from '#lib/validation/workerSync.ts';
+import { syncTalents } from '#lib/server/services/syncService.ts';
+import { loadOpenSyncErrors } from '#lib/server/services/syncErrorQueue.ts';
 import {
   adoptSalesforceField,
   listSalesforceDiffs,
-} from '$lib/server/services/reconciliationService';
+} from '#lib/server/services/reconciliationService.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

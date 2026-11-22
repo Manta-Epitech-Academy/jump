@@ -160,7 +160,7 @@ model StaffProfile {
   // impersonate) is rerouted here instead of the shared `*_DEV_RECIPIENTS`
   // list, so each tester only receives their own traffic. Empty = fall back to
   // the env list. Inert in prod (the env gate is off). See
-  // `$lib/server/{email,sms}/dev-redirect.ts`.
+  // `#lib/server/{email,sms}/dev-redirect.ts`.
   devRedirectEmails        String[]   @default([])
   devRedirectPhones        String[]   @default([])
   // High-water mark for this admin's bulk onboarding-PDF archival: set each time
@@ -867,7 +867,7 @@ model TalentHome_Highlight {
 
 /// The optional picture of a campus's generic invitation, given as an https
 /// address and COPIED into storage, never linked to
-/// (`$lib/server/images/remote.ts`, the circuit an activity's cover uses). A
+/// (`#lib/server/images/remote.ts`, the circuit an activity's cover uses). A
 /// child row rather than nullable columns on the highlight, so it can never
 /// hold half an image, and it goes with the invitation: the event a campus
 /// points at shows its own picture (`EventConfig_HeroImage`).
@@ -2097,7 +2097,7 @@ enum Sync_ErrorKind {
 /// reopened in silence, so an empty queue did not mean nothing was wrong.
 ///
 /// Only the cause is stored. What it means for the talent, who holds the
-/// address, and who can fix it are derived when read (`$lib/domain/syncError`),
+/// address, and who can fix it are derived when read (`#lib/domain/syncError`),
 /// so they describe the state now rather than the state at the failure.
 ///
 /// Two shapes, held by a CHECK in the migration. A login error belongs to a
@@ -2353,7 +2353,7 @@ model MessageTemplate {
 /// MessageTemplate. Resolved at send time by `sendActionEmail`. When no
 /// row exists for an action, the email is silently skipped (the admin API's
 /// `config_email_actions` reports it). Action keys live in
-/// `$lib/domain/emailActions.ts`.
+/// `#lib/domain/emailActions.ts`.
 model EmailActionMapping {
   actionKey  String   @id
   templateId String
@@ -2780,7 +2780,7 @@ enum WorkshopCoverKind {
 /// address and COPIED into Jump's storage rather than linked to: a minor's
 /// browser fetches nothing from another host (DESIGN.md, avatars), and the
 /// dashboard must not break the day that host moves a file
-/// (`$lib/server/images/remote.ts`).
+/// (`#lib/server/images/remote.ts`).
 ///
 /// A row exists only for a picture that was actually copied, so a cover never
 /// holds half an image; an activity with none stands on its label alone.
@@ -2918,7 +2918,7 @@ model EventConfig_Hero {
 }
 
 /// The picture of one stage of an event's hero, given as an https address and
-/// COPIED into storage, never linked to (`$lib/server/images/remote.ts`, the
+/// COPIED into storage, never linked to (`#lib/server/images/remote.ts`, the
 /// circuit the highlight's picture uses): a minor's browser fetches nothing from
 /// another host. Only the two stages before the event have one, as the mockup
 /// draws it (a CHECK in the migration says so); without it the hero draws the
@@ -3008,7 +3008,7 @@ model Workshop_Participation {
 }
 
 /// Append-only ledger of OTP login attempts, and of parent-welcome sends from
-/// the onboarding wizard, consumed by `$lib/server/auth/rateLimiter` to cap
+/// the onboarding wizard, consumed by `#lib/server/auth/rateLimiter` to cap
 /// brute-force on `verify` and mailbomb on `request` and `parent_welcome`.
 /// One row per attempt; the limiter counts rows inside the bucket's window for
 /// its check. Lives in Postgres (not in-process memory) so horizontally-scaled
@@ -3141,7 +3141,7 @@ model AdminApi_Call {
   actorUserId String
   /// Operation name, the same vocabulary as the MCP tool names
   /// (`config_campus_overview`, ...). A plain String so a new operation needs no
-  /// migration; the catalogue lives in `$lib/server/adminApi/operations.ts`.
+  /// migration; the catalogue lives in `#lib/server/adminApi/operations.ts`.
   operation   String
   /// The validated params. PII-free by construction: this tier serves
   /// aggregates and configuration state, so its params are ids and school years.

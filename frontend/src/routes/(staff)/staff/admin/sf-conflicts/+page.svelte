@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { Input } from '$lib/components/ui/input';
+  import { Input } from '#lib/components/ui/input/index.ts';
   import Search from '@lucide/svelte/icons/search';
-  import { createStreamedCohort } from '$lib/components/staff/streamedCohort.svelte';
-  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
+  import { createStreamedCohort } from '#lib/components/staff/streamedCohort.svelte.ts';
+  import ResultsSkeleton from '#lib/components/staff/ResultsSkeleton.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
   import SfConflictsResults from './components/SfConflictsResults.svelte';
   import type { SfConflictsData } from './components/types';
-  import TitleCursor from '$lib/components/layout/TitleCursor.svelte';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
+  import PageHeader from '#lib/components/layout/PageHeader.svelte';
 
   let { data } = $props();
 

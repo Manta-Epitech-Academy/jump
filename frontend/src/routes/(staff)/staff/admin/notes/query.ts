@@ -3,9 +3,9 @@ import {
   containsToken,
   everyTokenMatches,
   talentIdentityMatches,
-} from '$lib/server/db/textSearch';
-import { FACET_NONE, type CountedFacet } from '$lib/domain/listFacets';
-import type { SortDir } from '$lib/domain/listView';
+} from '#lib/server/db/textSearch.ts';
+import { FACET_NONE, type CountedFacet } from '#lib/domain/listFacets.ts';
+import type { SortDir } from '#lib/domain/listView.ts';
 import type { NoteFilters, NotesFacet, NotesSortKey } from './view';
 
 // Admin is campus-agnostic, so the notes oversight directory is global across

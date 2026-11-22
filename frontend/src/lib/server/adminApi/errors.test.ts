@@ -17,7 +17,7 @@ import { error } from '@sveltejs/kit';
 
 // `errors.ts` pulls in `scope.ts` for `UnknownScopeError`, which reaches the
 // Prisma singleton. Nothing here queries; the module just has to load.
-vi.mock('$lib/server/db', () => ({ prisma: {} }));
+vi.mock('#lib/server/db.ts', () => ({ prisma: {} }));
 
 const { callerFacingError, OperationRefusedError } = await import('./errors');
 const { UnknownScopeError } = await import('./scope');

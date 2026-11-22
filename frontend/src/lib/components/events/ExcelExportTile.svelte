@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
-  import { Button } from '$lib/components/ui/button';
-  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { Button } from '#lib/components/ui/button/index.ts';
+  import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
   import { ACTION_TILE_CLASS } from './actionTile';
 
   // « Exporter Excel » as an event's square action tile, on its home: a plain

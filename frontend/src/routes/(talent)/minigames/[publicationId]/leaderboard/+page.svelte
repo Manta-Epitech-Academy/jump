@@ -1,16 +1,16 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '#lib/components/ui/button/index.ts';
   import { resolve } from '$app/paths';
-  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
-  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
-  import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
+  import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
+  import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
+  import MinigameRewardCelebration from '#lib/components/talent/MinigameRewardCelebration.svelte';
   import Trophy from '@lucide/svelte/icons/trophy';
   import Crown from '@lucide/svelte/icons/crown';
   import Home from '@lucide/svelte/icons/home';
   import Info from '@lucide/svelte/icons/info';
-  import { minigameRankBonus, minigameRankBonusLimit } from '$lib/domain/xp';
-  import { cn } from '$lib/utils';
+  import { minigameRankBonus, minigameRankBonusLimit } from '#lib/domain/xp.ts';
+  import { cn } from '#lib/utils.ts';
 
   let { data }: { data: PageData } = $props();
 
@@ -196,7 +196,7 @@
     </div>
 
     <div class="mt-4 flex justify-center">
-      <Button href={resolve('/')} variant="outline" class="w-full sm:w-auto">
+      <Button href={resolve('')} variant="outline" class="w-full sm:w-auto">
         <Home class="mr-2 h-4 w-4" /> Retour à l'accueil
       </Button>
     </div>

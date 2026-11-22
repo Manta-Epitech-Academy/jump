@@ -14,7 +14,7 @@
    * `Collapsible` rather than behind a tooltip: hover is not a reading surface.
    */
   import { resolve } from '$app/paths';
-  import * as Collapsible from '$lib/components/ui/collapsible';
+  import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import CommandBlock from './CommandBlock.svelte';
   import {
@@ -25,7 +25,7 @@
     mcpDesktopConfig,
     mcpEndpoint,
     mcpRemoveCommand,
-  } from '$lib/domain/adminApiConnect';
+  } from '#lib/domain/adminApiConnect.ts';
 
   type Props = {
     /** Where this Jump answers, taken from the request rather than hardcoded. */
@@ -132,7 +132,7 @@
       <p class="text-xs text-muted-foreground">
         Chaque opération est aussi une requête HTTP. La
         <a
-          href={resolve('/staff/admin/api-tokens/reference')}
+          href={resolve('staff/admin/api-tokens/reference')}
           target="_blank"
           rel="noopener"
           class="cursor-pointer text-accent-space-ink underline underline-offset-2 hover:text-foreground"

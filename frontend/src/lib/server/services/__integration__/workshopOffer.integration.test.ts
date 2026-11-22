@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { fromWallClock } from '$lib/domain/planningTime';
+import { prisma } from '#lib/server/db.ts';
+import { fromWallClock } from '#lib/domain/planningTime.ts';
 import {
   listTalentWorkshops,
   resolveWorkshopEntry,
-} from '$lib/server/services/workshopService';
+} from '#lib/server/services/workshopService.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { env } from '$env/dynamic/private';
+import { BETTER_AUTH_SECRET } from '$app/env/private';
 
 /**
  * Shared primitive for short-lived, signed dev-tooling cookies.
@@ -16,7 +16,7 @@ import { env } from '$env/dynamic/private';
  * unambiguously on `.`.
  */
 function secret(): string {
-  const s = env.BETTER_AUTH_SECRET;
+  const s = BETTER_AUTH_SECRET;
   if (!s) throw new Error('BETTER_AUTH_SECRET is not configured');
   return s;
 }

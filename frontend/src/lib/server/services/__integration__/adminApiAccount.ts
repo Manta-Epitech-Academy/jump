@@ -9,7 +9,7 @@
  * day it changes there is one place to fix, not four that quietly disagree.
  */
 
-import { prisma } from '$lib/server/db';
+import { prisma } from '#lib/server/db.ts';
 
 export function createAdminAccount(email: string) {
   return prisma.bauth_user.create({

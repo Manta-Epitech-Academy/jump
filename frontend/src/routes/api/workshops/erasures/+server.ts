@@ -1,12 +1,12 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { verifyCallbackSignature } from '$lib/server/hmac';
-import { workshopKeys } from '$lib/server/workshops/ticket';
+import { WORKSHOP_TICKET_SECRET } from '$app/env/private';
+import { verifyCallbackSignature } from '#lib/server/hmac.ts';
+import { workshopKeys } from '#lib/server/workshops/ticket.ts';
 import {
   erasedTalentIds,
   WORKSHOP_ERASURE_BATCH_MAX,
-} from '$lib/server/services/workshopService';
+} from '#lib/server/services/workshopService.ts';
 
 /**
  * A CTFd instance asking which of its accounts belong to talents Jump has
@@ -28,7 +28,7 @@ import {
  * signed caller learns nothing it could not already name.
  */
 export const POST: RequestHandler = async ({ request }) => {
-  const secret = env.WORKSHOP_TICKET_SECRET;
+  const secret = WORKSHOP_TICKET_SECRET;
   if (!secret) {
     console.error(
       '[workshops/erasures] WORKSHOP_TICKET_SECRET not configured.',
@@ -61,5 +61,7 @@ export const POST: RequestHandler = async ({ request }) => {
     throw error(400, 'invalid payload shape');
   }
 
-  return json({ erased: await erasedTalentIds(talentIds as string[]) });
+  return Response.json({
+    erased: await erasedTalentIds(talentIds as string[]),
+  });
 };

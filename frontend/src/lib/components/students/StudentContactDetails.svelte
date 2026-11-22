@@ -2,11 +2,11 @@
   import Mail from '@lucide/svelte/icons/mail';
   import Phone from '@lucide/svelte/icons/phone';
   import Users from '@lucide/svelte/icons/users';
-  import CopyButton from '$lib/components/ui/CopyButton.svelte';
-  import TalentName from '$lib/components/students/TalentName.svelte';
-  import { civiliteCourtesyTitle } from '$lib/domain/profile';
-  import { formatPhoneForDisplay } from '$lib/domain/phone';
-  import type { ContactPerson } from '$lib/domain/contact';
+  import CopyButton from '#lib/components/ui/CopyButton.svelte';
+  import TalentName from '#lib/components/students/TalentName.svelte';
+  import { civiliteCourtesyTitle } from '#lib/domain/profile.ts';
+  import { formatPhoneForDisplay } from '#lib/domain/phone.ts';
+  import type { ContactPerson } from '#lib/domain/contact.ts';
 
   let {
     student,

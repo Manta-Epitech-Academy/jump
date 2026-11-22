@@ -3,8 +3,8 @@
  *
  * The hero is computed at request time from three reads (`loadHomeHero`: the
  * talent's shown enrolments, the subjects offered now, what their campus puts
- * forward) and stored nowhere. Those reads are services, which reach
- * `$lib/server/db` and do not resolve outside Vite, so this file reads the same
+ * forward) and stored nowhere. Those reads are services, which the generator
+ * never runs (`writer.ts` says why), so this file reads the same
  * rows in bulk with the client the check pass is given, and hands them to the
  * same domain functions the services do: `selectWorkshopOfferings` and
  * `isOfferedNow` for the subjects, `heroEventPhase` for what is over,

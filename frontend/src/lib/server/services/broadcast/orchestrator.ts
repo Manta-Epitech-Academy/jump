@@ -4,21 +4,21 @@ import type {
   BroadcastChannel,
   BroadcastSourceFilter,
 } from '@prisma/client';
-import { env } from '$env/dynamic/private';
-import { prisma } from '$lib/server/db';
+import { ORIGIN } from '$app/env/private';
+import { prisma } from '#lib/server/db.ts';
 import {
   BROADCAST_MAX_RETRIES,
   type BroadcastFilters,
   type BroadcastTerminalStatus,
-} from '$lib/domain/broadcasts';
+} from '#lib/domain/broadcasts.ts';
 import { rewriteHtmlLinks, rewriteSmsLinks } from './linkRewriter';
 import {
   substituteVariables,
   type VariableContext,
-} from '$lib/domain/broadcastVariables';
-import { renderBroadcastEmail } from '$lib/domain/broadcastMarkdown';
-import { daysUntil } from '$lib/server/services/stageContext';
-import { eventDisplayName } from '$lib/domain/event';
+} from '#lib/domain/broadcastVariables.ts';
+import { renderBroadcastEmail } from '#lib/domain/broadcastMarkdown.ts';
+import { daysUntil } from '#lib/server/services/stageContext.ts';
+import { eventDisplayName } from '#lib/domain/event.ts';
 import { resolveRecipients } from './recipients';
 import { getMailProvider } from './providers/mail';
 import { getSmsProvider } from './providers/sms';
@@ -28,11 +28,11 @@ import {
   buildFastloginLink,
   mintParentFastloginToken,
   buildParentFastloginLink,
-} from '$lib/server/auth/fastloginToken';
-import { mintSigninOtp } from '$lib/server/auth/otpSession';
+} from '#lib/server/auth/fastloginToken.ts';
+import { mintSigninOtp } from '#lib/server/auth/otpSession.ts';
 import { loadBroadcastTemplate } from './templates';
-import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
-import { staffBulkDevRedirectPhones } from '$lib/server/sms/dev-redirect';
+import { staffBulkDevRedirectEmails } from '#lib/server/email/dev-redirect.ts';
+import { staffBulkDevRedirectPhones } from '#lib/server/sms/dev-redirect.ts';
 
 export interface EnqueueBroadcastInput {
   name: string;
@@ -167,7 +167,7 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
   // `pending` recipients and double-send.
   //
   // Those two statuses are the outstanding half of `BROADCAST_STATUS_KIND`
-  // (`$lib/domain/broadcasts`), which is what the seed generator's inertness
+  // (`#lib/domain/broadcasts`), which is what the seed generator's inertness
   // check reads to refuse writing a row this claim could ever match. The
   // condition per status stays here, because only the worker knows that a
   // `sending` row is claimable exactly once its heartbeat is stale.
@@ -375,11 +375,7 @@ function buildMailMessage(
     ctx,
     'markdown',
   );
-  const rendered = renderBroadcastEmail(
-    bodyWithVars,
-    env.ORIGIN ?? '',
-    subject,
-  );
+  const rendered = renderBroadcastEmail(bodyWithVars, ORIGIN ?? '', subject);
   // Track links in both parts so an open via the text/plain copy still counts.
   const html = rewriteHtmlLinks(rendered.html, recipient.id);
   const text = rewriteSmsLinks(rendered.text, recipient.id);

@@ -1,28 +1,28 @@
 import type { Actions, PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
-import { dev } from '$app/environment';
-import { prisma } from '$lib/server/db';
-import { revokeXp } from '$lib/server/services/xpService';
-import { consumeArrivalCelebration } from '$lib/server/talent/arrivalCelebration';
-import { env } from '$env/dynamic/private';
-import { getCatalogPreview } from '$lib/server/services/minigameCatalog';
+import { dev } from '$app/env';
+import { prisma } from '#lib/server/db.ts';
+import { revokeXp } from '#lib/server/services/xpService.ts';
+import { consumeArrivalCelebration } from '#lib/server/talent/arrivalCelebration.ts';
+import { JUMP_GAMES_URL } from '$app/env/private';
+import { getCatalogPreview } from '#lib/server/services/minigameCatalog.ts';
 import {
   checkTalentEligibility,
   getActivePublication,
   getClosestEventForTalent,
   applyCallback,
   getUnseenMinigameRankReward,
-} from '$lib/server/services/minigameService';
-import { WELCOME_XP_BONUS } from '$lib/domain/xp';
-import { pendingFeedbackForm } from '$lib/domain/feedback';
+} from '#lib/server/services/minigameService.ts';
+import { WELCOME_XP_BONUS } from '#lib/domain/xp.ts';
+import { pendingFeedbackForm } from '#lib/domain/feedback.ts';
 import {
   feedbackParticipationWhere,
   resolveEventNudgeForm,
-} from '$lib/server/feedbackForms';
-import { buildPersonaIconUrl } from '$lib/domain/feedbackForms/schema';
-import { getUnseenWorkshopReward } from '$lib/server/services/workshopService';
-import { loadHomeHero } from '$lib/server/services/talentHomeHero';
-import { activitiesToDoCount } from '$lib/domain/workshops';
+} from '#lib/server/feedbackForms.ts';
+import { buildPersonaIconUrl } from '#lib/domain/feedbackForms/schema.ts';
+import { getUnseenWorkshopReward } from '#lib/server/services/workshopService.ts';
+import { loadHomeHero } from '#lib/server/services/talentHomeHero.ts';
+import { activitiesToDoCount } from '#lib/domain/workshops.ts';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -35,7 +35,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     // Minigames are intrinsic but require the games backend to be wired up.
     // No backend configured → no card (can't play). An absent/already-played
     // publication is handled downstream by checkTalentEligibility.
-    const minigame = env.JUMP_GAMES_URL
+    const minigame = JUMP_GAMES_URL
       ? await checkTalentEligibility(studentId)
       : null;
 

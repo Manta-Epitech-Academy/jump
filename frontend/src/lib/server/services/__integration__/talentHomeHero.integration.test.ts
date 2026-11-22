@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { prisma } from '$lib/server/db';
-import { fromWallClock } from '$lib/domain/planningTime';
-import { UNNAMED_EVENT_NAME } from '$lib/domain/event';
+import { prisma } from '#lib/server/db.ts';
+import { fromWallClock } from '#lib/domain/planningTime.ts';
+import { UNNAMED_EVENT_NAME } from '#lib/domain/event.ts';
 import {
   enrolledEventCalendar,
   listEnrolledHeroEvents,
   loadHomeHero,
-} from '$lib/server/services/talentHomeHero';
+} from '#lib/server/services/talentHomeHero.ts';
 import { assertTestDatabase } from './testDatabase';
 
 /**

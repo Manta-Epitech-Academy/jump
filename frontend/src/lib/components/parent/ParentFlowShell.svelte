@@ -1,8 +1,8 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import type { Snippet } from 'svelte';
-  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
-  import BrandBackdrop from '$lib/components/layout/BrandBackdrop.svelte';
+  import EpitechLogo from '#lib/components/layout/EpitechLogo.svelte';
+  import BrandBackdrop from '#lib/components/layout/BrandBackdrop.svelte';
 
   // Shared frame for the parent onboarding flow (welcome → règlement →
   // signature → merci):
@@ -21,7 +21,7 @@
     <div
       class="mx-auto flex w-full max-w-lg items-center justify-between px-4 py-3"
     >
-      <a href={resolve('/')} aria-label="Accueil">
+      <a href={resolve('')} aria-label="Accueil">
         <EpitechLogo class="h-7 w-auto" />
       </a>
       <span class="text-xs font-semibold text-muted-foreground">

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import * as Dialog from '$lib/components/ui/dialog';
+  import * as Dialog from '#lib/components/ui/dialog/index.ts';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { base } from '$app/paths';
-  import TalentNotesFeed from '$lib/components/dev/notes/TalentNotesFeed.svelte';
-  import ResultsNotice from '$lib/components/staff/ResultsNotice.svelte';
-  import type { SerializedNote } from '$lib/domain/talentNotes';
-  import { slotLabelLong, type EventSlot } from '$lib/domain/eventPresence';
+  import { resolve } from '$app/paths';
+  import TalentNotesFeed from '#lib/components/dev/notes/TalentNotesFeed.svelte';
+  import ResultsNotice from '#lib/components/staff/ResultsNotice.svelte';
+  import type { SerializedNote } from '#lib/domain/talentNotes.ts';
+  import { slotLabelLong, type EventSlot } from '#lib/domain/eventPresence.ts';
   import type { PresenceRow } from './types';
 
   // Per-row notes modal: shows the talent's full notes feed without leaving the
@@ -48,7 +48,7 @@
     requestedFor = talentId;
     notes = null;
     loadError = false;
-    fetch(`${base}/staff/dev/students/${talentId}/notes`)
+    fetch(resolve('/(staff)/staff/dev/students/[id]/notes', { id: talentId }))
       .then((res) => {
         if (!res.ok) throw new Error(String(res.status));
         return res.json();

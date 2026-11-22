@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { startImpersonation, stopImpersonation } from './impersonate';
-import { prisma } from '$lib/server/db';
-import { auth } from '$lib/server/auth';
-import * as talentAccount from '$lib/server/services/talentAccount';
+import { prisma } from '#lib/server/db.ts';
+import { auth } from '#lib/server/auth.ts';
+import * as talentAccount from '#lib/server/services/talentAccount.ts';
 import type { Cookies } from '@sveltejs/kit';
 
 // What BetterAuth's stop answers, set per test. The call is made with
 // `asResponse: true`, an overload `vi.mocked` cannot type.
 const stop = vi.hoisted(() => ({ response: new Response(null) }));
 
-vi.mock('$lib/server/db', () => ({
+vi.mock('#lib/server/db.ts', () => ({
   prisma: {
     staffProfile: { findUnique: vi.fn() },
     $transaction: vi.fn().mockResolvedValue([]),
@@ -20,7 +20,7 @@ vi.mock('$lib/server/db', () => ({
   },
 }));
 
-vi.mock('$lib/server/auth', () => ({
+vi.mock('#lib/server/auth.ts', () => ({
   auth: {
     api: {
       impersonateUser: vi.fn().mockResolvedValue({ ok: true }),
@@ -29,11 +29,11 @@ vi.mock('$lib/server/auth', () => ({
   },
 }));
 
-vi.mock('$lib/server/auth/cookies', () => ({
+vi.mock('#lib/server/auth/cookies.ts', () => ({
   forwardAuthCookies: vi.fn(),
 }));
 
-const { forwardAuthCookies } = await import('$lib/server/auth/cookies');
+const { forwardAuthCookies } = await import('#lib/server/auth/cookies.ts');
 
 describe('impersonate - startImpersonation', () => {
   beforeEach(() => {
