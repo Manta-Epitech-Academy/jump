@@ -96,6 +96,7 @@
             recoOptions={cohort.recoOptions}
             eventId={data.event.id}
             cohortNoun={data.event.cohortNoun}
+            timezone={data.timezone}
             {search}
           />
         {/snippet}
