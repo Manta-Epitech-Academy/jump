@@ -1,3 +1,5 @@
+import { fillTokens } from '../textTokens';
+
 export type QuestionType =
   'single' | 'multiple' | 'scale' | 'text' | 'textarea';
 export type InputKind = 'email' | 'tel' | 'name' | 'text';
@@ -96,10 +98,10 @@ const INTERPOLATION_TOKENS: ReadonlySet<keyof IdentityContext> = new Set([
  * unknown tokens are left untouched so authored braces survive.
  */
 export function interpolate(text: string, ctx: IdentityContext): string {
-  return text.replace(/{(\w+)}/g, (whole, key: string) =>
+  return fillTokens(text, (key) =>
     INTERPOLATION_TOKENS.has(key as keyof IdentityContext)
       ? (ctx[key as keyof IdentityContext] ?? '')
-      : whole,
+      : undefined,
   );
 }
 
