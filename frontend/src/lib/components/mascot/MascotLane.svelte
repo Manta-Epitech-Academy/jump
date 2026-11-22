@@ -17,6 +17,19 @@
   sits on its bottom edge (the water line) and rises into the header's top
   padding. What goes under the water line is clipped, which is how he dives.
 
+  He stays in front of the page while it changes, twice over:
+    - a navigation is a View Transition (`routes/+layout.svelte`), which
+      cross-fades a picture of the old page into one of the new. Drawn into
+      those pictures, his bubble blended with the new page's cards for the
+      length of the fade, and a duck caught mid-turn flickered. The lane is
+      its own layer of the transition (`view-transition-name`), painted above
+      both pictures and moved from his old spot to his new one;
+    - the new page then brings its cards in with a transform, and anything
+      animated that way paints over whatever comes before it in the document.
+      The lane is stacked above the page (`z-30`), still under every popover
+      and dialog.
+  The bubble asks nothing, so a click on it reaches what it covers.
+
   Less motion asked: he stays put, does not bob, squash or follow the
   pointer, and his dives are fades. His bubble still fades in.
 
@@ -55,7 +68,9 @@
   let squasher = $state<HTMLDivElement>();
   let turner = $state<HTMLDivElement>();
 
-  let facingLeft = $state(mascot?.facingLeft ?? false);
+  // Taken from the controller on mount: the page being left writes it back
+  // only after this one is made.
+  let facingLeft = $state(false);
   let idleFront = $state(false);
   let eyesClosed = $state(false);
   let gaze = $state({ x: 0, y: 0 });
@@ -199,13 +214,16 @@
       });
     const maxX = () => Math.max(0, (lane?.clientWidth ?? 0) - DUCK_WIDTH);
 
-    // Back on the spot the last page left him. On a first draw, where the
-    // server put him: the lane's left edge.
+    // Back on the spot the last page left him, facing the same way and,
+    // if he was under way, still heading where he was going. On a first draw,
+    // where the server put him: the lane's left edge.
     measureLane();
-    let x =
-      mascot.x === null
-        ? 0
-        : Math.min(Math.max(0, mascot.x - laneLeft), maxX());
+    const inLane = (windowX: number) =>
+      Math.min(Math.max(0, windowX - laneLeft), maxX());
+    let x = mascot.x === null ? 0 : inLane(mascot.x);
+    let resumeTo = mascot.heading === null ? null : inLane(mascot.heading);
+    mascot.heading = null;
+    facingLeft = mascot.facingLeft;
     place(x);
     mascot.greet();
 
@@ -246,8 +264,11 @@
           await wait(800);
           continue;
         }
-        let to = rand(0, room);
-        if (Math.abs(to - x) < room * 0.25) to = x < room / 2 ? room : 0;
+        let to = resumeTo ?? rand(0, room);
+        if (resumeTo === null && Math.abs(to - x) < room * 0.25) {
+          to = x < room / 2 ? room : 0;
+        }
+        resumeTo = null;
         const left = to < x;
         if (left !== facingLeft) await turn(() => (facingLeft = left));
         const durationMs = Math.max(1500, (Math.abs(to - x) / SPEED) * 1000);
@@ -334,6 +355,9 @@
       resized.disconnect();
       mascot.x = laneLeft + currentX();
       mascot.facingLeft = facingLeft;
+      const progress = swimAnimation?.effect?.getComputedTiming().progress;
+      mascot.heading =
+        progress != null && progress < 1 ? laneLeft + leg.to : null;
       swimAnimation?.cancel();
     };
   });
@@ -342,7 +366,7 @@
 {#if mascot}
   <div
     bind:this={lane}
-    class="relative h-8 min-w-12 flex-1 self-stretch sm:min-w-24"
+    class="lane relative z-30 h-8 min-w-12 flex-1 self-stretch sm:min-w-24"
   >
     <div bind:this={swimmer} class="absolute bottom-0 left-0 w-12">
       <!-- The water line is this box's bottom edge. -->
@@ -395,7 +419,7 @@
             in:fade
             out:fade
             aria-hidden="true"
-            class="absolute top-full z-30 mt-2 w-max max-w-56 rounded-xl border border-border bg-card px-3 py-2 text-center font-mono text-xs leading-snug font-bold text-primary shadow-overlay
+            class="pointer-events-none absolute top-full z-30 mt-2 w-max max-w-56 rounded-xl border border-border bg-card px-3 py-2 text-center font-mono text-xs leading-snug font-bold text-primary shadow-overlay
               {bubbleAlign === 'start'
               ? 'left-0'
               : bubbleAlign === 'end'
@@ -414,6 +438,12 @@
 {/if}
 
 <style>
+  /* His own layer of a page change: see the comment at the top. One lane per
+     page, so the name is unique in the document, as it has to be. */
+  .lane {
+    view-transition-name: epiduck;
+  }
+
   /* The bob of a duck on water: the one loop he runs while awake. */
   @media (prefers-reduced-motion: no-preference) {
     .bob {

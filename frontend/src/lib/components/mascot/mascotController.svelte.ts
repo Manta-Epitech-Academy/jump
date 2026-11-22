@@ -79,6 +79,12 @@ export class MascotController {
    */
   x: number | null = null;
   facingLeft = false;
+  /**
+   * Where he was swimming to when the last page left, in the same window
+   * coordinates, so the next one carries on toward it rather than picking a
+   * new heading mid-stroke. Null when he was not under way.
+   */
+  heading: number | null = null;
 
   #init: MascotControllerInit;
   #pokes: number[] = [];
