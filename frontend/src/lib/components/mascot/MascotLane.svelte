@@ -85,8 +85,12 @@
 
   // State, so the effect that pauses the swim follows each new leg.
   let swimAnimation = $state.raw<Animation | null>(null);
-  /** The current leg, in pixels from the lane's left edge. */
-  let leg = { from: 0, to: 0 };
+  /**
+   * The current leg, in pixels from the lane's left edge. State, so where his
+   * bubble sits follows him being put back on his spot when a page comes in:
+   * the bubble is already there before he is.
+   */
+  let leg = $state.raw({ from: 0, to: 0 });
   /** The lane's left edge on screen, read while it is in the document. */
   let laneLeft = 0;
 
