@@ -42,9 +42,15 @@ export type TalentStanding = {
    */
   dossierOpen: boolean;
   /**
-   * Whether the app is open to them: the RGPD charte signed, and the dossier
-   * done for a talent who walks the ladder. Everything outside the welcome
-   * splash, the wizard and `/charte` waits on this.
+   * Whether the welcome splash is still due: never seen, with this year's
+   * dossier still open. It is due to a collégien too, whose dossier never
+   * closes: the splash is where every talent starts, ladder or not.
+   */
+  owesWelcome: boolean;
+  /**
+   * Whether the app is open to them: the welcome splash seen, the RGPD charte
+   * signed, and the dossier done for a talent who walks the ladder. Everything
+   * outside the welcome splash, the wizard and `/charte` waits on this.
    */
   appOpen: boolean;
 };
@@ -55,11 +61,15 @@ export function talentStanding(talent: Talent): TalentStanding {
     getOnboardingStep(
       onboardingFieldsForYear(talent, currentSchoolYearLabel()),
     ) !== null;
+  const owesWelcome = talent.welcomeSeenAt == null && dossierOpen;
   return {
     walksOnboarding,
     dossierOpen,
+    owesWelcome,
     appOpen:
-      talent.charterAcceptedAt != null && !(walksOnboarding && dossierOpen),
+      talent.charterAcceptedAt != null &&
+      !owesWelcome &&
+      !(walksOnboarding && dossierOpen),
   };
 }
 
@@ -207,9 +217,7 @@ export async function applyRouteGuards(
     // splash copy is generic and owned by the page. The CMS `welcome` row feeds
     // only the dashboard's Actualité card, a separate surface.
     if (
-      event.locals.talent &&
-      !event.locals.talent.welcomeSeenAt &&
-      standing?.dossierOpen &&
+      standing?.owesWelcome &&
       !onTalentWelcome &&
       !onTalentOnboarding &&
       !onTalentLogin

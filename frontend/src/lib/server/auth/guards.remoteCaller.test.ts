@@ -76,6 +76,26 @@ describe('admitCaller: talent gates', () => {
     ).toBe(403);
   });
 
+  it('refuses the app to a talent the welcome splash is still due to', () => {
+    // A collégien's dossier never closes, so only the splash stands between a
+    // signed charte and the app: the page guards send them to `/welcome`, and
+    // the remote gate has to say the same.
+    expect(
+      statusOf(() =>
+        admitCaller(
+          { talent: 'appOpen' },
+          locals({
+            talent: talent({
+              niveau: '4eme',
+              welcomeSeenAt: null,
+              onboardingSchoolYear: null,
+            }),
+          }),
+        ),
+      ),
+    ).toBe(403);
+  });
+
   it("refuses the app to a talent whose dossier is last year's", () => {
     expect(
       statusOf(() =>
