@@ -7,6 +7,10 @@
  * event. Following it crosses the calendar's load (campus scoping, the
  * dev-visibility gate) and lands on the event's home (#443), which every event
  * opens on.
+ *
+ * The way back keeps the year (#533): from an event of last school year, the
+ * menu's « Calendrier » opens the calendar that lists it, not today's, and
+ * stays lit there although its address carries the year.
  */
 import { test, expect } from '@playwright/test';
 import { E2E, storageStatePath } from './fixtures/identities';
@@ -27,5 +31,22 @@ test.describe('le calendrier du campus', () => {
     await expect(page).toHaveURL(
       (url) => url.pathname === `/staff/dev/events/${E2E.eventId}`,
     );
+  });
+
+  test("ramène à l'année de l'événement ouvert", async ({ page }) => {
+    await page.goto(`/staff/dev/events/${E2E.lastYearEventId}`);
+
+    const calendarLink = page.getByRole('link', { name: 'Calendrier' });
+    await calendarLink.click();
+
+    await expect(page).toHaveURL(
+      (url) => url.pathname === '/staff/dev' && url.searchParams.has('year'),
+    );
+    await expect(
+      page.getByRole('button', {
+        name: new RegExp(`: ${E2E.lastYearEventName}$`),
+      }),
+    ).toBeVisible();
+    await expect(calendarLink).toHaveAttribute('aria-current', 'page');
   });
 });

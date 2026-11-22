@@ -246,7 +246,12 @@
   <div class="space-y-1">
     {#each links as link (link.href)}
       {@const Icon = link.icon}
-      <a href={link.href} class={navLinkClass(isActive(link))}>
+      {@const active = isActive(link)}
+      <a
+        href={link.href}
+        aria-current={active ? 'page' : undefined}
+        class={navLinkClass(active)}
+      >
         <Icon class="h-5 w-5" />
         <span>{link.label}</span>
       </a>

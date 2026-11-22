@@ -62,6 +62,7 @@ export async function purgeE2eData(): Promise<void> {
           E2E.highlightedEventId,
           E2E.pastEventId,
           E2E.genericPastEventId,
+          E2E.lastYearEventId,
         ],
       },
     },
@@ -253,6 +254,25 @@ export async function seedE2eData(): Promise<void> {
       },
     });
   }
+
+  // ── An event of last school year, for the calendar's way back ───────────
+  // Today's date a year earlier, on the campus clock: the same month, so
+  // always in the calendar before today's. 29 February has no twin, and 28
+  // stands in for it.
+  const [year, month, day] = toDateKey(now, CAMPUS_TIMEZONE).split('-');
+  const lastYearDay = `${Number(year) - 1}-${month}-${month === '02' && day === '29' ? '28' : day}`;
+  await prisma.event.create({
+    data: {
+      id: E2E.lastYearEventId,
+      titre: 'E2E-Annee-Passee',
+      publicName: E2E.lastYearEventName,
+      date: eventStartInstant(lastYearDay, CAMPUS_TIMEZONE),
+      endDate: eventEndInstant(lastYearDay, CAMPUS_TIMEZONE),
+      campusId: E2E.campusId,
+      devActivatedAt: now,
+      modules: { create: { moduleKey: EVENT_MODULES.INSCRITS } },
+    },
+  });
 
   // ── The roster the Inscrits filters run on ───────────────────────────────
   // Ten days out: off today's calendar cell, which the calendar spec reads.

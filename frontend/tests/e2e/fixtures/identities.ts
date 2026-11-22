@@ -52,6 +52,12 @@ export const E2E = {
   genericPastEventId: 'e2e-event-past-generic',
   homeInvitationTitle: 'Recode le jeu Snake en JS',
   homeInvitationUrl: 'https://www.epitech.invalid/inscription/?CampaignId=e2e',
+  /**
+   * An event of the school year before this one, shown in the dev space, so
+   * the calendar has a year other than today's to come back to.
+   */
+  lastYearEventId: 'e2e-event-last-year',
+  lastYearEventName: 'Année passée E2E',
   /** A session three days out, the only event of `talentIdle`. */
   upcomingEventId: 'e2e-event-upcoming',
   upcomingEventName: 'Coding Club E2E',
