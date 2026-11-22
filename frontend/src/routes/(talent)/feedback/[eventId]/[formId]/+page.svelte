@@ -1,37 +1,29 @@
 <script lang="ts">
+  import { isHttpError } from '@sveltejs/kit';
   import { toast } from 'svelte-sonner';
   import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
   import ChatScreen from '#lib/components/feedback/ChatScreen.svelte';
   import type { Answers } from '#lib/domain/feedbackForms/schema.ts';
+  import { submitFeedback } from './feedback.remote.ts';
 
   let { data } = $props();
 
-  let submitted = $state(false);
-  let submitting = $state(false);
-
   async function handleSubmit(answers: Answers) {
-    if (submitting || submitted) return;
-    submitting = true;
     try {
-      const res = await fetch(`/api/feedback/${data.eventId}/${data.formId}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ answers }),
+      await submitFeedback({
+        eventId: data.eventId,
+        formId: data.formId,
+        answers,
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.message ?? 'Erreur serveur');
-      }
-      submitted = true;
-    } catch (err) {
+    } catch (e) {
+      // A refusal carries its own French message (`Réponses invalides : …`);
+      // anything else is ours, and says only that it failed.
       toast.error(
-        err instanceof Error
-          ? err.message
+        isHttpError(e) && e.status < 500
+          ? e.body.message
           : "Erreur lors de l'enregistrement. Réessaie.",
       );
-    } finally {
-      submitting = false;
     }
   }
 </script>
