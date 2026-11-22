@@ -1,7 +1,5 @@
 import type { RequestHandler } from './$types';
 import { loadFinishedOnboardingTimeline } from '#lib/server/services/onboardingDocuments.ts';
-import { recordUsage } from '#lib/server/usage/record.ts';
-import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // Completion timeline of every finished onboarding document (type + instant, no
 // identity). It feeds only the bulk-download menu's per-period / per-type counts,
@@ -9,8 +7,9 @@ import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 // feed, and this is a full talent-table scan we don't want on that cadence. The
 // menu fetches it lazily when its popover opens instead. Admin-gated by the
 // /staff/admin/* route guard, same as the sibling export endpoint.
-export const GET: RequestHandler = async ({ locals }) => {
-  recordUsage(USAGE_FEATURES.ADMIN_ONBOARDING_PDFS_EXPORT, { locals });
+// Records no usage: its key counts downloads, and opening the menu is not one.
+// The sibling export endpoint records it when the archive is actually asked for.
+export const GET: RequestHandler = async () => {
   const timeline = await loadFinishedOnboardingTimeline();
   // One shape for every export-menu timeline (`{ at, type? }`), so the menu needs
   // no per-caller parser.

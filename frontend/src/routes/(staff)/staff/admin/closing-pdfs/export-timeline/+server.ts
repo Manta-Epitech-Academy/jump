@@ -1,7 +1,5 @@
 import type { RequestHandler } from './$types';
 import { prisma } from '#lib/server/db.ts';
-import { recordUsage } from '#lib/server/usage/record.ts';
-import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 
 // Conducted-at instant of every finalised closing (no identity). It feeds only
 // the export menu's per-period and "depuis le dernier export" counts, so it lives
@@ -9,8 +7,9 @@ import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 // closings, needed only once the export popover opens. The menu fetches it
 // lazily on open. Admin-gated by the /staff/admin/* route guard, same as the
 // sibling export endpoint.
-export const GET: RequestHandler = async ({ locals }) => {
-  recordUsage(USAGE_FEATURES.ADMIN_CLOSING_PDFS_EXPORT, { locals });
+// Records no usage: its key counts downloads, and opening the menu is not one.
+// The sibling export endpoint records it when the archive is actually asked for.
+export const GET: RequestHandler = async () => {
   const rows = await prisma.closing_Record.findMany({
     where: { status: 'done' },
     select: { conductedAt: true },
