@@ -69,12 +69,12 @@ export function toDateKey(instant: Date | string, tz: string): DateKey {
 }
 
 /**
- * The campus's wall clock at an instant: the hour (0 to 23), the minute and the
- * ISO weekday (1 Monday to 7 Sunday). What anything said "by time of day" reads, a
- * greeting first: `Date.getHours()` would answer in the server's timezone on
- * the server render and in the browser's on the client.
+ * The wall clock of a timezone at an instant: the hour (0 to 23), the minute and
+ * the ISO weekday (1 Monday to 7 Sunday). The campus's for a campus fact, the
+ * reader's for a greeting. `Date.getHours()` would answer in the server's
+ * timezone on the server render and in the browser's on the client.
  */
-export function campusClock(
+export function clockAt(
   instant: Date | string,
   tz: string,
 ): { hour: number; minute: number; weekday: number } {

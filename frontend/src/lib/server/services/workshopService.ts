@@ -36,7 +36,7 @@ import {
 import { eventDisplayName } from '#lib/domain/event.ts';
 import { shownEventWhere } from '#lib/domain/eventReadiness.ts';
 import { dbDateToKey } from '#lib/domain/eventPresence.ts';
-import { campusClock, toDateKey } from '#lib/domain/planningTime.ts';
+import { clockAt, toDateKey } from '#lib/domain/planningTime.ts';
 import { formatDateFr } from '#lib/utils.ts';
 import {
   workshopSessionLabel,
@@ -137,7 +137,7 @@ async function offeredWorkshops(talentId: string, now: Date, slug?: string) {
   const clockFor = (timezone: string) => {
     let clock = clockByTimezone.get(timezone);
     if (!clock) {
-      const { hour, minute } = campusClock(now, timezone);
+      const { hour, minute } = clockAt(now, timezone);
       clock = { today: toDateKey(now, timezone), minutes: hour * 60 + minute };
       clockByTimezone.set(timezone, clock);
     }

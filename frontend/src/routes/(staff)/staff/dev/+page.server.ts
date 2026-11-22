@@ -8,7 +8,7 @@ import {
 } from '#lib/server/db/scoped.ts';
 import { loadCampusCalendar } from '#lib/server/services/campusCalendar.ts';
 import { calendarYearOf } from '#lib/domain/campusCalendar.ts';
-import { campusClock, toDateKey } from '#lib/domain/planningTime.ts';
+import { clockAt, toDateKey } from '#lib/domain/planningTime.ts';
 import { isSchoolYearLabel } from '#lib/domain/schoolYear.ts';
 import { firstNameOf } from '#lib/domain/profile.ts';
 import { greetingFor } from '#lib/domain/devVoice.ts';
@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     departement: locals.staffProfile?.campus?.departement ?? null,
     schoolYear,
   });
-  const { hour, weekday } = campusClock(now, timezone);
+  const { hour, weekday } = clockAt(now, timezone);
 
   return {
     calendar,

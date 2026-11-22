@@ -9,7 +9,7 @@
  */
 
 export type GreetingInput = {
-  /** Hour on the campus clock, 0 to 23 (`campusClock`). */
+  /** Hour on the campus clock, 0 to 23 (`clockAt`). */
   hour: number;
   /** ISO weekday on the campus clock, 1 Monday to 7 Sunday. */
   weekday: number;
