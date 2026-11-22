@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { browser } from '$app/env';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
@@ -29,11 +29,14 @@
     BROADCAST_CHANNEL_LABELS,
     EVENT_SCOPED_AUDIENCES,
     countActiveBroadcastFilters,
-    type IncludedRecipient,
-    type ExcludedRecipient,
   } from '#lib/domain/broadcasts.ts';
   import { broadcastFiltersSchema } from '#lib/validation/broadcasts.ts';
   import { cn } from '#lib/utils.ts';
+  import { refreshWhenReused } from '#lib/components/remoteQuery.svelte.ts';
+  import {
+    recipientsPreview,
+    type RecipientTargeting,
+  } from './recipients.remote.ts';
 
   let { data } = $props();
 
@@ -264,59 +267,69 @@
   });
 
   // ── Live recipient preview (full, exact roster) ─────────────────────────
-  type PreviewState = {
-    total: number;
-    included: IncludedRecipient[];
-    excluded: ExcludedRecipient[];
-    incomplete?: boolean;
-  };
-  let preview = $state<PreviewState | null>(null);
-  let previewLoading = $state(false);
-  let previewError = $state<string | null>(null);
+  // What the preview is asked: the targeting part of the form, once complete.
+  // Its key is a string so that typing the message, which changes `$form` but
+  // not who it goes to, asks nothing.
+  const targeting = $derived<RecipientTargeting | null>(
+    $form.campusId && $form.audience
+      ? {
+          templateId: $form.templateId,
+          campusId: $form.campusId,
+          audience: $form.audience,
+          eventId: $form.eventId ?? '',
+          sourceBroadcastId: $form.sourceBroadcastId ?? '',
+          sourceFilter: $form.sourceFilter,
+          filters: $form.filters ?? {},
+        }
+      : null,
+  );
+  const targetingKey = $derived(targeting && JSON.stringify(targeting));
 
+  // The targeting once edits pause for 300ms.
+  let asked = $state<{ key: string; targeting: RecipientTargeting } | null>(
+    null,
+  );
   $effect(() => {
-    const payload = {
-      templateId: $form.templateId,
-      campusId: $form.campusId,
-      audience: $form.audience,
-      eventId: $form.eventId ?? '',
-      sourceBroadcastId: $form.sourceBroadcastId ?? '',
-      sourceFilter: $form.sourceFilter,
-      filters: $form.filters ?? {},
-    };
-    if (!payload.campusId || !payload.audience) {
-      preview = null;
-      previewError = null;
+    const key = targetingKey;
+    if (key === null) {
+      asked = null;
       return;
     }
-    const controller = new AbortController();
-    // Keep the previous preview visible while loading (no flicker).
-    // Only clear it on error or when targeting becomes incomplete.
-    const timer = setTimeout(async () => {
-      previewLoading = true;
-      previewError = null;
-      try {
-        const res = await fetch('/staff/admin/broadcasts/new/preview', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        preview = (await res.json()) as PreviewState;
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return;
-        previewError = (err as Error).message;
-        preview = null;
-      } finally {
-        previewLoading = false;
-      }
-    }, 300);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
+    const next = untrack(() => targeting);
+    if (!next) return;
+    const timer = setTimeout(() => (asked = { key, targeting: next }), 300);
+    return () => clearTimeout(timer);
   });
+
+  // One query per targeting, so an answer to an earlier one lands on its own
+  // query, which nothing reads. Coming back to a targeting already asked asks
+  // again, since who it reaches may have moved since.
+  const recipients = $derived(
+    asked ? recipientsPreview(asked.targeting) : null,
+  );
+  refreshWhenReused(() => recipients);
+
+  // The answer for the targeting on screen, and only that one, settled: what
+  // the send button and the confirmation's count read. Sending is irreversible,
+  // so a roster that answered an earlier targeting, or is being asked again,
+  // never stands in for it.
+  const preview = $derived(
+    recipients?.ready && !recipients.loading && asked?.key === targetingKey
+      ? recipients.current
+      : null,
+  );
+
+  // What the panel shows: the latest answer, held while the next one loads so
+  // the list does not blank on every change. Emptied when the targeting is no
+  // longer complete or the preview fails.
+  let shown = $state<typeof preview>(null);
+  $effect(() => {
+    if (targeting === null || recipients?.error) shown = null;
+    else if (recipients?.ready) shown = recipients.current;
+  });
+  const previewLoading = $derived(
+    targeting !== null && preview === null && !recipients?.error,
+  );
 
   const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
     dateStyle: 'short',
@@ -372,7 +385,6 @@
       ($form.body ?? '').trim() &&
       (channel === 'sms' || ($form.subject ?? '').trim()) &&
       preview &&
-      !preview.incomplete &&
       preview.total > 0,
     ),
   );
@@ -657,12 +669,14 @@
   <aside class="space-y-4 lg:sticky lg:top-4 lg:self-start">
     <!-- Recipients (full, exact roster + CSV) -->
     <RecipientsPanel
-      total={preview?.total ?? 0}
-      included={preview?.included ?? []}
-      excluded={preview?.excluded ?? []}
+      total={shown?.total ?? 0}
+      included={shown?.included ?? []}
+      excluded={shown?.excluded ?? []}
       loading={previewLoading}
-      error={previewError}
-      incomplete={!preview || preview.incomplete === true}
+      error={recipients?.error
+        ? "l'aperçu des destinataires n'a pas pu être calculé."
+        : null}
+      incomplete={targeting === null}
       {csvHref}
     />
 
@@ -764,7 +778,7 @@
         Démarrer les envois ?
       </AlertDialog.Title>
       <AlertDialog.Description class="text-sm font-medium">
-        {#if preview && !preview.incomplete}
+        {#if preview}
           {preview.total} message{preview.total > 1 ? 's' : ''} vont partir immédiatement
           aux destinataires sélectionnés. Cette action est
           <strong>irréversible</strong>.
