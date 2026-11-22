@@ -52,7 +52,9 @@ export type HandleKind =
   | 'adminAddress'
   | 'emailActionKey'
   | 'messageTemplateId'
-  | 'interestId';
+  | 'interestId'
+  | 'mascotLineId'
+  | 'mascotMomentKey';
 
 /**
  * Deliberately only the operation and the slice it covers, never where the value
@@ -126,6 +128,20 @@ export const HANDLES: Record<HandleKind, Handle> = {
     frNoun: "identifiants de centre d'intérêt",
     frGender: 'm',
     producedBy: [{ operation: 'config_interests' }],
+  },
+
+  mascotLineId: {
+    what: 'Mascot line id, one line EpiDuck says.',
+    frNoun: 'identifiants de phrase du canard',
+    frGender: 'm',
+    producedBy: [{ operation: 'config_mascot_lines' }],
+  },
+
+  mascotMomentKey: {
+    what: 'Mascot moment key, one of the moments EpiDuck speaks at.',
+    frNoun: 'moments du canard',
+    frGender: 'm',
+    producedBy: [{ operation: 'config_mascot_lines' }],
   },
 
   usageFeatureKey: {
@@ -453,6 +469,10 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   emailAction: 'emailActionKey',
   messageTemplateId: 'messageTemplateId',
   interestId: 'interestId',
+  // A line of EpiDuck's by its id, and the moment it is said at: `moment` is
+  // taken by nothing else in the catalogue.
+  mascotLineId: 'mascotLineId',
+  moment: 'mascotMomentKey',
 };
 
 const list = (parts: string[]) =>

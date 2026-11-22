@@ -80,6 +80,17 @@ import {
   type FeedbackFormContent,
 } from '#lib/server/feedbackForms/content.ts';
 import { feedbackFormPreviewLink } from '#lib/server/feedbackForms.ts';
+import {
+  MASCOT_LINE_MAX,
+  MASCOT_MOMENT_KEYS,
+  MASCOT_MOMENTS,
+  MASCOT_TOKENS,
+} from '#lib/domain/mascot.ts';
+import {
+  MASCOT_LINE_SELECT,
+  mascotLineState,
+  type MascotLineState,
+} from '#lib/server/adminApi/writes/mascot.ts';
 import { hiddenEnrolmentsByEvent, scopedEvents, scopeLabels } from './cohort';
 import {
   eventStateCounts,
@@ -1032,6 +1043,59 @@ export async function getInterests(): Promise<Interests> {
         talents: row._count.talentInterests,
       })),
       "Les centres d'intérêt qu'un talent choisit à l'inscription, archivés compris, par nature puis dans l'ordre où ils lui sont proposés. « kind » vaut tech ou general, les deux questions posées séparément. « interestId » est l'identifiant que prend write_interest. « shortLabel » est le nom court d'un centre tech, celui qu'affiche l'espace dev (null pour un centre general). « archived » vaut vrai pour un centre qui n'est plus proposé ; les talents qui l'avaient choisi le gardent. « talents » compte les talents qui l'ont choisi, sur toutes les années.",
+    ),
+  };
+}
+
+type MascotMomentRow = {
+  moment: string;
+  label: string;
+  description: string;
+  tokens: { token: string; meaning: string }[];
+  lines: Omit<MascotLineState, 'moment'>[];
+};
+
+export type MascotLines = {
+  moments: Metric<MascotMomentRow[]>;
+  maxLength: Metric<number>;
+};
+
+/**
+ * What EpiDuck says, moment by moment (#539): every moment the code fires, the
+ * silent ones included, with the tokens its lines may cite and its lines in the
+ * exact shape `write_mascot_line` takes. A line whose moment was retired is
+ * not listed: nothing says it any more, and the migration retiring the moment
+ * deletes it.
+ */
+export async function getMascotLines(): Promise<MascotLines> {
+  const rows = await prisma.mascot_Line.findMany({
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    select: MASCOT_LINE_SELECT,
+  });
+  const byMoment = new Map<string, MascotLineState[]>();
+  for (const row of rows) {
+    const line = mascotLineState(row);
+    byMoment.set(line.moment, [...(byMoment.get(line.moment) ?? []), line]);
+  }
+  return {
+    moments: metric(
+      MASCOT_MOMENT_KEYS.map((key) => ({
+        moment: key,
+        label: MASCOT_MOMENTS[key].label,
+        description: MASCOT_MOMENTS[key].description,
+        tokens: MASCOT_MOMENTS[key].tokens.map((token) => ({
+          token,
+          meaning: MASCOT_TOKENS[token],
+        })),
+        lines: (byMoment.get(key) ?? []).map(
+          ({ moment: _moment, ...line }) => line,
+        ),
+      })),
+      "Les moments où le canard EpiDuck parle, chacun avec les variables que ses phrases peuvent citer entre accolades (« {prenom} ») et ses phrases, archivées comprises, dans l'ordre de leur création. Le code décide quand le canard parle, les phrases disent ce qu'il dit, communes à tous les campus. « mascotLineId » est l'identifiant que prend write_mascot_line. « startsOn » et « endsOn » bornent la période où une phrase est dite, jours compris, null pour une borne ouverte. « archived » vaut vrai pour une phrase que le canard ne dit plus. Quand un moment a plusieurs phrases en cours, elles tournent ; sans aucune, le canard se tait à ce moment-là.",
+    ),
+    maxLength: metric(
+      MASCOT_LINE_MAX,
+      "Le nombre de caractères qu'une phrase du canard ne peut pas dépasser : au-delà, elle ne tient plus dans sa bulle.",
     ),
   };
 }

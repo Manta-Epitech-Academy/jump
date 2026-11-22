@@ -172,6 +172,7 @@ import {
   getEventCategories,
   getEmailActions,
   getInterests,
+  getMascotLines,
   getWorkshops,
   getTalentHomeContent,
 } from '#lib/server/services/adminStats/configuration.ts';
@@ -189,9 +190,11 @@ import { writeEventConfig, writeEventTemplate } from './writes/events';
 import { writeEventCategory } from './writes/eventCategories';
 import { writeEmailAction } from './writes/emailActions';
 import { writeInterest } from './writes/interests';
+import { writeMascotLine } from './writes/mascot';
 import { writeCampus } from './writes/campuses';
 import { EMAIL_ACTION_KEYS } from '#lib/domain/emailActions.ts';
 import { INTEREST_KINDS } from '#lib/domain/interests.ts';
+import { MASCOT_LINE_MAX, MASCOT_MOMENT_KEYS } from '#lib/domain/mascot.ts';
 import {
   retryPdfJob,
   resolveSchools,
@@ -897,6 +900,13 @@ export const ADMIN_API_OPERATIONS = {
       "The centres d'intérêt a talent picks at onboarding, archived ones included, with how many talents picked each. Takes no parameter.",
     shape: {},
     run: () => getInterests(),
+  }),
+
+  config_mascot_lines: defineOperation({
+    description:
+      "What EpiDuck, the talent space's duck mascot, says: every moment the duck speaks at, with the {tokens} its lines may cite and its lines, archived ones included, in the shape write_mascot_line takes. Takes no parameter.",
+    shape: {},
+    run: () => getMascotLines(),
   }),
 
   config_admin_digest: defineOperation({
@@ -1906,6 +1916,62 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeInterest(params),
+  }),
+
+  write_mascot_line: defineWrite({
+    repeat: {
+      safe: false,
+      because:
+        'without mascotLineId every call adds another line, so keep the id it answers with; an update is safe to repeat',
+    },
+    destructive: true,
+    openWorld: false,
+    description: `Create, rewrite, date or archive one line EpiDuck says, common to every campus. Without mascotLineId it creates one at a moment; with it, only the fields you pass change. Lines are French and say "tu" to a talent, often a minor: short, warm, no developer jargon, never a reproach, never at the talent's expense. At most ${MASCOT_LINE_MAX} characters. There is no delete: archive it.`,
+    shape: {
+      mascotLineId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(handleDescribe('mascotLineId')),
+      moment: z
+        .enum(MASCOT_MOMENT_KEYS as [string, ...string[]])
+        .optional()
+        .describe(
+          `${handleDescribe('mascotMomentKey')} Required to create one, never changed after.`,
+        ),
+      text: z
+        .string()
+        .trim()
+        .min(1)
+        .optional()
+        .describe(
+          'The line as the talent reads it. May cite only the tokens its moment lists, e.g. {prenom}. Required to create one.',
+        ),
+      startsOn: z
+        .string()
+        .refine(isCalendarDay, 'A real calendar day, e.g. "2026-12-01".')
+        .nullable()
+        .optional()
+        .describe(
+          'First day the line is said, inclusive. Null for no start. Omit to leave it as it stands.',
+        ),
+      endsOn: z
+        .string()
+        .refine(isCalendarDay, 'A real calendar day, e.g. "2026-12-24".')
+        .nullable()
+        .optional()
+        .describe(
+          'Last day the line is said, inclusive. Null for no end. Omit to leave it as it stands.',
+        ),
+      archived: z
+        .boolean()
+        .optional()
+        .describe(
+          'True to archive it, false to unarchive it. Omit to leave it as it stands.',
+        ),
+    },
+    run: (params) =>
+      writeMascotLine(params as Parameters<typeof writeMascotLine>[0]),
   }),
 
   write_campus: defineWrite({
