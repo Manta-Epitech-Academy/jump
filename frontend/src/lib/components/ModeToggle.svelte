@@ -44,13 +44,13 @@
         </DropdownMenu.Trigger>
         <DropdownMenu.Content align="end">
           <DropdownMenu.Item onclick={() => setMode('light')}>
-            <Sun class="mr-2 h-4 w-4" /> Light
+            <Sun class="mr-2 h-4 w-4" /> Clair
           </DropdownMenu.Item>
           <DropdownMenu.Item onclick={() => setMode('dark')}>
-            <Moon class="mr-2 h-4 w-4" /> Dark
+            <Moon class="mr-2 h-4 w-4" /> Sombre
           </DropdownMenu.Item>
           <DropdownMenu.Item onclick={() => setMode('system')}>
-            <SunMoon class="mr-2 h-4 w-4" /> System
+            <SunMoon class="mr-2 h-4 w-4" /> Système
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Root>
