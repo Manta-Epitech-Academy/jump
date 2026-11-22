@@ -55,6 +55,8 @@ Read [`DESIGN.md`](../../DESIGN.md) at the repo root before any visual work: it 
 
   It adds words, never motion: `DESIGN.md` § Motion still applies. The seasonal pixels on the talent fiche (`seasonOn`) follow the same idea in the charte's colours only.
 
+- **The talent space's voice is EpiDuck's, and his lines are data, not code.** The duck in every talent header speaks lines the PO writes over the admin API, so a talent-facing quip goes there rather than into a component or a file like `devVoice.ts`: [`mascot.md`](./mascot.md) says when he speaks and how he may.
+
 - **A list whose length comes from data scrolls in its own box.** Any `{#each}` over rows the database decides the count of gets a bounded, scrollable region: `max-h-[40svh] overflow-y-auto` on the list, and the dialog or card keeps its own `max-h-[90svh] overflow-y-auto` as the floor for short viewports. Viewport-relative, not a pixel cap, so the box grows with the screen instead of leaving a letterbox on a laptop.
 
   The tell is not "is it long today", it is **who decides how many rows there are**. A fixed catalogue rendered from a constant is bounded by the code and needs nothing. A ledger, an append-only log, an inventory, a feed or anything with a revoked/archived tail is bounded by nothing and only ever grows, so it is already wrong the day it ships even while it looks fine.

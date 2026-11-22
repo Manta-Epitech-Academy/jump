@@ -839,6 +839,46 @@ Short, direct, purposeful. The brand is flat and confident: it does not bounce.
 - **The `ui/` primitives and vaul** are covered by one block in `layout.css`, which zeroes their offsets and swaps vaul's slide for its fade.
 - **A loop** (`animate-ping`, `pulse`, `bounce`) carries `motion-safe:`, and a component's own keyframes sit behind a `prefers-reduced-motion` query.
 
+## Mascot
+
+EpiDuck, the talent space's duck (#539), is an illustration and not interface,
+which is the one reason he is allowed what the rest of this file refuses. His
+doctrine (when he speaks, what he says, where he lives) is
+[`.claude/rules/mascot.md`](.claude/rules/mascot.md); what concerns his look is
+here.
+
+**His colours are his own, written once.** `components/mascot/art/palette.ts`
+is the only place they exist, and no screen reads one as a role. Where the
+drawing meets the charte it uses the charte's value: the body is `epiBlue`, the
+orange crest and scarf `epiTogether`, the pink scarf `epiTomorrow`. The beak's
+red, the wing's lighter blue, the green scarf and his inks come from the sprites
+the PO's mockup was drawn with and are listed in the deviations below. They do
+not change with the theme: his white outline is what keeps him legible on a
+dark page, as a sticker would be.
+
+**He has the one licence to move that a control never has.** A character on the
+water moves all the time, and that is what makes him read as alive rather than
+as an icon:
+
+- he bobs (2.3 s, ease-in-out, forever) and swims at an unhurried 28 px/s
+  between pauses;
+- his dive and his way back up take 1.8 s each, the mockup's, overshooting on
+  the way up;
+- a tap squashes him (a scale, 320 ms) and a turn squeezes him flat and back
+  (2 × 110 ms). These are the only scales this file allows, they belong to the
+  character, and no control may borrow them: a button still presses 1px down.
+
+None of it blocks anything: he never covers a control, and his bubble sits
+under him for five seconds and asks nothing.
+
+**Less motion, still a duck.** Asked for less motion, he sits still at the
+start of his lane, does not bob, squash or follow the pointer, and his dives are
+200 ms fades. His bubble fades in like any other entrance.
+
+**Where he is drawn**: the talent header, the talent's « Mon EpiDuck » card, and
+the avatar of a questionnaire that names no persona of its own. Never in the
+staff or parent spaces, whose headers do not carry him.
+
 ## Accessibility
 
 WCAG AA is a floor, not a goal, and it is the reason several values in this file
@@ -867,6 +907,7 @@ oversight, and nothing here should be "fixed" back.
 | 12px and 16px radii in talent and parent | 0 to 4px, square | Soft corners on those two spaces only | The audience is 15-year-olds and their parents, on a phone, in a moment that should feel welcoming rather than administrative. Staff spaces stay square, so the brand's rigidity is still visible where the volume of the product lives. |
 | Emoji in talent copy | No emoji | Allowed in talent copy only | The charte's substitutes are typographic and read as technical. A reward toast for a 15-year-old is the one place a `🎉` outperforms a `_`. |
 | Anton for numbers, conditionally | Anton for all display | Anton only for figures that do not tick | Measured: Anton has no tabular figures, so a countdown drifts 20px per tick. |
+| EpiDuck's own colours | Four accents and their tints | The mascot's beak is red (`#E52521`), his wing a lighter blue, one scarf green, his eyes and glasses near-black inks, all in `art/palette.ts` | He is an illustration drawn before this file knew him, and a duck with an orange beak stops being the one the PO chose. No screen reads these values as roles, so they add no hue to the interface. |
 | Magenta as the admin signature | Magenta is the vision accent, used sparingly | Admin page titles, active nav and tile accents are magenta | Two staff spaces sit one click apart and are easy to confuse. A per-space accent is the cheapest orientation cue there is, and it uses the palette rather than adding to it. |
 
 ### Rejected
