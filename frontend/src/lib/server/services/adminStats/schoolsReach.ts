@@ -1,9 +1,9 @@
 /**
  * Which lycées Jump actually reaches, and how widely.
  *
- * Ranked with `rankLyceesByCohort`, the same function the dev workspace's
- * inscrits sidebar uses, so "le lycée le plus représenté" means one thing on
- * both surfaces. What this adds is the reach view a campus page cannot give:
+ * Ranked with `rankLyceesByCohort`, the same function `schoolChurn` ranks
+ * with, so "le lycée le plus représenté" means one thing in both answers. What
+ * this adds is the reach view a campus page cannot give:
  * how many distinct establishments, how many départements, and how much of the
  * cohort is not attributable to any of them.
  *
@@ -80,11 +80,9 @@ export async function getSchoolsReach(
 ): Promise<SchoolsReach> {
   const where = await cohortWhere(scope);
 
-  // Admins are cross-campus, so the unscoped client is the right one here (the
-  // dev workspace passes its campus-scoped client to the same function).
   const [cohort, ranking, attributed, namedButUnresolved] = await Promise.all([
     prisma.talent.count({ where }),
-    rankLyceesByCohort(prisma, where),
+    rankLyceesByCohort(where),
     prisma.talent.count({
       where: { AND: [where, { schoolId: { not: null } }] },
     }),

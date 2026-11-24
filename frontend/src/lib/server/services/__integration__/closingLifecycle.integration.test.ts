@@ -25,8 +25,8 @@ import { getTalentJourney } from '#lib/server/services/talentJourneyService.ts';
  * The closing invariants that only a real database can prove.
  *
  * Four of them are things that fail SILENTLY if they regress, which is why they
- * are asserted here rather than trusted: campus scoping (a delegate with no
- * extension handler is simply unscoped), the erasure (a dropped `deleteMany`
+ * are asserted here rather than trusted: campus scoping (another campus's
+ * record must read as absent, not as an error a caller would notice), the erasure (a dropped `deleteMany`
  * leaves a minor's prose behind), the structural-edit lock (a kind change under
  * recorded answers makes them unreadable), and the bank keys the school-year
  * review names, whose absence reads to a national director exactly like "nobody
@@ -242,8 +242,8 @@ describe('conducting a closing', () => {
 
 describe('campus scoping', () => {
   it('should hide a closing from another campus scoped client', async () => {
-    // A delegate with no entry in the scoped extension is simply UNSCOPED: no
-    // error, just every campus' rows. So this asserts the guard exists at all.
+    // The other campus counts nothing: no error, no row. So this asserts the
+    // record's campus filter holds, not merely that the client answers.
     const own = scopedPrisma(ids.campus);
     const other = scopedPrisma(ids.otherCampus);
 

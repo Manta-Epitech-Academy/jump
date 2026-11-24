@@ -5,7 +5,9 @@ import {
   classifySfStatus,
   isShownInDevSpace,
   normalizeSfStatus,
+  visibleParticipationWhere,
 } from './sfMemberStatus';
+import { attendedBeforeWhere, attendedShownBeforeWhere } from './attendance';
 
 /** The vocabulary the migration ships, and a stage that shows two of it. */
 const known = new Set(['READY', 'MET', 'CONNECTED', 'DESISTED']);
@@ -74,27 +76,32 @@ describe('sfMemberStatus domain logic', () => {
 });
 
 /**
- * The reads a dev surface makes of a cohort, each with the marker that scopes
+ * The reads a dev surface makes of a cohort, each with the markers that scope
  * it to the cohort the dev space shows: an enrolment read (a delegate call, or a
- * relation filter on them) spreads `visibleParticipationWhere`, and a read of
- * bilan answers goes through `shownCohortOf`, which applies it on the answer's
+ * relation filter on them) spreads `visibleParticipationWhere`, or one of the
+ * attendance fragments that include it (pinned below), and a read of bilan
+ * answers goes through `shownCohortOf`, which applies it on the answer's
  * enrolment.
  */
 const COHORT_READS = [
   {
     read: /\bparticipation\.(findMany|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|count|groupBy|aggregate)\(|\bparticipations:\s*(\{|true\b)/g,
-    marker: 'visibleParticipationWhere',
+    markers: [
+      'visibleParticipationWhere',
+      'attendedBeforeWhere',
+      'attendedShownBeforeWhere',
+    ],
   },
   {
     read: /\bfeedback_Submission\.(findMany|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|count|groupBy|aggregate)\(|\bcomputeFormStats\(/g,
-    marker: 'shownCohortOf',
+    markers: ['shownCohortOf'],
   },
 ] as const;
 
 /** The arguments of every cohort read in a source that do not carry its marker. */
 function readsWithoutFragment(source: string): string[] {
-  return COHORT_READS.flatMap(({ read, marker }) =>
-    readsWithout(source, read, [marker]),
+  return COHORT_READS.flatMap(({ read, markers }) =>
+    readsWithout(source, read, [...markers]),
   );
 }
 
@@ -128,6 +135,14 @@ describe('every dev roster reads the visible cohort', () => {
       computeFormStats(form.id, { eventId });
       computeFormStats(form.id, { shownCohortOf: eventId });`;
     expect(readsWithoutFragment(doctored)).toHaveLength(2);
+  });
+
+  it('accepts an attendance fragment only because it carries the shown cohort', () => {
+    const now = new Date();
+    expect(attendedBeforeWhere(now)).toMatchObject(visibleParticipationWhere);
+    expect(JSON.stringify(attendedShownBeforeWhere(now))).toContain(
+      JSON.stringify(attendedBeforeWhere(now)),
+    );
   });
 
   it('walks the workspace', () => {

@@ -143,7 +143,7 @@ export async function loadInscritsCohort(
     loadEventDossierSignatures(db, event.id, schoolYear),
   ]);
   const prior = await countPriorVisits(
-    event.campusId,
+    db,
     participations.map((p) => p.talentId),
     event.date,
   );

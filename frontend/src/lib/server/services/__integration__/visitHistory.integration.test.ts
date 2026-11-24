@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '#lib/server/db.ts';
+import { scopedPrisma } from '#lib/server/db/scoped.ts';
 import { countPriorVisits } from '../visitHistory';
 import { getEventDetail } from '../adminStats/configuration';
 import { assertTestDatabase } from './testDatabase';
 
 /**
  * The count behind a talent's parcours (« Déjà venu 2 fois »). It has to count
- * visits, not enrolments, stay on the campus (the scoped client does not scope
- * this groupBy, so the campus is written by hand and a leak would be silent),
- * skip the enrolments the dev space masks and the events no admin activated
+ * visits, not enrolments, stay on the campus (the scoped client's filter goes
+ * next to the attendance filter, never over it), skip the enrolments the dev space masks and the events no admin activated
  * (#516), and count only events over before the one being read: the event
  * itself and a later one are not history.
  *
@@ -97,7 +97,7 @@ describe('prior visits (integration)', () => {
 
   it('counts the visits on the campus at earlier events only', async () => {
     const counts = await countPriorVisits(
-      campusId,
+      scopedPrisma(campusId),
       [talentId, newcomerId],
       day('2026-06-10'),
     );
@@ -107,7 +107,7 @@ describe('prior visits (integration)', () => {
 
   it('reads an earlier event as it stood then', async () => {
     const counts = await countPriorVisits(
-      campusId,
+      scopedPrisma(campusId),
       [talentId],
       day('2026-03-10'),
     );

@@ -11,8 +11,8 @@ import { supervisorJoinUrl, workshopCoverUrl } from '#lib/domain/workshops.ts';
 /**
  * The subject catalogue as its readers see it: the dev space's page lists the
  * complete subjects, the admin API reads every domain. Both are global, like
- * the activities themselves (`db/scoped.ts` gives the workshop models no scoped
- * delegate), so this reads `prisma` directly. Its writers are `write_workshop`
+ * the activities themselves (`CAMPUS_SCOPE` in `db/campusScope.ts` lists no
+ * workshop model), so this reads `prisma` directly. Its writers are `write_workshop`
  * (a subject's domains, level and notions), `write_workshop_domain` (the
  * domains) and `write_workshop_instance` (the supervisor code of the instance
  * serving a subject).

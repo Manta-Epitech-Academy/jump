@@ -61,11 +61,9 @@ export async function getSchoolChurn(
   // is new".
   const [current, previous] = await Promise.all([
     rankLyceesByCohort(
-      prisma,
       await cohortWhere({ ...scope, schoolYear: years.schoolYear }),
     ),
     rankLyceesByCohort(
-      prisma,
       await cohortWhere({ ...scope, schoolYear: years.compareTo }),
     ),
   ]);
