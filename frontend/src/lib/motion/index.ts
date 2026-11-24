@@ -114,18 +114,26 @@ export function stepIn(
 
 /**
  * The outgoing step, lifted out of the flow so the incoming one takes its
- * place at once. The parent must be `position: relative`. It takes no click
- * on its way out: a press during those 120ms is meant for what replaces it.
+ * place at once. The parent must be `position: relative`.
+ *
+ * It leaves from where it stands, as `fly` does. Svelte does not reverse an
+ * `in:` / `out:` pair the way it reverses a `transition:`, so a step pressed
+ * away while it was still arriving (the week pager pressed twice) used to
+ * jump to full opacity and fade from there: a week that had not appeared yet
+ * flashed in only to leave.
  */
 export function stepOut(
-  _node: Element,
+  node: Element,
   { direction = 1 }: StepParams = {},
 ): TransitionConfig {
   const x = prefersReducedMotion.current ? 0 : STEP_DISTANCE * direction;
+  const style = getComputedStyle(node);
+  const opacity = +style.opacity;
+  const transform = style.transform === 'none' ? '' : style.transform;
   return {
     duration: DURATION.fast,
     easing: easeStandard,
     css: (t, u) =>
-      `position: absolute; top: 0; left: 0; right: 0; pointer-events: none; opacity: ${t}; transform: translateX(${-x * u}px);`,
+      `position: absolute; top: 0; left: 0; right: 0; opacity: ${t * opacity}; transform: ${transform} translateX(${-x * u}px);`,
   };
 }
