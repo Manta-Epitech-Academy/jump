@@ -6,9 +6,11 @@
   import ChatScreen from '#lib/components/feedback/ChatScreen.svelte';
   import type { Answers } from '#lib/domain/feedbackForms/schema.ts';
   import { mascotLookOf } from '#lib/domain/mascot.ts';
+  import { useMascot } from '#lib/components/mascot/mascotController.svelte.ts';
   import { submitFeedback } from './feedback.remote.ts';
 
   let { data } = $props();
+  const mascot = useMascot();
 
   async function handleSubmit(answers: Answers) {
     try {
@@ -16,6 +18,11 @@
         eventId: data.eventId,
         formId: data.formId,
         answers,
+      });
+      // Thanked once the answers are kept, never over a failure (#540).
+      mascot()?.react({
+        moment: 'feedbackDone',
+        tokens: { evenement: data.eventName },
       });
     } catch (e) {
       // A refusal carries its own French message (`Réponses invalides : …`);

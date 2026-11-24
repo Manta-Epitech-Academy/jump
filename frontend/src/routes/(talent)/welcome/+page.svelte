@@ -9,6 +9,7 @@
   import { onMount } from 'svelte';
   import { track, daysBetween, secondsBetween } from '#lib/analytics.ts';
   import BrandBackdrop from '#lib/components/layout/BrandBackdrop.svelte';
+  import MascotCameo from '#lib/components/mascot/MascotCameo.svelte';
 
   let { data }: { data: PageData } = $props();
   const seenAt = Date.now();
@@ -37,6 +38,17 @@
   <!-- Content centered -->
   <div class="relative z-10 flex flex-1 items-center justify-center p-4">
     <div class="w-full max-w-lg">
+      <!-- The first meeting (#540): his duck comes out of the water and
+           introduces himself, before the talent has given him a name. -->
+      <div class="mb-6">
+        <MascotCameo
+          cue={{ moment: 'firstMeeting' }}
+          atlas="stage"
+          entrance="emerge"
+          class="h-36 w-24 sm:h-44 sm:w-29"
+        />
+      </div>
+
       <div class="mb-6 text-center">
         <h1 class="font-heading text-display-m text-epi-blue">
           Bienvenue, {data.prenom}.

@@ -11,6 +11,7 @@
   import { Button } from '#lib/components/ui/button/index.ts';
   import { statusLabelFr } from '#lib/domain/eventPresence.ts';
   import { triggerConfetti } from '#lib/actions/confetti.ts';
+  import MascotCameo from '#lib/components/mascot/MascotCameo.svelte';
 
   let { data } = $props();
 
@@ -75,13 +76,6 @@
       : ui.title,
   );
 
-  // Warm, time-appropriate closer (no space metaphors, per the brand voice).
-  const closer = $derived(
-    data.slot === 'morning'
-      ? 'Bonne matinée à toi ! 🙌'
-      : 'Bon après-midi à toi ! 🙌',
-  );
-
   onMount(() => {
     if (data.state !== 'present') return;
     // Respect reduced-motion for both the confetti and the haptic buzz.
@@ -103,19 +97,34 @@
     aria-hidden="true"
   ></div>
 
-  <div class="pop relative">
-    {#if ui.celebrate}
-      <span
-        class="absolute inset-0 rounded-full bg-epi-tech-ink/30 motion-safe:animate-ping"
-        aria-hidden="true"
-      ></span>
-    {/if}
-    <div
-      class="relative flex size-24 items-center justify-center rounded-full {ui.badge}"
-    >
-      <Icon class="size-12" />
+  {#snippet badge()}
+    <div class="pop relative">
+      {#if ui.celebrate}
+        <span
+          class="absolute inset-0 rounded-full bg-epi-tech-ink/30 motion-safe:animate-ping"
+          aria-hidden="true"
+        ></span>
+      {/if}
+      <div
+        class="relative flex size-24 items-center justify-center rounded-full {ui.badge}"
+      >
+        <Icon class="size-12" />
+      </div>
     </div>
-  </div>
+  {/snippet}
+
+  {#if data.state === 'present'}
+    <!-- The talent's duck confirms it, in his own words (#540); asleep, the
+         page's badge says it alone. -->
+    <MascotCameo
+      cue={{ moment: 'checkIn', tokens: { evenement: data.eventLabel } }}
+      entrance="hop"
+      class="h-28 w-19"
+      fallback={badge}
+    />
+  {:else}
+    {@render badge()}
+  {/if}
 
   <div class="rise relative max-w-sm space-y-2">
     <h1 class="font-heading text-display-m">{headline}</h1>
@@ -123,7 +132,7 @@
       {#if data.state === 'present'}
         Tu es bien noté présent pour le
         <span class="font-semibold text-foreground">{data.eventLabel}</span>, ce
-        {data.dayLabel} ({slotLower}). {closer}
+        {data.dayLabel} ({slotLower}).
       {:else if data.state === 'already'}
         Pas besoin de scanner : le staff a déjà enregistré ton statut de
         présence{#if data.status}
