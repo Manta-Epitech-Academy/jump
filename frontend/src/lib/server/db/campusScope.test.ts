@@ -73,6 +73,46 @@ describe('what the campus-scoped client refuses', () => {
     ).toThrow(CampusScopeViolation);
   });
 
+  it('refuses a write that sets a relation, on every model it scopes', () => {
+    // An event of the campus connecting a slot by id would take in another
+    // campus's slot: the campus filter never saw the slot. Each relation is
+    // read off the client's schema, so this also fails if that schema stops
+    // carrying them.
+    for (const model of Object.keys(CAMPUS_SCOPE)) {
+      const relations = Prisma.dmmf.datamodel.models
+        .find((m) => m.name === model)!
+        .fields.filter((f) => f.kind === 'object');
+      expect(relations.length).toBeGreaterThan(0);
+      for (const { name } of relations) {
+        expect(() =>
+          plan(model, 'updateMany', { data: { [name]: { connect: {} } } }),
+        ).toThrow(CampusScopeViolation);
+      }
+    }
+    expect(() =>
+      plan('Event', 'update', {
+        where: { id: 'e1' },
+        data: { planningSlots: { connect: { id: 'slot-of-campus-b' } } },
+      }),
+    ).toThrow(CampusScopeViolation);
+    expect(() =>
+      plan('EventPresenceClosure', 'upsert', {
+        where: { id: 'x' },
+        create: { eventId: 'e1', closedBy: { connect: { id: 's2' } } },
+        update: {},
+      }),
+    ).toThrow(CampusScopeViolation);
+  });
+
+  it('admits a write that sets columns', () => {
+    expect(() =>
+      plan('EventPresenceClosure', 'update', {
+        where: { id: 'x' },
+        data: { closedById: 's1', closedAt: new Date() },
+      }),
+    ).not.toThrow();
+  });
+
   it('refuses a create the dev workspace never makes', () => {
     for (const model of [
       'Event',

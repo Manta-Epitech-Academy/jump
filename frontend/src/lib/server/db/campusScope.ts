@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 /**
  * What the dev workspace's campus-scoped client (`scopedPrisma`) does to a
@@ -10,11 +10,12 @@ import type { Prisma } from '@prisma/client';
  * second table that the compiler holds to Prisma's own list of operations, so
  * a new operation fails `tsc` here instead of running unscoped. Anything
  * outside the two tables is refused: a model with no entry, a raw query, an
- * operation with no kind. A model the table leaves out is read with `prisma`
- * where it is read, scoped there by hand if it needs it: a global catalogue
- * (workshops, diploma templates, feedback forms, schools, interests), an
- * admin-only table (usage, sync, the admin API's own), or a row a talent reaches
- * by their own id (a QR self-check-in has no staff campus).
+ * operation with no kind, a write that sets a relation. A model the table
+ * leaves out is read with `prisma` where it is read, scoped there by hand if
+ * it needs it: a global catalogue (workshops, diploma templates, feedback
+ * forms, schools, interests), an admin-only table (usage, sync, the admin
+ * API's own), or a row a talent reaches by their own id (a QR self-check-in
+ * has no staff campus).
  *
  * It used to be the reverse. `scoped.ts` held one hand-written handler per
  * model and operation, and an operation without a handler ran on every campus,
@@ -25,6 +26,17 @@ import type { Prisma } from '@prisma/client';
  * moving a row to another campus.
  */
 
+/**
+ * The relation fields of every model, read off the client's own schema rather
+ * than listed, so a relation added to `schema.prisma` is refused on arrival.
+ */
+const RELATIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
+  Prisma.dmmf.datamodel.models.map((m) => [
+    m.name,
+    new Set(m.fields.filter((f) => f.kind === 'object').map((f) => f.name)),
+  ]),
+);
+
 type Where = Record<string, unknown>;
 
 /**
@@ -33,8 +45,9 @@ type Where = Record<string, unknown>;
  *     operation's `where`, unique ones included (a `WhereUniqueInput` takes an
  *     `AND`), so a row of another campus reads as not found, and is never
  *     updated or deleted.
- *   - `owners`: the `data` keys that tie a row to its campus. No write sets
- *     them: an update that did would move the row out of the campus.
+ *   - `owners`: the columns that tie a row to its campus. No update sets
+ *     them: one that did would move the row out of the campus. Their
+ *     relations need no entry, since no write sets any relation at all.
  *   - `create`: `eventOnCampus` admits a create whose `eventId` is an event of
  *     the campus, checked by the client before it runs; `refuse` admits none,
  *     because the dev workspace creates none of these rows (the sync, the
@@ -54,17 +67,17 @@ const throughEnrolment = (campusId: string): Where => ({
 
 const ON_CAMPUS = {
   where: onCampus,
-  owners: ['campusId', 'campus'],
+  owners: ['campusId'],
   create: 'refuse',
 } as const;
 const ENROLMENT_ROW = {
   where: onCampus,
-  owners: ['campusId', 'campus', 'eventId', 'event'],
+  owners: ['campusId', 'eventId'],
   create: 'refuse',
 } as const;
 const EVENT_ROW = {
   where: throughEvent,
-  owners: ['eventId', 'event'],
+  owners: ['eventId'],
   create: 'eventOnCampus',
 } as const;
 
@@ -76,12 +89,12 @@ export const CAMPUS_SCOPE = {
   // A talent belongs to every campus they enrolled on, and to no other.
   Talent: {
     where: throughEnrolment,
-    owners: ['participations'],
+    owners: [],
     create: 'refuse',
   },
   Onboarding_Record: {
     where: (campusId) => ({ talent: throughEnrolment(campusId) }),
-    owners: ['talentId', 'talent'],
+    owners: ['talentId'],
     create: 'refuse',
   },
   EventPresence: EVENT_ROW,
@@ -96,7 +109,8 @@ type ModelOperation = keyof Prisma.TypeMap['model']['Event']['operations'];
 /**
  * `filter`: the campus goes into `where`. `update`: the same, and `data` may
  * not set an owner. `upsert`: both, plus the `create` branch's policy.
- * `create`: the model's create policy alone.
+ * `create`: the model's create policy alone. No write of any kind sets a
+ * relation (`refuseWrite`).
  */
 type OperationKind = 'filter' | 'update' | 'upsert' | 'create';
 
@@ -167,8 +181,12 @@ export function planScopedQuery(
 
   if (kind !== 'create')
     scoped.where = withScope(scoped.where, scope.where(campusId));
-  if (kind === 'update') refuseOwners(model, scope, scoped.data);
-  if (kind === 'upsert') refuseOwners(model, scope, scoped.update);
+  if (kind === 'update') refuseWrite(model, scope, scoped.data, true);
+  if (kind === 'upsert') {
+    refuseWrite(model, scope, scoped.update, true);
+    refuseWrite(model, scope, scoped.create, false);
+  }
+  if (kind === 'create') refuseWrite(model, scope, scoped.data, false);
   const eventIds =
     kind === 'create' || kind === 'upsert'
       ? createdEventIds(
@@ -180,11 +198,28 @@ export function planScopedQuery(
   return { args: scoped, eventIds };
 }
 
-function refuseOwners(model: string, scope: ModelScope, data: unknown): void {
-  const set = scope.owners.filter((key) => hasOwn((data ?? {}) as Where, key));
+/**
+ * What a write may set: columns, never a relation. A nested `connect`,
+ * `create` or `set` writes a row the campus filter never saw, so an event of
+ * the campus could take in another campus's slot by connecting it. An update
+ * (`owners`) may not set the columns that tie its row to the campus either.
+ */
+function refuseWrite(
+  model: string,
+  scope: ModelScope,
+  data: unknown,
+  owners: boolean,
+): void {
+  const relations = RELATIONS.get(model) ?? new Set<string>();
+  const keys = new Set(
+    [data ?? []].flat().flatMap((row) => Object.keys(row as Where)),
+  );
+  const set = [...keys].filter(
+    (key) => relations.has(key) || (owners && scope.owners.includes(key)),
+  );
   if (set.length > 0) {
     throw new CampusScopeViolation(
-      `${model}: a write through the campus-scoped client may not set ${set.join(', ')}`,
+      `${model}: a write through the campus-scoped client sets columns only, and not ${set.join(', ')}`,
     );
   }
 }
@@ -201,7 +236,7 @@ function createdEventIds(
   }
   const rows = [data ?? []].flat() as Where[];
   const ids = rows.map((row) => row.eventId);
-  if (rows.some((row) => hasOwn(row, 'event')) || !ids.every(isString)) {
+  if (!ids.every(isString)) {
     throw new CampusScopeViolation(
       `${model}: a create through the campus-scoped client names its event by \`eventId\``,
     );
