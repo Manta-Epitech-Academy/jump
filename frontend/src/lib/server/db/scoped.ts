@@ -1,4 +1,5 @@
 import type { Cookies } from '@sveltejs/kit';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import {
   CampusScopeViolation,
@@ -56,6 +57,8 @@ export function getReaderTimezone(cookies: Cookies, fallback: string): string {
  *     delete of one throws P2025 without touching it;
  *   - a write never moves a row to another campus, and a create is refused
  *     unless the model names an event of the campus;
+ *   - an upsert stays idempotent when two callers send it at once, though it
+ *     no longer runs as one statement (`isUniqueViolation` says why);
  *   - a model the rule does not list, and a raw query, throw: they read with
  *     `prisma` and scope by hand, on purpose, where they are written.
  *
@@ -81,11 +84,29 @@ function extendedFor(campusId: string) {
             );
           }
         }
-        return query(planned.args);
+        if (operation !== 'upsert') return query(planned.args);
+        try {
+          return await query(planned.args);
+        } catch (err) {
+          if (!isUniqueViolation(err)) throw err;
+          return query(planned.args);
+        }
       },
     },
   });
 }
+
+/**
+ * The campus in an upsert's `where` keeps Prisma off a native `ON CONFLICT`:
+ * it reads the row, then creates or updates it, so two callers upserting the
+ * same missing row at once can both read nothing and both insert, and the
+ * second gets a P2002. It is retried once, which Prisma itself recommends for an
+ * upsert it cannot run natively: the winner has committed by then, so the
+ * retry reads its row and updates it. A row of another campus is still no match
+ * on the retry, so a real conflict with one fails as it would have.
+ */
+const isUniqueViolation = (err: unknown): boolean =>
+  err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
 
 export type ScopedPrismaClient = Pick<
   ReturnType<typeof extendedFor>,

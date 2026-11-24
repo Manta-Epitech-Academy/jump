@@ -241,6 +241,45 @@ describe("campus B's rows, reached by unique key from campus A", () => {
   });
 });
 
+describe('an upsert sent twice at once', () => {
+  it('lands once, and neither caller sees the race', async () => {
+    // Two staff closing the same créneau in the same instant. The campus in
+    // `where` keeps Prisma off a native `ON CONFLICT`, so both can read "no
+    // row" and both insert: the client retries the one that loses.
+    //
+    // The pool opens its connections lazily, and a burst on a cold pool runs
+    // one query after another, so the race never happens. Open them first.
+    await Promise.all(
+      Array.from(
+        { length: 20 },
+        () => prisma.$queryRaw`SELECT 1 FROM pg_sleep(0.05)`,
+      ),
+    );
+    const where = {
+      eventId_day_slot: { eventId: a.event, day, slot: 'afternoon' as const },
+    };
+    const db = scopedPrisma(a.campus);
+    const results = await Promise.allSettled(
+      Array.from({ length: 20 }, () =>
+        db.eventPresenceClosure.upsert({
+          where,
+          create: { eventId: a.event, day, slot: 'afternoon' },
+          update: { closedAt: new Date() },
+        }),
+      ),
+    );
+    expect(results.filter((r) => r.status === 'rejected')).toEqual([]);
+    expect(
+      await prisma.eventPresenceClosure.count({
+        where: { eventId: a.event, day, slot: 'afternoon' },
+      }),
+    ).toBe(1);
+    await prisma.eventPresenceClosure.deleteMany({
+      where: { eventId: a.event, slot: 'afternoon' },
+    });
+  });
+});
+
 describe('a write campus A may not make', () => {
   it('moves no row to another campus', async () => {
     await expect(
