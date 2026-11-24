@@ -349,6 +349,9 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         phone: sf?.phone ?? null,
         civilite: sf?.civilite ?? null,
         xp: 0,
+        // What the duck has celebrated goes with the XP it celebrated: back at
+        // zero, the first level reached again is celebrated again.
+        levelCelebratedXp: 0,
         eventsCount: 0,
         ...clearGuardianActs(),
         // The two legacy PDF keys, collected above and deleted post-commit.

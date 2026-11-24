@@ -5,8 +5,10 @@ import {
   MASCOT_GLASSES,
   MASCOT_HAIRS,
   MASCOT_SCARVES,
+  arrivalCues,
   fillLine,
   greetingFor,
+  streakToday,
   mascotLookOf,
   unknownMascotTokens,
 } from './mascot';
@@ -16,6 +18,96 @@ describe('the accessory catalogues', () => {
     expect(Object.keys(MASCOT_GLASSES)).toEqual(Object.values(Mascot_Glasses));
     expect(Object.keys(MASCOT_SCARVES)).toEqual(Object.values(Mascot_Scarf));
     expect(Object.keys(MASCOT_HAIRS)).toEqual(Object.values(Mascot_Hair));
+  });
+});
+
+describe('streakToday', () => {
+  const TODAY = '2026-11-22';
+  // The page may read the talent row before today's visit is written.
+  it('counts today into a run that ended yesterday', () => {
+    expect(
+      streakToday({ lastDay: '2026-11-21', previousDay: null }, 6, TODAY),
+    ).toBe(7);
+  });
+
+  it('reads the run as written once today is counted', () => {
+    expect(
+      streakToday({ lastDay: TODAY, previousDay: '2026-11-21' }, 7, TODAY),
+    ).toBe(7);
+  });
+
+  it('starts again at 1 after a gap, and on a first visit', () => {
+    expect(
+      streakToday({ lastDay: '2026-11-19', previousDay: null }, 12, TODAY),
+    ).toBe(1);
+    expect(streakToday({ lastDay: null, previousDay: null }, 0, TODAY)).toBe(1);
+  });
+});
+
+describe('arrivalCues', () => {
+  const TODAY = '2026-11-22';
+  const yesterday = { lastDay: '2026-11-21', previousDay: null };
+  const event = (date: string, endDate = date, name = 'Coding Club') => ({
+    name,
+    date,
+    endDate,
+    today: TODAY,
+  });
+  const cues = (over: Partial<Parameters<typeof arrivalCues>[0]> = {}) =>
+    arrivalCues({
+      visits: yesterday,
+      streakDays: 1,
+      today: TODAY,
+      events: [],
+      ...over,
+    });
+
+  it('says nothing on a first meeting, even with an event today', () => {
+    expect(
+      cues({
+        visits: { lastDay: null, previousDay: null },
+        events: [event(TODAY)],
+      }),
+    ).toEqual([]);
+  });
+
+  it('greets with the milestone of the run on the day it is reached', () => {
+    expect(cues({ streakDays: 6 })).toEqual([
+      { moment: 'streak', tokens: { serie: '7' } },
+    ]);
+    expect(cues({ streakDays: 7 })).toEqual([{ moment: 'hello' }]);
+  });
+
+  it('welcomes back after weeks away rather than counting anything', () => {
+    expect(
+      cues({ visits: { lastDay: '2026-10-01', previousDay: null } }),
+    ).toEqual([{ moment: 'away', tokens: { jours: '52' } }]);
+  });
+
+  it('adds an event under way today before one starting tomorrow', () => {
+    expect(
+      cues({
+        events: [
+          event('2026-11-23', '2026-11-23', 'Demain'),
+          event('2026-11-21', '2026-11-23', 'En cours'),
+        ],
+      }),
+    ).toEqual([
+      { moment: 'hello' },
+      { moment: 'eventToday', tokens: { evenement: 'En cours' } },
+    ]);
+    expect(cues({ events: [event('2026-11-23')] })).toEqual([
+      { moment: 'hello' },
+      { moment: 'eventTomorrow', tokens: { evenement: 'Coding Club' } },
+    ]);
+  });
+
+  it('says nothing about an event further away, or over', () => {
+    expect(
+      cues({
+        events: [event('2026-11-24'), event('2026-11-20', '2026-11-21')],
+      }),
+    ).toEqual([{ moment: 'hello' }]);
   });
 });
 
@@ -32,7 +124,7 @@ describe('greetingFor', () => {
     previousDay,
   });
 
-  it('leaves a first meeting to #540, the rest of that first day too', () => {
+  it('leaves a first meeting to the welcome screen, the rest of that day too', () => {
     expect(greetingFor(notYetToday(null), TODAY)).toBeNull();
     expect(greetingFor(countedToday(null), TODAY)).toBeNull();
   });

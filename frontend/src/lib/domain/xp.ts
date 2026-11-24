@@ -220,6 +220,23 @@ export function levelProgress(xp: number): LevelProgress {
 }
 
 /**
+ * The level an XP total reached past the one `fromXp` stood in, or null when
+ * it is no higher. What the duck celebrates (#540): `fromXp` is the total the
+ * talent's level was last celebrated at, so a level is celebrated once, and a
+ * jump of two levels at once celebrates the one reached.
+ */
+export function levelReachedSince(
+  fromXp: number,
+  xp: number,
+): JumpLevel | null {
+  const reached = computeLevel(xp);
+  return JUMP_LEVELS.indexOf(reached) >
+    JUMP_LEVELS.indexOf(computeLevel(fromXp))
+    ? reached
+    : null;
+}
+
+/**
  * The XP bounds of a level: from its own threshold up to the next level's,
  * open-ended at the top (`maxExclusive: null`).
  */

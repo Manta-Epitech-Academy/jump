@@ -32,14 +32,36 @@ export const MASCOT_LINE_MAX = 140;
  */
 export const MASCOT_AWAY_DAYS = 14;
 
+/**
+ * The run lengths of consecutive days the duck notices, the day the talent
+ * reaches one (#540). A milestone, never every day: a duck that counted each
+ * visit would celebrate opening the app, which is the habit loop this audience
+ * is spared. Nothing marks a broken run either.
+ */
+export const STREAK_MILESTONES: readonly number[] = [
+  3, 7, 14, 30, 60, 100, 200, 365,
+];
+
 /** What each token a line may cite resolves to, in French, for the author. */
 export const MASCOT_TOKENS = {
   prenom: 'Prénom du talent.',
   canard: 'Nom que le talent a donné à son canard (« EpiDuck » par défaut).',
   jours: 'Nombre de jours depuis sa dernière visite.',
+  xp: "Nombre d'XP que le talent vient de gagner.",
+  bonus:
+    "Part de ces XP qui récompense d'être parmi les premiers de son campus à s'inscrire.",
+  niveau: 'Nom du niveau que le talent vient d’atteindre (Maker, Hacker…).',
+  serie: "Nombre de jours d'affilée où le talent est venu dans Jump.",
+  evenement: "Nom de l'événement.",
 } as const;
 
 export type MascotToken = keyof typeof MASCOT_TOKENS;
+
+/**
+ * How he looks while he says it: at ease, or with his eyes squeezed in joy and
+ * a hop, for what the talent did or is about to do.
+ */
+export type MascotMood = 'calm' | 'joy';
 
 interface MascotMoment {
   /** French, read by the admin API. */
@@ -48,6 +70,7 @@ interface MascotMoment {
   description: string;
   /** The tokens a line of this moment may cite; any other is refused. */
   tokens: readonly MascotToken[];
+  mood: MascotMood;
 }
 
 /**
@@ -60,27 +83,115 @@ export const MASCOT_MOMENTS = {
     description:
       'Le talent clique sur son canard. Les phrases tournent à chaque clic.',
     tokens: ['prenom', 'canard'],
+    mood: 'calm',
   },
   hello: {
     label: 'Bonjour',
     description:
       "Chaque visite d'un talent déjà venu, deux secondes après son arrivée : le canard s'arrête pour le saluer, une fois par visite et non à chaque page. Une phrase par jour, toujours la même ce jour-là.",
     tokens: ['prenom', 'canard'],
+    mood: 'calm',
   },
   away: {
     label: 'Retour après une absence',
     description: `Première visite d'un talent après ${MASCOT_AWAY_DAYS} jours ou plus sans venir, à la place du bonjour. Jamais un reproche.`,
     tokens: ['prenom', 'canard', 'jours'],
+    mood: 'joy',
   },
   sleep: {
     label: 'Endormi',
     description: 'Le talent endort son canard, qui plonge.',
     tokens: ['prenom', 'canard'],
+    mood: 'calm',
   },
   wake: {
     label: 'Réveillé',
     description: 'Le talent réveille son canard, qui remonte.',
     tokens: ['prenom', 'canard'],
+    mood: 'calm',
+  },
+  streak: {
+    label: 'Série de jours',
+    description: `Arrivée d'un talent le jour où sa série de jours d'affilée atteint un palier (${STREAK_MILESTONES.join(', ')}), à la place du bonjour. Jamais rien quand une série s'arrête.`,
+    tokens: ['prenom', 'canard', 'serie'],
+    mood: 'joy',
+  },
+  eventTomorrow: {
+    label: 'Événement demain',
+    description:
+      "Arrivée d'un talent inscrit à un événement qui commence demain, juste après le bonjour.",
+    tokens: ['prenom', 'canard', 'evenement'],
+    mood: 'calm',
+  },
+  eventToday: {
+    label: 'Événement aujourd’hui',
+    description:
+      "Arrivée d'un talent inscrit à un événement qui a lieu aujourd'hui, juste après le bonjour.",
+    tokens: ['prenom', 'canard', 'evenement'],
+    mood: 'joy',
+  },
+  firstMeeting: {
+    label: 'Première rencontre',
+    description:
+      "Première arrivée du talent dans Jump, sur l'écran d'accueil : le canard se présente. Le talent ne lui a pas encore donné de nom.",
+    tokens: ['prenom', 'canard'],
+    mood: 'joy',
+  },
+  arrivalXp: {
+    label: "XP d'arrivée",
+    description:
+      "Les XP gagnés en terminant son inscription, fêtés au centre de l'écran à la première arrivée sur l'accueil.",
+    tokens: ['prenom', 'canard', 'xp'],
+    mood: 'joy',
+  },
+  earlyArrivalXp: {
+    label: "XP d'arrivée parmi les premiers",
+    description:
+      "Comme les XP d'arrivée, pour un talent parmi les premiers de son campus à terminer son inscription, qui reçoit un bonus.",
+    tokens: ['prenom', 'canard', 'xp', 'bonus'],
+    mood: 'joy',
+  },
+  activityXp: {
+    label: "XP d'activité",
+    description:
+      "Les XP des étapes validées sur une activité, fêtés au centre de l'écran quand le talent revient sur l'accueil. Ils peuvent couvrir une soirée entière d'étapes.",
+    tokens: ['prenom', 'canard', 'xp'],
+    mood: 'joy',
+  },
+  dailyGameXp: {
+    label: 'XP du défi du jour',
+    description:
+      "Les XP du défi du jour réussi, fêtés au centre de l'écran juste après la partie.",
+    tokens: ['prenom', 'canard', 'xp'],
+    mood: 'joy',
+  },
+  rankXp: {
+    label: 'XP de classement',
+    description:
+      "Le bonus d'XP d'un défi du jour terminé parmi les meilleurs de son campus, fêté au centre de l'écran à la visite suivante.",
+    tokens: ['prenom', 'canard', 'xp'],
+    mood: 'joy',
+  },
+  levelUp: {
+    label: 'Niveau passé',
+    description:
+      "Le talent atteint un nouveau niveau : la grande scène, une seule fois par niveau, après les XP qui l'y ont mené.",
+    tokens: ['prenom', 'canard', 'niveau'],
+    mood: 'joy',
+  },
+  checkIn: {
+    label: 'Émargement',
+    description:
+      "Le talent vient d'émarger avec le QR code de l'événement : le canard le lui confirme sur l'écran de l'émargement.",
+    tokens: ['prenom', 'canard', 'evenement'],
+    mood: 'joy',
+  },
+  feedbackDone: {
+    label: 'Questionnaire rempli',
+    description:
+      "Le talent vient d'envoyer un questionnaire sur un événement : le canard le remercie. Jamais si l'envoi a échoué.",
+    tokens: ['prenom', 'canard', 'evenement'],
+    mood: 'joy',
   },
 } as const satisfies Record<string, MascotMoment>;
 
@@ -203,7 +314,8 @@ export type VisitDays = {
  * `previousDay` from then on: the write keeps the day it moves past, so which
  * request of the day loaded the row does not matter (a request a guard
  * redirected counts the day before any page renders). Null means no visit
- * before today, which is the first meeting and not a greeting (#540). A talent
+ * before today: the first meeting, which the welcome screen's introduction
+ * answers (`firstMeeting`), not the header's greeting. A talent
  * back the same day gets a hello: the duck greets each visit, and the
  * controller keeps it to one per visit.
  */
@@ -218,6 +330,96 @@ export function greetingFor(visits: VisitDays, today: DateKey): MascotGreeting {
     moment: daysAway >= MASCOT_AWAY_DAYS ? 'away' : 'hello',
     daysAway,
   };
+}
+
+// ---- What the duck says on arrival -------------------------------------------
+
+/** One line the duck is to say, and what its tokens resolve to there. */
+export type MascotCue = {
+  moment: MascotMomentKey;
+  tokens?: MascotTokenValues;
+};
+
+/**
+ * The run of consecutive days that counts today, `streakDays` as it will be
+ * once today's visit is written. The talent row a page reads may have been
+ * loaded before that write (`recordSignInDay` runs beside the request, not
+ * before it), so a last visit yesterday means today extends the run, and an
+ * older one means today starts a new one.
+ */
+export function streakToday(
+  visits: VisitDays,
+  streakDays: number,
+  today: DateKey,
+): number {
+  if (!visits.lastDay) return 1;
+  const gap = daysBetween(visits.lastDay, today);
+  if (gap <= 0) return Math.max(streakDays, 1);
+  return gap === 1 ? streakDays + 1 : 1;
+}
+
+/** An event the talent is enrolled in, its days read on its campus clock. */
+export type EnrolledEventDays = {
+  name: string;
+  /** First and last day, and today, all on the event's campus clock. */
+  date: DateKey;
+  endDate: DateKey;
+  today: DateKey;
+};
+
+/**
+ * What the duck says when the talent arrives, at most two lines (#540):
+ *
+ * 1. a greeting: the welcome back after weeks away, else the day's milestone
+ *    of the run of days, else hello. A welcome back and a milestone cannot
+ *    fall on one day, since weeks away the run starts again at 1;
+ * 2. what is coming: an event today, else one starting tomorrow.
+ *
+ * Nothing on a first visit, which the welcome screen's introduction answers.
+ * Two lines at most because each holds the bubble five seconds: a duck with
+ * four things to say on arrival is a notification centre.
+ */
+export function arrivalCues({
+  visits,
+  streakDays,
+  today,
+  events,
+}: {
+  visits: VisitDays;
+  streakDays: number;
+  today: DateKey;
+  events: readonly EnrolledEventDays[];
+}): MascotCue[] {
+  const greeting = greetingFor(visits, today);
+  if (!greeting) return [];
+  const cues: MascotCue[] = [];
+  const run = streakToday(visits, streakDays, today);
+  if (greeting.moment === 'away') {
+    cues.push({ moment: 'away', tokens: { jours: String(greeting.daysAway) } });
+  } else if (STREAK_MILESTONES.includes(run)) {
+    cues.push({ moment: 'streak', tokens: { serie: String(run) } });
+  } else {
+    cues.push({ moment: 'hello' });
+  }
+  const news = eventNews(events);
+  if (news) cues.push(news);
+  return cues;
+}
+
+/** The event worth a line: one on today, else one starting tomorrow. */
+function eventNews(events: readonly EnrolledEventDays[]): MascotCue | null {
+  const byDate = [...events].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name),
+  );
+  const ongoing = byDate.find((e) => e.date <= e.today && e.today <= e.endDate);
+  if (ongoing) {
+    return { moment: 'eventToday', tokens: { evenement: ongoing.name } };
+  }
+  const tomorrow = byDate.find((e) => daysBetween(e.today, e.date) === 1);
+  if (tomorrow) {
+    return { moment: 'eventTomorrow', tokens: { evenement: tomorrow.name } };
+  }
+  return null;
 }
 
 // ---- What the duck may say today ---------------------------------------------

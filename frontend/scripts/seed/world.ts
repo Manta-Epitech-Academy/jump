@@ -1959,6 +1959,10 @@ export class World {
     for (const row of this.buffer.talent) {
       const talentId = row.id as string;
       row.xp = this.xpByTalent.get(talentId) ?? 0;
+      // A seeded talent has already been shown the level it stands on, as the
+      // migration that added the column decided for production; a scenario
+      // that wants the level scene owed sets its own value (#540).
+      row.levelCelebratedXp ??= row.xp;
       row.eventsCount = this.presentEventsByTalent.get(talentId)?.size ?? 0;
     }
   }
