@@ -16,15 +16,16 @@ anti-aliased pixels.
 
 What it writes, in `src/lib/components/mascot/art/`:
   - `epiduck.webp`: one row per pose (profile, front), one cell per layer;
-  - `epiduck.json`: where each cell is, each pose's size, how far the pupils
-    travel when he looks somewhere.
+  - `epiduck.json`: where each cell is, each pose's size, where his eyes are
+    and how far the pupils travel when he looks somewhere.
 
 The layers are stacked by `EpiDuck.svelte` in this order: body, scarf, pupils
 or lids, glasses, hair. Each layer is rendered alone with the body as a holdout,
 so it holds only what the body does not hide (the back of a scarf, the far
 temple of a pair of glasses), and stacking them gives the same picture as
 rendering the dressed duck. That is what makes one atlas enough for every
-combination instead of a picture per combination.
+combination instead of a picture per combination. The eye whites have a cell
+of their own besides: the component clips the pupils to it.
 
 He is cel-shaded, flat colours lit by one sun, with no shadows (a shadow cast
 by a hat would be missing from the body's layer) and no outline: the white
@@ -78,10 +79,23 @@ HEAD = Vector((0.4, 0.0, 1.52))
 HEAD_R = 0.6
 # Where his eyes sit on the head: turned this far from straight ahead, and
 # raised this far above the head's equator.
-EYE_TURN = math.radians(31)
+EYE_TURN = math.radians(36)
 EYE_RAISE = math.radians(14)
 EYE_R = 0.2
-PUPIL_R = 0.105
+EYE_RADII = Vector((EYE_R, EYE_R * 1.12, EYE_R * 0.92))
+PUPIL_R = 0.12
+
+# Where his pupils rest in each pose, and how far (in cell pixels) a gaze of 1
+# moves them. Both eyes look at one point, so they converge on it: an eye
+# turned outward with its pupil in its own middle looks walleyed. Facing the
+# reader he looks at the reader; in profile, ahead of him and a little towards
+# the reader, the way he swims. The travel is generous because the component
+# clips the pupils to the eye whites: looking hard to one side, a pupil sits
+# against the edge of its eye, never past it.
+GAZE = {
+    "side": {"target": Vector((2.2, -3.0, 1.45)), "travel": (7.0, 8.0)},
+    "front": {"target": Vector((14.0, 0.0, 1.3)), "travel": (8.0, 7.5)},
+}
 
 
 # ---- Colour and materials ------------------------------------------------------
@@ -326,33 +340,65 @@ def build_body(coll):
         (0, math.radians(-4), 0),
     )
 
+
+def eye_white(side):
+    """The eye white on `side`: its centre and its rotation."""
+    at, n = eye_point(side, 0.0)
+    return at, facing(n)
+
+
+def build_eyes(coll):
+    """
+    The eye whites, a layer of their own: drawn with the body, and alone they
+    are the shape the component clips the pupils to.
+    """
     white = toon("eyeWhite", PALETTE["eyeWhite"])
     for side in (-1, 1):
-        at, n = eye_point(side, 0.0)
-        eye = ellipsoid(
-            f"eye{side}", coll, white, at, (EYE_R, EYE_R * 1.12, EYE_R * 0.7)
-        )
-        eye.rotation_euler = facing(n)
+        at, rot = eye_white(side)
+        ellipsoid(f"eye{side}", coll, white, at, EYE_RADII, rot)
 
 
-def build_pupils(coll):
-    """The pupils and their catchlights, moved as one when he looks somewhere."""
+def on_eye(side, target):
+    """Where the line from the eye's centre to `target` leaves the eye white."""
+    at, rot = eye_white(side)
+    d = (target - at).normalized()
+    local = rot.to_matrix().inverted() @ d
+    reach = (
+        1
+        / Vector(
+            (local.x / EYE_RADII.x, local.y / EYE_RADII.y, local.z / EYE_RADII.z)
+        ).length
+    )
+    return at + d * reach, d
+
+
+def build_pupils(coll, target):
+    """
+    The pupils and their catchlights, both looking at `target`, moved as one
+    when he looks somewhere. Rebuilt for each pose (see `GAZE`).
+    """
+    for obj in list(coll.objects):
+        bpy.data.objects.remove(obj)
     pupil = toon("pupil", PALETTE["pupil"])
     shine = flat("shine", PALETTE["eyeWhite"]["base"])
+    up = Vector((0, 0, 1))
     for side in (-1, 1):
-        at, n = eye_point(side, EYE_R * 0.62)
-        dot = ellipsoid(
-            f"pupil{side}", coll, pupil, at, (PUPIL_R, PUPIL_R * 1.15, PUPIL_R * 0.5)
+        at, d = on_eye(side, target)
+        ellipsoid(
+            f"pupil{side}",
+            coll,
+            pupil,
+            at - d * PUPIL_R * 0.2,
+            (PUPIL_R, PUPIL_R * 1.1, PUPIL_R * 0.45),
+            facing(d),
         )
-        dot.rotation_euler = facing(n)
-        up = Vector((0, 0, 1))
-        across = n.cross(up).normalized()
+        across = d.cross(up).normalized()
         ellipsoid(
             f"shine{side}",
             coll,
             shine,
-            at + n * 0.04 + up * PUPIL_R * 0.45 + across * PUPIL_R * 0.35,
-            (PUPIL_R * 0.32,) * 3,
+            at + d * 0.03 + up * PUPIL_R * 0.42 - across * PUPIL_R * 0.32,
+            (PUPIL_R * 0.3,) * 3,
         )
 
 
@@ -360,25 +406,24 @@ def build_lids(coll):
     """Closed eyes: a lid over each eye white and the line where it shuts."""
     blue = toon("lid", PALETTE["body"])
     ink = flat("lash", PALETTE["ink"]["base"])
+    up = Vector((0, 0, 1))
+    lid_radii = EYE_RADII * 1.05
     for side in (-1, 1):
-        at, n = eye_point(side, 0.012)
-        lid = ellipsoid(
-            f"lid{side}", coll, blue, at, (EYE_R * 1.04, EYE_R * 1.16, EYE_R * 0.72)
-        )
-        lid.rotation_euler = facing(n)
-        up = Vector((0, 0, 1))
+        at, rot = eye_white(side)
+        ellipsoid(f"lid{side}", coll, blue, at, lid_radii, rot)
+        _, n = eye_point(side, 0.0)
         across = n.cross(up).normalized()
-        centre = at + n * EYE_R * 0.78
+        # The lash follows the lid's surface, bowed down a little: a smile.
         pts = []
         for t in (-1, -0.5, 0, 0.5, 1):
+            x = t * lid_radii.x * 0.88
+            y = -(1 - t * t) * lid_radii.y * 0.28
+            depth = lid_radii.z * math.sqrt(
+                max(0.0, 1 - (x / lid_radii.x) ** 2 - (y / lid_radii.y) ** 2)
+            )
             pts.append(
                 (
-                    tuple(
-                        centre
-                        + across * t * EYE_R * 0.9
-                        - up * (1 - t * t) * EYE_R * 0.32
-                        + n * (-(t * t) * 0.05)
-                    ),
+                    tuple(at + across * x + up * y + n * (depth + 0.012)),
                     0.6 + 0.4 * (1 - abs(t)),
                 )
             )
@@ -877,7 +922,8 @@ def build():
         return layers[name]
 
     build_body(layer("body"))
-    build_pupils(layer("pupils"))
+    build_eyes(layer("eyes"))
+    build_pupils(layer("pupils"), GAZE["front"]["target"])
     build_lids(layer("lids"))
     for hair in HAIRS:
         HAIR_BUILDERS[hair](layer(f"hair.{hair}"))
@@ -895,6 +941,7 @@ def layer_names():
     """Every cell of a pose, in the atlas's order."""
     return [
         "body",
+        "eyes",
         "pupils",
         "lids",
         *(f"hair.{h}" for h in HAIRS),
@@ -903,18 +950,25 @@ def layer_names():
     ]
 
 
+# What every layer stands on: drawn by the `body` layer, a holdout for the rest.
+BASE = ("body", "eyes")
+
+
 def render_layer(scene, layers, name, path):
     """
-    One layer alone, top row first, as straight RGBA floats: the body hides
-    what is behind it (a holdout) and every other layer is left out.
+    One layer alone, top row first, as straight RGBA floats: the body and its
+    eyes hide what is behind them (a holdout) and every other layer is left
+    out. The `body` layer draws both; the `eyes` layer draws the eye whites
+    alone, where the body does not hide them.
     """
     collection_name = "scarf" if name.startswith("scarf.") else name
     if name.startswith("scarf."):
         dress_scarf(layers, name.split(".", 1)[1])
     for coll in layers.values():
-        coll.hide_render = coll.name not in (collection_name, "body")
-    for obj in layers["body"].objects:
-        obj.is_holdout = collection_name != "body"
+        coll.hide_render = coll.name not in (collection_name, *BASE)
+    for base in BASE:
+        for obj in layers[base].objects:
+            obj.is_holdout = collection_name not in ("body", base)
     scene.render.filepath = path
     bpy.ops.render.render(write_still=True, scene=scene.name)
     img = bpy.data.images.load(path, check_existing=False)
@@ -937,10 +991,29 @@ def crop_box(images):
     return top, left, bottom, right
 
 
-def pupil_travel():
+def eye_in_cell(scene, pose, top, left):
+    """
+    Where his eyes are in the pose's cell, in pixels: the near eye in profile,
+    between the two facing the reader. The component aims his gaze from there.
+    """
+    if pose == "side":
+        centre, _ = eye_white(-1)
+    else:
+        centre = (eye_white(-1)[0] + eye_white(1)[0]) / 2
+    # The camera is orthographic: a point's place in the frame is its offset
+    # from the camera along the frame's own right and up.
+    cam = scene.camera
+    rot = cam.rotation_euler.to_matrix()
+    offset = centre - cam.location
+    px = offset.dot(rot @ Vector((1, 0, 0))) * PX_PER_UNIT + RENDER_PX / 2
+    py = RENDER_PX / 2 - offset.dot(rot @ Vector((0, 1, 0))) * PX_PER_UNIT
+    return {"x": round(px - left, 1), "y": round(py - top, 1)}
+
+
+def pupil_travel(pose):
     """How far, in cell pixels, the pupils move for a gaze of 1 on each axis."""
-    room = (EYE_R - PUPIL_R) * PX_PER_UNIT
-    return {"x": round(room * 0.6, 2), "y": round(room * 0.5, 2)}
+    x, y = GAZE[pose]["travel"]
+    return {"x": x, "y": y}
 
 
 def save_webp(pixels, path):
@@ -962,9 +1035,11 @@ def main():
     scene, layers = build()
     names = layer_names()
     rows = {}
+    eyes = {}
     with tempfile.TemporaryDirectory() as tmp:
         for pose in POSES:
             aim(scene, pose)
+            build_pupils(layers["pupils"], GAZE[pose]["target"])
             images = [
                 render_layer(
                     scene, layers, name, os.path.join(tmp, f"{pose}-{name}.png")
@@ -973,6 +1048,7 @@ def main():
             ]
             top, left, bottom, right = crop_box(images)
             rows[pose] = [im[top:bottom, left:right] for im in images]
+            eyes[pose] = eye_in_cell(scene, pose, top, left)
 
     width = max(len(cells) * cells[0].shape[1] for cells in rows.values())
     height = sum(cells[0].shape[0] for cells in rows.values())
@@ -988,7 +1064,8 @@ def main():
             "width": w,
             "height": h,
             "cells": {name: i * w for i, name in enumerate(names)},
-            "pupilTravel": pupil_travel(),
+            "eyes": eyes[pose],
+            "pupilTravel": pupil_travel(pose),
         }
         y += h
 

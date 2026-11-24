@@ -1,5 +1,5 @@
 {
-  "width": 4718,
+  "width": 5055,
   "height": 664,
   "outline": 9,
   "poses": {
@@ -9,23 +9,28 @@
       "height": 332,
       "cells": {
         "body": 0,
-        "pupils": 337,
-        "lids": 674,
-        "hair.tuft": 1011,
-        "hair.crest": 1348,
-        "hair.fringe": 1685,
-        "hair.beanie": 2022,
-        "glasses.round": 2359,
-        "glasses.sun": 2696,
-        "glasses.geek": 3033,
-        "scarf.red": 3370,
-        "scarf.green": 3707,
-        "scarf.orange": 4044,
-        "scarf.pink": 4381
+        "eyes": 337,
+        "pupils": 674,
+        "lids": 1011,
+        "hair.tuft": 1348,
+        "hair.crest": 1685,
+        "hair.fringe": 2022,
+        "hair.beanie": 2359,
+        "glasses.round": 2696,
+        "glasses.sun": 3033,
+        "glasses.geek": 3370,
+        "scarf.red": 3707,
+        "scarf.green": 4044,
+        "scarf.orange": 4381,
+        "scarf.pink": 4718
+      },
+      "eyes": {
+        "x": 256.9,
+        "y": 122.9
       },
       "pupilTravel": {
-        "x": 6.84,
-        "y": 5.7
+        "x": 7.0,
+        "y": 8.0
       }
     },
     "front": {
@@ -34,23 +39,28 @@
       "height": 332,
       "cells": {
         "body": 0,
-        "pupils": 218,
-        "lids": 436,
-        "hair.tuft": 654,
-        "hair.crest": 872,
-        "hair.fringe": 1090,
-        "hair.beanie": 1308,
-        "glasses.round": 1526,
-        "glasses.sun": 1744,
-        "glasses.geek": 1962,
-        "scarf.red": 2180,
-        "scarf.green": 2398,
-        "scarf.orange": 2616,
-        "scarf.pink": 2834
+        "eyes": 218,
+        "pupils": 436,
+        "lids": 654,
+        "hair.tuft": 872,
+        "hair.crest": 1090,
+        "hair.fringe": 1308,
+        "hair.beanie": 1526,
+        "glasses.round": 1744,
+        "glasses.sun": 1962,
+        "glasses.geek": 2180,
+        "scarf.red": 2398,
+        "scarf.green": 2616,
+        "scarf.orange": 2834,
+        "scarf.pink": 3052
+      },
+      "eyes": {
+        "x": 109.0,
+        "y": 122.9
       },
       "pupilTravel": {
-        "x": 6.84,
-        "y": 5.7
+        "x": 8.0,
+        "y": 7.5
       }
     }
   }

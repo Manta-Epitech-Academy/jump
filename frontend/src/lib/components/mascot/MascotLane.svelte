@@ -46,7 +46,7 @@
   import { page } from '$app/state';
   import { fade } from '#lib/motion/index.ts';
   import { DEFAULT_MASCOT_LOOK, mascotLookOf } from '#lib/domain/mascot.ts';
-  import EpiDuck from './EpiDuck.svelte';
+  import EpiDuck, { eyesOnScreen } from './EpiDuck.svelte';
   import { DIVE_MS, EMERGE_MS, useMascot } from './mascotController.svelte.ts';
 
   // Read once: the lane is remounted with the page, and a sign-in that makes
@@ -57,6 +57,13 @@
   const DUCK_WIDTH = 48;
   /** Swimming speed, pixels per second: unhurried, a duck on a pond. */
   const SPEED = 28;
+  /**
+   * How far from his eyes, in pixels, a pointer has to be for him to look
+   * all the way towards it; nearer, his pupils move less.
+   */
+  const GAZE_REACH = 160;
+  /** The share of the way to where he looks that his pupils cover per frame. */
+  const GAZE_EASE = 0.22;
 
   let look = $derived(
     page.data.talent ? mascotLookOf(page.data.talent) : DEFAULT_MASCOT_LOOK,
@@ -74,6 +81,8 @@
   let idleFront = $state(false);
   let eyesClosed = $state(false);
   let gaze = $state({ x: 0, y: 0 });
+  /** Where his pupils are heading; `gaze` eases towards it every frame. */
+  let gazeTarget = { x: 0, y: 0 };
   let lookingAround = false;
   let bubbleAlign = $state<'start' | 'center' | 'end'>('center');
 
@@ -241,7 +250,7 @@
       } else if (roll < 0.6) {
         lookingAround = true;
         for (const x of [-1, 1, 0]) {
-          gaze = { x, y: 0 };
+          gazeTarget = { x, y: 0 };
           await wait(rand(450, 700));
         }
         lookingAround = false;
@@ -316,23 +325,51 @@
       }
     }
 
-    // His eyes follow a mouse nearby; a finger has nothing to follow.
+    // His eyes follow a mouse; a finger has nothing to follow. The pointer is
+    // only remembered when it moves: where he looks is aimed from his eyes on
+    // every frame, so it stays true while he swims under a still pointer, and
+    // his pupils ease there rather than jump.
     let frame = 0;
+    let pointer: { x: number; y: number } | null = null;
     const finePointer = window.matchMedia('(pointer: fine)');
     const onPointer = (event: PointerEvent) => {
-      if (!finePointer.matches || lookingAround || mascot!.reducedMotion) {
-        return;
-      }
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        if (!swimmer) return;
-        const box = swimmer.getBoundingClientRect();
-        const dx = (event.clientX - (box.left + box.width / 2)) / 220;
-        const dy = (event.clientY - (box.top + box.height / 3)) / 220;
-        gaze = { x: front ? dx : facingLeft ? -dx : dx, y: dy };
-      });
+      pointer = finePointer.matches
+        ? { x: event.clientX, y: event.clientY }
+        : null;
     };
+    const onPointerGone = () => (pointer = null);
+
+    /** Where to look for the pointer to be in his eyes' line, or ahead. */
+    function aimAtPointer(): { x: number; y: number } {
+      const drawn = turner?.querySelector('svg');
+      if (!pointer || !drawn) return { x: 0, y: 0 };
+      const mirrored = !front && facingLeft;
+      const eyes = eyesOnScreen(drawn, front ? 'front' : 'side', mirrored);
+      // A mirrored drawing looks the other way for the same pupil offset.
+      const dx = (pointer.x - eyes.x) * (mirrored ? -1 : 1);
+      const dy = pointer.y - eyes.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance < 1) return { x: 0, y: 0 };
+      const reach = Math.min(1, distance / GAZE_REACH) / distance;
+      return { x: dx * reach, y: dy * reach };
+    }
+
+    function look(): void {
+      if (mascot!.reducedMotion) gazeTarget = { x: 0, y: 0 };
+      else if (!lookingAround) gazeTarget = aimAtPointer();
+      const dx = gazeTarget.x - gaze.x;
+      const dy = gazeTarget.y - gaze.y;
+      if (Math.abs(dx) > 0.004 || Math.abs(dy) > 0.004) {
+        gaze = mascot!.reducedMotion
+          ? gazeTarget
+          : { x: gaze.x + dx * GAZE_EASE, y: gaze.y + dy * GAZE_EASE };
+      }
+      frame = requestAnimationFrame(look);
+    }
+
     window.addEventListener('pointermove', onPointer, { passive: true });
+    document.documentElement.addEventListener('pointerleave', onPointerGone);
+    frame = requestAnimationFrame(look);
 
     // A narrower window (a phone turned, a window resized) would leave him
     // over the controls: bring him back to the lane's new end.
@@ -356,6 +393,10 @@
       for (const t of timers) clearTimeout(t);
       cancelAnimationFrame(frame);
       window.removeEventListener('pointermove', onPointer);
+      document.documentElement.removeEventListener(
+        'pointerleave',
+        onPointerGone,
+      );
       resized.disconnect();
       mascot.x = laneLeft + currentX();
       mascot.facingLeft = facingLeft;

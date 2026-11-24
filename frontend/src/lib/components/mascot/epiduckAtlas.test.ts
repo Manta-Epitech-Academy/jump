@@ -18,6 +18,7 @@ const worn = (catalogue: Record<string, string>, prefix: string) =>
 describe('the EpiDuck atlas', () => {
   const needed = [
     'body',
+    'eyes',
     'pupils',
     'lids',
     ...worn(MASCOT_HAIRS, 'hair'),
