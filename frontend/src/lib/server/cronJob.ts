@@ -7,7 +7,7 @@ import { requireBearerSecret } from '#lib/server/auth/bearerSecret.ts';
  *
  * The external cron service calls them with `Authorization: Bearer
  * $CRON_SECRET`, and that check (`requireBearerSecret`) runs here before `run`,
- * so a job route cannot exist without it: `jobs.gate.test.ts` calls every
+ * so a job route cannot exist without it: `cronJob.gate.test.ts` calls every
  * exported handler under `src/routes/api/jobs/` without the secret and fails
  * on anything but a 401. A job writes the database (anonymisation, purges,
  * broadcast sends), so a route that skipped the check would open those writes
