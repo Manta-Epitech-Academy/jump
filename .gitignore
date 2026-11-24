@@ -130,3 +130,6 @@ frontend/tests/e2e/.auth/
 # checkout (see AGENTS.md), and this one is placed for us. It was only ever
 # excluded by .git/info/exclude, which is per-machine and does not travel.
 /.claude/worktrees/
+
+# EpiDuck contact sheet, rewritten by every `bun run art:epiduck`
+frontend/scripts/epiduck/sheet.png

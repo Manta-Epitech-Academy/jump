@@ -18,6 +18,19 @@ What it writes, in `src/lib/components/mascot/art/`:
   - `epiduck.webp`: one row per pose (profile, front), one cell per layer;
   - `epiduck.json`: where each cell is, each pose's size, where his eyes are
     and how far the pupils travel when he looks somewhere.
+and, beside this file, `sheet.png` (not committed): every accessory in both
+poses, his gaze at its limits and his eyes shut, stacked as the component
+stacks them. Look at it before committing a change.
+
+This file is the model, so there is no `.blend` to keep: a binary nobody can
+review would become a second source and drift from this one. To work on him:
+  - in Blender's interface: `bun run art:epiduck --blend /tmp/epiduck.blend`
+    saves the modelled scene without rendering; port what you change back here;
+  - in a running Blender, through the Blender MCP: execute this file with
+    `__name__` set to anything but `"__main__"` (and `__file__` set to its
+    path), call `build()`, set the window's scene to the one it returns, and
+    `aim(scene, "front")` or `"side"` to look through the camera of a pose.
+    Iterate on the constants and builders below, then run the command above.
 
 The layers are stacked by `EpiDuck.svelte` in this order: body, scarf, pupils
 or lids, glasses, hair. Each layer is rendered alone with the body as a holdout,
@@ -36,9 +49,11 @@ His colours are read from `art/palette.json`, the only place they are written,
 which `art/palette.ts` also reads for the settings card's swatches.
 """
 
+import argparse
 import json
 import math
 import os
+import sys
 import tempfile
 
 import bmesh
@@ -1031,8 +1046,137 @@ def save_webp(pixels, path):
     bpy.data.images.remove(img)
 
 
+# ---- The contact sheet ------------------------------------------------------------
+# Every accessory, both poses, his gaze at its limits and his eyes shut, stacked
+# the way `EpiDuck.svelte` stacks them, on a dark page so the outline shows.
+# It is how a change to this file is judged before anyone opens the app.
+
+SHEET_BACKGROUND = (0.12, 0.14, 0.2)
+
+
+def premultiplied(cell):
+    out = cell.copy()
+    out[..., :3] *= out[..., 3:4]
+    return out
+
+
+def over(below, above):
+    """`above` laid on `below`, both premultiplied."""
+    return above + below * (1 - above[..., 3:4])
+
+
+def shifted(image, dx, dy):
+    """`image` moved by whole pixels, what moves in from the edge empty."""
+    out = np.zeros_like(image)
+    h, w = image.shape[:2]
+    ys, yd = (
+        (slice(0, h - dy), slice(dy, h))
+        if dy >= 0
+        else (slice(-dy, h), slice(0, h + dy))
+    )
+    xs, xd = (
+        (slice(0, w - dx), slice(dx, w))
+        if dx >= 0
+        else (slice(-dx, w), slice(0, w + dx))
+    )
+    out[yd, xd] = image[ys, xs]
+    return out
+
+
+def dressed(cells, pose, look, gaze=(0.0, 0.0), closed=False):
+    """One duck as the component draws it, premultiplied RGBA."""
+    hair, glasses, scarf = look
+    c = {name: premultiplied(cell) for name, cell in cells[pose].items()}
+    duck = c["body"]
+    if scarf != "none":
+        duck = over(duck, c[f"scarf.{scarf}"])
+    if closed:
+        duck = over(duck, c["lids"])
+    else:
+        tx, ty = GAZE[pose]["travel"]
+        reach = max(1.0, math.hypot(*gaze))
+        pupils = shifted(
+            c["pupils"], round(gaze[0] / reach * tx), round(gaze[1] / reach * ty)
+        )
+        duck = over(duck, pupils * c["eyes"][..., 3:4])
+    if glasses != "none":
+        duck = over(duck, c[f"glasses.{glasses}"])
+    duck = over(duck, c[f"hair.{hair}"])
+    # The sticker outline: his silhouette grown by a disc, in white, under him.
+    alpha = duck[..., 3]
+    grown = np.zeros_like(alpha)
+    r = OUTLINE_PX
+    for dy in range(-r, r + 1):
+        for dx in range(-r, r + 1):
+            if dx * dx + dy * dy <= r * r:
+                grown = np.maximum(grown, shifted(alpha[..., None], dx, dy)[..., 0])
+    white = np.dstack([grown, grown, grown, grown])
+    return over(white, duck)
+
+
+def contact_sheet(cells, path):
+    hairs = HAIRS
+    glasses = ("none", *GLASSES)
+    scarves = ("none", *SCARVES)
+    looks = [
+        (hair, glass, scarves[(i + j) % len(scarves)])
+        for i, hair in enumerate(hairs)
+        for j, glass in enumerate(glasses)
+    ]
+    plain = ("tuft", "none", "none")
+    tiles = [[dressed(cells, pose, look) for pose in POSES] for look in looks]
+    for gaze in ((-1, 0), (1, 0), (0, -1), (0, 1), (0.7, 0.7)):
+        tiles.append([dressed(cells, pose, plain, gaze) for pose in POSES])
+    tiles.append([dressed(cells, pose, plain, closed=True) for pose in POSES])
+
+    side_w = cells["side"]["body"].shape[1]
+    front_w = cells["front"]["body"].shape[1]
+    tile_w = side_w + front_w
+    tile_h = max(cells[pose]["body"].shape[0] for pose in POSES)
+    per_row = 4
+    rows = math.ceil(len(tiles) / per_row)
+    sheet = np.zeros((rows * tile_h, per_row * tile_w, 4), dtype=np.float32)
+    sheet[...] = (*SHEET_BACKGROUND, 1.0)
+    for k, (side, front) in enumerate(tiles):
+        y, x = (k // per_row) * tile_h, (k % per_row) * tile_w
+        for image, offset in ((side, 0), (front, side_w)):
+            h, w = image.shape[:2]
+            area = sheet[y + tile_h - h : y + tile_h, x + offset : x + offset + w]
+            area[...] = over(area, image)
+    img = bpy.data.images.new("epiduck-sheet", sheet.shape[1], sheet.shape[0])
+    img.pixels.foreach_set(np.flipud(sheet).ravel())
+    img.filepath_raw = path
+    img.file_format = "PNG"
+    img.save()
+    bpy.data.images.remove(img)
+
+
+# ---- Entry ---------------------------------------------------------------------------
+
+
+def arguments():
+    """What follows `--` on Blender's command line."""
+    parser = argparse.ArgumentParser(prog="bun run art:epiduck")
+    parser.add_argument(
+        "--blend",
+        metavar="PATH",
+        help="save the modelled scene to open in Blender, and render nothing",
+    )
+    argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
+    return parser.parse_args(argv)
+
+
 def main():
+    args = arguments()
     scene, layers = build()
+    if args.blend:
+        aim(scene, "side")
+        # His scene alone, so the file opens on him rather than on a cube.
+        for other in [sc for sc in bpy.data.scenes if sc.name != SCENE]:
+            bpy.data.scenes.remove(other)
+        bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(args.blend))
+        print(f"epiduck: scene saved to {args.blend}, nothing rendered")
+        return
     names = layer_names()
     rows = {}
     eyes = {}
@@ -1075,6 +1219,13 @@ def main():
         f.write("\n")
     size = os.path.getsize(os.path.join(ART, "epiduck.webp"))
     print(f"epiduck: {width}x{height} atlas, {size // 1024} KB, in {ART}")
+
+    sheet = os.path.join(HERE, "sheet.png")
+    contact_sheet(
+        {pose: dict(zip(names, cells, strict=True)) for pose, cells in rows.items()},
+        sheet,
+    )
+    print(f"epiduck: contact sheet in {sheet}")
 
 
 if __name__ == "__main__":
