@@ -874,23 +874,40 @@ as an icon:
 - his dive and his way back up take 1.8 s each, the mockup's, overshooting on
   the way up;
 - a tap squashes him (a scale, 320 ms) and a turn squeezes him flat and back
-  (2 × 110 ms). These are the only scales this file allows, they belong to the
+  (2 × 110 ms); good news makes him hop, up and a squash on landing (420 ms in
+  the header, 480 ms on his stage), his eyes squeezed shut in joy for as long as
+  he says it. These are the only scales this file allows, they belong to the
   character, and no control may borrow them: a button still presses 1px down.
 
-None of it blocks anything: he never covers a control, and his bubble sits
-under him for five seconds and asks nothing. He stops swimming while he speaks,
+In the header none of it blocks anything: he never covers a control, and his
+bubble sits under him for five seconds and asks nothing. He stops swimming while he speaks,
 so the bubble stays where it was said. Asleep, he is under the water and nothing
 marks the spot but the sleep button's « zz »: a talent who sends him to sleep
 asked for calm, and bubbles rising from an empty stretch of header read as
 coming from nowhere.
 
-**Less motion, still a duck.** Asked for less motion, he sits still where he
-was, does not bob, squash or follow the pointer, and his dives are 200 ms fades.
-His bubble fades in like any other entrance.
+**His stage is the one celebration** (#540). XP earned and a level reached are
+played in the middle of the screen with him drawn large, from an atlas rendered
+for that size (`epiduck-stage.webp`), never the header's scaled up. An amount is
+one beat of 2.8 s: it pops and counts up (the XP float's 2.2 s), he hops in and
+says his line. A level is three, 4.8 s in all: the bar of the level left fills
+(0.9 s), the new badge appears on a card with him, then confetti and his line,
+over the dialogs' `bg-black/50`. One beat at a time, and a tap or Escape moves
+on: it is the only moment he covers the page, and it asks nothing. When it ends
+he flies and shrinks back onto his spot in the header (650 ms), so there is
+never two of him. It is rare on purpose: XP and a level, never a visit.
 
-**Where he is drawn**: the talent header, the talent's « Mon EpiDuck » card, and
-the avatar of a questionnaire that names no persona of its own. Never in the
-staff or parent spaces, whose headers do not carry him.
+**Less motion, still a duck.** Asked for less motion, he sits still where he
+was, does not bob, hop, squash or follow the pointer, and his dives are 200 ms
+fades. His joy stays in his eyes. His bubble fades in like any other entrance;
+on his stage there is no confetti, no count-up and no flight back, and what
+appears fades.
+
+**Where he is drawn**: the talent header, his stage, the welcome screen (where
+he comes out of the water to introduce himself) and a successful check-in, the
+talent's « Mon EpiDuck » card, and the avatar of a questionnaire that names no
+persona of its own. Never in the staff or parent spaces, whose headers do not
+carry him.
 
 ## Accessibility
 
