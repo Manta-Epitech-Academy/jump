@@ -13,7 +13,7 @@ import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
 import {
   dateKeyToDbDate,
   dayLabelFr,
-  isPresenceSlot,
+  presenceSlotOf,
   slotLabelFr,
   type CellStatus,
   type PresenceSlot,
@@ -61,6 +61,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     prisma.event.findFirst({
       where: { id: eventId, ...shownEventWhere },
       select: {
+        id: true,
         publicName: true,
         date: true,
         endDate: true,
@@ -88,9 +89,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const timezone = event.campus?.timezone ?? 'Europe/Paris';
   // The token was signed for a créneau the event has since lost (a QR printed
   // before an afternoon start time was set): nothing to check in to.
-  if (!isPresenceSlot(event, timezone, day, slot)) {
-    return { state: 'invalid' as CheckinState, ...empty };
-  }
+  const at = presenceSlotOf(event, timezone, day, slot);
+  if (!at) return { state: 'invalid' as CheckinState, ...empty };
   // The event's public name, never its Salesforce title, as everywhere a talent
   // reads: an activated event has one.
   const withLabel = {
@@ -124,7 +124,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   // The scan and its two projections commit together: a first scan can make
   // this event count as attended (`writePresenceCell`).
-  await writePresenceCell(cell, {
+  await writePresenceCell(at, talent.id, {
     status: 'present',
     source: 'qr',
     markedById: null,

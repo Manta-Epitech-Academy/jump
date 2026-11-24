@@ -154,7 +154,7 @@ export function slotKey(day: DateKey, slot: PresenceSlot): string {
 /**
  * The calendar days émargement covers for an event. The single source of truth
  * for which day belongs to the event: `presenceSlots` builds the créneau grid,
- * the XLSX export and every write check (`isPresenceSlot`) on top of it, so they
+ * the XLSX export and every write (`presenceSlotOf`) on top of it, so they
  * can never disagree.
  *
  * A multi-day event (explicit `endDate`) yields its working days only (a 2-week
@@ -219,20 +219,40 @@ export function presenceSlots(
   });
 }
 
+declare const presenceSlotRef: unique symbol;
+
 /**
- * Whether (day, slot) is one of the event's créneaux. Every émargement write
- * (staff actions, the QR mint, the QR scan) checks it, so a créneau the grid does
- * not show cannot collect marks: a QR printed before the start time was set, or a
- * page loaded before it changed.
+ * A créneau the event holds, as `presenceSlots` lists it, tied to that event.
+ * Only `presenceSlotOf` makes one, and every émargement write takes one
+ * (`presenceService`), so a write to a créneau the grid does not show (a QR
+ * printed before the start time was set, a page loaded before it changed) is a
+ * type error rather than a check each caller has to remember. It used to be one:
+ * six callers each ran `isPresenceSlot` before writing, and the services wrote
+ * whatever they were handed.
+ *
+ * It proves the créneau, nothing else: whether the caller may write it (the
+ * event's campus, the talent's place on the sheet, a QR's signature) stays the
+ * caller's to settle.
  */
-export function isPresenceSlot(
-  event: { date: Date; endDate: Date | null; startMinutes: number | null },
+export type PresenceSlotRef = Readonly<EventSlot & { eventId: string }> & {
+  readonly [presenceSlotRef]: true;
+};
+
+/** The event's créneau (day, slot), or `null` when the event holds none. */
+export function presenceSlotOf(
+  event: {
+    id: string;
+    date: Date;
+    endDate: Date | null;
+    startMinutes: number | null;
+  },
   timezone: string,
   day: DateKey,
   slot: PresenceSlot,
-): boolean {
+): PresenceSlotRef | null {
   const key = slotKey(day, slot);
-  return presenceSlots(event, timezone).some((s) => s.key === key);
+  const held = presenceSlots(event, timezone).find((s) => s.key === key);
+  return held ? ({ ...held, eventId: event.id } as PresenceSlotRef) : null;
 }
 
 /** "lun. 9 juin · Matin" for the créneau selector. */

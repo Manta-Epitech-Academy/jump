@@ -3,7 +3,7 @@ import { loadEventOr404 } from '#lib/server/services/stageContext.ts';
 import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
 import {
   PRESENCE_SLOTS,
-  isPresenceSlot,
+  presenceSlotOf,
   dateKeyToDbDate,
   type PresenceSlot,
 } from '#lib/domain/eventPresence.ts';
@@ -48,15 +48,14 @@ export async function resolveSlotCheckinLink(opts: {
     opts.campusId,
     EVENT_MODULES.EMARGEMENT,
   );
-  if (!isPresenceSlot(event, opts.timezone, opts.day, slot)) {
-    throw error(400, "Ce créneau n'appartient pas à l'événement.");
-  }
+  const at = presenceSlotOf(event, opts.timezone, opts.day, slot);
+  if (!at) throw error(400, "Ce créneau n'appartient pas à l'événement.");
 
   const expiresAt = new Date(
-    dateKeyToDbDate(opts.day).getTime() + 2 * 86_400_000,
+    dateKeyToDbDate(at.day).getTime() + 2 * 86_400_000,
   );
   const token = await mintCheckinToken(
-    { eventId: event.id, day: opts.day, slot },
+    { eventId: at.eventId, day: at.day, slot: at.slot },
     expiresAt,
   );
 

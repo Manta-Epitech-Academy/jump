@@ -13,9 +13,8 @@ import { requireStaffGroup } from '#lib/server/auth/guards.ts';
 import { EVENT_MODULES } from '#lib/domain/eventModules.ts';
 import {
   presenceSlots,
-  isPresenceSlot,
+  presenceSlotOf,
   slotKey,
-  dateKeyToDbDate,
   dbDateToKey,
   defaultActiveSlotKey,
   effectiveStatus,
@@ -24,6 +23,7 @@ import {
   cellOf,
   type PresenceRecord,
   type PresenceSlot,
+  type PresenceSlotRef,
   type CellStatus,
 } from '#lib/domain/eventPresence.ts';
 import {
@@ -192,16 +192,24 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 // error page to SvelteKit, and its text never reaches the toast the roster
 // shows.
 
-/** Why the event has no such créneau (the grid no longer lists it), or null. */
-function slotRefusal(
-  event: { date: Date; endDate: Date | null; startMinutes: number | null },
-  timezone: string,
-  day: string,
-  slot: PresenceSlot,
-): string | null {
-  return isPresenceSlot(event, timezone, day, slot)
-    ? null
-    : "Ce créneau n'appartient pas à l'événement.";
+/**
+ * The créneau an action writes, on the staff member's campus and on an event
+ * that carries émargement (a 404 otherwise), or why the event holds no such
+ * créneau (the grid no longer lists it).
+ */
+async function openSlot(
+  locals: App.Locals,
+  eventId: string,
+  { day, slot }: { day: string; slot: PresenceSlot },
+): Promise<{ campusId: string; at: PresenceSlotRef } | string> {
+  const campusId = getCampusId(locals);
+  const event = await loadEventOr404(
+    eventId,
+    campusId,
+    EVENT_MODULES.EMARGEMENT,
+  );
+  const at = presenceSlotOf(event, getCampusTimezone(locals), day, slot);
+  return at ? { campusId, at } : "Ce créneau n'appartient pas à l'événement.";
 }
 
 /**
@@ -230,41 +238,29 @@ export const actions: Actions = {
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(setPresenceSchema));
     if (!form.valid) return fail(400, { form });
+    const opened = await openSlot(locals, params.id, form.data);
+    if (typeof opened === 'string')
+      return message(form, opened, { status: 400 });
+    const { campusId, at } = opened;
 
-    const campusId = getCampusId(locals);
-    const event = await loadEventOr404(
-      params.id,
-      campusId,
-      EVENT_MODULES.EMARGEMENT,
-    );
-    // Campus authorization for the write lands here: `loadEventOr404` scoped the
+    // Campus authorization for the write lands here: `openSlot` scoped the
     // event and `sheetRefusal` the talent's participation, so the write below
     // (`writePresenceCell`, on the raw client) is safe (same shape as
     // xpService's ledger callers).
-    const refusal =
-      slotRefusal(
-        event,
-        getCampusTimezone(locals),
-        form.data.day,
-        form.data.slot,
-      ) ?? (await sheetRefusal(campusId, event.id, form.data.talentId));
+    const { talentId, status } = form.data;
+    const refusal = await sheetRefusal(campusId, at.eventId, talentId);
     if (refusal) return message(form, refusal, { status: 400 });
 
-    const { talentId, slot, status } = form.data;
     // « En attente » clears the cell; the projections follow either way.
-    await writePresenceCell(
-      {
-        talentId,
-        eventId: event.id,
-        day: dateKeyToDbDate(form.data.day),
-        slot,
-      },
-      { status, source: 'manual', markedById: locals.staffProfile.id },
-    );
+    await writePresenceCell(at, talentId, {
+      status,
+      source: 'manual',
+      markedById: locals.staffProfile.id,
+    });
 
     recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_MARK, {
       locals,
-      eventId: event.id,
+      eventId: at.eventId,
     });
 
     return message(
@@ -279,26 +275,13 @@ export const actions: Actions = {
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(markAllPresentSchema));
     if (!form.valid) return fail(400, { form });
-
-    const campusId = getCampusId(locals);
-    const event = await loadEventOr404(
-      params.id,
-      campusId,
-      EVENT_MODULES.EMARGEMENT,
-    );
-    const refusal = slotRefusal(
-      event,
-      getCampusTimezone(locals),
-      form.data.day,
-      form.data.slot,
-    );
-    if (refusal) return message(form, refusal, { status: 400 });
+    const opened = await openSlot(locals, params.id, form.data);
+    if (typeof opened === 'string')
+      return message(form, opened, { status: 400 });
 
     const result = await markAllPresentInSlot(
-      campusId,
-      event.id,
-      dateKeyToDbDate(form.data.day),
-      form.data.slot,
+      opened.campusId,
+      opened.at,
       locals.staffProfile.id,
     );
 
@@ -312,7 +295,7 @@ export const actions: Actions = {
 
     recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_MARK_ALL, {
       locals,
-      eventId: event.id,
+      eventId: opened.at.eventId,
     });
 
     // Counted in présences, never in the cohort noun: an admin types that noun
@@ -329,31 +312,19 @@ export const actions: Actions = {
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(closeSlotSchema));
     if (!form.valid) return fail(400, { form });
+    const opened = await openSlot(locals, params.id, form.data);
+    if (typeof opened === 'string')
+      return message(form, opened, { status: 400 });
 
-    const campusId = getCampusId(locals);
-    const event = await loadEventOr404(
-      params.id,
-      campusId,
-      EVENT_MODULES.EMARGEMENT,
-    );
-    const refusal = slotRefusal(
-      event,
-      getCampusTimezone(locals),
-      form.data.day,
-      form.data.slot,
-    );
-    if (refusal) return message(form, refusal, { status: 400 });
     const { absent } = await closePresenceSlot(
-      campusId,
-      event.id,
-      dateKeyToDbDate(form.data.day),
-      form.data.slot,
+      opened.campusId,
+      opened.at,
       locals.staffProfile.id,
     );
 
     recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_SLOT_CLOSE, {
       locals,
-      eventId: event.id,
+      eventId: opened.at.eventId,
     });
 
     return message(
@@ -368,30 +339,15 @@ export const actions: Actions = {
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(reopenSlotSchema));
     if (!form.valid) return fail(400, { form });
+    const opened = await openSlot(locals, params.id, form.data);
+    if (typeof opened === 'string')
+      return message(form, opened, { status: 400 });
 
-    const campusId = getCampusId(locals);
-    const event = await loadEventOr404(
-      params.id,
-      campusId,
-      EVENT_MODULES.EMARGEMENT,
-    );
-    const refusal = slotRefusal(
-      event,
-      getCampusTimezone(locals),
-      form.data.day,
-      form.data.slot,
-    );
-    if (refusal) return message(form, refusal, { status: 400 });
-    await reopenPresenceSlot(
-      campusId,
-      event.id,
-      dateKeyToDbDate(form.data.day),
-      form.data.slot,
-    );
+    await reopenPresenceSlot(opened.campusId, opened.at);
 
     recordUsage(USAGE_FEATURES.DEV_EMARGEMENT_SLOT_REOPEN, {
       locals,
-      eventId: event.id,
+      eventId: opened.at.eventId,
     });
 
     return message(form, 'Créneau rouvert.');

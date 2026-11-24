@@ -5,10 +5,11 @@ import {
   recomputeEventsCountBulk,
 } from '#lib/server/services/xpService.ts';
 import { recomputeAttendance } from './attendance';
-import type {
-  CellStatus,
-  PresenceSlot,
-  PresenceSource,
+import {
+  dateKeyToDbDate,
+  type CellStatus,
+  type PresenceSlotRef,
+  type PresenceSource,
 } from '#lib/domain/eventPresence.ts';
 import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
 
@@ -23,6 +24,14 @@ import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
 //     `EventPresenceClosure` row managed below.
 // Either way, a still-unmarked talent in a closed créneau simply *reads* as
 // absent (`effectiveStatus`), and the QR refuses new self-check-ins.
+//
+// Every write below takes the créneau as a `PresenceSlotRef`, which only
+// `presenceSlotOf` hands out for a créneau the event holds.
+
+/** The (event, day, slot) columns a créneau is stored under. */
+function storedCell(at: PresenceSlotRef) {
+  return { eventId: at.eventId, day: dateKeyToDbDate(at.day), slot: at.slot };
+}
 
 /**
  * Close a (day, slot) early, before its automatic cutoff: record who/when in an
@@ -38,11 +47,10 @@ import { visibleParticipationWhere } from '#lib/domain/sfMemberStatus.ts';
  */
 export async function closePresenceSlot(
   campusId: string,
-  eventId: string,
-  day: Date,
-  slot: PresenceSlot,
+  at: PresenceSlotRef,
   closedById: string | null,
 ): Promise<{ absent: number }> {
+  const { eventId, day, slot } = storedCell(at);
   const db = scopedPrisma(campusId);
   const [roster, marked] = await Promise.all([
     db.participation.findMany({
@@ -71,12 +79,10 @@ export async function closePresenceSlot(
  */
 export async function reopenPresenceSlot(
   campusId: string,
-  eventId: string,
-  day: Date,
-  slot: PresenceSlot,
+  at: PresenceSlotRef,
 ): Promise<void> {
   await scopedPrisma(campusId).eventPresenceClosure.deleteMany({
-    where: { eventId, day, slot },
+    where: storedCell(at),
   });
 }
 
@@ -91,14 +97,16 @@ export async function reopenPresenceSlot(
  * verifies its token and refuses to overwrite a manual mark.
  */
 export async function writePresenceCell(
-  cell: { talentId: string; eventId: string; day: Date; slot: PresenceSlot },
+  at: PresenceSlotRef,
+  talentId: string,
   mark: {
     status: CellStatus;
     source: Exclude<PresenceSource, 'system'>;
     markedById: string | null;
   },
 ): Promise<void> {
-  const { talentId, eventId, day, slot } = cell;
+  const cell = { talentId, ...storedCell(at) };
+  const { eventId, day, slot } = cell;
   await prisma.$transaction(async (tx) => {
     if (mark.status === 'pending') {
       await tx.eventPresence.deleteMany({
@@ -144,11 +152,10 @@ export type MarkAllPresentResult =
  */
 export async function markAllPresentInSlot(
   campusId: string,
-  eventId: string,
-  day: Date,
-  slot: PresenceSlot,
+  at: PresenceSlotRef,
   markedById: string | null,
 ): Promise<MarkAllPresentResult> {
+  const { eventId, day, slot } = storedCell(at);
   const db = scopedPrisma(campusId);
   const manualClosure = await db.eventPresenceClosure.findUnique({
     where: { eventId_day_slot: { eventId, day, slot } },

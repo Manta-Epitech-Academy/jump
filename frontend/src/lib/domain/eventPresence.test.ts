@@ -7,7 +7,7 @@ import {
   computeSlotStats,
   computeAttendanceRate,
   defaultActiveSlotKey,
-  isPresenceSlot,
+  presenceSlotOf,
 } from './eventPresence';
 
 describe('eventPresence Domain Logic & Projections', () => {
@@ -132,17 +132,25 @@ describe('eventPresence Domain Logic & Projections', () => {
       ]);
     });
 
-    it('refuses a write to a créneau the event does not have', () => {
-      const event = { ...club, startMinutes: 14 * 60 };
+    it('hands out a créneau only when the event holds it', () => {
+      const event = { ...club, id: 'ev1', startMinutes: 14 * 60 };
       expect(
-        isPresenceSlot(event, 'Europe/Paris', '2026-10-24', 'morning'),
-      ).toBe(false);
+        presenceSlotOf(event, 'Europe/Paris', '2026-10-24', 'morning'),
+      ).toBeNull();
       expect(
-        isPresenceSlot(event, 'Europe/Paris', '2026-10-24', 'afternoon'),
-      ).toBe(true);
+        presenceSlotOf(event, 'Europe/Paris', '2026-10-24', 'afternoon'),
+      ).toEqual({
+        eventId: 'ev1',
+        day: '2026-10-24',
+        slot: 'afternoon',
+        key: '2026-10-24|afternoon',
+      });
       expect(
-        isPresenceSlot(event, 'Europe/Paris', '2026-10-25', 'afternoon'),
-      ).toBe(false);
+        presenceSlotOf(event, 'Europe/Paris', '2026-10-25', 'afternoon'),
+      ).toBeNull();
+      expect(
+        presenceSlotOf(event, 'Europe/Paris', 'not-a-day', 'afternoon'),
+      ).toBeNull();
     });
   });
 

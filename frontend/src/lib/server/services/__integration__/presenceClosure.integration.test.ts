@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '#lib/server/db.ts';
-import { dateKeyToDbDate, toDateKey } from '#lib/domain/eventPresence.ts';
+import {
+  dateKeyToDbDate,
+  presenceSlotOf,
+  toDateKey,
+} from '#lib/domain/eventPresence.ts';
 import { closePresenceSlot } from '#lib/server/services/presenceService.ts';
 import { assertTestDatabase } from './testDatabase';
 
@@ -77,13 +81,11 @@ describe('closing an émargement créneau (integration)', () => {
       },
     });
 
-    const { absent } = await closePresenceSlot(
-      campusId,
-      eventId,
-      day,
-      'morning',
-      null,
-    );
+    const event = await prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+    });
+    const at = presenceSlotOf(event, tz, toDateKey(monday, tz), 'morning');
+    const { absent } = await closePresenceSlot(campusId, at!, null);
 
     expect(absent).toBe(2);
     expect(
