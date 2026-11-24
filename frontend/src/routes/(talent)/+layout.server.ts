@@ -3,8 +3,11 @@ import { prisma } from '#lib/server/db.ts';
 import { shownEnrolmentWhere } from '#lib/domain/eventReadiness.ts';
 import { dbDateToKey } from '#lib/domain/eventPresence.ts';
 import { toDateKey } from '#lib/domain/planningTime.ts';
-import { greetingFor } from '#lib/domain/mascot.ts';
-import { loadMascotVoice } from '#lib/server/services/mascotService.ts';
+import { arrivalCues } from '#lib/domain/mascot.ts';
+import {
+  loadEventDays,
+  loadMascotVoice,
+} from '#lib/server/services/mascotService.ts';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   // Planning is data-driven (no campus flag): the talent has a calendar iff at
@@ -34,24 +37,33 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
 /**
  * What the header's EpiDuck needs beyond the talent's own row (#539): what he
- * may say today, and how he greets the talent: a hello, or a welcome back when
- * the previous visit is weeks old, read off the visit days the streak keeps.
+ * may say today, and what he says on arrival (#540): a hello, a welcome back
+ * when the previous visit is weeks old, or the day's milestone of the run of
+ * days, read off the visit days the streak keeps, then an event today or
+ * tomorrow.
  */
 async function mascotFor(
   talent: NonNullable<App.Locals['talent']>,
   locals: App.Locals,
 ) {
-  const today = toDateKey(new Date(), locals.talentTimezone ?? 'Europe/Paris');
+  const now = new Date();
+  const today = toDateKey(now, locals.talentTimezone ?? 'Europe/Paris');
   const dayOf = (day: Date | null) => (day ? dbDateToKey(day) : null);
+  const [voice, events] = await Promise.all([
+    loadMascotVoice(today),
+    loadEventDays(talent.id, now),
+  ]);
   return {
-    voice: await loadMascotVoice(today),
-    greeting: greetingFor(
-      {
+    voice,
+    arrival: arrivalCues({
+      visits: {
         lastDay: dayOf(talent.streakLastDay),
         previousDay: dayOf(talent.streakPreviousDay),
       },
+      streakDays: talent.streakDays,
       today,
-    ),
+      events,
+    }),
     today,
   };
 }

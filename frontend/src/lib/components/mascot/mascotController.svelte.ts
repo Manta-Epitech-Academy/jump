@@ -12,6 +12,13 @@
  * the admin API); a moment with none leaves him silent. Lines rotate by a key,
  * never at random, as every voice in Jump does (`pickLine`), so the first poke
  * of a day does not always open with the same one.
+ *
+ * Two ways to speak. A poke, a goodnight and a good morning answer the talent
+ * at once, over whatever he was saying. Everything else he has to say (what he
+ * says on arrival, a reaction to what the talent just did, #540) waits its
+ * turn in a queue, one bubble after the other, so a reaction never cuts a
+ * greeting short. A celebration takes him to the middle of the screen
+ * (`enterStage`), and the queue waits for him to come back.
  */
 
 import { getContext, setContext } from 'svelte';
@@ -19,9 +26,11 @@ import { prefersReducedMotion } from 'svelte/motion';
 import { toast } from 'svelte-sonner';
 import { pickLine } from '#lib/domain/pickLine.ts';
 import {
+  MASCOT_MOMENTS,
   fillLine,
-  type MascotGreeting,
+  type MascotCue,
   type MascotMomentKey,
+  type MascotMood,
   type MascotTokenValues,
   type MascotVoice,
 } from '#lib/domain/mascot.ts';
@@ -42,9 +51,11 @@ const REDUCED_DIVE_MS = 200;
 /** How long he sulks under the water before coming back on his own. */
 export const SULK_MS = 6000;
 /** How long a bubble stays: enough to read a short line twice. */
-const BUBBLE_MS = 5000;
+export const BUBBLE_MS = 5000;
+/** The breath between two queued lines, so the second reads as a new one. */
+export const BETWEEN_LINES_MS = 600;
 /** How long after arrival he greets: the page settles first. */
-const GREETING_DELAY_MS = 2000;
+export const GREETING_DELAY_MS = 2000;
 /**
  * Marks a tab whose talent he already greeted: once per visit, not on every
  * page and not again on a reload. Per tab and per browser, which is what a
@@ -53,7 +64,7 @@ const GREETING_DELAY_MS = 2000;
  */
 const GREETED_KEY = 'epiduck:greeted';
 
-export type MascotBubble = { text: string; id: number };
+export type MascotBubble = { text: string; id: number; mood: MascotMood };
 
 export type MascotControllerInit = {
   talentId: string;
@@ -61,13 +72,19 @@ export type MascotControllerInit = {
   /** Read each time he speaks, so a line written today arrives on next load. */
   voice: () => MascotVoice;
   tokens: () => MascotTokenValues;
-  greeting: MascotGreeting;
+  /** What he says when the talent arrives (`arrivalCues`), once per visit. */
+  arrival: MascotCue[];
   today: string;
 };
 
 export class MascotController {
   state = $state<MascotPhase>({ phase: 'awake' });
   bubble = $state<MascotBubble | null>(null);
+  /**
+   * He is in the middle of the screen, drawn by a celebration: the header's
+   * duck steps out of sight meanwhile, so there is never two of him.
+   */
+  onStage = $state(false);
   /** He stops and turns to the talent while he speaks. */
   facingTalent = $derived(this.bubble !== null && this.state.phase === 'awake');
   asleep = $derived(isAsleep(this.state));
@@ -90,8 +107,10 @@ export class MascotController {
   #pokes: number[] = [];
   #pokeTurn = 0;
   #bubbleId = 0;
-  #greeted = false;
+  #arrived = false;
+  #queue: MascotCue[] = [];
   #bubbleTimer: ReturnType<typeof setTimeout> | undefined;
+  #nextTimer: ReturnType<typeof setTimeout> | undefined;
   #phaseTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(init: MascotControllerInit) {
@@ -105,7 +124,7 @@ export class MascotController {
 
   /** The talent tapped him. */
   poke(now = Date.now()): void {
-    if (this.state.phase !== 'awake') return;
+    if (this.state.phase !== 'awake' || this.onStage) return;
     this.#pokes = recentPokes(this.#pokes, now);
     if (this.#pokes.length >= SULK_POKES) {
       this.#pokes = [];
@@ -118,7 +137,7 @@ export class MascotController {
     const start = lines.indexOf(
       pickLine(lines, `${this.#init.talentId}:${this.#init.today}`),
     );
-    this.#say(lines[(start + this.#pokeTurn++) % lines.length]);
+    this.#say(lines[(start + this.#pokeTurn++) % lines.length], 'poke');
   }
 
   /**
@@ -150,26 +169,72 @@ export class MascotController {
   }
 
   /**
-   * He stops and says hello when the talent arrives, as the mockup has him
-   * do: once per visit, never on each page change, where by the third click it
-   * would be noise. A duck asleep or already talking says nothing.
+   * What he says when the talent arrives, as the mockup has him greet: once
+   * per visit, never on each page change, where by the third click it would
+   * be noise. Queued after the page settles, like any other line.
    */
-  greet(): void {
-    const greeting = this.#init.greeting;
-    if (this.#greeted || !greeting || this.#greetedThisVisit()) return;
-    this.#greeted = true;
-    this.#rememberGreeted();
+  arrive(): void {
+    const cues = this.#init.arrival;
+    if (this.#arrived || cues.length === 0 || this.#arrivedThisVisit()) return;
+    this.#arrived = true;
+    this.#rememberArrived();
     setTimeout(() => {
-      if (this.state.phase !== 'awake' || this.bubble) return;
-      const lines = this.#init.voice()[greeting.moment] ?? [];
-      if (lines.length === 0) return;
-      this.#say(pickLine(lines, `${this.#init.talentId}:${this.#init.today}`), {
-        jours: String(greeting.daysAway),
-      });
+      for (const cue of cues) this.react(cue);
     }, GREETING_DELAY_MS);
   }
 
-  #greetedThisVisit(): boolean {
+  /**
+   * Something the talent did or is about to do, said in its turn after
+   * whatever he is saying. Asleep, he says nothing, and nothing waits for him
+   * to wake: the talent put him to sleep to have quiet.
+   */
+  react(cue: MascotCue): void {
+    if (this.asleep) return;
+    this.#queue.push(cue);
+    this.#next();
+  }
+
+  /**
+   * The line `cue` is said with today, its tokens filled, or null when the
+   * moment has no live line: what a page that draws him itself (a scene, the
+   * welcome screen, the émargement) puts in his bubble.
+   */
+  lineFor(cue: MascotCue): string | null {
+    const lines = this.#init.voice()[cue.moment] ?? [];
+    if (lines.length === 0) return null;
+    const line = pickLine(lines, `${this.#init.talentId}:${this.#init.today}`);
+    return fillLine(line, { ...this.#init.tokens(), ...cue.tokens });
+  }
+
+  /**
+   * A celebration takes him: the header's duck steps out of sight, and what
+   * he was saying there waits until he is back (`leaveStage`).
+   */
+  enterStage(): void {
+    this.onStage = true;
+    clearTimeout(this.#nextTimer);
+    this.#hideBubble();
+  }
+
+  leaveStage(): void {
+    this.onStage = false;
+    this.#next();
+  }
+
+  /** The next queued line, once he is on the water, free and in sight. */
+  #next(): void {
+    if (this.bubble || this.onStage) return;
+    if (this.state.phase !== 'awake') return;
+    clearTimeout(this.#nextTimer);
+    const cue = this.#queue.shift();
+    if (!cue) return;
+    const text = this.lineFor(cue);
+    // A moment with no line is silence: on to the next one.
+    if (text === null) return this.#next();
+    this.#show(text, MASCOT_MOMENTS[cue.moment].mood);
+  }
+
+  #arrivedThisVisit(): boolean {
     try {
       return sessionStorage.getItem(GREETED_KEY) === this.#init.talentId;
     } catch {
@@ -177,7 +242,7 @@ export class MascotController {
     }
   }
 
-  #rememberGreeted(): void {
+  #rememberArrived(): void {
     try {
       sessionStorage.setItem(GREETED_KEY, this.#init.talentId);
     } catch {
@@ -186,18 +251,24 @@ export class MascotController {
   }
 
   #sayMoment(moment: MascotMomentKey): void {
-    const lines = this.#init.voice()[moment] ?? [];
-    if (lines.length === 0) return;
-    this.#say(pickLine(lines, `${this.#init.talentId}:${this.#init.today}`));
+    const text = this.lineFor({ moment });
+    if (text !== null) this.#show(text, MASCOT_MOMENTS[moment].mood);
   }
 
-  #say(line: string, extra: MascotTokenValues = {}): void {
+  #say(line: string, moment: MascotMomentKey): void {
+    this.#show(
+      fillLine(line, this.#init.tokens()),
+      MASCOT_MOMENTS[moment].mood,
+    );
+  }
+
+  #show(text: string, mood: MascotMood): void {
     clearTimeout(this.#bubbleTimer);
-    this.bubble = {
-      text: fillLine(line, { ...this.#init.tokens(), ...extra }),
-      id: ++this.#bubbleId,
-    };
-    this.#bubbleTimer = setTimeout(() => this.#hideBubble(), BUBBLE_MS);
+    this.bubble = { text, mood, id: ++this.#bubbleId };
+    this.#bubbleTimer = setTimeout(() => {
+      this.#hideBubble();
+      this.#nextTimer = setTimeout(() => this.#next(), BETWEEN_LINES_MS);
+    }, BUBBLE_MS);
   }
 
   #hideBubble(): void {
@@ -220,6 +291,8 @@ export class MascotController {
   #enter(next: MascotPhase): void {
     this.state = next;
     clearTimeout(this.#phaseTimer);
+    if (next.phase === 'awake') this.#next();
+    if (isAsleep(next)) this.#queue = [];
     const dive = this.reducedMotion ? REDUCED_DIVE_MS : DIVE_MS;
     const emerge = this.reducedMotion ? REDUCED_DIVE_MS : EMERGE_MS;
     if (next.phase === 'diving') {

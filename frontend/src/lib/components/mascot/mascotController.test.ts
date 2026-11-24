@@ -12,8 +12,14 @@ vi.mock('./mascot.remote', () => ({
 }));
 vi.mock('svelte-sonner', () => ({ toast: { error: vi.fn() } }));
 
-const { MascotController, DIVE_MS, EMERGE_MS, SULK_MS } =
-  await import('./mascotController.svelte.ts');
+const {
+  MascotController,
+  BETWEEN_LINES_MS,
+  BUBBLE_MS,
+  DIVE_MS,
+  EMERGE_MS,
+  SULK_MS,
+} = await import('./mascotController.svelte.ts');
 const { SULK_POKES } = await import('./mascotPhase');
 
 function duck() {
@@ -22,7 +28,7 @@ function duck() {
     asleep: false,
     voice: () => ({}),
     tokens: () => ({}),
-    greeting: null,
+    arrival: [],
     today: '2026-11-24',
   });
 }
@@ -78,5 +84,75 @@ describe('MascotController, when the server refuses a sleep', () => {
     // The dive the refusal interrupted never lands him under.
     await vi.advanceTimersByTimeAsync(DIVE_MS);
     expect(mascot.state).toEqual({ phase: 'awake' });
+  });
+});
+
+/**
+ * What he has to say waits its turn (#540): a reaction never cuts a greeting
+ * short, a moment with no line is skipped rather than shown empty, and a
+ * celebration holds the queue until he is back in the header.
+ */
+describe('MascotController, the lines that wait their turn', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  function talkative() {
+    return new MascotController({
+      talentId: 't1',
+      asleep: false,
+      voice: () => ({
+        hello: ['Salut {prenom} !'],
+        feedbackDone: ['Merci pour {evenement} !'],
+        checkIn: [],
+      }),
+      tokens: () => ({ prenom: 'Lina' }),
+      arrival: [],
+      today: '2026-11-24',
+    });
+  }
+  const after = (ms: number) => vi.advanceTimersByTimeAsync(ms);
+
+  it('says each line in turn, in order, with its mood', async () => {
+    const mascot = talkative();
+    mascot.react({ moment: 'hello' });
+    mascot.react({ moment: 'checkIn' });
+    mascot.react({
+      moment: 'feedbackDone',
+      tokens: { evenement: 'Coding Club' },
+    });
+    expect(mascot.bubble).toMatchObject({ text: 'Salut Lina !', mood: 'calm' });
+
+    await after(BUBBLE_MS + BETWEEN_LINES_MS);
+    expect(mascot.bubble).toMatchObject({
+      text: 'Merci pour Coding Club !',
+      mood: 'joy',
+    });
+
+    await after(BUBBLE_MS);
+    expect(mascot.bubble).toBeNull();
+  });
+
+  it('keeps the queue while he is on stage, and resumes it after', async () => {
+    const mascot = talkative();
+    mascot.enterStage();
+    mascot.react({ moment: 'hello' });
+    await after(BUBBLE_MS);
+    expect(mascot.bubble).toBeNull();
+
+    mascot.leaveStage();
+    expect(mascot.bubble).toMatchObject({ text: 'Salut Lina !' });
+  });
+
+  it('says nothing asleep, and keeps nothing for when he wakes', async () => {
+    const mascot = talkative();
+    putMascotToSleep.mockResolvedValue(undefined);
+    void mascot.setAsleep(true);
+    await after(DIVE_MS);
+    mascot.react({ moment: 'hello' });
+
+    void mascot.setAsleep(false);
+    await after(EMERGE_MS + BUBBLE_MS + BETWEEN_LINES_MS);
+    expect(mascot.bubble).toBeNull();
+    putMascotToSleep.mockReset();
   });
 });

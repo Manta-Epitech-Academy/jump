@@ -32,7 +32,7 @@
           prenom: data.talent?.prenom ?? '',
           canard: data.talent ? mascotLookOf(data.talent).name : '',
         }),
-        greeting: first.greeting,
+        arrival: first.arrival,
         today: first.today,
       });
     });
