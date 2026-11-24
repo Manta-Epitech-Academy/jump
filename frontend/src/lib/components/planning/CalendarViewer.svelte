@@ -84,8 +84,8 @@
   // A new week slides in from the side time moved to, whoever moved it: the
   // week navigator, or a parent that sets the week itself. Keys are ISO days,
   // so comparing them as strings compares the days. Only the week's content
-  // moves (the day numbers, the slots, the now line); the hours, the grid and
-  // its scroll stay put, so the afternoon someone scrolled to is still there.
+  // slides (the day numbers, the slots, the now line). The hours follow the
+  // new week's range at once, without moving, and the grid keeps its scroll.
   let previousWeek = untrack(() => weekStart);
   let step = $derived.by(() => {
     const direction: 1 | -1 = weekStart < previousWeek ? -1 : 1;
@@ -298,8 +298,10 @@
     {/each}
   </div>
 
-  <!-- Time grid -->
-  <div class="min-h-0 flex-1 overflow-y-auto">
+  <!-- Time grid. It never scrolls sideways: the columns share its width
+       (`minmax(0, 1fr)`), and the last day's week, sliding 16px past the edge,
+       would otherwise open a horizontal scrollbar for the length of the slide. -->
+  <div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
     <div
       class="relative grid"
       style="grid-template-columns: 3rem repeat({dayCount}, minmax(0, 1fr)); height: {gridHeightPx}px;"
