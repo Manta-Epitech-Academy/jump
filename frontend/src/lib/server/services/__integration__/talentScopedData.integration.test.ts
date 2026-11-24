@@ -145,6 +145,14 @@ const GUARDIAN_ACTS = [
   'parentRulesSignedCity',
 ] as const;
 
+/** EpiDuck's look and sleep, every column of it but the name a talent typed. */
+const MASCOT_PREFERENCES = [
+  'mascotGlasses',
+  'mascotScarf',
+  'mascotHair',
+  'mascotAsleepAt',
+] as const;
+
 /** Both guardians' contact details. */
 const GUARDIAN_CONTACTS = [
   'parentType',
@@ -272,6 +280,16 @@ const ERASURE: Policy = {
       columns: ['usageAnalyticsOptOutAt'],
     },
     {
+      fate: 'keep',
+      why: "EpiDuck's accessories and sleep: a cosmetic preference that names nobody.",
+      columns: MASCOT_PREFERENCES,
+    },
+    {
+      fate: 'null',
+      why: 'The name the talent gave their EpiDuck, typed by a minor, can be their own nickname.',
+      columns: ['mascotName'],
+    },
+    {
       fate: 'rewrite',
       why: 'The name becomes a placeholder; the row stays one that lists and figures can carry.',
       columns: ['nom', 'prenom'],
@@ -332,8 +350,8 @@ const ERASURE: Policy = {
     },
     {
       fate: 'null',
-      why: 'The day that run last grew, with it.',
-      columns: ['streakLastDay'],
+      why: 'The day that run last grew, and the visit day before it, with it.',
+      columns: ['streakLastDay', 'streakPreviousDay'],
     },
   ],
 };
@@ -413,6 +431,11 @@ const RESET: Policy = {
       columns: ['usageAnalyticsOptOutAt', 'anonymizedAt'],
     },
     {
+      fate: 'keep',
+      why: "The talent's EpiDuck: a reset re-imports Salesforce and voids the onboarding, not a preference the talent set.",
+      columns: ['mascotName', ...MASCOT_PREFERENCES],
+    },
+    {
       fate: 'rewrite',
       why: "Re-seeded from the Salesforce mirror, as the worker's first import seeds them.",
       columns: ['nom', 'prenom', 'phone', 'civilite', 'niveau', 'schoolId'],
@@ -473,8 +496,8 @@ const RESET: Policy = {
     },
     {
       fate: 'null',
-      why: 'The day that run last grew, with it.',
-      columns: ['streakLastDay'],
+      why: 'The day that run last grew, and the visit day before it, with it.',
+      columns: ['streakLastDay', 'streakPreviousDay'],
     },
   ],
 };
@@ -567,6 +590,9 @@ const MERGE: Policy = {
         'firstLoginAt',
         'streakDays',
         'streakLastDay',
+        'streakPreviousDay',
+        'mascotName',
+        ...MASCOT_PREFERENCES,
       ],
     },
     {

@@ -72,8 +72,9 @@ interface FormSpec {
   personaName: string | null;
   /**
    * The persona's icon, as a key with no bytes behind it, since the generator
-   * stores the bytes of the activities' pictures only: `PersonaAvatar` shows the default mascot when
-   * the object cannot be fetched, which is the state this puts on screen.
+   * stores the bytes of the activities' pictures only: `PersonaAvatar` draws
+   * EpiDuck when the object cannot be fetched, which is the state this puts on
+   * screen.
    * `sourceUrl` is where the builder says it was copied from, on a `.invalid`
    * host so a validation environment never points anybody at a live address.
    */
@@ -93,8 +94,9 @@ const SPECS: FormSpec[] = [
     dashboardNudge: true,
     allowsAuthenticatedAccess: true,
     allowsPublicAccess: true,
-    personaName: 'Bernard le canard',
-    personaIcon: { sourceUrl: 'https://seed.invalid/mascottes/bernard.png' },
+    // Hosted by each talent's own EpiDuck, as production's forms are: no name
+    // and no icon of its own, so the duck the talent dressed asks the questions.
+    personaName: null,
     status: 'published',
   },
   {
@@ -122,12 +124,15 @@ const SPECS: FormSpec[] = [
   {
     // The attestation form: the school asks for it, so its respondents are the
     // public and it asks them who they are. It is archived, and an archived form
-    // keeps the answers it collected.
+    // keeps the answers it collected. It is the one hosted by a guest persona,
+    // a name and an icon of its own, which is what a form may set in place of
+    // the duck.
     json: w2 as JsonForm,
     dashboardNudge: false,
     allowsAuthenticatedAccess: false,
     allowsPublicAccess: true,
-    personaName: null,
+    personaName: 'Pixel le robot',
+    personaIcon: { sourceUrl: 'https://seed.invalid/mascottes/pixel.png' },
     status: 'archived',
   },
 ];

@@ -12,36 +12,52 @@ import {
   listTalentDocuments,
 } from '#lib/server/services/onboardingDocuments.ts';
 import { resolveTalentDocumentStatus } from '#lib/server/services/onboardingPdfJobService.ts';
+import { superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
+import { mascotLookSchema } from '#lib/validation/mascot.ts';
+import { niveauLabel } from '#lib/domain/niveau.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
 
-  const [participationsCount, latestDeletion, latestPdfJobs, signedDocuments] =
-    await Promise.all([
-      prisma.participation.count({ where: { talentId: locals.talent.id } }),
-      getLatestDeletionRequest(locals.talent.id),
-      // Latest generation job per document, to tell "still rendering" apart from
-      // "errored/stranded": the stored file path only says whether the file
-      // landed, not why it hasn't yet. Distinct on the school year too, since a
-      // talent has one règlement per year and each has its own render.
-      prisma.onboardingPdfJob.findMany({
-        where: {
-          talentId: locals.talent.id,
-          documentType: { in: [...TALENT_VIEWABLE_DOCUMENTS] },
-        },
-        orderBy: { createdAt: 'desc' },
-        distinct: ['documentType', 'schoolYear'],
-        select: {
-          documentType: true,
-          schoolYear: true,
-          status: true,
-          updatedAt: true,
-        },
-      }),
-      listTalentDocuments(locals.talent.id),
-    ]);
+  const talent = locals.talent;
+  const [
+    participationsCount,
+    latestDeletion,
+    latestPdfJobs,
+    signedDocuments,
+    school,
+  ] = await Promise.all([
+    prisma.participation.count({ where: { talentId: locals.talent.id } }),
+    getLatestDeletionRequest(locals.talent.id),
+    // Latest generation job per document, to tell "still rendering" apart from
+    // "errored/stranded": the stored file path only says whether the file
+    // landed, not why it hasn't yet. Distinct on the school year too, since a
+    // talent has one règlement per year and each has its own render.
+    prisma.onboardingPdfJob.findMany({
+      where: {
+        talentId: locals.talent.id,
+        documentType: { in: [...TALENT_VIEWABLE_DOCUMENTS] },
+      },
+      orderBy: { createdAt: 'desc' },
+      distinct: ['documentType', 'schoolYear'],
+      select: {
+        documentType: true,
+        schoolYear: true,
+        status: true,
+        updatedAt: true,
+      },
+    }),
+    listTalentDocuments(locals.talent.id),
+    talent.schoolId
+      ? prisma.school.findUnique({
+          where: { id: talent.schoolId },
+          select: { name: true },
+        })
+      : null,
+  ]);
   const jobKey = (type: string, schoolYear: string | null) =>
     `${type}:${schoolYear ?? ''}`;
   const latestPdfJobByDoc = new Map(
@@ -106,10 +122,28 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   return {
     talent: locals.talent,
+    // What « Mon compte » shows, read-only: who the talent is to Jump, as
+    // Salesforce and the onboarding left it.
+    account: {
+      prenom: talent.prenom,
+      nom: talent.nom,
+      email: locals.user?.email ?? null,
+      classe: niveauLabel(talent.niveau) || null,
+      lycee: school?.name ?? talent.highSchoolNameManual ?? null,
+    },
     participationsCount,
     deletion,
     documents,
     usageAnalyticsOptedOut: locals.talent.usageAnalyticsOptOutAt !== null,
+    mascotForm: await superValidate(
+      {
+        name: locals.talent.mascotName ?? '',
+        glasses: locals.talent.mascotGlasses,
+        scarf: locals.talent.mascotScarf,
+        hair: locals.talent.mascotHair,
+      },
+      zod4(mascotLookSchema),
+    ),
   };
 };
 
@@ -165,6 +199,25 @@ export const actions: Actions = {
     }
 
     return { usageAnalyticsUpdated: true };
+  },
+
+  // The talent's EpiDuck (#539): his name and his accessories, read by every
+  // talent header and by the questionnaires. Only the talent writes them, and
+  // only their own. An empty name stores null, which is the default name.
+  saveMascot: async ({ locals, request }) => {
+    if (!locals.talent) return fail(401, { message: 'Non autorisé' });
+    const form = await superValidate(request, zod4(mascotLookSchema));
+    if (!form.valid) return fail(400, { form });
+    await prisma.talent.update({
+      where: { id: locals.talent.id },
+      data: {
+        mascotName: form.data.name || null,
+        mascotGlasses: form.data.glasses,
+        mascotScarf: form.data.scarf,
+        mascotHair: form.data.hair,
+      },
+    });
+    return { form };
   },
 
   // Talent withdraws their own pending request.

@@ -3,12 +3,20 @@
   import X from '@lucide/svelte/icons/x';
   import PersonaAvatar from './PersonaAvatar.svelte';
   import CardAction from '#lib/components/talent/CardAction.svelte';
+  import type { MascotLook } from '#lib/domain/mascot.ts';
 
   let {
     eventId,
     formId,
     personaIconUrl,
-  }: { eventId: string; formId: string; personaIconUrl?: string } = $props();
+    mascot,
+  }: {
+    eventId: string;
+    formId: string;
+    personaIconUrl?: string;
+    /** The talent's EpiDuck, who hosts a form with no icon of its own. */
+    mascot: MascotLook;
+  } = $props();
   let dismissed = $state(false);
 </script>
 
@@ -16,7 +24,11 @@
   <div
     class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-epi-blue/20 bg-epi-blue/5 p-4"
   >
-    <PersonaAvatar iconUrl={personaIconUrl} class="h-8 w-8 shrink-0" />
+    <PersonaAvatar
+      iconUrl={personaIconUrl}
+      look={mascot}
+      class="h-8 w-8 shrink-0"
+    />
     <!-- basis-56: on a phone the sentence keeps a readable width and the
          action wraps under it, instead of the pill squeezing it to a column. -->
     <p class="min-w-0 flex-1 basis-56 text-sm font-medium text-foreground">

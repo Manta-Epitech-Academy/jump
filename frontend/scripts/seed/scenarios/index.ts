@@ -20,6 +20,7 @@ import { operations } from './operations';
 import { activityWalks } from './activityWalks';
 import { levels } from './levels';
 import { homeHero } from './homeHero';
+import { mascot } from './mascot';
 import type { Scenario } from './types';
 
 export const SCENARIOS: readonly Scenario[] = [
@@ -50,6 +51,9 @@ export const SCENARIOS: readonly Scenario[] = [
   // Last, for the reason `niveaux` gives: it places a talent in each state of
   // the home's hero, and the draws it takes move nothing before it.
   homeHero,
+  // After every other one, for the same reason: the talents it places draw
+  // names, and those draws move nothing before it.
+  mascot,
 ];
 
 export type { Scenario };

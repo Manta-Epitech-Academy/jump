@@ -10,6 +10,8 @@
  * and `unknownCertificateTokens` is what the write operation reports.
  */
 
+import { fillTokens, unknownTokens } from './textTokens';
+
 /** What each token resolves to, in French, for the authoring contract. */
 export const CERTIFICATE_TOKENS = {
   prenom: "Prénom du jeune, tel qu'il figure sur son dossier.",
@@ -35,9 +37,6 @@ const TOKEN_NAMES = new Set<string>(Object.keys(CERTIFICATE_TOKENS));
  */
 export const COHORT_TAIL_PAGES = 200;
 
-/** `{token}`, the same shape the feedback-form copy uses. */
-const TOKEN_PATTERN = /\{(\w+)\}/g;
-
 export type CertificateTokenValues = Partial<Record<CertificateToken, string>>;
 
 /**
@@ -57,10 +56,10 @@ export function interpolateCertificate(
   text: string,
   values: CertificateTokenValues,
 ): string {
-  return text.replace(TOKEN_PATTERN, (whole, name: string) =>
+  return fillTokens(text, (name) =>
     Object.hasOwn(values, name)
       ? (values[name as CertificateToken] ?? '')
-      : whole,
+      : undefined,
   );
 }
 
@@ -69,9 +68,5 @@ export function interpolateCertificate(
  * reported once. Empty means the text is safe to store.
  */
 export function unknownCertificateTokens(text: string): string[] {
-  const unknown = new Set<string>();
-  for (const [, name] of text.matchAll(TOKEN_PATTERN)) {
-    if (!TOKEN_NAMES.has(name)) unknown.add(name);
-  }
-  return [...unknown];
+  return unknownTokens(text, TOKEN_NAMES);
 }

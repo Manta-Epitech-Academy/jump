@@ -1,7 +1,7 @@
 {
   "id": "w1",
   "title": "Bilan 1ere semaine - Stage seconde Epitech",
-  "intro": "Coin coin ! Moi c'est Bernard le canard. On doit remplir les attestations de stage pour ton lycee. Pour etre les plus precis possible, on te laisse la parole. Ton lycee pourra acceder a tes reponses sur demande. C'est parti, ca prend 3 minutes !",
+  "intro": "Coin coin ! Moi c'est {canard}. On doit remplir les attestations de stage pour ton lycee. Pour etre les plus precis possible, on te laisse la parole. Ton lycee pourra acceder a tes reponses sur demande. C'est parti, ca prend 3 minutes !",
   "questions": [
     {
       "id": "campus",

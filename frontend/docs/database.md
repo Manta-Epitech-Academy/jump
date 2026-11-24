@@ -6,7 +6,7 @@
 
 ## Vue d'ensemble
 
-- **87** modèles · **34** enums · **121** relations
+- **88** modèles · **37** enums · **121** relations
 
 | Domaine | Modèles |
 | --- | ---: |
@@ -20,6 +20,7 @@
 | Feedback | 7 |
 | Communication & Support | 5 |
 | Contenus & Centres d'intérêt | 7 |
+| Mascotte EpiDuck | 1 |
 | Analytique d'usage | 2 |
 | Configuration & Système | 12 |
 | Autres | 5 |
@@ -171,8 +172,14 @@ erDiagram
     DateTime firstLoginAt
     Int streakDays
     DateTime streakLastDay
+    DateTime streakPreviousDay
     DateTime usageAnalyticsOptOutAt
     DateTime welcomeSeenAt
+    String mascotName
+    Mascot_Glasses mascotGlasses
+    Mascot_Scarf mascotScarf
+    Mascot_Hair mascotHair
+    DateTime mascotAsleepAt
     DateTime anonymizedAt
     DateTime createdAt
     DateTime updatedAt
@@ -1027,7 +1034,24 @@ erDiagram
   EventConfig_Hero ||--|| EventConfig_HeroImage : "image"
 ```
 
-## 11 · Analytique d'usage
+## 11 · Mascotte EpiDuck
+
+```mermaid
+erDiagram
+  Mascot_Line {
+    String id PK
+    String momentKey
+    String text
+    DateTime startsOn
+    DateTime endsOn
+    DateTime archivedAt
+    DateTime createdAt
+    DateTime updatedAt
+  }
+
+```
+
+## 12 · Analytique d'usage
 
 ```mermaid
 erDiagram
@@ -1058,7 +1082,7 @@ erDiagram
   StaffProfile |o--o{ Usage_FeatureUse : "featureUses"
 ```
 
-## 12 · Configuration & Système
+## 13 · Configuration & Système
 
 ```mermaid
 erDiagram
@@ -1185,7 +1209,7 @@ erDiagram
   AdminApi_Token |o--o{ AdminApi_Call : "calls"
 ```
 
-## 13 · Autres
+## 14 · Autres
 
 ```mermaid
 erDiagram

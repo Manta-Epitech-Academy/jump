@@ -1,0 +1,90 @@
+{
+  "body": {
+    "base": "#013AFB",
+    "shade": "#0026B0",
+    "light": "#3D6BFF"
+  },
+  "wing": {
+    "base": "#2F63FF",
+    "shade": "#0B3BD6",
+    "light": "#5C86FF"
+  },
+  "beak": {
+    "base": "#E52521",
+    "shade": "#A8141A",
+    "light": "#FF5A4A"
+  },
+  "beakLower": {
+    "base": "#B3141A",
+    "shade": "#8A0E14",
+    "light": "#E52521"
+  },
+  "eyeWhite": {
+    "base": "#FFFFFF",
+    "shade": "#D9E2FF",
+    "light": "#FFFFFF"
+  },
+  "pupil": {
+    "base": "#0A1F8F",
+    "shade": "#06125C",
+    "light": "#1B34B8"
+  },
+  "ink": {
+    "base": "#1A1D29",
+    "shade": "#0B0D14",
+    "light": "#3A3F52"
+  },
+  "lens": {
+    "base": "#1E2233",
+    "shade": "#10131F",
+    "light": "#4A5578"
+  },
+  "crest": {
+    "base": "#FF5F3A",
+    "shade": "#D63A1C",
+    "light": "#FF8A66"
+  },
+  "fringe": {
+    "base": "#0A1F8F",
+    "shade": "#051163",
+    "light": "#2440C4"
+  },
+  "beanie": {
+    "base": "#E52521",
+    "shade": "#A8141A",
+    "light": "#FF5A4A"
+  },
+  "beanieTrim": {
+    "base": "#FFFFFF",
+    "shade": "#D9E2FF",
+    "light": "#FFFFFF"
+  },
+  "scarf": {
+    "red": {
+      "base": "#E52521",
+      "shade": "#A8141A",
+      "light": "#FF5A4A"
+    },
+    "green": {
+      "base": "#00C774",
+      "shade": "#008F54",
+      "light": "#3DE69A"
+    },
+    "orange": {
+      "base": "#FF5F3A",
+      "shade": "#D63A1C",
+      "light": "#FF8A66"
+    },
+    "pink": {
+      "base": "#FF1EF7",
+      "shade": "#C000BA",
+      "light": "#FF6BFA"
+    }
+  },
+  "scarfStripe": {
+    "base": "#FFFFFF",
+    "shade": "#D9E2FF",
+    "light": "#FFFFFF"
+  },
+  "outline": "#FFFFFF"
+}

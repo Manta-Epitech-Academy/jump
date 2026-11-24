@@ -1,51 +1,52 @@
+<!--
+  The talent's settings, laid out as the 2027 mockup draws them: a menu of
+  sections on the left (a row of tabs above on a phone) and the open section
+  beside it, one at a time. A single column of every card stacked had become
+  too narrow and too long to live with, and the menu is where the sections the
+  mockup has and Jump does not yet (« Ma carte de membre », « Notifications »)
+  will go.
+
+  The open section is in the address (`?rubrique=`), so a link can open one
+  and a reload keeps it. Without one, it is « Mon EpiDuck », unless a deletion
+  request needs the talent's eye: then it is the section that shows it.
+
+  The theme switch the page used to carry is gone: it sits in the header, on
+  every page, as in the mockup.
+-->
 <script lang="ts">
   import type { PageData } from './$types';
-  import { Button } from '#lib/components/ui/button/index.ts';
-  import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
-  import { resolve } from '$app/paths';
-  import { enhance } from '$app/forms';
+  import { page } from '$app/state';
   import { enter } from '#lib/motion/index.ts';
   import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
-  import Trash2 from '@lucide/svelte/icons/trash-2';
-  import User from '@lucide/svelte/icons/user';
-  import Mail from '@lucide/svelte/icons/mail';
-  import Sun from '@lucide/svelte/icons/sun';
-  import Moon from '@lucide/svelte/icons/moon';
-  import FileText from '@lucide/svelte/icons/file-text';
-  import ExternalLink from '@lucide/svelte/icons/external-link';
-  import Loader from '@lucide/svelte/icons/loader';
-  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
-  import ModeToggle from '#lib/components/ModeToggle.svelte';
-  import { Switch } from '#lib/components/ui/switch/index.ts';
-  import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
-  import BarChart3 from '@lucide/svelte/icons/bar-chart-3';
-  import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import { track, daysBetween } from '#lib/analytics.ts';
-  import { toast } from 'svelte-sonner';
-  import { formatDateFr } from '#lib/utils.ts';
-  // The same constant the purge reads. This sentence is a retention promise
-  // made to a minor, so it must never be able to state a delay we do not keep,
-  // which is exactly what a literal here did.
-  import { USAGE_RAW_RETENTION_MONTHS } from '#lib/domain/usage.ts';
+  import MascotSettingsCard from '#lib/components/mascot/MascotSettingsCard.svelte';
+  import AccountSection from '#lib/components/talent/settings/AccountSection.svelte';
+  import DocumentsSection from '#lib/components/talent/settings/DocumentsSection.svelte';
+  import PrivacySection from '#lib/components/talent/settings/PrivacySection.svelte';
 
   let { data }: { data: PageData } = $props();
 
-  let student = $derived(data.talent);
-  let deletion = $derived(data.deletion);
-  let documents = $derived(data.documents);
-  let deleteDialogOpen = $state(false);
-  let requesting = $state(false);
-  let cancelling = $state(false);
-  let acknowledging = $state(false);
+  type SectionKey = 'canard' | 'compte' | 'documents' | 'confidentialite';
 
-  // Mirrors the server so the switch reads right on load, then follows the
-  // optimistic flip below. `data.usageAnalyticsOptedOut` is the truth; this is
-  // just what is on screen between the click and the response.
-  let usageOptedOut = $state(false);
-  $effect(() => {
-    usageOptedOut = data.usageAnalyticsOptedOut;
+  let sections = $derived(
+    (
+      [
+        { key: 'canard', label: 'Mon EpiDuck' },
+        { key: 'compte', label: 'Mon compte' },
+        // Offered only when there is a signed document to show.
+        data.documents.length > 0
+          ? { key: 'documents', label: 'Mes documents' }
+          : null,
+        { key: 'confidentialite', label: 'Confidentialité' },
+      ] satisfies ({ key: SectionKey; label: string } | null)[]
+    ).filter((section) => section !== null),
+  );
+
+  let current = $derived.by((): SectionKey => {
+    const asked = page.url.searchParams.get('rubrique');
+    const found = sections.find((section) => section.key === asked);
+    if (found) return found.key;
+    return data.deletion ? 'confidentialite' : 'canard';
   });
-  let usageForm: HTMLFormElement | null = $state(null);
 </script>
 
 <svelte:head>
@@ -54,391 +55,51 @@
 
 <TalentPageHeader title="Paramètres" />
 
-<div class="mx-auto max-w-sm space-y-4 px-4 py-8 sm:py-12" in:enter>
-  <!-- Profile Info (read-only) -->
-  <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
-    <h2
-      class="mb-3 text-base font-bold tracking-widest text-muted-foreground uppercase"
-    >
-      Mon compte
-    </h2>
-    <div class="space-y-3">
-      <div class="flex items-center gap-3">
-        <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10"
-        >
-          <User class="h-4 w-4 text-epi-blue" />
-        </div>
-        <div class="min-w-0">
-          <p class="epi-overline text-muted-foreground">Nom</p>
-          <p class="truncate text-sm font-bold text-foreground">
-            {student?.prenom}
-            {student?.nom}
-          </p>
-        </div>
-      </div>
-      <div class="flex items-center gap-3">
-        <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10"
-        >
-          <Mail class="h-4 w-4 text-epi-blue" />
-        </div>
-        <div class="min-w-0">
-          <p class="epi-overline text-muted-foreground">Email</p>
-          <p class="truncate text-sm font-bold text-foreground">
-            {data.user?.email}
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Appearance -->
-  <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
-    <h2
-      class="mb-3 text-base font-bold tracking-widest text-muted-foreground uppercase"
-    >
-      Apparence
-    </h2>
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-epi-together-ink/10"
-        >
-          <Sun class="h-4 w-4 text-epi-together dark:hidden" />
-          <Moon class="hidden h-4 w-4 text-epi-together dark:block" />
-        </div>
-        <span class="text-sm font-bold text-foreground-secondary"
-          >Thème sombre</span
-        >
-      </div>
-      <ModeToggle />
-    </div>
-  </div>
-
-  <!-- Usage measurement, and the objection to it (RGPD art. 21). The switch is
-       the whole point of the card: measurement runs on legitimate interest, so
-       it is on until refused, and refusing it has to actually stop it. The
-       detail sits in a Collapsible rather than a tooltip because this is text a
-       person must be able to read and re-read before deciding. -->
-  <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
-    <h2
-      class="mb-3 text-base font-bold tracking-widest text-muted-foreground uppercase"
-    >
-      Mes données
-    </h2>
-    <div class="flex items-center justify-between gap-3">
-      <div class="flex min-w-0 items-center gap-3">
-        <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-epi-blue/10"
-        >
-          <BarChart3 class="h-4 w-4 text-epi-blue" />
-        </div>
-        <span class="text-sm font-bold text-foreground-secondary">
-          Compter les pages que j’utilise
-        </span>
-      </div>
-      <form
-        bind:this={usageForm}
-        method="POST"
-        action="?/setUsageAnalytics"
-        use:enhance={() =>
-          async ({ update }) => {
-            await update({ reset: false });
-          }}
-      >
-        <input
-          type="hidden"
-          name="optOut"
-          value={usageOptedOut ? 'false' : 'true'}
-        />
-        <Switch
-          checked={!usageOptedOut}
-          aria-label="Compter les pages que j’utilise"
-          onCheckedChange={(next) => {
-            usageOptedOut = !next;
-            usageForm?.requestSubmit();
-          }}
-        />
-      </form>
-    </div>
-    <Collapsible.Root class="mt-3">
-      <Collapsible.Trigger
-        class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-epi-blue transition-colors hover:bg-epi-blue/10"
-      >
-        Ce que ça enregistre
-        <ChevronDown class="h-3.5 w-3.5" />
-      </Collapsible.Trigger>
-      <Collapsible.Content
-        class="mt-2 space-y-2 text-sm leading-relaxed text-muted-foreground"
-      >
-        <p>
-          On compte ce que tu ouvres sur Jump (pages, documents, jeux,
-          activités, questionnaires) pour savoir ce qui sert. Ton nom n’y figure
-          pas, et ces données sont effacées au bout de {USAGE_RAW_RETENTION_MONTHS}
-          mois.
-        </p>
-        <p>
-          Tu peux désactiver ce comptage à tout moment : plus rien ne sera alors
-          enregistré.
-        </p>
-      </Collapsible.Content>
-    </Collapsible.Root>
-  </div>
-
-  <!-- Signed documents -->
-  {#if documents.length > 0}
-    <div class="rounded-xl border border-border bg-card p-5 shadow-raised">
-      <h2
-        class="mb-3 text-base font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Mes documents
-      </h2>
-      <ul class="space-y-3">
-        <!-- Keyed on type + year: the règlement is signed once per année
-             scolaire, so a returning talent has one row per year and the type
-             alone is no longer unique. -->
-        {#each documents as doc (`${doc.type}-${doc.schoolYear ?? ''}`)}
-          <li class="flex items-center gap-3">
-            <div
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-success/10"
-            >
-              <FileText class="h-4 w-4 text-epi-tech-ink" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="text-sm leading-tight font-bold text-foreground">
-                {doc.label}{doc.schoolYear ? ` ${doc.schoolYear}` : ''}
-              </p>
-              <p class="epi-overline text-muted-foreground">
-                {#if doc.signerName}
-                  Signé par {doc.signerName} le {formatDateFr(doc.signedAt)}
-                {:else}
-                  Signé le {formatDateFr(doc.signedAt)}
-                {/if}
-              </p>
-              {#if doc.coSigner}
-                <p class="epi-overline text-muted-foreground">
-                  Co-signé par {doc.coSigner.name} le {formatDateFr(
-                    doc.coSigner.signedAt,
-                  )}
-                </p>
-              {/if}
-            </div>
-            {#if doc.status === 'ready'}
-              <Button
-                variant="outline"
-                size="sm"
-                href={doc.schoolYear
-                  ? `${resolve(`settings/documents/${doc.type}`)}?annee=${doc.schoolYear}`
-                  : resolve(`settings/documents/${doc.type}`)}
-                target="_blank"
-                rel="noopener"
-                class="h-9 shrink-0 rounded-xl text-xs font-bold"
-              >
-                <ExternalLink class="mr-1 h-3.5 w-3.5" />
-                Voir
-              </Button>
-            {:else if doc.status === 'generating'}
+<div
+  class="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 pt-2 pb-12 sm:flex-row sm:items-start sm:gap-6 md:px-8"
+  in:enter
+>
+  <nav aria-label="Rubriques des paramètres" class="sm:w-48 sm:flex-none">
+    <ul class="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 sm:flex-col">
+      {#each sections as section (section.key)}
+        {@const open = section.key === current}
+        <li class="flex-none">
+          <a
+            href="?rubrique={section.key}"
+            data-sveltekit-noscroll
+            data-sveltekit-replacestate
+            aria-current={open ? 'page' : undefined}
+            class="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-colors {open
+              ? 'bg-primary font-semibold text-primary-foreground'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+          >
+            {section.label}
+            {#if section.key === 'confidentialite' && data.deletion}
               <span
-                class="flex shrink-0 items-center gap-1 epi-overline text-muted-foreground"
-              >
-                <Loader class="h-3.5 w-3.5 animate-spin" />
-                Génération…
-              </span>
-            {:else}
-              <span
-                class="flex shrink-0 items-center gap-1 epi-overline text-warning"
-                title="La génération de ce document a échoué. Notre équipe peut le relancer, réessaie plus tard ou contacte-la."
-              >
-                <AlertTriangle class="h-3.5 w-3.5" />
-                Indisponible
-              </span>
+                class="size-2 rounded-full bg-warning"
+                aria-label="Une demande de suppression attend"
+              ></span>
             {/if}
-          </li>
-        {/each}
-      </ul>
-    </div>
-  {/if}
+          </a>
+        </li>
+      {/each}
+    </ul>
+  </nav>
 
-  <!-- Danger Zone -->
-  {#if deletion?.status === 'pending'}
-    <div class="rounded-xl border border-warning/30 bg-warning/10 p-5">
-      <h2 class="mb-1 text-sm font-bold text-warning">
-        Demande de suppression en cours
-      </h2>
-      <p class="text-xs leading-relaxed text-warning/80">
-        Ta demande du {formatDateFr(deletion.at)} a été transmise à l'équipe. Ton
-        compte reste actif tant qu'elle n'a pas été traitée. Tu peux l'annuler tant
-        que ce n'est pas fait.
-      </p>
-      <form
-        action="?/cancelDeletion"
-        method="POST"
-        use:enhance={() => {
-          cancelling = true;
-          return async ({ result, update }) => {
-            await update();
-            cancelling = false;
-            if (result.type === 'success') {
-              toast.success('Demande de suppression annulée.');
-            }
-          };
-        }}
-      >
-        <Button
-          type="submit"
-          variant="outline"
-          size="sm"
-          disabled={cancelling}
-          class="mt-3 h-9 rounded-xl border-warning/30 bg-transparent text-xs font-bold text-warning hover:bg-warning/10"
-        >
-          {cancelling ? 'Annulation…' : 'Annuler ma demande'}
-        </Button>
-      </form>
-    </div>
-  {:else if deletion?.status === 'rejected'}
-    <div class="rounded-xl border border-border bg-background p-5">
-      <h2 class="mb-1 text-sm font-bold text-foreground-secondary">
-        Demande de suppression refusée
-      </h2>
-      <p class="text-xs leading-relaxed text-muted-foreground">
-        Ta demande du {formatDateFr(deletion.at)} n'a pas été acceptée par l'équipe.
-      </p>
-      {#if deletion.note}
-        <blockquote
-          class="mt-2 border-l-2 border-border pl-3 text-xs leading-relaxed text-foreground-secondary"
-        >
-          {deletion.note}
-        </blockquote>
-      {/if}
-      <p class="mt-2 text-xs leading-relaxed text-muted-foreground">
-        Tu peux refaire une demande ou contacter l'équipe pour en savoir plus.
-      </p>
-      <div class="mt-3 flex flex-wrap gap-2">
-        <form
-          action="?/requestDeletion"
-          method="POST"
-          use:enhance={() => {
-            requesting = true;
-            return async ({ result, update }) => {
-              await update();
-              requesting = false;
-              if (result.type === 'success') {
-                toast.success('Nouvelle demande transmise à l’équipe.');
-              }
-            };
-          }}
-        >
-          <Button
-            type="submit"
-            variant="outline"
-            size="sm"
-            disabled={requesting}
-            class="h-9 rounded-xl text-xs font-bold"
-          >
-            {requesting ? 'Envoi…' : 'Faire une nouvelle demande'}
-          </Button>
-        </form>
-        <form
-          action="?/acknowledgeRejection"
-          method="POST"
-          use:enhance={() => {
-            acknowledging = true;
-            return async ({ update }) => {
-              await update();
-              acknowledging = false;
-            };
-          }}
-        >
-          <Button
-            type="submit"
-            variant="ghost"
-            size="sm"
-            disabled={acknowledging}
-            class="h-9 rounded-xl text-xs font-bold text-muted-foreground"
-          >
-            {acknowledging ? '…' : 'J’ai compris'}
-          </Button>
-        </form>
-      </div>
-    </div>
-  {:else}
-    <div class="pt-2 text-center">
-      <Button
-        variant="link"
-        size="sm"
-        onclick={() => (deleteDialogOpen = true)}
-        class="h-auto p-0 text-xs font-normal text-muted-foreground decoration-dotted underline-offset-4 hover:text-destructive"
-      >
-        Supprimer mon compte
-      </Button>
-    </div>
-  {/if}
+  <div class="min-w-0 flex-1">
+    {#if current === 'canard'}
+      <MascotSettingsCard form={data.mascotForm} />
+    {:else if current === 'compte'}
+      <AccountSection account={data.account} />
+    {:else if current === 'documents'}
+      <DocumentsSection documents={data.documents} />
+    {:else}
+      <PrivacySection
+        usageAnalyticsOptedOut={data.usageAnalyticsOptedOut}
+        deletion={data.deletion}
+        student={data.talent}
+        participationsCount={data.participationsCount}
+      />
+    {/if}
+  </div>
 </div>
-
-<AlertDialog.Root bind:open={deleteDialogOpen}>
-  <AlertDialog.Content
-    class="fixed top-[50%] left-[50%] z-50 w-[calc(100%-2rem)] max-w-sm translate-x-[-50%] translate-y-[-50%] rounded-xl border-0 bg-card p-8 shadow-raised duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
-  >
-    <div class="flex flex-col items-center text-center">
-      <div
-        class="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10"
-      >
-        <Trash2 class="h-7 w-7 text-destructive" />
-      </div>
-      <AlertDialog.Title class="text-foreground">
-        Supprimer mon compte
-      </AlertDialog.Title>
-      <AlertDialog.Description
-        class="mt-3 text-sm leading-relaxed text-muted-foreground"
-      >
-        Ta demande sera transmise à l'équipe. Ton compte
-        <strong class="text-foreground-secondary">reste actif</strong>
-        jusqu'à son traitement, puis ton profil, tes participations et ta progression
-        seront
-        <strong class="text-foreground-secondary"
-          >définitivement anonymisés</strong
-        >. Tu pourras annuler tant que la demande n'a pas été traitée.
-      </AlertDialog.Description>
-    </div>
-    <div class="mt-6 flex flex-col gap-3">
-      <form
-        action="?/requestDeletion"
-        method="POST"
-        use:enhance={() => {
-          requesting = true;
-          track('account_deletion_requested', {
-            accountAgeDays: daysBetween(student?.createdAt),
-            lastActiveDaysAgo: daysBetween(student?.lastActiveAt),
-            participationsCount: data.participationsCount ?? null,
-          });
-          return async ({ result, update }) => {
-            await update();
-            requesting = false;
-            deleteDialogOpen = false;
-            if (result.type === 'success') {
-              toast.success('Demande de suppression transmise à l’équipe.');
-            }
-          };
-        }}
-      >
-        <Button
-          type="submit"
-          disabled={requesting}
-          class="h-12 w-full rounded-xl bg-destructive tracking-normal text-status-foreground normal-case shadow-raised transition-ui hover:bg-destructive/90"
-        >
-          {#if requesting}
-            Envoi en cours…
-          {:else}
-            Demander la suppression
-          {/if}
-        </Button>
-      </form>
-      <AlertDialog.Cancel
-        class="h-12 w-full rounded-xl border border-border bg-transparent text-sm font-bold text-foreground-secondary transition-ui hover:bg-background"
-      >
-        Annuler
-      </AlertDialog.Cancel>
-    </div>
-  </AlertDialog.Content>
-</AlertDialog.Root>

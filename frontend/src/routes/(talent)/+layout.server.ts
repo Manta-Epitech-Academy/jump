@@ -1,6 +1,10 @@
 import type { LayoutServerLoad } from './$types';
 import { prisma } from '#lib/server/db.ts';
 import { shownEnrolmentWhere } from '#lib/domain/eventReadiness.ts';
+import { dbDateToKey } from '#lib/domain/eventPresence.ts';
+import { toDateKey } from '#lib/domain/planningTime.ts';
+import { greetingFor } from '#lib/domain/mascot.ts';
+import { loadMascotVoice } from '#lib/server/services/mascotService.ts';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   // Planning is data-driven (no campus flag): the talent has a calendar iff at
@@ -24,5 +28,30 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
   return {
     hasPlannedEvents,
+    mascot: locals.talent ? await mascotFor(locals.talent, locals) : null,
   };
 };
+
+/**
+ * What the header's EpiDuck needs beyond the talent's own row (#539): what he
+ * may say today, and how he greets the talent: a hello, or a welcome back when
+ * the previous visit is weeks old, read off the visit days the streak keeps.
+ */
+async function mascotFor(
+  talent: NonNullable<App.Locals['talent']>,
+  locals: App.Locals,
+) {
+  const today = toDateKey(new Date(), locals.talentTimezone ?? 'Europe/Paris');
+  const dayOf = (day: Date | null) => (day ? dbDateToKey(day) : null);
+  return {
+    voice: await loadMascotVoice(today),
+    greeting: greetingFor(
+      {
+        lastDay: dayOf(talent.streakLastDay),
+        previousDay: dayOf(talent.streakPreviousDay),
+      },
+      today,
+    ),
+    today,
+  };
+}

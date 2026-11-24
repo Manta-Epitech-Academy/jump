@@ -8,6 +8,8 @@
  * which an admin types freely.
  */
 
+import { pickLine } from './pickLine';
+
 export type GreetingInput = {
   /** Hour on the reader's clock, 0 to 23 (`clockAt`): the line is about their day. */
   hour: number;
@@ -37,20 +39,6 @@ export function greetingFor({
   if (weekday === 5 && hour >= 14) return `Bientôt le week-end${name}`;
   if (hour >= 18) return `Bonsoir${name}`;
   return `Bonjour${name}`;
-}
-
-/**
- * One line out of several, always the same one for the same key. A line seen
- * often rotates so it does not wear out, but never at random: the server render
- * and the page would pick different ones. FNV-1a spreads short keys well enough.
- */
-export function pickLine(lines: readonly string[], key: string): string {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < key.length; i++) {
-    hash ^= key.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return lines[(hash >>> 0) % lines.length];
 }
 
 const NO_MATCH_LINES = [

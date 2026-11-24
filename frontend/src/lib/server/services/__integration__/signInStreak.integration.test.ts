@@ -53,6 +53,14 @@ async function streakOf(id: string) {
   };
 }
 
+async function previousDayOf(id: string) {
+  const row = await prisma.talent.findUniqueOrThrow({
+    where: { id },
+    select: { streakPreviousDay: true },
+  });
+  return row.streakPreviousDay && dbDateToKey(row.streakPreviousDay);
+}
+
 beforeAll(() => {
   assertTestDatabase();
 });
@@ -99,6 +107,22 @@ describe('recordSignInDay', () => {
       days: 5,
       lastDay: '2026-10-27',
     });
+  });
+
+  it('keeps the day it moves past, through every later visit of the day', async () => {
+    // Three weeks away: the first request of the day may be one a guard
+    // redirects, and the page that greets loads the row after it. EpiDuck's
+    // welcome back reads this day, so it must survive the day's other visits.
+    const talent = await talentWith(3, '2026-10-06');
+    await recordSignInDay(talent, 'Europe/Paris', NOW);
+    // Loaded before the first write, as a request in flight has it: had the
+    // guard let it through, it would move today into the previous day.
+    await recordSignInDay(talent, 'Europe/Paris', NOW);
+    expect(await streakOf(talent.id)).toEqual({
+      days: 1,
+      lastDay: '2026-10-27',
+    });
+    expect(await previousDayOf(talent.id)).toBe('2026-10-06');
   });
 
   it('counts a day once when its first requests arrive together', async () => {

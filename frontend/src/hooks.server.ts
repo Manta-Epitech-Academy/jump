@@ -175,6 +175,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.impersonator = null;
   event.locals.talentCampusName = null;
   event.locals.talentCampusId = null;
+  event.locals.talentTimezone = null;
   event.locals.armedRealSends = false;
   event.locals.armedRealSendsUntil = null;
   event.locals.devRedirectPin = null;
@@ -251,6 +252,12 @@ export const handle: Handle = async ({ event, resolve }) => {
       event.locals.talentCampusName = talentCampus.campusName;
       event.locals.talentCampusId = talentCampus.campusId;
     }
+    if (event.locals.talent && !event.locals.staffProfile?.campusId) {
+      // A talent with no enrolment has no campus; `Europe/Paris` is the
+      // `Campus.timezone` default.
+      event.locals.talentTimezone =
+        talentCampus?.campusTimezone ?? 'Europe/Paris';
+    }
 
     event.locals.stagePhaseOverride = readDevPhaseOverride(event);
 
@@ -263,10 +270,11 @@ export const handle: Handle = async ({ event, resolve }) => {
     //     deleted by logout, identity repair and account relinks, so a real
     //     login would read "Jamais" once its session vanished).
     //   - `lastActiveAt`: throttled to once per day.
-    //   - the run of consecutive days (`streakDays` / `streakLastDay`), counted
-    //     on calendar days in the campus timezone, which the rolling 24 hours
-    //     of `lastActiveAt` cannot tell apart: a visit at 9:00 then one at 8:00
-    //     the next morning is two days, and that throttle skips the second.
+    //   - the run of consecutive days (`streakDays` / `streakLastDay`, and the
+    //     visit day before it, `streakPreviousDay`), counted on calendar days
+    //     in the campus timezone, which the rolling 24 hours of `lastActiveAt`
+    //     cannot tell apart: a visit at 9:00 then one at 8:00 the next morning
+    //     is two days, and that throttle skips the second.
     //     Before the route guards, like the other two: a talent sent on to the
     //     charte has still opened Jump that day. Not usage tracking, which is
     //     recorded at 3.5 and never names the talent.
@@ -276,11 +284,9 @@ export const handle: Handle = async ({ event, resolve }) => {
     if (event.locals.talent && !impersonatedById) {
       const now = new Date();
       const talent = event.locals.talent;
-      // A talent with no enrolment has no campus; `Europe/Paris` is the
-      // `Campus.timezone` default.
       recordSignInDay(
         talent,
-        talentCampus?.campusTimezone ?? 'Europe/Paris',
+        event.locals.talentTimezone ?? 'Europe/Paris',
         now,
       ).catch((e) => console.warn('[talent streak] update failed:', e.message));
       const needFirstLogin = talent.firstLoginAt == null;

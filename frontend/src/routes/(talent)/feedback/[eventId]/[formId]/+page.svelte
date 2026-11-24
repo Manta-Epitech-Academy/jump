@@ -5,6 +5,7 @@
   import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
   import ChatScreen from '#lib/components/feedback/ChatScreen.svelte';
   import type { Answers } from '#lib/domain/feedbackForms/schema.ts';
+  import { mascotLookOf } from '#lib/domain/mascot.ts';
   import { submitFeedback } from './feedback.remote.ts';
 
   let { data } = $props();
@@ -47,6 +48,7 @@
         onSubmit={handleSubmit}
         identity={data.identity}
         audience="authenticated"
+        mascot={data.talent ? mascotLookOf(data.talent) : undefined}
       />
     </div>
   </div>

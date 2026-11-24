@@ -198,6 +198,11 @@ const DOMAINS: { title: string; models: string[] }[] = [
     ],
   },
   {
+    title: 'Mascotte EpiDuck',
+    // What the talent's duck says at each moment; its look is on `Talent`.
+    models: ['Mascot_Line'],
+  },
+  {
     // Apart from "Configuration & Système" on purpose: these two are a
     // behavioural log and its actor-free monthly cube, under their own PII
     // regime (no path, no talentId, a rotating pseudonym), and filing them

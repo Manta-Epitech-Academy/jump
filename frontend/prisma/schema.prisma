@@ -366,7 +366,13 @@ model Talent {
   /// day does not lower it: nothing writes without a visit, so the run restarts
   /// at 1 on the next one. The best run is not kept.
   ///
-  /// Two values and no history, on purpose. "Facts are rows" does not apply
+  /// `streakPreviousDay` is the visit day `streakLastDay` held before the
+  /// first visit of that day moved it, null before a second day: so "the day
+  /// of the visit before today" stays readable all day long, including after
+  /// a request a guard redirected, which counts the day before any page
+  /// renders. EpiDuck's welcome back reads it (`greetingFor`).
+  ///
+  /// Three values and no history, on purpose. "Facts are rows" does not apply
   /// here: a row per day would be the connection log of a minor, which no
   /// figure needs. Nor is it usage tracking: that one runs without consent
   /// because it cannot tell who the talent is, and a badge has to, so the two
@@ -375,6 +381,7 @@ model Talent {
   /// and the reset to import.
   streakDays                  Int                  @default(0)
   streakLastDay               DateTime?            @db.Date
+  streakPreviousDay           DateTime?            @db.Date
   /// When this talent objected to usage measurement (RGPD art. 21). Set, and
   /// nothing measures them: the recorder writes nothing and the browser sends
   /// nothing to Umami (`objectedToUsageMeasurement`). Null means no objection,
@@ -383,6 +390,19 @@ model Talent {
   /// until cleared.
   usageAnalyticsOptOutAt      DateTime?
   welcomeSeenAt               DateTime?
+  /// The talent's EpiDuck (#539): the name they gave it and its three
+  /// accessories, which every talent page draws in its header and the
+  /// questionnaires host their chat with. Null name means the default
+  /// (`MASCOT_DEFAULT_NAME`). Written only by the talent, in their settings, and
+  /// never returned by the admin API: a name a minor typed can be their own.
+  mascotName                  String?              @db.VarChar(24)
+  mascotGlasses               Mascot_Glasses       @default(none)
+  mascotScarf                 Mascot_Scarf         @default(none)
+  mascotHair                  Mascot_Hair          @default(tuft)
+  /// When the talent put their duck to sleep, null while it is awake. A
+  /// preference, so it is stored rather than kept per tab: the duck stays
+  /// asleep on every page and every device until the talent wakes it.
+  mascotAsleepAt              DateTime?
   /// When `anonymizeTalent` erased this talent, stamped once and never cleared.
   /// The fact that says "erased", so no reader has to infer it from the
   /// placeholder name the scrub writes. It is what a CTFd instance is answered
@@ -3318,4 +3338,54 @@ model Usage_FeatureMonthly {
 
   @@unique([feature, actorKind, campusId, month])
   @@index([month])
+}
+
+/// EpiDuck's accessories (#539). The labels, and the rule that the body is never
+/// among them, are in `domain/mascot.ts`, whose catalogues a contract test holds
+/// to these values.
+enum Mascot_Glasses {
+  none
+  round
+  sun
+  geek
+}
+
+enum Mascot_Scarf {
+  none
+  red
+  green
+  orange
+  pink
+}
+
+enum Mascot_Hair {
+  tuft
+  crest
+  fringe
+  beanie
+}
+
+/// One line EpiDuck may say at a moment (#539). The code decides when the duck
+/// speaks (`MASCOT_MOMENTS` in `domain/mascot.ts`, a closed catalogue that
+/// `momentKey` names); an admin decides what it says, over `write_mascot_line`,
+/// so a line needs no deploy. The default lines ship with the migration that
+/// created this table, like the closing question bank.
+///
+/// `text` may cite only the tokens its moment offers, refused otherwise at
+/// write. `startsOn` / `endsOn` bound a seasonal line, both inclusive, either
+/// open. Archived rather than deleted (`archivedAt`): it stops being said, and
+/// an admin can bring it back. A moment with no live line is silent.
+///
+/// Common to every campus, and it names no talent.
+model Mascot_Line {
+  id         String    @id @default(cuid())
+  momentKey  String
+  text       String
+  startsOn   DateTime? @db.Date
+  endsOn     DateTime? @db.Date
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([momentKey])
 }

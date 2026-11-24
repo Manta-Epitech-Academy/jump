@@ -496,6 +496,10 @@ export async function wipe(
   await drop('diploma_Template', () =>
     prisma.diploma_Template.deleteMany({ where: { id: seeded } }),
   );
+  // Only the generator's own lines: the defaults belong to the migration.
+  await drop('mascot_Line', () =>
+    prisma.mascot_Line.deleteMany({ where: { id: seeded } }),
+  );
   // The activity before its host, which it Restricts onto; its cover pictures
   // go with it.
   await drop('workshop_Activity', () =>

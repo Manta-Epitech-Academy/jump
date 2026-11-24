@@ -18,6 +18,7 @@
   import WorkshopRewardCelebration from '#lib/components/talent/WorkshopRewardCelebration.svelte';
   import { onMount } from 'svelte';
   import { cn } from '#lib/utils.ts';
+  import { mascotLookOf } from '#lib/domain/mascot.ts';
 
   let { data }: { data: PageData } = $props();
 
@@ -141,18 +142,11 @@
 <WorkshopRewardCelebration reward={data.workshopReward} />
 
 <div class="flex min-h-screen flex-col">
-  <!-- Same app bar as every talent page; the greeting is the only thing the
-       dashboard adds to it (it drops to its own line on mobile via the lead
-       slot's wrapping rules). -->
-  <TalentPageHeader>
-    {#snippet lead()}
-      <h1
-        class="display-truncate font-heading text-display-s text-foreground sm:text-display-m"
-      >
-        Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
-      </h1>
-    {/snippet}
-  </TalentPageHeader>
+  <!-- Same app bar as every talent page, unchanged: the duck in it says
+       hello when the talent arrives (#539). The page still needs its own
+       heading for whoever navigates by them. -->
+  <TalentPageHeader />
+  <h1 class="sr-only">Accueil</h1>
 
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
     {#each data.pendingFeedback as pf (pf.formId)}
@@ -161,6 +155,7 @@
           eventId={pf.eventId}
           formId={pf.formId}
           personaIconUrl={pf.personaIconUrl}
+          mascot={mascotLookOf(student)}
         />
       </div>
     {/each}

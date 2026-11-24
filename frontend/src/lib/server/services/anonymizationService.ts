@@ -36,8 +36,9 @@ import { clearSignInStreak } from '#lib/server/services/signInStreak.ts';
  * erasure, and with them the talent's `firstLoginAt` / `lastActiveAt`: the
  * retention figures read them (the "connected" count of the cohort profile, the
  * population of feature usage), and with the name gone they identify nobody.
- * The run of consecutive days (`streakDays` / `streakLastDay`) is not kept: no
- * figure reads it, only the badges of the talent being erased.
+ * The run of consecutive days (`streakDays` / `streakLastDay` /
+ * `streakPreviousDay`) is not kept: no figure reads it, only the badges and
+ * the duck's greeting of the talent being erased.
  *
  * What it does to each table and each `Talent` column is classified, with the
  * reason, in `talentScopedData.integration.test.ts`, which fails on a table or a
@@ -145,6 +146,10 @@ export async function anonymizeTalent(
       // The run of consecutive days feeds only this talent's own badges, so it
       // goes with them.
       ...clearSignInStreak(),
+      // The name the talent gave their EpiDuck: typed by a minor, it can be
+      // their own nickname. The accessories and the sleep stay, a cosmetic
+      // preference that names nobody.
+      mascotName: null,
       niveau: null,
     },
   });

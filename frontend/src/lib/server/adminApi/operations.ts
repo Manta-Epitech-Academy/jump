@@ -172,6 +172,7 @@ import {
   getEventCategories,
   getEmailActions,
   getInterests,
+  getMascotLines,
   getWorkshops,
   getTalentHomeContent,
 } from '#lib/server/services/adminStats/configuration.ts';
@@ -189,9 +190,11 @@ import { writeEventConfig, writeEventTemplate } from './writes/events';
 import { writeEventCategory } from './writes/eventCategories';
 import { writeEmailAction } from './writes/emailActions';
 import { writeInterest } from './writes/interests';
+import { writeMascotLine } from './writes/mascot';
 import { writeCampus } from './writes/campuses';
 import { EMAIL_ACTION_KEYS } from '#lib/domain/emailActions.ts';
 import { INTEREST_KINDS } from '#lib/domain/interests.ts';
+import { MASCOT_LINE_MAX, MASCOT_MOMENT_KEYS } from '#lib/domain/mascot.ts';
 import {
   retryPdfJob,
   resolveSchools,
@@ -642,7 +645,7 @@ const feedbackQuestion = withQuestionRules(
       'Stable identifier of the question in this form, lowercase letters, digits and _ only. It is what identifies the question: keep it to edit the question, a new key is a new question.',
     ),
     prompt: questionFields.prompt.describe(
-      'French, what the persona asks. May cite {prenom}, {nom}, {campus}, {civilite}.',
+      'French, what the persona asks. May cite {prenom}, {nom}, {campus}, {civilite}, {canard}.',
     ),
     type: questionFields.type.describe(
       'single, multiple or scale take options (a scale lists them best first); text and textarea take a free answer and no options.',
@@ -897,6 +900,13 @@ export const ADMIN_API_OPERATIONS = {
       "The centres d'intérêt a talent picks at onboarding, archived ones included, with how many talents picked each. Takes no parameter.",
     shape: {},
     run: () => getInterests(),
+  }),
+
+  config_mascot_lines: defineOperation({
+    description:
+      "What EpiDuck, the talent space's duck mascot, says: every moment the duck speaks at, with the {tokens} its lines may cite and its lines, archived ones included, in the shape write_mascot_line takes. Takes no parameter.",
+    shape: {},
+    run: () => getMascotLines(),
   }),
 
   config_admin_digest: defineOperation({
@@ -1156,19 +1166,19 @@ export const ADMIN_API_OPERATIONS = {
         'French, the name staff see in the catalogue.',
       ),
       intro: formFields.intro.describe(
-        "French opening line the persona speaks, may cite {prenom}. Omit for Jump's default greeting.",
+        "French opening line the persona speaks, may cite {prenom} and {canard} (its name). Omit for Jump's default greeting.",
       ),
       outro: formFields.outro.describe(
         "French closing line the persona speaks. Omit for Jump's default goodbye.",
       ),
       personaName: formFields.personaName.describe(
-        'Name the persona introduces itself by. Omit for the default mascot.',
+        "Name the persona introduces itself by. Omit for each talent's own EpiDuck.",
       ),
       personaIconUrl: httpsPictureUrl
         .nullable()
         .optional()
         .describe(
-          'https address of the persona avatar. Jump downloads it and keeps a 256 px still: PNG, JPEG or WebP up to 20 MB, or a GIF up to 6 MB whose first frame is kept, from a public address. Restating the address the icon came from downloads nothing. Null puts the default mascot back. Omit to leave the icon as it is, which is the only way to keep one uploaded on the preview page of the form.',
+          'https address of the persona avatar. Jump downloads it and keeps a 256 px still: PNG, JPEG or WebP up to 20 MB, or a GIF up to 6 MB whose first frame is kept, from a public address. Restating the address the icon came from downloads nothing. Null gives the avatar back to EpiDuck. Omit to leave the icon as it is, which is the only way to keep one uploaded on the preview page of the form.',
         ),
       status: formFields.status.describe(
         'draft while it is being written, published to accept responses, archived to retire it.',
@@ -1906,6 +1916,62 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeInterest(params),
+  }),
+
+  write_mascot_line: defineWrite({
+    repeat: {
+      safe: false,
+      because:
+        'without mascotLineId every call adds another line, so keep the id it answers with; an update is safe to repeat',
+    },
+    destructive: true,
+    openWorld: false,
+    description: `Create, rewrite, date or archive one line EpiDuck says, common to every campus. Without mascotLineId it creates one at a moment; with it, only the fields you pass change. Lines are French and say "tu" to a talent, often a minor: short, warm, no developer jargon, never a reproach, never at the talent's expense. At most ${MASCOT_LINE_MAX} characters. There is no delete: archive it.`,
+    shape: {
+      mascotLineId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(handleDescribe('mascotLineId')),
+      moment: z
+        .enum(MASCOT_MOMENT_KEYS as [string, ...string[]])
+        .optional()
+        .describe(
+          `${handleDescribe('mascotMomentKey')} Required to create one, never changed after.`,
+        ),
+      text: z
+        .string()
+        .trim()
+        .min(1)
+        .optional()
+        .describe(
+          'The line as the talent reads it. May cite only the tokens its moment lists, e.g. {prenom}. Required to create one.',
+        ),
+      startsOn: z
+        .string()
+        .refine(isCalendarDay, 'A real calendar day, e.g. "2026-12-01".')
+        .nullable()
+        .optional()
+        .describe(
+          'First day the line is said, inclusive. Null for no start. Omit to leave it as it stands.',
+        ),
+      endsOn: z
+        .string()
+        .refine(isCalendarDay, 'A real calendar day, e.g. "2026-12-24".')
+        .nullable()
+        .optional()
+        .describe(
+          'Last day the line is said, inclusive. Null for no end. Omit to leave it as it stands.',
+        ),
+      archived: z
+        .boolean()
+        .optional()
+        .describe(
+          'True to archive it, false to unarchive it. Omit to leave it as it stands.',
+        ),
+    },
+    run: (params) =>
+      writeMascotLine(params as Parameters<typeof writeMascotLine>[0]),
   }),
 
   write_campus: defineWrite({
