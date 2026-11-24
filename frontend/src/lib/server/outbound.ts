@@ -1,4 +1,5 @@
 import { OUTBOUND_MODE } from '$app/env/private';
+import { currentArmedRealSends } from '#lib/server/requestContext.ts';
 
 /**
  * THE OUTBOUND GATE: the single, environment-bound switch that decides whether
@@ -55,3 +56,75 @@ export type OutboundRouting =
   | { kind: 'real' }
   | { kind: 'redirect'; to: string[] }
   | { kind: 'drop'; reason: string };
+
+/**
+ * Per-send dev-redirect destination control, the same for mail and SMS.
+ * Consulted ONLY when the gate traps outbound: a no-op in prod, so it can never
+ * misroute a real send.
+ *
+ *   - omitted   → the channel's own destination ladder (system / automatic sends)
+ *   - string[]  → redirect to these addresses or numbers instead (e.g. the
+ *                 staff member who triggered a bulk send, so copies land with
+ *                 them)
+ *   - 'bypass'  → no redirect; reach the real recipient. Reserve for a single,
+ *                 explicit, human-typed test-send: never a cohort send.
+ */
+export type DevRedirectControl = readonly string[] | 'bypass';
+
+export interface SendOptions {
+  devRedirect?: DevRedirectControl;
+}
+
+/**
+ * Where one destination of a channel's ladder would send a trapped copy, or
+ * nothing (`null` or empty) when it has no answer for this send.
+ */
+export type DevDestination = () => readonly string[] | null;
+
+/**
+ * Resolve where one send goes, the same way for both channels: each channel
+ * only supplies the destinations it can redirect to, in priority order, and
+ * the reason it gives when none resolves.
+ *
+ * `{ kind: 'real' }` (deliver to the real recipient) in exactly these cases:
+ *   - the gate is off (prod): `control` is ignored entirely, so a stray
+ *     `'bypass'` or override can never escape a real send to debug addresses;
+ *   - the gate is on but `control === 'bypass'`: the explicit single-recipient
+ *     test-send escape (the human typed the destination, so honour it);
+ *   - armed real sends (`armRealSends.ts`): the acting human has deliberately
+ *     lifted the trap for their session.
+ *
+ * Otherwise `{ kind: 'redirect', to }`: a non-empty `string[]` control first,
+ * then the channel's destinations in order. If trapped and none resolves, it is
+ * `{ kind: 'drop' }`: the send is suppressed rather than leaked to the real
+ * recipient (fail-closed).
+ *
+ * This head used to be written once per channel, and an escape added to one
+ * would have let that channel reach real recipients where the other did not.
+ */
+export function resolveOutboundRouting(
+  control: DevRedirectControl | undefined,
+  destinations: readonly DevDestination[],
+  dropReason: string,
+): OutboundRouting {
+  if (!outboundTrapped()) return { kind: 'real' };
+  if (control === 'bypass') return { kind: 'real' };
+  if (currentArmedRealSends()) return { kind: 'real' };
+  if (Array.isArray(control) && control.length > 0) {
+    return { kind: 'redirect', to: [...control] };
+  }
+  for (const destination of destinations) {
+    const to = destination();
+    if (to && to.length > 0) return { kind: 'redirect', to: [...to] };
+  }
+  return { kind: 'drop', reason: dropReason };
+}
+
+/** A comma-separated recipients env var as a list, or `null` when it holds none. */
+export function recipientList(raw: string | undefined): string[] | null {
+  const list = (raw ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return list.length > 0 ? list : null;
+}

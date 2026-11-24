@@ -18,11 +18,11 @@ import { upsertSchoolingYearRecord } from '#lib/server/services/schoolingService
 import {
   getOnboardingStep,
   onboardingFieldsForYear,
+  stepBackPatch,
 } from '#lib/domain/talentOnboarding.ts';
 import {
   lockTalent,
   patchCurrentOnboardingRecord,
-  type OnboardingRecordPatch,
 } from '#lib/server/services/onboardingYearService.ts';
 import { runOnboardingPdfJob } from '#lib/server/services/onboardingPdfJobService.ts';
 import { claimAttempt } from '#lib/server/auth/rateLimiter.ts';
@@ -515,41 +515,8 @@ export const actions: Actions = {
     const step = getOnboardingStep(
       onboardingFieldsForYear(locals.talent, currentSchoolYearLabel()),
     );
-    const clearFields: OnboardingRecordPatch = {};
-
-    switch (step) {
-      case 'school':
-        clearFields.infoValidatedAt = null;
-        break;
-      case 'parents':
-        clearFields.highSchoolValidatedAt = null;
-        break;
-      case 'interests':
-        clearFields.parentsValidatedAt = null;
-        break;
-      case 'equipment':
-        clearFields.techInterestsValidatedAt = null;
-        clearFields.generalInterestsValidatedAt = null;
-        // `interestsRecapSeenAt` is deliberately NOT rewound. It is not a gate,
-        // so the ladder ignores it, and keeping it is what lets the interests
-        // step tell "this talent just stepped back, show their picks" from "new
-        // school year, blank slate" - see the pre-fill in `load`.
-        break;
-      case 'processing':
-        clearFields.equipmentValidatedAt = null;
-        break;
-      case 'rules':
-        // `processing` is a non-navigable auto-advancing interstitial (it
-        // re-submits itself on mount), so it can't be a back target: landing on
-        // it just replays the animation and bounces straight back to rules.
-        // Rewind past it to the last real input step (equipment), clearing both
-        // gates so the timestamp chain stays monotonic.
-        clearFields.processingCompletedAt = null;
-        clearFields.equipmentValidatedAt = null;
-        break;
-      default:
-        return { success: true };
-    }
+    const clearFields = stepBackPatch(step);
+    if (!clearFields) return { success: true };
 
     const talentId = locals.talent.id;
     await prisma.$transaction((tx) =>

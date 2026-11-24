@@ -21,6 +21,10 @@
   );
 
   let { data, form } = $props();
+
+  // What was just decided, and for whom: the message of the form that was sent.
+  // The child drops out of the reloaded list, so the page announces it.
+  const decided = $derived(form?.form?.message);
 </script>
 
 <svelte:head>
@@ -44,39 +48,30 @@
       </div>
 
       <!-- Success message -->
-      {#if form?.success}
+      {#if decided?.signedFor}
         <div
           in:enter={{ y: -12 }}
           class="mb-4 flex items-center gap-3 rounded-xl border border-success/40 bg-success/10 px-4 py-3"
         >
           <CheckCircle class="h-5 w-5 shrink-0 text-success" />
           <p class="text-sm text-success">
-            {#if form.decision === 'refused'}
-              Le refus pour <strong>{form.success}</strong> a bien été enregistré.
+            {#if decided.decision === 'refused'}
+              Le refus pour <strong>{decided.signedFor}</strong> a bien été enregistré.
             {:else}
-              L'autorisation pour <strong>{form.success}</strong> a été signée avec
-              succès.
+              L'autorisation pour <strong>{decided.signedFor}</strong> a été signée
+              avec succès.
             {/if}
           </p>
         </div>
-      {/if}
-
-      <!-- Global error -->
-      {#if form?.error && !form?.talentId}
-        <p
-          class="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-center text-sm text-destructive"
-        >
-          {form.error}
-        </p>
       {/if}
 
       <!-- Per-child forms -->
       {#each data.children as child (child.id)}
         <ChildSignForm
           {child}
+          form={child.form}
           {droitImageBody}
           {droitImageRefusalBody}
-          error={form?.talentId === child.id ? form.error : undefined}
         />
       {/each}
     </div>

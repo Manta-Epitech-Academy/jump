@@ -117,9 +117,10 @@ Rules, each of which a reasonable-looking change breaks quietly rather than loud
 - **`conductedAt` means FINALISED**, re-stamped at clôture, with `createdAt` beside
   it. The admin archive's ordering and windowing, each admin's export high-water
   mark, testimonial recency and the reset snapshot all read it.
-- **`db/scoped.ts` must carry `closing_Record`.** A delegate with no handler there
-  is not an error, it is simply unscoped, so answers are only ever reached through
-  their record's relation.
+- **`Closing_Record` is in `CAMPUS_SCOPE` (`db/campusScope.ts`), its answers are
+  not.** The campus-scoped client refuses a model the table does not list, so the
+  dev workspace reaches answers only through their record's relation, which the
+  record's own campus filter already narrows.
 
 Naming: the concept is a **closing** everywhere new. `entretien` survives on
 purpose in two places, and neither is an oversight: as a search keyword in the

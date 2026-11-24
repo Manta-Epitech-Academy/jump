@@ -47,22 +47,8 @@ export type SendEmailFailure = {
 
 export type SendEmailResult = { ok: true; id: string } | SendEmailFailure;
 
-/**
- * Per-send dev-redirect destination control. Consulted ONLY when the gate
- * (`OUTBOUND_MODE != real`) traps outbound: a no-op in prod, so it can never
- * misroute a real send. See `./dev-redirect.ts → resolveMailRouting`.
- *
- *   - omitted   → redirect to the env list (default; system / automatic sends)
- *   - string[]  → redirect to these addresses instead (e.g. the staff member
- *                 who triggered a bulk send, so copies land in their own inbox)
- *   - 'bypass'  → no redirect; reach the real recipient. Reserve for a single,
- *                 explicit, human-typed test-send: never a cohort send.
- */
-export type DevRedirectControl = readonly string[] | 'bypass';
-
-export interface SendOptions {
-  devRedirect?: DevRedirectControl;
-}
+// One definition for both channels: the trap they share decides with it.
+export type { DevRedirectControl, SendOptions } from '#lib/server/outbound.ts';
 
 export interface MailProvider {
   readonly name: 'resend' | 'mailjet';

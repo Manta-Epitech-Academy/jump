@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Calendar day in the campus timezone, ISO 8601 `YYYY-MM-DD`. The server
-// resolves each (day, slot) against the event's créneau list (`isPresenceSlot`),
+// resolves each (day, slot) against the event's créneau list (`presenceSlotOf`),
 // so a wall-clock day is unambiguous regardless of the staff member's browser
 // timezone, and a créneau the event does not have is refused.
 const dateKeyRegex = /^\d{4}-\d{2}-\d{2}$/;

@@ -15,6 +15,7 @@ import { getTalentJourney } from '#lib/server/services/talentJourneyService.ts';
 import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
 import { toDateKey } from '#lib/domain/planningTime.ts';
 import { seasonOn } from '#lib/domain/season.ts';
+import { UNSTATED_SIGNER_RELATIONSHIP } from '#lib/domain/profile.ts';
 import {
   LATEST_IMAGE_RIGHTS_DECISION_ORDER,
   recordImageRightsDecision,
@@ -254,7 +255,7 @@ async function correctImageRights({ request, locals, params }: RequestEvent) {
     decision: form.data.decision,
     signerPrenom: form.data.signerPrenom,
     signerNom: form.data.signerNom,
-    relationship: prior?.relationship ?? 'représentant légal',
+    relationship: prior?.relationship ?? UNSTATED_SIGNER_RELATIONSHIP,
     city: prior?.city ?? '',
     source: 'staff_correction',
     recordedByStaffId: locals.staffProfile.id,

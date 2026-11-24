@@ -178,6 +178,20 @@ export const E2E = {
     userId: 'e2e-user-parent-settled',
     email: `parent-settled${E2E_DOMAIN}`,
   },
+  /**
+   * Guardian of two children who both owe both acts, so the règlement and the
+   * image-rights pages each list two forms: the case where a signature has to
+   * land on the form it came from. Their own children, so the specs that walk
+   * `talentFresh` and `talentRules` never meet a co-signature they did not make.
+   */
+  parentSigning: {
+    userId: 'e2e-user-parent-signing',
+    email: `parent-signing${E2E_DOMAIN}`,
+    children: [
+      { id: 'e2e-talent-signing-a', prenom: 'Alix', nom: 'SIGNTEST' },
+      { id: 'e2e-talent-signing-b', prenom: 'Noa', nom: 'SIGNTEST' },
+    ],
+  },
 } as const;
 
 /** Every account the fixture owns, which is every session `auth.setup.ts` mints. */
@@ -192,6 +206,7 @@ export const E2E_ACCOUNTS = [
   E2E.talentRules,
   E2E.parentPending,
   E2E.parentSettled,
+  E2E.parentSigning,
 ] as const;
 
 const AUTH_DIR = path.join(import.meta.dirname, '..', '.auth');

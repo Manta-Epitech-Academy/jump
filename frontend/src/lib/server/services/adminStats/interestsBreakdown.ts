@@ -1,9 +1,8 @@
 /**
  * What the cohort says it is into.
  *
- * Ranked with `rankInterestsByCohort`, the same function behind the dev
- * workspace's inscrits sidebar, so the two surfaces order and count interests
- * identically. Split tech / général here because they answer different
+ * Ranked with `rankInterestsByCohort`, which states once how a cohort's
+ * interests are ordered and counted. Split tech / général here because they answer different
  * questions: the tech ranking is the recruitment signal the dev team reads, the
  * general one is who these students are.
  *
@@ -54,8 +53,8 @@ export async function getInterestsBreakdown(
 
   const [cohort, all, tech] = await Promise.all([
     prisma.talent.count({ where }),
-    rankInterestsByCohort(prisma, where),
-    rankInterestsByCohort(prisma, where, { techOnly: true }),
+    rankInterestsByCohort(where),
+    rankInterestsByCohort(where, { techOnly: true }),
   ]);
 
   const techIds = new Set(tech.map((i) => i.interestId));

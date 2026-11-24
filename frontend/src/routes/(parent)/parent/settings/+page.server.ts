@@ -1,10 +1,8 @@
 import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
+import { requireParentSession } from '#lib/server/auth/guards.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (!locals.user || locals.user.role !== 'parent') {
-    throw error(401, 'Non autorisé');
-  }
+  requireParentSession(locals);
 
   return {
     parentName: locals.user.name ?? '',

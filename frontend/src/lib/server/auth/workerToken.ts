@@ -1,6 +1,5 @@
-import { error } from '@sveltejs/kit';
 import { WORKER_API_TOKEN } from '$app/env/private';
-import { safeTokenEquals } from './safeTokenCompare';
+import { requireBearerSecret } from './bearerSecret';
 
 /**
  * The one bearer check in front of `/api/worker/*`.
@@ -10,9 +9,10 @@ import { safeTokenEquals } from './safeTokenCompare';
  * nobody reviewed, and the failure mode of getting it subtly wrong is an open
  * endpoint that writes talents.
  *
- * Unset `WORKER_API_TOKEN` refuses everything rather than letting anything
- * through, which is what keeps an environment that never configured the worker
- * from being writable by anybody who finds the path.
+ * The comparison itself is `requireBearerSecret`'s, shared with the cron jobs:
+ * an unset `WORKER_API_TOKEN` refuses everything, which is what keeps an
+ * environment that never configured the worker from being writable by anybody
+ * who finds the path.
  *
  * Worth knowing about this namespace: it sits outside the `/api/admin` and
  * `/api/mcp` prefixes, so no rate control scoped to the curated admin API would
@@ -22,7 +22,5 @@ import { safeTokenEquals } from './safeTokenCompare';
  * and every real run leaves a `Sync_Run`.
  */
 export function requireWorkerToken(request: Request): void {
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  if (!WORKER_API_TOKEN || !token || !safeTokenEquals(token, WORKER_API_TOKEN))
-    throw error(401, 'Unauthorized: Invalid or missing token');
+  requireBearerSecret(request, WORKER_API_TOKEN);
 }

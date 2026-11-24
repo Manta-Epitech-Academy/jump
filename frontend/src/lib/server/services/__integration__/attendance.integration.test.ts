@@ -25,7 +25,11 @@ import { attendedBeforeWhere } from '#lib/domain/attendance.ts';
 import { writeEventConfig } from '#lib/server/adminApi/writes/events.ts';
 import { bulkEventConfig } from '#lib/server/adminApi/writes/bulk.ts';
 import { writeSyncMemberStatus } from '#lib/server/adminApi/writes/sync.ts';
-import type { CellStatus } from '#lib/domain/eventPresence.ts';
+import {
+  presenceSlotOf,
+  type CellStatus,
+  type DateKey,
+} from '#lib/domain/eventPresence.ts';
 import { assertTestDatabase } from './testDatabase';
 
 const stamp = Date.now();
@@ -206,15 +210,26 @@ describe('« venu », the attendance projection (integration)', () => {
       mode: 'start',
     });
 
+  /** The morning of `day` on an event, as the émargement page resolves it. */
+  async function morningOf(event: EventKey, day: DateKey) {
+    const row = await prisma.event.findUniqueOrThrow({
+      where: { id: eventIds[event] },
+      include: { campus: { select: { timezone: true } } },
+    });
+    const at = presenceSlotOf(row, row.campus.timezone, day, 'morning');
+    if (!at) throw new Error(`${event} holds no morning on ${day}`);
+    return at;
+  }
+
   /** Émarge a talent present on the morning of a single-day event. */
-  const markPresent = (talent: Key, event: EventKey, status: CellStatus) =>
+  const markPresent = async (
+    talent: Key,
+    event: EventKey,
+    status: CellStatus,
+  ) =>
     writePresenceCell(
-      {
-        talentId: talentIds[talent],
-        eventId: eventIds[event],
-        day: new Date(`${events[event].start_date}T00:00:00Z`),
-        slot: 'morning',
-      },
+      await morningOf(event, events[event].start_date),
+      talentIds[talent],
       { status, source: 'manual', markedById: staffId },
     );
 
@@ -267,9 +282,7 @@ describe('« venu », the attendance projection (integration)', () => {
     expect(await cameTo('emarge')).toEqual([]);
     await markAllPresentInSlot(
       campusId,
-      eventIds.emarge,
-      new Date('2026-03-09T00:00:00Z'),
-      'morning',
+      await morningOf('emarge', '2026-03-09'),
       null,
     );
     expect(await cameTo('emarge')).toEqual([ext.emarge]);

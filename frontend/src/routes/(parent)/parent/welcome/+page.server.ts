@@ -1,13 +1,12 @@
-import { error, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '#lib/server/db.ts';
 import { parentBlockedWhere } from '#lib/server/db/dossierCompliance.ts';
+import { requireParentSession } from '#lib/server/auth/guards.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (!locals.user || locals.user.role !== 'parent') {
-    throw error(401, 'Non autorisé');
-  }
+  requireParentSession(locals);
 
   // Find the first child with anything still pending (règlement unsigned or
   // image rights undecided) to personalize the welcome message. If every child

@@ -149,16 +149,37 @@ export const parentTypeLabel = (value: string | null | undefined): string =>
   labelFrom(PARENT_TYPE_OPTIONS, value);
 
 /**
- * Maps the onboarding-collected guardian link (`parentType`) onto the exact
- * "agissant en qualité de" option used by the parent signature forms (`mère`,
- * `père`, `tuteur légal`, `tutrice légale`). A legal referent's gender comes
- * from `parentCivilite` so the tuteur/tutrice variant matches; returns `''`
- * when we lack the data, leaving the select unfilled.
+ * What a guardian may declare as « agissant en qualité de » when they sign for
+ * their child: the parent signature forms offer exactly these, the server
+ * refuses anything else (`validation/parentSignature.ts`), and the signed PDF
+ * prints the one chosen.
+ */
+export const SIGNER_RELATIONSHIPS = [
+  'mère',
+  'père',
+  'tuteur légal',
+  'tutrice légale',
+] as const;
+
+export type SignerRelationship = (typeof SIGNER_RELATIONSHIPS)[number];
+
+/**
+ * What a document says when nobody stated a relationship: a staff correction
+ * recorded on a guardian's behalf with no earlier one to carry over, or a
+ * dossier that predates the field. Never offered to a guardian.
+ */
+export const UNSTATED_SIGNER_RELATIONSHIP = 'représentant légal';
+
+/**
+ * Maps the onboarding-collected guardian link (`parentType`) onto the
+ * relationship the signature form pre-selects. A legal referent's gender comes
+ * from `parentCivilite` so the tuteur/tutrice variant matches; `null` when we
+ * lack the data, leaving the choice to the guardian.
  */
 export const parentSignerRelationship = (
   parentType: string | null | undefined,
   parentCivilite: string | null | undefined,
-): string => {
+): SignerRelationship | null => {
   switch (parentType) {
     case 'pere':
       return 'père';
@@ -167,6 +188,6 @@ export const parentSignerRelationship = (
     case 'referent':
       return parentCivilite === 'femme' ? 'tutrice légale' : 'tuteur légal';
     default:
-      return '';
+      return null;
   }
 };

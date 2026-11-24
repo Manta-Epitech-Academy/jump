@@ -64,6 +64,8 @@ export async function purgeE2eData(): Promise<void> {
     where: {
       OR: [
         { user: { email: { endsWith: E2E_DOMAIN } } },
+        // A guardian's children with no account of their own.
+        { parentEmail: { endsWith: E2E_DOMAIN } },
         // The roster's talents have no account to find them by.
         { id: { in: E2E.rosterTalents.map((t) => t.id) } },
       ],
@@ -563,7 +565,11 @@ export async function seedE2eData(): Promise<void> {
   // (`parentBlockedWhere`): the fresh talent above owes both, the ready one
   // owes neither. So the two accounts differ only by which child they point at,
   // which is exactly the rule the guard reads.
-  for (const account of [E2E.parentPending, E2E.parentSettled]) {
+  for (const account of [
+    E2E.parentPending,
+    E2E.parentSettled,
+    E2E.parentSigning,
+  ]) {
     await prisma.bauth_user.create({
       data: {
         id: account.userId,
@@ -571,6 +577,24 @@ export async function seedE2eData(): Promise<void> {
         emailVerified: true,
         role: 'parent',
         name: 'E2E Parent',
+      },
+    });
+  }
+
+  // The signing guardian's two children, both owing both acts. The guardian the
+  // talent named during onboarding pre-fills the form: a mother, so « mère ».
+  for (const child of E2E.parentSigning.children) {
+    await prisma.talent.create({
+      data: {
+        id: child.id,
+        prenom: child.prenom,
+        nom: child.nom,
+        niveau: 'Seconde',
+        parentEmail: E2E.parentSigning.email,
+        parentPrenom: 'Anne',
+        parentNom: child.nom,
+        parentType: 'mere',
+        parentCivilite: 'femme',
       },
     });
   }

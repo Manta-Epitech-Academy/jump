@@ -1,10 +1,12 @@
 import { SMS_DEV_RECIPIENTS } from '$app/env/private';
+import { currentDevRedirectPhones } from '#lib/server/requestContext.ts';
 import {
-  currentArmedRealSends,
-  currentDevRedirectPhones,
-} from '#lib/server/requestContext.ts';
-import { outboundTrapped, type OutboundRouting } from '#lib/server/outbound.ts';
-import type { DevRedirectControl, SmsMessage } from './types';
+  recipientList,
+  resolveOutboundRouting,
+  type DevRedirectControl,
+  type OutboundRouting,
+} from '#lib/server/outbound.ts';
+import type { SmsMessage } from './types';
 
 /**
  * SMS dev-redirect, mirroring `#lib/server/email/dev-redirect.ts`. Two
@@ -20,13 +22,7 @@ import type { DevRedirectControl, SmsMessage } from './types';
  *      number prepended to the body.
  */
 export function parseDevRecipients(): string[] | null {
-  const raw = SMS_DEV_RECIPIENTS?.trim();
-  if (!raw) return null;
-  const list = raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return list.length > 0 ? list : null;
+  return recipientList(SMS_DEV_RECIPIENTS);
 }
 
 /**
@@ -49,31 +45,22 @@ export function staffBulkDevRedirectPhones(
 }
 
 /**
- * Resolve where one SMS should actually go, given its per-send control. See the
- * mail twin (`resolveMailRouting`) for the full rationale; the only difference
- * is there's no login-phone fallback: staff accounts carry no phone, so an SMS
- * only reaches a tester once they've added their number in the settings dialog,
- * otherwise it falls back to `SMS_DEV_RECIPIENTS`, and `drop`s if even that is
- * empty (fail-closed: never text a real number from a trapped env).
+ * Resolve where one SMS should actually go, given its per-send control. The
+ * shared head and the fail-closed `drop` are `resolveOutboundRouting`'s. The
+ * only difference from mail is there's no login-phone destination: staff
+ * accounts carry no phone, so an SMS only reaches a tester once they've added
+ * their number in the settings dialog, otherwise it falls back to
+ * `SMS_DEV_RECIPIENTS`, and `drop`s if even that is empty (never text a real
+ * number from a trapped env).
  */
 export function resolveSmsRouting(
   control?: DevRedirectControl,
 ): OutboundRouting {
-  if (!outboundTrapped()) return { kind: 'real' }; // prod
-  if (control === 'bypass') return { kind: 'real' }; // explicit single-send escape
-  if (currentArmedRealSends()) return { kind: 'real' }; // armed this session
-  if (Array.isArray(control) && control.length > 0) {
-    return { kind: 'redirect', to: [...control] };
-  }
-  const personal = currentDevRedirectPhones();
-  if (personal.length > 0) return { kind: 'redirect', to: [...personal] }; // tester's handset
-  const envList = parseDevRecipients();
-  if (envList) return { kind: 'redirect', to: envList }; // headless fallback
-  return {
-    kind: 'drop',
-    reason:
-      'outbound trapped (OUTBOUND_MODE != real) but no dev SMS destination resolved: set SMS_DEV_RECIPIENTS or a personal redirect list',
-  };
+  return resolveOutboundRouting(
+    control,
+    [currentDevRedirectPhones, parseDevRecipients],
+    'outbound trapped (OUTBOUND_MODE != real) but no dev SMS destination resolved: set SMS_DEV_RECIPIENTS or a personal redirect list',
+  );
 }
 
 export function applyDevRedirect(

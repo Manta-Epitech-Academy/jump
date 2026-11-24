@@ -9,6 +9,10 @@
 
   let { data, form } = $props();
 
+  // Who was just signed for: the message of the form that was sent. The child
+  // drops out of the reloaded list, so the page, not the form, announces it.
+  const signedFor = $derived(form?.form?.message?.signedFor);
+
   // One body per distinct version, not one for the whole page. Siblings can sit
   // either side of a wording change, and the guardian co-signs the very
   // document their child signed, so a shared body would put a signature under a
@@ -54,26 +58,17 @@
       </div>
 
       <!-- Success message -->
-      {#if form?.success}
+      {#if signedFor}
         <div
           in:enter={{ y: -12 }}
           class="mb-4 flex items-center gap-3 rounded-xl border border-success/40 bg-success/10 px-4 py-3"
         >
           <CheckCircle class="h-5 w-5 shrink-0 text-success" />
           <p class="text-sm text-success">
-            Le règlement intérieur pour <strong>{form.success}</strong> a été signé
-            avec succès.
+            Le règlement intérieur pour <strong>{signedFor}</strong> a été signé avec
+            succès.
           </p>
         </div>
-      {/if}
-
-      <!-- Global error -->
-      {#if form?.error && !form?.talentId}
-        <p
-          class="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-center text-sm text-destructive"
-        >
-          {form.error}
-        </p>
       {/if}
 
       <!-- ═══ Sécurité des données ═══
@@ -119,10 +114,7 @@
         {/if}
 
         {#each group.children as child (child.id)}
-          <ChildRulesForm
-            {child}
-            error={form?.talentId === child.id ? form.error : undefined}
-          />
+          <ChildRulesForm {child} form={child.form} />
         {/each}
       {/each}
     </div>

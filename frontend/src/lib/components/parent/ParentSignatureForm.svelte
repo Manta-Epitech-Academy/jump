@@ -1,51 +1,34 @@
-<script lang="ts">
-  import { untrack, type Snippet } from 'svelte';
-  import type { ActionResult } from '$app/forms';
-  import { enhance } from '$app/forms';
+<script lang="ts" generics="T extends ParentSignerFields">
+  import type { Snippet } from 'svelte';
+  import type { SuperForm } from 'sveltekit-superforms';
   import { Button } from '#lib/components/ui/button/index.ts';
   import * as Select from '#lib/components/ui/select/index.ts';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { parentSignerRelationship } from '#lib/domain/profile.ts';
+  import { SIGNER_RELATIONSHIPS } from '#lib/domain/profile.ts';
+  import type { ParentSignerFields } from '#lib/validation/parentSignature.ts';
 
   // Shared signature shell for the parent flow's two co-signed acts: the
   // règlement intérieur (single accept) and the droit-à-l'image decision
   // (accept *or* refuse). Both surface the same legal frame: "Je soussigné(e),
   // … agissant en qualité de …, Fait à …, le …" plus a per-child signer
   // identity, and differ only in how the declaration sentence ends and which
-  // decision artifact the parent ticks. Callers inject those two pieces as
-  // snippets along with the form action, submit visuals, and analytics hook,
-  // so each act keeps its own colour-coded button without the shell knowing
-  // about decisions.
+  // decision artifact the parent ticks. Callers own the superform (its schema
+  // adds the act's own field) and inject those two pieces as snippets along
+  // with the form action and submit visuals, so each act keeps its own
+  // colour-coded button without the shell knowing about decisions.
 
   interface Props {
-    child: {
-      id: string;
-      prenom: string;
-      nom: string;
-      /**
-       * Talent-entered guardian identity from onboarding, used to pre-fill the
-       * signer fields below. The guardian can still override (e.g. their legal
-       * name differs from what the talent typed in casually).
-       */
-      parentPrenom?: string | null;
-      parentNom?: string | null;
-      /**
-       * Talent-entered guardian link + civility, mapped to the "en qualité de"
-       * select so it pre-fills like the name fields. The guardian can override.
-       */
-      parentType?: string | null;
-      parentCivilite?: string | null;
-    };
+    /**
+     * The caller's superform over this child's form. Its initial values carry
+     * the signer the talent entered for their guardian during onboarding, which
+     * the guardian can still override (their legal name may differ from what the
+     * talent typed in casually).
+     */
+    superform: SuperForm<T>;
+    /** The caller's schema, which decides when the form can be sent. */
+    schema: { safeParse(data: unknown): { success: boolean } };
     /** Form action target, e.g. `?/sign` or `?/decide`. */
     action: string;
-    /** Inline form error to surface above the declaration. */
-    error?: string;
-    /**
-     * Caller-owned extra validation gate, AND-ed with the shell's own check on
-     * signer prénom + nom + relationship + city (e.g. the accept checkbox for
-     * rules, a settled decision for image-rights).
-     */
-    extraValid: boolean;
     /**
      * Inline tail of the "Je soussigné(e)…" sentence, rendered immediately
      * after the relationship select. Each act terminates the sentence
@@ -56,53 +39,38 @@
     /**
      * Decision artifact rendered between the declaration and the place+date
      * row: the rules accept checkbox, or the image accept/refuse buttons +
-     * legal body. Caller also owns any extra hidden inputs (e.g. `decision`):
-     * a `<input type="hidden">` rendered inside this snippet lands inside the
-     * <form> and is submitted with the rest.
+     * legal body. Its inputs carry their `name`, so they post with the rest.
      */
     artifact?: Snippet;
     /** Tailwind classes for the submit button: caller controls colour. */
     submitClass: string;
     /** Idle label of the submit button. A spinner replaces it while submitting. */
     submitLabel: Snippet;
-    /** Notified with the action result so callers can fire analytics. */
-    onResult?: (result: ActionResult) => void;
   }
 
   let {
-    child,
+    superform,
+    schema,
     action,
-    error,
-    extraValid,
     declarationTail,
     artifact,
     submitClass,
     submitLabel,
-    onResult,
   }: Props = $props();
 
-  // Pre-fill from the talent-entered guardian identity; the parent can edit if
-  // their legal name differs. Structured as prénom + nom so the signed PDF
-  // reads symmetrically with the talent's own signature. `untrack` makes the
-  // initial-value capture explicit: once the form mounts, the parent's edits
-  // own the state, not later changes to the `child` prop.
-  let signerPrenom = $state(untrack(() => child.parentPrenom ?? ''));
-  let signerNom = $state(untrack(() => child.parentNom ?? ''));
-  let relationship = $state(
-    untrack(() =>
-      parentSignerRelationship(child.parentType, child.parentCivilite),
-    ),
-  );
-  let city = $state('');
-  let submitting = $state(false);
+  // svelte-ignore state_referenced_locally
+  const { form, errors, message, submitting, enhance } = superform;
 
-  const canSubmit = $derived(
-    extraValid &&
-      signerPrenom.trim().length >= 1 &&
-      signerNom.trim().length >= 1 &&
-      relationship !== '' &&
-      city.trim().length >= 1 &&
-      !submitting,
+  const canSubmit = $derived(schema.safeParse($form).success && !$submitting);
+
+  // What the server refused, in one line: a refusal it states itself, else the
+  // first field it rejected. A success message is the page's to announce.
+  const problem = $derived(
+    typeof $message === 'string'
+      ? $message
+      : Object.values($errors as Record<string, unknown>)
+          .flat()
+          .find((e): e is string => typeof e === 'string'),
   );
 
   const today = new Date().toLocaleDateString('fr-FR', {
@@ -113,26 +81,14 @@
 </script>
 
 <div class="mb-6 space-y-4">
-  <form
-    method="POST"
-    {action}
-    use:enhance={() => {
-      submitting = true;
-      return async ({ result, update }) => {
-        onResult?.(result);
-        await update();
-        submitting = false;
-      };
-    }}
-    class="space-y-4"
-  >
-    <input type="hidden" name="talentId" value={child.id} />
+  <form method="POST" {action} use:enhance class="space-y-4">
+    <input type="hidden" name="talentId" value={$form.talentId} />
 
-    {#if error}
+    {#if problem}
       <p
         class="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
       >
-        {error}
+        {problem}
       </p>
     {/if}
 
@@ -143,7 +99,7 @@
         <input
           name="signerPrenom"
           type="text"
-          bind:value={signerPrenom}
+          bind:value={$form.signerPrenom}
           placeholder="Prénom"
           required
           autocomplete="given-name"
@@ -152,29 +108,41 @@
         <input
           name="signerNom"
           type="text"
-          bind:value={signerNom}
+          bind:value={$form.signerNom}
           placeholder="Nom"
           required
           autocomplete="family-name"
           class="inline-block w-32 rounded-xl border border-border bg-card px-2 py-1 text-center text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:border-epi-blue/40 focus:ring-0"
         />
         agissant en qualité de
-        <input type="hidden" name="relationship" value={relationship} />
-        <Select.Root type="single" bind:value={relationship}>
+        <input
+          type="hidden"
+          name="relationship"
+          value={$form.relationship ?? ''}
+        />
+        <Select.Root
+          type="single"
+          value={$form.relationship ?? ''}
+          onValueChange={(value) =>
+            ($form.relationship = (value || null) as T['relationship'])}
+        >
           <Select.Trigger
-            class="inline-flex h-auto w-auto gap-1 rounded-xl border-border bg-card px-2 py-1 align-middle text-sm font-semibold text-foreground"
+            class="inline-flex h-auto w-auto cursor-pointer gap-1 rounded-xl border-border bg-card px-2 py-1 align-middle text-sm font-semibold text-foreground"
           >
-            {#if relationship}
-              {relationship}
+            {#if $form.relationship}
+              {$form.relationship}
             {:else}
               <span class="text-muted-foreground">(choisir)</span>
             {/if}
           </Select.Trigger>
           <Select.Content>
-            <Select.Item value="mère" label="mère" />
-            <Select.Item value="père" label="père" />
-            <Select.Item value="tuteur légal" label="tuteur légal" />
-            <Select.Item value="tutrice légale" label="tutrice légale" />
+            {#each SIGNER_RELATIONSHIPS as relationship (relationship)}
+              <Select.Item
+                value={relationship}
+                label={relationship}
+                class="cursor-pointer"
+              />
+            {/each}
           </Select.Content>
         </Select.Root>{@render declarationTail()}
       </p>
@@ -193,7 +161,7 @@
       <input
         name="city"
         type="text"
-        bind:value={city}
+        bind:value={$form.city}
         placeholder="Ville"
         required
         class="w-40 min-w-0 rounded-xl border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-epi-blue/40 focus:ring-0"
@@ -206,7 +174,7 @@
 
     <!-- Submit -->
     <Button type="submit" disabled={!canSubmit} class={submitClass}>
-      {#if submitting}
+      {#if $submitting}
         <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
         Enregistrement en cours...
       {:else}

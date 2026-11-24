@@ -102,10 +102,10 @@ catalogue both read.
 - **`USAGE_SALT` fails closed.** Unset means no talent recording at all, rather
   than hashing against an empty salt and producing a stable identifier for a
   minor. Same doctrine as `OUTBOUND_MODE`.
-- **`db/scoped.ts` deliberately carries no delegate for these tables.** They are
-  written by the recorder and read only through the admin API, which resolves its
-  own scope; they are never reached through `scopedPrisma`. Same treatment, and the
-  same kind of comment, as `Closing_Answer`.
+- **These tables are deliberately absent from `CAMPUS_SCOPE`
+  (`db/campusScope.ts`).** They are written by the recorder and read only through
+  the admin API, which resolves its own scope, so the campus-scoped client refuses
+  them, like every model the table does not list.
 - **A NARROWED talent cell is masked below five distinct actors**
   (`USAGE_SMALL_CELL_FLOOR`), because a cell of one or two in a small campus is
   nearly a statement about named children. A zero is never masked: it discloses
@@ -132,6 +132,7 @@ catalogue both read.
   that can make those calls is minted by an admin, the cube holds no pseudonym, and
   what comes back is a count, never a person. A new narrowing filter keeps the
   floor; it does not have to close the subtraction.
+
 - **Two stores, one figure, and a distinct actor is counted per month.** Inside
   the retention window the answer comes from `Usage_FeatureUse`, beyond it from
   the actor-free cube, and both go through `server/usage/read.ts` so the store

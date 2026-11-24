@@ -1,6 +1,7 @@
 import ejs from 'ejs';
 import { renderMarkdown } from '#lib/markdown.ts';
 import { escapeHtml } from '#lib/domain/htmlEscape.ts';
+import { UNSTATED_SIGNER_RELATIONSHIP } from '#lib/domain/profile.ts';
 import { renderPdf } from '../infra/documentRenderer';
 import { fontFaceCss } from '../templates/fonts';
 import { epitechLogoSvg } from '../templates/epitechLogo';
@@ -72,7 +73,8 @@ export function renderImageRightsDocument(fields: {
   // taken. A null version predates the column and resolves to the legacy text.
   const template = droitImageDocumentFor(fields.version, fields.decision);
   const namedSigner = fields.signerName.trim() || 'Responsable légal';
-  const relationship = fields.relationship.trim() || 'représentant légal';
+  const relationship =
+    fields.relationship.trim() || UNSTATED_SIGNER_RELATIONSHIP;
   // Drop the place when it's unknown rather than rendering "Fait à , le …".
   const city = fields.city.trim();
   const signatureLine = city

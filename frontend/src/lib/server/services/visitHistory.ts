@@ -1,4 +1,4 @@
-import { prisma } from '#lib/server/db.ts';
+import type { ScopedPrismaClient } from '#lib/server/db/scoped.ts';
 import { attendedShownBeforeWhere } from '#lib/domain/attendance.ts';
 
 /**
@@ -12,20 +12,18 @@ import { attendedShownBeforeWhere } from '#lib/domain/attendance.ts';
  * events it shows, as everywhere in that space: a visit to an event no admin
  * activated is no « Déjà venu » (#516).
  *
- * One `groupBy` for the whole cohort. It runs on the plain client with the
- * campus written into the filter by hand, because `scopedPrisma` does not scope
- * `participation.groupBy`: a scoped call here would count other campuses.
+ * One `groupBy` for the whole cohort, on the campus-scoped client, which
+ * keeps it to the campus.
  */
 export async function countPriorVisits(
-  campusId: string,
+  db: ScopedPrismaClient,
   talentIds: readonly string[],
   before: Date,
 ): Promise<Map<string, number>> {
   if (talentIds.length === 0) return new Map();
-  const groups = await prisma.participation.groupBy({
+  const groups = await db.participation.groupBy({
     by: ['talentId'],
     where: {
-      campusId,
       talentId: { in: [...talentIds] },
       ...attendedShownBeforeWhere(before),
     },

@@ -1,9 +1,9 @@
 import { error } from '@sveltejs/kit';
 import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
-import { timingSafeEqual } from 'node:crypto';
 import { LOAD_TEST_SECRET } from '$app/env/private';
 import { can } from '#lib/domain/permissions.ts';
 import { prisma } from '#lib/server/db.ts';
+import { bearerMatches } from '#lib/server/auth/bearerSecret.ts';
 
 /**
  * Server-side load-test plumbing. The whole point is that a load-test driver
@@ -19,30 +19,16 @@ import { prisma } from '#lib/server/db.ts';
 const DOMAIN = '@loadtest.invalid';
 
 /**
- * Constant-time string compare so the bearer check can't be turned into a
- * timing oracle that recovers the secret byte by byte. Length is allowed to
- * leak (standard for this primitive) since the secret is a fixed-length random
- * token; only the content compare is hidden.
- */
-function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false;
-  return timingSafeEqual(ab, bb);
-}
-
-/**
  * The single hard gate shared by every /api/test/* handler (login-as included):
  *   - 404 unless LOAD_TEST_SECRET is set server-side (invisible in prod).
- *   - 401 unless the bearer token matches it.
+ *   - 401 unless the bearer token matches it (`bearerMatches`, the comparison
+ *     every machine secret shares).
  * Call first in every handler so the gate lives in exactly one place.
  */
 export function assertLoadTestAuth(request: Request): void {
-  const secret = LOAD_TEST_SECRET;
-  if (!secret) throw error(404, 'Not Found');
-  const token =
-    request.headers.get('authorization')?.replace('Bearer ', '') ?? '';
-  if (!safeEqual(token, secret)) throw error(401, 'Unauthorized');
+  if (!LOAD_TEST_SECRET) throw error(404, 'Not Found');
+  if (!bearerMatches(request, LOAD_TEST_SECRET))
+    throw error(401, 'Unauthorized');
 }
 
 export type SeededTalent = { id: string; email: string };
