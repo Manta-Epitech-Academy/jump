@@ -167,12 +167,17 @@
     else swimAnimation.pause();
   });
 
-  // Down and up. The controller times the phases; this only draws them.
+  // Down and up. The controller times the phases; this only draws them, and a
+  // phase's motion lasts only as long as the phase: leaving it cancels it, so
+  // whatever comes next starts from the duck at rest. A dive held at its end
+  // would keep him under the water line after the controller put him back on
+  // it (a sleep the server refused), drawn nowhere while he swims.
   $effect(() => {
     if (!diver) return;
     const reduced = mascot?.reducedMotion;
+    let motion: Animation | undefined;
     if (phase === 'diving') {
-      diver.animate(
+      motion = diver.animate(
         reduced
           ? [{ opacity: 1 }, { opacity: 0 }]
           : [
@@ -187,7 +192,7 @@
         },
       );
     } else if (phase === 'emerging') {
-      diver.animate(
+      motion = diver.animate(
         reduced
           ? [{ opacity: 0 }, { opacity: 1 }]
           : [
@@ -202,6 +207,7 @@
         },
       );
     }
+    return () => motion?.cancel();
   });
 
   // Keep his bubble on screen: centred under him, or pinned to the lane's

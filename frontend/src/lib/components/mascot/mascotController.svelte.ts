@@ -40,7 +40,7 @@ export const DIVE_MS = 1800;
 export const EMERGE_MS = 1800;
 const REDUCED_DIVE_MS = 200;
 /** How long he sulks under the water before coming back on his own. */
-const SULK_MS = 6000;
+export const SULK_MS = 6000;
 /** How long a bubble stays: enough to read a short line twice. */
 const BUBBLE_MS = 5000;
 /** How long after arrival he greets: the page settles first. */
@@ -136,9 +136,11 @@ export class MascotController {
     try {
       await putMascotToSleep({ asleep });
     } catch {
-      clearTimeout(this.#phaseTimer);
-      this.state = before;
+      // Back where he was, and on his way again: a dive, a sulk or a way up
+      // he was in the middle of ends as it would have, so a refused request
+      // never leaves him stranded between two phases.
       this.#hideBubble();
+      this.#enter(before);
       toast.error(
         asleep
           ? "Ton canard n'a pas pu s'endormir. Réessaie dans un instant."
@@ -203,14 +205,19 @@ export class MascotController {
     this.bubble = null;
   }
 
-  /**
-   * Moves him, and schedules the end of whatever movement that started. The
-   * controller owns the timing rather than the header's animation, so he
-   * still lands somewhere on a page that draws no header.
-   */
+  /** Moves him, if the event moves him at all. */
   #dispatch(event: MascotEvent): void {
     const next = nextPhase(this.state, event);
-    if (next === this.state) return;
+    if (next !== this.state) this.#enter(next);
+  }
+
+  /**
+   * Puts him in a phase and schedules the end of whatever movement it is: the
+   * one way a phase is entered, so none is ever left without what ends it.
+   * The controller owns the timing rather than the header's animation, so he
+   * still lands somewhere on a page that draws no header.
+   */
+  #enter(next: MascotPhase): void {
     this.state = next;
     clearTimeout(this.#phaseTimer);
     const dive = this.reducedMotion ? REDUCED_DIVE_MS : DIVE_MS;
