@@ -8,6 +8,8 @@ paths:
   - "frontend/src/routes/**/login/**"
   - "frontend/src/routes/**/oauth/**"
   - "frontend/src/routes/api/auth/**"
+  - "frontend/src/routes/api/jobs/**"
+  - "frontend/src/lib/server/cronJob.ts"
   - "frontend/src/routes/api/test/login-as/**"
   - "frontend/scripts/{accept-invitation,bootstrap-admins}.ts"
   - "frontend/src/lib/server/services/__integration__/{emailOtpAudience,microsoftOAuthCallback,staffDoor}.integration.test.ts"
@@ -62,6 +64,10 @@ No route guard reaches a remote function. `applyRouteGuards` reads `event.route.
 - `form` stays out: Jump's forms are superforms, and a second form system is a decision for the whole codebase.
 
 A file named `remote.<ext>` is a remote module to kit wherever it sits, so name a server helper otherwise (`images/copy.ts` was `images/remote.ts`).
+
+### Machine secrets: one comparison
+
+`/api/*` routes authenticate themselves (`applyRouteGuards` skips them). The env-var credentials a machine sends as `Authorization: Bearer …` (`CRON_SECRET`, `WORKER_API_TOKEN`, `LOAD_TEST_SECRET`) are compared by `bearerMatches` / `requireBearerSecret` (`auth/bearerSecret.ts`) and nowhere else: an unset secret refuses everything, the comparison is constant time. A cron job is `export const POST = cronJob(name, run)` (`#lib/server/cronJob.ts`), never a handler that checks the secret itself; `cronJob.gate.test.ts` calls every export under `routes/api/jobs/` without the secret and fails on anything but a 401. The block used to be copied into each job, and the copy is where the `!==` comparison every job carried until 27/05/2026 lived on.
 
 ## Auth System
 

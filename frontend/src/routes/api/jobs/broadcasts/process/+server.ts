@@ -1,8 +1,5 @@
-import { error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { CRON_SECRET } from '$app/env/private';
+import { cronJob } from '#lib/server/cronJob.ts';
 import { processNextQueuedBroadcast } from '#lib/server/services/broadcast/orchestrator.ts';
-import { safeTokenEquals } from '#lib/server/auth/safeTokenCompare.ts';
 
 /**
  * Drains the broadcast queue: processes one queued broadcast per call.
@@ -11,20 +8,8 @@ import { safeTokenEquals } from '#lib/server/auth/safeTokenCompare.ts';
  * Returns `{ processed: false }` when the queue is empty so the scheduler
  * can decide whether to keep polling or back off.
  */
-export const POST: RequestHandler = async ({ request }) => {
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  const cronSecret = CRON_SECRET;
-
-  if (!cronSecret || !token || !safeTokenEquals(token, cronSecret)) {
-    throw error(401, 'Unauthorized: Invalid or missing token');
-  }
-
-  try {
-    const broadcastId = await processNextQueuedBroadcast();
-    if (!broadcastId) return Response.json({ processed: false });
-    return Response.json({ processed: true, broadcastId });
-  } catch (err) {
-    console.error('[job] broadcast processing failed', err);
-    throw error(500, 'Internal Server Error');
-  }
-};
+export const POST = cronJob('Broadcast processing', async () => {
+  const broadcastId = await processNextQueuedBroadcast();
+  if (!broadcastId) return { processed: false };
+  return { processed: true, broadcastId };
+});

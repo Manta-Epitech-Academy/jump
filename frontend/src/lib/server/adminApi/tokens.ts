@@ -186,7 +186,7 @@ export type VerifiedToken = {
  *
  * The lookup is by unique hash, which is also the comparison: unlike the
  * env-var secrets (`CRON_SECRET`, `WORKER_API_TOKEN`, compared with
- * `safeTokenEquals`), there is no known secret to compare against byte by byte
+ * `bearerMatches`), there is no known secret to compare against byte by byte
  * here, and an index probe on a sha256 digest leaks nothing about the plaintext.
  *
  * The owner's role is read here, not trusted from mint time. A departure was
