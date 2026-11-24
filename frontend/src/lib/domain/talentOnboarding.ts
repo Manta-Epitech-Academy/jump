@@ -16,29 +16,50 @@
  * impersonation drop me?), which is what this module is scoped to.
  */
 
-export type OnboardingStep =
-  | 'identity'
-  | 'school'
-  | 'parents'
-  | 'interests'
-  | 'equipment'
-  | 'processing'
-  | 'rules';
-
 /**
- * The ladder, in order. Exported because the onboarding-funnel aggregate walks
- * it rung by rung (`server/services/adminStats/onboardingFunnel.ts`): a second
- * hardcoded list there would silently stop counting a step added here.
+ * The ladder, rung by rung: each step and the timestamps that mark it done.
+ * `interests` is the one step backed by two timestamps (tech and general
+ * interests are validated together), so it is only done once both are set.
+ * `processing` is not `navigable`: it is an auto-advancing interstitial that
+ * re-submits itself on mount, so stepping back never lands on it.
+ *
+ * Everything that knows the order or the gates reads it from here: the wizard's
+ * resume (`getOnboardingStep`) and its step back (`stepBackPatch`), the funnel,
+ * the « dossier complet » figures and the admin directory
+ * (`server/db/onboardingLadder.ts`), and the seed. They used to restate it, five
+ * times, and a step added to one of them would have left the others counting
+ * the old ladder without a word.
  */
-export const ONBOARDING_STEP_ORDER: readonly OnboardingStep[] = [
-  'identity',
-  'school',
-  'parents',
-  'interests',
-  'equipment',
-  'processing',
-  'rules',
-] as const;
+export const ONBOARDING_LADDER = [
+  { step: 'identity', gates: ['infoValidatedAt'], navigable: true },
+  { step: 'school', gates: ['highSchoolValidatedAt'], navigable: true },
+  { step: 'parents', gates: ['parentsValidatedAt'], navigable: true },
+  {
+    step: 'interests',
+    gates: ['techInterestsValidatedAt', 'generalInterestsValidatedAt'],
+    navigable: true,
+  },
+  { step: 'equipment', gates: ['equipmentValidatedAt'], navigable: true },
+  { step: 'processing', gates: ['processingCompletedAt'], navigable: false },
+  { step: 'rules', gates: ['rulesSignedAt'], navigable: true },
+] as const satisfies readonly {
+  step: string;
+  gates: readonly (keyof OnboardingStepFields)[];
+  navigable: boolean;
+}[];
+
+export type OnboardingStep = (typeof ONBOARDING_LADDER)[number]['step'];
+
+/** A timestamp the ladder gates on. */
+export type OnboardingGate = keyof OnboardingStepFields;
+
+/** The steps, in order. */
+export const ONBOARDING_STEP_ORDER: readonly OnboardingStep[] =
+  ONBOARDING_LADDER.map((rung) => rung.step);
+
+/** Every gate of the ladder, in order. */
+export const ONBOARDING_GATES: readonly OnboardingGate[] =
+  ONBOARDING_LADDER.flatMap((rung) => rung.gates);
 
 /** Short French labels for staff-facing UI (admin impersonation, etc.). */
 export const ONBOARDING_STEP_LABELS: Record<OnboardingStep, string> = {
@@ -51,11 +72,7 @@ export const ONBOARDING_STEP_LABELS: Record<OnboardingStep, string> = {
   rules: 'Règlement',
 };
 
-/**
- * The timestamps each step posts. `interests` is the one step backed by two
- * timestamps (tech and general interests are validated together) so it is
- * only "done" once both are set.
- */
+/** The timestamps the ladder's steps post (see `ONBOARDING_LADDER`). */
 export type OnboardingStepFields = {
   infoValidatedAt: Date | string | null;
   highSchoolValidatedAt: Date | string | null;
@@ -75,15 +92,31 @@ export type OnboardingStepFields = {
 export function getOnboardingStep(
   t: OnboardingStepFields,
 ): OnboardingStep | null {
-  if (!t.infoValidatedAt) return 'identity';
-  if (!t.highSchoolValidatedAt) return 'school';
-  if (!t.parentsValidatedAt) return 'parents';
-  if (!t.techInterestsValidatedAt || !t.generalInterestsValidatedAt)
-    return 'interests';
-  if (!t.equipmentValidatedAt) return 'equipment';
-  if (!t.processingCompletedAt) return 'processing';
-  if (!t.rulesSignedAt) return 'rules';
-  return null;
+  const rung = ONBOARDING_LADDER.find((r) => r.gates.some((gate) => !t[gate]));
+  return rung?.step ?? null;
+}
+
+/**
+ * What the wizard's « Retour » clears from step `step`: the gates of the last
+ * navigable step before it, and of every step between the two, so the talent
+ * lands back on that step and the timestamps stay monotonic. From `rules` that
+ * is `equipment` and the `processing` interstitial in between. `null` when
+ * there is nothing to go back to (the first step, or a finished ladder).
+ *
+ * Gates only: `interestsRecapSeenAt` is not one and is deliberately kept, which
+ * is what lets the interests step tell "this talent just stepped back, show
+ * their picks" from "new school year, blank slate".
+ */
+export function stepBackPatch(
+  step: OnboardingStep | null,
+): Partial<Record<OnboardingGate, null>> | null {
+  const at = ONBOARDING_LADDER.findIndex((r) => r.step === step);
+  const back = ONBOARDING_LADDER.slice(0, Math.max(at, 0))
+    .map((r) => r.navigable)
+    .lastIndexOf(true);
+  if (back < 0) return null;
+  const cleared = ONBOARDING_LADDER.slice(back, at).flatMap((r) => r.gates);
+  return Object.fromEntries(cleared.map((gate) => [gate, null]));
 }
 
 export type TalentOnboardingStatus = 'not-ready' | 'done';

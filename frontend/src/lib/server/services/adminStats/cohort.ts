@@ -25,6 +25,7 @@ import {
   visibleParticipationWhere,
 } from '#lib/domain/sfMemberStatus.ts';
 import { onboardingEligibleWhere } from '#lib/server/db/onboardingEligibility.ts';
+import { ALL_GATES_SET } from '#lib/server/db/onboardingLadder.ts';
 import {
   assertKnownSchoolYear,
   type Scope,
@@ -187,19 +188,6 @@ export function dossierSchoolYear(scope: Scope): string | null {
   return scope.schoolYear ?? null;
 }
 
-/** Every ladder gate set. Same column names on the projection and on a dossier
- * row, so the one shape serves both readings below. */
-const COMPLETE_GATES = {
-  infoValidatedAt: { not: null },
-  highSchoolValidatedAt: { not: null },
-  parentsValidatedAt: { not: null },
-  techInterestsValidatedAt: { not: null },
-  generalInterestsValidatedAt: { not: null },
-  equipmentValidatedAt: { not: null },
-  processingCompletedAt: { not: null },
-  rulesSignedAt: { not: null },
-} as const;
-
 /**
  * The talents who finished the whole online sign-up, charte included.
  *
@@ -230,8 +218,8 @@ export function onboardingCompleteWhere(scope: Scope): Prisma.TalentWhereInput {
     ...onboardingEligibleWhere,
     charterAcceptedAt: { not: null },
     ...(schoolYear
-      ? { onboardingRecords: { some: { schoolYear, ...COMPLETE_GATES } } }
-      : COMPLETE_GATES),
+      ? { onboardingRecords: { some: { schoolYear, ...ALL_GATES_SET } } }
+      : ALL_GATES_SET),
   };
 }
 
@@ -259,7 +247,7 @@ export async function completedDossierWhere(
 ): Promise<Prisma.Onboarding_RecordWhereInput> {
   const schoolYear = dossierSchoolYear(scope);
   return {
-    ...COMPLETE_GATES,
+    ...ALL_GATES_SET,
     ...(schoolYear ? { schoolYear } : {}),
     talent: {
       AND: [

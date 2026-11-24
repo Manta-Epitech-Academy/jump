@@ -25,6 +25,7 @@
 
 import type { ImageRightsDecision, Prisma } from '@prisma/client';
 import {
+  ONBOARDING_LADDER,
   ONBOARDING_PROJECTED_FIELDS,
   ONBOARDING_STEP_ORDER,
   type OnboardingStep,
@@ -59,19 +60,17 @@ const PARENT_SIGNATURE_DELAY = 8;
 const IMAGE_RIGHTS_DELAY = 9;
 export const DOSSIER_SPAN_DAYS = IMAGE_RIGHTS_DELAY;
 
-const STEP_TIMESTAMPS: Record<OnboardingStep, readonly string[]> = {
-  identity: ['infoValidatedAt'],
-  school: ['highSchoolValidatedAt'],
-  parents: ['parentsValidatedAt'],
-  interests: [
-    'techInterestsValidatedAt',
-    'generalInterestsValidatedAt',
-    'interestsRecapSeenAt',
-  ],
-  equipment: ['equipmentValidatedAt'],
-  processing: ['processingCompletedAt'],
-  rules: ['rulesSignedAt'],
-};
+/**
+ * The columns a step writes: its gates (`ONBOARDING_LADDER`), plus the
+ * interests recap the wizard stamps once the interests are validated, which is
+ * no gate but is the same step's write.
+ */
+function stepTimestamps(step: OnboardingStep): readonly string[] {
+  const rung = ONBOARDING_LADDER.find((r) => r.step === step)!;
+  return step === 'interests'
+    ? [...rung.gates, 'interestsRecapSeenAt']
+    : rung.gates;
+}
 
 export function addDossier(
   world: World,
@@ -121,7 +120,7 @@ export function addDossier(
       : ONBOARDING_STEP_ORDER.indexOf(opts.stopAt);
   const reached = ONBOARDING_STEP_ORDER.slice(0, stopIndex);
   for (const [offset, step] of reached.entries()) {
-    for (const column of STEP_TIMESTAMPS[step]) {
+    for (const column of stepTimestamps(step)) {
       (dossier as Record<string, unknown>)[column] = clock.days(
         filedOffset + offset,
       );

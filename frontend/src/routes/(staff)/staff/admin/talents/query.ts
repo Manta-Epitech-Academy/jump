@@ -9,6 +9,7 @@ import {
   type TalentOnboardingFields,
 } from '#lib/domain/talentOnboarding.ts';
 import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
+import { ALL_GATES_SET } from '#lib/server/db/onboardingLadder.ts';
 import {
   parentBlockedWhere,
   parentCompleteWhere,
@@ -43,8 +44,8 @@ import {
  * Prisma predicate for a talent who has fully cleared platform onboarding:
  * every step gate set AND the charter accepted. The Prisma mirror of
  * `deriveOnboardingStatus(...) === 'done'`; the Statut filter splits accounts
- * into done (`active`) vs not-done (`onboarding`) by negating this, so a new
- * gate added to the ladder has to land here too.
+ * into done (`active`) vs not-done (`onboarding`) by negating this. The gates
+ * come from the ladder itself (`ALL_GATES_SET`).
  *
  * Eligibility is folded in for the same reason as in `adminStats/cohort.ts`:
  * the negation is what `onboarding` filters on, and without it every collégien
@@ -60,14 +61,7 @@ export function onboardingDoneWhere(): Prisma.TalentWhereInput {
     // would freeze the year at import and a pod alive across the 31 July cutoff
     // would keep answering about the year that just ended.
     onboardingSchoolYear: currentSchoolYearLabel(),
-    infoValidatedAt: { not: null },
-    highSchoolValidatedAt: { not: null },
-    parentsValidatedAt: { not: null },
-    techInterestsValidatedAt: { not: null },
-    generalInterestsValidatedAt: { not: null },
-    equipmentValidatedAt: { not: null },
-    processingCompletedAt: { not: null },
-    rulesSignedAt: { not: null },
+    ...ALL_GATES_SET,
     // Once per account, never re-asked, so it is not narrowed to the year.
     charterAcceptedAt: { not: null },
   };

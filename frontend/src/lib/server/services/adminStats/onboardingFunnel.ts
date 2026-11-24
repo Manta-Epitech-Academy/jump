@@ -4,10 +4,9 @@
  *
  * Aggregates only, counted in SQL. The rung a talent is on is "the first step
  * whose timestamp is still null" (`getOnboardingStep`), so each rung here is
- * expressed as "every earlier timestamp set AND this one missing". The rungs are
- * walked from `ONBOARDING_STEP_ORDER`, so a step added to the ladder shows up as
- * a missing entry in `RUNG_WHERE` at type-check time rather than as a silently
- * uncounted bucket.
+ * expressed as "every earlier timestamp set AND this one missing"
+ * (`rungFilter`). Both the rungs and their filters come from `ONBOARDING_LADDER`,
+ * so a step added to the ladder is counted here with nothing else to change.
  *
  * No name, email or phone is ever selected here: this tier serves counts.
  */
@@ -18,8 +17,8 @@ import {
   ONBOARDING_STEP_ORDER,
   ONBOARDING_STEP_LABELS,
   type OnboardingStep,
-  type OnboardingStepFields,
 } from '#lib/domain/talentOnboarding.ts';
+import { rungFilter } from '#lib/server/db/onboardingLadder.ts';
 import { VISIBLE_PARTICIPATION_DEFINITION } from '#lib/domain/sfMemberStatus.ts';
 import { metric, share, type Metric } from '#lib/server/adminApi/metrics.ts';
 import type { Scope } from '#lib/server/adminApi/scope.ts';
@@ -30,76 +29,6 @@ import {
   scopeLabels,
 } from './cohort';
 import { onboardingEligibleWhere } from '#lib/server/db/onboardingEligibility.ts';
-
-const isSet = { not: null };
-
-/**
- * "Blocked at this rung": every earlier step done, this one not. Mirrors
- * `getOnboardingStep`'s cascade exactly, including the `interests` rung being
- * backed by two timestamps (done only when both are set).
- *
- * Read against the projection alone, which only tells the truth for the year it
- * is stamped with - {@link rungWhere} adds that condition.
- */
-/**
- * A rung's shape, expressed over the gate columns alone.
- *
- * Deliberately not `Prisma.TalentWhereInput`: the same shape has to filter the
- * projection AND a dossier row, and the two where-inputs are branded per model
- * even though the columns are identical. Narrowing to the gates keeps one
- * definition, and keeps a rung from quietly growing a condition on something
- * only one of the two carries.
- */
-type GateFilter = {
-  [K in keyof OnboardingStepFields]?: { not: null } | null;
-};
-type RungFilter = GateFilter & { OR?: GateFilter[] };
-
-const RUNG_WHERE: Record<OnboardingStep, RungFilter> = {
-  identity: { infoValidatedAt: null },
-  school: { infoValidatedAt: isSet, highSchoolValidatedAt: null },
-  parents: {
-    infoValidatedAt: isSet,
-    highSchoolValidatedAt: isSet,
-    parentsValidatedAt: null,
-  },
-  interests: {
-    infoValidatedAt: isSet,
-    highSchoolValidatedAt: isSet,
-    parentsValidatedAt: isSet,
-    OR: [
-      { techInterestsValidatedAt: null },
-      { generalInterestsValidatedAt: null },
-    ],
-  },
-  equipment: {
-    infoValidatedAt: isSet,
-    highSchoolValidatedAt: isSet,
-    parentsValidatedAt: isSet,
-    techInterestsValidatedAt: isSet,
-    generalInterestsValidatedAt: isSet,
-    equipmentValidatedAt: null,
-  },
-  processing: {
-    infoValidatedAt: isSet,
-    highSchoolValidatedAt: isSet,
-    parentsValidatedAt: isSet,
-    techInterestsValidatedAt: isSet,
-    generalInterestsValidatedAt: isSet,
-    equipmentValidatedAt: isSet,
-    processingCompletedAt: null,
-  },
-  rules: {
-    infoValidatedAt: isSet,
-    highSchoolValidatedAt: isSet,
-    parentsValidatedAt: isSet,
-    techInterestsValidatedAt: isSet,
-    generalInterestsValidatedAt: isSet,
-    equipmentValidatedAt: isSet,
-    processingCompletedAt: isSet,
-    rulesSignedAt: null,
-  },
-};
 
 export type FunnelRung = {
   step: OnboardingStep;
@@ -138,7 +67,7 @@ function rungWhere(
   step: OnboardingStep,
   schoolYear: string | null,
 ): Prisma.TalentWhereInput {
-  if (schoolYear == null) return RUNG_WHERE[step];
+  if (schoolYear == null) return rungFilter(step);
   if (step === ONBOARDING_STEP_ORDER[0]) {
     return {
       NOT: {
@@ -148,7 +77,7 @@ function rungWhere(
       },
     };
   }
-  return { onboardingRecords: { some: { schoolYear, ...RUNG_WHERE[step] } } };
+  return { onboardingRecords: { some: { schoolYear, ...rungFilter(step) } } };
 }
 
 export async function getOnboardingFunnel(
