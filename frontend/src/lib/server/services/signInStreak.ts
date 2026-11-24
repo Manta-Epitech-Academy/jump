@@ -5,12 +5,13 @@ import { toDateKey } from '#lib/domain/planningTime.ts';
 
 /**
  * Count the day `now` falls on, in `timezone`, into the talent's run of
- * consecutive days (`Talent.streakDays` / `streakLastDay`, whose schema comment
- * says what the pair means and why it is all there is). Called by
- * `hooks.server.ts` on every request a talent makes themselves.
+ * consecutive days (`Talent.streakDays` / `streakLastDay` / `streakPreviousDay`,
+ * whose schema comment says what they mean and why they are all there is).
+ * Called by `hooks.server.ts` on every request a talent makes themselves.
  *
  * The first visit of a day extends a run whose last day was yesterday and
- * restarts any other at 1; every later visit that day changes nothing. The
+ * restarts any other at 1, and keeps the day it moves past as
+ * `streakPreviousDay`; every later visit that day changes nothing. The
  * talent's loaded `streakLastDay` settles the common case without a write, so a
  * talent costs one write a day, not one per request.
  *
@@ -45,6 +46,7 @@ export async function recordSignInDay(
           WHEN "streakLastDay" = ${yesterday}::date THEN "streakDays" + 1
           ELSE 1
         END,
+        "streakPreviousDay" = "streakLastDay",
         "streakLastDay" = ${today}::date
     WHERE "id" = ${talent.id}
       AND "anonymizedAt" IS NULL
@@ -53,6 +55,10 @@ export async function recordSignInDay(
 }
 
 /** The `Talent` patch for "no run at all", which the erasure and the reset write. */
-export function clearSignInStreak(): { streakDays: 0; streakLastDay: null } {
-  return { streakDays: 0, streakLastDay: null };
+export function clearSignInStreak(): {
+  streakDays: 0;
+  streakLastDay: null;
+  streakPreviousDay: null;
+} {
+  return { streakDays: 0, streakLastDay: null, streakPreviousDay: null };
 }

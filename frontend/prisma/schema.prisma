@@ -366,7 +366,13 @@ model Talent {
   /// day does not lower it: nothing writes without a visit, so the run restarts
   /// at 1 on the next one. The best run is not kept.
   ///
-  /// Two values and no history, on purpose. "Facts are rows" does not apply
+  /// `streakPreviousDay` is the visit day `streakLastDay` held before the
+  /// first visit of that day moved it, null before a second day: so "the day
+  /// of the visit before today" stays readable all day long, including after
+  /// a request a guard redirected, which counts the day before any page
+  /// renders. EpiDuck's welcome back reads it (`greetingFor`).
+  ///
+  /// Three values and no history, on purpose. "Facts are rows" does not apply
   /// here: a row per day would be the connection log of a minor, which no
   /// figure needs. Nor is it usage tracking: that one runs without consent
   /// because it cannot tell who the talent is, and a badge has to, so the two
@@ -375,6 +381,7 @@ model Talent {
   /// and the reset to import.
   streakDays                  Int                  @default(0)
   streakLastDay               DateTime?            @db.Date
+  streakPreviousDay           DateTime?            @db.Date
   /// When this talent objected to usage measurement (RGPD art. 21). Set, and
   /// nothing measures them: the recorder writes nothing and the browser sends
   /// nothing to Umami (`objectedToUsageMeasurement`). Null means no objection,

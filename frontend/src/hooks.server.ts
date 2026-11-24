@@ -270,10 +270,11 @@ export const handle: Handle = async ({ event, resolve }) => {
     //     deleted by logout, identity repair and account relinks, so a real
     //     login would read "Jamais" once its session vanished).
     //   - `lastActiveAt`: throttled to once per day.
-    //   - the run of consecutive days (`streakDays` / `streakLastDay`), counted
-    //     on calendar days in the campus timezone, which the rolling 24 hours
-    //     of `lastActiveAt` cannot tell apart: a visit at 9:00 then one at 8:00
-    //     the next morning is two days, and that throttle skips the second.
+    //   - the run of consecutive days (`streakDays` / `streakLastDay`, and the
+    //     visit day before it, `streakPreviousDay`), counted on calendar days
+    //     in the campus timezone, which the rolling 24 hours of `lastActiveAt`
+    //     cannot tell apart: a visit at 9:00 then one at 8:00 the next morning
+    //     is two days, and that throttle skips the second.
     //     Before the route guards, like the other two: a talent sent on to the
     //     charte has still opened Jump that day. Not usage tracking, which is
     //     recorded at 3.5 and never names the talent.

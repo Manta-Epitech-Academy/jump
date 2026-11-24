@@ -12,7 +12,8 @@ ALTER TABLE "Talent" ADD COLUMN     "mascotAsleepAt" TIMESTAMP(3),
 ADD COLUMN     "mascotGlasses" "Mascot_Glasses" NOT NULL DEFAULT 'none',
 ADD COLUMN     "mascotHair" "Mascot_Hair" NOT NULL DEFAULT 'tuft',
 ADD COLUMN     "mascotName" VARCHAR(24),
-ADD COLUMN     "mascotScarf" "Mascot_Scarf" NOT NULL DEFAULT 'none';
+ADD COLUMN     "mascotScarf" "Mascot_Scarf" NOT NULL DEFAULT 'none',
+ADD COLUMN     "streakPreviousDay" DATE;
 
 -- CreateTable
 CREATE TABLE "Mascot_Line" (

@@ -350,8 +350,8 @@ const ERASURE: Policy = {
     },
     {
       fate: 'null',
-      why: 'The day that run last grew, with it.',
-      columns: ['streakLastDay'],
+      why: 'The day that run last grew, and the visit day before it, with it.',
+      columns: ['streakLastDay', 'streakPreviousDay'],
     },
   ],
 };
@@ -496,8 +496,8 @@ const RESET: Policy = {
     },
     {
       fate: 'null',
-      why: 'The day that run last grew, with it.',
-      columns: ['streakLastDay'],
+      why: 'The day that run last grew, and the visit day before it, with it.',
+      columns: ['streakLastDay', 'streakPreviousDay'],
     },
   ],
 };
@@ -590,6 +590,7 @@ const MERGE: Policy = {
         'firstLoginAt',
         'streakDays',
         'streakLastDay',
+        'streakPreviousDay',
         'mascotName',
         ...MASCOT_PREFERENCES,
       ],

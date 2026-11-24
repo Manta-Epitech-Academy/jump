@@ -35,19 +35,21 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 /**
  * What the header's EpiDuck needs beyond the talent's own row (#539): what he
  * may say today, and how he greets the talent: a hello, or a welcome back when
- * the previous visit is weeks old. `streakLastDay` is still the previous
- * visit's day here, since the streak write does not touch the loaded row, so
- * the greeting is read off it before anything moves it.
+ * the previous visit is weeks old, read off the visit days the streak keeps.
  */
 async function mascotFor(
   talent: NonNullable<App.Locals['talent']>,
   locals: App.Locals,
 ) {
   const today = toDateKey(new Date(), locals.talentTimezone ?? 'Europe/Paris');
+  const dayOf = (day: Date | null) => (day ? dbDateToKey(day) : null);
   return {
     voice: await loadMascotVoice(today),
     greeting: greetingFor(
-      talent.streakLastDay ? dbDateToKey(talent.streakLastDay) : null,
+      {
+        lastDay: dayOf(talent.streakLastDay),
+        previousDay: dayOf(talent.streakPreviousDay),
+      },
       today,
     ),
     today,

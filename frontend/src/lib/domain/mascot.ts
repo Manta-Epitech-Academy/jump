@@ -190,23 +190,32 @@ export type MascotGreeting = {
   daysAway: number;
 } | null;
 
+/** The talent's visit days as `Talent` holds them (`streakLastDay`, `streakPreviousDay`). */
+export type VisitDays = {
+  lastDay: DateKey | null;
+  previousDay: DateKey | null;
+};
+
 /**
- * What the duck says on arrival, from the day of the talent's previous visit.
+ * What the duck says on arrival, from the day of the talent's last visit
+ * before today.
  *
- * `previousDay` is `Talent.streakLastDay` as the request loaded it: on the
- * first request of a day it still holds the previous visit, since the streak
- * write does not touch the loaded row. Null means no visit ever recorded, which
- * is the first meeting and not a greeting (#540). A talent back the same day
- * gets a hello: the duck greets each visit, and the controller keeps it to
- * one per visit.
+ * That day is `lastDay` until the streak write counts today, and
+ * `previousDay` from then on: the write keeps the day it moves past, so which
+ * request of the day loaded the row does not matter (a request a guard
+ * redirected counts the day before any page renders). Null means no visit
+ * before today, which is the first meeting and not a greeting (#540). A talent
+ * back the same day gets a hello: the duck greets each visit, and the
+ * controller keeps it to one per visit.
  */
-export function greetingFor(
-  previousDay: DateKey | null,
-  today: DateKey,
-): MascotGreeting {
-  if (!previousDay) return null;
+export function greetingFor(visits: VisitDays, today: DateKey): MascotGreeting {
+  const before =
+    visits.lastDay && visits.lastDay < today
+      ? visits.lastDay
+      : visits.previousDay;
+  if (!before) return null;
   // A CalendarDate compares as a count of days.
-  const daysAway = parseDate(today).compare(parseDate(previousDay));
+  const daysAway = parseDate(today).compare(parseDate(before));
   return {
     moment: daysAway >= MASCOT_AWAY_DAYS ? 'away' : 'hello',
     daysAway,

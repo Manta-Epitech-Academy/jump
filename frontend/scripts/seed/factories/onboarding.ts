@@ -23,6 +23,7 @@
  * the wizard's resume logic is made of and the ones nobody can otherwise reach.
  */
 
+import { parseDate } from '@internationalized/date';
 import type { ImageRightsDecision, Prisma } from '@prisma/client';
 import {
   ONBOARDING_PROJECTED_FIELDS,
@@ -302,9 +303,23 @@ export function addDossier(
       [...world.campuses.values()].find((c) => c.id === opts.talent.campusId)
         ?.timezone ?? 'Europe/Paris';
     const daysSinceFirstLogin = lastActiveOffset - firstLoginOffset + 1;
-    row.streakLastDay = dateKeyToDbDate(toDateKey(lastActiveAt, timezone));
-    row.streakDays = world.ctx.rng
+    const lastDay = toDateKey(lastActiveAt, timezone);
+    const streakDays = world.ctx.rng
       .fork(`signInStreak:${opts.talent.id}`)
       .int(1, Math.min(12, daysSinceFirstLogin));
+    row.streakLastDay = dateKeyToDbDate(lastDay);
+    row.streakDays = streakDays;
+    // The visit day before the last one, as the streak write keeps it: the
+    // day before in a run, otherwise the first login, the one other visit
+    // this talent is known to have made. A run of one that started on the
+    // first login has none.
+    const firstDay = toDateKey(clock.days(firstLoginOffset), timezone);
+    const previousDay =
+      streakDays > 1
+        ? parseDate(lastDay).subtract({ days: 1 }).toString()
+        : firstDay < lastDay
+          ? firstDay
+          : null;
+    row.streakPreviousDay = previousDay ? dateKeyToDbDate(previousDay) : null;
   }
 }

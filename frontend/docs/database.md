@@ -172,6 +172,7 @@ erDiagram
     DateTime firstLoginAt
     Int streakDays
     DateTime streakLastDay
+    DateTime streakPreviousDay
     DateTime usageAnalyticsOptOutAt
     DateTime welcomeSeenAt
     String mascotName

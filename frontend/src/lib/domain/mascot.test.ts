@@ -20,31 +20,55 @@ describe('the accessory catalogues', () => {
 });
 
 describe('greetingFor', () => {
-  it('leaves a first meeting to #540 and greets a talent back the same day', () => {
-    expect(greetingFor(null, '2026-11-22')).toBeNull();
-    expect(greetingFor('2026-11-22', '2026-11-22')).toEqual({
-      moment: 'hello',
-      daysAway: 0,
-    });
+  const TODAY = '2026-11-22';
+  /** A talent whose day has not been counted yet: `lastDay` is before today. */
+  const notYetToday = (lastDay: string | null) => ({
+    lastDay,
+    previousDay: null,
+  });
+  /** A talent whose day was counted already, which kept `previousDay`. */
+  const countedToday = (previousDay: string | null) => ({
+    lastDay: TODAY,
+    previousDay,
+  });
+
+  it('leaves a first meeting to #540, the rest of that first day too', () => {
+    expect(greetingFor(notYetToday(null), TODAY)).toBeNull();
+    expect(greetingFor(countedToday(null), TODAY)).toBeNull();
   });
 
   it('says hello after a short gap and welcomes back after a long one', () => {
-    expect(greetingFor('2026-11-21', '2026-11-22')).toEqual({
+    expect(greetingFor(notYetToday('2026-11-21'), TODAY)).toEqual({
       moment: 'hello',
       daysAway: 1,
     });
-    expect(greetingFor('2026-11-09', '2026-11-22')).toEqual({
+    expect(greetingFor(notYetToday('2026-11-09'), TODAY)).toEqual({
       moment: 'hello',
       daysAway: MASCOT_AWAY_DAYS - 1,
     });
-    expect(greetingFor('2026-11-08', '2026-11-22')).toEqual({
+    expect(greetingFor(notYetToday('2026-11-08'), TODAY)).toEqual({
       moment: 'away',
       daysAway: MASCOT_AWAY_DAYS,
     });
   });
 
+  it('still welcomes back once an earlier request counted the day', () => {
+    // A guard redirected the first request of the day, which moved the
+    // streak before the page that greets was ever loaded.
+    expect(greetingFor(countedToday('2026-11-01'), TODAY)).toEqual({
+      moment: 'away',
+      daysAway: 21,
+    });
+    expect(greetingFor(countedToday('2026-11-21'), TODAY)).toEqual({
+      moment: 'hello',
+      daysAway: 1,
+    });
+  });
+
   it('counts days across a month and a year', () => {
-    expect(greetingFor('2025-12-31', '2026-01-01')?.daysAway).toBe(1);
+    expect(greetingFor(notYetToday('2025-12-31'), '2026-01-01')?.daysAway).toBe(
+      1,
+    );
   });
 });
 
