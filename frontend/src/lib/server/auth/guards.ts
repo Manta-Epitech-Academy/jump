@@ -436,3 +436,22 @@ export function requireAdminSession(
   // second gating code would only give the error page a branch that says less.
   throw error(403, 'Action réservée.');
 }
+
+/**
+ * Gate on a guardian's session. Throws 401 otherwise.
+ *
+ * `applyRouteGuards` already sends anybody else from `/parent/*` to the parent
+ * login, so this is the narrowing every parent load and action needs on
+ * `locals.user` more than a second gate: one spelling of it instead of a
+ * `role !== 'parent'` check written into each page. It also covers an action
+ * posted to directly, which reaches the same route guard but is the place a
+ * signature is written.
+ */
+export function requireParentSession(
+  locals: App.Locals,
+): asserts locals is App.Locals & {
+  user: NonNullable<App.Locals['user']> & { role: 'parent' };
+} {
+  if (locals.user?.role === 'parent') return;
+  throw error(401, 'Non autorisé');
+}

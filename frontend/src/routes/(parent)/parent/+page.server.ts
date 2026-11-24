@@ -1,16 +1,15 @@
 import type { PageServerLoad } from './$types';
-import { error, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '#lib/server/db.ts';
 import { getParentLastName } from '#lib/domain/parent.ts';
 import { imageRightsStatus } from '#lib/domain/imageRights.ts';
 import { eventPublicName, UNNAMED_EVENT_NAME } from '#lib/domain/event.ts';
 import { shownEnrolmentWhere } from '#lib/domain/eventReadiness.ts';
+import { requireParentSession } from '#lib/server/auth/guards.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (!locals.user || locals.user.role !== 'parent') {
-    throw error(401, 'Non autorisé');
-  }
+  requireParentSession(locals);
 
   const parentEmail = locals.user.email;
 

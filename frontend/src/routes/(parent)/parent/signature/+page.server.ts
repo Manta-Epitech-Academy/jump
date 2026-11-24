@@ -1,21 +1,26 @@
-import { error, redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
+import { message, superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '#lib/server/db.ts';
-import {
-  IMAGE_RIGHTS_DECISIONS,
-  priorYearDecision,
-  type ImageRightsDecision,
-} from '#lib/domain/imageRights.ts';
+import { requireParentSession } from '#lib/server/auth/guards.ts';
+import { requireOwnChild } from '#lib/server/services/parentChildren.ts';
+import { priorYearDecision } from '#lib/domain/imageRights.ts';
+import { parentSignerRelationship } from '#lib/domain/profile.ts';
 import {
   LATEST_IMAGE_RIGHTS_DECISION_ORDER,
   recordImageRightsDecision,
 } from '#lib/server/services/imageRightsService.ts';
+import {
+  decisionOf,
+  imageRightsSignatureSchema,
+  parentSignatureFormId,
+  signerOf,
+} from '#lib/validation/parentSignature.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (!locals.user || locals.user.role !== 'parent') {
-    throw error(401, 'Non autorisé');
-  }
+  requireParentSession(locals);
 
   // Règlement intérieur comes first in the flow. If any child's is still
   // unsigned, send the parent back to that step, even on a direct hit here.
@@ -40,7 +45,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       id: true,
       prenom: true,
       nom: true,
-      // Pre-fill the signer-name inputs from what the talent entered for their
+      // Pre-fill the signer fields from what the talent entered for their
       // guardian during onboarding. The parent can still override (e.g. legal
       // name differs from what the talent typed).
       parentPrenom: true,
@@ -68,95 +73,61 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   return {
-    children: undecidedChildren.map(
-      ({ imageRightsRecords, onboardingSchoolYear, ...child }) => ({
-        ...child,
+    children: await Promise.all(
+      undecidedChildren.map(async (child) => ({
+        id: child.id,
+        prenom: child.prenom,
+        nom: child.nom,
         // Every child here is undecided for the dossier in hand, so the latest
         // ledger row is necessarily a previous year's. Resolved through the
         // shared rule anyway, rather than trusted: it is the same rule the child
         // page needs, where the form is also reachable on a decision still in
         // force.
         previousDecision: priorYearDecision(
-          imageRightsRecords[0],
-          onboardingSchoolYear,
+          child.imageRightsRecords[0],
+          child.onboardingSchoolYear,
         ),
-      }),
+        form: await superValidate(
+          {
+            talentId: child.id,
+            signerPrenom: child.parentPrenom ?? '',
+            signerNom: child.parentNom ?? '',
+            relationship: parentSignerRelationship(
+              child.parentType,
+              child.parentCivilite,
+            ),
+          },
+          zod4(imageRightsSignatureSchema),
+          {
+            id: parentSignatureFormId('image-rights', child.id),
+            errors: false,
+          },
+        ),
+      })),
     ),
   };
 };
 
-function isDecision(value: unknown): value is ImageRightsDecision {
-  return (IMAGE_RIGHTS_DECISIONS as readonly string[]).includes(
-    value as string,
-  );
-}
-
 export const actions: Actions = {
   decide: async ({ request, locals }) => {
-    if (!locals.user || locals.user.role !== 'parent') {
-      throw error(401, 'Non autorisé');
-    }
+    requireParentSession(locals);
+    const form = await superValidate(request, zod4(imageRightsSignatureSchema));
+    if (!form.valid) return fail(400, { form });
 
-    const formData = await request.formData();
-    const talentId = (formData.get('talentId') as string)?.trim();
-    const signerPrenom = (formData.get('signerPrenom') as string)?.trim();
-    const signerNom = (formData.get('signerNom') as string)?.trim();
-    const relationship = (formData.get('relationship') as string)?.trim();
-    const city = (formData.get('city') as string)?.trim();
-    const decision = formData.get('decision');
-
-    if (!talentId) {
-      return { error: 'Identifiant enfant manquant.' };
-    }
-
-    // Security: verify this child belongs to the authenticated parent
-    const profile = await prisma.talent.findUnique({
-      where: { id: talentId },
-      select: { id: true, prenom: true, nom: true, parentEmail: true },
+    const child = await requireOwnChild(locals.user.email, form.data.talentId, {
+      id: true,
+      prenom: true,
+      nom: true,
     });
-
-    if (!profile || profile.parentEmail !== locals.user.email) {
-      throw error(403, 'Accès non autorisé pour cet enfant.');
-    }
-
-    if (!isDecision(decision)) {
-      return {
-        error: "Veuillez choisir d'autoriser ou de refuser le droit à l'image.",
-        talentId,
-      };
-    }
-
-    if (!signerPrenom || signerPrenom.length < 1) {
-      return { error: 'Veuillez entrer votre prénom.', talentId };
-    }
-
-    if (!signerNom || signerNom.length < 1) {
-      return { error: 'Veuillez entrer votre nom.', talentId };
-    }
-
-    if (!relationship) {
-      return {
-        error: 'Veuillez indiquer votre qualité (mère, père, tuteur).',
-        talentId,
-      };
-    }
-
-    if (!city) {
-      return { error: 'Veuillez indiquer la ville.', talentId };
-    }
-
-    const studentName = `${profile.prenom} ${profile.nom}`;
+    const decision = decisionOf(form.data);
 
     // Records the decision + enqueues the matching PDF atomically, then fires
     // the (non-blocking) generation. The decided-at timestamp is set now, so
     // the `remaining` count below already excludes this child.
     await recordImageRightsDecision({
-      talentId: profile.id,
+      talentId: child.id,
       decision,
-      signerPrenom,
-      signerNom,
-      relationship,
-      city,
+      ...signerOf(form.data),
     });
 
     // Any child still awaiting a decision keeps the parent on this page.
@@ -171,6 +142,9 @@ export const actions: Actions = {
       throw redirect(303, resolve('parent/merci'));
     }
 
-    return { success: studentName, decision };
+    return message(form, {
+      signedFor: `${child.prenom} ${child.nom}`,
+      decision,
+    });
   },
 };

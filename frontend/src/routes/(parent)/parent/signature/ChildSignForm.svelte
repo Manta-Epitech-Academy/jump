@@ -1,23 +1,25 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
+  import {
+    superForm,
+    type Infer,
+    type SuperValidated,
+  } from 'sveltekit-superforms';
   import Check from '@lucide/svelte/icons/check';
   import X from '@lucide/svelte/icons/x';
   import { cn } from '#lib/utils.ts';
   import ParentSignatureForm from '#lib/components/parent/ParentSignatureForm.svelte';
   import { track, errReason } from '#lib/analytics.ts';
-  import type {
-    ImageRightsDecision,
-    ImageRightsDecisionSummary,
-  } from '#lib/domain/imageRights.ts';
+  import type { ImageRightsDecisionSummary } from '#lib/domain/imageRights.ts';
+  import {
+    imageRightsSignatureSchema,
+    type ImageRightsSignatureSchema,
+  } from '#lib/validation/parentSignature.ts';
 
   interface Props {
     child: {
-      id: string;
       prenom: string;
       nom: string;
-      parentPrenom?: string | null;
-      parentNom?: string | null;
-      parentType?: string | null;
-      parentCivilite?: string | null;
       /**
        * What this guardian decided in a PREVIOUS school year, resolved by
        * `priorYearDecision`. The decision is taken once per school year, so a
@@ -31,16 +33,38 @@
        */
       previousDecision?: ImageRightsDecisionSummary | null;
     };
+    /** This child's form, built by the page's `load` under its own id. */
+    form: SuperValidated<Infer<ImageRightsSignatureSchema>>;
     /** Legal body shown once the guardian chooses to authorize. */
     droitImageBody: string;
     /** Legal body shown once the guardian chooses to refuse. */
     droitImageRefusalBody: string;
-    error?: string;
   }
 
-  let { child, droitImageBody, droitImageRefusalBody, error }: Props = $props();
+  let {
+    child,
+    form: initial,
+    droitImageBody,
+    droitImageRefusalBody,
+  }: Props = $props();
 
-  let decision = $state<ImageRightsDecision | ''>('');
+  const superform = superForm(
+    untrack(() => initial),
+    {
+      resetForm: false,
+      onResult: ({ result }) => {
+        if (result.type === 'success' || result.type === 'redirect') {
+          track('parent_image_rights_decided', { decision: $form.decision });
+        } else if (result.type === 'failure') {
+          track('parent_image_rights_decision_failed', {
+            reason: errReason(result),
+          });
+        }
+      },
+    },
+  );
+  const { form } = superform;
+  const decision = $derived($form.decision);
 
   // A refusal is a legitimate, unpressured choice, so both branches carry equal
   // brand weight, never red, never a greyed-out "lesser" state. Authorize uses
@@ -57,20 +81,10 @@
 </script>
 
 <ParentSignatureForm
-  {child}
+  {superform}
+  schema={imageRightsSignatureSchema}
   action="?/decide"
-  {error}
-  extraValid={decision !== ''}
   {submitClass}
-  onResult={(result) => {
-    if (result.type === 'success' || result.type === 'redirect') {
-      track('parent_image_rights_decided', { decision });
-    } else if (result.type === 'failure') {
-      track('parent_image_rights_decision_failed', {
-        reason: errReason(result),
-      });
-    }
-  }}
 >
   {#snippet declarationTail()}
     <!--
@@ -85,7 +99,7 @@
   {/snippet}
 
   {#snippet artifact()}
-    <input type="hidden" name="decision" value={decision} />
+    <input type="hidden" name="decision" value={decision ?? ''} />
 
     {#if child.previousDecision}
       <!-- One line, stating the fact that changes the decision being taken: an
@@ -109,7 +123,7 @@
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <button
         type="button"
-        onclick={() => (decision = 'accepted')}
+        onclick={() => ($form.decision = 'accepted')}
         aria-pressed={decision === 'accepted'}
         class={cn(
           'flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-raised transition-ui',
@@ -135,7 +149,7 @@
 
       <button
         type="button"
-        onclick={() => (decision = 'refused')}
+        onclick={() => ($form.decision = 'refused')}
         aria-pressed={decision === 'refused'}
         class={cn(
           'flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-raised transition-ui',

@@ -23,7 +23,7 @@
   import ChildSignForm from '../../signature/ChildSignForm.svelte';
   import TitleCursor from '#lib/components/layout/TitleCursor.svelte';
 
-  let { data, form } = $props();
+  let { data } = $props();
 
   // The clauses of the document about to be signed, taken FROM that document
   // rather than hand-copied beside it. A decision taken now commits to the
@@ -123,7 +123,7 @@
               child={data.child}
               {droitImageBody}
               {droitImageRefusalBody}
-              error={form?.error}
+              form={data.form}
             />
           </div>
         </div>
@@ -162,7 +162,7 @@
                 child={data.child}
                 {droitImageBody}
                 {droitImageRefusalBody}
-                error={form?.error}
+                form={data.form}
               />
             </div>
           </Collapsible.Content>

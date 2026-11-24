@@ -1,12 +1,11 @@
-import { error, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '#lib/server/db.ts';
+import { requireParentSession } from '#lib/server/auth/guards.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (!locals.user || locals.user.role !== 'parent') {
-    throw error(401, 'Non autorisé');
-  }
+  requireParentSession(locals);
 
   const parentEmail = locals.user.email;
 

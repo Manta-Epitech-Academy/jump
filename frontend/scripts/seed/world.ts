@@ -50,6 +50,8 @@ import { stillKeyOf } from '../../src/lib/domain/pictures';
 import {
   CIVILITE_OPTIONS,
   PARENT_TYPE_OPTIONS,
+  UNSTATED_SIGNER_RELATIONSHIP,
+  parentSignerRelationship,
   type Civilite,
 } from '../../src/lib/domain/profile';
 import { INTEREST_COUNTS } from '../../src/lib/validation/onboarding';
@@ -1884,6 +1886,19 @@ export class World {
   }
 
   /**
+   * What the talent's guardian declares when they sign, as the parent portal
+   * pre-selects it from the guardian the wizard recorded
+   * (`parentSignerRelationship`).
+   */
+  guardianRelationship(talent: TalentRef): string {
+    const row = this.talentRow(talent.id);
+    return (
+      parentSignerRelationship(row.parentType, row.parentCivilite) ??
+      UNSTATED_SIGNER_RELATIONSHIP
+    );
+  }
+
+  /**
    * One image-rights decision, as the source that produced it would have left
    * it.
    *
@@ -1921,7 +1936,7 @@ export class World {
       decidedAt: opts.decidedAt,
       signerPrenom: signed ? 'Responsable' : null,
       signerNom: signed ? opts.talent.nom : null,
-      relationship: signed ? 'Parent' : null,
+      relationship: signed ? this.guardianRelationship(opts.talent) : null,
       city: signed ? 'Paris' : null,
       note: opts.note ?? null,
       source,

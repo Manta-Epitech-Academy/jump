@@ -178,7 +178,7 @@ export function addDossier(
       );
       dossier.parentRulesSignerPrenom = 'Responsable';
       dossier.parentRulesSignerNom = opts.talent.nom;
-      dossier.parentRulesRelationship = 'Parent';
+      dossier.parentRulesRelationship = world.guardianRelationship(opts.talent);
       dossier.parentRulesSignedCity = 'Paris';
     }
   }
@@ -205,7 +205,7 @@ export function addDossier(
     dossier.imageRightsDecidedAt = decidedAt;
     dossier.imageRightsSignerPrenom = 'Responsable';
     dossier.imageRightsSignerNom = opts.talent.nom;
-    dossier.imageRightsRelationship = 'Parent';
+    dossier.imageRightsRelationship = world.guardianRelationship(opts.talent);
     dossier.imageRightsSignedCity = 'Paris';
     dossier.imageRightsVersion = imageRightsVersion;
     dossier.imageRightsFilePath = renderedImageRightsPath;

@@ -43,6 +43,7 @@ import { upsertOnboardingYearRecord } from '../src/lib/server/services/onboardin
 import { currentSchoolYearLabel } from '../src/lib/domain/schoolYear';
 import { CURRENT_DROIT_IMAGE_VERSION } from '../src/lib/content/droit-image';
 import { CURRENT_REGLEMENT_VERSION } from '../src/lib/content/reglement';
+import { UNSTATED_SIGNER_RELATIONSHIP } from '../src/lib/domain/profile';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -191,7 +192,9 @@ async function main() {
             decidedAt,
             signerPrenom: 'Responsable',
             signerNom: 'Légal',
-            relationship: 'parent',
+            // A staff correction with no earlier relationship to carry over, as
+            // the staff action writes it.
+            relationship: UNSTATED_SIGNER_RELATIONSHIP,
             city: 'Montpellier',
             source: 'staff_correction',
             recordedByStaffId: staff.id,
@@ -237,14 +240,14 @@ async function main() {
             parentRulesSignedAt: decidedAt,
             parentRulesSignerPrenom: 'Responsable',
             parentRulesSignerNom: 'Légal',
-            parentRulesRelationship: 'parent',
+            parentRulesRelationship: 'mère',
             parentRulesSignedCity: 'Montpellier',
             imageRightsDecision: bucket.to,
             imageRightsDecidedAt: decidedAt,
             imageRightsVersion: CURRENT_DROIT_IMAGE_VERSION,
             imageRightsSignerPrenom: 'Responsable',
             imageRightsSignerNom: 'Légal',
-            imageRightsRelationship: 'parent',
+            imageRightsRelationship: UNSTATED_SIGNER_RELATIONSHIP,
             imageRightsSignedCity: 'Montpellier',
           },
         });
