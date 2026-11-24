@@ -37,21 +37,8 @@ export type SendSmsFailure = {
 
 export type SendSmsResult = { ok: true; id: string } | SendSmsFailure;
 
-/**
- * Per-send dev-redirect destination control, mirroring the mail façade
- * (`#lib/server/email/types.ts → DevRedirectControl`). Consulted ONLY when the
- * gate (`OUTBOUND_MODE != real`) traps outbound: a no-op in prod.
- *
- *   - omitted   → redirect to the env list (default; system / automatic sends)
- *   - string[]  → redirect to these numbers instead
- *   - 'bypass'  → no redirect; reach the real recipient. Single, explicit,
- *                 human-typed test-send only, never a cohort send.
- */
-export type DevRedirectControl = readonly string[] | 'bypass';
-
-export interface SendOptions {
-  devRedirect?: DevRedirectControl;
-}
+// One definition for both channels: the trap they share decides with it.
+export type { DevRedirectControl, SendOptions } from '#lib/server/outbound.ts';
 
 export interface SmsProvider {
   readonly name: 'brevo' | 'null';
