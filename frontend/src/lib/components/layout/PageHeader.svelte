@@ -51,8 +51,6 @@
      * the person (the calendar's greeting), never for a page's name.
      */
     typeTitle?: boolean;
-    /** Opt into a view transition on the title. */
-    titleViewTransitionName?: string;
     class?: string;
   };
 
@@ -64,7 +62,6 @@
     meta,
     actions,
     typeTitle = false,
-    titleViewTransitionName,
     class: className,
   }: Props = $props();
 </script>
@@ -80,10 +77,7 @@
   )}
 >
   <div class="max-w-full min-w-0 md:shrink-0">
-    <h1
-      class="font-heading text-display-l"
-      style:view-transition-name={titleViewTransitionName}
-    >
+    <h1 class="font-heading text-display-l">
       {#if title}{#if typeTitle}<TypedText
             text={title}
           />{:else}{title}{/if}{/if}{#if accent}{#if title}{' '}{/if}<span
