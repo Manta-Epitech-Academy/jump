@@ -126,9 +126,9 @@ describe('events a talent is shown (integration)', () => {
     } as unknown as Parameters<typeof loadCalendar>[0])) as {
       planning: { slots: { event: { id: string; name: string } }[] };
     };
-    expect(data.planning.slots.map((slot) => slot.event)).toEqual([
-      { id: shownId, name: 'Stage prêt' },
-    ]);
+    expect(
+      data.planning.slots.map(({ event: { id, name } }) => ({ id, name })),
+    ).toEqual([{ id: shownId, name: 'Stage prêt' }]);
   });
 
   it('offers no planning when the only planned event is not activated', async () => {

@@ -177,6 +177,19 @@ const rules: Rule[] = [
       'transition Svelte directe : passer par #lib/motion (enter, stagger, stepIn, stepOut, fade), qui porte les durées et la variante reduced-motion (DESIGN.md § Motion)',
   },
   {
+    name: 'Aucune view transition hors de #lib/motion',
+    /**
+     * The first `startViewTransition` sat in the root layout and decided on
+     * its own to animate every navigation, a filter or a sort included, at
+     * the browser's 250ms. `#lib/motion/viewTransition.ts` decides when a
+     * change earns one, and `layout.css` times it on the tokens.
+     */
+    pattern: /\bstartViewTransition\b/,
+    files: /^(?!.*lib[/\\]motion[/\\])/,
+    message:
+      'view transition directe : passer par #lib/motion/viewTransition.ts (crossfadePageChanges), qui décide quand animer ; un changement dans la page passe par une transition Svelte de #lib/motion (DESIGN.md § Motion)',
+  },
+  {
     name: 'Un seul fournisseur d’infobulles, à la racine',
     /**
      * bits-ui skips the hover delay only between tooltips of one provider, so

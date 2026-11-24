@@ -18,12 +18,13 @@
   padding. What goes under the water line is clipped, which is how he dives.
 
   He stays in front of the page while it changes, twice over:
-    - a navigation is a View Transition (`routes/+layout.svelte`), which
-      cross-fades a picture of the old page into one of the new. Drawn into
-      those pictures, his bubble blended with the new page's cards for the
-      length of the fade, and a duck caught mid-turn flickered. The lane is
-      its own layer of the transition (`view-transition-name`), painted above
-      both pictures and moved from his old spot to his new one;
+    - a change of page is a View Transition (`crossfadePageChanges` in
+      `#lib/motion/viewTransition.ts`), which cross-fades a picture of the
+      old page into one of the new. Drawn into those pictures, his bubble
+      blended with the new page's cards for the length of the fade, and a
+      duck caught mid-turn flickered. The lane is its own layer of the
+      transition (`view-transition-name`), painted above both pictures and
+      moved from his old spot to his new one;
     - the new page then brings its cards in with a transform, and anything
       animated that way paints over whatever comes before it in the document.
       The lane is stacked above the page (`z-30`), still under every popover

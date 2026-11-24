@@ -12,9 +12,9 @@
     endTime: Date | string;
     nom: string;
     activityType: string;
-    // Present on the multi-event calendar so the dialog can name which event the
-    // activity belongs to. Optional so single-event callers stay valid.
-    event?: { id: string; name: string };
+    // The event the activity belongs to: its name for the line under the title,
+    // its campus's timezone for the day and hours, the ones the campus announced.
+    event: { id: string; name: string; timezone: string };
   };
 
   let {
@@ -38,18 +38,20 @@
       : '',
   );
 
-  function formatTime(date: Date | string): string {
+  function formatTime(date: Date | string, timeZone: string): string {
     return new Date(date).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
+      timeZone,
     });
   }
 
-  function formatDate(date: Date | string): string {
+  function formatDate(date: Date | string, timeZone: string): string {
     return new Date(date).toLocaleDateString('fr-FR', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
+      timeZone,
     });
   }
 </script>
@@ -64,18 +66,19 @@
         <ResponsiveDialog.Description
           class="flex flex-wrap items-center gap-1.5 text-xs"
         >
-          <span>{formatDate(slot.startTime)}</span>
+          <span>{formatDate(slot.startTime, slot.event.timezone)}</span>
           <span class="text-muted-foreground/60">·</span>
           <Clock class="h-3 w-3" />
           <span>
-            {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+            {formatTime(slot.startTime, slot.event.timezone)} - {formatTime(
+              slot.endTime,
+              slot.event.timezone,
+            )}
           </span>
         </ResponsiveDialog.Description>
-        {#if slot.event}
-          <p class="text-xs font-medium text-muted-foreground">
-            {slot.event.name}
-          </p>
-        {/if}
+        <p class="text-xs font-medium text-muted-foreground">
+          {slot.event.name}
+        </p>
       </ResponsiveDialog.Header>
 
       <ResponsiveDialog.Body class="space-y-3">

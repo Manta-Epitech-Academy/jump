@@ -17,7 +17,7 @@ import {
   slotKey,
   dateKeyToDbDate,
   dbDateToKey,
-  toDateKey,
+  defaultActiveSlotKey,
   effectiveStatus,
   computeAttendanceRate,
   indexPresences,
@@ -173,7 +173,10 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
     },
     timezone,
     slots,
-    todayKey: toDateKey(now, timezone),
+    // The créneau the page opens on: today's half-day on the campus clock, read
+    // here so the server render and the page agree, and so a recruiter in
+    // another timezone opens on the half-day the campus is living.
+    defaultSlotKey: defaultActiveSlotKey(slots, timezone, now),
     closedKeys,
     pastCutoffKeys,
     // The header offers its search only when someone is there to search for.

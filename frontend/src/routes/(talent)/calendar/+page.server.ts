@@ -26,6 +26,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
           publicName: true,
           date: true,
           endDate: true,
+          // Each event's days and hours are read on its campus's clock.
+          campus: { select: { timezone: true } },
           planningSlots: {
             where: { activityType: { not: 'orga' } },
             select: {
@@ -43,8 +45,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     orderBy: { event: { date: 'asc' } },
   });
 
+  const now = new Date();
   return {
-    planning: toCalendarPlanning(participations),
-    serverNow: Date.now(),
+    planning: toCalendarPlanning(participations, now),
+    serverNow: now.getTime(),
   };
 };

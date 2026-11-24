@@ -408,7 +408,7 @@
 
 <div class="flex h-dvh w-full overflow-hidden bg-background">
   <aside
-    class="app-sidebar on-dark hidden w-68 flex-col border-r border-chrome-border bg-chrome text-chrome-foreground md:flex"
+    class="on-dark hidden w-68 flex-col border-r border-chrome-border bg-chrome text-chrome-foreground md:flex"
   >
     <div class="border-b border-chrome-border">
       {@render sidebarBrand()}

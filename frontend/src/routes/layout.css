@@ -523,14 +523,6 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
-
-  .app-header {
-    view-transition-name: main-header;
-  }
-
-  .app-sidebar {
-    view-transition-name: main-sidebar;
-  }
 }
 
 /* --- Markdown Prose Overrides (Notion-like with Epitech branding) --- */
@@ -729,6 +721,25 @@
   70% {
     opacity: 1;
   }
+}
+
+/* --- View transitions (DESIGN.md § Motion) ----------------------------------
+   When one runs is decided in `#lib/motion/viewTransition.ts`; how it moves is
+   decided here, on the motion tokens rather than the browser's 250ms `ease`. */
+
+/* A change of page: the old page and the new one crossfade at `base`. Both
+   halves share one duration and one curve on purpose, although an exit is
+   otherwise faster than an entrance: the browser blends the pair so that
+   their opacities add up, and that sum is whole only while the two run on the
+   same curve. An old half at `fast` would dim every pixel the two pages share,
+   the navigation rail included, for the last 80ms. The groups follow, so the
+   transition ends with its fade rather than 50ms after it. A fade has nothing
+   that moves, so it is the same under `prefers-reduced-motion`. */
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--motion-ease-standard);
 }
 
 /* --- Less motion, not none (DESIGN.md § Motion) -----------------------------

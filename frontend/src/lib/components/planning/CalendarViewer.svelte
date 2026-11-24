@@ -22,28 +22,41 @@
 <script lang="ts" generics="S extends ViewerSlot">
   import { onMount, untrack } from 'svelte';
   import { cn } from '#lib/utils.ts';
+  import { stepIn, stepOut } from '#lib/motion/index.ts';
   import { activityTypeStyles } from '#lib/validation/templates.ts';
+  import { parseDate } from '@internationalized/date';
   import {
-    sameDay,
     weekDaysFrom,
     WEEK_VIEW_DAYS,
     type WeekView,
   } from '#lib/domain/calendarWeek.ts';
+  import {
+    clockAt,
+    toDateKey,
+    type DateKey,
+  } from '#lib/domain/planningTime.ts';
 
   let {
     slots,
     weekStart,
     weekView = 'work',
+    timezone,
     serverNow,
     dimUnstarted = false,
     onSlotClick,
     class: className,
   }: {
     slots: S[];
-    /** Monday of the visible week, owned by the parent. */
-    weekStart: Date;
+    /** Monday of the visible week, a campus day, owned by the parent. */
+    weekStart: DateKey;
     /** Work week (Mon-Fri) or full week (Mon-Sun). Drives the column count. */
     weekView?: WeekView;
+    /**
+     * The campus clock the whole grid is read on: columns, hours, today and
+     * the now line. Never the browser's: a 9h workshop is at 9h for a reader
+     * in another timezone too, as the activity's own dialog says.
+     */
+    timezone: string;
     /** Server timestamp seed so SSR and first client render agree. */
     serverNow: number;
     /** Dim slots that haven't started yet (talent), or show them at full
@@ -67,6 +80,18 @@
 
   let dayCount = $derived(WEEK_VIEW_DAYS[weekView]);
   let weekDays = $derived(weekDaysFrom(weekStart, dayCount));
+
+  // A new week slides in from the side time moved to, whoever moved it: the
+  // week navigator, or a parent that sets the week itself. Keys are ISO days,
+  // so comparing them as strings compares the days. Only the week's content
+  // slides (the day numbers, the slots, the now line). The hours follow the
+  // new week's range at once, without moving, and the grid keeps its scroll.
+  let previousWeek = untrack(() => weekStart);
+  let step = $derived.by(() => {
+    const direction: 1 | -1 = weekStart < previousWeek ? -1 : 1;
+    previousWeek = weekStart;
+    return { direction };
+  });
 
   type PackedSlot = S & {
     colIndex: number;
@@ -153,21 +178,15 @@
     return out;
   }
 
-  function dayKey(d: Date): string {
-    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-  }
-
   let slotsByDay = $derived.by(() => {
     const map = new Map<number, PackedSlot[]>();
-    const dayIndexByKey = new Map<string, number>();
+    const dayIndexByKey = new Map<DateKey, number>();
     for (let i = 0; i < weekDays.length; i++) {
-      dayIndexByKey.set(dayKey(weekDays[i]), i);
+      dayIndexByKey.set(weekDays[i], i);
     }
     const byDay = new Map<number, S[]>();
     for (const s of slots) {
-      const slotDay = new Date(s.startTime);
-      slotDay.setHours(0, 0, 0, 0);
-      const dayIdx = dayIndexByKey.get(dayKey(slotDay));
+      const dayIdx = dayIndexByKey.get(toDateKey(s.startTime, timezone));
       if (dayIdx === undefined) continue;
       const arr = byDay.get(dayIdx) ?? [];
       arr.push(s);
@@ -187,10 +206,10 @@
     let minH = 23;
     let maxH = 0;
     for (const s of visible) {
-      const a = new Date(s.startTime);
-      const b = new Date(s.endTime);
-      if (a.getHours() < minH) minH = a.getHours();
-      const endH = b.getHours() + (b.getMinutes() > 0 ? 1 : 0);
+      const a = clockAt(s.startTime, timezone);
+      const b = clockAt(s.endTime, timezone);
+      if (a.hour < minH) minH = a.hour;
+      const endH = b.hour + (b.minute > 0 ? 1 : 0);
       if (endH > maxH) maxH = endH;
     }
     return {
@@ -210,8 +229,8 @@
   );
 
   function minutesIntoDay(d: Date | string): number {
-    const x = new Date(d);
-    return x.getHours() * 60 + x.getMinutes();
+    const { hour, minute } = clockAt(d, timezone);
+    return hour * 60 + minute;
   }
 
   function pixelsFromTime(d: Date | string): number {
@@ -222,10 +241,12 @@
     return new Date(date).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: timezone,
     });
   }
 
-  let todayIdx = $derived(weekDays.findIndex((d) => sameDay(d, nowTime)));
+  let today = $derived(toDateKey(nowTime, timezone));
+  let todayIdx = $derived(weekDays.indexOf(today));
   let nowLineTop = $derived(pixelsFromTime(nowTime));
   let nowLineVisible = $derived(
     todayIdx >= 0 && nowLineTop >= 0 && nowLineTop <= gridHeightPx,
@@ -240,7 +261,7 @@
   >
     <div></div>
     {#each weekDays as d, i (i)}
-      {@const isToday = sameDay(d, nowTime)}
+      {@const isToday = d === today}
       <div
         class="flex flex-col items-center justify-center gap-0.5 py-2 text-center"
       >
@@ -252,22 +273,35 @@
         >
           {WEEK_DAYS[i]}
         </span>
-        <span
-          class={cn(
-            'text-sm font-semibold',
-            isToday
-              ? 'flex h-6 w-6 items-center justify-center rounded-full bg-epi-blue text-white'
-              : 'text-foreground-secondary',
-          )}
-        >
-          {d.getDate()}
-        </span>
+        <!-- The weekday stays, the date moves with its week. -->
+        <div class="relative flex h-6 w-full items-center justify-center">
+          {#key d}
+            <div
+              class="flex h-6 w-full items-center justify-center"
+              in:stepIn|local={step}
+              out:stepOut|local={step}
+            >
+              <span
+                class={cn(
+                  'text-sm font-semibold',
+                  isToday
+                    ? 'flex h-6 w-6 items-center justify-center rounded-full bg-epi-blue text-white'
+                    : 'text-foreground-secondary',
+                )}
+              >
+                {parseDate(d).day}
+              </span>
+            </div>
+          {/key}
+        </div>
       </div>
     {/each}
   </div>
 
-  <!-- Time grid -->
-  <div class="min-h-0 flex-1 overflow-y-auto">
+  <!-- Time grid. It never scrolls sideways: the columns share its width
+       (`minmax(0, 1fr)`), and the last day's week, sliding 16px past the edge,
+       would otherwise open a horizontal scrollbar for the length of the slide. -->
+  <div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
     <div
       class="relative grid"
       style="grid-template-columns: 3rem repeat({dayCount}, minmax(0, 1fr)); height: {gridHeightPx}px;"
@@ -299,63 +333,74 @@
             {/if}
           {/each}
 
-          <!-- Activity blocks -->
-          {#each daySlots as slot (slot.id)}
-            {@const styles =
-              activityTypeStyles[
-                slot.activityType as keyof typeof activityTypeStyles
-              ]}
-            {@const top = pixelsFromTime(slot.startTime)}
-            {@const height = Math.max(
-              20 * PIXELS_PER_MINUTE,
-              pixelsFromTime(slot.endTime) - top,
-            )}
-            {@const hasStarted =
-              new Date(slot.startTime).getTime() <= nowTime.getTime()}
-            {@const widthPct = (98 * slot.colSpan) / slot.numCols}
-            {@const leftPct = (slot.colIndex * 98) / slot.numCols + 1}
-            <button
-              type="button"
-              class={cn(
-                'absolute flex cursor-pointer flex-col gap-0.5 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-left transition-ui hover:z-10 hover:shadow-raised',
-                styles?.bg,
-                styles?.border,
-                'border-y border-r border-y-border border-r-border',
-                dimUnstarted && !hasStarted && 'opacity-60 hover:opacity-100',
-              )}
-              style="top: {top}px; height: {height}px; left: {leftPct}%; width: calc({widthPct}% - 2px);"
-              aria-label={slot.nom}
-              onclick={() => onSlotClick(slot, hasStarted)}
-            >
-              <span
-                class={cn(
-                  'text-xs leading-tight font-bold break-words',
-                  styles?.text,
-                )}
-              >
-                {slot.nom}
-              </span>
-              <div
-                class="flex items-center gap-1 text-xs font-medium text-muted-foreground"
-              >
-                <span>
-                  {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
-                </span>
-              </div>
-            </button>
-          {/each}
-
-          <!-- Now line (today only) -->
-          {#if todayIdx === i && nowLineVisible}
+          <!-- The day's slots and its now line, which leave with their week -->
+          {#key weekDays[i]}
             <div
-              class="pointer-events-none absolute inset-x-0 z-20 flex items-center"
-              style="top: {nowLineTop}px;"
+              class="absolute inset-0"
+              in:stepIn|local={step}
+              out:stepOut|local={step}
             >
-              <span class="h-2 w-2 -translate-x-1 rounded-full bg-epi-blue"
-              ></span>
-              <span class="h-px flex-1 bg-epi-blue"></span>
+              <!-- Activity blocks -->
+              {#each daySlots as slot (slot.id)}
+                {@const styles =
+                  activityTypeStyles[
+                    slot.activityType as keyof typeof activityTypeStyles
+                  ]}
+                {@const top = pixelsFromTime(slot.startTime)}
+                {@const height = Math.max(
+                  20 * PIXELS_PER_MINUTE,
+                  pixelsFromTime(slot.endTime) - top,
+                )}
+                {@const hasStarted =
+                  new Date(slot.startTime).getTime() <= nowTime.getTime()}
+                {@const widthPct = (98 * slot.colSpan) / slot.numCols}
+                {@const leftPct = (slot.colIndex * 98) / slot.numCols + 1}
+                <button
+                  type="button"
+                  class={cn(
+                    'absolute flex cursor-pointer flex-col gap-0.5 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-left transition-ui hover:z-10 hover:shadow-raised',
+                    styles?.bg,
+                    styles?.border,
+                    'border-y border-r border-y-border border-r-border',
+                    dimUnstarted &&
+                      !hasStarted &&
+                      'opacity-60 hover:opacity-100',
+                  )}
+                  style="top: {top}px; height: {height}px; left: {leftPct}%; width: calc({widthPct}% - 2px);"
+                  aria-label={slot.nom}
+                  onclick={() => onSlotClick(slot, hasStarted)}
+                >
+                  <span
+                    class={cn(
+                      'text-xs leading-tight font-bold break-words',
+                      styles?.text,
+                    )}
+                  >
+                    {slot.nom}
+                  </span>
+                  <div
+                    class="flex items-center gap-1 text-xs font-medium text-muted-foreground"
+                  >
+                    <span>
+                      {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                    </span>
+                  </div>
+                </button>
+              {/each}
+
+              <!-- Now line (today only) -->
+              {#if todayIdx === i && nowLineVisible}
+                <div
+                  class="pointer-events-none absolute inset-x-0 z-20 flex items-center"
+                  style="top: {nowLineTop}px;"
+                >
+                  <span class="h-2 w-2 -translate-x-1 rounded-full bg-epi-blue"
+                  ></span>
+                  <span class="h-px flex-1 bg-epi-blue"></span>
+                </div>
+              {/if}
             </div>
-          {/if}
+          {/key}
         </div>
       {/each}
     </div>

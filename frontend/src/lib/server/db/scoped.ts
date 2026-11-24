@@ -1,6 +1,7 @@
 import type { Cookies } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import { prisma } from '../db';
+import { READER_TIMEZONE_COOKIE } from '#lib/domain/planningTime.ts';
 
 /**
  * Extracts the campus ID from the authenticated user's profile.
@@ -23,17 +24,20 @@ export function getCampusTimezone(locals: App.Locals): string {
 }
 
 /**
- * Reads the browser timezone from the `tz` cookie (set client-side).
- * Validates against the IANA database to prevent RangeError from invalid values.
+ * The reader's timezone, for a line about the reader and never for a campus
+ * fact (`planningTime.ts` says which is which). Read from the cookie the root
+ * layout sets, and validated against the IANA database, since a cookie is
+ * whatever the client sent. `fallback` answers until the browser has set it,
+ * on a first visit: the campus's, the clock the reader most likely lives on.
  */
-export function getBrowserTimezone(cookies: Cookies): string {
-  const tz = cookies.get('tz');
-  if (!tz) return 'Europe/Paris';
+export function getReaderTimezone(cookies: Cookies, fallback: string): string {
+  const tz = cookies.get(READER_TIMEZONE_COOKIE);
+  if (!tz) return fallback;
   try {
     Intl.DateTimeFormat(undefined, { timeZone: tz });
     return tz;
   } catch {
-    return 'Europe/Paris';
+    return fallback;
   }
 }
 

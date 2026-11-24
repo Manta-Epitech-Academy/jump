@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { enterParams, stagger } from './index';
 import { cubicBezier } from './tokens';
+import { shouldCrossfade } from './viewTransition';
 
 describe('enterParams', () => {
   it('should fade in place, without waiting, when less motion is asked for', () => {
@@ -49,5 +50,43 @@ describe('cubicBezier', () => {
     }
     // An ease-out: well past half the distance at half the time.
     expect(samples[5]).toBeGreaterThan(0.8);
+  });
+});
+
+describe('shouldCrossfade', () => {
+  const at = (href: string) => ({ url: new URL(href, 'https://jump.test') });
+
+  it('should crossfade a change of page', () => {
+    // Act
+    const fades = shouldCrossfade({
+      from: at('/staff/dev/students'),
+      to: at('/staff/dev/students/abc'),
+      browserAnimated: false,
+    });
+
+    // Assert
+    expect(fades).toBe(true);
+  });
+
+  it('should leave a filter, a sort or a list page alone', () => {
+    // Act / Assert: every filter on a staff list used to fade the whole screen.
+    expect(
+      shouldCrossfade({
+        from: at('/staff/dev/students?q=lu'),
+        to: at('/staff/dev/students?q=lucas&page=2'),
+        browserAnimated: false,
+      }),
+    ).toBe(false);
+  });
+
+  it('should not replay a back gesture the browser has already animated', () => {
+    // Act / Assert: a swipe back on a phone showed the page change twice.
+    expect(
+      shouldCrossfade({
+        from: at('/parcours'),
+        to: at('/'),
+        browserAnimated: true,
+      }),
+    ).toBe(false);
   });
 });

@@ -10,8 +10,7 @@
  * silent, and silence is a valid state, never an error.
  */
 
-import { parseDate } from '@internationalized/date';
-import type { DateKey } from './planningTime';
+import { daysBetween, type DateKey } from './planningTime';
 import { fillTokens, unknownTokens } from './textTokens';
 
 /** The name a duck answers to until its talent picks one, and the public's. */
@@ -214,8 +213,7 @@ export function greetingFor(visits: VisitDays, today: DateKey): MascotGreeting {
       ? visits.lastDay
       : visits.previousDay;
   if (!before) return null;
-  // A CalendarDate compares as a count of days.
-  const daysAway = parseDate(today).compare(parseDate(before));
+  const daysAway = daysBetween(before, today);
   return {
     moment: daysAway >= MASCOT_AWAY_DAYS ? 'away' : 'hello',
     daysAway,

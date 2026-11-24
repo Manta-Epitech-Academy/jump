@@ -9,7 +9,8 @@
   import './layout.css';
   import { Toaster } from '#lib/components/ui/sonner/index.ts';
   import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
-  import { onNavigate, beforeNavigate } from '$app/navigation';
+  import { onMount } from 'svelte';
+  import { beforeNavigate } from '$app/navigation';
   import { ModeWatcher } from 'mode-watcher';
   import { page, updated } from '$app/state';
   import { dev } from '$app/env';
@@ -23,6 +24,8 @@
     identify,
     setAnalyticsSubject,
   } from '#lib/analytics.ts';
+  import { READER_TIMEZONE_COOKIE } from '#lib/domain/planningTime.ts';
+  import { crossfadePageChanges } from '#lib/motion/viewTransition.ts';
 
   // Import SVGs as URLs using Vite's ?url suffix
   import faviconProd from '#lib/assets/favicon.svg?url';
@@ -42,16 +45,19 @@
     }
   });
 
-  onNavigate((navigation) => {
-    if (!document.startViewTransition) return;
-
-    return new Promise((resolve) => {
-      document.startViewTransition(async () => {
-        resolve();
-        await navigation.complete;
-      });
-    });
+  // The reader's timezone, kept for the server so a line about the reader (the
+  // dev space's greeting) is read on the reader's clock from the first render
+  // (`getReaderTimezone`). Set from every space, since any of them may be the
+  // first one a staff member opens.
+  onMount(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const cookie = `${READER_TIMEZONE_COOKIE}=${tz}`;
+    if (!document.cookie.split('; ').includes(cookie)) {
+      document.cookie = `${cookie};path=/;max-age=31536000;SameSite=Lax`;
+    }
   });
+
+  crossfadePageChanges();
 
   // Access staff campus from page data (via layout.server.ts -> hooks)
   let userCampusName = $derived(page.data.staffProfile?.campus?.name);

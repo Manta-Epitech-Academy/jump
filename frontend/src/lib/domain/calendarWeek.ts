@@ -3,31 +3,33 @@
  * and the dev read-only viewer both lay slots onto a Monday-Sunday week grid and
  * page through weeks; this module is the single home for the week math so the two
  * surfaces can't drift. No Svelte, no DOM: just dates.
+ *
+ * Every day here is a campus `DateKey`, as in `campusCalendar.ts`. A slot's day
+ * is read on the campus clock once (`toDateKey`), and from there no `Date`, so
+ * no browser or pod timezone, can move an activity to another column: a 9h
+ * workshop in Lille sits on its Lille day for a reader in Montréal too.
  */
+import { getDayOfWeek, parseDate } from '@internationalized/date';
+import { daysBetween, toDateKey, type DateKey } from './planningTime';
 
-/** Midnight of the given date, in local time. */
-export function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
+/** Monday 0 ... Sunday 6, whatever the runtime's locale. */
+const weekdayOf = (day: DateKey) => getDayOfWeek(parseDate(day), 'fr-FR');
+
+/** The Monday of the week holding `day`. */
+export function mondayOf(day: DateKey): DateKey {
+  return parseDate(day)
+    .subtract({ days: weekdayOf(day) })
+    .toString();
 }
 
-/** The Monday (00:00) of the week containing `d`. */
-function startOfWeek(d: Date): Date {
-  const x = startOfDay(d);
-  // Monday = 1 ... Sunday = 0; shift so Monday is the first day.
-  const dow = (x.getDay() + 6) % 7;
-  x.setDate(x.getDate() - dow);
-  return x;
+/** The same weekday `weeks` weeks later (earlier when negative). */
+export function addWeeks(day: DateKey, weeks: number): DateKey {
+  return parseDate(day).add({ weeks }).toString();
 }
 
-/** Whether two dates fall on the same calendar day. */
-export function sameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+/** Whole weeks from the week holding `from` to the week holding `to`. */
+export function weeksBetween(from: DateKey, to: DateKey): number {
+  return daysBetween(mondayOf(from), mondayOf(to)) / 7;
 }
 
 /**
@@ -42,70 +44,81 @@ export const WEEK_VIEW_DAYS: Record<WeekView, number> = { work: 5, full: 7 };
  * The days of the week starting at `weekStart`: `days` of them (5 for a work
  * week, 7 for a full week). Defaults to the full Monday-Sunday span.
  */
-export function weekDaysFrom(weekStart: Date, days = 7): Date[] {
-  return Array.from({ length: days }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
+export function weekDaysFrom(weekStart: DateKey, days = 7): DateKey[] {
+  const monday = parseDate(weekStart);
+  return Array.from({ length: days }, (_, i) =>
+    monday.add({ days: i }).toString(),
+  );
 }
 
 /**
  * Land on the week of the slot closest to "now" so the viewer never opens onto a
  * blank gap week between two far-apart events (or after an all-past timeline).
- * Falls back to the week of `fallbackStart` (or today) when there are no slots.
+ * Falls back to the week of `fallbackDay` (or today) when there are no slots.
+ * Returns that week's Monday, every day read on the campus clock `timezone`.
  */
 export function pickInitialWeek(
   nowMs: number,
   slots: { startTime: Date | string }[],
-  fallbackStart: Date | null,
-): Date {
-  const today = startOfDay(new Date(nowMs));
-  if (slots.length === 0) return startOfWeek(fallbackStart ?? today);
-  let nearest = slots[0];
+  fallbackDay: DateKey | null,
+  timezone: string,
+): DateKey {
+  const today = toDateKey(new Date(nowMs), timezone);
+  if (slots.length === 0) return mondayOf(fallbackDay ?? today);
+  let nearest = toDateKey(slots[0].startTime, timezone);
   let nearestDist = Infinity;
   for (const s of slots) {
-    const dist = Math.abs(
-      startOfDay(new Date(s.startTime)).getTime() - today.getTime(),
-    );
+    const day = toDateKey(s.startTime, timezone);
+    const dist = Math.abs(daysBetween(today, day));
     if (dist < nearestDist) {
       nearestDist = dist;
-      nearest = s;
+      nearest = day;
     }
   }
-  return startOfWeek(startOfDay(new Date(nearest.startTime)));
+  return mondayOf(nearest);
 }
 
 /**
- * The view a calendar should open in: `full` when any slot falls on a weekend,
- * otherwise `work`. The work-week default densifies weekday-only plannings, but
- * it must never hide the very slot the calendar opens on, so a week (or whole
- * timeline) carrying a Saturday/Sunday activity opens full rather than blank.
- * Companion to {@link pickInitialWeek}: that picks which week to open, this
- * picks how wide. A persisted user choice still overrides this initial seed.
+ * The view a calendar should open in: `full` when any slot falls on a weekend
+ * of the campus, otherwise `work`. The work-week default densifies weekday-only
+ * plannings, but it must never hide the very slot the calendar opens on, so a
+ * week (or whole timeline) carrying a Saturday/Sunday activity opens full rather
+ * than blank. Companion to {@link pickInitialWeek}: that picks which week to
+ * open, this picks how wide. A persisted user choice still overrides this
+ * initial seed.
  */
 export function pickInitialWeekView(
   slots: { startTime: Date | string }[],
+  timezone: string,
 ): WeekView {
   for (const s of slots) {
-    const dow = new Date(s.startTime).getDay();
-    if (dow === 0 || dow === 6) return 'full';
+    if (weekdayOf(toDateKey(s.startTime, timezone)) >= 5) return 'full';
   }
   return 'work';
 }
 
+/**
+ * A key formatted in French. The key is already a campus day, so it is pinned
+ * to UTC midnight and formatted in UTC: no other timezone can shift it.
+ */
+function formatDay(day: DateKey, options: Intl.DateTimeFormatOptions): string {
+  return parseDate(day)
+    .toDate('UTC')
+    .toLocaleDateString('fr-FR', { ...options, timeZone: 'UTC' });
+}
+
 /** A compact "1 - 7 déc 2026" style label for the visible week. */
-export function weekLabel(weekDays: Date[]): string {
-  const a = weekDays[0];
-  const b = weekDays[weekDays.length - 1];
-  const sameMonth = a.getMonth() === b.getMonth();
-  const sameYear = a.getFullYear() === b.getFullYear();
-  const left = a.toLocaleDateString('fr-FR', {
+export function weekLabel(weekDays: DateKey[]): string {
+  const a = parseDate(weekDays[0]);
+  const b = parseDate(weekDays[weekDays.length - 1]);
+  const sameMonth = a.month === b.month;
+  const sameYear = a.year === b.year;
+  const left = formatDay(weekDays[0], {
     day: 'numeric',
     month: sameMonth && sameYear ? undefined : 'short',
     year: sameYear ? undefined : 'numeric',
   });
-  const right = b.toLocaleDateString('fr-FR', {
+  const right = formatDay(weekDays[weekDays.length - 1], {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
