@@ -4,7 +4,7 @@
   import { resolve } from '$app/paths';
   import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
-  import MinigameRewardCelebration from '#lib/components/talent/MinigameRewardCelebration.svelte';
+  import MascotStage from '#lib/components/mascot/MascotStage.svelte';
   import Trophy from '@lucide/svelte/icons/trophy';
   import Crown from '@lucide/svelte/icons/crown';
   import Home from '@lucide/svelte/icons/home';
@@ -60,9 +60,9 @@
   }
 </script>
 
-<!-- The podium float plays here too, so a player who taps "Voir le classement"
-     after a game gets the bonus celebration without first going to the dashboard. -->
-<MinigameRewardCelebration rankReward={data.minigameRankReward} />
+<!-- The rank bonus plays here too, so a player who taps "Voir le classement"
+     after a game gets it without first going to the dashboard. -->
+<MascotStage pending={data.celebrations} />
 
 <div class="flex min-h-screen flex-col">
   <TalentPageHeader title="Classement" />

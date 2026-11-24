@@ -1,9 +1,8 @@
 <script lang="ts">
-  // Full-screen "+N XP" reward float: the talent's XP gain celebration.
-  // Used for both the onboarding arrival (+200) and the daily minigame (+50);
-  // the caller toggles mount and pairs it with confetti. The number counts up
-  // for extra game-juice; the `animate-xp-float` rise/fade keyframes live in
-  // routes/layout.css. `label` is an optional kicker rendered above the amount.
+  // The "+N XP" of a celebration: the amount counting up as it pops, rises and
+  // fades (`animate-xp-float`, keyframes in routes/layout.css). Placed by the
+  // duck's stage (`MascotStage`), which draws it under him in the middle of the
+  // screen; `label` is an optional kicker above the amount.
   import { onMount } from 'svelte';
   import { prefersReducedMotion } from 'svelte/motion';
   import Sparkles from '@lucide/svelte/icons/sparkles';
@@ -33,23 +32,19 @@
   });
 </script>
 
-<div
-  class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center"
->
-  <div class="animate-xp-float flex flex-col items-center gap-1">
-    {#if label}
-      <span
-        class="text-sm font-bold tracking-[0.2em] text-epi-together/90 uppercase"
-      >
-        {label}
-      </span>
-    {/if}
-    <div
-      class="flex items-center gap-2 text-epi-together drop-shadow-[0_0_25px_rgba(255,95,58,0.55)]"
+<div class="animate-xp-float flex flex-col items-center gap-1">
+  {#if label}
+    <span
+      class="text-sm font-bold tracking-[0.2em] text-epi-together/90 uppercase"
     >
-      <Sparkles class="h-7 w-7" />
-      <span class="font-heading text-display-2xl">+{display}</span>
-      <span class="text-2xl font-bold">XP</span>
-    </div>
+      {label}
+    </span>
+  {/if}
+  <div
+    class="flex items-center gap-2 text-epi-together drop-shadow-[0_0_25px_rgba(255,95,58,0.55)]"
+  >
+    <Sparkles class="h-7 w-7" />
+    <span class="font-heading text-display-2xl">+{display}</span>
+    <span class="text-2xl font-bold">XP</span>
   </div>
 </div>

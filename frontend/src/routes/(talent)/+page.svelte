@@ -4,8 +4,6 @@
   import { enhance } from '$app/forms';
   import { refreshAll } from '$app/navigation';
   import { enter, stagger } from '#lib/motion/index.ts';
-  import { triggerConfetti } from '#lib/actions/confetti.ts';
-  import { welcomeRewardToast } from '#lib/components/talent/rewardToast.ts';
   import FeedbackBanner from '#lib/components/feedback/FeedbackBanner.svelte';
   import NewsCard from '#lib/components/talent/NewsCard.svelte';
   import XpCard from '#lib/components/talent/XpCard.svelte';
@@ -13,59 +11,11 @@
   import DailyTrainingTile from '#lib/components/talent/DailyTrainingTile.svelte';
   import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
-  import XpFloat from '#lib/components/talent/XpFloat.svelte';
-  import MinigameRewardCelebration from '#lib/components/talent/MinigameRewardCelebration.svelte';
-  import WorkshopRewardCelebration from '#lib/components/talent/WorkshopRewardCelebration.svelte';
-  import { onMount } from 'svelte';
+  import MascotStage from '#lib/components/mascot/MascotStage.svelte';
   import { cn } from '#lib/utils.ts';
   import { mascotLookOf } from '#lib/domain/mascot.ts';
 
   let { data }: { data: PageData } = $props();
-
-  // "+XP" reward celebration: confetti + a floating amount that fades out.
-  // Drives the onboarding arrival below; the minigame finish/rank floats live in
-  // MinigameRewardCelebration (shared with the leaderboard).
-  const XP_FLOAT_DURATION_MS = 2500;
-  let showXpFloat = $state(false);
-  let floatAmount = $state(0);
-  function celebrateXp(
-    amount: number,
-    timers: ReturnType<typeof setTimeout>[],
-  ) {
-    timers.push(
-      setTimeout(() => {
-        triggerConfetti();
-        floatAmount = amount;
-        showXpFloat = true;
-      }, 300),
-    );
-    timers.push(setTimeout(() => (showXpFloat = false), XP_FLOAT_DURATION_MS));
-  }
-
-  // Arrival celebration. The server arms `data.onboardingArrival` on the first
-  // dashboard load after onboarding completes (consuming a one-shot cookie), so
-  // its presence is the whole trigger: there is no URL param to read or scrub,
-  // and a refresh can't replay it. We fire the XP float + welcome toast; no
-  // modal pops (the /welcome splash is a separate earlier greeting).
-  onMount(() => {
-    const arrival = data.onboardingArrival;
-    if (!arrival) return;
-
-    const { totalXp, earlyBirdBonus } = arrival;
-
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    celebrateXp(totalXp, timers);
-    // Hold the toast until the XP float has faded, so the welcome message lands
-    // on a calm page (after the first "stunned" beat) instead of competing with
-    // the confetti and the floating number for attention.
-    timers.push(
-      setTimeout(
-        () => welcomeRewardToast(totalXp, earlyBirdBonus),
-        XP_FLOAT_DURATION_MS + 400,
-      ),
-    );
-    return () => timers.forEach(clearTimeout);
-  });
 
   let student = $derived(data.student);
 
@@ -125,21 +75,11 @@
   <title>Tableau de bord</title>
 </svelte:head>
 
-{#if showXpFloat}
-  <XpFloat amount={floatAmount} />
-{/if}
-
-<!-- Minigame finish + rank-bonus floats, shared with the leaderboard so the
-     celebration follows the player to whichever page they open after a game. -->
-<MinigameRewardCelebration
-  baseReward={data.minigameReward}
-  rankReward={data.minigameRankReward}
-/>
-
-<!-- Activity XP, celebrated when the talent comes back to this tab. One float for
-     everything that arrived since the last acknowledgement, which may well be an
-     evening's worth of steps. -->
-<WorkshopRewardCelebration reward={data.workshopReward} />
+<!-- What the talent earned and has not seen celebrated: XP, and the level they
+     reached, played by the duck in the middle of the screen (#540). Activity XP
+     arrive when the talent comes back to this tab, which revalidates the page
+     (the visibility listener above). -->
+<MascotStage pending={data.celebrations} />
 
 <div class="flex min-h-screen flex-col">
   <!-- Same app bar as every talent page, unchanged: the duck in it says

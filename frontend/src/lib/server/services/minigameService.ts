@@ -325,6 +325,22 @@ export async function markMinigameRankRewardsSeen(
 }
 
 /**
+ * The talent's most recent daily-challenge XP not yet celebrated, or null: a
+ * win the play page could not celebrate (the talent left before the game said
+ * so), caught on the next page that celebrates. Gated by `xpSeenAt`.
+ */
+export async function getUnseenMinigameReward(
+  talentId: string,
+): Promise<{ xp: number } | null> {
+  const attempt = await prisma.minigameAttempt.findFirst({
+    where: { talentId, xpAwarded: { not: null }, xpSeenAt: null },
+    orderBy: { finishedAt: 'desc' },
+    select: { xpAwarded: true },
+  });
+  return attempt?.xpAwarded != null ? { xp: attempt.xpAwarded } : null;
+}
+
+/**
  * The talent's most recent rank bonus not yet celebrated, or null. Drives the
  * one-shot podium float on whichever page the player lands on after a game (the
  * dashboard or the leaderboard), gated by `rankXpSeenAt`. Shared by both loads so

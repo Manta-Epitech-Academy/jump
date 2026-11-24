@@ -3,7 +3,7 @@ import { error } from '@sveltejs/kit';
 import { dev } from '$app/env';
 import { prisma } from '#lib/server/db.ts';
 import { revokeXp } from '#lib/server/services/xpService.ts';
-import { consumeArrivalCelebration } from '#lib/server/talent/arrivalCelebration.ts';
+import { loadPendingCelebrations } from '#lib/server/talent/celebrations.ts';
 import { JUMP_GAMES_URL } from '$app/env/private';
 import { getCatalogPreview } from '#lib/server/services/minigameCatalog.ts';
 import {
@@ -11,16 +11,13 @@ import {
   getActivePublication,
   getClosestEventForTalent,
   applyCallback,
-  getUnseenMinigameRankReward,
 } from '#lib/server/services/minigameService.ts';
-import { WELCOME_XP_BONUS } from '#lib/domain/xp.ts';
 import { pendingFeedbackForm } from '#lib/domain/feedback.ts';
 import {
   feedbackParticipationWhere,
   resolveEventNudgeForm,
 } from '#lib/server/feedbackForms.ts';
 import { buildPersonaIconUrl } from '#lib/domain/feedbackForms/schema.ts';
-import { getUnseenWorkshopReward } from '#lib/server/services/workshopService.ts';
 import { loadHomeHero } from '#lib/server/services/talentHomeHero.ts';
 import { activitiesToDoCount } from '#lib/domain/workshops.ts';
 
@@ -47,23 +44,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       ? getCatalogPreview(minigame.publication.game)
       : Promise.resolve(null);
 
-    // A finalized attempt that earned XP the talent hasn't seen celebrated yet:
-    // drives the one-shot "+XP" float, the same as the onboarding arrival. The
-    // float is acknowledged client-side (xpSeenAt) so it fires exactly once,
-    // wherever the talent first lands back on the dashboard after playing.
-    const lastAttempt =
-      minigame && !minigame.ok ? minigame.lastAttempt : undefined;
-    const minigameReward =
-      lastAttempt?.xpAwarded != null && lastAttempt.xpSeenAt == null
-        ? { xp: lastAttempt.xpAwarded }
-        : null;
-
-    // The rank bonus is granted at finish; the play page floats only the base
-    // finish reward, so MinigameRewardCelebration shows the podium float on the
-    // first page the player lands on afterwards (dashboard or leaderboard). Shared
-    // helper so both pages surface it identically.
-    const minigameRankReward = await getUnseenMinigameRankReward(studentId);
-
     // The CTFd activities the talent's own events offer, with whatever CTFd last
     // reported about each, what their campus puts on their home (its note, what
     // it puts forward), and the one thing the blue hero shows from all of it
@@ -79,35 +59,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       ...workshops.today,
       ...workshops.activities,
     ]);
-
-    // Everything earned on an activity and not yet celebrated. The talent walks
-    // the activity in another tab, so nothing here witnesses the moment: the float
-    // fires when they come back, which is what the dashboard's visibility listener
-    // is for.
-    const workshopReward = await getUnseenWorkshopReward(studentId);
-
-    // Arrival celebration total. Only resolved on the first dashboard load after
-    // onboarding completion (the arrival-celebration cookie, consumed here), so
-    // the float shows the real boosted total (base + early-bird) rather than a
-    // hardcoded 200. `earlyBirdBonus` lets the toast call out the pioneer bonus.
-    let onboardingArrival: { totalXp: number; earlyBirdBonus: number } | null =
-      null;
-    if (consumeArrivalCelebration(cookies)) {
-      const earlyBird = await prisma.xpGrant.findUnique({
-        where: {
-          source_sourceId: {
-            source: 'onboarding_early_bird',
-            sourceId: studentId,
-          },
-        },
-        select: { amount: true },
-      });
-      const earlyBirdBonus = earlyBird?.amount ?? 0;
-      onboardingArrival = {
-        totalXp: WELCOME_XP_BONUS + earlyBirdBonus,
-        earlyBirdBonus,
-      };
-    }
 
     // Feedback banner: nudge about the event whose feedback form still awaits
     // this talent's answer.
@@ -171,14 +122,13 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       student: locals.talent,
       minigame,
       trainingPreview: await trainingPreview,
-      minigameReward,
-      minigameRankReward,
       hero,
       toDoCount,
       hasActivities:
         workshops.today.length > 0 || workshops.activities.length > 0,
-      workshopReward,
-      onboardingArrival,
+      // What the talent earned and has not seen celebrated, played by the
+      // duck's stage. Consumes the arrival's one-shot cookie.
+      celebrations: await loadPendingCelebrations(locals.talent, cookies),
       note: home.note,
       pendingFeedback,
     };

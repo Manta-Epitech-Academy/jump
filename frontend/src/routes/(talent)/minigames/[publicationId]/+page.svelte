@@ -6,15 +6,11 @@
   import { onMount, untrack } from 'svelte';
   import { mode } from 'mode-watcher';
   import { Button } from '#lib/components/ui/button/index.ts';
-  import {
-    triggerConfetti,
-    triggerSideCannons,
-  } from '#lib/actions/confetti.ts';
-  import { minigameRewardToast } from '#lib/components/talent/rewardToast.ts';
+  import { triggerSideCannons } from '#lib/actions/confetti.ts';
   import { MINIGAME_XP_REWARD } from '#lib/domain/xp.ts';
   import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
-  import XpFloat from '#lib/components/talent/XpFloat.svelte';
+  import MascotStage from '#lib/components/mascot/MascotStage.svelte';
   import Home from '@lucide/svelte/icons/home';
   import Loader2 from '@lucide/svelte/icons/loader-circle';
 
@@ -71,9 +67,8 @@
     frameHeight = Math.min(desired, cap);
   }
   let playForm = $state<HTMLFormElement>();
-  let ackForm = $state<HTMLFormElement>();
+  let stage = $state<MascotStage>();
   let celebrated = $state(false);
-  let showXpFloat = $state(false);
   let failed = $state(false);
 
   // Mirror Jump's live theme into the running game without reloading it. Wait
@@ -89,37 +84,30 @@
     );
   });
 
-  // Fire the XP-gain celebration when the game reports a valid finish, rather
-  // than waiting for the next dashboard visit. The server-to-server callback has
-  // already granted the XP by the time this message arrives; the acknowledge
-  // form stamps xpSeenAt so the dashboard won't replay the float.
+  // Celebrate the win when the game reports a valid finish, rather than
+  // waiting for the next dashboard visit. The server-to-server callback has
+  // already granted the XP by the time this message arrives; the stage marks
+  // it played first, so the dashboard won't replay it.
   //
   // The beats are layered across both frames (game juice): the in-game result
-  // card assembles + counts up first (inside the iframe), THEN, after a short
-  // lead-in, Jump's reward layers on top: XP float pops with a confetti burst,
-  // side-cannon streams follow, and the recap toast slides in last so it reads
-  // as a reward, not a notification.
+  // card assembles and counts up first (inside the iframe), THEN, after a short
+  // lead-in, the duck brings Jump's reward on top, and side-cannon streams
+  // follow.
   const celebrationTimers: ReturnType<typeof setTimeout>[] = [];
   const LEAD_IN = 950; // let the in-game card have its solo moment first
   function celebrate() {
     if (celebrated) return;
     celebrated = true;
-    ackForm?.requestSubmit();
-
     celebrationTimers.push(
       setTimeout(() => {
-        triggerConfetti();
-        showXpFloat = true;
+        stage?.play(
+          { kind: 'xp', moment: 'dailyGameXp', xp: MINIGAME_XP_REWARD },
+          { minigame: ['base'] },
+        );
       }, LEAD_IN),
     );
     celebrationTimers.push(
-      setTimeout(() => triggerSideCannons(), LEAD_IN + 850),
-    );
-    celebrationTimers.push(
-      setTimeout(() => minigameRewardToast(MINIGAME_XP_REWARD), LEAD_IN + 1400),
-    );
-    celebrationTimers.push(
-      setTimeout(() => (showXpFloat = false), LEAD_IN + 2600),
+      setTimeout(() => triggerSideCannons(), LEAD_IN + 1150),
     );
   }
 
@@ -158,9 +146,8 @@
   });
 </script>
 
-{#if showXpFloat}
-  <XpFloat amount={MINIGAME_XP_REWARD} label="Défi relevé !" />
-{/if}
+<!-- The win, celebrated by the duck the moment the game reports it. -->
+<MascotStage bind:this={stage} preload />
 
 <!-- Hidden: mints the attempt on mount (`?/play`); its returned token mounts the
      iframe. A failure redirects (already played → leaderboard) or sets `failed`. -->
@@ -173,16 +160,6 @@
       if (result.type === 'failure' || result.type === 'error') failed = true;
       await update();
     }}
-  class="hidden"
-></form>
-
-<!-- One-shot: stamps xpSeenAt so the dashboard doesn't replay the celebration
-     the talent has already seen here. -->
-<form
-  bind:this={ackForm}
-  method="POST"
-  action="?/acknowledgeMinigameReward"
-  use:enhance={() => () => {}}
   class="hidden"
 ></form>
 
