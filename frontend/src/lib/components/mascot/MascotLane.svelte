@@ -444,7 +444,7 @@
                       <EpiDuck
                         pose="front"
                         {look}
-                        {eyesClosed}
+                        eyes={eyesClosed ? 'shut' : 'open'}
                         {gaze}
                         class="h-11 w-10"
                       />
@@ -452,7 +452,7 @@
                       <EpiDuck
                         pose="side"
                         {look}
-                        {eyesClosed}
+                        eyes={eyesClosed ? 'shut' : 'open'}
                         {gaze}
                         class="h-11 w-12 {facingLeft ? '-scale-x-100' : ''}"
                       />
