@@ -1,6 +1,7 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import type { EventLifecycleStatus } from '#lib/domain/eventLifecycle.ts';
 import { can } from '#lib/domain/permissions.ts';
+import { impersonatedBy } from '#lib/domain/impersonation.ts';
 
 /**
  * Dev-tooling: lets an admin impersonating a dev/superdev preview phase-specific
@@ -36,8 +37,7 @@ export function isDevPhaseOverride(
 }
 
 export function isDevImpersonation(locals: App.Locals): boolean {
-  const session = locals.session as { impersonatedBy?: string | null } | null;
-  if (!session?.impersonatedBy) return false;
+  if (!impersonatedBy(locals.session)) return false;
   return can('devMember', locals.staffProfile?.staffRole);
 }
 

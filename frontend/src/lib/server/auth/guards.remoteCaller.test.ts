@@ -59,6 +59,18 @@ describe('admitCaller: talent gates', () => {
       locals({ talent: talent() }),
     );
     expect(caller.talent.id).toBe('t1');
+    expect(caller.impersonated).toBe(false);
+  });
+
+  it('tells a command an admin is looking through the talent session', () => {
+    // What marks a celebration as played reads this to skip (#540): the
+    // admin's preview must leave the talent's own still to come.
+    const caller = admitCaller(
+      { talent: 'appOpen' },
+      locals({ talent: talent(), session: { impersonatedBy: 'admin-1' } }),
+    );
+    expect(caller.talent.id).toBe('t1');
+    expect(caller.impersonated).toBe(true);
   });
 
   it('refuses the app to a talent who has not signed the charte', () => {

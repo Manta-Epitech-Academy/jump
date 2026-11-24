@@ -3,6 +3,7 @@
   import { resolve } from '$app/paths';
   import { enter } from '#lib/motion/index.ts';
   import { stopImpersonating } from '#lib/impersonation.ts';
+  import { impersonatedBy } from '#lib/domain/impersonation.ts';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import LogOut from '@lucide/svelte/icons/log-out';
   import { toast } from 'svelte-sonner';
@@ -19,13 +20,10 @@
 
   let busy = $state(false);
 
-  const session = $derived(
-    page.data.session as { impersonatedBy?: string | null } | null,
-  );
   const talent = $derived(
     page.data.talent as { prenom?: string; nom?: string } | null,
   );
-  const isImpersonating = $derived(Boolean(session?.impersonatedBy));
+  const isImpersonating = $derived(impersonatedBy(page.data.session) !== null);
   const name = $derived(
     [talent?.prenom, talent?.nom].filter(Boolean).join(' ') || 'ce talent',
   );

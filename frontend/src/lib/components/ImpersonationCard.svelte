@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { stopImpersonating } from '#lib/impersonation.ts';
+  import { impersonatedBy } from '#lib/domain/impersonation.ts';
   import LogOut from '@lucide/svelte/icons/log-out';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import { toast } from 'svelte-sonner';
@@ -16,13 +17,10 @@
 
   let busy = $state(false);
 
-  const session = $derived(
-    page.data.session as { impersonatedBy?: string | null } | null,
-  );
   const user = $derived(
     page.data.user as { email?: string; name?: string | null } | null,
   );
-  const isImpersonating = $derived(Boolean(session?.impersonatedBy));
+  const isImpersonating = $derived(impersonatedBy(page.data.session) !== null);
   const phaseOverride = $derived(
     (page.data.phaseOverride ?? null) as EventLifecycleStatus | null,
   );
