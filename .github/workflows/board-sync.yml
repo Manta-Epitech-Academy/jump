@@ -4,6 +4,15 @@ name: Board sync
 # has to remember to. This used to be a manual step in CONTRIBUTING.md, and being
 # manual is why 10 of the last 17 issues never made it onto the board at all.
 #
+# On merge it also closes the issue itself. `Closes #N` cannot: GitHub honours it
+# only on the default branch (main), and work merges into dev. Closing used to be
+# left to the board's own Auto-close workflow, which reacts to the Status column
+# reaching Done. That chain broke silently: since 2026-11-24 another board
+# workflow sets the column back to In Progress about a second after the merge,
+# Auto-close never sees Done, and #540, #544 and #547 stayed open with their pull
+# requests merged. The issue's state is the fact, so it is written here, directly;
+# the column follows it.
+#
 # This is an automation, not a guard: it is deliberately not a required check.
 # It does fail loudly when it cannot do its job, because a silent no-op is the
 # exact failure being repaired here.
@@ -15,6 +24,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   sync:
@@ -24,22 +34,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set the issue's Status column
+      - name: Find the work item
+        id: item
         env:
-          # GITHUB_TOKEN cannot read or write an organisation project, so this
-          # needs a PAT with the `project` scope.
-          GH_TOKEN: ${{ secrets.PROJECT_BOARD_TOKEN }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          MERGED: ${{ github.event.pull_request.merged }}
-          ACTION: ${{ github.event.action }}
         run: |
           set -euo pipefail
           . scripts/work-item-lib.sh
-
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "::error::PROJECT_BOARD_TOKEN is not set on this repository. The board cannot be updated, and nothing else will do it. Mint a token with the 'project' scope and add it as an Actions secret."
-            exit 1
-          fi
 
           if work_item_is_protected "$HEAD_REF"; then
             echo "$HEAD_REF is a promotion source, no work item to move."
@@ -51,15 +52,42 @@ jobs:
             exit 0
           fi
 
-          issue=$(work_item_issue "$HEAD_REF")
+          echo "issue=$(work_item_issue "$HEAD_REF")" >> "$GITHUB_OUTPUT"
+
+      - name: Close the issue
+        if: steps.item.outputs.issue != '' && github.event.action == 'closed' && github.event.pull_request.merged
+        env:
+          # Closing an issue of this repository needs no PAT: the job's own token
+          # carries `issues: write`, so this works even when the board cannot.
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ steps.item.outputs.issue }}
+        run: |
+          set -euo pipefail
+          if [ "$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json state -q .state)" = "CLOSED" ]; then
+            echo "issue #$ISSUE is already closed"
+            exit 0
+          fi
+          gh issue close "$ISSUE" --repo "$GITHUB_REPOSITORY" --reason completed
+          echo "issue #$ISSUE closed"
+
+      - name: Set the issue's Status column
+        if: steps.item.outputs.issue != '' && !(github.event.action == 'closed' && !github.event.pull_request.merged)
+        env:
+          # GITHUB_TOKEN cannot read or write an organisation project, so this
+          # needs a PAT with the `project` scope.
+          GH_TOKEN: ${{ secrets.PROJECT_BOARD_TOKEN }}
+          ISSUE: ${{ steps.item.outputs.issue }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::PROJECT_BOARD_TOKEN is not set on this repository. The board cannot be updated, and nothing else will do it. Mint a token with the 'project' scope and add it as an Actions secret."
+            exit 1
+          fi
 
           if [ "$ACTION" = "closed" ]; then
-            if [ "$MERGED" != "true" ]; then
-              echo "Pull request closed without merging; leaving the board alone since the work may continue."
-              exit 0
-            fi
-            # The board's own workflow closes the issue once it lands in Done.
-            bash scripts/project-status.sh "$issue" "Done"
+            bash scripts/project-status.sh "$ISSUE" "Done"
           else
-            bash scripts/project-status.sh "$issue" "In Progress"
+            bash scripts/project-status.sh "$ISSUE" "In Progress"
           fi
