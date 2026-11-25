@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { prisma } from '#lib/server/db.ts';
+import { eventPublicName, UNNAMED_EVENT_NAME } from '#lib/domain/event.ts';
 import {
   feedbackParticipationWhere,
   getFormGraphBySlug,
@@ -26,7 +27,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       eventId: params.eventId,
       ...feedbackParticipationWhere(locals.talent.id),
     },
-    select: { id: true },
+    select: { event: { select: { publicName: true } } },
   });
   if (!participation) {
     throw error(404, 'Participation introuvable');
@@ -59,6 +60,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       campus: locals.talentCampusName ?? undefined,
     },
     eventId: params.eventId,
+    // What the duck names when he thanks the talent for answering (#540).
+    eventName: eventPublicName(participation.event) ?? UNNAMED_EVENT_NAME,
     formId: params.formId,
   };
 };

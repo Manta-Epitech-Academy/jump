@@ -1,0 +1,38 @@
+{
+  "width": 6944,
+  "height": 663,
+  "outline": 18,
+  "poses": {
+    "front": {
+      "y": 0,
+      "width": 434,
+      "height": 663,
+      "cells": {
+        "body": 0,
+        "eyes": 434,
+        "pupils": 868,
+        "lids": 1302,
+        "joy": 1736,
+        "hair.tuft": 2170,
+        "hair.crest": 2604,
+        "hair.fringe": 3038,
+        "hair.beanie": 3472,
+        "glasses.round": 3906,
+        "glasses.sun": 4340,
+        "glasses.geek": 4774,
+        "scarf.red": 5208,
+        "scarf.green": 5642,
+        "scarf.orange": 6076,
+        "scarf.pink": 6510
+      },
+      "eyes": {
+        "x": 217.0,
+        "y": 244.8
+      },
+      "pupilTravel": {
+        "x": 16.0,
+        "y": 15.0
+      }
+    }
+  }
+}

@@ -271,6 +271,11 @@ const ERASURE: Policy = {
     },
     {
       fate: 'keep',
+      why: 'The XP total the duck last celebrated a level at: no identity in it, and nobody signs in as an erased talent to be shown one again.',
+      columns: ['levelCelebratedXp'],
+    },
+    {
+      fate: 'keep',
       why: 'The activity facts the retention figures read (cohortProfile counts the connected, featureUsage the population), with no identity in them.',
       columns: ['lastActiveAt', 'firstLoginAt'],
     },
@@ -447,6 +452,11 @@ const RESET: Policy = {
     },
     {
       fate: 'rewrite',
+      why: 'Zeroed with the XP it celebrated, so the first level reached again is celebrated again.',
+      columns: ['levelCelebratedXp'],
+    },
+    {
+      fate: 'rewrite',
       why: 'Prisma stamps every update.',
       columns: ['updatedAt'],
     },
@@ -620,6 +630,11 @@ const MERGE: Policy = {
       fate: 'rewrite',
       why: 'Recomputed over the ledger and the marks the survivor now holds.',
       columns: ['xp', 'eventsCount'],
+    },
+    {
+      fate: 'keep',
+      why: 'What the person was shown: an absorbed record was never used, so it saw no celebration, and a level the moved XP reach is one the person has not seen.',
+      columns: ['levelCelebratedXp'],
     },
     {
       fate: 'rewrite',

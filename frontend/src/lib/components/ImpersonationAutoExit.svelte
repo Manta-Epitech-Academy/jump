@@ -4,7 +4,10 @@
   import { resolve } from '$app/paths';
   import { stopImpersonating } from '#lib/impersonation.ts';
   import { toast } from 'svelte-sonner';
-  import { IMPERSONATION_IDLE_WINDOW_SEC } from '#lib/domain/impersonation.ts';
+  import {
+    IMPERSONATION_IDLE_WINDOW_SEC,
+    impersonatedBy,
+  } from '#lib/domain/impersonation.ts';
 
   // Headless guard, mounted once in the root layout. An impersonation session
   // is an idle timeout: the server slides its expiry forward on each request
@@ -34,10 +37,7 @@
   const STOP_BEFORE_MS = 45_000;
   const IDLE_LIMIT_MS = IMPERSONATION_IDLE_WINDOW_SEC * 1000 - STOP_BEFORE_MS;
 
-  const session = $derived(
-    page.data.session as { impersonatedBy?: string | null } | null,
-  );
-  const isImpersonating = $derived(Boolean(session?.impersonatedBy));
+  const isImpersonating = $derived(impersonatedBy(page.data.session) !== null);
   // Mirror the manual banners' return targets: talent impersonations land on
   // the talent roster, staff impersonations on the users list.
   const returnPath = $derived(

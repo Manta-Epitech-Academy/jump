@@ -9,6 +9,7 @@
   import { onMount } from 'svelte';
   import { track, daysBetween, secondsBetween } from '#lib/analytics.ts';
   import BrandBackdrop from '#lib/components/layout/BrandBackdrop.svelte';
+  import MascotCameo from '#lib/components/mascot/MascotCameo.svelte';
 
   let { data }: { data: PageData } = $props();
   const seenAt = Date.now();
@@ -37,21 +38,25 @@
   <!-- Content centered -->
   <div class="relative z-10 flex flex-1 items-center justify-center p-4">
     <div class="w-full max-w-lg">
-      <div class="mb-6 text-center">
-        <h1 class="font-heading text-display-m text-epi-blue">
+      <!-- The first meeting (#540): his duck comes out of the water and says
+           the welcome himself, title and all, before the talent has given
+           him a name. The page has no text of its own beside his: what it
+           used to say is his first line now, written by the PO. Silent, the
+           title stays. -->
+      <MascotCameo
+        cue={{ moment: 'firstMeeting' }}
+        atlas="stage"
+        entrance="emerge"
+        class="h-36 w-24 sm:h-44 sm:w-29"
+      >
+        {@render title()}
+      </MascotCameo>
+
+      {#snippet title()}
+        <h1 class="font-heading text-display-m text-primary">
           Bienvenue, {data.prenom}.
         </h1>
-      </div>
-
-      <div
-        class="space-y-4 text-center text-sm leading-relaxed text-foreground-secondary"
-      >
-        <p>
-          Tu viens de poser un pied chez <strong>Epitech</strong>. On fait
-          connaissance ? Quelques minutes sur <strong>Jump</strong>, et tout
-          sera prêt.
-        </p>
-      </div>
+      {/snippet}
 
       <div class="mt-8 flex justify-center">
         <form

@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { prefersReducedMotion } from 'svelte/motion';
   import { resolve } from '$app/paths';
-  import PartyPopper from '@lucide/svelte/icons/party-popper';
   import CalendarCheck from '@lucide/svelte/icons/calendar-check';
   import Clock from '@lucide/svelte/icons/clock';
   import UserX from '@lucide/svelte/icons/user-x';
@@ -11,6 +10,8 @@
   import { Button } from '#lib/components/ui/button/index.ts';
   import { statusLabelFr } from '#lib/domain/eventPresence.ts';
   import { triggerConfetti } from '#lib/actions/confetti.ts';
+  import MascotCameo from '#lib/components/mascot/MascotCameo.svelte';
+  import { typeset } from '#lib/domain/typography.ts';
 
   let { data } = $props();
 
@@ -19,9 +20,7 @@
 
   const VIEW = {
     present: {
-      Icon: PartyPopper,
       title: 'C’est noté !',
-      badge: 'bg-epi-tech-ink/15 text-epi-tech-ink',
       blob: 'bg-epi-tech-ink/25',
       celebrate: true,
       ctaLabel: 'Retour à mon espace',
@@ -66,20 +65,15 @@
   } as const;
 
   const ui = $derived(VIEW[data.state]);
-  const Icon = $derived(ui.Icon);
 
-  // Personalised punch line on success; the other states keep their plain title.
+  // Personalised punch line on success; the other states keep their plain
+  // title. Typeset, so its « ! » never wraps alone.
   const headline = $derived(
-    data.state === 'present' && data.prenom
-      ? `C’est noté, ${data.prenom} !`
-      : ui.title,
-  );
-
-  // Warm, time-appropriate closer (no space metaphors, per the brand voice).
-  const closer = $derived(
-    data.slot === 'morning'
-      ? 'Bonne matinée à toi ! 🙌'
-      : 'Bon après-midi à toi ! 🙌',
+    typeset(
+      data.state === 'present' && data.prenom
+        ? `C’est noté, ${data.prenom} !`
+        : ui.title,
+    ),
   );
 
   onMount(() => {
@@ -103,44 +97,72 @@
     aria-hidden="true"
   ></div>
 
-  <div class="pop relative">
-    {#if ui.celebrate}
-      <span
-        class="absolute inset-0 rounded-full bg-epi-tech-ink/30 motion-safe:animate-ping"
-        aria-hidden="true"
-      ></span>
-    {/if}
+  {#if data.state === 'present'}
+    <!-- The talent's duck confirms it himself (#540): the page's title is in
+         his bubble, followed by his line, as on the welcome screen. What was
+         recorded is a receipt under him, not a second voice saying it again:
+         it is what the talent shows a staff member, so it is the code's, and
+         reads at a glance. Asleep, he still comes to say it: sleep quiets
+         the header, not his answer to a check-in. -->
+    <MascotCameo
+      cue={{ moment: 'checkIn', tokens: { evenement: data.eventLabel } }}
+      entrance="hop"
+      class="h-28 w-19"
+    >
+      {@render title()}
+    </MascotCameo>
+
     <div
-      class="relative flex size-24 items-center justify-center rounded-full {ui.badge}"
+      class="rise relative w-full max-w-sm rounded-xl border border-border bg-card px-5 py-4 text-left"
+    >
+      <p class="epi-overline text-epi-tech-ink">Présence enregistrée</p>
+      <p class="mt-2 font-semibold text-foreground">{data.eventLabel}</p>
+      <p class="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+        <CalendarCheck class="size-4 shrink-0" aria-hidden="true" />
+        <span class="first-letter:uppercase">
+          {data.dayLabel} · {slotLower}
+        </span>
+      </p>
+    </div>
+  {:else}
+    <!-- No duck says these: the page's badge and title do. -->
+    {@const { Icon, badge } = VIEW[data.state]}
+    <div
+      class="pop relative flex size-24 items-center justify-center rounded-full {badge}"
     >
       <Icon class="size-12" />
     </div>
-  </div>
+    <div class="rise relative max-w-sm space-y-2">
+      {@render title()}
+      <p class="text-pretty text-muted-foreground">
+        {#if data.state === 'already'}
+          Pas besoin de scanner : le staff a déjà enregistré ton statut de
+          présence{#if data.status}
+            ({statusLabelFr(data.status)}){/if} pour le {data.eventLabel} de ce {data.dayLabel}
+          ({slotLower}).
+        {:else if data.state === 'closed'}
+          L’émargement de ce créneau ({data.dayLabel}, {slotLower}) est terminé.
+          Va voir un membre du staff pour signaler ta présence.
+        {:else if data.state === 'not_registered'}
+          Ton compte n’est pas rattaché à cet événement. Rapproche-toi du staff
+          pour qu’on règle ça ensemble.
+        {:else}
+          Ce QR code est expiré ou invalide. Demande au staff de le réafficher,
+          puis rescanne-le.
+        {/if}
+      </p>
+    </div>
+  {/if}
 
-  <div class="rise relative max-w-sm space-y-2">
-    <h1 class="font-heading text-display-m">{headline}</h1>
-    <p class="text-pretty text-muted-foreground">
-      {#if data.state === 'present'}
-        Tu es bien noté présent pour le
-        <span class="font-semibold text-foreground">{data.eventLabel}</span>, ce
-        {data.dayLabel} ({slotLower}). {closer}
-      {:else if data.state === 'already'}
-        Pas besoin de scanner : le staff a déjà enregistré ton statut de
-        présence{#if data.status}
-          ({statusLabelFr(data.status)}){/if} pour le {data.eventLabel} de ce {data.dayLabel}
-        ({slotLower}).
-      {:else if data.state === 'closed'}
-        L’émargement de ce créneau ({data.dayLabel}, {slotLower}) est terminé.
-        Va voir un membre du staff pour signaler ta présence.
-      {:else if data.state === 'not_registered'}
-        Ton compte n’est pas rattaché à cet événement. Rapproche-toi du staff
-        pour qu’on règle ça ensemble.
-      {:else}
-        Ce QR code est expiré ou invalide. Demande au staff de le réafficher,
-        puis rescanne-le.
-      {/if}
-    </p>
-  </div>
+  {#snippet title()}
+    <h1
+      class="font-heading text-display-m {data.state === 'present'
+        ? 'text-primary'
+        : ''}"
+    >
+      {headline}
+    </h1>
+  {/snippet}
 
   <div class="rise-delayed relative">
     <Button

@@ -99,7 +99,7 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     // where re-running the effect must not cut the float it is already playing.
     // Kit mounts the command at `/_app/remote/<module hash>/<export name>`.
     const isAck = (url: string) =>
-      new URL(url).pathname.endsWith('/ackWorkshopRewards');
+      new URL(url).pathname.endsWith('/ackCelebrations');
     let acks = 0;
     page.on('request', (sent) => {
       if (isAck(sent.url())) acks += 1;
@@ -133,13 +133,19 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     releaseAck();
     expect((await ackLanded).status()).toBe(200);
 
-    // The 300 points CTFd reported, one XP each. Asserted on the toast rather
-    // than on the float: the float counts its number up over 900 ms and hides
-    // at 2500, so its text exists for a moment, while the toast carries the
-    // amount as one string for six seconds.
-    const toast = page.getByText('Tu gagnes +300 XP', { exact: false });
-    await expect(toast).toBeVisible();
-    await expect(toast).toHaveCount(1);
+    // The 300 points CTFd reported, one XP each, said by the duck on his
+    // stage (#540) in the migration's default line for activity XP. Asserted
+    // on his bubble rather than on the float, which counts its number up over
+    // 900 ms: the bubble carries the amount as one string for the whole beat.
+    const said = page.getByText('Ton activité avance : +300 XP !', {
+      exact: false,
+    });
+    const bubble = page.getByText(
+      'Ton activité avance : +300 XP ! Continue, chaque étape compte.',
+      { exact: true },
+    );
+    await expect(bubble).toBeVisible();
+    await expect(bubble).toHaveCount(1);
     // Acknowledged once. That it carried the amount on screen is what the
     // reload below asserts: nothing is owed any more.
     expect(acks).toBe(1);
@@ -153,8 +159,6 @@ test.describe('un talent inscrit à un événement qui propose une activité', (
     await page.evaluate(() =>
       document.dispatchEvent(new Event('visibilitychange')),
     );
-    await expect(
-      page.getByText('Tu gagnes +300 XP', { exact: false }),
-    ).toHaveCount(0);
+    await expect(said).toHaveCount(0);
   });
 });

@@ -1,4 +1,5 @@
 import { prisma } from '#lib/server/db.ts';
+import { impersonatedBy } from '#lib/domain/impersonation.ts';
 import {
   USAGE_FEATURE_DEFS,
   objectedToUsageMeasurement,
@@ -60,9 +61,7 @@ function resolveActor(
   now: Date,
 ): Resolved | null {
   const featureDef = USAGE_FEATURE_DEFS[key];
-  const impersonatedById =
-    (locals.session as { impersonatedBy?: string | null } | null)
-      ?.impersonatedBy ?? null;
+  const impersonatedById = impersonatedBy(locals.session);
 
   if (featureDef.audience === 'staff') {
     // Under impersonation the acting human is the admin behind the session, so

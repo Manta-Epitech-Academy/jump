@@ -874,23 +874,58 @@ as an icon:
 - his dive and his way back up take 1.8 s each, the mockup's, overshooting on
   the way up;
 - a tap squashes him (a scale, 320 ms) and a turn squeezes him flat and back
-  (2 × 110 ms). These are the only scales this file allows, they belong to the
+  (2 × 110 ms); good news makes him hop, up and a squash on landing (420 ms in
+  the header, 480 ms on his stage), his eyes squeezed shut in joy for as long as
+  he says it. These are the only scales this file allows, they belong to the
   character, and no control may borrow them: a button still presses 1px down.
 
-None of it blocks anything: he never covers a control, and his bubble sits
-under him for five seconds and asks nothing. He stops swimming while he speaks,
+In the header none of it blocks anything: he never covers a control, and his
+bubble sits under him for five seconds and asks nothing. He stops swimming while he speaks,
 so the bubble stays where it was said. Asleep, he is under the water and nothing
 marks the spot but the sleep button's « zz »: a talent who sends him to sleep
 asked for calm, and bubbles rising from an empty stretch of header read as
 coming from nowhere.
 
-**Less motion, still a duck.** Asked for less motion, he sits still where he
-was, does not bob, squash or follow the pointer, and his dives are 200 ms fades.
-His bubble fades in like any other entrance.
+**His stage is the one celebration** (#540). XP earned and a level reached are
+played in the middle of the screen with him drawn large, from an atlas rendered
+for that size (`epiduck-stage.webp`), never the header's scaled up. What is won
+comes first and his line after it: an amount pops and counts up (the XP
+float's 2.2 s) as he hops, and pours into the bar of the talent's level, named
+at both ends (0.4 s in, 0.8 s to fill); his line follows, 4 s in all. An amount
+that crosses into a level fills its bar to the end, and the new badge comes out
+of it with confetti and a second hop, then his one line, 5.6 s in all. The bar
+never appears without an amount filling it. A level with no amount to show is
+its badge alone. The stage is an `.on-dark` surface over `epiDark` at 90%, not the
+dialogs' `bg-black/50`: the talent pages are white cards, and a white card on a
+grey veil over them could not be told apart. Nothing on it sits on a card; the
+badge and the level's name stand on the dark, and his white outline and his
+bubble carry him. The amount and its bar, then the badge, share one room above him
+and his line has its room below him from the first beat, so nothing he stands
+in moves. One beat at a time, and a tap or Escape moves on: it is the only
+moment he covers the page, and it asks nothing. When it ends the stage fades
+away around him (320 ms) while he flies and shrinks back onto his spot in the
+header (650 ms), where his header self has waited still, so there is never two
+of him. It is rare on purpose: XP and a level, never a visit.
 
-**Where he is drawn**: the talent header, the talent's « Mon EpiDuck » card, and
-the avatar of a questionnaire that names no persona of its own. Never in the
-staff or parent spaces, whose headers do not carry him.
+**His bubble is a speech bubble** (`MascotBubble`): the card's surface with a
+2px `primary` outline and a tail pointing at him, his words in the mono face,
+bold, in `primary`. One shape wherever he speaks, so the words read as his and
+never as the page's. Where he is drawn in a page (the welcome screen, a
+check-in), he and his bubble are rendered with the page and enter by CSS from
+the first paint, the bubble after his entrance: they hold their room from the
+start, and the page under them never moves.
+
+**Less motion, still a duck.** Asked for less motion, he sits still where he
+was, does not bob, hop, squash or follow the pointer, and his dives are 200 ms
+fades. His joy stays in his eyes. His bubble fades in like any other entrance;
+on his stage there is no confetti, no count-up and no flight back, and what
+appears fades.
+
+**Where he is drawn**: the talent header, his stage, the welcome screen (where
+he comes out of the water to introduce himself) and a successful check-in, the
+talent's « Mon EpiDuck » card, and the avatar of a questionnaire that names no
+persona of its own. Never in the staff or parent spaces, whose headers do not
+carry him.
 
 ## Accessibility
 

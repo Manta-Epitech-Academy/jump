@@ -11,6 +11,7 @@ import {
 import { currentSchoolYearLabel } from '#lib/domain/schoolYear.ts';
 import { isOnboardingEligible } from '#lib/domain/niveau.ts';
 import { parentBlockedWhere } from '#lib/server/db/dossierCompliance.ts';
+import { impersonatedBy } from '#lib/domain/impersonation.ts';
 import {
   loginUrlWithRedirect,
   onboardingFunnelUrl,
@@ -104,6 +105,13 @@ type StaffCaller = {
 type TalentCaller = {
   locals: App.Locals;
   talent: NonNullable<App.Locals['talent']>;
+  /**
+   * An admin is looking through the talent's session. What the talent sees
+   * then is the admin's preview: a write that only records that the talent
+   * saw something (a celebration played) skips on it, so the talent still
+   * gets it on their own next visit.
+   */
+  impersonated: boolean;
 };
 
 /** What a remote function learns about who called it, by gate. */
@@ -125,7 +133,11 @@ export function admitCaller<G extends RemoteGate>(
     if (gate.talent === 'appOpen' && !talentStanding(talent).appOpen) {
       throw error(403, 'Termine ton inscription pour continuer.');
     }
-    return { locals, talent } as RemoteCaller<G>;
+    return {
+      locals,
+      talent,
+      impersonated: impersonatedBy(locals.session) !== null,
+    } as RemoteCaller<G>;
   }
   if (!locals.staffProfile) throw error(401, 'Connexion requise.');
   if ('admin' in gate) requireAdminSession(locals);

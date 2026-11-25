@@ -3,6 +3,7 @@ import {
   JUMP_LEVELS,
   computeLevel,
   levelProgress,
+  levelReachedSince,
   levelXpFilter,
   xpRangeForLevel,
 } from './xp';
@@ -74,5 +75,23 @@ describe('Jump levels', () => {
       next: null,
       ratio: 1,
     });
+  });
+});
+
+describe('levelReachedSince', () => {
+  // The duck celebrates a level once (#540): from the total it was last
+  // celebrated at, a gain inside the same level is nothing to celebrate.
+  it('names the level a gain crosses into, and nothing within one level', () => {
+    expect(levelReachedSince(2400, 2500)).toBe('Maker');
+    expect(levelReachedSince(2500, 9999)).toBeNull();
+    expect(levelReachedSince(0, 0)).toBeNull();
+  });
+
+  it('celebrates the level reached when a gain skips one', () => {
+    expect(levelReachedSince(100, 12000)).toBe('Hacker');
+  });
+
+  it('celebrates nothing when XP were taken back', () => {
+    expect(levelReachedSince(12000, 3000)).toBeNull();
   });
 });

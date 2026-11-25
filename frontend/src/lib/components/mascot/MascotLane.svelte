@@ -31,8 +31,14 @@
       and dialog.
   The bubble asks nothing, so a click on it reaches what it covers.
 
-  Less motion asked: he stays put, does not bob, squash or follow the
-  pointer, and his dives are fades. His bubble still fades in.
+  Good news (a line whose moment is `joy`, or a `rejoice` with no word, #540)
+  gets a hop and his eyes squeezed in joy for as long as it lasts. While a celebration draws him in
+  the middle of the screen, the lane's duck is out of sight, so there is never
+  two of him.
+
+  Less motion asked: he stays put, does not bob, hop, squash or follow the
+  pointer, and his dives are fades. His bubble still fades in, and his joy is
+  in his eyes alone.
 
   Asleep, he is under the water and nothing marks the spot, as in the mockup:
   the sleep button's « zz » says where he went, and a talent who sent him to
@@ -47,7 +53,8 @@
   import { page } from '$app/state';
   import { fade } from '#lib/motion/index.ts';
   import { DEFAULT_MASCOT_LOOK, mascotLookOf } from '#lib/domain/mascot.ts';
-  import EpiDuck, { eyesOnScreen } from './EpiDuck.svelte';
+  import EpiDuck, { eyesOnScreen, type DuckEyes } from './EpiDuck.svelte';
+  import MascotBubble from './MascotBubble.svelte';
   import { DIVE_MS, EMERGE_MS, useMascot } from './mascotController.svelte.ts';
 
   // Read once: the lane is remounted with the page, and a sign-in that makes
@@ -91,7 +98,15 @@
   let front = $derived(
     phase === 'awake' && (mascot?.facingTalent || idleFront),
   );
-  let swimming = $derived(phase === 'awake' && !mascot?.facingTalent);
+  // On stage, he waits where he was: the stage lands him on this spot, and a
+  // spot that swam on during the flight was missed.
+  let swimming = $derived(
+    phase === 'awake' && !mascot?.facingTalent && !mascot?.onStage,
+  );
+  // Good news, said or not, lights his eyes up (#540).
+  let eyes = $derived<DuckEyes>(
+    mascot?.joy != null ? 'joy' : eyesClosed ? 'shut' : 'open',
+  );
 
   // State, so the effect that pauses the swim follows each new leg.
   let swimAnimation = $state.raw<Animation | null>(null);
@@ -161,11 +176,32 @@
     }
   }
 
+  // Good news gets a hop: up, a squash on landing, and his joy on his face for
+  // as long as it lasts. Keyed on the joy's id, so each one hops once. Asked
+  // for less motion, only his eyes say it.
+  $effect(() => {
+    if (mascot?.joy == null || !squasher) return;
+    if (mascot.reducedMotion) return;
+    squasher.animate(
+      [
+        { transform: 'translateY(0) scale(1, 1)' },
+        { transform: 'translateY(-7px) scale(0.94, 1.08)', offset: 0.4 },
+        { transform: 'translateY(0) scale(1.1, 0.9)', offset: 0.75 },
+        { transform: 'translateY(0) scale(1, 1)' },
+      ],
+      { duration: 420, easing: 'ease-out' },
+    );
+  });
+
   // Pause the swim while he talks, sleeps or dives; resume where he stopped.
+  // Only a leg under way is paused, and only a paused one is played: `play()`
+  // on a leg already swum rewinds it, and he jumped back to where it started
+  // and swam it again, as soon as a bubble said at the end of a leg was over.
   $effect(() => {
     if (!swimAnimation) return;
-    if (swimming) swimAnimation.play();
-    else swimAnimation.pause();
+    const state = swimAnimation.playState;
+    if (swimming && state === 'paused') swimAnimation.play();
+    else if (!swimming && state === 'running') swimAnimation.pause();
   });
 
   // Down and up. The controller times the phases; this only draws them, and a
@@ -245,7 +281,7 @@
     mascot.heading = null;
     facingLeft = mascot.facingLeft;
     place(x);
-    mascot.greet();
+    mascot.arrive();
 
     /** What he does at a stop: turn to the talent, look around, preen. */
     async function idle(): Promise<void> {
@@ -420,7 +456,14 @@
     bind:this={lane}
     class="lane relative z-30 h-8 min-w-12 flex-1 self-stretch sm:min-w-24"
   >
-    <div bind:this={swimmer} class="absolute bottom-0 left-0 w-12">
+    <!-- Out of sight, not out of the page, while a celebration draws him in
+         the middle of the screen: he holds still, so the spot the scene
+         measures is still his when it lands him back on it. -->
+    <div
+      bind:this={swimmer}
+      class="absolute bottom-0 left-0 w-12"
+      class:invisible={mascot.onStage}
+    >
       <!-- The water line is this box's bottom edge. -->
       <div
         class="absolute bottom-0 left-1/2 h-12 w-16 -translate-x-1/2 overflow-hidden"
@@ -435,6 +478,7 @@
                 <div bind:this={turner}>
                   <button
                     type="button"
+                    data-mascot-lane-duck
                     onclick={onPoke}
                     disabled={phase !== 'awake'}
                     aria-label="Parler à {look.name}"
@@ -444,7 +488,7 @@
                       <EpiDuck
                         pose="front"
                         {look}
-                        {eyesClosed}
+                        {eyes}
                         {gaze}
                         class="h-11 w-10"
                       />
@@ -452,7 +496,7 @@
                       <EpiDuck
                         pose="side"
                         {look}
-                        {eyesClosed}
+                        {eyes}
                         {gaze}
                         class="h-11 w-12 {facingLeft ? '-scale-x-100' : ''}"
                       />
@@ -467,19 +511,21 @@
 
       {#if mascot.bubble}
         {#key mascot.bubble.id}
-          <p
+          <div
             in:fade
             out:fade
             aria-hidden="true"
-            class="pointer-events-none absolute top-full z-30 mt-2 w-max max-w-56 rounded-xl border border-border bg-card px-3 py-2 text-center font-mono text-xs leading-snug font-bold text-primary shadow-overlay
+            class="pointer-events-none absolute top-full z-30 mt-3 w-max max-w-56
               {bubbleAlign === 'start'
               ? 'left-0'
               : bubbleAlign === 'end'
                 ? 'right-0'
                 : 'left-1/2 -translate-x-1/2'}"
           >
-            {mascot.bubble.text}
-          </p>
+            <MascotBubble size="sm" tailAt={bubbleAlign} class="text-center">
+              {mascot.bubble.text}
+            </MascotBubble>
+          </div>
         {/key}
       {/if}
     </div>

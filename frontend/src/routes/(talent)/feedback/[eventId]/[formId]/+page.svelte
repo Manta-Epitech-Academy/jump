@@ -5,10 +5,12 @@
   import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
   import ChatScreen from '#lib/components/feedback/ChatScreen.svelte';
   import type { Answers } from '#lib/domain/feedbackForms/schema.ts';
-  import { mascotLookOf } from '#lib/domain/mascot.ts';
+  import { duckHosts, mascotLookOf } from '#lib/domain/mascot.ts';
+  import { useMascot } from '#lib/components/mascot/mascotController.svelte.ts';
   import { submitFeedback } from './feedback.remote.ts';
 
   let { data } = $props();
+  const mascot = useMascot();
 
   async function handleSubmit(answers: Answers) {
     try {
@@ -17,6 +19,16 @@
         formId: data.formId,
         answers,
       });
+      // Thanked once the answers are kept, never over a failure (#540). A
+      // questionnaire he hosted has just thanked the talent in his name: the
+      // header's duck only beams, or the talent reads the same voice twice.
+      if (duckHosts(data.formSchema)) mascot()?.rejoice();
+      else {
+        mascot()?.react({
+          moment: 'feedbackDone',
+          tokens: { evenement: data.eventName },
+        });
+      }
     } catch (e) {
       // A refusal carries its own French message (`Réponses invalides : …`);
       // anything else is ours, and says only that it failed.

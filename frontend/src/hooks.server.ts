@@ -13,6 +13,7 @@ import {
   slideImpersonationExpiry,
 } from '#lib/server/auth/impersonation.ts';
 import { revokeImpersonation } from '#lib/server/auth/impersonate.ts';
+import { impersonatedBy } from '#lib/domain/impersonation.ts';
 import { markRecipientOpened } from '#lib/server/services/broadcast/tracking.ts';
 import { resolveTalentCampus } from '#lib/server/services/talentCampus.ts';
 import { recordSignInDay } from '#lib/server/services/signInStreak.ts';
@@ -185,9 +186,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   // before anything is loaded for the target: a revoked session is answered
   // on this very request, by `revokeImpersonation`. BetterAuth stores the
   // admin's user id in `session.impersonatedBy`.
-  const impersonatedById =
-    (event.locals.session as { impersonatedBy?: string | null } | null)
-      ?.impersonatedBy ?? null;
+  const impersonatedById = impersonatedBy(event.locals.session);
   if (impersonatedById && event.locals.session) {
     const impersonator = await loadImpersonator(impersonatedById);
     if (impersonator) {

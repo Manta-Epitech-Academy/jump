@@ -295,50 +295,106 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
 }
 
 /**
- * Stamp `xpSeenAt` on the talent's awarded-but-unseen attempts so the "+XP"
- * float fires exactly once, whether it played on the daily-training page (right
- * after the win) or on the next dashboard visit. Idempotent: a double-fire or a
- * stale tab is harmless.
+ * Stamp `xpSeenAt` on the challenge reward the duck's stage showed, the
+ * attempt of `publicationId`, and on every earlier one still unseen, so it is
+ * celebrated exactly once. A later win, finished while the stage played, stays
+ * owed: what was on screen is marked, not "everything", as an activity's
+ * `xpCelebrated` is. Idempotent: a double-fire or a stale tab is harmless.
  */
-export async function markMinigameRewardsSeen(talentId: string): Promise<void> {
+export async function markMinigameRewardsSeen(
+  talentId: string,
+  publicationId: string,
+): Promise<void> {
+  const finishedAt = await shownAttemptFinishedAt(talentId, publicationId);
+  if (!finishedAt) return;
   await prisma.minigameAttempt.updateMany({
-    where: { talentId, xpAwarded: { not: null }, xpSeenAt: null },
+    where: {
+      talentId,
+      xpAwarded: { not: null },
+      xpSeenAt: null,
+      finishedAt: { lte: finishedAt },
+    },
     data: { xpSeenAt: new Date() },
   });
 }
 
 /**
- * Stamp `rankXpSeenAt` on the talent's rank-bonus-awarded-but-unseen attempts so
- * the podium "+XP" float fires exactly once. The play page floats only the base
- * finish reward, so the rank bonus is celebrated separately on the next dashboard
- * visit; this flag is its own one-shot gate, kept apart from
- * {@link markMinigameRewardsSeen} (different field) so the two floats can never
- * stamp each other.
+ * Stamp `rankXpSeenAt` on the rank bonus the duck's stage showed, as
+ * {@link markMinigameRewardsSeen} does the reward: its own one-shot gate, on
+ * its own field, so the two can never stamp each other. The play page
+ * celebrates only the reward, so the rank bonus is celebrated on the next page
+ * that celebrates.
  */
 export async function markMinigameRankRewardsSeen(
   talentId: string,
+  publicationId: string,
 ): Promise<void> {
+  const finishedAt = await shownAttemptFinishedAt(talentId, publicationId);
+  if (!finishedAt) return;
   await prisma.minigameAttempt.updateMany({
-    where: { talentId, rankXpAwarded: { not: null }, rankXpSeenAt: null },
+    where: {
+      talentId,
+      rankXpAwarded: { not: null },
+      rankXpSeenAt: null,
+      finishedAt: { lte: finishedAt },
+    },
     data: { rankXpSeenAt: new Date() },
   });
 }
 
+/** When the attempt a stage showed finished: what its mark runs up to. */
+async function shownAttemptFinishedAt(
+  talentId: string,
+  publicationId: string,
+): Promise<Date | null> {
+  const attempt = await prisma.minigameAttempt.findUnique({
+    where: { talentId_publicationId: { talentId, publicationId } },
+    select: { finishedAt: true },
+  });
+  return attempt?.finishedAt ?? null;
+}
+
 /**
- * The talent's most recent rank bonus not yet celebrated, or null. Drives the
- * one-shot podium float on whichever page the player lands on after a game (the
- * dashboard or the leaderboard), gated by `rankXpSeenAt`. Shared by both loads so
- * the celebration follows the player either way.
+ * Today's challenge XP not yet celebrated, or null: a win the play page could
+ * not celebrate (the talent left before the game said so), caught on the next
+ * page that celebrates. Gated by `xpSeenAt`.
+ *
+ * The current challenge's only. It is the challenge of the day, and its line
+ * says so (« un nouveau t'attend demain »): a win of another day, left
+ * unseen, is not celebrated days later. It is marked with the next one shown.
+ */
+export async function getUnseenMinigameReward(
+  talentId: string,
+): Promise<{ xp: number; publicationId: string } | null> {
+  const publication = await getActivePublication();
+  if (!publication) return null;
+  const attempt = await prisma.minigameAttempt.findUnique({
+    where: {
+      talentId_publicationId: { talentId, publicationId: publication.id },
+    },
+    select: { xpAwarded: true, xpSeenAt: true },
+  });
+  return attempt?.xpAwarded != null && attempt.xpSeenAt === null
+    ? { xp: attempt.xpAwarded, publicationId: publication.id }
+    : null;
+}
+
+/**
+ * The talent's most recent rank bonus not yet celebrated, or null, caught on
+ * whichever page that celebrates the player lands on after a game (the home or
+ * the leaderboard). Gated by `rankXpSeenAt`.
  */
 export async function getUnseenMinigameRankReward(
   talentId: string,
-): Promise<{ xp: number } | null> {
+): Promise<{ xp: number; publicationId: string } | null> {
   const attempt = await prisma.minigameAttempt.findFirst({
     where: { talentId, rankXpAwarded: { not: null }, rankXpSeenAt: null },
     orderBy: { finishedAt: 'desc' },
-    select: { rankXpAwarded: true },
+    select: { rankXpAwarded: true, publicationId: true },
   });
-  return attempt?.rankXpAwarded != null ? { xp: attempt.rankXpAwarded } : null;
+  return attempt?.rankXpAwarded != null
+    ? { xp: attempt.rankXpAwarded, publicationId: attempt.publicationId }
+    : null;
 }
 
 /** An enabled config paired with its live catalogue entry. */

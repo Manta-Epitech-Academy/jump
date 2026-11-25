@@ -7,11 +7,17 @@
   He is modelled in Blender (`frontend/scripts/epiduck/build.py`), which renders
   each layer once into one atlas (`art/epiduck.webp`) and says where each layer
   sits in it (`art/epiduck.json`). This component stacks the layers he wears in
-  the order the script rendered them for: body, scarf, pupils or lids, glasses,
-  hair. One picture holds every layer, so a duck is never drawn half dressed
-  while the rest arrives, and changing his scarf loads nothing.
+  the order the script rendered them for: body, scarf, eyes, glasses, hair. One
+  picture holds every layer, so a duck is never drawn half dressed while the
+  rest arrives, and changing his scarf loads nothing.
 
-  His eyes are layers too: a blink swaps the pupils for the lids, a look moves
+  A celebration draws him far larger than the header does (#540), so the script
+  renders a second atlas of the same layers, facing the reader only
+  (`art/epiduck-stage.webp`). It is fetched the first time a stage duck is
+  drawn, never by the header.
+
+  His eyes are layers too: a blink swaps the pupils for the lids, his joy for
+  the eyes squeezed shut in an arch, and a look moves
   the pupils layer, clipped to the eye whites (their own cell, used only as a
   mask) so a pupil looking hard to one side meets the edge of its eye and never
   slides off it. The white sticker outline goes round the whole stack (one SVG
@@ -21,14 +27,31 @@
 
   Props:
     pose        'side' (profile, facing right) or 'front'.
+    atlas       'lane' (default), or 'stage' for a duck drawn large, which
+                faces the reader only.
     look        the accessories; the name is not drawn.
-    eyesClosed  a blink, or a sleeping duck.
-    gaze        where the pupils look, a point in the unit disc: its direction is
-                where, its length how far towards the edge of the eye.
+    eyes        'open' (default), 'shut' (a blink, or asleep) or 'joy'.
+    gaze        where the open pupils look, a point in the unit disc: its
+                direction is where, its length how far towards the edge of the
+                eye.
     class       its size, set by the caller.
 -->
 <script module lang="ts">
   import ATLAS from './art/epiduck.json';
+  import STAGE_ATLAS from './art/epiduck-stage.json';
+  import atlasUrl from './art/epiduck.webp';
+  import stageAtlasUrl from './art/epiduck-stage.webp';
+
+  /** How his eyes look: open (and aimed by `gaze`), shut, or squeezed in joy. */
+  export type DuckEyes = 'open' | 'shut' | 'joy';
+
+  const ATLASES = {
+    lane: { manifest: ATLAS, url: atlasUrl },
+    stage: { manifest: STAGE_ATLAS, url: stageAtlasUrl },
+  };
+
+  /** The stage atlas, for whoever wants it fetched before a scene opens. */
+  export const STAGE_ATLAS_URL = stageAtlasUrl;
 
   /**
    * Where his eyes are on screen, for whoever aims his gaze: the near eye in
@@ -57,21 +80,23 @@
 
 <script lang="ts">
   import type { MascotLook } from '#lib/domain/mascot.ts';
-  import atlasUrl from './art/epiduck.webp';
   import { DUCK } from './art/palette.ts';
 
   type Layer = keyof typeof ATLAS.poses.side.cells;
 
   let {
     pose,
+    atlas = 'lane',
     look,
-    eyesClosed = false,
+    eyes = 'open',
     gaze = { x: 0, y: 0 },
     class: className,
-  }: {
-    pose: 'side' | 'front';
+  }: (
+    | { atlas?: 'lane'; pose: 'side' | 'front' }
+    | { atlas: 'stage'; pose: 'front' }
+  ) & {
     look: Pick<MascotLook, 'glasses' | 'scarf' | 'hair'>;
-    eyesClosed?: boolean;
+    eyes?: DuckEyes;
     gaze?: { x: number; y: number };
     class?: string;
   } = $props();
@@ -81,12 +106,16 @@
   const outlineId = `epiduck-outline-${uid}`;
   const eyesId = `epiduck-eyes-${uid}`;
 
-  let cell = $derived(ATLAS.poses[pose]);
+  let sheet = $derived(ATLASES[atlas]);
+  let cell = $derived(
+    atlas === 'stage' ? STAGE_ATLAS.poses.front : ATLAS.poses[pose],
+  );
+  const EYE_LAYERS = { open: 'pupils', shut: 'lids', joy: 'joy' } as const;
   let layers = $derived(
     [
       'body',
       look.scarf === 'none' ? null : `scarf.${look.scarf}`,
-      eyesClosed ? 'lids' : 'pupils',
+      EYE_LAYERS[eyes],
       look.glasses === 'none' ? null : `glasses.${look.glasses}`,
       `hair.${look.hair}`,
     ].filter((layer): layer is Layer => layer !== null),
@@ -121,9 +150,9 @@
       <feMorphology
         in="SourceAlpha"
         operator="dilate"
-        radius={ATLAS.outline * 0.6}
+        radius={sheet.manifest.outline * 0.6}
       />
-      <feGaussianBlur stdDeviation={ATLAS.outline * 0.3} />
+      <feGaussianBlur stdDeviation={sheet.manifest.outline * 0.3} />
       <feComponentTransfer result="ring">
         <feFuncA type="linear" slope="6" intercept="-1.2" />
       </feComponentTransfer>
@@ -165,6 +194,10 @@
     height={cell.height}
     viewBox="{cell.cells[layer]} {cell.y} {cell.width} {cell.height}"
   >
-    <image href={atlasUrl} width={ATLAS.width} height={ATLAS.height} />
+    <image
+      href={sheet.url}
+      width={sheet.manifest.width}
+      height={sheet.manifest.height}
+    />
   </svg>
 {/snippet}

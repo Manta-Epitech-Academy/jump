@@ -131,5 +131,5 @@ frontend/tests/e2e/.auth/
 # excluded by .git/info/exclude, which is per-machine and does not travel.
 /.claude/worktrees/
 
-# EpiDuck contact sheet, rewritten by every `bun run art:epiduck`
-frontend/scripts/epiduck/sheet.png
+# EpiDuck contact sheets, rewritten by every `bun run art:epiduck`
+frontend/scripts/epiduck/sheet*.png

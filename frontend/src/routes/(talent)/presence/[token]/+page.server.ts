@@ -16,7 +16,6 @@ import {
   presenceSlotOf,
   slotLabelFr,
   type CellStatus,
-  type PresenceSlot,
 } from '#lib/domain/eventPresence.ts';
 
 type CheckinState =
@@ -32,7 +31,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     eventLabel: '',
     dayLabel: '',
     slotLabel: '',
-    slot: 'morning' as PresenceSlot,
     prenom: talent.prenom,
   };
 
@@ -44,7 +42,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const labels = {
     dayLabel: dayLabelFr(day),
     slotLabel: slotLabelFr(slot),
-    slot,
   };
 
   // Raw client by design: a talent request carries no staff campus to scope by.

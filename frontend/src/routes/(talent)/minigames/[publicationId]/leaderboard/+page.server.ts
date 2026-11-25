@@ -3,9 +3,9 @@ import { error } from '@sveltejs/kit';
 import {
   resolveLeaderboardScope,
   getCampusLeaderboard,
-  getUnseenMinigameRankReward,
 } from '#lib/server/services/minigameService.ts';
 import { prisma } from '#lib/server/db.ts';
+import { loadPendingCelebrations } from '#lib/server/talent/celebrations.ts';
 
 /**
  * Talent-facing leaderboard, scoped to the board the viewer was ranked on: the
@@ -13,7 +13,7 @@ import { prisma } from '#lib/server/db.ts';
  * matches the board their rank bonus was paid on), or a preview from their
  * closest event before they've played. Null scope ⇒ a global ranking.
  */
-export const load: PageServerLoad = async ({ locals, params }) => {
+export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
   const { campusId, viewerOutcome } = await resolveLeaderboardScope(
@@ -39,12 +39,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     locals.talent.id,
   );
 
-  // If the player just earned a rank bonus and hasn't seen its float yet, it
-  // plays here too (not only on the dashboard) so the celebration lands on
-  // whichever page they open first after a game.
-  const minigameRankReward = await getUnseenMinigameRankReward(
-    locals.talent.id,
-  );
+  // A rank bonus is granted when the game finishes, after the play page has
+  // celebrated the win: it plays here too, not only on the dashboard, so it
+  // lands on whichever page the player opens first after a game, with
+  // anything else still owed.
+  const celebrations = await loadPendingCelebrations(locals.talent, cookies);
 
   return {
     publication,
@@ -52,6 +51,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     scoringType,
     campusName: campus?.name ?? null,
     viewerOutcome,
-    minigameRankReward,
+    celebrations,
   };
 };

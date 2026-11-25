@@ -6,7 +6,6 @@ import { USAGE_FEATURES } from '#lib/domain/usage.ts';
 import {
   checkTalentEligibility,
   mintAttempt,
-  markMinigameRewardsSeen,
 } from '#lib/server/services/minigameService.ts';
 
 /**
@@ -56,17 +55,5 @@ export const actions: Actions = {
     recordUsage(USAGE_FEATURES.TALENT_MINIGAME_OPEN, { locals });
 
     return { token: result.result.token };
-  },
-
-  /**
-   * Stamp the XP celebration as seen. Called client-side the moment the game
-   * reports a valid finish (the float plays here, not on the next dashboard
-   * visit). Idempotent and scoped to the talent's own unseen-but-awarded
-   * attempts, so the dashboard fallback stays safe if they leave mid-animation.
-   */
-  acknowledgeMinigameReward: async ({ locals }) => {
-    if (!locals.talent) throw error(401, 'Non autorisé');
-    await markMinigameRewardsSeen(locals.talent.id);
-    return { acknowledged: true };
   },
 };

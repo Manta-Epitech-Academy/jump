@@ -14,13 +14,20 @@ and the output is committed. On one machine a rerun writes the same bytes, so
 a diff in the atlas is a change to this file; another GPU may differ by a few
 anti-aliased pixels.
 
-What it writes, in `src/lib/components/mascot/art/`:
-  - `epiduck.webp`: one row per pose (profile, front), one cell per layer;
-  - `epiduck.json`: where each cell is, each pose's size, where his eyes are
-    and how far the pupils travel when he looks somewhere.
-and, beside this file, `sheet.png` (not committed): every accessory in both
-poses, his gaze at its limits and his eyes shut, stacked as the component
-stacks them. Look at it before committing a change.
+What it writes, in `src/lib/components/mascot/art/`, two atlases of the same
+layers (see `ATLASES`):
+  - `epiduck.webp`: the header's duck, one row per pose (profile, front), one
+    cell per layer;
+  - `epiduck-stage.webp`: the duck of a celebration (#540), facing the reader
+    only and rendered larger, so a duck drawn big on screen stays sharp
+    without the header loading pixels it never shows;
+  - `epiduck.json` and `epiduck-stage.json`: where each cell is, each pose's
+    size, where his eyes are and how far the pupils travel when he looks
+    somewhere.
+and, beside this file, `sheet.png` and `sheet-stage.png` (not committed):
+every accessory in both poses, his gaze at its limits, his eyes shut and his
+joy, stacked as the component stacks them. Look at them before committing a
+change.
 
 This file is the model, so there is no `.blend` to keep: a binary nobody can
 review would become a second source and drift from this one. To work on him:
@@ -32,8 +39,8 @@ review would become a second source and drift from this one. To work on him:
     `aim(scene, "front")` or `"side"` to look through the camera of a pose.
     Iterate on the constants and builders below, then run the command above.
 
-The layers are stacked by `EpiDuck.svelte` in this order: body, scarf, pupils
-or lids, glasses, hair. Each layer is rendered alone with the body as a holdout,
+The layers are stacked by `EpiDuck.svelte` in this order: body, scarf, eyes
+(pupils, lids or joy), glasses, hair. Each layer is rendered alone with the body as a holdout,
 so it holds only what the body does not hide (the back of a scarf, the far
 temple of a pair of glasses), and stacking them gives the same picture as
 rendering the dressed duck. That is what makes one atlas enough for every
@@ -82,6 +89,15 @@ MARGIN_PX = OUTLINE_PX + 4
 WEBP_QUALITY = 90
 
 POSES = ("side", "front")
+# Each atlas the app loads: its file name, the poses it holds and how much
+# larger than `PX_PER_UNIT` it is rendered. The header's duck is 44 px high
+# and the settings card's 112 px; a celebration draws him about 220 px high,
+# which a phone shows at 3x, so his atlas is rendered twice as large, facing
+# the reader only since that is the only way he is drawn there.
+ATLASES = (
+    ("epiduck", POSES, 1),
+    ("epiduck-stage", ("front",), 2),
+)
 HAIRS = ("tuft", "crest", "fringe", "beanie")
 GLASSES = ("round", "sun", "geek")
 SCARVES = tuple(PALETTE["scarf"].keys())
@@ -417,8 +433,12 @@ def build_pupils(coll, target):
         )
 
 
-def build_lids(coll):
-    """Closed eyes: a lid over each eye white and the line where it shuts."""
+def build_shut_eyes(coll, bow):
+    """
+    A lid over each eye white and the line where it shuts, the line following
+    the lid's surface. `bow` is how far the line's middle sits from its ends,
+    in lid heights: below them it is a smile, above them an arch.
+    """
     blue = toon("lid", PALETTE["body"])
     ink = flat("lash", PALETTE["ink"]["base"])
     up = Vector((0, 0, 1))
@@ -428,11 +448,10 @@ def build_lids(coll):
         ellipsoid(f"lid{side}", coll, blue, at, lid_radii, rot)
         _, n = eye_point(side, 0.0)
         across = n.cross(up).normalized()
-        # The lash follows the lid's surface, bowed down a little: a smile.
         pts = []
         for t in (-1, -0.5, 0, 0.5, 1):
             x = t * lid_radii.x * 0.88
-            y = -(1 - t * t) * lid_radii.y * 0.28
+            y = (1 - t * t) * lid_radii.y * bow
             depth = lid_radii.z * math.sqrt(
                 max(0.0, 1 - (x / lid_radii.x) ** 2 - (y / lid_radii.y) ** 2)
             )
@@ -443,6 +462,19 @@ def build_lids(coll):
                 )
             )
         tube(f"lash{side}", coll, ink, pts, bevel=0.04)
+
+
+def build_lids(coll):
+    """Closed eyes, a blink or sleep: the line bowed down a little, at rest."""
+    build_shut_eyes(coll, bow=-0.28)
+
+
+def build_joy(coll):
+    """
+    His joy (#540): eyes squeezed shut in an arch, the ^ ^ of a duck too
+    pleased to keep them open. Worn while he celebrates what the talent did.
+    """
+    build_shut_eyes(coll, bow=0.5)
 
 
 # ---- Hair -------------------------------------------------------------------------
@@ -940,6 +972,7 @@ def build():
     build_eyes(layer("eyes"))
     build_pupils(layer("pupils"), GAZE["front"]["target"])
     build_lids(layer("lids"))
+    build_joy(layer("joy"))
     for hair in HAIRS:
         HAIR_BUILDERS[hair](layer(f"hair.{hair}"))
     for glasses in GLASSES:
@@ -959,6 +992,7 @@ def layer_names():
         "eyes",
         "pupils",
         "lids",
+        "joy",
         *(f"hair.{h}" for h in HAIRS),
         *(f"glasses.{g}" for g in GLASSES),
         *(f"scarf.{c}" for c in SCARVES),
@@ -994,19 +1028,20 @@ def render_layer(scene, layers, name, path):
     return np.flipud(px.reshape(h, w, 4))
 
 
-def crop_box(images):
+def crop_box(images, scale):
     """The smallest box holding every layer of a pose, plus the outline's room."""
     alpha = np.max([im[..., 3] for im in images], axis=0)
     rows = np.where(alpha.max(axis=1) > 0)[0]
     cols = np.where(alpha.max(axis=0) > 0)[0]
-    top = max(rows[0] - MARGIN_PX, 0)
-    left = max(cols[0] - MARGIN_PX, 0)
-    bottom = min(rows[-1] + 1 + MARGIN_PX, alpha.shape[0])
-    right = min(cols[-1] + 1 + MARGIN_PX, alpha.shape[1])
+    margin = MARGIN_PX * scale
+    top = max(rows[0] - margin, 0)
+    left = max(cols[0] - margin, 0)
+    bottom = min(rows[-1] + 1 + margin, alpha.shape[0])
+    right = min(cols[-1] + 1 + margin, alpha.shape[1])
     return top, left, bottom, right
 
 
-def eye_in_cell(scene, pose, top, left):
+def eye_in_cell(scene, pose, top, left, scale):
     """
     Where his eyes are in the pose's cell, in pixels: the near eye in profile,
     between the two facing the reader. The component aims his gaze from there.
@@ -1020,15 +1055,17 @@ def eye_in_cell(scene, pose, top, left):
     cam = scene.camera
     rot = cam.rotation_euler.to_matrix()
     offset = centre - cam.location
-    px = offset.dot(rot @ Vector((1, 0, 0))) * PX_PER_UNIT + RENDER_PX / 2
-    py = RENDER_PX / 2 - offset.dot(rot @ Vector((0, 1, 0))) * PX_PER_UNIT
+    unit = PX_PER_UNIT * scale
+    frame = RENDER_PX * scale
+    px = offset.dot(rot @ Vector((1, 0, 0))) * unit + frame / 2
+    py = frame / 2 - offset.dot(rot @ Vector((0, 1, 0))) * unit
     return {"x": round(px - left, 1), "y": round(py - top, 1)}
 
 
-def pupil_travel(pose):
+def pupil_travel(pose, scale):
     """How far, in cell pixels, the pupils move for a gaze of 1 on each axis."""
     x, y = GAZE[pose]["travel"]
-    return {"x": x, "y": y}
+    return {"x": x * scale, "y": y * scale}
 
 
 def save_webp(pixels, path):
@@ -1083,17 +1120,20 @@ def shifted(image, dx, dy):
     return out
 
 
-def dressed(cells, pose, look, gaze=(0.0, 0.0), closed=False):
-    """One duck as the component draws it, premultiplied RGBA."""
+def dressed(cells, pose, look, gaze=(0.0, 0.0), eyes="open", scale=1):
+    """
+    One duck as the component draws it, premultiplied RGBA. `eyes` is "open"
+    (the pupils, looking at `gaze`), "lids" or "joy".
+    """
     hair, glasses, scarf = look
     c = {name: premultiplied(cell) for name, cell in cells[pose].items()}
     duck = c["body"]
     if scarf != "none":
         duck = over(duck, c[f"scarf.{scarf}"])
-    if closed:
-        duck = over(duck, c["lids"])
+    if eyes != "open":
+        duck = over(duck, c[eyes])
     else:
-        tx, ty = GAZE[pose]["travel"]
+        tx, ty = (t * scale for t in GAZE[pose]["travel"])
         reach = max(1.0, math.hypot(*gaze))
         pupils = shifted(
             c["pupils"], round(gaze[0] / reach * tx), round(gaze[1] / reach * ty)
@@ -1105,7 +1145,7 @@ def dressed(cells, pose, look, gaze=(0.0, 0.0), closed=False):
     # The sticker outline: his silhouette grown by a disc, in white, under him.
     alpha = duck[..., 3]
     grown = np.zeros_like(alpha)
-    r = OUTLINE_PX
+    r = OUTLINE_PX * scale
     for dy in range(-r, r + 1):
         for dx in range(-r, r + 1):
             if dx * dx + dy * dy <= r * r:
@@ -1127,7 +1167,8 @@ def contact_sheet(cells, path):
     tiles = [[dressed(cells, pose, look) for pose in POSES] for look in looks]
     for gaze in ((-1, 0), (1, 0), (0, -1), (0, 1), (0.7, 0.7)):
         tiles.append([dressed(cells, pose, plain, gaze) for pose in POSES])
-    tiles.append([dressed(cells, pose, plain, closed=True) for pose in POSES])
+    tiles.append([dressed(cells, pose, plain, eyes="lids") for pose in POSES])
+    tiles.append([dressed(cells, pose, plain, eyes="joy") for pose in POSES])
 
     side_w = cells["side"]["body"].shape[1]
     front_w = cells["front"]["body"].shape[1]
@@ -1151,6 +1192,30 @@ def contact_sheet(cells, path):
     bpy.data.images.remove(img)
 
 
+def stage_sheet(cells, path):
+    """The celebration's duck: a few looks in his joy, and one looking at you."""
+    scarves = ("none", *SCARVES)
+    looks = [
+        (hair, glasses, scarves[i % len(scarves)])
+        for i, (hair, glasses) in enumerate(zip(HAIRS, ("none", *GLASSES)))
+    ]
+    scale = dict((name, s) for name, _, s in ATLASES)["epiduck-stage"]
+    tiles = [dressed(cells, "front", look, eyes="joy", scale=scale) for look in looks]
+    tiles.append(dressed(cells, "front", looks[0], scale=scale))
+    h, w = tiles[0].shape[:2]
+    sheet = np.zeros((h, w * len(tiles), 4), dtype=np.float32)
+    sheet[...] = (*SHEET_BACKGROUND, 1.0)
+    for k, tile in enumerate(tiles):
+        area = sheet[:, k * w : (k + 1) * w]
+        area[...] = over(area, tile)
+    img = bpy.data.images.new("epiduck-stage-sheet", sheet.shape[1], sheet.shape[0])
+    img.pixels.foreach_set(np.flipud(sheet).ravel())
+    img.filepath_raw = path
+    img.file_format = "PNG"
+    img.save()
+    bpy.data.images.remove(img)
+
+
 # ---- Entry ---------------------------------------------------------------------------
 
 
@@ -1166,6 +1231,61 @@ def arguments():
     return parser.parse_args(argv)
 
 
+def render_atlas(scene, layers, name, poses, scale, tmp):
+    """
+    Render every layer of `poses` at `scale`, write the atlas and its manifest
+    as `name`, and hand back each pose's cells for the contact sheets.
+    """
+    scene.render.resolution_percentage = 100 * scale
+    names = layer_names()
+    rows = {}
+    eyes = {}
+    for pose in poses:
+        aim(scene, pose)
+        build_pupils(layers["pupils"], GAZE[pose]["target"])
+        images = [
+            render_layer(
+                scene, layers, layer, os.path.join(tmp, f"{name}-{pose}-{layer}.png")
+            )
+            for layer in names
+        ]
+        top, left, bottom, right = crop_box(images, scale)
+        rows[pose] = [im[top:bottom, left:right] for im in images]
+        eyes[pose] = eye_in_cell(scene, pose, top, left, scale)
+
+    width = max(len(cells) * cells[0].shape[1] for cells in rows.values())
+    height = sum(cells[0].shape[0] for cells in rows.values())
+    atlas = np.zeros((height, width, 4), dtype=np.float32)
+    manifest = {
+        "width": width,
+        "height": height,
+        "outline": OUTLINE_PX * scale,
+        "poses": {},
+    }
+    y = 0
+    for pose, cells in rows.items():
+        h, w = cells[0].shape[:2]
+        for i, cell in enumerate(cells):
+            atlas[y : y + h, i * w : (i + 1) * w] = cell
+        manifest["poses"][pose] = {
+            "y": y,
+            "width": w,
+            "height": h,
+            "cells": {layer: i * w for i, layer in enumerate(names)},
+            "eyes": eyes[pose],
+            "pupilTravel": pupil_travel(pose, scale),
+        }
+        y += h
+
+    save_webp(atlas, os.path.join(ART, f"{name}.webp"))
+    with open(os.path.join(ART, f"{name}.json"), "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+        f.write("\n")
+    size = os.path.getsize(os.path.join(ART, f"{name}.webp"))
+    print(f"epiduck: {name} {width}x{height} atlas, {size // 1024} KB, in {ART}")
+    return {pose: dict(zip(names, cells, strict=True)) for pose, cells in rows.items()}
+
+
 def main():
     args = arguments()
     scene, layers = build()
@@ -1177,55 +1297,16 @@ def main():
         bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(args.blend))
         print(f"epiduck: scene saved to {args.blend}, nothing rendered")
         return
-    names = layer_names()
-    rows = {}
-    eyes = {}
+    cells = {}
     with tempfile.TemporaryDirectory() as tmp:
-        for pose in POSES:
-            aim(scene, pose)
-            build_pupils(layers["pupils"], GAZE[pose]["target"])
-            images = [
-                render_layer(
-                    scene, layers, name, os.path.join(tmp, f"{pose}-{name}.png")
-                )
-                for name in names
-            ]
-            top, left, bottom, right = crop_box(images)
-            rows[pose] = [im[top:bottom, left:right] for im in images]
-            eyes[pose] = eye_in_cell(scene, pose, top, left)
-
-    width = max(len(cells) * cells[0].shape[1] for cells in rows.values())
-    height = sum(cells[0].shape[0] for cells in rows.values())
-    atlas = np.zeros((height, width, 4), dtype=np.float32)
-    manifest = {"width": width, "height": height, "outline": OUTLINE_PX, "poses": {}}
-    y = 0
-    for pose, cells in rows.items():
-        h, w = cells[0].shape[:2]
-        for i, cell in enumerate(cells):
-            atlas[y : y + h, i * w : (i + 1) * w] = cell
-        manifest["poses"][pose] = {
-            "y": y,
-            "width": w,
-            "height": h,
-            "cells": {name: i * w for i, name in enumerate(names)},
-            "eyes": eyes[pose],
-            "pupilTravel": pupil_travel(pose),
-        }
-        y += h
-
-    save_webp(atlas, os.path.join(ART, "epiduck.webp"))
-    with open(os.path.join(ART, "epiduck.json"), "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2)
-        f.write("\n")
-    size = os.path.getsize(os.path.join(ART, "epiduck.webp"))
-    print(f"epiduck: {width}x{height} atlas, {size // 1024} KB, in {ART}")
+        for name, poses, scale in ATLASES:
+            cells[name] = render_atlas(scene, layers, name, poses, scale, tmp)
 
     sheet = os.path.join(HERE, "sheet.png")
-    contact_sheet(
-        {pose: dict(zip(names, cells, strict=True)) for pose, cells in rows.items()},
-        sheet,
-    )
-    print(f"epiduck: contact sheet in {sheet}")
+    contact_sheet(cells["epiduck"], sheet)
+    stage = os.path.join(HERE, "sheet-stage.png")
+    stage_sheet(cells["epiduck-stage"], stage)
+    print(f"epiduck: contact sheets in {sheet} and {stage}")
 
 
 if __name__ == "__main__":
