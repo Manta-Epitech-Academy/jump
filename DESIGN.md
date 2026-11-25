@@ -888,14 +888,29 @@ coming from nowhere.
 
 **His stage is the one celebration** (#540). XP earned and a level reached are
 played in the middle of the screen with him drawn large, from an atlas rendered
-for that size (`epiduck-stage.webp`), never the header's scaled up. An amount is
-one beat of 2.8 s: it pops and counts up (the XP float's 2.2 s), he hops in and
-says his line. A level is three, 4.8 s in all: the bar of the level left fills
-(0.9 s), the new badge appears on a card with him, then confetti and his line,
-over the dialogs' `bg-black/50`. One beat at a time, and a tap or Escape moves
-on: it is the only moment he covers the page, and it asks nothing. When it ends
-he flies and shrinks back onto his spot in the header (650 ms), so there is
-never two of him. It is rare on purpose: XP and a level, never a visit.
+for that size (`epiduck-stage.webp`), never the header's scaled up. What is won
+comes first and his line 0.8 s after it: an amount pops and counts up (the XP
+float's 2.2 s) as he hops, 3.6 s in all; a level is the bar of the level left
+filling (0.9 s), then the new badge with confetti and his hop, then his line,
+5.6 s in all. The stage is an `.on-dark` surface over `epiDark` at 90%, not the
+dialogs' `bg-black/50`: the talent pages are white cards, and a white card on a
+grey veil over them could not be told apart. Nothing on it sits on a card; the
+badge and the level's name stand on the dark, and his white outline and his
+bubble carry him. The bar, the badge and the amount share one room above him
+and his line has its room below him from the first beat, so nothing he stands
+in moves. One beat at a time, and a tap or Escape moves on: it is the only
+moment he covers the page, and it asks nothing. When it ends the stage fades
+away around him (320 ms) while he flies and shrinks back onto his spot in the
+header (650 ms), where his header self has waited still, so there is never two
+of him. It is rare on purpose: XP and a level, never a visit.
+
+**His bubble is a speech bubble** (`MascotBubble`): the card's surface with a
+2px `primary` outline and a tail pointing at him, his words in the mono face,
+bold, in `primary`. One shape wherever he speaks, so the words read as his and
+never as the page's. Where he is drawn in a page (the welcome screen, a
+check-in), he and his bubble are rendered with the page and enter by CSS from
+the first paint, the bubble after his entrance: they hold their room from the
+start, and the page under them never moves.
 
 **Less motion, still a duck.** Asked for less motion, he sits still where he
 was, does not bob, hop, squash or follow the pointer, and his dives are 200 ms

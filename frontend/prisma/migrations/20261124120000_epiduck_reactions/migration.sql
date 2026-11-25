@@ -9,10 +9,10 @@ UPDATE "Talent" SET "levelCelebratedXp" = "xp" WHERE "xp" > 0;
 -- EpiDuck's default lines for the moments he reacts at (#540), readable ids
 -- as in 20261122075435_add_mascot. He says one line on arrival, so the event
 -- lines name the talent: they are the greeting on those days. The first
--- meeting's lines are the welcome screen's text, which he now says under its
--- title. The XP lines take over from the reward
--- toasts, which they replace, in the duck's voice: no emoji, no count of
--- anything the talent did not do, and nothing over a failure.
+-- meeting's lines are the welcome screen's text, which he says under its
+-- title. The XP lines take over from the reward toasts, which they replace,
+-- in the duck's voice: no emoji, no count of anything the talent did not do,
+-- and nothing over a failure.
 INSERT INTO "Mascot_Line" ("id", "momentKey", "text", "updatedAt")
 VALUES
   ('mln_streak_affilee', 'streak', '{serie} jours d’affilée, {prenom} ! Ça me fait plaisir de te voir.', CURRENT_TIMESTAMP),
