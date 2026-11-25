@@ -189,9 +189,19 @@ describe('MascotController, the lines that wait their turn', () => {
 describe('MascotController, on arrival', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    sessionStorage.clear();
+    // The tab's own storage, fresh for each test. Node only defines it from
+    // v25 on, so a test reading the runtime's would pass on one machine and
+    // fail on CI's.
+    const tab = new Map<string, string>();
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key: string) => tab.get(key) ?? null,
+      setItem: (key: string, value: string) => void tab.set(key, value),
+    });
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
 
   function arriving() {
     return new MascotController({
