@@ -5,7 +5,11 @@
     Answers,
     IdentityContext,
   } from '#lib/domain/feedbackForms/schema.ts';
-  import { DEFAULT_MASCOT_LOOK, type MascotLook } from '#lib/domain/mascot.ts';
+  import {
+    DEFAULT_MASCOT_LOOK,
+    duckHosts,
+    type MascotLook,
+  } from '#lib/domain/mascot.ts';
   import { Conversation } from '#lib/domain/feedbackForms/conversation.svelte.ts';
   import ChatThread from './ChatThread.svelte';
   import PersonaAvatar from './PersonaAvatar.svelte';
@@ -40,7 +44,9 @@
   }: Props = $props();
 
   // The persona a form names, or the duck hosting it.
-  const persona = $derived(form.personaName?.trim() || mascot.name);
+  const persona = $derived(
+    duckHosts(form) ? mascot.name : form.personaName!.trim(),
+  );
 
   // Built once: the conversation is a stateful machine, not reactive to later
   // prop changes. `untrack` makes that one-time read explicit (and silences the

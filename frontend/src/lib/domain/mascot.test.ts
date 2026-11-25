@@ -71,9 +71,14 @@ describe('arrivalCues', () => {
     ).toEqual([]);
   });
 
-  it('greets with the milestone of the run on the day it is reached', () => {
+  it('ends on hello, the line he falls back on', () => {
+    expect(cues()).toEqual([{ moment: 'hello' }]);
+  });
+
+  it('offers the milestone of the run on the day it is reached', () => {
     expect(cues({ streakDays: 6 })).toEqual([
       { moment: 'streak', tokens: { serie: '7' } },
+      { moment: 'hello' },
     ]);
     expect(cues({ streakDays: 7 })).toEqual([{ moment: 'hello' }]);
   });
@@ -81,25 +86,36 @@ describe('arrivalCues', () => {
   it('welcomes back after weeks away rather than counting anything', () => {
     expect(
       cues({ visits: { lastDay: '2026-10-01', previousDay: null } }),
-    ).toEqual([{ moment: 'away', tokens: { jours: '52' } }]);
+    ).toEqual([
+      { moment: 'away', tokens: { jours: '52' } },
+      { moment: 'hello' },
+    ]);
   });
 
-  it('adds an event under way today before one starting tomorrow', () => {
+  it('ranks an event today over a milestone, and a milestone over tomorrow', () => {
     expect(
       cues({
+        streakDays: 6,
         events: [
           event('2026-11-23', '2026-11-23', 'Demain'),
           event('2026-11-21', '2026-11-23', 'En cours'),
         ],
       }),
     ).toEqual([
-      { moment: 'hello' },
       { moment: 'eventToday', tokens: { evenement: 'En cours' } },
-    ]);
-    expect(cues({ events: [event('2026-11-23')] })).toEqual([
+      { moment: 'streak', tokens: { serie: '7' } },
+      { moment: 'eventTomorrow', tokens: { evenement: 'Demain' } },
       { moment: 'hello' },
-      { moment: 'eventTomorrow', tokens: { evenement: 'Coding Club' } },
     ]);
+  });
+
+  it('puts the welcome back before any event', () => {
+    expect(
+      cues({
+        visits: { lastDay: '2026-10-01', previousDay: null },
+        events: [event('2026-11-23')],
+      }).map((cue) => cue.moment),
+    ).toEqual(['away', 'eventTomorrow', 'hello']);
   });
 
   it('says nothing about an event further away, or over', () => {

@@ -7,15 +7,16 @@ ALTER TABLE "Talent" ADD COLUMN "levelCelebratedXp" INTEGER NOT NULL DEFAULT 0;
 UPDATE "Talent" SET "levelCelebratedXp" = "xp" WHERE "xp" > 0;
 
 -- EpiDuck's default lines for the moments he reacts at (#540), readable ids
--- as in 20261122075435_add_mascot. The XP lines take over from the reward
+-- as in 20261122075435_add_mascot. He says one line on arrival, so the event
+-- lines name the talent: they are the greeting on those days. The XP lines take over from the reward
 -- toasts, which they replace, in the duck's voice: no emoji, no count of
 -- anything the talent did not do, and nothing over a failure.
 INSERT INTO "Mascot_Line" ("id", "momentKey", "text", "updatedAt")
 VALUES
   ('mln_streak_affilee', 'streak', '{serie} jours d’affilée, {prenom} ! Ça me fait plaisir de te voir.', CURRENT_TIMESTAMP),
   ('mln_streak_habitue', 'streak', 'Et de {serie} jours de suite ! Tu connais la mare par cœur.', CURRENT_TIMESTAMP),
-  ('mln_event_tomorrow_hate', 'eventTomorrow', 'Demain, c’est {evenement} ! J’ai hâte de voir ce que tu vas créer.', CURRENT_TIMESTAMP),
-  ('mln_event_today_jour_j', 'eventToday', 'C’est aujourd’hui : {evenement} ! Je croise les palmes pour toi.', CURRENT_TIMESTAMP),
+  ('mln_event_tomorrow_hate', 'eventTomorrow', 'Coucou {prenom} ! Demain, c’est {evenement}. J’ai hâte de voir ce que tu vas créer.', CURRENT_TIMESTAMP),
+  ('mln_event_today_jour_j', 'eventToday', 'C’est le grand jour, {prenom} : {evenement} ! Je croise les palmes pour toi.', CURRENT_TIMESTAMP),
   ('mln_first_meeting_moi', 'firstMeeting', 'Salut {prenom} ! Moi, c’est {canard}, ton canard. Je te suis partout dans Jump.', CURRENT_TIMESTAMP),
   ('mln_first_meeting_nom', 'firstMeeting', 'Coin ! Je suis {canard}. Tu pourras me donner un nom et m’habiller dans tes réglages.', CURRENT_TIMESTAMP),
   ('mln_arrival_xp_bienvenue', 'arrivalXp', 'Bienvenue {prenom} ! +{xp} XP pour ton arrivée. Tu en gagneras en participant aux activités.', CURRENT_TIMESTAMP),

@@ -31,8 +31,8 @@
       and dialog.
   The bubble asks nothing, so a click on it reaches what it covers.
 
-  Good news (a line whose moment is `joy`, #540) gets a hop and his eyes
-  squeezed in joy for as long as he says it. While a celebration draws him in
+  Good news (a line whose moment is `joy`, or a `rejoice` with no word, #540)
+  gets a hop and his eyes squeezed in joy for as long as it lasts. While a celebration draws him in
   the middle of the screen, the lane's duck is out of sight, so there is never
   two of him.
 
@@ -98,9 +98,9 @@
     phase === 'awake' && (mascot?.facingTalent || idleFront),
   );
   let swimming = $derived(phase === 'awake' && !mascot?.facingTalent);
-  // What he is saying lights his eyes up when it is good news (#540).
+  // Good news, said or not, lights his eyes up (#540).
   let eyes = $derived<DuckEyes>(
-    mascot?.bubble?.mood === 'joy' ? 'joy' : eyesClosed ? 'shut' : 'open',
+    mascot?.joy != null ? 'joy' : eyesClosed ? 'shut' : 'open',
   );
 
   // State, so the effect that pauses the swim follows each new leg.
@@ -172,12 +172,11 @@
   }
 
   // Good news gets a hop: up, a squash on landing, and his joy on his face for
-  // as long as he says it. Keyed on the bubble, so each line hops once. Asked
+  // as long as it lasts. Keyed on the joy's id, so each one hops once. Asked
   // for less motion, only his eyes say it.
   $effect(() => {
-    const bubble = mascot?.bubble;
-    if (!bubble || bubble.mood !== 'joy' || !squasher) return;
-    if (mascot?.reducedMotion) return;
+    if (mascot?.joy == null || !squasher) return;
+    if (mascot.reducedMotion) return;
     squasher.animate(
       [
         { transform: 'translateY(0) scale(1, 1)' },

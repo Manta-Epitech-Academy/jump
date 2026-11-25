@@ -18,6 +18,8 @@ const {
   BUBBLE_MS,
   DIVE_MS,
   EMERGE_MS,
+  GREETING_DELAY_MS,
+  REJOICE_MS,
   SULK_MS,
 } = await import('./mascotController.svelte.ts');
 const { SULK_POKES } = await import('./mascotPhase');
@@ -154,5 +156,73 @@ describe('MascotController, the lines that wait their turn', () => {
     await after(EMERGE_MS + BUBBLE_MS + BETWEEN_LINES_MS);
     expect(mascot.bubble).toBeNull();
     putMascotToSleep.mockReset();
+  });
+});
+
+/**
+ * On arrival he says one line (#540): the first the PO wrote one for, and none
+ * at all once a celebration has stood in for it.
+ */
+describe('MascotController, on arrival', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sessionStorage.clear();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  function arriving() {
+    return new MascotController({
+      talentId: 't1',
+      asleep: false,
+      voice: () => ({
+        hello: ['Salut {prenom} !'],
+        eventTomorrow: ['Demain, {evenement} !'],
+      }),
+      tokens: () => ({ prenom: 'Lina' }),
+      // `streak` has no live line: he passes over it.
+      arrival: [
+        { moment: 'streak', tokens: { serie: '7' } },
+        { moment: 'eventTomorrow', tokens: { evenement: 'Coding Club' } },
+        { moment: 'hello' },
+      ],
+      today: '2026-11-24',
+    });
+  }
+  const after = (ms: number) => vi.advanceTimersByTimeAsync(ms);
+
+  it('says the first line he has, and only that one', async () => {
+    const mascot = arriving();
+    mascot.arrive();
+    await after(GREETING_DELAY_MS);
+    expect(mascot.bubble).toMatchObject({ text: 'Demain, Coding Club !' });
+
+    await after(BUBBLE_MS + BETWEEN_LINES_MS + BUBBLE_MS);
+    expect(mascot.bubble).toBeNull();
+  });
+
+  it('says nothing more when a celebration took him first', async () => {
+    const mascot = arriving();
+    mascot.arrive();
+    mascot.enterStage();
+    mascot.leaveStage();
+    await after(GREETING_DELAY_MS + BUBBLE_MS);
+    expect(mascot.bubble).toBeNull();
+
+    // Nor on the next page of the visit.
+    const next = arriving();
+    next.arrive();
+    await after(GREETING_DELAY_MS);
+    expect(next.bubble).toBeNull();
+  });
+
+  it('beams without a word when he rejoices', async () => {
+    const mascot = arriving();
+    mascot.rejoice();
+    expect(mascot.joy).not.toBeNull();
+    expect(mascot.bubble).toBeNull();
+    expect(mascot.facingTalent).toBe(true);
+
+    await after(REJOICE_MS);
+    expect(mascot.joy).toBeNull();
   });
 });

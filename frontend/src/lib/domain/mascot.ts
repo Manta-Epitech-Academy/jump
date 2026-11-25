@@ -293,6 +293,14 @@ export function mascotLookOf(talent: {
   };
 }
 
+/**
+ * Whether the talent's duck hosts a questionnaire: it names no persona of its
+ * own (#539). He then speaks its texts, its closing thanks included.
+ */
+export function duckHosts(form: { personaName?: string }): boolean {
+  return !form.personaName?.trim();
+}
+
 // ---- When the duck greets -----------------------------------------------------
 
 export type MascotGreeting = {
@@ -368,16 +376,24 @@ export type EnrolledEventDays = {
 };
 
 /**
- * What the duck says when the talent arrives, at most two lines (#540):
+ * What the duck may say when the talent arrives, best first (#540). He says
+ * one: the first of these with a live line (`MascotController.arrive`), so a
+ * moment the PO left silent hands over to the next rather than leaving him
+ * mute on arrival.
  *
- * 1. a greeting: the welcome back after weeks away, else the day's milestone
- *    of the run of days, else hello. A welcome back and a milestone cannot
- *    fall on one day, since weeks away the run starts again at 1;
- * 2. what is coming: an event today, else one starting tomorrow.
+ * 1. the welcome back, after weeks away;
+ * 2. an event under way today, the day the talent most needs to hear about;
+ * 3. the day's milestone of the run of days. It cannot fall on a welcome
+ *    back, since weeks away the run starts again at 1;
+ * 4. an event starting tomorrow;
+ * 5. hello.
+ *
+ * One line, not one per piece of news: each holds the bubble five seconds,
+ * and two in a row on arrival read as a duck reciting a list. The event
+ * lines name the talent, so they greet as well. On a day with an event and a
+ * milestone, the milestone goes unsaid: the next one is a few days off.
  *
  * Nothing on a first visit, which the welcome screen's introduction answers.
- * Two lines at most because each holds the bubble five seconds: a duck with
- * four things to say on arrival is a notification centre.
  */
 export function arrivalCues({
   visits,
@@ -393,33 +409,39 @@ export function arrivalCues({
   const greeting = greetingFor(visits, today);
   if (!greeting) return [];
   const cues: MascotCue[] = [];
-  const run = streakToday(visits, streakDays, today);
   if (greeting.moment === 'away') {
     cues.push({ moment: 'away', tokens: { jours: String(greeting.daysAway) } });
-  } else if (STREAK_MILESTONES.includes(run)) {
-    cues.push({ moment: 'streak', tokens: { serie: String(run) } });
-  } else {
-    cues.push({ moment: 'hello' });
   }
-  const news = eventNews(events);
-  if (news) cues.push(news);
+  const { ongoing, tomorrow } = eventNews(events);
+  if (ongoing) {
+    cues.push({ moment: 'eventToday', tokens: { evenement: ongoing.name } });
+  }
+  const run = streakToday(visits, streakDays, today);
+  if (STREAK_MILESTONES.includes(run)) {
+    cues.push({ moment: 'streak', tokens: { serie: String(run) } });
+  }
+  if (tomorrow) {
+    cues.push({
+      moment: 'eventTomorrow',
+      tokens: { evenement: tomorrow.name },
+    });
+  }
+  cues.push({ moment: 'hello' });
   return cues;
 }
 
-/** The event worth a line: one on today, else one starting tomorrow. */
-function eventNews(events: readonly EnrolledEventDays[]): MascotCue | null {
+/** The event under way today and the one starting tomorrow, if any. */
+function eventNews(events: readonly EnrolledEventDays[]): {
+  ongoing?: EnrolledEventDays;
+  tomorrow?: EnrolledEventDays;
+} {
   const byDate = [...events].sort(
     (a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name),
   );
-  const ongoing = byDate.find((e) => e.date <= e.today && e.today <= e.endDate);
-  if (ongoing) {
-    return { moment: 'eventToday', tokens: { evenement: ongoing.name } };
-  }
-  const tomorrow = byDate.find((e) => daysBetween(e.today, e.date) === 1);
-  if (tomorrow) {
-    return { moment: 'eventTomorrow', tokens: { evenement: tomorrow.name } };
-  }
-  return null;
+  return {
+    ongoing: byDate.find((e) => e.date <= e.today && e.today <= e.endDate),
+    tomorrow: byDate.find((e) => daysBetween(e.today, e.date) === 1),
+  };
 }
 
 // ---- What the duck may say today ---------------------------------------------
