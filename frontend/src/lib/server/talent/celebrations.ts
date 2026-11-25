@@ -1,7 +1,8 @@
 /**
  * What the talent has earned and not yet seen celebrated (#540): the XP of
- * each source and the level they reached, in the order the duck's stage plays
- * them (`MascotStage`), with what marks each one played once it is shown.
+ * each source, in the order the duck's stage plays them (`MascotStage`), the
+ * level they reached revealed by the amount that crossed into it
+ * (`stageCelebrations`), and what marks each one played once it is shown.
  *
  * One loader for every page that celebrates, so a reward is celebrated on the
  * first of them the talent opens and never twice. Each source keeps its own
@@ -22,38 +23,13 @@ import {
   markMinigameRankRewardsSeen,
   markMinigameRewardsSeen,
 } from '#lib/server/services/minigameService.ts';
+import { WELCOME_XP_BONUS } from '#lib/domain/xp.ts';
 import {
-  WELCOME_XP_BONUS,
-  levelProgress,
-  levelReachedSince,
-  type JumpLevel,
-  type LevelTone,
-} from '#lib/domain/xp.ts';
+  stageCelebrations,
+  type Celebration,
+  type XpGain,
+} from '#lib/domain/celebrations.ts';
 import type { CelebrationAck } from '#lib/validation/celebrations.ts';
-
-/** XP the stage floats, said with the line of their own moment. */
-export type XpCelebration = {
-  kind: 'xp';
-  moment:
-    'arrivalXp' | 'earlyArrivalXp' | 'activityXp' | 'rankXp' | 'dailyGameXp';
-  xp: number;
-  /** The early-arrival bonus within `xp`, for `earlyArrivalXp` only. */
-  bonus?: number;
-};
-
-/**
- * A level reached: the bar of the level left fills from where it was last
- * celebrated, then the new one is revealed.
- */
-export type LevelCelebration = {
-  kind: 'level';
-  level: JumpLevel;
-  tone: LevelTone;
-  /** How far through the level left the bar starts, from 0 to 1. */
-  fromRatio: number;
-};
-
-export type Celebration = XpCelebration | LevelCelebration;
 
 export type PendingCelebrations = {
   items: Celebration[];
@@ -76,37 +52,31 @@ export async function loadPendingCelebrations(
     getUnseenMinigameReward(talent.id),
   ]);
 
-  const items: Celebration[] = [];
+  const gains: XpGain[] = [];
   const ack: CelebrationAck = { minigame: [] };
-  if (arrival) items.push(arrival);
+  if (arrival) gains.push(arrival);
   if (workshop) {
-    items.push({ kind: 'xp', moment: 'activityXp', xp: workshop.xp });
+    gains.push({ moment: 'activityXp', xp: workshop.xp });
     ack.workshopUpTo = workshop.upTo;
   }
-  if (rank) {
-    items.push({ kind: 'xp', moment: 'rankXp', xp: rank.xp });
-    ack.minigame.push('rank');
-  }
+  // The challenge's reward before its rank bonus, the order they are granted
+  // in: the amounts are counted back from the total, so the one that crossed
+  // into a level is the one that reveals it.
   if (daily) {
-    items.push({ kind: 'xp', moment: 'dailyGameXp', xp: daily.xp });
+    gains.push({ moment: 'dailyGameXp', xp: daily.xp });
     ack.minigame.push('base');
   }
-  // Last, so the XP that led there are seen first.
-  const level = levelReachedSince(talent.levelCelebratedXp, talent.xp);
-  if (level) {
-    items.push({
-      kind: 'level',
-      level,
-      tone: levelProgress(talent.xp).tone,
-      fromRatio: levelProgress(talent.levelCelebratedXp).ratio,
-    });
-    ack.levelUpTo = talent.xp;
+  if (rank) {
+    gains.push({ moment: 'rankXp', xp: rank.xp });
+    ack.minigame.push('rank');
   }
+  const { items, levelUpTo } = stageCelebrations(gains, talent);
+  if (levelUpTo !== undefined) ack.levelUpTo = levelUpTo;
   return items.length > 0 ? { items, ack } : null;
 }
 
 /** The arrival's XP, the early-arrival bonus read off its grant. */
-async function arrivalXp(talentId: string): Promise<XpCelebration> {
+async function arrivalXp(talentId: string): Promise<XpGain> {
   const earlyBird = await prisma.xpGrant.findUnique({
     where: {
       source_sourceId: { source: 'onboarding_early_bird', sourceId: talentId },
@@ -115,13 +85,8 @@ async function arrivalXp(talentId: string): Promise<XpCelebration> {
   });
   const bonus = earlyBird?.amount ?? 0;
   return bonus > 0
-    ? {
-        kind: 'xp',
-        moment: 'earlyArrivalXp',
-        xp: WELCOME_XP_BONUS + bonus,
-        bonus,
-      }
-    : { kind: 'xp', moment: 'arrivalXp', xp: WELCOME_XP_BONUS };
+    ? { moment: 'earlyArrivalXp', xp: WELCOME_XP_BONUS + bonus, bonus }
+    : { moment: 'arrivalXp', xp: WELCOME_XP_BONUS };
 }
 
 /**

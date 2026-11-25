@@ -2,22 +2,27 @@
   The duck's stage (#540): where EpiDuck celebrates what the talent earned, in
   the middle of the screen, drawn large (`atlas="stage"`). One stage for every
   celebration, so two never overlap and each plays once: the XP of each source
-  (`activityXp`, `dailyGameXp`…) and, last, a level reached.
+  (`activityXp`, `dailyGameXp`…) and the level they reach, as
+  `stageCelebrations` lays them out.
 
   A celebration is a gift, not a receipt, so it comes in beats, and what is
   won always comes before what he says about it:
-    - XP: the amount pops and counts up and he hops with his joy; his line
-      follows a moment later;
-    - a level: the bar of the level left fills and overflows (the wait), then
-      the new level's badge, confetti and his hop of joy (the reveal), then his
-      line.
-  Everything said at once was read as nothing in particular. The figures are
-  the code's, the words the admin's (`lineFor`): with no live line he is there
-  and says nothing.
+    - an amount pops and counts up as he hops with his joy, and pours into the
+      bar of the talent's level, which fills towards the next one; his line
+      follows;
+    - an amount that takes the talent past a level fills its bar to the end,
+      and the new level's badge comes out of it with confetti and a second
+      hop; then his one line, the level's;
+    - a level reached by XP with no celebration of its own is revealed alone.
+  The bar is never shown without the amount filling it: alone, it read as a
+  page loading. And an amount and the level it reached are one gesture, not
+  two scenes and two lines in a row. Everything said at once was read as
+  nothing in particular. The figures are the code's, the words the admin's
+  (`lineFor`): with no live line he is there and says nothing.
 
-  Nothing on the stage moves to make room for what comes next: the bar, the
-  badge and the amount share one room above him, and his line has its room
-  below him from the first beat. A badge taller than the bar it replaced
+  Nothing on the stage moves to make room for what comes next: the amount and
+  its bar, then the badge, share one room above him, and his line has its
+  room below him from the first beat. A badge taller than what it replaced
   pushed him down the screen, off it on a short window.
 
   The stage is dark (`epiDark` at 90%, an `.on-dark` surface), not the
@@ -46,10 +51,8 @@
   import XpFloat from '#lib/components/talent/XpFloat.svelte';
   import LevelBadge from '#lib/components/talent/LevelBadge.svelte';
   import { DEFAULT_MASCOT_LOOK, mascotLookOf } from '#lib/domain/mascot.ts';
-  import type {
-    Celebration,
-    PendingCelebrations,
-  } from '#lib/server/talent/celebrations.ts';
+  import type { Celebration, ReachedLevel } from '#lib/domain/celebrations.ts';
+  import type { PendingCelebrations } from '#lib/server/talent/celebrations.ts';
   import type { CelebrationAck } from '#lib/validation/celebrations.ts';
   import EpiDuck, { STAGE_ATLAS_URL } from './EpiDuck.svelte';
   import MascotBubble from './MascotBubble.svelte';
@@ -68,12 +71,14 @@
 
   const mascot = useMascot()();
 
-  /** How long each celebration holds the screen, its line included. */
-  const XP_MS = 3600;
-  const LEVEL_FILL_MS = 900;
-  const LEVEL_MS = 5600;
+  /** When the amount starts pouring into the bar, and how long it fills. */
+  const BAR_DELAY_MS = 400;
+  const BAR_FILL_MS = 800;
   /** The breath between what is won and what he says about it. */
   const LINE_DELAY_MS = 800;
+  /** How long his line holds once said: an amount's, then a level's. */
+  const XP_LINE_MS = 2800;
+  const LEVEL_LINE_MS = 3600;
   const LANDING_MS = 650;
   /** Lets the page settle before the first beat. */
   const SETTLE_MS = 300;
@@ -92,8 +97,8 @@
   );
 
   let current = $state<Celebration | null>(null);
-  /** The level scene's beat: the bar filling, then the level revealed. */
-  let revealed = $state(false);
+  /** The level on screen once revealed, in place of the amount and its bar. */
+  let revealed = $state<ReachedLevel | null>(null);
   let barRatio = $state(0);
   let line = $state<string | null>(null);
   /** He is flying back to the header: the stage fades away around him. */
@@ -113,23 +118,38 @@
 
   /** The items of `pending` this page has not queued yet. */
   function fresh({ items, ack }: PendingCelebrations): Celebration[] {
-    return items.filter((item) => {
-      if (item.kind === 'xp' && item.moment === 'activityXp') {
-        const upTo = ack.workshopUpTo ?? [];
-        const isNew = upTo.some(
-          ({ activityId, amount }) =>
-            amount > (seenActivity.get(activityId) ?? 0),
-        );
-        for (const { activityId, amount } of upTo) {
-          seenActivity.set(activityId, amount);
-        }
-        return isNew;
+    return items.flatMap((item): Celebration[] => {
+      if (item.kind === 'level')
+        return once(`level:${item.level}`) ? [item] : [];
+      const isNew =
+        item.moment === 'activityXp' ? newActivity(ack) : once(item.moment);
+      if (!isNew) return [];
+      // A level this page already revealed is not revealed again by a later
+      // amount: the amount still fills its bar.
+      if (item.reached && !once(`level:${item.reached.level}`)) {
+        return [{ ...item, reached: null }];
       }
-      const key = item.kind === 'level' ? `level:${item.level}` : item.moment;
-      if (seenKeys.has(key)) return false;
-      seenKeys.add(key);
-      return true;
+      return [item];
     });
+  }
+
+  /** True the first time `key` is met on this page. */
+  function once(key: string): boolean {
+    if (seenKeys.has(key)) return false;
+    seenKeys.add(key);
+    return true;
+  }
+
+  /** Whether an activity's amount grew since this page last queued it. */
+  function newActivity(ack: PendingCelebrations['ack']): boolean {
+    const upTo = ack.workshopUpTo ?? [];
+    const isNew = upTo.some(
+      ({ activityId, amount }) => amount > (seenActivity.get(activityId) ?? 0),
+    );
+    for (const { activityId, amount } of upTo) {
+      seenActivity.set(activityId, amount);
+    }
+    return isNew;
   }
 
   // An effect, not `onMount`: activity XP arrive on a page already mounted,
@@ -144,11 +164,12 @@
 
   /**
    * Celebrate something the page witnessed itself, the daily challenge won on
-   * the play page, marked played with `ack` first.
+   * the play page (`stageCelebrations` lays it out), marked played with `ack`
+   * first.
    */
-  export function play(item: Celebration, ack: CelebrationAck): void {
+  export function play(items: Celebration[], ack: CelebrationAck): void {
     void ackCelebrations(ack);
-    enqueue([item]);
+    enqueue(items);
   }
 
   function enqueue(items: Celebration[]): void {
@@ -185,7 +206,10 @@
     while (alive && queue.length > 0) {
       const item = queue.shift()!;
       if (item.kind === 'xp') await showXp(item);
-      else await showLevel(item);
+      else {
+        current = item;
+        await showLevel(item);
+      }
     }
     if (alive) await land();
     current = null;
@@ -197,10 +221,16 @@
 
   async function showXp(item: Extract<Celebration, { kind: 'xp' }>) {
     line = null;
+    revealed = null;
+    barRatio = item.bar?.from ?? 0;
     current = item;
-    triggerConfetti();
+    if (!item.reached) triggerConfetti();
     hop();
-    await wait(LINE_DELAY_MS);
+    // The amount pours into the bar once it has popped.
+    await wait(BAR_DELAY_MS);
+    barRatio = item.bar?.to ?? 0;
+    await wait(BAR_FILL_MS);
+    if (item.reached) return showLevel(item.reached);
     line =
       mascot?.lineFor({
         moment: item.moment,
@@ -209,26 +239,20 @@
           bonus: item.bonus?.toLocaleString('fr-FR'),
         },
       }) ?? null;
-    await wait(XP_MS - LINE_DELAY_MS);
+    await wait(XP_LINE_MS);
   }
 
-  async function showLevel(item: Extract<Celebration, { kind: 'level' }>) {
-    revealed = false;
-    barRatio = item.fromRatio;
+  /** The new level comes out: its badge, confetti and a hop, then his line. */
+  async function showLevel(level: ReachedLevel) {
     line = null;
-    current = item;
-    // The wait: the bar of the level left fills to its end.
-    requestAnimationFrame(() => (barRatio = 1));
-    await wait(LEVEL_FILL_MS);
-    // The reveal, then what he says about it.
-    revealed = true;
+    revealed = level;
     triggerConfetti();
     hop();
     await wait(LINE_DELAY_MS);
     line =
-      mascot?.lineFor({ moment: 'levelUp', tokens: { niveau: item.level } }) ??
+      mascot?.lineFor({ moment: 'levelUp', tokens: { niveau: level.level } }) ??
       null;
-    await wait(LEVEL_MS - LEVEL_FILL_MS - LINE_DELAY_MS);
+    await wait(LEVEL_LINE_MS);
   }
 
   /** His hop of joy, the lane's, at the stage's size. */
@@ -292,9 +316,12 @@
   /** What a screen reader hears of the beat on screen. */
   let spoken = $derived.by(() => {
     if (!current) return '';
-    const said = line ? ` ${line}` : '';
-    if (current.kind === 'xp') return `+${current.xp} XP.${said}`;
-    return revealed ? `Niveau ${current.level} atteint.${said}` : '';
+    const parts = [
+      current.kind === 'xp' ? `+${current.xp} XP.` : '',
+      revealed ? `Niveau ${revealed.level} atteint.` : '',
+      line ?? '',
+    ];
+    return parts.filter(Boolean).join(' ');
   });
 </script>
 
@@ -316,52 +343,60 @@
     <div
       class="pointer-events-none relative flex w-full max-w-sm flex-col items-center text-center"
     >
-      <!-- What was won: one room for the bar, the badge and the amount, so
-           none of them moves him when it gives way to the next. -->
+      <!-- What was won: one room for the amount and its bar, then the badge,
+           so none of them moves him when it gives way to the next. -->
       <div
         class="grid h-44 w-full place-items-center transition-opacity duration-200 *:col-start-1 *:row-start-1 {landing
           ? 'opacity-0'
           : ''}"
       >
-        {#if current.kind === 'level'}
-          {#if revealed}
-            <div in:fade class="flex flex-col items-center gap-2">
-              <LevelBadge
-                level={current.level}
-                tone={current.tone}
-                decorative
-                class="size-20"
-              />
-              <p class="epi-overline text-white/70">Nouveau niveau</p>
-              <p class="font-heading text-display-xl text-white">
-                {current.level}
-              </p>
-            </div>
-          {:else}
-            <div
-              class="h-3 w-64 overflow-hidden rounded-full bg-white/15"
-              aria-hidden="true"
-            >
-              <div
-                class="level-fill h-full w-(--progress) rounded-full bg-white"
-                style:--progress="{Math.round(barRatio * 100)}%"
-              ></div>
-            </div>
-          {/if}
-        {:else}
+        {#if revealed}
+          <div in:fade class="flex flex-col items-center gap-2">
+            <LevelBadge
+              level={revealed.level}
+              tone={revealed.tone}
+              decorative
+              class="size-20"
+            />
+            <p class="epi-overline text-white/70">Nouveau niveau</p>
+            <p class="font-heading text-display-xl text-white">
+              {revealed.level}
+            </p>
+          </div>
+        {:else if current.kind === 'xp'}
+          <!-- Keyed: the next amount pops anew, and its bar starts where its
+               own stretch does rather than running back from the last one. -->
           {#key current}
-            <XpFloat amount={current.xp} label={XP_LABEL[current.moment]} />
+            <div class="flex flex-col items-center gap-5">
+              <XpFloat amount={current.xp} label={XP_LABEL[current.moment]} />
+              {#if current.bar}
+                <div class="w-64" aria-hidden="true">
+                  <div class="h-3 overflow-hidden rounded-full bg-white/15">
+                    <div
+                      class="level-fill h-full w-(--progress) rounded-full bg-white"
+                      style:--progress="{Math.round(barRatio * 100)}%"
+                    ></div>
+                  </div>
+                  <div
+                    class="mt-2 flex justify-between epi-overline text-white/70"
+                  >
+                    <span>{current.bar.level}</span>
+                    <span>{current.bar.next}</span>
+                  </div>
+                </div>
+              {/if}
+            </div>
           {/key}
         {/if}
       </div>
 
-      <!-- He watches the bar fill, eyes open, and lights up at the reveal. -->
+      <!-- His joy from the first beat: everything on this stage is good news. -->
       <div bind:this={duck} class="mt-2 origin-bottom">
         <EpiDuck
           atlas="stage"
           pose="front"
           {look}
-          eyes={current.kind === 'level' && !revealed ? 'open' : 'joy'}
+          eyes="joy"
           class="h-44 w-29 sm:h-56 sm:w-37"
         />
       </div>
@@ -386,7 +421,7 @@
 {/if}
 
 <style>
-  /* The wait before a level: the bar runs to its end. */
+  /* The amount pouring into the bar (`BAR_FILL_MS`). */
   @media (prefers-reduced-motion: no-preference) {
     .level-fill {
       transition: width 800ms cubic-bezier(0.4, 0, 0.2, 1);

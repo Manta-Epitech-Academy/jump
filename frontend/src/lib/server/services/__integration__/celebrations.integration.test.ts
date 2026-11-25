@@ -76,8 +76,10 @@ describe('the level celebration (integration)', () => {
 
     await give(id, 200);
     const owed = await pending(id);
+    // An admin's grant has no celebration of its own: the level is revealed
+    // alone, with no amount and no bar.
     expect(owed?.items).toEqual([
-      { kind: 'level', level: 'Maker', tone: 'together', fromRatio: 0.96 },
+      { kind: 'level', level: 'Maker', tone: 'together' },
     ]);
     expect(owed?.ack).toEqual({ minigame: [], levelUpTo: 2600 });
 
