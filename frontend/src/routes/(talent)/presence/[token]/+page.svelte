@@ -114,42 +114,68 @@
   {/snippet}
 
   {#if data.state === 'present'}
-    <!-- The talent's duck confirms it, in his own words (#540); asleep, the
-         page's badge says it alone. -->
+    <!-- The talent's duck confirms it himself (#540): the page's title is in
+         his bubble, followed by his line, as on the welcome screen. What was
+         recorded is a receipt under him, not a second voice saying it again:
+         it is what the talent shows a staff member, so it is the code's, and
+         reads at a glance. Asleep, the page's badge and title say it. -->
     <MascotCameo
       cue={{ moment: 'checkIn', tokens: { evenement: data.eventLabel } }}
       entrance="hop"
       class="h-28 w-19"
-      fallback={badge}
-    />
+    >
+      {@render title()}
+      {#snippet fallback()}
+        {@render badge()}
+        <div class="rise relative">{@render title()}</div>
+      {/snippet}
+    </MascotCameo>
+
+    <div
+      class="rise relative w-full max-w-sm rounded-xl border border-border bg-card px-5 py-4 text-left"
+    >
+      <p class="epi-overline text-epi-tech-ink">Présence enregistrée</p>
+      <p class="mt-2 font-semibold text-foreground">{data.eventLabel}</p>
+      <p class="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+        <CalendarCheck class="size-4 shrink-0" aria-hidden="true" />
+        <span class="first-letter:uppercase">
+          {data.dayLabel} · {slotLower}
+        </span>
+      </p>
+    </div>
   {:else}
     {@render badge()}
+    <div class="rise relative max-w-sm space-y-2">
+      {@render title()}
+      <p class="text-pretty text-muted-foreground">
+        {#if data.state === 'already'}
+          Pas besoin de scanner : le staff a déjà enregistré ton statut de
+          présence{#if data.status}
+            ({statusLabelFr(data.status)}){/if} pour le {data.eventLabel} de ce {data.dayLabel}
+          ({slotLower}).
+        {:else if data.state === 'closed'}
+          L’émargement de ce créneau ({data.dayLabel}, {slotLower}) est terminé.
+          Va voir un membre du staff pour signaler ta présence.
+        {:else if data.state === 'not_registered'}
+          Ton compte n’est pas rattaché à cet événement. Rapproche-toi du staff
+          pour qu’on règle ça ensemble.
+        {:else}
+          Ce QR code est expiré ou invalide. Demande au staff de le réafficher,
+          puis rescanne-le.
+        {/if}
+      </p>
+    </div>
   {/if}
 
-  <div class="rise relative max-w-sm space-y-2">
-    <h1 class="font-heading text-display-m">{headline}</h1>
-    <p class="text-pretty text-muted-foreground">
-      {#if data.state === 'present'}
-        Tu es bien noté présent pour le
-        <span class="font-semibold text-foreground">{data.eventLabel}</span>, ce
-        {data.dayLabel} ({slotLower}).
-      {:else if data.state === 'already'}
-        Pas besoin de scanner : le staff a déjà enregistré ton statut de
-        présence{#if data.status}
-          ({statusLabelFr(data.status)}){/if} pour le {data.eventLabel} de ce {data.dayLabel}
-        ({slotLower}).
-      {:else if data.state === 'closed'}
-        L’émargement de ce créneau ({data.dayLabel}, {slotLower}) est terminé.
-        Va voir un membre du staff pour signaler ta présence.
-      {:else if data.state === 'not_registered'}
-        Ton compte n’est pas rattaché à cet événement. Rapproche-toi du staff
-        pour qu’on règle ça ensemble.
-      {:else}
-        Ce QR code est expiré ou invalide. Demande au staff de le réafficher,
-        puis rescanne-le.
-      {/if}
-    </p>
-  </div>
+  {#snippet title()}
+    <h1
+      class="font-heading text-display-m {data.state === 'present'
+        ? 'text-primary'
+        : ''}"
+    >
+      {headline}
+    </h1>
+  {/snippet}
 
   <div class="rise-delayed relative">
     <Button

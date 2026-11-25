@@ -10,7 +10,8 @@ UPDATE "Talent" SET "levelCelebratedXp" = "xp" WHERE "xp" > 0;
 -- as in 20261122075435_add_mascot. He says one line on arrival, so the event
 -- lines name the talent: they are the greeting on those days. The first
 -- meeting's lines are the welcome screen's text, which he says under its
--- title. The XP lines take over from the reward toasts, which they replace,
+-- title; the check-in's follows « C'est noté », said in his bubble too, so it
+-- does not confirm the presence a second time. The XP lines take over from the reward toasts, which they replace,
 -- in the duck's voice: no emoji, no count of anything the talent did not do,
 -- and nothing over a failure.
 INSERT INTO "Mascot_Line" ("id", "momentKey", "text", "updatedAt")
@@ -28,5 +29,5 @@ VALUES
   ('mln_rank_xp_top', 'rankXp', 'Dans le top de ton campus ! +{xp} XP de bonus pour toi.', CURRENT_TIMESTAMP),
   ('mln_level_up_bravo', 'levelUp', 'Niveau {niveau}, {prenom} ! Je savais que tu y arriverais.', CURRENT_TIMESTAMP),
   ('mln_level_up_fete', 'levelUp', 'Te voilà {niveau} ! On fête ça, coin coin !', CURRENT_TIMESTAMP),
-  ('mln_check_in_la', 'checkIn', 'Te voilà, {prenom} ! Belle journée à toi.', CURRENT_TIMESTAMP),
+  ('mln_check_in_journee', 'checkIn', 'Profite bien de ta journée, et amuse-toi !', CURRENT_TIMESTAMP),
   ('mln_feedback_done_merci', 'feedbackDone', 'Merci {prenom} ! Ton avis aide à préparer les prochains événements.', CURRENT_TIMESTAMP);

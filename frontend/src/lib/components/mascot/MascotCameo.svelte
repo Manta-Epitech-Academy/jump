@@ -7,8 +7,9 @@
   The bubble holds the line of his moment, from the controller (`lineFor`),
   so it is the admin's, rotated as every other: with no live line he says
   nothing. A page can put its own words in his mouth above that line
-  (`children`): the welcome screen's title is his, so the screen has one voice
-  rather than a duck and a page saying the same thing side by side.
+  (`children`): the welcome screen's title and the check-in's « C'est noté »
+  are his, so the screen has one voice rather than a duck and a page saying
+  the same thing side by side.
 
   Drawn by the server with everything else, and his entrance is CSS that
   starts from the first paint: the duck and his bubble hold their room from
