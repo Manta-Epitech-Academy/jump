@@ -8,7 +8,7 @@
   import { Button } from '#lib/components/ui/button/index.ts';
   import { triggerSideCannons } from '#lib/actions/confetti.ts';
   import { MINIGAME_XP_REWARD } from '#lib/domain/xp.ts';
-  import { stageCelebrations } from '#lib/domain/celebrations.ts';
+  import { stageCelebrations, xpGains } from '#lib/domain/celebrations.ts';
   import TalentPageHeader from '#lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
   import MascotStage from '#lib/components/mascot/MascotStage.svelte';
@@ -103,14 +103,14 @@
    */
   function celebrateWin() {
     if (!data.talent) return;
-    const { items, levelUpTo } = stageCelebrations(
-      [{ moment: 'dailyGameXp', xp: MINIGAME_XP_REWARD }],
+    const items = stageCelebrations(
+      [xpGains.daily(data.publication.id, MINIGAME_XP_REWARD)],
       {
         xp: data.talent.xp + MINIGAME_XP_REWARD,
         levelCelebratedXp: data.talent.levelCelebratedXp,
       },
     );
-    stage?.play(items, { minigame: ['base'], levelUpTo });
+    stage?.play(items);
   }
 
   function celebrate() {

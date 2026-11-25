@@ -54,20 +54,23 @@
   import LevelBadge from '#lib/components/talent/LevelBadge.svelte';
   import { DEFAULT_MASCOT_LOOK, mascotLookOf } from '#lib/domain/mascot.ts';
   import { typeset } from '#lib/domain/typography.ts';
-  import type { Celebration, ReachedLevel } from '#lib/domain/celebrations.ts';
-  import type { PendingCelebrations } from '#lib/server/talent/celebrations.ts';
-  import type { CelebrationAck } from '#lib/validation/celebrations.ts';
+  import {
+    ackOf,
+    levelKey,
+    type Celebration,
+    type ReachedLevel,
+  } from '#lib/domain/celebrations.ts';
   import EpiDuck, { STAGE_ATLAS_URL } from './EpiDuck.svelte';
   import MascotBubble from './MascotBubble.svelte';
   import { useMascot } from './mascotController.svelte.ts';
   import { ackCelebrations } from './celebrations.remote';
 
   let {
-    pending = null,
+    pending = [],
     preload = false,
   }: {
     /** What the page load found owed; new items arrive on revalidation. */
-    pending?: PendingCelebrations | null;
+    pending?: Celebration[];
     /** Fetch the large duck now: the page is about to `play()` one. */
     preload?: boolean;
   } = $props();
@@ -118,21 +121,21 @@
 
   // What this page already took into the queue, so a revalidation that brings
   // the same rewards back (their mark not yet committed) never plays them
-  // twice. Activity XP are compared per activity, as their mark is.
-  const seenKeys = new Set<string>();
-  const seenActivity = new Map<string, number>();
+  // twice. By each item's identity (`key`), never by its moment: a second
+  // challenge won on another device is not the first one again.
+  const seen = new Set<string>();
 
-  /** The items of `pending` this page has not queued yet. */
-  function fresh({ items, ack }: PendingCelebrations): Celebration[] {
-    return items.flatMap((item): Celebration[] => {
-      if (item.kind === 'level')
-        return once(`level:${item.level}`) ? [item] : [];
-      const isNew =
-        item.moment === 'activityXp' ? newActivity(ack) : once(item.moment);
-      if (!isNew) return [];
+  /** The items of `celebrations` this page has not queued yet. */
+  function fresh(celebrations: readonly Celebration[]): Celebration[] {
+    return celebrations.flatMap((item): Celebration[] => {
+      if (!once(item.key)) return [];
       // A level this page already revealed is not revealed again by a later
       // amount: the amount still fills its bar.
-      if (item.reached && !once(`level:${item.reached.level}`)) {
+      if (
+        item.kind === 'xp' &&
+        item.reached &&
+        !once(levelKey(item.reached.level))
+      ) {
         return [{ ...item, reached: null }];
       }
       return [item];
@@ -141,44 +144,31 @@
 
   /** True the first time `key` is met on this page. */
   function once(key: string): boolean {
-    if (seenKeys.has(key)) return false;
-    seenKeys.add(key);
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
-  }
-
-  /** Whether an activity's amount grew since this page last queued it. */
-  function newActivity(ack: PendingCelebrations['ack']): boolean {
-    const upTo = ack.workshopUpTo ?? [];
-    const isNew = upTo.some(
-      ({ activityId, amount }) => amount > (seenActivity.get(activityId) ?? 0),
-    );
-    for (const { activityId, amount } of upTo) {
-      seenActivity.set(activityId, amount);
-    }
-    return isNew;
   }
 
   // An effect, not `onMount`: activity XP arrive on a page already mounted,
   // when the talent comes back to the tab and the page revalidates.
   $effect(() => {
-    if (!pending) return;
-    const items = fresh(pending);
-    if (items.length === 0) return;
-    void ackCelebrations(pending.ack);
-    enqueue(items);
+    play(pending);
   });
 
   /**
-   * Celebrate something the page witnessed itself, the daily challenge won on
-   * the play page (`stageCelebrations` lays it out), marked played with `ack`
-   * first.
+   * Celebrate what this page has not queued yet: what its load found owed, or
+   * what it witnessed itself, the daily challenge won on the play page
+   * (`stageCelebrations` lays it out). Marked played first, with the marks of
+   * those items and no other (`ackOf`), so leaving mid-animation never replays
+   * them and nothing left out is marked. A mark that fails to land is logged:
+   * the celebration is then owed again, and plays on the next page.
    */
-  export function play(items: Celebration[], ack: CelebrationAck): void {
-    void ackCelebrations(ack);
-    enqueue(items);
-  }
-
-  function enqueue(items: Celebration[]): void {
+  export function play(celebrations: readonly Celebration[]): void {
+    const items = fresh(celebrations);
+    if (items.length === 0) return;
+    ackCelebrations(ackOf(items)).catch((err: unknown) => {
+      console.error('[mascot] celebrations not marked played:', err);
+    });
     queue.push(...items);
     void run();
   }

@@ -26,25 +26,22 @@ import {
 import { WELCOME_XP_BONUS } from '#lib/domain/xp.ts';
 import {
   stageCelebrations,
+  xpGains,
   type Celebration,
   type XpGain,
 } from '#lib/domain/celebrations.ts';
 import type { CelebrationAck } from '#lib/validation/celebrations.ts';
 
-export type PendingCelebrations = {
-  items: Celebration[];
-  /** Everything `items` shows, for `ackCelebrations` to mark played. */
-  ack: CelebrationAck;
-};
-
 /**
- * What the talent has to see celebrated, or null. Consumes the arrival's
- * one-shot cookie, so it is called by a page load that shows the stage.
+ * What the talent has to see celebrated, in the order the stage plays it,
+ * each item with its mark (`ackOf`). Empty when nothing is owed. Consumes the
+ * arrival's one-shot cookie, so it is called by a page load that shows the
+ * stage.
  */
 export async function loadPendingCelebrations(
   talent: { id: string; xp: number; levelCelebratedXp: number },
   cookies: Cookies,
-): Promise<PendingCelebrations | null> {
+): Promise<Celebration[]> {
   const [arrival, workshop, rank, daily] = await Promise.all([
     consumeArrivalCelebration(cookies) ? arrivalXp(talent.id) : null,
     getUnseenWorkshopReward(talent.id),
@@ -53,26 +50,14 @@ export async function loadPendingCelebrations(
   ]);
 
   const gains: XpGain[] = [];
-  const ack: CelebrationAck = { minigame: [] };
   if (arrival) gains.push(arrival);
-  if (workshop) {
-    gains.push({ moment: 'activityXp', xp: workshop.xp });
-    ack.workshopUpTo = workshop.upTo;
-  }
+  if (workshop) gains.push(xpGains.activity(workshop.xp, workshop.upTo));
   // The challenge's reward before its rank bonus, the order they are granted
   // in: the amounts are counted back from the total, so the one that crossed
   // into a level is the one that reveals it.
-  if (daily) {
-    gains.push({ moment: 'dailyGameXp', xp: daily.xp });
-    ack.minigame.push('base');
-  }
-  if (rank) {
-    gains.push({ moment: 'rankXp', xp: rank.xp });
-    ack.minigame.push('rank');
-  }
-  const { items, levelUpTo } = stageCelebrations(gains, talent);
-  if (levelUpTo !== undefined) ack.levelUpTo = levelUpTo;
-  return items.length > 0 ? { items, ack } : null;
+  if (daily) gains.push(xpGains.daily(daily.publicationId, daily.xp));
+  if (rank) gains.push(xpGains.rank(rank.publicationId, rank.xp));
+  return stageCelebrations(gains, talent);
 }
 
 /** The arrival's XP, the early-arrival bonus read off its grant. */
@@ -84,9 +69,7 @@ async function arrivalXp(talentId: string): Promise<XpGain> {
     select: { amount: true },
   });
   const bonus = earlyBird?.amount ?? 0;
-  return bonus > 0
-    ? { moment: 'earlyArrivalXp', xp: WELCOME_XP_BONUS + bonus, bonus }
-    : { moment: 'arrivalXp', xp: WELCOME_XP_BONUS };
+  return xpGains.arrival(WELCOME_XP_BONUS + bonus, bonus);
 }
 
 /**
@@ -99,8 +82,8 @@ export async function markCelebrationsPlayed(
 ): Promise<void> {
   await Promise.all([
     ack.workshopUpTo && markWorkshopRewardsSeen(talentId, ack.workshopUpTo),
-    ack.minigame.includes('base') && markMinigameRewardsSeen(talentId),
-    ack.minigame.includes('rank') && markMinigameRankRewardsSeen(talentId),
+    ack.daily && markMinigameRewardsSeen(talentId, ack.daily),
+    ack.rank && markMinigameRankRewardsSeen(talentId, ack.rank),
     ack.levelUpTo !== undefined &&
       prisma.talent.updateMany({
         where: { id: talentId, levelCelebratedXp: { lt: ack.levelUpTo } },

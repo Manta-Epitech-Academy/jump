@@ -9,6 +9,10 @@
  * as two scenes. A level reached by XP that is not celebrated (an admin's
  * grant, a reward with no moment of its own) is revealed alone, with no bar.
  *
+ * Each celebration carries what tells it from another (`key`) and the mark
+ * that records it played (`ack`), so a page acknowledges exactly what it
+ * plays, and a second reward of the same kind is never taken for the first.
+ *
  * Pure, so the server stages what a page load finds owed
  * (`loadPendingCelebrations`) and the play page stages the win it has just
  * witnessed with the same rules.
@@ -22,6 +26,7 @@ import {
   type JumpLevel,
   type LevelTone,
 } from './xp';
+import type { CelebrationAck } from '#lib/validation/celebrations.ts';
 
 /** The moments an amount of XP is celebrated at, each with its own line. */
 export type XpMoment =
@@ -33,7 +38,62 @@ export type XpGain = {
   xp: number;
   /** The early-arrival bonus within `xp`, for `earlyArrivalXp` only. */
   bonus?: number;
+  /** What tells this amount from another of its moment (`xpGains`). */
+  key: string;
+  /** The mark that records it played. */
+  ack: CelebrationAck;
 };
+
+/**
+ * Each source's amount, with its identity and its mark. The one place they
+ * are built, for the server's loader and the play page alike.
+ */
+export const xpGains = {
+  /** The arrival's XP, marked by the one-shot cookie its load consumed. */
+  arrival(xp: number, bonus: number): XpGain {
+    return bonus > 0
+      ? { moment: 'earlyArrivalXp', xp, bonus, key: 'arrival', ack: {} }
+      : { moment: 'arrivalXp', xp, key: 'arrival', ack: {} };
+  },
+  /** Activity XP, up to the amount each activity has granted. */
+  activity(
+    xp: number,
+    upTo: NonNullable<CelebrationAck['workshopUpTo']>,
+  ): XpGain {
+    const amounts = upTo
+      .map(({ activityId, amount }) => `${activityId}=${amount}`)
+      .sort();
+    return {
+      moment: 'activityXp',
+      xp,
+      key: `activity:${amounts.join(',')}`,
+      ack: { workshopUpTo: upTo },
+    };
+  },
+  /** A challenge won, by the publication its attempt belongs to. */
+  daily(publicationId: string, xp: number): XpGain {
+    return {
+      moment: 'dailyGameXp',
+      xp,
+      key: `daily:${publicationId}`,
+      ack: { daily: publicationId },
+    };
+  },
+  /** A challenge's rank bonus, by the publication its attempt belongs to. */
+  rank(publicationId: string, xp: number): XpGain {
+    return {
+      moment: 'rankXp',
+      xp,
+      key: `rank:${publicationId}`,
+      ack: { rank: publicationId },
+    };
+  },
+};
+
+/** What tells a level's reveal from another, whatever reveals it. */
+export function levelKey(level: JumpLevel): string {
+  return `level:${level}`;
+}
 
 /** The stretch of a level's bar an amount fills, from 0 to 1. */
 export type LevelBar = {
@@ -55,7 +115,11 @@ export type XpCelebration = XpGain & {
 };
 
 /** A level reached by XP that has no celebration of its own. */
-export type LevelCelebration = { kind: 'level' } & ReachedLevel;
+export type LevelCelebration = {
+  kind: 'level';
+  key: string;
+  ack: CelebrationAck;
+} & ReachedLevel;
 
 export type Celebration = XpCelebration | LevelCelebration;
 
@@ -66,13 +130,13 @@ export type Celebration = XpCelebration | LevelCelebration;
  * The amounts are taken as the last XP earned, so their stretches of bar are
  * counted back from `xp`: the bar shows where the talent stands, whatever else
  * moved the total. The level reached (`levelReachedSince`) is revealed by the
- * amount whose stretch crosses into it, else alone after them. `levelUpTo` is
- * what marks it played: the total it was celebrated at.
+ * amount whose stretch crosses into it, else alone after them, and whichever
+ * reveals it carries its mark: the total it was celebrated at (`levelUpTo`).
  */
 export function stageCelebrations(
   gains: readonly XpGain[],
   { xp, levelCelebratedXp }: { xp: number; levelCelebratedXp: number },
-): { items: Celebration[]; levelUpTo?: number } {
+): Celebration[] {
   const reached = levelReachedSince(levelCelebratedXp, xp);
   // The level reached is the one `xp` stands in.
   const tone = levelProgress(xp).tone;
@@ -93,21 +157,51 @@ export function stageCelebrations(
     : -1;
 
   const items: Celebration[] = gains.map((gain, i) => {
-    const reveals = i === revealing && reached !== null;
+    if (i !== revealing || reached === null) {
+      return {
+        kind: 'xp',
+        ...gain,
+        bar: barWithin(spans[i].before, spans[i].after),
+        reached: null,
+      };
+    }
     return {
       kind: 'xp',
       ...gain,
-      bar: reveals
-        ? barInto(reached, spans[i].before)
-        : barWithin(spans[i].before, spans[i].after),
-      reached: reveals ? { level: reached, tone } : null,
+      ack: { ...gain.ack, levelUpTo: xp },
+      bar: barInto(reached, spans[i].before),
+      reached: { level: reached, tone },
     };
   });
-  if (!reached) return { items };
-  if (revealing === -1) {
-    items.push({ kind: 'level', level: reached, tone });
+  if (reached && revealing === -1) {
+    items.push({
+      kind: 'level',
+      level: reached,
+      tone,
+      key: levelKey(reached),
+      ack: { levelUpTo: xp },
+    });
   }
-  return { items, levelUpTo: xp };
+  return items;
+}
+
+/**
+ * The marks of `items` as one acknowledgement: what a page sends once it has
+ * queued them, so it marks what it plays and nothing it left out.
+ */
+export function ackOf(items: readonly Celebration[]): CelebrationAck {
+  const ack: CelebrationAck = {};
+  for (const { ack: mark } of items) {
+    if (mark.workshopUpTo) {
+      ack.workshopUpTo = [...(ack.workshopUpTo ?? []), ...mark.workshopUpTo];
+    }
+    if (mark.daily) ack.daily = mark.daily;
+    if (mark.rank) ack.rank = mark.rank;
+    if (mark.levelUpTo !== undefined) {
+      ack.levelUpTo = Math.max(ack.levelUpTo ?? 0, mark.levelUpTo);
+    }
+  }
+  return ack;
 }
 
 /**
