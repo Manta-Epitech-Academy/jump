@@ -54,6 +54,7 @@
   import { fade } from '#lib/motion/index.ts';
   import { DEFAULT_MASCOT_LOOK, mascotLookOf } from '#lib/domain/mascot.ts';
   import EpiDuck, { eyesOnScreen, type DuckEyes } from './EpiDuck.svelte';
+  import MascotBubble from './MascotBubble.svelte';
   import { DIVE_MS, EMERGE_MS, useMascot } from './mascotController.svelte.ts';
 
   // Read once: the lane is remounted with the page, and a sign-in that makes
@@ -506,19 +507,21 @@
 
       {#if mascot.bubble}
         {#key mascot.bubble.id}
-          <p
+          <div
             in:fade
             out:fade
             aria-hidden="true"
-            class="pointer-events-none absolute top-full z-30 mt-2 w-max max-w-56 rounded-xl border border-border bg-card px-3 py-2 text-center font-mono text-xs leading-snug font-bold text-primary shadow-overlay
+            class="pointer-events-none absolute top-full z-30 mt-3 w-max max-w-56
               {bubbleAlign === 'start'
               ? 'left-0'
               : bubbleAlign === 'end'
                 ? 'right-0'
                 : 'left-1/2 -translate-x-1/2'}"
           >
-            {mascot.bubble.text}
-          </p>
+            <MascotBubble size="sm" tailAt={bubbleAlign} class="text-center">
+              {mascot.bubble.text}
+            </MascotBubble>
+          </div>
         {/key}
       {/if}
     </div>

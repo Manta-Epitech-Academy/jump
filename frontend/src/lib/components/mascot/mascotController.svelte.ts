@@ -68,7 +68,8 @@ export const REJOICE_MS = 1600;
  */
 const GREETED_KEY = 'epiduck:greeted';
 
-export type MascotBubble = { text: string; id: number; mood: MascotMood };
+/** A line he is saying in the header, drawn by `MascotBubble`. */
+export type SpokenLine = { text: string; id: number; mood: MascotMood };
 
 export type MascotControllerInit = {
   talentId: string;
@@ -86,7 +87,7 @@ export type MascotControllerInit = {
 
 export class MascotController {
   state = $state<MascotPhase>({ phase: 'awake' });
-  bubble = $state<MascotBubble | null>(null);
+  bubble = $state<SpokenLine | null>(null);
   /**
    * He is beaming, eyes squeezed in joy: for as long as he says good news, or
    * for a moment when he rejoices without a word. An id, so the header hops
