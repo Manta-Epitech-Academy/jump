@@ -286,16 +286,6 @@ describe('pickHomeHero', () => {
     total: 8,
     startedAt: null,
   });
-  const santa = activity('santa', 'club-octobre', {
-    solved: 1,
-    total: 30,
-    startedAt: '2026-10-03T10:00:00Z',
-  });
-  const linux = activity('linux', 'club-octobre', {
-    solved: 12,
-    total: 12,
-    startedAt: '2026-10-04T10:00:00Z',
-  });
   const both: TalentHomeHighlight = {
     event: pointedAt('camp', '2026-11-27'),
     invitation,
@@ -307,7 +297,6 @@ describe('pickHomeHero', () => {
       enrolled: [camp, stage],
       subjectsNow: [pacman, babel],
       highlight: both,
-      activities: [santa],
     });
     expect(hero).toMatchObject({
       kind: 'live',
@@ -324,7 +313,6 @@ describe('pickHomeHero', () => {
         enrolled: [stage],
         subjectsNow: [],
         highlight: both,
-        activities: [santa],
       }),
     ).toMatchObject({ kind: 'live', event: { id: 'stage' }, subjects: [] });
   });
@@ -337,7 +325,6 @@ describe('pickHomeHero', () => {
         enrolled: [club, stage],
         subjectsNow: [pacman],
         highlight: null,
-        activities: [],
       }),
     ).toMatchObject({ kind: 'live', event: { id: 'stage' } });
   });
@@ -349,7 +336,6 @@ describe('pickHomeHero', () => {
         enrolled: [club, camp],
         subjectsNow: [],
         highlight: both,
-        activities: [santa],
       }),
     ).toMatchObject({
       kind: 'enrolled',
@@ -370,7 +356,6 @@ describe('pickHomeHero', () => {
         enrolled: [today],
         subjectsNow: [],
         highlight: null,
-        activities: [],
       }),
     ).toMatchObject({ kind: 'enrolled', countdownDays: 0 });
   });
@@ -382,7 +367,6 @@ describe('pickHomeHero', () => {
         enrolled: [camp],
         subjectsNow: [],
         highlight: { event: pointedAt('camp', '2026-11-27'), invitation: null },
-        activities: [],
       }),
     ).toMatchObject({ kind: 'enrolled', event: { id: 'camp' } });
   });
@@ -394,7 +378,6 @@ describe('pickHomeHero', () => {
         enrolled: [ended],
         subjectsNow: [],
         highlight: both,
-        activities: [santa],
       }),
     ).toMatchObject({
       kind: 'invitation',
@@ -414,7 +397,6 @@ describe('pickHomeHero', () => {
         enrolled: [],
         subjectsNow: [],
         highlight: { event: null, invitation },
-        activities: [santa],
       }),
     ).toEqual({ kind: 'generic', invitation, buttonLabel: 'Je m’inscris' });
   });
@@ -425,10 +407,9 @@ describe('pickHomeHero', () => {
         now,
         enrolled: [ended],
         subjectsNow: [],
-        highlight: null,
-        activities: [santa, linux],
+        highlight: { event: null, invitation },
       }),
-    ).toEqual({ kind: 'continue', activity: santa });
+    ).toEqual({ kind: 'generic', invitation, buttonLabel: 'Je m’inscris' });
   });
 
   it('suggests nothing rather than filling the hero', () => {
@@ -438,7 +419,6 @@ describe('pickHomeHero', () => {
         enrolled: [],
         subjectsNow: [],
         highlight: null,
-        activities: [linux],
       }),
     ).toBeNull();
   });

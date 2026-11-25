@@ -16,8 +16,8 @@ import {
   XP_REWARDS,
 } from '../catalog/platform';
 import {
-  TALENT_HOME_INVITATIONS,
-  TALENT_HOME_NOTES,
+  invitationFor,
+  noteFor,
   TALENT_HOME_NOTE_IMAGES,
 } from '../catalog/talentHome';
 import {
@@ -137,65 +137,59 @@ export const platform: Scenario = {
       }
     }
 
-    // What the first campuses put on their talents' home (see the catalogue).
-    // Who to sign in as to see it is placed later, once the events exist
+    // What every campus puts on its talents' home (see the catalogue). Who to
+    // sign in as to see it is placed later, once the events exist
     // (`campusHome`), and reported there.
     for (const campus of campuses) {
-      const note = TALENT_HOME_NOTES[campus.name];
-      if (note) {
-        world.buffer.talentHome_Note.push({
-          campusId: campus.id,
-          markdown: note,
-          updatedAt: clock.today,
-        });
-        (TALENT_HOME_NOTE_IMAGES[campus.name] ?? []).forEach((image, index) => {
-          const key = noteImageKey(
-            campus.id,
-            '0000seed',
-            index,
-            image.animated ? 'gif' : 'webp',
-          );
-          world.buffer.talentHome_NoteImage.push({
-            campusId: campus.id,
-            sourceUrl: image.sourceUrl,
-            key,
-            stillKey: image.animated ? stillKeyOf(key) : null,
-            contentType: image.animated ? 'image/gif' : 'image/webp',
-            width: image.width,
-            height: image.height,
-          });
-        });
-      }
-      // The generic half. The event a campus points at is set by
-      // `campusHome`, once the events exist.
-      const highlight = TALENT_HOME_INVITATIONS[campus.name];
-      if (highlight)
-        world.buffer.talentHome_Highlight.push({
-          campusId: campus.id,
-          eventId: null,
-          title: highlight.title,
-          text: highlight.text,
-          url: highlight.url,
-          buttonLabel: highlight.buttonLabel,
-          updatedAt: clock.today,
-        });
-      if (highlight?.image) {
-        const { animated, width, height } = highlight.image;
-        const key = highlightImageKey(
+      world.buffer.talentHome_Note.push({
+        campusId: campus.id,
+        markdown: noteFor(campus.name),
+        updatedAt: clock.today,
+      });
+      (TALENT_HOME_NOTE_IMAGES[campus.name] ?? []).forEach((image, index) => {
+        const key = noteImageKey(
           campus.id,
           '0000seed',
-          animated ? 'gif' : 'webp',
+          index,
+          image.animated ? 'gif' : 'webp',
         );
-        world.buffer.talentHome_HighlightImage.push({
+        world.buffer.talentHome_NoteImage.push({
           campusId: campus.id,
-          sourceUrl: `https://assets.seed.invalid/talent-home/${campus.name.toLowerCase()}.${animated ? 'gif' : 'png'}`,
+          sourceUrl: image.sourceUrl,
           key,
-          stillKey: animated ? stillKeyOf(key) : null,
-          contentType: animated ? 'image/gif' : 'image/webp',
-          width,
-          height,
+          stillKey: image.animated ? stillKeyOf(key) : null,
+          contentType: image.animated ? 'image/gif' : 'image/webp',
+          width: image.width,
+          height: image.height,
         });
-      }
+      });
+      // The standing invitation. The event a campus points at is set by
+      // `campusHome`, once the events exist.
+      const invitation = invitationFor(campus.name);
+      world.buffer.talentHome_Highlight.push({
+        campusId: campus.id,
+        eventId: null,
+        title: invitation.title,
+        text: invitation.text,
+        url: invitation.url,
+        buttonLabel: invitation.buttonLabel,
+        updatedAt: clock.today,
+      });
+      const { sourceUrl, animated, width, height } = invitation.image;
+      const key = highlightImageKey(
+        campus.id,
+        '0000seed',
+        animated ? 'gif' : 'webp',
+      );
+      world.buffer.talentHome_HighlightImage.push({
+        campusId: campus.id,
+        sourceUrl,
+        key,
+        stillKey: animated ? stillKeyOf(key) : null,
+        contentType: animated ? 'image/gif' : 'image/webp',
+        width,
+        height,
+      });
     }
 
     // One signature that belongs to no campus: the national one, used where a

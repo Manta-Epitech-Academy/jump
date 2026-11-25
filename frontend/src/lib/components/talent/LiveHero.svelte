@@ -9,17 +9,13 @@
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import { resolve } from '$app/paths';
   import { cn } from '#lib/utils.ts';
-  import {
-    HERO_DEFAULT_BUTTON,
-    liveHeroHeader,
-  } from '#lib/domain/eventHero.ts';
+  import { liveHeroHeader } from '#lib/domain/eventHero.ts';
   import type { HomeHero } from '#lib/domain/talentHome.ts';
   import type { WorkshopActivity } from '#lib/domain/workshops.ts';
 
-  // The hero of a day the talent is at an event (`live`), and of a day with
-  // nothing else to suggest but a subject they started (`continue`). On an
-  // event day the hero is there to reach the subjects and nothing else (#412,
-  // AC6), so it is the one neon action of the page.
+  // The hero of a day the talent is at an event (`live`). On an event day the
+  // hero is there to reach the subjects and nothing else (#412, AC6), so it is
+  // the one neon action of the page.
   //
   // Several subjects at once are a choice, never a ranking (#501, AC2): a stage
   // de seconde offers three for a morning and the talent does one or two,
@@ -33,36 +29,19 @@
   // it, and a choice is named as one. With no subject at this moment (between
   // two half-days), the hero still says where the talent is, with the way into
   // the event's schedule: the card that used to hold that link is gone (AC11).
-  let { hero }: { hero: Extract<HomeHero, { kind: 'live' | 'continue' }> } =
-    $props();
+  let { hero }: { hero: Extract<HomeHero, { kind: 'live' }> } = $props();
 
-  const subjects = $derived<WorkshopActivity[]>(
-    hero.kind === 'live' ? hero.subjects : [hero.activity],
-  );
+  const subjects = $derived(hero.subjects);
   const header = $derived(
-    hero.kind === 'live'
-      ? liveHeroHeader(hero.copy, hero.event.name, hero.subjects)
-      : {
-          title: hero.activity.label,
-          text: hero.activity.cover.tagline,
-          subjectIsHeader: true,
-        },
+    liveHeroHeader(hero.copy, hero.event.name, hero.subjects),
   );
-  const buttonLabel = $derived(
-    hero.kind === 'live' ? hero.copy.buttonLabel : HERO_DEFAULT_BUTTON.live,
-  );
-  const planning = $derived(hero.kind === 'live' && hero.event.hasPlanning);
-  const categoryColor = $derived(
-    hero.kind === 'live' ? hero.event.categoryColor : null,
-  );
+  const buttonLabel = $derived(hero.copy.buttonLabel);
+  const planning = $derived(hero.event.hasPlanning);
+  const categoryColor = $derived(hero.event.categoryColor);
   // One subject gets the hero's two columns; several share it as tiles.
   const lone = $derived(subjects.length === 1 ? subjects[0] : null);
 
   let mascotBroken = $state<Record<string, true>>({});
-
-  const regionName = $derived(
-    hero.kind === 'live' ? 'En ce moment' : 'À continuer chez toi',
-  );
 </script>
 
 {#snippet heading()}
@@ -115,20 +94,16 @@
 {/snippet}
 
 <section aria-labelledby="live-hero-region">
-  <h2 id="live-hero-region" class="sr-only">{regionName}</h2>
+  <h2 id="live-hero-region" class="sr-only">En ce moment</h2>
   <PageHero density="compact" pixels={false} class="rounded-xl">
     <div class="flex flex-col gap-5">
-      {#if hero.kind === 'live'}
-        <p class="flex items-center gap-2 epi-overline text-white/80">
-          <span
-            class="size-2 shrink-0 rounded-full bg-epi-tech ring-3 ring-epi-tech/25"
-            aria-hidden="true"
-          ></span>
-          En ce moment{hero.event.name ? ` · ${hero.event.name}` : ''}
-        </p>
-      {:else}
-        <p class="epi-overline text-white/80">À continuer chez toi</p>
-      {/if}
+      <p class="flex items-center gap-2 epi-overline text-white/80">
+        <span
+          class="size-2 shrink-0 rounded-full bg-epi-tech ring-3 ring-epi-tech/25"
+          aria-hidden="true"
+        ></span>
+        En ce moment{hero.event.name ? ` · ${hero.event.name}` : ''}
+      </p>
 
       {#if lone}
         <!-- One subject: its words and its way in on the left, its cover on

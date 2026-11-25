@@ -25,7 +25,6 @@ import { CLUB_CERTIFICATE } from '../catalog/diplomas';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
 import { clubCategoryOf } from '../catalog/eventCategories';
 import { WORKSHOPS } from '../catalog/workshops';
-import { OPEN_HIGHLIGHT_CAMPUSES } from '../catalog/talentHome';
 import { COHORT_NOUNS, eventDisplayName } from '../../../src/lib/domain/event';
 import { EVENT_MODULES } from '../../../src/lib/domain/eventModules';
 import { conductClosing } from '../factories/closing';
@@ -116,10 +115,7 @@ export const club: Scenario = {
     'Format court et récurrent : une saison de séances, la grille Coding Club, des habitués.',
   run(world) {
     const { profile, rng, clock } = world.ctx;
-    // Never a campus whose highlight is open: it would lead the hero of every
-    // regular without an activity that day, over the activity they carry on at
-    // home, which is the state this scenario places for them.
-    const campus = world.pickCampus('Nice', OPEN_HIGHLIGHT_CAMPUSES);
+    const campus = world.pickCampus('Nice');
     const team = world.staffFor(campus.id);
     const clubTemplateId = id('clt', CLUB_TEMPLATE.key);
     const size = profile.name === 'ci' ? 8 : 24;
@@ -350,7 +346,7 @@ export const club: Scenario = {
         {
           role: 'talent (closing sans participation)',
           email: anchorRegular.email,
-          note: 'la participation de la première séance a été supprimée après coup ; le closing tient toujours. Sur son accueil : Pacman IA commencé et pas fini, que le bandeau bleu propose de continuer chez soi, et sa prochaine séance dans la carte de session ; « Mon parcours » le liste dans « Activités à faire »',
+          note: 'la participation de la première séance a été supprimée après coup ; le closing tient toujours. Sur son accueil : sa prochaine séance dans le bandeau bleu ; Pacman IA, commencé et pas fini, est dans « Activités à faire » de « Mon parcours »',
         },
       ],
     });

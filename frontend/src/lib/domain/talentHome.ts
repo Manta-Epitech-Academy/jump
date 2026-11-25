@@ -2,7 +2,7 @@ import { fromWallClock, toDateKey, type DateKey } from './planningTime';
 import { dateKeyParts, dateKeyToDbDate } from './eventPresence';
 import { eventPublicName, minutesToHHMM } from './event';
 import { EVENT_MISSING_LABELS, eventNotShownBecause } from './eventReadiness';
-import { isActivityFinished, type WorkshopActivity } from './workshops';
+import type { WorkshopActivity } from './workshops';
 import {
   heroCopy,
   HERO_DEFAULT_BUTTON,
@@ -239,11 +239,17 @@ export function talentHomeImageUrl(key: string): string {
  *      enrolled in it. Once their enrolment arrives from Salesforce the same
  *      talent falls in case 2 without anybody touching anything;
  *   4. `generic`: the campus's standing invitation (« Les Ateliers TECH »);
- *   5. `continue`: a subject the talent started and has not finished, which a
- *      Coding Club is designed for them to carry on at home: the most
- *      recently started first;
- *   6. nothing. The hero is not filled for the sake of it, and there is no
+ *   5. nothing. The hero is not filled for the sake of it, and there is no
  *      « after » stage: once an event is over the next case takes its place.
+ *      Reached by a talent with no enrolment at all, hence no campus, and by
+ *      one whose campus keeps no standing invitation: a campus not configured
+ *      yet, or one that pointed at an event alone and saw it pass. Production
+ *      keeps one on every campus, so the second does not happen today.
+ *
+ * A subject the talent started and has not finished is not a case (#547): it
+ * came after the generic invitation, which every campus keeps, so no talent
+ * ever reached it, and the next occasion to come back is what the hero is for.
+ * « Mon parcours » offers to carry it on.
  */
 export type HomeHero =
   | {
@@ -270,8 +276,7 @@ export type HomeHero =
       kind: 'generic';
       invitation: CampusInvitation;
       buttonLabel: string;
-    }
-  | { kind: 'continue'; activity: WorkshopActivity };
+    };
 
 /**
  * The states the hero is drawn in, as a screen tells them apart: each kind,
@@ -288,7 +293,6 @@ export const HOME_HERO_STATES = [
   'enrolled-day',
   'invitation',
   'generic',
-  'continue',
   'none',
 ] as const;
 export type HomeHeroState = (typeof HOME_HERO_STATES)[number];
@@ -417,7 +421,6 @@ export function pickHomeHero({
   enrolled,
   subjectsNow,
   highlight,
-  activities,
 }: {
   now: Date;
   /** The talent's shown enrolments whose event is not over. */
@@ -426,8 +429,6 @@ export function pickHomeHero({
   subjectsNow: WorkshopActivity[];
   /** What the campus puts forward, as `getTalentHome` reads it. */
   highlight: TalentHomeHighlight | null;
-  /** Every other subject offered (`TalentWorkshops.activities`). */
-  activities: WorkshopActivity[];
 }): HomeHero | null {
   const subjectsOf = (event: EnrolledEvent) =>
     subjectsNow.filter((subject) => subject.eventId === event.id);
@@ -496,8 +497,5 @@ export function pickHomeHero({
     };
   }
 
-  const inProgress = [...subjectsNow, ...activities]
-    .filter((a) => a.startedAt !== null && !isActivityFinished(a))
-    .sort((a, b) => b.startedAt!.getTime() - a.startedAt!.getTime());
-  return inProgress[0] ? { kind: 'continue', activity: inProgress[0] } : null;
+  return null;
 }
