@@ -21,8 +21,10 @@
  *   - Lyon points at nothing (`UNPOINTED_CAMPUS`), the campus that has planned
  *     nothing yet, and words its invitation its own way, with its own button
  *     label and a portrait picture;
- *   - every other campus points at its next Coding Club (`NEXT_CLUB`), the
- *     shape most campuses carry through the year.
+ *   - every other campus points at the next event it can invite to: the one
+ *     an earlier scenario placed there (the club's next session, on its
+ *     campus), or else its next Coding Club (`NEXT_CLUB`), the shape most
+ *     campuses carry through the year.
  *
  * The pictures are keys without bytes, since the generator stores the bytes
  * of the activities' pictures only (`storage.ts`), so the hero's fallback is
@@ -201,9 +203,10 @@ export const PAST_HIGHLIGHTED_EVENT = {
 export const UNPOINTED_CAMPUS = 'Lyon';
 
 /**
- * What every other campus points at: its next Coding Club, a session of its
- * own a week or two after the anchor, with its sign-up form. The day moves by
- * one per campus, so the campuses do not all meet on the same date.
+ * What every other campus points at when no scenario placed an event it can
+ * invite to: its next Coding Club, a session of its own a week or two after
+ * the anchor, with its sign-up form. The day moves by one per campus, so the
+ * campuses do not all meet on the same date.
  */
 export const NEXT_CLUB = {
   firstOffset: 6,
