@@ -11,7 +11,7 @@
   let { hero }: { hero: HomeHero } = $props();
 </script>
 
-{#if hero.kind === 'live' || hero.kind === 'continue'}
+{#if hero.kind === 'live'}
   <LiveHero {hero} />
 {:else if hero.kind === 'enrolled'}
   <EnrolledHero {hero} />

@@ -14,8 +14,7 @@
  *     (`storage.ts`), so the hero's fallback is what shows;
  *   - Marseille writes a note and still points at an open day that has since
  *     taken place (`PAST_HIGHLIGHTED_EVENT`): the home no longer shows it and
- *     `config_talent_home` says why. With nothing to lead its hero, it is a
- *     campus the club's regulars can carry an activity on at home from;
+ *     `config_talent_home` says why;
  *   - Lyon writes a generic invitation only, the shape every campus actually
  *     put forward in November 2026 (« toute l'année »), with its own button
  *     label and a still picture, the case of a picture with no still of its own.

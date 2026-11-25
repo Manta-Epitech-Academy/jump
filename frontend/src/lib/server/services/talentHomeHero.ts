@@ -160,7 +160,6 @@ export async function loadHomeHero(
     enrolled,
     subjectsNow: workshops.today,
     highlight: home.highlight,
-    activities: workshops.activities,
   });
   return { hero, workshops, home };
 }

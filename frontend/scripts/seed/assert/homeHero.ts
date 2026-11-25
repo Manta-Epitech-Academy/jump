@@ -213,7 +213,6 @@ export async function seededHomeHeroStates(
           enrolled,
           subjectsNow: offered.filter((o) => o.today).map(asActivity),
           highlight: highlightByCampus.get(latest.event.campusId) ?? null,
-          activities: offered.filter((o) => !o.today).map(asActivity),
         }),
       ),
     );
