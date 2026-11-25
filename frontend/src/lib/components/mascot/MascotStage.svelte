@@ -33,7 +33,8 @@
   There is one duck. When the stage opens, the header's duck steps out of sight
   (`enterStage`); when it ends, the stage fades away around him while he flies
   and shrinks onto the header's spot, and lets him go, so the header's comes
-  back. A page with no header duck fades him out instead. A page left
+  back. A page with no header duck, or one whose duck is asleep under the
+  water, fades him out instead: sleep quiets the header, never a celebration. A page left
   mid-celebration stops where it is: its beats are abandoned, and it lets him
   go at once, unless the next page's stage has taken him already.
 

@@ -18,8 +18,8 @@
   The bubble waits for the entrance to end (`.emerge + .said`), the mockup's
   1.8s way up (`EMERGE_MS`) or the 480ms hop.
 
-  Asleep, he is not drawn at all, as nowhere else: the talent asked for quiet,
-  and the page keeps its own picture (`fallback`).
+  Drawn asleep or awake: sleep quiets what he does of his own accord in the
+  header, never his answer to what the talent just did (`mascot.md`).
 
   Less motion asked: he fades in, and his bubble after him.
 -->
@@ -41,7 +41,6 @@
     atlas = 'lane',
     entrance,
     class: className,
-    fallback,
     children,
   }: {
     cue: MascotCue;
@@ -51,8 +50,6 @@
     entrance: 'emerge' | 'hop';
     /** His size. */
     class?: string;
-    /** What the page shows in his place when he is asleep. */
-    fallback?: Snippet;
     /** The page's own words, said by him above his line. */
     children?: Snippet;
   } = $props();
@@ -63,40 +60,35 @@
     page.data.talent ? mascotLookOf(page.data.talent) : DEFAULT_MASCOT_LOOK,
   );
   let line = $derived(mascot?.lineFor(cue) ?? null);
-  let awake = $derived(mascot !== null && !mascot.asleep);
 </script>
 
 <svelte:head>
-  {#if awake && atlas === 'stage'}
+  {#if atlas === 'stage'}
     <!-- The large duck is in no stylesheet: fetched with the page, so the way
          up does not start before there is a duck to bring up. -->
     <link rel="preload" as="image" href={STAGE_ATLAS_URL} />
   {/if}
 </svelte:head>
 
-{#if awake}
-  <div class="flex flex-col items-center gap-4">
-    <div class="duck origin-bottom {entrance}">
-      <EpiDuck
-        {atlas}
-        pose="front"
-        {look}
-        eyes={MASCOT_MOMENTS[cue.moment].mood === 'joy' ? 'joy' : 'open'}
-        class={className}
-      />
-    </div>
-    {#if children || line}
-      <div class="said flex w-full justify-center">
-        <MascotBubble class="max-w-md space-y-2 text-center">
-          {@render children?.()}
-          {#if line}<p>{line}</p>{/if}
-        </MascotBubble>
-      </div>
-    {/if}
+<div class="flex flex-col items-center gap-4">
+  <div class="duck origin-bottom {entrance}">
+    <EpiDuck
+      {atlas}
+      pose="front"
+      {look}
+      eyes={MASCOT_MOMENTS[cue.moment].mood === 'joy' ? 'joy' : 'open'}
+      class={className}
+    />
   </div>
-{:else}
-  {@render fallback?.()}
-{/if}
+  {#if children || line}
+    <div class="said flex w-full justify-center">
+      <MascotBubble class="max-w-md space-y-2 text-center">
+        {@render children?.()}
+        {#if line}<p>{line}</p>{/if}
+      </MascotBubble>
+    </div>
+  {/if}
+</div>
 
 <style>
   @media (prefers-reduced-motion: no-preference) {

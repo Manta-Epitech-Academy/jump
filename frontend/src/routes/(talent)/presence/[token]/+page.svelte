@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { prefersReducedMotion } from 'svelte/motion';
   import { resolve } from '$app/paths';
-  import PartyPopper from '@lucide/svelte/icons/party-popper';
   import CalendarCheck from '@lucide/svelte/icons/calendar-check';
   import Clock from '@lucide/svelte/icons/clock';
   import UserX from '@lucide/svelte/icons/user-x';
@@ -21,9 +20,7 @@
 
   const VIEW = {
     present: {
-      Icon: PartyPopper,
       title: 'C’est noté !',
-      badge: 'bg-epi-tech-ink/15 text-epi-tech-ink',
       blob: 'bg-epi-tech-ink/25',
       celebrate: true,
       ctaLabel: 'Retour à mon espace',
@@ -68,7 +65,6 @@
   } as const;
 
   const ui = $derived(VIEW[data.state]);
-  const Icon = $derived(ui.Icon);
 
   // Personalised punch line on success; the other states keep their plain
   // title. Typeset, so its « ! » never wraps alone.
@@ -101,38 +97,19 @@
     aria-hidden="true"
   ></div>
 
-  {#snippet badge()}
-    <div class="pop relative">
-      {#if ui.celebrate}
-        <span
-          class="absolute inset-0 rounded-full bg-epi-tech-ink/30 motion-safe:animate-ping"
-          aria-hidden="true"
-        ></span>
-      {/if}
-      <div
-        class="relative flex size-24 items-center justify-center rounded-full {ui.badge}"
-      >
-        <Icon class="size-12" />
-      </div>
-    </div>
-  {/snippet}
-
   {#if data.state === 'present'}
     <!-- The talent's duck confirms it himself (#540): the page's title is in
          his bubble, followed by his line, as on the welcome screen. What was
          recorded is a receipt under him, not a second voice saying it again:
          it is what the talent shows a staff member, so it is the code's, and
-         reads at a glance. Asleep, the page's badge and title say it. -->
+         reads at a glance. Asleep, he still comes to say it: sleep quiets
+         the header, not his answer to a check-in. -->
     <MascotCameo
       cue={{ moment: 'checkIn', tokens: { evenement: data.eventLabel } }}
       entrance="hop"
       class="h-28 w-19"
     >
       {@render title()}
-      {#snippet fallback()}
-        {@render badge()}
-        <div class="rise relative">{@render title()}</div>
-      {/snippet}
     </MascotCameo>
 
     <div
@@ -148,7 +125,13 @@
       </p>
     </div>
   {:else}
-    {@render badge()}
+    <!-- No duck says these: the page's badge and title do. -->
+    {@const { Icon, badge } = VIEW[data.state]}
+    <div
+      class="pop relative flex size-24 items-center justify-center rounded-full {badge}"
+    >
+      <Icon class="size-12" />
+    </div>
     <div class="rise relative max-w-sm space-y-2">
       {@render title()}
       <p class="text-pretty text-muted-foreground">

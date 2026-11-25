@@ -41,8 +41,8 @@
       <!-- The first meeting (#540): his duck comes out of the water and says
            the welcome himself, title and all, before the talent has given
            him a name. The page has no text of its own beside his: what it
-           used to say is his first line now, written by the PO. Asleep or
-           silent, the title stays. -->
+           used to say is his first line now, written by the PO. Silent, the
+           title stays. -->
       <MascotCameo
         cue={{ moment: 'firstMeeting' }}
         atlas="stage"
@@ -50,9 +50,6 @@
         class="h-36 w-24 sm:h-44 sm:w-29"
       >
         {@render title()}
-        {#snippet fallback()}
-          <div class="text-center">{@render title()}</div>
-        {/snippet}
       </MascotCameo>
 
       {#snippet title()}
