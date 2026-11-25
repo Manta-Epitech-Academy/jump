@@ -98,7 +98,11 @@
   let front = $derived(
     phase === 'awake' && (mascot?.facingTalent || idleFront),
   );
-  let swimming = $derived(phase === 'awake' && !mascot?.facingTalent);
+  // On stage, he waits where he was: the stage lands him on this spot, and a
+  // spot that swam on during the flight was missed.
+  let swimming = $derived(
+    phase === 'awake' && !mascot?.facingTalent && !mascot?.onStage,
+  );
   // Good news, said or not, lights his eyes up (#540).
   let eyes = $derived<DuckEyes>(
     mascot?.joy != null ? 'joy' : eyesClosed ? 'shut' : 'open',
@@ -453,8 +457,8 @@
     class="lane relative z-30 h-8 min-w-12 flex-1 self-stretch sm:min-w-24"
   >
     <!-- Out of sight, not out of the page, while a celebration draws him in
-         the middle of the screen: he keeps swimming his leg, so he is where
-         the talent expects him when the scene lands him back here. -->
+         the middle of the screen: he holds still, so the spot the scene
+         measures is still his when it lands him back on it. -->
     <div
       bind:this={swimmer}
       class="absolute bottom-0 left-0 w-12"

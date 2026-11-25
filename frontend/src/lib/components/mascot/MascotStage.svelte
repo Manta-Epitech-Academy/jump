@@ -4,19 +4,31 @@
   celebration, so two never overlap and each plays once: the XP of each source
   (`activityXp`, `dailyGameXp`…) and, last, a level reached.
 
-  A celebration is a gift, not a receipt, so it has three beats:
-    - XP: the amount pops and counts up, the duck hops in with his joy, and
-      says the line of its moment;
-    - a level: the bar of the level left fills and overflows (the wait), the new
-      level's badge and the duck appear (the reveal), confetti and his line (the
-      celebration).
-  The figures are the code's, the words the admin's (`lineFor`): with no live
-  line he is there and says nothing.
+  A celebration is a gift, not a receipt, so it comes in beats, and what is
+  won always comes before what he says about it:
+    - XP: the amount pops and counts up and he hops with his joy; his line
+      follows a moment later;
+    - a level: the bar of the level left fills and overflows (the wait), then
+      the new level's badge, confetti and his hop of joy (the reveal), then his
+      line.
+  Everything said at once was read as nothing in particular. The figures are
+  the code's, the words the admin's (`lineFor`): with no live line he is there
+  and says nothing.
+
+  Nothing on the stage moves to make room for what comes next: the bar, the
+  badge and the amount share one room above him, and his line has its room
+  below him from the first beat. A badge taller than the bar it replaced
+  pushed him down the screen, off it on a short window.
+
+  The stage is dark (`epiDark` at 90%, an `.on-dark` surface), not the
+  dialogs' grey: the talent pages are white cards, and white on a grey veil
+  over white cards could not be told apart. The duck's white outline and his
+  white bubble are what stand out on it.
 
   There is one duck. When the stage opens, the header's duck steps out of sight
-  (`enterStage`); when it closes, the stage's duck shrinks onto the header's
-  spot before the header's comes back (`leaveStage`). A page with no header
-  duck fades him out instead.
+  (`enterStage`); when it ends, the stage fades away around him while he flies
+  and shrinks onto the header's spot, and the header's comes back
+  (`leaveStage`). A page with no header duck fades him out instead.
 
   It asks nothing: a tap or Escape moves to the next beat. It is marked played
   before it plays (`ackCelebrations`), so leaving mid-animation never replays
@@ -40,6 +52,7 @@
   } from '#lib/server/talent/celebrations.ts';
   import type { CelebrationAck } from '#lib/validation/celebrations.ts';
   import EpiDuck, { STAGE_ATLAS_URL } from './EpiDuck.svelte';
+  import MascotBubble from './MascotBubble.svelte';
   import { useMascot } from './mascotController.svelte.ts';
   import { ackCelebrations } from './celebrations.remote';
 
@@ -55,10 +68,12 @@
 
   const mascot = useMascot()();
 
-  /** How long each beat holds the screen. */
-  const XP_MS = 2800;
+  /** How long each celebration holds the screen, its line included. */
+  const XP_MS = 3600;
   const LEVEL_FILL_MS = 900;
-  const LEVEL_MS = 4800;
+  const LEVEL_MS = 5600;
+  /** The breath between what is won and what he says about it. */
+  const LINE_DELAY_MS = 800;
   const LANDING_MS = 650;
   /** Lets the page settle before the first beat. */
   const SETTLE_MS = 300;
@@ -81,6 +96,8 @@
   let revealed = $state(false);
   let barRatio = $state(0);
   let line = $state<string | null>(null);
+  /** He is flying back to the header: the stage fades away around him. */
+  let landing = $state(false);
   let duck = $state<HTMLDivElement>();
 
   const queue: Celebration[] = [];
@@ -173,12 +190,17 @@
     if (alive) await land();
     current = null;
     line = null;
+    landing = false;
     mascot?.leaveStage();
     running = false;
   }
 
   async function showXp(item: Extract<Celebration, { kind: 'xp' }>) {
+    line = null;
     current = item;
+    triggerConfetti();
+    hop();
+    await wait(LINE_DELAY_MS);
     line =
       mascot?.lineFor({
         moment: item.moment,
@@ -187,9 +209,7 @@
           bonus: item.bonus?.toLocaleString('fr-FR'),
         },
       }) ?? null;
-    triggerConfetti();
-    hop();
-    await wait(XP_MS);
+    await wait(XP_MS - LINE_DELAY_MS);
   }
 
   async function showLevel(item: Extract<Celebration, { kind: 'level' }>) {
@@ -200,14 +220,15 @@
     // The wait: the bar of the level left fills to its end.
     requestAnimationFrame(() => (barRatio = 1));
     await wait(LEVEL_FILL_MS);
-    // The reveal and the celebration.
+    // The reveal, then what he says about it.
     revealed = true;
+    triggerConfetti();
+    hop();
+    await wait(LINE_DELAY_MS);
     line =
       mascot?.lineFor({ moment: 'levelUp', tokens: { niveau: item.level } }) ??
       null;
-    triggerConfetti();
-    hop();
-    await wait(LEVEL_MS - LEVEL_FILL_MS);
+    await wait(LEVEL_MS - LEVEL_FILL_MS - LINE_DELAY_MS);
   }
 
   /** His hop of joy, the lane's, at the stage's size. */
@@ -225,20 +246,29 @@
   }
 
   /**
-   * Back to the header: the stage's duck flies and shrinks onto the spot of
-   * the header's, which then shows again. Measured now, since he swam on.
+   * Back to the header: the stage fades away around him while he flies and
+   * shrinks onto the spot of the header's duck, which then shows again.
+   * Measured now, since the header's swam on meanwhile.
+   *
+   * He scales from the middle of his feet (`origin-bottom`), so that is the
+   * point carried onto the header duck's: a translation measured between the
+   * two top-left corners, applied to a duck shrinking towards his feet, left
+   * him short of the header, shrunk in the middle of the screen.
    */
   async function land(): Promise<void> {
+    line = null;
+    landing = true;
     const target = document.querySelector('[data-mascot-lane-duck]');
     if (!duck || !target || prefersReducedMotion.current) return;
     const from = duck.getBoundingClientRect();
     const to = target.getBoundingClientRect();
-    line = null;
+    const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+    const dy = to.bottom - from.bottom;
     await duck.animate(
       [
         { transform: 'translate(0, 0) scale(1)' },
         {
-          transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.height / from.height})`,
+          transform: `translate(${dx}px, ${dy}px) scale(${to.height / from.height})`,
         },
       ],
       { duration: LANDING_MS, easing: 'ease-in-out', fill: 'forwards' },
@@ -270,78 +300,81 @@
 
 {#if current}
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center px-4"
+    class="on-dark fixed inset-0 z-50 flex items-center justify-center px-4"
     transition:fade
   >
     <!-- The whole screen is the way past a beat: it asks nothing. -->
     <button
       type="button"
       aria-label="Continuer"
-      class="absolute inset-0 cursor-pointer {current.kind === 'level'
-        ? 'bg-black/50'
+      class="absolute inset-0 cursor-pointer bg-epi-dark/90 transition-opacity duration-320 {landing
+        ? 'opacity-0'
         : ''}"
       onclick={() => skip?.()}
     ></button>
 
     <div
-      class="pointer-events-none relative flex flex-col items-center gap-4 text-center"
+      class="pointer-events-none relative flex w-full max-w-sm flex-col items-center text-center"
     >
-      {#if current.kind === 'level'}
-        {#if revealed}
-          <div
-            in:fade
-            class="flex flex-col items-center gap-2 rounded-xl border border-border bg-card px-8 py-6 shadow-overlay"
-          >
-            <LevelBadge
-              level={current.level}
-              tone={current.tone}
-              decorative
-              class="size-20"
-            />
-            <p class="epi-overline text-muted-foreground">Nouveau niveau</p>
-            <p class="font-heading text-display-xl text-foreground">
-              {current.level}
-            </p>
-          </div>
-        {:else}
-          <div
-            class="h-3 w-64 overflow-hidden rounded-full border border-border bg-card"
-            aria-hidden="true"
-          >
+      <!-- What was won: one room for the bar, the badge and the amount, so
+           none of them moves him when it gives way to the next. -->
+      <div
+        class="grid h-44 w-full place-items-center transition-opacity duration-200 *:col-start-1 *:row-start-1 {landing
+          ? 'opacity-0'
+          : ''}"
+      >
+        {#if current.kind === 'level'}
+          {#if revealed}
+            <div in:fade class="flex flex-col items-center gap-2">
+              <LevelBadge
+                level={current.level}
+                tone={current.tone}
+                decorative
+                class="size-20"
+              />
+              <p class="epi-overline text-white/70">Nouveau niveau</p>
+              <p class="font-heading text-display-xl text-white">
+                {current.level}
+              </p>
+            </div>
+          {:else}
             <div
-              class="level-fill h-full w-(--progress) rounded-full bg-primary"
-              style:--progress="{Math.round(barRatio * 100)}%"
-            ></div>
-          </div>
-        {/if}
-      {/if}
-
-      <!-- He watches the bar fill, eyes open, and lights up at the reveal. -->
-      <div class="flex flex-col items-center gap-3">
-        <div bind:this={duck} class="origin-bottom">
-          <EpiDuck
-            atlas="stage"
-            pose="front"
-            {look}
-            eyes={current.kind === 'level' && !revealed ? 'open' : 'joy'}
-            class="h-44 w-29 sm:h-56 sm:w-37"
-          />
-        </div>
-        {#if line}
-          <p
-            in:fade
-            class="max-w-72 rounded-xl border border-border bg-card px-4 py-3 font-mono text-sm leading-snug font-bold text-primary shadow-overlay"
-          >
-            {line}
-          </p>
+              class="h-3 w-64 overflow-hidden rounded-full bg-white/15"
+              aria-hidden="true"
+            >
+              <div
+                class="level-fill h-full w-(--progress) rounded-full bg-white"
+                style:--progress="{Math.round(barRatio * 100)}%"
+              ></div>
+            </div>
+          {/if}
+        {:else}
+          {#key current}
+            <XpFloat amount={current.xp} label={XP_LABEL[current.moment]} />
+          {/key}
         {/if}
       </div>
 
-      {#if current.kind === 'xp'}
-        {#key current}
-          <XpFloat amount={current.xp} label={XP_LABEL[current.moment]} />
-        {/key}
-      {/if}
+      <!-- He watches the bar fill, eyes open, and lights up at the reveal. -->
+      <div bind:this={duck} class="mt-2 origin-bottom">
+        <EpiDuck
+          atlas="stage"
+          pose="front"
+          {look}
+          eyes={current.kind === 'level' && !revealed ? 'open' : 'joy'}
+          class="h-44 w-29 sm:h-56 sm:w-37"
+        />
+      </div>
+
+      <!-- His line's room, held from the first beat: the line arrives under
+           him without moving him. -->
+      <div class="mt-4 flex h-32 w-full justify-center">
+        {#if line}
+          <div transition:fade class="h-max">
+            <MascotBubble class="max-w-72">{line}</MascotBubble>
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
 {/if}
