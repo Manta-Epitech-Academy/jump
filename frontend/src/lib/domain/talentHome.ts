@@ -241,8 +241,10 @@ export function talentHomeImageUrl(key: string): string {
  *   4. `generic`: the campus's standing invitation (« Les Ateliers TECH »);
  *   5. nothing. The hero is not filled for the sake of it, and there is no
  *      « after » stage: once an event is over the next case takes its place.
- *      Every campus keeps a standing invitation, so in practice only a talent
- *      with no enrolment at all, hence no campus, gets here.
+ *      Reached by a talent with no enrolment at all, hence no campus, and by
+ *      one whose campus keeps no standing invitation: a campus not configured
+ *      yet, or one that pointed at an event alone and saw it pass. Production
+ *      keeps one on every campus, so the second does not happen today.
  *
  * A subject the talent started and has not finished is not a case (#547): it
  * came after the generic invitation, which every campus keeps, so no talent
