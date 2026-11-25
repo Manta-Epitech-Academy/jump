@@ -18,9 +18,11 @@
  *   - Marseille still points at an open day that has since taken place
  *     (`PAST_HIGHLIGHTED_EVENT`): the home no longer shows it, its invitation
  *     leads instead, and `config_talent_home` says why;
- *   - Lyon points at nothing, the campus that has planned nothing yet, and
- *     words its invitation its own way, with its own button label and a
- *     portrait picture.
+ *   - Lyon points at nothing (`UNPOINTED_CAMPUS`), the campus that has planned
+ *     nothing yet, and words its invitation its own way, with its own button
+ *     label and a portrait picture;
+ *   - every other campus points at its next Coding Club (`NEXT_CLUB`), the
+ *     shape most campuses carry through the year.
  *
  * The pictures are keys without bytes, since the generator stores the bytes
  * of the activities' pictures only (`storage.ts`), so the hero's fallback is
@@ -183,7 +185,8 @@ export const HIGHLIGHTED_EVENT = {
 
 /**
  * An event a campus pointed at while it was still to come, and which has since
- * started: the pointer stays until somebody rewrites it, and shows nothing.
+ * started: the pointer stays until somebody rewrites it, and shows nothing, so
+ * the campus's standing invitation leads its hero.
  */
 export const PAST_HIGHLIGHTED_EVENT = {
   campus: 'Marseille',
@@ -193,3 +196,21 @@ export const PAST_HIGHLIGHTED_EVENT = {
   signupUrl:
     'https://www.epitech.invalid/journees-portes-ouvertes/?CampaignId=sd-jpo',
 } as const;
+
+/** The campus that points at nothing: its talents see its invitation alone. */
+export const UNPOINTED_CAMPUS = 'Lyon';
+
+/**
+ * What every other campus points at: its next Coding Club, a session of its
+ * own a week or two after the anchor, with its sign-up form. The day moves by
+ * one per campus, so the campuses do not all meet on the same date.
+ */
+export const NEXT_CLUB = {
+  firstOffset: 6,
+  spread: 8,
+  startMinutes: 14 * 60,
+} as const;
+
+export function nextClubSignupUrl(campusName: string): string {
+  return `https://www.epitech.invalid/inscription-coding-club/?CampaignId=sd-club-${urlSlug(campusName)}`;
+}
