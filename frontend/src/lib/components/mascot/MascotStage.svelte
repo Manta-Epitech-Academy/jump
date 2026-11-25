@@ -51,6 +51,7 @@
   import XpFloat from '#lib/components/talent/XpFloat.svelte';
   import LevelBadge from '#lib/components/talent/LevelBadge.svelte';
   import { DEFAULT_MASCOT_LOOK, mascotLookOf } from '#lib/domain/mascot.ts';
+  import { typeset } from '#lib/domain/typography.ts';
   import type { Celebration, ReachedLevel } from '#lib/domain/celebrations.ts';
   import type { PendingCelebrations } from '#lib/server/talent/celebrations.ts';
   import type { CelebrationAck } from '#lib/validation/celebrations.ts';
@@ -88,7 +89,7 @@
     arrivalXp: 'Bienvenue',
     earlyArrivalXp: 'Bienvenue',
     activityXp: 'Activité en cours',
-    dailyGameXp: 'Défi relevé !',
+    dailyGameXp: typeset('Défi relevé !'),
     rankXp: 'Top du campus',
   };
 

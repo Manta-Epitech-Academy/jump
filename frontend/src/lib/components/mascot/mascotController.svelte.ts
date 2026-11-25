@@ -27,6 +27,7 @@ import { getContext, setContext } from 'svelte';
 import { prefersReducedMotion } from 'svelte/motion';
 import { toast } from 'svelte-sonner';
 import { pickLine } from '#lib/domain/pickLine.ts';
+import { typeset } from '#lib/domain/typography.ts';
 import {
   MASCOT_MOMENTS,
   fillLine,
@@ -240,7 +241,7 @@ export class MascotController {
     const lines = this.#init.voice()[cue.moment] ?? [];
     if (lines.length === 0) return null;
     const line = pickLine(lines, `${this.#init.talentId}:${this.#init.today}`);
-    return fillLine(line, { ...this.#init.tokens(), ...cue.tokens });
+    return this.#spoken(line, cue.tokens);
   }
 
   /**
@@ -304,10 +305,16 @@ export class MascotController {
   }
 
   #say(line: string, moment: MascotMomentKey): void {
-    this.#show(
-      fillLine(line, this.#init.tokens()),
-      MASCOT_MOMENTS[moment].mood,
-    );
+    this.#show(this.#spoken(line), MASCOT_MOMENTS[moment].mood);
+  }
+
+  /**
+   * A line as he says it: its tokens filled, then typeset (`typeset`), so a
+   * « ! » or a « : » never wraps alone onto the next line of his bubble. The
+   * PO types ordinary spaces; the binding is display-only, never stored.
+   */
+  #spoken(line: string, tokens?: MascotTokenValues): string {
+    return typeset(fillLine(line, { ...this.#init.tokens(), ...tokens }));
   }
 
   #show(text: string, mood: MascotMood): void {

@@ -12,6 +12,7 @@
   import { statusLabelFr } from '#lib/domain/eventPresence.ts';
   import { triggerConfetti } from '#lib/actions/confetti.ts';
   import MascotCameo from '#lib/components/mascot/MascotCameo.svelte';
+  import { typeset } from '#lib/domain/typography.ts';
 
   let { data } = $props();
 
@@ -69,11 +70,14 @@
   const ui = $derived(VIEW[data.state]);
   const Icon = $derived(ui.Icon);
 
-  // Personalised punch line on success; the other states keep their plain title.
+  // Personalised punch line on success; the other states keep their plain
+  // title. Typeset, so its « ! » never wraps alone.
   const headline = $derived(
-    data.state === 'present' && data.prenom
-      ? `C’est noté, ${data.prenom} !`
-      : ui.title,
+    typeset(
+      data.state === 'present' && data.prenom
+        ? `C’est noté, ${data.prenom} !`
+        : ui.title,
+    ),
   );
 
   onMount(() => {

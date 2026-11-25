@@ -122,11 +122,15 @@ describe('MascotController, the lines that wait their turn', () => {
       moment: 'feedbackDone',
       tokens: { evenement: 'Coding Club' },
     });
-    expect(mascot.bubble).toMatchObject({ text: 'Salut Lina !', mood: 'calm' });
+    // Said typeset: the « ! » is bound to the word before it.
+    expect(mascot.bubble).toMatchObject({
+      text: 'Salut Lina\u00A0!',
+      mood: 'calm',
+    });
 
     await after(BUBBLE_MS + BETWEEN_LINES_MS);
     expect(mascot.bubble).toMatchObject({
-      text: 'Merci pour Coding Club !',
+      text: 'Merci pour Coding Club\u00A0!',
       mood: 'joy',
     });
 
@@ -142,7 +146,7 @@ describe('MascotController, the lines that wait their turn', () => {
     expect(mascot.bubble).toBeNull();
 
     mascot.leaveStage();
-    expect(mascot.bubble).toMatchObject({ text: 'Salut Lina !' });
+    expect(mascot.bubble).toMatchObject({ text: 'Salut Lina\u00A0!' });
   });
 
   it('says nothing asleep, and keeps nothing for when he wakes', async () => {
@@ -194,7 +198,9 @@ describe('MascotController, on arrival', () => {
     const mascot = arriving();
     mascot.arrive();
     await after(GREETING_DELAY_MS);
-    expect(mascot.bubble).toMatchObject({ text: 'Demain, Coding Club !' });
+    expect(mascot.bubble).toMatchObject({
+      text: 'Demain, Coding Club\u00A0!',
+    });
 
     await after(BUBBLE_MS + BETWEEN_LINES_MS + BUBBLE_MS);
     expect(mascot.bubble).toBeNull();

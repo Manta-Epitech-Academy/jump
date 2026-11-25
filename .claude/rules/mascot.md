@@ -33,6 +33,8 @@ Talents are often minors, and he speaks to each one by name. A line:
 
 The tool description of `write_mascot_line` carries these rules to the model that writes for the PO, since that model is the author in practice.
 
+A line is typeset when he says it, never when it is stored: the controller passes every line through `typeset` (`domain/typography.ts`, the rule the questionnaires and authored Markdown already follow), so the space before « ! ? : ; » and inside guillemets is a no-break one and the punctuation never wraps alone onto the next line of a bubble (QA, 25/11/2026). The PO types ordinary spaces.
+
 ## Where he lives, and what holds his state
 
 - **In every talent header** (`TalentPageHeader` mounts `MascotLane` and the sleep button), never in the staff or parent spaces. A page without that header has no duck unless a moment brings him there: the welcome screen and a successful check-in draw him through `MascotCameo`.
