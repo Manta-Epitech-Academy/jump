@@ -2,10 +2,9 @@
  * Somebody to sign in as, to see what a campus puts on its talents' home, and
  * the event that campus puts forward.
  *
- * The note and the generic invitation are platform facts, written by `platform`
- * with the campuses (`catalog/talentHome.ts`), and `club` keeps its regulars off
- * any campus that puts something forward. What this adds is the event the
- * campus points at (`HIGHLIGHTED_EVENT`), which needs the events, and the
+ * The note and the standing invitation are platform facts, written by
+ * `platform` with the campuses (`catalog/talentHome.ts`). What this adds is the
+ * event a campus points at (`HIGHLIGHTED_EVENT`), which needs the events, and the
  * persona: a talent of that campus, onboarded, whose only enrolment is a Coding
  * Club a few days out. Nothing runs for them today.
  *
@@ -16,7 +15,6 @@
 
 import {
   HIGHLIGHTED_EVENT,
-  OPEN_HIGHLIGHT_CAMPUSES,
   PAST_HIGHLIGHTED_EVENT,
 } from '../catalog/talentHome';
 import { codingClubPublicName, codingClubTitre } from '../catalog/events';
@@ -34,12 +32,23 @@ export const campusHome: Scenario = {
   run(world) {
     const { clock } = world.ctx;
     const campuses = [...world.campuses.values()];
-    const campus =
-      campuses.find((c) => c.name === HIGHLIGHTED_EVENT.campus) ??
-      campuses.find((c) => OPEN_HIGHLIGHT_CAMPUSES.has(c.name));
+    // The row `platform` wrote with the campus's standing invitation, which
+    // keeps it: pointing at an event puts the event in front of it.
+    const pointAt = (campusId: string, eventId: string, updatedAt: Date) => {
+      const row = world.buffer.talentHome_Highlight.find(
+        (r) => r.campusId === campusId,
+      );
+      if (!row)
+        throw new Error(
+          `Le campus ${campusId} n’a pas d’invitation à mettre derrière son événement.`,
+        );
+      row.eventId = eventId;
+      row.updatedAt = updatedAt;
+    };
+    const campus = campuses.find((c) => c.name === HIGHLIGHTED_EVENT.campus);
     if (!campus)
       throw new Error(
-        'Aucun campus du profil ne met d’événement ni d’invitation en avant.',
+        `Le campus ${HIGHLIGHTED_EVENT.campus} manque au profil : il est le premier de tous.`,
       );
 
     // The camp the campus points at, after the persona's club: an event of its
@@ -64,23 +73,14 @@ export const campusHome: Scenario = {
         },
       },
     });
-    const row = world.buffer.talentHome_Highlight.find(
-      (r) => r.campusId === campus.id,
-    );
-    if (row) row.eventId = camp.id;
-    else
-      world.buffer.talentHome_Highlight.push({
-        campusId: campus.id,
-        eventId: camp.id,
-        updatedAt: clock.today,
-      });
+    pointAt(campus.id, camp.id, clock.today);
 
     // A pointer the calendar has overtaken: put forward while it was to come,
-    // started since, and left there. Its campus puts nothing else forward.
+    // started since, and left there. Its standing invitation leads instead.
     const stale = campuses.find(
       (c) => c.name === PAST_HIGHLIGHTED_EVENT.campus,
     );
-    if (stale && !OPEN_HIGHLIGHT_CAMPUSES.has(stale.name)) {
+    if (stale) {
       const days = world.eventWindow(
         PAST_HIGHLIGHTED_EVENT.dayOffset,
         PAST_HIGHLIGHTED_EVENT.days,
@@ -94,11 +94,11 @@ export const campusHome: Scenario = {
         days,
         signupUrl: PAST_HIGHLIGHTED_EVENT.signupUrl,
       });
-      world.buffer.talentHome_Highlight.push({
-        campusId: stale.id,
-        eventId: openDay.id,
-        updatedAt: clock.days(PAST_HIGHLIGHTED_EVENT.dayOffset - 10),
-      });
+      pointAt(
+        stale.id,
+        openDay.id,
+        clock.days(PAST_HIGHLIGHTED_EVENT.dayOffset - 10),
+      );
     }
 
     const days = world.eventWindow(SESSION_OFFSET, 1);
@@ -145,8 +145,9 @@ export const campusHome: Scenario = {
       campus: campus.name,
       covers: [
         `${campus.name} : un mot du campus (titre, liste, liens), une invitation générique avec une image, et le ${HIGHLIGHTED_EVENT.publicName} mis en avant, avec son texte et son image d’invitation`,
-        `${PAST_HIGHLIGHTED_EVENT.campus} : un mot du campus et une ${PAST_HIGHLIGHTED_EVENT.publicName.toLowerCase()} mise en avant qui a eu lieu depuis, que l’accueil ne montre plus`,
+        `${PAST_HIGHLIGHTED_EVENT.campus} : une ${PAST_HIGHLIGHTED_EVENT.publicName.toLowerCase()} mise en avant qui a eu lieu depuis, que l’accueil ne montre plus : l’invitation générique passe devant`,
         'Lyon : une invitation générique seule (« toute l’année »), avec son propre libellé de bouton',
+        'chaque campus : un mot du campus et l’invitation générique « Les Ateliers TECH », avec son image',
       ],
       accounts: [
         {

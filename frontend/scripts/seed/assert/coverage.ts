@@ -102,6 +102,12 @@ const NEVER_SEEDED: Readonly<Record<string, string>> = {
     'la synchronisation refuse un contact sans prénom ou sans nom (`MISSING_NAME` dans `syncService`) et `reconciliationService` le suppose : Salesforce « porte toujours les deux ». Un miroir à nom nul ne peut donc pas exister, et le schéma est plus permissif que le code qui l’écrit.',
   'TalentSfImport.prenom': 'voir `TalentSfImport.nom`.',
 
+  // ── Ce que l'accueil des talents ne laisse jamais. ──
+  'TalentHome_Highlight.title':
+    'chaque campus garde toute l’année son invitation générique derrière l’événement qu’il met en avant, comme en production (#547). Un jeu de données ouvert après la date de cet événement retombe donc sur elle. Une ligne sans invitation laisserait les talents du campus sans bandeau dès l’événement passé, l’écran que #547 retire. L’écriture l’accepte (`write_talent_home_highlight` avec `invitation: null`), l’équipe ne la laisse jamais.',
+  'TalentHome_Highlight.text': 'voir `TalentHome_Highlight.title`.',
+  'TalentHome_Highlight.url': 'voir `TalentHome_Highlight.title`.',
+
   // ── Une ligne que le générateur ne réécrit pas. ──
   'MinigameConfig.enabled':
     'la rotation est une curation de l’hôte, écrite en create-only et jamais réinitialisée par une re-génération. Sa valeur dépend donc de l’historique de la base et non de ce run : ni l’une ni l’autre branche n’est garantie, et une vérification qui dépend de l’ordre des exécutions vaut moins que pas de vérification.',

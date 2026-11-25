@@ -18,13 +18,14 @@
  *     carries those). The one without a subject has no arrival time, so it is
  *     under way from midnight;
  *   - the two enrolled talents are expected days ahead, never today;
- *   - the invited talent, the generic one and the Marseille one came to an
- *     event weeks ago, which is what makes the campus theirs
- *     (`resolveTalentCampus`) and leaves them with nothing to come.
+ *   - the invited talent and the generic one came to an event weeks ago,
+ *     which is what makes the campus theirs (`resolveTalentCampus`) and leaves
+ *     them with nothing to come;
+ *   - the talent with no hero has no enrolment left, hence no campus: every
+ *     campus keeps a standing invitation, so nothing else leaves a hero empty.
  *
- * The campuses are the three every profile has (`catalog/talentHome.ts`):
- * Paris points at its camp, Lyon only invites « toute l'année », Marseille's
- * pointer has been overtaken and leaves its talents no hero.
+ * The campuses are two every profile has (`catalog/talentHome.ts`): Paris
+ * points at its camp, Lyon only invites « toute l'année ».
  *
  * And one talent whose only event is a stage under way that no admin activated
  * (#516): a schedule and a subject her screens never show, the example
@@ -292,15 +293,20 @@ export const homeHero: Scenario = {
       note: 'l’invitation « toute l’année » de Lyon, avec son libellé de bouton',
     });
 
+    // ── Plus aucune inscription : aucun campus ne parle pour elle ──────────
+    // Every campus keeps a standing invitation, so the empty hero belongs to
+    // a talent with no enrolment at all, who has no campus (`getTalentHome`):
+    // one whose only enrolment a full Salesforce pass has since removed, her
+    // account and her dossier left standing.
     placed.push({
       state: 'none',
       talent: persona(world, {
         prenom: 'Rose',
         nom: 'Rien',
         campus: marseille,
-        events: [past(marseille, 'bandeau-passe-rien', -30)],
+        events: [],
       }),
-      note: 'rien à mettre en avant : l’accueil sans bandeau',
+      note: 'plus aucune inscription, donc aucun campus : l’accueil sans bandeau',
     });
 
     // ── Inscrite à un stage que personne n'a activé (#516) ─────────────────
@@ -336,7 +342,7 @@ export const homeHero: Scenario = {
       covers: [
         'pendant un événement : trois sujets au choix sans qu’aucun ne passe devant, un sujet seul comme sur la maquette, aucun sujet à ce moment avec « Voir le planning »',
         'inscrit : le compte à rebours, l’heure d’accueil quand l’événement en a une, « Ajouter à mon agenda »',
-        `invité au ${HIGHLIGHTED_EVENT.publicName} de ${HIGHLIGHTED_EVENT.campus}, l’invitation générique de Lyon, et un accueil sans bandeau`,
+        `invité au ${HIGHLIGHTED_EVENT.publicName} de ${HIGHLIGHTED_EVENT.campus}, l’invitation générique de Lyon, et l’accueil sans bandeau d’une talent qui n’a plus aucune inscription`,
         'inscrite à un stage en cours que personne n’a activé : l’accueil, le planning et les activités le taisent, et l’espace dev ne l’ouvre pas',
       ],
       accounts: placed.map(({ state, talent, note }) => ({

@@ -61,7 +61,8 @@ export async function seededHomeHeroStates(
   now: Date,
 ): Promise<Set<HomeHeroState>> {
   const seeded = { startsWith: SEED_ID_PREFIX };
-  const [enrolments, entries, highlights] = await Promise.all([
+  const [talents, enrolments, entries, highlights] = await Promise.all([
+    prisma.talent.findMany({ where: { id: seeded }, select: { id: true } }),
     prisma.participation.findMany({
       where: { talentId: seeded },
       select: {
@@ -140,12 +141,16 @@ export async function seededHomeHeroStates(
   }
 
   const entriesByTalent = groupBy(entries, (entry) => entry.talentId);
+  const enrolmentsByTalent = groupBy(enrolments, (e) => e.talentId);
   const states = new Set<HomeHeroState>();
-  for (const [talentId, own] of groupBy(enrolments, (e) => e.talentId)) {
+  for (const { id: talentId } of talents) {
+    const own = enrolmentsByTalent.get(talentId) ?? [];
     // `resolveTalentCampus`: the campus of the talent's latest event, any
-    // event, since it names none.
-    const latest = own.reduce((a, b) =>
-      b.event.date.getTime() > a.event.date.getTime() ? b : a,
+    // event, since it names none. A talent with no enrolment at all belongs
+    // to no campus, and `getTalentHome(null)` gives them nothing to show.
+    const latest = own.reduce<(typeof own)[number] | null>(
+      (a, b) => (!a || b.event.date.getTime() > a.event.date.getTime() ? b : a),
+      null,
     );
     // `enrolledNotOverWhere` and `offeredWorkshops`: only the events an admin
     // activated are read at all.
@@ -212,7 +217,9 @@ export async function seededHomeHeroStates(
           now,
           enrolled,
           subjectsNow: offered.filter((o) => o.today).map(asActivity),
-          highlight: highlightByCampus.get(latest.event.campusId) ?? null,
+          highlight: latest
+            ? (highlightByCampus.get(latest.event.campusId) ?? null)
+            : null,
         }),
       ),
     );
