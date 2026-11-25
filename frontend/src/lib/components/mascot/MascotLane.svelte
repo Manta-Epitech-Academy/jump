@@ -190,10 +190,14 @@
   });
 
   // Pause the swim while he talks, sleeps or dives; resume where he stopped.
+  // Only a leg under way is paused, and only a paused one is played: `play()`
+  // on a leg already swum rewinds it, and he jumped back to where it started
+  // and swam it again, as soon as a bubble said at the end of a leg was over.
   $effect(() => {
     if (!swimAnimation) return;
-    if (swimming) swimAnimation.play();
-    else swimAnimation.pause();
+    const state = swimAnimation.playState;
+    if (swimming && state === 'paused') swimAnimation.play();
+    else if (!swimming && state === 'running') swimAnimation.pause();
   });
 
   // Down and up. The controller times the phases; this only draws them, and a
