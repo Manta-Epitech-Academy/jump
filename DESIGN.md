@@ -889,14 +889,17 @@ coming from nowhere.
 **His stage is the one celebration** (#540). XP earned and a level reached are
 played in the middle of the screen with him drawn large, from an atlas rendered
 for that size (`epiduck-stage.webp`), never the header's scaled up. What is won
-comes first and his line 0.8 s after it: an amount pops and counts up (the XP
-float's 2.2 s) as he hops, 3.6 s in all; a level is the bar of the level left
-filling (0.9 s), then the new badge with confetti and his hop, then his line,
-5.6 s in all. The stage is an `.on-dark` surface over `epiDark` at 90%, not the
+comes first and his line after it: an amount pops and counts up (the XP
+float's 2.2 s) as he hops, and pours into the bar of the talent's level, named
+at both ends (0.4 s in, 0.8 s to fill); his line follows, 4 s in all. An amount
+that crosses into a level fills its bar to the end, and the new badge comes out
+of it with confetti and a second hop, then his one line, 5.6 s in all. The bar
+never appears without an amount filling it. A level with no amount to show is
+its badge alone. The stage is an `.on-dark` surface over `epiDark` at 90%, not the
 dialogs' `bg-black/50`: the talent pages are white cards, and a white card on a
 grey veil over them could not be told apart. Nothing on it sits on a card; the
 badge and the level's name stand on the dark, and his white outline and his
-bubble carry him. The bar, the badge and the amount share one room above him
+bubble carry him. The amount and its bar, then the badge, share one room above him
 and his line has its room below him from the first beat, so nothing he stands
 in moves. One beat at a time, and a tap or Escape moves on: it is the only
 moment he covers the page, and it asks nothing. When it ends the stage fades
