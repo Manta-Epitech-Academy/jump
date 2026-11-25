@@ -2,31 +2,38 @@
   EpiDuck drawn in a page that has no header to swim in (#540): the welcome
   screen, where he introduces himself, and the émargement, where he confirms
   the talent is there. He comes in (out of the water on the welcome, a hop of
-  joy on the émargement), faces the talent and says the line of his moment.
+  joy on the émargement), faces the talent, and his bubble opens under him.
 
-  The line is the controller's (`lineFor`), so it is the admin's, rotated as
-  every other: with no live line he is there and says nothing. Asleep, he is
-  not drawn at all, as nowhere else: the talent asked for quiet, and the page
-  keeps its own picture.
+  The bubble holds the line of his moment, from the controller (`lineFor`),
+  so it is the admin's, rotated as every other: with no live line he says
+  nothing. A page can put its own words in his mouth above that line
+  (`children`): the welcome screen's title is his, so the screen has one voice
+  rather than a duck and a page saying the same thing side by side.
 
-  Drawn once the page is in the browser, never by the server: he arrives, and
-  an entrance replayed over a duck already painted would flash.
+  Drawn by the server with everything else, and his entrance is CSS that
+  starts from the first paint: the duck and his bubble hold their room from
+  the start, so nothing under them moves when they appear. Drawn after
+  hydration instead, the bubble pushed the whole page down when it arrived.
+  The bubble waits for the entrance to end (`.emerge + .said`), the mockup's
+  1.8s way up (`EMERGE_MS`) or the 480ms hop.
 
-  Less motion asked: he fades in, and his line after him.
+  Asleep, he is not drawn at all, as nowhere else: the talent asked for quiet,
+  and the page keeps its own picture (`fallback`).
+
+  Less motion asked: he fades in, and his bubble after him.
 -->
 <script lang="ts">
-  import { onMount, type Snippet } from 'svelte';
+  import type { Snippet } from 'svelte';
   import { page } from '$app/state';
-  import { prefersReducedMotion } from 'svelte/motion';
-  import { fade } from '#lib/motion/index.ts';
   import {
     DEFAULT_MASCOT_LOOK,
     MASCOT_MOMENTS,
     mascotLookOf,
     type MascotCue,
   } from '#lib/domain/mascot.ts';
-  import EpiDuck from './EpiDuck.svelte';
-  import { EMERGE_MS, useMascot } from './mascotController.svelte.ts';
+  import EpiDuck, { STAGE_ATLAS_URL } from './EpiDuck.svelte';
+  import MascotBubble from './MascotBubble.svelte';
+  import { useMascot } from './mascotController.svelte.ts';
 
   let {
     cue,
@@ -34,6 +41,7 @@
     entrance,
     class: className,
     fallback,
+    children,
   }: {
     cue: MascotCue;
     /** 'stage' when he is drawn larger than the settings card's 112px. */
@@ -44,86 +52,112 @@
     class?: string;
     /** What the page shows in his place when he is asleep. */
     fallback?: Snippet;
+    /** The page's own words, said by him above his line. */
+    children?: Snippet;
   } = $props();
 
   const mascot = useMascot()();
-  const HOP_MS = 480;
 
   let look = $derived(
     page.data.talent ? mascotLookOf(page.data.talent) : DEFAULT_MASCOT_LOOK,
   );
   let line = $derived(mascot?.lineFor(cue) ?? null);
-  let mounted = $state(false);
-  let spoken = $state(false);
-  let duck = $state<HTMLDivElement>();
-
-  onMount(() => {
-    mounted = true;
-    if (!mascot || mascot.asleep) return;
-    const reduced = prefersReducedMotion.current;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    // After the paint that put him in the page, so the entrance has a start.
-    const frame = requestAnimationFrame(() => {
-      const ms = reduced ? 200 : entrance === 'emerge' ? EMERGE_MS : HOP_MS;
-      duck?.animate(
-        reduced
-          ? [{ opacity: 0 }, { opacity: 1 }]
-          : entrance === 'emerge'
-            ? [
-                { transform: 'translateY(60%) rotate(-12deg)', opacity: 0 },
-                {
-                  transform: 'translateY(-4%) rotate(4deg)',
-                  opacity: 1,
-                  offset: 0.7,
-                },
-                { transform: 'translateY(0) rotate(0)', opacity: 1 },
-              ]
-            : [
-                { transform: 'translateY(0) scale(1, 1)' },
-                {
-                  transform: 'translateY(-14%) scale(0.95, 1.06)',
-                  offset: 0.4,
-                },
-                { transform: 'translateY(0) scale(1.06, 0.94)', offset: 0.75 },
-                { transform: 'translateY(0) scale(1, 1)' },
-              ],
-        { duration: ms, easing: 'ease-out', fill: 'backwards' },
-      );
-      timer = setTimeout(() => (spoken = true), ms);
-    });
-    return () => {
-      cancelAnimationFrame(frame);
-      clearTimeout(timer);
-    };
-  });
+  let awake = $derived(mascot !== null && !mascot.asleep);
 </script>
 
-{#if mascot && !mascot.asleep}
-  <div class="flex flex-col items-center gap-3">
-    <div class="origin-bottom" bind:this={duck}>
-      {#if mounted}
-        <EpiDuck
-          {atlas}
-          pose="front"
-          {look}
-          eyes={MASCOT_MOMENTS[cue.moment].mood === 'joy' ? 'joy' : 'open'}
-          class={className}
-        />
-      {:else}
-        <!-- His room, held while the page hydrates. -->
-        <div class={className}></div>
-      {/if}
+<svelte:head>
+  {#if awake && atlas === 'stage'}
+    <!-- The large duck is in no stylesheet: fetched with the page, so the way
+         up does not start before there is a duck to bring up. -->
+    <link rel="preload" as="image" href={STAGE_ATLAS_URL} />
+  {/if}
+</svelte:head>
+
+{#if awake}
+  <div class="flex flex-col items-center gap-4">
+    <div class="duck origin-bottom {entrance}">
+      <EpiDuck
+        {atlas}
+        pose="front"
+        {look}
+        eyes={MASCOT_MOMENTS[cue.moment].mood === 'joy' ? 'joy' : 'open'}
+        class={className}
+      />
     </div>
-    {#if spoken && line}
-      <p
-        in:fade
-        role="status"
-        class="max-w-72 rounded-xl border border-border bg-card px-4 py-3 font-mono text-sm leading-snug font-bold text-primary shadow-overlay"
-      >
-        {line}
-      </p>
+    {#if children || line}
+      <div class="said flex w-full justify-center">
+        <MascotBubble class="max-w-md space-y-2 text-center">
+          {@render children?.()}
+          {#if line}<p>{line}</p>{/if}
+        </MascotBubble>
+      </div>
     {/if}
   </div>
 {:else}
   {@render fallback?.()}
 {/if}
+
+<style>
+  @media (prefers-reduced-motion: no-preference) {
+    .emerge {
+      animation: cameo-emerge 1800ms ease-out backwards;
+    }
+    .hop {
+      animation: cameo-hop 480ms ease-out backwards;
+    }
+    .said {
+      animation: cameo-fade 200ms ease-out backwards;
+    }
+    .emerge + .said {
+      animation-delay: 1800ms;
+    }
+    .hop + .said {
+      animation-delay: 480ms;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .duck,
+    .said {
+      animation: cameo-fade 200ms ease-out backwards;
+    }
+    .said {
+      animation-delay: 200ms;
+    }
+  }
+
+  @keyframes cameo-emerge {
+    0% {
+      transform: translateY(60%) rotate(-12deg);
+      opacity: 0;
+    }
+    70% {
+      transform: translateY(-4%) rotate(4deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(0) rotate(0);
+    }
+  }
+
+  @keyframes cameo-hop {
+    0% {
+      transform: translateY(0) scale(1, 1);
+    }
+    40% {
+      transform: translateY(-14%) scale(0.95, 1.06);
+    }
+    75% {
+      transform: translateY(0) scale(1.06, 0.94);
+    }
+    100% {
+      transform: translateY(0) scale(1, 1);
+    }
+  }
+
+  @keyframes cameo-fade {
+    from {
+      opacity: 0;
+    }
+  }
+</style>

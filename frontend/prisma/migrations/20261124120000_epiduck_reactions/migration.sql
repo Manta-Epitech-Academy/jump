@@ -8,7 +8,9 @@ UPDATE "Talent" SET "levelCelebratedXp" = "xp" WHERE "xp" > 0;
 
 -- EpiDuck's default lines for the moments he reacts at (#540), readable ids
 -- as in 20261122075435_add_mascot. He says one line on arrival, so the event
--- lines name the talent: they are the greeting on those days. The XP lines take over from the reward
+-- lines name the talent: they are the greeting on those days. The first
+-- meeting's lines are the welcome screen's text, which he now says under its
+-- title. The XP lines take over from the reward
 -- toasts, which they replace, in the duck's voice: no emoji, no count of
 -- anything the talent did not do, and nothing over a failure.
 INSERT INTO "Mascot_Line" ("id", "momentKey", "text", "updatedAt")
@@ -17,8 +19,8 @@ VALUES
   ('mln_streak_habitue', 'streak', 'Et de {serie} jours de suite ! Tu connais la mare par cœur.', CURRENT_TIMESTAMP),
   ('mln_event_tomorrow_hate', 'eventTomorrow', 'Coucou {prenom} ! Demain, c’est {evenement}. J’ai hâte de voir ce que tu vas créer.', CURRENT_TIMESTAMP),
   ('mln_event_today_jour_j', 'eventToday', 'C’est le grand jour, {prenom} : {evenement} ! Je croise les palmes pour toi.', CURRENT_TIMESTAMP),
-  ('mln_first_meeting_moi', 'firstMeeting', 'Salut {prenom} ! Moi, c’est {canard}, ton canard. Je te suis partout dans Jump.', CURRENT_TIMESTAMP),
-  ('mln_first_meeting_nom', 'firstMeeting', 'Coin ! Je suis {canard}. Tu pourras me donner un nom et m’habiller dans tes réglages.', CURRENT_TIMESTAMP),
+  ('mln_first_meeting_moi', 'firstMeeting', 'Moi, c’est {canard}, ton canard. Tu viens de poser un pied chez Epitech : quelques minutes sur Jump, et tout sera prêt.', CURRENT_TIMESTAMP),
+  ('mln_first_meeting_nom', 'firstMeeting', 'Coin ! Je suis {canard}. On fait connaissance ? Quelques minutes sur Jump, et tout sera prêt pour ton arrivée chez Epitech.', CURRENT_TIMESTAMP),
   ('mln_arrival_xp_bienvenue', 'arrivalXp', 'Bienvenue {prenom} ! +{xp} XP pour ton arrivée. Tu en gagneras en participant aux activités.', CURRENT_TIMESTAMP),
   ('mln_early_arrival_xp_premiers', 'earlyArrivalXp', 'Tu fais partie des premiers de ton campus : +{xp} XP, dont {bonus} de bonus rapidité !', CURRENT_TIMESTAMP),
   ('mln_activity_xp_avance', 'activityXp', 'Ton activité avance : +{xp} XP ! Continue, chaque étape compte.', CURRENT_TIMESTAMP),
