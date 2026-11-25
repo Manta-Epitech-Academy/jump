@@ -163,6 +163,22 @@ describe('the level celebration (integration)', () => {
     return publication.id;
   }
 
+  it('never celebrates the win of a challenge that is no longer the day’s', async () => {
+    const id = await nearlyMaker();
+    await won(id, new Date(Date.now() - 3 * 24 * 3600_000), { xp: 50 });
+    // The next day's challenge is out, and this talent has not played it.
+    const today = await prisma.minigamePublication.create({
+      data: {
+        game: 'board',
+        gameName: 'Board',
+        level: 1,
+        scoringType: 'score',
+      },
+    });
+    publicationIds.push(today.id);
+    expect(await pending(id)).toEqual([]);
+  });
+
   it('plays a challenge before its rank bonus, and marks only what it showed', async () => {
     const id = await nearlyMaker();
     const shown = await won(id, new Date(Date.now() - 60_000), {

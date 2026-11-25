@@ -355,20 +355,27 @@ async function shownAttemptFinishedAt(
 }
 
 /**
- * The talent's most recent daily-challenge XP not yet celebrated, or null: a
- * win the play page could not celebrate (the talent left before the game said
- * so), caught on the next page that celebrates. Gated by `xpSeenAt`.
+ * Today's challenge XP not yet celebrated, or null: a win the play page could
+ * not celebrate (the talent left before the game said so), caught on the next
+ * page that celebrates. Gated by `xpSeenAt`.
+ *
+ * The current challenge's only. It is the challenge of the day, and its line
+ * says so (« un nouveau t'attend demain »): a win of another day, left
+ * unseen, is not celebrated days later. It is marked with the next one shown.
  */
 export async function getUnseenMinigameReward(
   talentId: string,
 ): Promise<{ xp: number; publicationId: string } | null> {
-  const attempt = await prisma.minigameAttempt.findFirst({
-    where: { talentId, xpAwarded: { not: null }, xpSeenAt: null },
-    orderBy: { finishedAt: 'desc' },
-    select: { xpAwarded: true, publicationId: true },
+  const publication = await getActivePublication();
+  if (!publication) return null;
+  const attempt = await prisma.minigameAttempt.findUnique({
+    where: {
+      talentId_publicationId: { talentId, publicationId: publication.id },
+    },
+    select: { xpAwarded: true, xpSeenAt: true },
   });
-  return attempt?.xpAwarded != null
-    ? { xp: attempt.xpAwarded, publicationId: attempt.publicationId }
+  return attempt?.xpAwarded != null && attempt.xpSeenAt === null
+    ? { xp: attempt.xpAwarded, publicationId: publication.id }
     : null;
 }
 
