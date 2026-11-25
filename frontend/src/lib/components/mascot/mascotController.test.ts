@@ -140,12 +140,31 @@ describe('MascotController, the lines that wait their turn', () => {
 
   it('keeps the queue while he is on stage, and resumes it after', async () => {
     const mascot = talkative();
-    mascot.enterStage();
+    const leave = mascot.enterStage();
     mascot.react({ moment: 'hello' });
     await after(BUBBLE_MS);
     expect(mascot.bubble).toBeNull();
 
-    mascot.leaveStage();
+    leave();
+    expect(mascot.onStage).toBe(false);
+    expect(mascot.bubble).toMatchObject({ text: 'Salut Lina\u00A0!' });
+  });
+
+  it('stays on the stage that holds him when the one before lets go', () => {
+    // The talent left a page mid-celebration onto one with its own: the page
+    // left behind letting go must not bring the header's duck back, nor its
+    // queued lines, in the middle of the next page's scene.
+    const mascot = talkative();
+    const leftBehind = mascot.enterStage();
+    const next = mascot.enterStage();
+    mascot.react({ moment: 'hello' });
+
+    leftBehind();
+    expect(mascot.onStage).toBe(true);
+    expect(mascot.bubble).toBeNull();
+
+    next();
+    expect(mascot.onStage).toBe(false);
     expect(mascot.bubble).toMatchObject({ text: 'Salut Lina\u00A0!' });
   });
 
@@ -209,8 +228,7 @@ describe('MascotController, on arrival', () => {
   it('says nothing more when a celebration took him first', async () => {
     const mascot = arriving();
     mascot.arrive();
-    mascot.enterStage();
-    mascot.leaveStage();
+    mascot.enterStage()();
     await after(GREETING_DELAY_MS + BUBBLE_MS);
     expect(mascot.bubble).toBeNull();
 

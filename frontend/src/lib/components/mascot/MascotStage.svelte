@@ -32,8 +32,10 @@
 
   There is one duck. When the stage opens, the header's duck steps out of sight
   (`enterStage`); when it ends, the stage fades away around him while he flies
-  and shrinks onto the header's spot, and the header's comes back
-  (`leaveStage`). A page with no header duck fades him out instead.
+  and shrinks onto the header's spot, and lets him go, so the header's comes
+  back. A page with no header duck fades him out instead. A page left
+  mid-celebration stops where it is: its beats are abandoned, and it lets him
+  go at once, unless the next page's stage has taken him already.
 
   It asks nothing: a tap or Escape moves to the next beat. It is marked played
   before it plays (`ackCelebrations`), so leaving mid-animation never replays
@@ -109,7 +111,10 @@
   const queue: Celebration[] = [];
   let running = false;
   let skip: (() => void) | null = null;
-  let alive = true;
+  /** Fired when the page goes: every beat still waiting is abandoned. */
+  const teardown = new AbortController();
+  /** Lets the duck go back to the header, while this stage holds him. */
+  let release: (() => void) | null = null;
 
   // What this page already took into the queue, so a revalidation that brings
   // the same rewards back (their mark not yet committed) never plays them
@@ -178,11 +183,24 @@
     void run();
   }
 
+  /**
+   * A beat's pause: over after `ms`, or at once on a tap or Escape (`skip`).
+   * Rejects once the page is gone, so nothing after it plays on another page.
+   */
   const wait = (ms: number) =>
-    new Promise<void>((resolve) => {
+    new Promise<void>((resolve, reject) => {
+      const { signal } = teardown;
+      if (signal.aborted) return reject(signal.reason);
       const timer = setTimeout(done, ms);
+      const gone = () => {
+        clearTimeout(timer);
+        skip = null;
+        reject(signal.reason);
+      };
+      signal.addEventListener('abort', gone, { once: true });
       function done() {
         clearTimeout(timer);
+        signal.removeEventListener('abort', gone);
         skip = null;
         resolve();
       }
@@ -202,22 +220,29 @@
   async function run(): Promise<void> {
     if (running) return;
     running = true;
-    await Promise.all([stageAtlasReady(), wait(SETTLE_MS)]);
-    mascot?.enterStage();
-    while (alive && queue.length > 0) {
-      const item = queue.shift()!;
-      if (item.kind === 'xp') await showXp(item);
-      else {
-        current = item;
-        await showLevel(item);
+    try {
+      await Promise.all([stageAtlasReady(), wait(SETTLE_MS)]);
+      release = mascot?.enterStage() ?? null;
+      while (queue.length > 0) {
+        const item = queue.shift()!;
+        if (item.kind === 'xp') await showXp(item);
+        else {
+          current = item;
+          await showLevel(item);
+        }
       }
+      await land();
+    } catch (err) {
+      // The page went mid-celebration: what was left is abandoned.
+      if (!teardown.signal.aborted) throw err;
+    } finally {
+      current = null;
+      line = null;
+      landing = false;
+      release?.();
+      release = null;
+      running = false;
     }
-    if (alive) await land();
-    current = null;
-    line = null;
-    landing = false;
-    mascot?.leaveStage();
-    running = false;
   }
 
   async function showXp(item: Extract<Celebration, { kind: 'xp' }>) {
@@ -307,10 +332,11 @@
     };
     window.addEventListener('keydown', onKey);
     return () => {
-      alive = false;
-      skip?.();
+      teardown.abort();
       window.removeEventListener('keydown', onKey);
-      if (current) mascot?.leaveStage();
+      // At once, rather than after a flight back that has no header left to
+      // land on. A no-op if the next page's stage holds him already.
+      release?.();
     };
   });
 

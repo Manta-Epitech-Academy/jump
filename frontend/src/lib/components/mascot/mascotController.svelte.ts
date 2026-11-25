@@ -96,8 +96,9 @@ export class MascotController {
    */
   joy = $state<number | null>(null);
   /**
-   * He is in the middle of the screen, drawn by a celebration: the header's
-   * duck steps out of sight meanwhile, so there is never two of him.
+   * He is in the middle of the screen, drawn by a celebration (`enterStage`):
+   * the header's duck steps out of sight meanwhile, so there is never two of
+   * him.
    */
   onStage = $state(false);
   /** He stops and turns to the talent while he speaks or beams. */
@@ -128,6 +129,8 @@ export class MascotController {
   /** The arrival line, until it is said or a celebration takes its place. */
   #arrival: MascotCue | null = null;
   #arrivalTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The stage holding him, which alone may let him go (`enterStage`). */
+  #stage: object | null = null;
   #queue: MascotCue[] = [];
   #bubbleTimer: ReturnType<typeof setTimeout> | undefined;
   #nextTimer: ReturnType<typeof setTimeout> | undefined;
@@ -246,12 +249,19 @@ export class MascotController {
 
   /**
    * A celebration takes him: the header's duck steps out of sight, and what
-   * he was saying there waits until he is back (`leaveStage`). The celebration
-   * is the visit's greeting: an arrival line not yet said is dropped, and none
-   * is said on a later page of the visit. Coming back from a party to say
-   * hello read as a duck who had not been there.
+   * he was saying there waits until he is back. The celebration is the
+   * visit's greeting: an arrival line not yet said is dropped, and none is
+   * said on a later page of the visit. Coming back from a party to say hello
+   * read as a duck who had not been there.
+   *
+   * Hands back what lets him go, which only the stage holding him can do, and
+   * only once: a stage that took him over from another (the talent navigated
+   * mid-celebration onto a page with its own) keeps him until it is done,
+   * whenever the page left behind lets go.
    */
-  enterStage(): void {
+  enterStage(): () => void {
+    const stage = {};
+    this.#stage = stage;
     this.onStage = true;
     clearTimeout(this.#nextTimer);
     clearTimeout(this.#arrivalTimer);
@@ -261,11 +271,12 @@ export class MascotController {
     }
     this.#markArrived();
     this.#hideBubble();
-  }
-
-  leaveStage(): void {
-    this.onStage = false;
-    this.#next();
+    return () => {
+      if (this.#stage !== stage) return;
+      this.#stage = null;
+      this.onStage = false;
+      this.#next();
+    };
   }
 
   /** The next queued line, once he is on the water, free and in sight. */
