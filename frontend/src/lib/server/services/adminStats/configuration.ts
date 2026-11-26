@@ -95,7 +95,7 @@ import {
   BADGE_COUNTER_KEYS,
   BADGE_COUNTERS,
   BADGE_FILTERS,
-  BADGE_GROUP_KEYS,
+  badgeGroupRank,
 } from '#lib/domain/badges.ts';
 import {
   BADGE_STATE_SELECT,
@@ -1162,10 +1162,6 @@ export async function getBadges(
     );
   }
   const holders = new Map(held.map((row) => [row.badgeKey, row._count._all]));
-  const groupRank = (group: string) => {
-    const at = (BADGE_GROUP_KEYS as string[]).indexOf(group);
-    return at === -1 ? BADGE_GROUP_KEYS.length : at;
-  };
   const badges = rows
     .map((row): BadgeRow => {
       const { art, ...state } = badgeState(row);
@@ -1175,7 +1171,7 @@ export async function getBadges(
         holders: holders.get(row.key) ?? 0,
       };
     })
-    .sort((a, b) => groupRank(a.group) - groupRank(b.group));
+    .sort((a, b) => badgeGroupRank(a.group) - badgeGroupRank(b.group));
 
   return {
     counters: metric(

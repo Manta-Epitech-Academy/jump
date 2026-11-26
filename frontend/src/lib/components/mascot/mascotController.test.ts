@@ -449,3 +449,90 @@ describe('MascotController, the look the talent chooses', () => {
     expect(mascot.bubble?.text).toBe('Coin, je suis Gaston\u00A0!');
   });
 });
+
+/**
+ * A badge the talent clicks in their collection (#551): he answers it, as he
+ * answers a poke, and even asleep, since it is the talent asking. Pinned here:
+ * the answer, its turns and its stand-in, and that asleep he comes up to say
+ * it and goes back under without the talent's choice being saved again.
+ */
+describe('MascotController, asked about a badge', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    putMascotToSleep.mockResolvedValue(undefined);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    putMascotToSleep.mockReset();
+  });
+
+  const after = (ms: number) => vi.advanceTimersByTimeAsync(ms);
+
+  function sleepy(asleep: boolean) {
+    return new MascotController({
+      talentId: 't1',
+      asleep,
+      choice: UNDRESSED,
+      voice: () => ({}),
+      tokens: () => ({ prenom: 'Lina' }),
+      arrival: [],
+      today: '2026-11-24',
+    });
+  }
+
+  const addict = {
+    key: 'addict',
+    moment: 'badgeEarned',
+    lines: ['Accro depuis {date}, {prenom} !', 'Cinq clubs !'],
+    condition: 'A participé à 5 Coding Clubs',
+    tokens: { badge: 'Addict', date: 'mars 2026' },
+  } as const;
+
+  it('answers at once, with joy for a badge earned, its lines taking turns', () => {
+    const mascot = sleepy(false);
+    mascot.explain(addict);
+    const first = mascot.bubble!.text;
+    expect(mascot.bubble!.mood).toBe('joy');
+    mascot.explain(addict);
+    expect(mascot.bubble!.text).not.toBe(first);
+    expect([first, mascot.bubble!.text].sort()).toEqual(
+      ['Accro depuis mars 2026, Lina !', 'Cinq clubs !'].sort(),
+    );
+  });
+
+  it("says the badge's condition when the PO wrote no line", () => {
+    const mascot = sleepy(false);
+    mascot.explain({ ...addict, moment: 'badgeToEarn', lines: [] });
+    expect(mascot.bubble).toMatchObject({
+      text: 'A participé à 5 Coding Clubs',
+      mood: 'calm',
+    });
+  });
+
+  it('comes up from his sleep to answer, then goes back under, saving nothing', async () => {
+    const mascot = sleepy(true);
+    mascot.explain(addict);
+    expect(mascot.asleep).toBe(true);
+    expect(mascot.state).toEqual({ phase: 'emerging' });
+
+    await after(EMERGE_MS);
+    expect(mascot.state).toEqual({ phase: 'awake' });
+    expect(mascot.bubble?.mood).toBe('joy');
+    expect(mascot.asleep).toBe(true);
+
+    await after(BUBBLE_MS + DIVE_MS);
+    expect(mascot.bubble).toBeNull();
+    expect(mascot.state).toEqual({ phase: 'under', reason: 'sleep' });
+    expect(putMascotToSleep).not.toHaveBeenCalled();
+  });
+
+  it('stays up when woken while answering', async () => {
+    const mascot = sleepy(true);
+    mascot.explain(addict);
+    await after(EMERGE_MS);
+    void mascot.setAsleep(false);
+    await after(BUBBLE_MS + DIVE_MS);
+    expect(mascot.state).toEqual({ phase: 'awake' });
+    expect(putMascotToSleep).toHaveBeenCalledWith({ asleep: false });
+  });
+});

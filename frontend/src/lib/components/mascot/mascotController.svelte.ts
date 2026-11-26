@@ -13,8 +13,9 @@
  * never at random, as every voice in Jump does (`pickLine`), so the first poke
  * of a day does not always open with the same one.
  *
- * Two ways to speak. A poke, a goodnight and a good morning answer the talent
- * at once, over whatever he was saying. Everything else he has to say (what he
+ * Two ways to speak. A poke, a goodnight, a good morning and a badge the
+ * talent asks about (`explain`) answer the talent at once, over whatever he
+ * was saying. Everything else he has to say (what he
  * says on arrival, a reaction to what the talent just did, #540) waits its
  * turn in a queue, one bubble after the other, so a reaction never cuts a
  * greeting short. A celebration takes him to the middle of the screen
@@ -38,6 +39,7 @@ import { typeset } from '#lib/domain/typography.ts';
 import {
   MASCOT_MOMENTS,
   fillLine,
+  type MascotBadgeMoment,
   sameMascotChoice,
   shownMascotLook,
   type MascotChoice,
@@ -83,6 +85,18 @@ const GREETED_KEY = 'epiduck:greeted';
 /** A line he is saying in the header, drawn by `MascotBubble`. */
 export type SpokenLine = { text: string; id: number; mood: MascotMood };
 
+/** A badge the talent clicked, and what the duck may say of it (#551). */
+export type BadgeQuestion = {
+  /** The badge's key: its lines rotate on it, click after click. */
+  key: string;
+  moment: MascotBadgeMoment;
+  /** Its live lines for that moment, in the order they were written. */
+  lines: readonly string[];
+  /** What he says with no line: the badge's condition, the PO's sentence. */
+  condition: string;
+  tokens: MascotTokenValues;
+};
+
 export type MascotControllerInit = {
   talentId: string;
   asleep: boolean;
@@ -119,7 +133,14 @@ export class MascotController {
   facingTalent = $derived(
     (this.bubble !== null || this.joy !== null) && this.state.phase === 'awake',
   );
-  asleep = $derived(isAsleep(this.state));
+  /** Up from his sleep only to answer the talent, then back under. */
+  #answering = $state(false);
+  /**
+   * Asleep, as the talent chose: under the water, or up for a moment to
+   * answer what they asked (`explain`), after which he goes back under. The
+   * sleep button reads this, so it stays pressed through the answer.
+   */
+  asleep = $derived(isAsleep(this.state) || this.#answering);
   /** How the talent dressed him, an empty name being his own. */
   choice: MascotChoice;
   /** How he is drawn: the choice, with his own name if it was left empty. */
@@ -144,6 +165,10 @@ export class MascotController {
   #init: MascotControllerInit;
   #pokes: number[] = [];
   #pokeTurn = 0;
+  /** How many times each badge was asked about, so its lines take turns. */
+  #badgeTurns = new Map<string, number>();
+  /** An answer he says once he is up, on the water and free. */
+  #pendingAnswer: { text: string; mood: MascotMood } | null = null;
   #bubbleId = 0;
   #arrived = false;
   /** The arrival line, until it is said or a celebration takes its place. */
@@ -210,6 +235,47 @@ export class MascotController {
   }
 
   /**
+   * The talent clicked a badge in their collection (#551): he says what it
+   * is, at once, over whatever he was saying, as he answers a poke. One of
+   * the badge's lines for the state it is in, taking turns click after click,
+   * or its condition when the PO wrote none.
+   *
+   * Asleep, he still answers: the talent asked him something, and sleep
+   * quiets what he does of his own accord, never his answer to what the
+   * talent did. He comes up, says it, and goes back under, and the stored
+   * preference is never touched. Under for a sulk, or on his way up, he says
+   * it once he is on the water. On stage, the question goes unanswered: the
+   * stage is a celebration with its own words, and nothing waits behind it.
+   */
+  explain(question: BadgeQuestion): void {
+    if (this.onStage) return;
+    const answer = {
+      text: this.#spoken(this.#badgeLine(question), question.tokens),
+      mood: MASCOT_MOMENTS[question.moment].mood,
+    };
+    if (this.state.phase === 'awake') {
+      this.#show(answer.text, answer.mood);
+      return;
+    }
+    this.#pendingAnswer = answer;
+    if (isAsleep(this.state)) {
+      this.#answering = true;
+      this.#dispatch('wake');
+    }
+  }
+
+  #badgeLine(question: BadgeQuestion): string {
+    const { lines, key } = question;
+    if (lines.length === 0) return question.condition;
+    const turn = this.#badgeTurns.get(key) ?? 0;
+    this.#badgeTurns.set(key, turn + 1);
+    const start = lines.indexOf(
+      pickLine(lines, `${this.#init.talentId}:${this.#init.today}:${key}`),
+    );
+    return lines[(start + turn) % lines.length];
+  }
+
+  /**
    * The settings changed how he looks: worn at once wherever he is drawn, and
    * saved behind any change still on its way. Refused, he goes back to the
    * last look the server stored.
@@ -230,6 +296,8 @@ export class MascotController {
    */
   setAsleep(asleep: boolean): void {
     if (asleep === this.asleep) return;
+    // Woken while up to answer: he stays up, and the answer stays said.
+    this.#answering = false;
     if (!this.#sleepSaver.busy) this.#beforeSleepChange = this.state;
     const inSight =
       this.state.phase === 'awake' || this.state.phase === 'emerging';
@@ -405,6 +473,12 @@ export class MascotController {
     if (mood === 'joy') this.joy = id;
     this.#bubbleTimer = setTimeout(() => {
       this.#hideBubble();
+      if (this.#answering) {
+        // Up only to answer: back to the sleep the talent chose.
+        this.#answering = false;
+        this.#dispatch('sleep');
+        return;
+      }
       this.#nextTimer = setTimeout(() => this.#next(), BETWEEN_LINES_MS);
     }, BUBBLE_MS);
   }
@@ -430,8 +504,17 @@ export class MascotController {
   #enter(next: MascotPhase): void {
     this.state = next;
     clearTimeout(this.#phaseTimer);
+    if (next.phase === 'awake' && this.#pendingAnswer) {
+      const { text, mood } = this.#pendingAnswer;
+      this.#pendingAnswer = null;
+      this.#show(text, mood);
+    }
     if (next.phase === 'awake') this.#next();
-    if (isAsleep(next)) this.#queue = [];
+    if (isAsleep(next)) {
+      this.#queue = [];
+      // Sent to sleep before he was up to answer: the question is gone with him.
+      this.#pendingAnswer = null;
+    }
     const dive = this.reducedMotion ? REDUCED_DIVE_MS : DIVE_MS;
     const emerge = this.reducedMotion ? REDUCED_DIVE_MS : EMERGE_MS;
     if (next.phase === 'diving') {

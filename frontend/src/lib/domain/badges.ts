@@ -111,6 +111,26 @@ export function isBadgeCounterKey(key: string): key is BadgeCounterKey {
   return Object.hasOwn(BADGE_COUNTERS, key);
 }
 
+/** One badge as the talent's collection draws it, and as the duck explains it. */
+export type CollectedBadge = {
+  key: string;
+  label: string;
+  /** What the duck says of it when no line of its own is live. */
+  condition: string;
+  /** The sticker's drawing, screened at write (`screenBadgeArt`). */
+  art: string;
+  /** The month it was earned (« janvier 2026 »), null for one still to earn. */
+  earnedOn: string | null;
+  /** The duck's live lines about it, for the state it is in for this talent. */
+  lines: string[];
+};
+
+/** A talent's collection (#551), what `loadBadgeCollection` hands the page. */
+export type BadgeCollection = {
+  badges: CollectedBadge[];
+  earned: number;
+};
+
 /**
  * The groups a badge is filed under, in the mockup's order. The collection
  * (#551) never shows them: they are the order it is drawn in, group by group,
@@ -125,6 +145,29 @@ export const BADGE_GROUPS = {
 export type BadgeGroupKey = keyof typeof BADGE_GROUPS;
 
 export const BADGE_GROUP_KEYS = Object.keys(BADGE_GROUPS) as BadgeGroupKey[];
+
+/**
+ * Where a group comes in the collection: its place in `BADGE_GROUPS`, a group
+ * the list no longer names last. Read by the collection and the admin read
+ * alike, so the PO reads the badges in the order talents see them.
+ */
+export function badgeGroupRank(group: string): number {
+  const at = (BADGE_GROUP_KEYS as string[]).indexOf(group);
+  return at === -1 ? BADGE_GROUP_KEYS.length : at;
+}
+
+/**
+ * The month a badge was earned, as the duck says it (« janvier 2026 »,
+ * `{date}`): the talent's calendar, so a badge earned on the last evening of
+ * a month is not told as the next one.
+ */
+export function badgeEarnedMonth(awardedAt: Date, timeZone: string): string {
+  return awardedAt.toLocaleDateString('fr-FR', {
+    month: 'long',
+    year: 'numeric',
+    timeZone,
+  });
+}
 
 /**
  * Ceiling on a badge's drawing, in characters. The mockup's heaviest sticker,
