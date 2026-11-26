@@ -5,7 +5,7 @@
   import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
   import ChatScreen from '#lib/components/feedback/ChatScreen.svelte';
   import type { Answers } from '#lib/domain/feedbackForms/schema.ts';
-  import { duckHosts, mascotLookOf } from '#lib/domain/mascot.ts';
+  import { duckHosts } from '#lib/domain/mascot.ts';
   import { useMascot } from '#lib/components/mascot/mascotController.svelte.ts';
   import { submitFeedback } from './feedback.remote.ts';
 
@@ -60,7 +60,7 @@
         onSubmit={handleSubmit}
         identity={data.identity}
         audience="authenticated"
-        mascot={data.talent ? mascotLookOf(data.talent) : undefined}
+        mascot={mascot()?.look}
       />
     </div>
   </div>

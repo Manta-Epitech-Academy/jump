@@ -278,19 +278,41 @@ export const DEFAULT_MASCOT_LOOK: MascotLook = {
   hair: 'tuft',
 };
 
-/** A talent's duck, read off the `Talent` columns that hold it. */
-export function mascotLookOf(talent: {
+/**
+ * What the talent chose for their duck, as stored: an empty name keeps his own
+ * (`MASCOT_DEFAULT_NAME`), so clearing the field is how a rename is undone.
+ * What the settings edit and save; `shownMascotLook` is how it is drawn.
+ */
+export type MascotChoice = MascotLook;
+
+/** The talent's choice, read off the `Talent` columns that hold it. */
+export function mascotChoiceOf(talent: {
   mascotName: string | null;
   mascotGlasses: MascotGlasses;
   mascotScarf: MascotScarf;
   mascotHair: MascotHair;
-}): MascotLook {
+}): MascotChoice {
   return {
-    name: talent.mascotName?.trim() || MASCOT_DEFAULT_NAME,
+    name: talent.mascotName ?? '',
     glasses: talent.mascotGlasses,
     scarf: talent.mascotScarf,
     hair: talent.mascotHair,
   };
+}
+
+/** The duck a choice draws: his own name when the talent left it empty. */
+export function shownMascotLook(choice: MascotChoice): MascotLook {
+  return { ...choice, name: choice.name.trim() || MASCOT_DEFAULT_NAME };
+}
+
+/** Whether two choices dress him the same, name included. */
+export function sameMascotChoice(a: MascotChoice, b: MascotChoice): boolean {
+  return (
+    a.name === b.name &&
+    a.glasses === b.glasses &&
+    a.scarf === b.scarf &&
+    a.hair === b.hair
+  );
 }
 
 /**

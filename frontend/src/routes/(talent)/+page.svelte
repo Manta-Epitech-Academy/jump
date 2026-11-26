@@ -13,11 +13,13 @@
   import TalentFooter from '#lib/components/talent/TalentFooter.svelte';
   import MascotStage from '#lib/components/mascot/MascotStage.svelte';
   import { cn } from '#lib/utils.ts';
-  import { mascotLookOf } from '#lib/domain/mascot.ts';
+  import { useMascot } from '#lib/components/mascot/mascotController.svelte.ts';
+  import { DEFAULT_MASCOT_LOOK } from '#lib/domain/mascot.ts';
 
   let { data }: { data: PageData } = $props();
 
   let student = $derived(data.student);
+  const mascot = useMascot();
 
   // The one thing the blue hero suggests doing now, with the talent's own
   // enrolment reflected in it (« Tu es inscrit », « En ce moment »), or null
@@ -95,7 +97,7 @@
           eventId={pf.eventId}
           formId={pf.formId}
           personaIconUrl={pf.personaIconUrl}
-          mascot={mascotLookOf(student)}
+          mascot={mascot()?.look ?? DEFAULT_MASCOT_LOOK}
         />
       </div>
     {/each}

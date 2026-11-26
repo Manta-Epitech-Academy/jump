@@ -47,13 +47,12 @@
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page } from '$app/state';
   import { prefersReducedMotion } from 'svelte/motion';
   import { fade } from '#lib/motion/index.ts';
   import { triggerConfetti } from '#lib/actions/confetti.ts';
   import XpFloat from '#lib/components/talent/XpFloat.svelte';
   import LevelBadge from '#lib/components/talent/LevelBadge.svelte';
-  import { DEFAULT_MASCOT_LOOK, mascotLookOf } from '#lib/domain/mascot.ts';
+  import { DEFAULT_MASCOT_LOOK } from '#lib/domain/mascot.ts';
   import { typeset } from '#lib/domain/typography.ts';
   import {
     ackOf,
@@ -99,9 +98,7 @@
     rankXp: 'Top du campus',
   };
 
-  let look = $derived(
-    page.data.talent ? mascotLookOf(page.data.talent) : DEFAULT_MASCOT_LOOK,
-  );
+  let look = $derived(mascot?.look ?? DEFAULT_MASCOT_LOOK);
 
   let current = $state<Celebration | null>(null);
   /** The level on screen once revealed, in place of the amount and its bar. */

@@ -21,17 +21,28 @@
  * (`enterStage`), and the queue waits for him to come back. A celebration is
  * also the visit's greeting: once he has been on stage, he does not come back
  * to say hello as well.
+ *
+ * How the talent dressed him is his state too (`choice`, `look`): the settings
+ * change it here, so every duck on screen wears a choice the moment it is
+ * made, and the server is sent each change in the order it was made
+ * (`LatestSaver`, #552). Nothing reads his look off the page's data, which the
+ * layout loads once and never again while the talent moves between pages.
  */
 
 import { getContext, setContext } from 'svelte';
 import { prefersReducedMotion } from 'svelte/motion';
 import { toast } from 'svelte-sonner';
+import { LatestSaver } from '#lib/latestSaver.svelte.ts';
 import { pickLine } from '#lib/domain/pickLine.ts';
 import { typeset } from '#lib/domain/typography.ts';
 import {
   MASCOT_MOMENTS,
   fillLine,
+  sameMascotChoice,
+  shownMascotLook,
+  type MascotChoice,
   type MascotCue,
+  type MascotLook,
   type MascotMomentKey,
   type MascotMood,
   type MascotTokenValues,
@@ -45,7 +56,7 @@ import {
   type MascotEvent,
   type MascotPhase,
 } from './mascotPhase';
-import { putMascotToSleep } from './mascot.remote';
+import { putMascotToSleep, saveMascotLook } from './mascot.remote';
 
 /** How long a dive and a way up last: the mockup's 1.8s, or a fade. */
 export const DIVE_MS = 1800;
@@ -75,8 +86,11 @@ export type SpokenLine = { text: string; id: number; mood: MascotMood };
 export type MascotControllerInit = {
   talentId: string;
   asleep: boolean;
+  /** How the talent dressed him, as the server holds it. */
+  choice: MascotChoice;
   /** Read each time he speaks, so a line written today arrives on next load. */
   voice: () => MascotVoice;
+  /** The tokens his lines may cite; `{canard}` is his own name, added here. */
   tokens: () => MascotTokenValues;
   /**
    * What he may say when the talent arrives, best first (`arrivalCues`): he
@@ -106,6 +120,12 @@ export class MascotController {
     (this.bubble !== null || this.joy !== null) && this.state.phase === 'awake',
   );
   asleep = $derived(isAsleep(this.state));
+  /** How the talent dressed him, an empty name being his own. */
+  choice: MascotChoice;
+  /** How he is drawn: the choice, with his own name if it was left empty. */
+  look: MascotLook;
+  /** A change of his look is on its way to the server. */
+  savingLook: boolean;
 
   /**
    * Where the last header left him, in pixels from the window's left edge, so
@@ -136,9 +156,34 @@ export class MascotController {
   #nextTimer: ReturnType<typeof setTimeout> | undefined;
   #phaseTimer: ReturnType<typeof setTimeout> | undefined;
   #joyTimer: ReturnType<typeof setTimeout> | undefined;
+  #lookSaver: LatestSaver<MascotChoice>;
+  #sleepSaver: LatestSaver<boolean>;
+  /** Where he was when the presses being saved began, to go back to it. */
+  #beforeSleepChange: MascotPhase = { phase: 'awake' };
 
   constructor(init: MascotControllerInit) {
     this.#init = init;
+    this.choice = $state.raw(init.choice);
+    this.#lookSaver = new LatestSaver({
+      saved: init.choice,
+      save: (choice) => saveMascotLook(choice),
+      onFailed: (saved, error) => {
+        console.error('[mascot] look not saved:', error);
+        this.choice = saved;
+        toast.error("Ton canard n'a pas pu être enregistré. Réessaie.");
+      },
+      same: sameMascotChoice,
+    });
+    this.#sleepSaver = new LatestSaver({
+      saved: init.asleep,
+      save: (asleep) => putMascotToSleep({ asleep }),
+      onFailed: (stored, error) => {
+        console.error('[mascot] sleep not saved:', error);
+        this.#sleepRefused(stored);
+      },
+    });
+    this.look = $derived(shownMascotLook(this.choice));
+    this.savingLook = $derived(this.#lookSaver.busy);
     if (init.asleep) this.state = { phase: 'under', reason: 'sleep' };
   }
 
@@ -165,31 +210,50 @@ export class MascotController {
   }
 
   /**
-   * The sleep button: optimistic, and put back if the server refuses. He says
+   * The settings changed how he looks: worn at once wherever he is drawn, and
+   * saved behind any change still on its way. Refused, he goes back to the
+   * last look the server stored.
+   */
+  choose(change: Partial<MascotChoice>): void {
+    const next = { ...this.choice, ...change };
+    if (sameMascotChoice(next, this.choice)) return;
+    this.choice = next;
+    this.#lookSaver.push(next);
+  }
+
+  /**
+   * The sleep button: optimistic, saved in the order it was pressed
+   * (`LatestSaver`, #552), and put back if the server refuses. He says
    * goodnight only if he is in sight: sent to sleep while sulking under the
    * water, he simply stays there, and a line with no duck under it would come
    * from nowhere.
    */
-  async setAsleep(asleep: boolean): Promise<void> {
+  setAsleep(asleep: boolean): void {
     if (asleep === this.asleep) return;
-    const before = this.state;
-    const inSight = before.phase === 'awake' || before.phase === 'emerging';
+    if (!this.#sleepSaver.busy) this.#beforeSleepChange = this.state;
+    const inSight =
+      this.state.phase === 'awake' || this.state.phase === 'emerging';
     this.#dispatch(asleep ? 'sleep' : 'wake');
     if (!asleep || inSight) this.#sayMoment(asleep ? 'sleep' : 'wake');
-    try {
-      await putMascotToSleep({ asleep });
-    } catch {
-      // Back where he was, and on his way again: a dive, a sulk or a way up
-      // he was in the middle of ends as it would have, so a refused request
-      // never leaves him stranded between two phases.
-      this.#hideBubble();
-      this.#enter(before);
-      toast.error(
-        asleep
-          ? "Ton canard n'a pas pu s'endormir. Réessaie dans un instant."
-          : "Ton canard n'a pas pu se réveiller. Réessaie dans un instant.",
-      );
-    }
+    this.#sleepSaver.push(asleep);
+  }
+
+  /**
+   * The server refused the last press: back to what it stored, and on his way
+   * again. Where he was before the presses, when that is what it stored, so a
+   * dive, a sulk or a way up he was in the middle of ends as it would have and
+   * a refused request never leaves him stranded between two phases.
+   */
+  #sleepRefused(stored: boolean): void {
+    this.#hideBubble();
+    const before = this.#beforeSleepChange;
+    if (isAsleep(before) === stored) this.#enter(before);
+    else this.#dispatch(stored ? 'sleep' : 'wake');
+    toast.error(
+      stored
+        ? "Ton canard n'a pas pu se réveiller. Réessaie dans un instant."
+        : "Ton canard n'a pas pu s'endormir. Réessaie dans un instant.",
+    );
   }
 
   /**
@@ -325,7 +389,13 @@ export class MascotController {
    * PO types ordinary spaces; the binding is display-only, never stored.
    */
   #spoken(line: string, tokens?: MascotTokenValues): string {
-    return typeset(fillLine(line, { ...this.#init.tokens(), ...tokens }));
+    return typeset(
+      fillLine(line, {
+        ...this.#init.tokens(),
+        canard: this.look.name,
+        ...tokens,
+      }),
+    );
   }
 
   #show(text: string, mood: MascotMood): void {

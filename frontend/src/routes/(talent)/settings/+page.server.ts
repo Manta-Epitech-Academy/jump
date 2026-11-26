@@ -12,9 +12,6 @@ import {
   listTalentDocuments,
 } from '#lib/server/services/onboardingDocuments.ts';
 import { resolveTalentDocumentStatus } from '#lib/server/services/onboardingPdfJobService.ts';
-import { superValidate } from 'sveltekit-superforms';
-import { zod4 } from 'sveltekit-superforms/adapters';
-import { mascotLookSchema } from '#lib/validation/mascot.ts';
 import { niveauLabel } from '#lib/domain/niveau.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -135,15 +132,6 @@ export const load: PageServerLoad = async ({ locals }) => {
     deletion,
     documents,
     usageAnalyticsOptedOut: locals.talent.usageAnalyticsOptOutAt !== null,
-    mascotForm: await superValidate(
-      {
-        name: locals.talent.mascotName ?? '',
-        glasses: locals.talent.mascotGlasses,
-        scarf: locals.talent.mascotScarf,
-        hair: locals.talent.mascotHair,
-      },
-      zod4(mascotLookSchema),
-    ),
   };
 };
 
@@ -199,25 +187,6 @@ export const actions: Actions = {
     }
 
     return { usageAnalyticsUpdated: true };
-  },
-
-  // The talent's EpiDuck (#539): his name and his accessories, read by every
-  // talent header and by the questionnaires. Only the talent writes them, and
-  // only their own. An empty name stores null, which is the default name.
-  saveMascot: async ({ locals, request }) => {
-    if (!locals.talent) return fail(401, { message: 'Non autorisé' });
-    const form = await superValidate(request, zod4(mascotLookSchema));
-    if (!form.valid) return fail(400, { form });
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: {
-        mascotName: form.data.name || null,
-        mascotGlasses: form.data.glasses,
-        mascotScarf: form.data.scarf,
-        mascotHair: form.data.hair,
-      },
-    });
-    return { form };
   },
 
   // Talent withdraws their own pending request.

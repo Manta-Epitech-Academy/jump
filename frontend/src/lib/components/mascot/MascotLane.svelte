@@ -50,9 +50,8 @@
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page } from '$app/state';
   import { fade } from '#lib/motion/index.ts';
-  import { DEFAULT_MASCOT_LOOK, mascotLookOf } from '#lib/domain/mascot.ts';
+  import { DEFAULT_MASCOT_LOOK } from '#lib/domain/mascot.ts';
   import EpiDuck, { eyesOnScreen, type DuckEyes } from './EpiDuck.svelte';
   import MascotBubble from './MascotBubble.svelte';
   import { DIVE_MS, EMERGE_MS, useMascot } from './mascotController.svelte.ts';
@@ -73,9 +72,7 @@
   /** The share of the way to where he looks that his pupils cover per frame. */
   const GAZE_EASE = 0.22;
 
-  let look = $derived(
-    page.data.talent ? mascotLookOf(page.data.talent) : DEFAULT_MASCOT_LOOK,
-  );
+  let look = $derived(mascot?.look ?? DEFAULT_MASCOT_LOOK);
 
   let lane = $state<HTMLDivElement>();
   let swimmer = $state<HTMLDivElement>();
