@@ -389,11 +389,15 @@ describe('badges (integration)', () => {
     ).toBe(1);
     expect(await awardsOf(badgeKey)).toEqual([award]);
 
-    // Archived, it stays with those who earned it.
-    await prisma.badge_Definition.update({
-      where: { key: badgeKey },
-      data: { archivedAt: new Date() },
+    // Archived over the API, then swept: it stays with those who earned it.
+    const archive = { badgeKey, archived: true };
+    const dryRun = await call(postBadge, secret, archive);
+    const archived = await call(postBadge, secret, {
+      ...archive,
+      planDigest: dryRun.payload.planDigest,
     });
+    expect(archived.payload.applied).toBe(true);
+    await awardDueBadges(prisma, { now: later, talentIds: [talent.runner] });
     expect(await awardsOf(badgeKey)).toEqual([award]);
   });
 

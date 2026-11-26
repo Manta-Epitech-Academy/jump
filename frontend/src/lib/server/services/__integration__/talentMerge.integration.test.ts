@@ -17,6 +17,12 @@ describe('mergeTalents (integration)', () => {
   let eventId = '';
   let survivorId = '';
   let absorbedId = '';
+  const badgeKeys = [
+    `merge-absorbed-first-${stamp}`,
+    `merge-survivor-first-${stamp}`,
+  ];
+  const earlier = new Date('2026-03-04T10:00:00.000Z');
+  const later = new Date('2026-09-14T10:00:00.000Z');
 
   beforeAll(async () => {
     assertTestDatabase();
@@ -112,6 +118,33 @@ describe('mergeTalents (integration)', () => {
         source: 'sync',
       },
     });
+    // Two badges both records earned: one the absorbed record earned first,
+    // one the survivor did. Either way the person earned it on the earlier day.
+    for (const key of badgeKeys) {
+      await prisma.badge_Definition.create({
+        data: {
+          key,
+          label: key,
+          condition: 'Test',
+          groupKey: 'wtf',
+          shape: 'circle',
+          icon: 'check',
+          backgroundColor: '#013afb',
+          ringColor: '#ffffff',
+          iconColor: '#ffffff',
+          counterKey: 'xp',
+          threshold: 1,
+        },
+      });
+    }
+    await prisma.badge_Award.createMany({
+      data: [
+        { talentId: survivorId, badgeKey: badgeKeys[0], awardedAt: later },
+        { talentId: absorbedId, badgeKey: badgeKeys[0], awardedAt: earlier },
+        { talentId: survivorId, badgeKey: badgeKeys[1], awardedAt: earlier },
+        { talentId: absorbedId, badgeKey: badgeKeys[1], awardedAt: later },
+      ],
+    });
 
     await prisma.$transaction((tx) =>
       mergeTalents(tx, survivorId, [absorbedId]),
@@ -119,8 +152,12 @@ describe('mergeTalents (integration)', () => {
   });
 
   afterAll(async () => {
+    // The awards go with the talents (cascade), so the badges can go after.
     await prisma.talent.deleteMany({
       where: { id: { in: [survivorId, absorbedId] } },
+    });
+    await prisma.badge_Definition.deleteMany({
+      where: { key: { in: badgeKeys } },
     });
     await prisma.event.deleteMany({ where: { id: eventId } });
     await prisma.campus.deleteMany({ where: { id: campusId } });
@@ -159,6 +196,19 @@ describe('mergeTalents (integration)', () => {
     ).toEqual([
       { source: 'onboarding', sourceId: survivorId, amount: 100 },
       { source: 'workshop', sourceId: `ctf:${survivorId}`, amount: 50 },
+    ]);
+  });
+
+  it('keeps a badge both earned once, on the earlier of the two days', async () => {
+    expect(
+      await prisma.badge_Award.findMany({
+        where: { badgeKey: { in: badgeKeys } },
+        orderBy: { badgeKey: 'asc' },
+        select: { talentId: true, badgeKey: true, awardedAt: true },
+      }),
+    ).toEqual([
+      { talentId: survivorId, badgeKey: badgeKeys[0], awardedAt: earlier },
+      { talentId: survivorId, badgeKey: badgeKeys[1], awardedAt: earlier },
     ]);
   });
 
