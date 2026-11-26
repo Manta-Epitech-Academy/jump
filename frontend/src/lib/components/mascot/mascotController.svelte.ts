@@ -167,7 +167,8 @@ export class MascotController {
     this.#lookSaver = new LatestSaver({
       saved: init.choice,
       save: (choice) => saveMascotLook(choice),
-      onFailed: (saved) => {
+      onFailed: (saved, error) => {
+        console.error('[mascot] look not saved:', error);
         this.choice = saved;
         toast.error("Ton canard n'a pas pu être enregistré. Réessaie.");
       },
@@ -176,7 +177,10 @@ export class MascotController {
     this.#sleepSaver = new LatestSaver({
       saved: init.asleep,
       save: (asleep) => putMascotToSleep({ asleep }),
-      onFailed: (stored) => this.#sleepRefused(stored),
+      onFailed: (stored, error) => {
+        console.error('[mascot] sleep not saved:', error);
+        this.#sleepRefused(stored);
+      },
     });
     this.look = $derived(shownMascotLook(this.choice));
     this.savingLook = $derived(this.#lookSaver.busy);

@@ -413,6 +413,7 @@ describe('MascotController, the look the talent chooses', () => {
   });
 
   it('goes back to the last look stored when the server refuses', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
     const answers = heldSaves();
     const mascot = duck();
     mascot.choose({ glasses: 'sun' });
@@ -424,6 +425,12 @@ describe('MascotController, the look the talent chooses', () => {
 
     expect(mascot.choice).toEqual({ ...UNDRESSED, glasses: 'sun' });
     expect(toastError).toHaveBeenCalledOnce();
+    // The toast says it failed; the console keeps why, for whoever reads a report.
+    expect(logged).toHaveBeenCalledWith(
+      '[mascot] look not saved:',
+      new Error('no'),
+    );
+    logged.mockRestore();
   });
 
   it('answers to the name the talent gave him', () => {

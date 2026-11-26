@@ -80,7 +80,7 @@ describe('LatestSaver', () => {
     await flush();
 
     expect(onFailed).toHaveBeenCalledOnce();
-    expect(onFailed).toHaveBeenCalledWith('b');
+    expect(onFailed).toHaveBeenCalledWith('b', new Error('refused'));
     expect(saver.busy).toBe(false);
   });
 
@@ -93,7 +93,7 @@ describe('LatestSaver', () => {
     calls[0].refuse();
     await flush();
 
-    expect(onFailed).toHaveBeenCalledWith('a');
+    expect(onFailed).toHaveBeenCalledWith('a', new Error('refused'));
   });
 
   it('says nothing of a refusal a later save made up for', async () => {
@@ -123,7 +123,7 @@ describe('LatestSaver', () => {
     calls[1].refuse();
     await flush();
 
-    expect(onFailed).toHaveBeenCalledWith('b');
+    expect(onFailed).toHaveBeenCalledWith('b', new Error('refused'));
   });
 
   it('sends nothing more when a burst comes back to what the server holds', async () => {

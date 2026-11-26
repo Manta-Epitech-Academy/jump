@@ -28,7 +28,7 @@ export class LatestSaver<T> {
   #saved: T;
   #pending: { value: T } | null = null;
   #save: (value: T) => Promise<unknown>;
-  #onFailed: (saved: T) => void;
+  #onFailed: (saved: T, error: unknown) => void;
   #same: (a: T, b: T) => boolean;
 
   constructor(options: {
@@ -38,9 +38,10 @@ export class LatestSaver<T> {
     save: (value: T) => Promise<unknown>;
     /**
      * Called with what the server holds when the last save of a burst was
-     * refused, the screen showing a value the server does not have.
+     * refused, the screen showing a value the server does not have, and with
+     * what the refusal threw, for the caller to log where it knows what failed.
      */
-    onFailed: (saved: T) => void;
+    onFailed: (saved: T, error: unknown) => void;
     /** Whether two values are the same one; `Object.is` unless given. */
     same?: (a: T, b: T) => boolean;
   }) {
@@ -60,12 +61,12 @@ export class LatestSaver<T> {
   }
 
   async #run(value: T): Promise<void> {
-    let refused = false;
+    let refusal: { error: unknown } | null = null;
     try {
       await this.#save(value);
       this.#saved = value;
-    } catch {
-      refused = true;
+    } catch (error) {
+      refusal = { error };
     }
     const next = this.#pending;
     this.#pending = null;
@@ -74,6 +75,6 @@ export class LatestSaver<T> {
     }
     this.busy = false;
     // The screen ends on `next` when there is one, which the server holds.
-    if (refused && !next) this.#onFailed(this.#saved);
+    if (refusal && !next) this.#onFailed(this.#saved, refusal.error);
   }
 }
