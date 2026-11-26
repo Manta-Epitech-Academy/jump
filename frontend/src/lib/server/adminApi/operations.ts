@@ -2100,6 +2100,14 @@ export const ADMIN_API_OPERATIONS = {
         .describe(
           `${handleDescribe('mascotMomentKey')} Required to create one, never changed after.`,
         ),
+      badgeKey: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          `${handleDescribe('badgeKey')} The badge a line of badgeEarned or badgeToEarn explains, when a talent clicks it: required for those two moments, null for any other, never changed after.`,
+        ),
       text: z
         .string()
         .trim()

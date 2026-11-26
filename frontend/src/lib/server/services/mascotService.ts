@@ -5,6 +5,7 @@
  * talent's to write, from the settings and the header (`mascot.remote.ts`).
  */
 
+import type { Prisma } from '@prisma/client';
 import { prisma } from '#lib/server/db.ts';
 import { dateKeyToDbDate } from '#lib/domain/eventPresence.ts';
 import { toDateKey, type DateKey } from '#lib/domain/planningTime.ts';
@@ -21,20 +22,32 @@ import { enrolledNotOverWhere } from './talentHomeHero';
 const EVENT_NEWS_HORIZON_MS = 2 * 24 * 60 * 60 * 1000;
 
 /**
+ * The lines the duck may say on `day`: not archived, and inside their window.
+ * One rule for the header's voice and for a badge's lines (`badgeCollection`).
+ */
+export function liveMascotLineWhere(day: DateKey) {
+  const date = dateKeyToDbDate(day);
+  return {
+    archivedAt: null,
+    AND: [
+      { OR: [{ startsOn: null }, { startsOn: { lte: date } }] },
+      { OR: [{ endsOn: null }, { endsOn: { gte: date } }] },
+    ],
+  } satisfies Prisma.Mascot_LineWhereInput;
+}
+
+/**
  * The lines live on `day`, grouped by moment, each moment's in the order they
  * were written so a rotation is stable. Archived lines, lines outside their
  * window and lines of a retired moment are left out. Common to every campus.
+ *
+ * A badge's lines are not the header's voice: they are said on one page, of
+ * one badge, and loaded there (`loadBadgeCollection`), so the voice every
+ * talent page carries never grows with the badge catalogue.
  */
 export async function loadMascotVoice(day: DateKey): Promise<MascotVoice> {
-  const date = dateKeyToDbDate(day);
   const rows = await prisma.mascot_Line.findMany({
-    where: {
-      archivedAt: null,
-      AND: [
-        { OR: [{ startsOn: null }, { startsOn: { lte: date } }] },
-        { OR: [{ endsOn: null }, { endsOn: { gte: date } }] },
-      ],
-    },
+    where: { ...liveMascotLineWhere(day), badgeKey: null },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     select: { momentKey: true, text: true },
   });

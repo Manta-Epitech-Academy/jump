@@ -58,7 +58,7 @@ import {
   EVENT_CATEGORY_KEYS,
   seedEventCategories,
 } from './catalog/eventCategories';
-import { seedMascotLines } from './catalog/mascotLines';
+import { seedBadgeLines, seedMascotLines } from './catalog/mascotLines';
 import { BADGE_KEYS, seedBadges } from './catalog/badges';
 import { STAGE_TEMPLATE_KEY } from './catalog/closings';
 
@@ -355,6 +355,7 @@ async function main(): Promise<void> {
     // the facts just written.
     const badges = await seedBadges(prisma, clock);
     log(`  badges                 ${badges.badges}, obtenus ${badges.awards}`);
+    log(`  phrases des badges     ${await seedBadgeLines(prisma, clock)}`);
 
     const markdown = renderManifest(ctx, {
       seed: args.seed,

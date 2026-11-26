@@ -1102,7 +1102,7 @@ export async function getMascotLines(): Promise<MascotLines> {
           ({ moment: _moment, ...line }) => line,
         ),
       })),
-      "Les moments où le canard EpiDuck parle, chacun avec les variables que ses phrases peuvent citer entre accolades (« {prenom} ») et ses phrases, archivées comprises, dans l'ordre de leur création. Le code décide quand le canard parle, les phrases disent ce qu'il dit, communes à tous les campus. « mascotLineId » est l'identifiant que prend write_mascot_line. « startsOn » et « endsOn » bornent la période où une phrase est dite, jours compris, null pour une borne ouverte. « archived » vaut vrai pour une phrase que le canard ne dit plus. Quand un moment a plusieurs phrases en cours, elles tournent ; sans aucune, le canard se tait à ce moment-là.",
+      "Les moments où le canard EpiDuck parle, chacun avec les variables que ses phrases peuvent citer entre accolades (« {prenom} ») et ses phrases, archivées comprises, dans l'ordre de leur création. Le code décide quand le canard parle, les phrases disent ce qu'il dit, communes à tous les campus. « mascotLineId » est l'identifiant que prend write_mascot_line. « startsOn » et « endsOn » bornent la période où une phrase est dite, jours compris, null pour une borne ouverte. « archived » vaut vrai pour une phrase que le canard ne dit plus. « badgeKey » nomme le badge qu'explique une phrase des moments badgeEarned et badgeToEarn, et vaut null pour tous les autres moments. Quand un moment a plusieurs phrases en cours, elles tournent ; sans aucune, le canard se tait à ce moment-là, sauf sur un badge, dont il dit alors la condition.",
     ),
     maxLength: metric(
       MASCOT_LINE_MAX,
