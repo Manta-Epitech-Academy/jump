@@ -7,7 +7,7 @@
  * survives a change of page, which is the reason his state is not kept in the
  * header that draws him.
  */
-import { test, expect, type Locator } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { E2E, storageStatePath } from './fixtures/identities';
 
 /**
@@ -22,6 +22,15 @@ async function stored(control: Locator): Promise<void> {
   );
   await control.click();
   expect((await answered).ok()).toBe(true);
+}
+
+/**
+ * Waits until « Mon EpiDuck » has saved every choice made on it: the screen
+ * wears a choice at once, so only `aria-busy` says the server has it too, and
+ * a choice still waiting is lost with the page.
+ */
+async function lookSaved(page: Page): Promise<void> {
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
 }
 
 test.describe('le canard EpiDuck d’un talent', () => {
@@ -62,7 +71,7 @@ test.describe('le canard EpiDuck d’un talent', () => {
     for (const choice of ['Rose', 'Verte', 'Orange', 'Mèche', 'Bonnet']) {
       await page.getByRole('button', { name: choice }).click();
     }
-    await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+    await lookSaved(page);
     await page.reload();
     await expect(beanie).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('button', { name: 'Orange' })).toHaveAttribute(
@@ -103,5 +112,6 @@ test.describe('le canard EpiDuck d’un talent', () => {
     await expect(
       page.getByRole('button', { name: 'Parler à EpiDuck' }),
     ).toBeVisible();
+    await lookSaved(page);
   });
 });
