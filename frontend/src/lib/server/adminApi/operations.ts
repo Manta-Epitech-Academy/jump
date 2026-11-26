@@ -74,6 +74,16 @@ import {
 } from '#lib/domain/eventCategory.ts';
 import { CATALOGUE_KEY_PATTERN } from '#lib/domain/catalogueKey.ts';
 import {
+  BADGE_CONDITION_MAX,
+  BADGE_GROUP_KEYS,
+  BADGE_ICON_KEYS,
+  BADGE_ICONS,
+  BADGE_KEY_MAX,
+  BADGE_LABEL_MAX,
+  BADGE_SHAPES,
+  BADGE_TEXT_MAX,
+} from '#lib/domain/badges.ts';
+import {
   NOTIONS_MAX,
   NOTION_LABEL_MAX,
   WORKSHOP_DOMAIN_KEY_MAX,
@@ -173,6 +183,7 @@ import {
   getEmailActions,
   getInterests,
   getMascotLines,
+  getBadges,
   getWorkshops,
   getTalentHomeContent,
 } from '#lib/server/services/adminStats/configuration.ts';
@@ -188,6 +199,7 @@ import {
 } from './writes/talentHome';
 import { writeEventConfig, writeEventTemplate } from './writes/events';
 import { writeEventCategory } from './writes/eventCategories';
+import { writeBadge } from './writes/badges';
 import { writeEmailAction } from './writes/emailActions';
 import { writeInterest } from './writes/interests';
 import { writeMascotLine } from './writes/mascot';
@@ -907,6 +919,13 @@ export const ADMIN_API_OPERATIONS = {
       "What EpiDuck, the talent space's duck mascot, says: every moment the duck speaks at, with the {tokens} its lines may cite and its lines, archived ones included, in the shape write_mascot_line takes. Takes no parameter.",
     shape: {},
     run: () => getMascotLines(),
+  }),
+
+  config_badges: defineOperation({
+    description:
+      'The badges talents earn on their journey, archived ones included, each in the shape write_badge takes with how many talents hold it, and the counters a badge rule may name with the filters each one accepts. Takes no parameter.',
+    shape: {},
+    run: () => getBadges(),
   }),
 
   config_admin_digest: defineOperation({
@@ -1847,6 +1866,160 @@ export const ADMIN_API_OPERATIONS = {
         ),
     },
     run: (params) => writeEventCategory(params),
+  }),
+
+  write_badge: defineWrite({
+    repeat: {
+      safe: true,
+      because:
+        'the same fields write the same badge, and a retried apply is refused as stale rather than awarding twice',
+    },
+    destructive: true,
+    openWorld: false,
+    twoStep: true,
+    description:
+      'Create a talent badge, or change how it reads and looks, by its key. Every talent whose counter reaches the rule (counter, threshold, filters) earns it on their own and keeps it for good, even once the counter goes back down or the badge is archived. The rule is fixed once the badge exists: to change it, archive the badge and create another. Without planDigest it answers with the badge as it stands, as it would be, how many talents would receive it now (newHolders) and a planDigest: show that count to the human before applying, since an award is never taken back. There is no delete: archive it, nobody earns it any more and those who did keep it.',
+    shape: {
+      badgeKey: z
+        .string()
+        .max(BADGE_KEY_MAX)
+        .regex(
+          CATALOGUE_KEY_PATTERN,
+          'Lowercase letters, digits and hyphens only, e.g. "coding-club-5".',
+        )
+        .describe(
+          `${handleDescribe('badgeKey')} Creates or updates by it. Chosen once and never changed: rename the label instead.`,
+        ),
+      label: z
+        .string()
+        .trim()
+        .min(1)
+        .max(BADGE_LABEL_MAX)
+        .optional()
+        .describe(
+          'The badge\'s name in French, as the talent reads it, e.g. "Addict". Required to create one.',
+        ),
+      condition: z
+        .string()
+        .trim()
+        .min(1)
+        .max(BADGE_CONDITION_MAX)
+        .optional()
+        .describe(
+          'What earns it, in French, as the talent reads it under a badge still to earn: say what the rule counts, e.g. "A participé à 5 Coding Clubs". Required to create one.',
+        ),
+      group: z
+        .enum(BADGE_GROUP_KEYS as [string, ...string[]])
+        .optional()
+        .describe(
+          'Where the collection files it: parcours (the events a talent came to), succes (what they achieved), wtf (the playful ones). Required to create one.',
+        ),
+      shape: z
+        .enum(BADGE_SHAPES)
+        .optional()
+        .describe('Its outline. Required to create one.'),
+      icon: z
+        .enum(BADGE_ICON_KEYS as [string, ...string[]])
+        .optional()
+        .describe(
+          `Its pictogram: ${BADGE_ICON_KEYS.map((key) => `${key} (${BADGE_ICONS[key]})`).join(', ')}. Required to create one.`,
+        ),
+      text: z
+        .string()
+        .trim()
+        .min(1)
+        .max(BADGE_TEXT_MAX)
+        .nullable()
+        .optional()
+        .describe(
+          'A few characters printed on it beside the pictogram, e.g. "×5", "2NDE", "10 J". Null for none. Omit to leave it.',
+        ),
+      backgroundColor: z
+        .string()
+        .regex(EVENT_CATEGORY_COLOR_PATTERN, 'Use #rrggbb, e.g. "#013afb".')
+        .optional()
+        .describe(
+          "Its fill, #rrggbb. The mockup's badges use Epitech's #013afb, #00ff97, #ff1ef7, #ff5f3a, #0b0d14 and #ffffff. Required to create one.",
+        ),
+      ringColor: z
+        .string()
+        .regex(EVENT_CATEGORY_COLOR_PATTERN, 'Use #rrggbb, e.g. "#013afb".')
+        .optional()
+        .describe('Its outline, #rrggbb. Required to create one.'),
+      ringDashed: z
+        .boolean()
+        .optional()
+        .describe(
+          'True for a dashed outline. Omit to leave it, solid on a new one.',
+        ),
+      iconColor: z
+        .string()
+        .regex(EVENT_CATEGORY_COLOR_PATTERN, 'Use #rrggbb, e.g. "#013afb".')
+        .optional()
+        .describe(
+          'Its pictogram and text, #rrggbb, legible on the fill. Required to create one.',
+        ),
+      counter: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          `${handleDescribe('badgeCounterKey')} What the rule counts. Required to create one, fixed after.`,
+        ),
+      threshold: z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe(
+          'The count a talent reaches to earn it, e.g. 5 for five Coding Clubs. Required to create one, fixed after.',
+        ),
+      eventIds: z
+        .array(z.string().min(1))
+        .optional()
+        .describe(
+          `${handleDescribe('eventId')} Counts only these events, when the counter takes the events filter. Fixed once the badge exists.`,
+        ),
+      categoryKeys: z
+        .array(z.string().min(1))
+        .optional()
+        .describe(
+          `${handleDescribe('eventCategoryKey')} Counts only the events of one of these categories, archived ones included, when the counter takes the categories filter. Fixed once the badge exists.`,
+        ),
+      domains: z
+        .array(z.string().min(1))
+        .optional()
+        .describe(
+          `${handleDescribe('workshopDomainKey')} Counts only the activities filed under one of these domains, archived ones included, when the counter takes the domains filter. Fixed once the badge exists.`,
+        ),
+      periodFrom: z
+        .string()
+        .refine(isCalendarDay, 'A real calendar day, e.g. "2026-01-01".')
+        .nullable()
+        .optional()
+        .describe(
+          'Counts only the events whose first day is on or after this day, in their campus, when the counter takes the period filter. Null for no start. Fixed once the badge exists.',
+        ),
+      periodTo: z
+        .string()
+        .refine(isCalendarDay, 'A real calendar day, e.g. "2026-12-31".')
+        .nullable()
+        .optional()
+        .describe(
+          'Counts only the events whose first day is on or before this day, inclusive. Null for no end. Fixed once the badge exists.',
+        ),
+      archived: z
+        .boolean()
+        .optional()
+        .describe(
+          'True to archive it, false to unarchive it. Omit to leave it as it stands.',
+        ),
+      planDigest: z
+        .string()
+        .optional()
+        .describe('Digest returned by the dry run. Omit to get a dry run.'),
+    },
+    run: (params) => writeBadge(params as Parameters<typeof writeBadge>[0]),
   }),
 
   write_email_action: defineWrite({

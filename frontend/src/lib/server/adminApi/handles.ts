@@ -54,7 +54,9 @@ export type HandleKind =
   | 'messageTemplateId'
   | 'interestId'
   | 'mascotLineId'
-  | 'mascotMomentKey';
+  | 'mascotMomentKey'
+  | 'badgeKey'
+  | 'badgeCounterKey';
 
 /**
  * Deliberately only the operation and the slice it covers, never where the value
@@ -142,6 +144,20 @@ export const HANDLES: Record<HandleKind, Handle> = {
     frNoun: 'moments du canard',
     frGender: 'm',
     producedBy: [{ operation: 'config_mascot_lines' }],
+  },
+
+  badgeKey: {
+    what: 'Badge key, its stable name; the label is what gets renamed.',
+    frNoun: 'clés de badge',
+    frGender: 'f',
+    producedBy: [{ operation: 'config_badges' }],
+  },
+
+  badgeCounterKey: {
+    what: 'Badge counter key, one of the counts a badge rule may name, each with the filters it accepts.',
+    frNoun: 'compteurs de badge',
+    frGender: 'm',
+    producedBy: [{ operation: 'config_badges' }],
   },
 
   usageFeatureKey: {
@@ -473,6 +489,12 @@ export const PARAM_HANDLES: Record<string, HandleKind> = {
   // taken by nothing else in the catalogue.
   mascotLineId: 'mascotLineId',
   moment: 'mascotMomentKey',
+  // A badge by its key, and what its rule counts and narrows by: the events
+  // and domains under the names the other writes already give them, the
+  // categories as a list, since `categoryKey` names one.
+  badgeKey: 'badgeKey',
+  counter: 'badgeCounterKey',
+  categoryKeys: 'eventCategoryKey',
 };
 
 const list = (parts: string[]) =>
