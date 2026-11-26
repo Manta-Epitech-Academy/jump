@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { Prisma } from '@prisma/client';
 import { prisma } from '#lib/server/db.ts';
+import { awardDueBadges } from '#lib/server/services/badgeAwards.ts';
 import {
   validateAnswer,
   isEmptyAnswer,
@@ -152,7 +153,20 @@ export async function recordSubmission(
           },
         });
       }
-      return tx.feedback_Submission.create({ data, select: { id: true } });
+      const created = await tx.feedback_Submission.create({
+        data,
+        select: { id: true },
+      });
+      // A questionnaire badge this answer earns arrives with it (#448). A
+      // public answer names no talent and earns nothing.
+      if (ctx.source === 'authenticated') {
+        await awardDueBadges(tx, {
+          now: new Date(),
+          talentIds: [ctx.talentId],
+          counters: ['questionnaires'],
+        });
+      }
+      return created;
     });
   } catch (e) {
     // Two concurrent authenticated submits for the same (form, event, talent)

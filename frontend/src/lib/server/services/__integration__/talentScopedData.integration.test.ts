@@ -239,6 +239,10 @@ const ERASURE: Policy = {
       fate: 'keep',
       why: 'Ids and counters only; the CTFd accounts are erased by the instances, which ask /api/workshops/erasures.',
     },
+    Badge_Award: {
+      fate: 'delete',
+      why: "The collection is the talent's own and no figure counts it: it goes with the account (#448 AC9).",
+    },
     AuthIdentityRepair: {
       fate: 'scrub',
       columns: ['fromEmail', 'toEmail'],
@@ -407,6 +411,10 @@ const RESET: Policy = {
       fate: 'delete',
       why: 'A kept xpCelebrated outlives the XpGrant delete, so XP re-earned from zero would never float until they passed it.',
     },
+    Badge_Award: {
+      fate: 'delete',
+      why: 'Earned on the XP, games and activities the reset deletes; what the kept facts still give comes back at the next sweep.',
+    },
     XpGrant: { fate: 'delete', why: 'Earned after import.' },
     EventPresence: {
       fate: 'delete',
@@ -533,6 +541,10 @@ const MERGE: Policy = {
     Workshop_Participation: {
       fate: 'move',
       why: 'Taken part in by the person.',
+    },
+    Badge_Award: {
+      fate: 'move',
+      why: 'Earned by the person; a badge both held is kept once, on the earlier day.',
     },
     XpGrant: {
       fate: 'move',
@@ -719,6 +731,7 @@ describe('what erasure, reset and merge do to every talent table (integration)',
     instanceId: '',
     activityId: '',
     interestId: '',
+    badgeKey: '',
   };
   const userIds: string[] = [];
 
@@ -922,6 +935,9 @@ describe('what erasure, reset and merge do to every talent table (integration)',
         campusId: created.campusId,
         xpCelebrated: 480,
       },
+    });
+    await prisma.badge_Award.create({
+      data: { talentId, badgeKey: created.badgeKey, awardedAt: new Date() },
     });
     await prisma.sync_Error.createMany({
       data: [
@@ -1261,6 +1277,23 @@ describe('what erasure, reset and merge do to every talent table (integration)',
         data: { nom: `Scoped ${stamp}`, order: 999 },
       })
     ).id;
+    created.badgeKey = (
+      await prisma.badge_Definition.create({
+        data: {
+          key: `scoped-${stamp}`,
+          label: `Scoped ${stamp}`,
+          condition: 'A gagné 1 XP',
+          groupKey: 'succes',
+          shape: 'circle',
+          icon: 'check',
+          backgroundColor: '#013afb',
+          ringColor: '#ffffff',
+          iconColor: '#ffffff',
+          counterKey: 'xp',
+          threshold: 1,
+        },
+      })
+    ).key;
 
     // Erasure, run as both of its callers run it: inside a transaction.
     {
@@ -1384,6 +1417,10 @@ describe('what erasure, reset and merge do to every talent table (integration)',
     });
     await prisma.talent.deleteMany({ where: { id: { in: talents } } });
     await prisma.bauth_user.deleteMany({ where: { id: { in: userIds } } });
+    // Its awards went with the talents (cascade).
+    await prisma.badge_Definition.deleteMany({
+      where: { key: created.badgeKey },
+    });
     await prisma.event.deleteMany({ where: { id: created.eventId } });
     await prisma.broadcast.deleteMany({ where: { id: created.broadcastId } });
     await prisma.messageTemplate.deleteMany({

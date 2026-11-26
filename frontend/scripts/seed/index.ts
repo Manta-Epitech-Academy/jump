@@ -59,6 +59,7 @@ import {
   seedEventCategories,
 } from './catalog/eventCategories';
 import { seedMascotLines } from './catalog/mascotLines';
+import { BADGE_KEYS, seedBadges } from './catalog/badges';
 import { STAGE_TEMPLATE_KEY } from './catalog/closings';
 
 const DEFAULT_SEED = 20260830;
@@ -306,6 +307,7 @@ async function main(): Promise<void> {
       formSlugs: FEEDBACK_FORM_SLUGS,
       categoryKeys: EVENT_CATEGORY_KEYS,
       domainKeys: WORKSHOP_DOMAIN_KEYS,
+      badgeKeys: BADGE_KEYS,
     });
     log(`  ${removed} lignes retirées.`);
 
@@ -349,6 +351,10 @@ async function main(): Promise<void> {
     await clearFoldedMonths(prisma, world.buffer, log);
     const rows = await flush(prisma, world.buffer, log, clock.today);
     log(`  ${rows} lignes écrites.`);
+    // After the flush: a rule may name a seeded event, and every award reads
+    // the facts just written.
+    const badges = await seedBadges(prisma, clock);
+    log(`  badges                 ${badges.badges}, obtenus ${badges.awards}`);
 
     const markdown = renderManifest(ctx, {
       seed: args.seed,

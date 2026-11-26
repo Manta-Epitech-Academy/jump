@@ -2,6 +2,7 @@ import { parseDate } from '@internationalized/date';
 import { prisma } from '#lib/server/db.ts';
 import { dbDateToKey } from '#lib/domain/eventPresence.ts';
 import { toDateKey } from '#lib/domain/planningTime.ts';
+import { awardDueBadges } from '#lib/server/services/badgeAwards.ts';
 
 /**
  * Count the day `now` falls on, in `timezone`, into the talent's run of
@@ -29,6 +30,10 @@ import { toDateKey } from '#lib/domain/planningTime.ts';
  *
  * Days travel as `YYYY-MM-DD` keys cast to `date`, so no `Date` stands in for a
  * calendar day and no timezone can shift one.
+ *
+ * The day's write also awards a run-of-days badge the run just reached (#448),
+ * in the same transaction: the run only moves here, and it can restart at 1 on
+ * the next visit, before any sweep would have seen the day it reached.
  */
 export async function recordSignInDay(
   talent: { id: string; streakLastDay: Date | null },
@@ -40,18 +45,27 @@ export async function recordSignInDay(
     return;
   }
   const yesterday = parseDate(today).subtract({ days: 1 }).toString();
-  await prisma.$executeRaw`
-    UPDATE "Talent"
-    SET "streakDays" = CASE
-          WHEN "streakLastDay" = ${yesterday}::date THEN "streakDays" + 1
-          ELSE 1
-        END,
-        "streakPreviousDay" = "streakLastDay",
-        "streakLastDay" = ${today}::date
-    WHERE "id" = ${talent.id}
-      AND "anonymizedAt" IS NULL
-      AND ("streakLastDay" IS NULL OR "streakLastDay" < ${today}::date)
-  `;
+  await prisma.$transaction(async (tx) => {
+    const counted = await tx.$executeRaw`
+      UPDATE "Talent"
+      SET "streakDays" = CASE
+            WHEN "streakLastDay" = ${yesterday}::date THEN "streakDays" + 1
+            ELSE 1
+          END,
+          "streakPreviousDay" = "streakLastDay",
+          "streakLastDay" = ${today}::date
+      WHERE "id" = ${talent.id}
+        AND "anonymizedAt" IS NULL
+        AND ("streakLastDay" IS NULL OR "streakLastDay" < ${today}::date)
+    `;
+    if (counted > 0) {
+      await awardDueBadges(tx, {
+        now,
+        talentIds: [talent.id],
+        counters: ['signInStreak'],
+      });
+    }
+  });
 }
 
 /** The `Talent` patch for "no run at all", which the erasure and the reset write. */

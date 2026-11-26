@@ -94,6 +94,7 @@ Each file carries its surface's rules and the incidents that set them. Read it b
 | --- | --- |
 | [`.claude/rules/admin-api.md`](.claude/rules/admin-api.md) | the admin API, MCP tools, `adminStats`, tokens, the leadership tier |
 | [`.claude/rules/auth.md`](.claude/rules/auth.md) | sign-in doors, guards, role groups, `hooks.server.ts` |
+| [`.claude/rules/badges.md`](.claude/rules/badges.md) | badges: their counters, their rules, who awards them and when |
 | [`.claude/rules/closings.md`](.claude/rules/closings.md) | closings: the question bank, grids, records, their figures |
 | [`.claude/rules/data-model.md`](.claude/rules/data-model.md) | `schema.prisma`, a new model or relation, a migration |
 | [`.claude/rules/event-modules.md`](.claude/rules/event-modules.md) | event modules, presets, certificate designs and rendering |

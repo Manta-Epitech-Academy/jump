@@ -162,7 +162,10 @@ Nine rules, and each is enforced rather than hoped for:
   run: many of them reach SvelteKit's `$app/*` modules, which resolve only under
   Vite, so the generator writes rows and `--check` runs the domain's own
   functions over the result. The
-  generator constructs, the domain verifies.
+  generator constructs, the domain verifies. One writer is run, because it IS
+  the rule: the badge awards (`awardDueBadges`), which take their client as a
+  parameter and import nothing from SvelteKit, so a seeded award is one the
+  application wrote rather than a second statement of every counter.
 - **The measured shape of production lives in `frontend/scripts/seed/PROFILE.md`**
   and is not re-measured. It was taken once, in aggregates, with no row ever read;
   a figure that is missing from it gets asked for rather than looked up in

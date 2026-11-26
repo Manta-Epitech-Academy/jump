@@ -337,7 +337,7 @@ export async function wipe(
   /**
    * Catalogue rows the generator owns but that carry their own natural keys
    * rather than seed ids - the feedback forms, keyed on a slug, and the event
-   * categories and workshop domains, keyed on the key the API names them by. Their seeders are
+   * categories, workshop domains and badges, keyed on the key the API names them by. Their seeders are
    * create-only, which is right for `--catalog-only` against a live database and
    * wrong for a full generation: without this, an edit to a fixture would never
    * reach a database that had already been seeded once, and the fixture and the
@@ -347,10 +347,16 @@ export async function wipe(
     formSlugs?: readonly string[];
     categoryKeys?: readonly string[];
     domainKeys?: readonly string[];
+    badgeKeys?: readonly string[];
   } = {},
 ): Promise<number> {
   const seeded = { startsWith: SEED_ID_PREFIX };
-  const { formSlugs = [], categoryKeys = [], domainKeys = [] } = catalogue;
+  const {
+    formSlugs = [],
+    categoryKeys = [],
+    domainKeys = [],
+    badgeKeys = [],
+  } = catalogue;
   let removed = 0;
   const drop = async (label: string, run: () => Promise<{ count: number }>) => {
     const { count } = await run();
@@ -358,6 +364,21 @@ export async function wipe(
     removed += count;
   };
 
+  // First, since a badge rule Restricts onto the events, categories and domains
+  // dropped below. Every award of a seeded badge goes, whoever holds it: the
+  // badge does not outlive the generation, so neither can what it gave.
+  if (badgeKeys.length > 0) {
+    await drop('badge_Award', () =>
+      prisma.badge_Award.deleteMany({
+        where: { badgeKey: { in: [...badgeKeys] } },
+      }),
+    );
+    await drop('badge_Definition', () =>
+      prisma.badge_Definition.deleteMany({
+        where: { key: { in: [...badgeKeys] } },
+      }),
+    );
+  }
   await drop('authIdentityRepair', () =>
     prisma.authIdentityRepair.deleteMany({ where: { id: seeded } }),
   );

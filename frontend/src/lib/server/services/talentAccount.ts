@@ -312,6 +312,11 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     // which is the mirror behaving as one.
     await tx.workshop_Participation.deleteMany({ where: { talentId } });
     await tx.xpGrant.deleteMany({ where: { talentId } });
+    // The badges were earned on the XP, games and activities just deleted
+    // (#448): the talent returned to import starts the collection again, and
+    // earns back what the facts that stay (the enrolments, the visits Salesforce
+    // attests) still give at the next sweep.
+    await tx.badge_Award.deleteMany({ where: { talentId } });
     await tx.eventPresence.deleteMany({ where: { talentId } });
     // The closings and émargement just deleted were proofs of the talent's
     // visits; the enrolments, which the sync owns, stay.

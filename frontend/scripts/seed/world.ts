@@ -1955,8 +1955,8 @@ export class World {
   }
 
   /**
-   * Awards the ranking bonus on every finished attempt, the way the application
-   * awards it.
+   * Records the place every finished attempt finished at, and awards the
+   * ranking bonus on it, the way the application does both.
    *
    * **A rank is a property of the field, not of an attempt.** It used to be
    * passed in per attempt - `rank: index + 1`, `fieldSize` a guess at the cohort
@@ -2044,6 +2044,8 @@ export class World {
           .slice(0, index)
           .filter((earlier) => better(earlier, attempt)).length;
         const rank = ahead + 1;
+        // The place is kept whatever it pays, as the finish callback keeps it.
+        attempt.rankAtFinish = rank;
         if (rank > minigameRankBonusLimit(fieldSize)) continue;
         const bonus = minigameRankBonus(rank, fieldSize);
         if (bonus <= 0) continue;

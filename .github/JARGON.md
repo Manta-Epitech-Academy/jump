@@ -97,10 +97,12 @@ These three concepts are distinct and must not be confused in code or documentat
 
 ## Talent Space
 
-| Term in Jump           | Definition & Context                                                                                                                                                         | Model / Code                            |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| **EpiDuck**            | The blue duck in every talent header, Jump's one mascot. Each talent names and dresses their own, and he hosts their questionnaires. Replaced « Bernard le canard » (#539). | `Talent.mascot*`, `components/mascot/` |
-| **Moment** (du canard) | A point where EpiDuck speaks (a tap, the hello on arrival, going to sleep...). A closed list in code; what he says at each one is data the PO writes.                            | `MASCOT_MOMENTS`, `Mascot_Line`         |
+| Term in Jump            | Definition & Context                                                                                                                                                          | Model / Code                           |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| **EpiDuck**             | The blue duck in every talent header, Jump's one mascot. Each talent names and dresses their own, and he hosts their questionnaires. Replaced « Bernard le canard » (#539).   | `Talent.mascot*`, `components/mascot/` |
+| **Moment** (du canard)  | A point where EpiDuck speaks (a tap, the hello on arrival, going to sleep...). A closed list in code; what he says at each one is data the PO writes.                         | `MASCOT_MOMENTS`, `Mascot_Line`        |
+| **Badge**               | What a talent earns on their journey when a counter of theirs reaches a rule (« A participé à 5 Coding Clubs »), kept for good. Data the PO writes over the admin API (#448). | `Badge_Definition`, `Badge_Award`      |
+| **Compteur** (de badge) | What a badge rule counts (XP, visits, finished activities, first places at the daily game...), with the filters it takes. A closed list in code.                              | `BADGE_COUNTERS`                       |
 
 ---
 
@@ -112,3 +114,4 @@ These three concepts are distinct and must not be confused in code or documentat
 | "Participant" for a specific stagiaire | Event's configured `cohortNoun`         | Cohort noun depends on event type and is configurable                                             |
 | "Status" without qualification         | "SF status" vs "Dossier status"         | Two statuses co-exist: Salesforce status vs talent file completion status (charter, image rights) |
 | "Sync" without qualification           | "Salesforce sync" vs "Worker sync"      | Multiple sync processes exist (talents, events, campuses)                                         |
+| "Badge" on an event's page             | "Badge nominatif" (`badges.pdf`)        | The printed name badges of an event are not the badges a talent earns on their journey            |

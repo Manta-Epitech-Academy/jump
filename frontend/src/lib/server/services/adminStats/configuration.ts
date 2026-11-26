@@ -91,6 +91,17 @@ import {
   mascotLineState,
   type MascotLineState,
 } from '#lib/server/adminApi/writes/mascot.ts';
+import {
+  BADGE_COUNTER_KEYS,
+  BADGE_COUNTERS,
+  BADGE_FILTERS,
+  BADGE_GROUP_KEYS,
+} from '#lib/domain/badges.ts';
+import {
+  BADGE_STATE_SELECT,
+  badgeState,
+  type BadgeState,
+} from '#lib/server/adminApi/writes/badges.ts';
 import { hiddenEnrolmentsByEvent, scopedEvents, scopeLabels } from './cohort';
 import {
   eventStateCounts,
@@ -1096,6 +1107,73 @@ export async function getMascotLines(): Promise<MascotLines> {
     maxLength: metric(
       MASCOT_LINE_MAX,
       "Le nombre de caractères qu'une phrase du canard ne peut pas dépasser : au-delà, elle ne tient plus dans sa bulle.",
+    ),
+  };
+}
+
+// ── Badges (#448) ────────────────────────────────────────────────────────────
+
+export type BadgeCounterRow = {
+  counter: string;
+  label: string;
+  definition: string;
+  filters: string[];
+};
+
+export type BadgeRow = BadgeState & { holders: number };
+
+export type Badges = {
+  counters: Metric<BadgeCounterRow[]>;
+  badges: Metric<BadgeRow[]>;
+};
+
+/**
+ * The badge catalogue: the counters a rule may name, with what each counts and
+ * the filters it takes, and every badge, archived ones included, in the exact
+ * shape `write_badge` takes, with how many talents hold it. Sorted the way the
+ * collection files them, by group, then in the order they were created.
+ */
+export async function getBadges(): Promise<Badges> {
+  const [rows, held] = await Promise.all([
+    prisma.badge_Definition.findMany({
+      orderBy: [{ createdAt: 'asc' }, { key: 'asc' }],
+      select: BADGE_STATE_SELECT,
+    }),
+    prisma.badge_Award.groupBy({ by: ['badgeKey'], _count: { _all: true } }),
+  ]);
+  const holders = new Map(held.map((row) => [row.badgeKey, row._count._all]));
+  const groupRank = (group: string) => {
+    const at = (BADGE_GROUP_KEYS as string[]).indexOf(group);
+    return at === -1 ? BADGE_GROUP_KEYS.length : at;
+  };
+  const badges = rows
+    .map((row) => ({
+      ...badgeState(row),
+      holders: holders.get(row.key) ?? 0,
+    }))
+    .sort((a, b) => groupRank(a.group) - groupRank(b.group));
+
+  return {
+    counters: metric(
+      BADGE_COUNTER_KEYS.map((key) => ({
+        counter: key,
+        label: BADGE_COUNTERS[key].label,
+        definition: BADGE_COUNTERS[key].definition,
+        filters: [...BADGE_COUNTERS[key].filters],
+      })),
+      `Les compteurs qu'une règle de badge peut nommer, chacun avec ce qu'il compte pour un talent (« definition ») et les filtres qu'il accepte (« filters ») : ${Object.entries(
+        BADGE_FILTERS,
+      )
+        .map(([key, label]) => `« ${key} » (${label})`)
+        .join(', ')}. « counter » est la clé que prend write_badge.`,
+    ),
+    badges: metric(
+      badges,
+      "Les badges, archivés compris, rangés par groupe (parcours, succes, wtf) puis dans l'ordre de leur création. " +
+        "« badgeKey » est la clé qui l'identifie et que prend write_badge ; elle ne change jamais, le nom (« label ») se renomme. " +
+        "« condition » est ce que lit le talent sous un badge qu'il n'a pas encore. « shape », « icon », « text », « backgroundColor », « ringColor », « ringDashed » et « iconColor » décrivent son visuel, « text » valant null quand rien n'y est écrit. " +
+        "La règle est « counter », « threshold » et ses filtres : « eventIds », « categoryKeys », « domains » (listes vides quand elle ne filtre pas) et « periodFrom » / « periodTo » (premier jour de l'événement, bornes comprises, null pour une borne ouverte). Elle ne change plus une fois le badge créé. " +
+        "« archived » vaut vrai pour un badge que plus personne n'obtient ; ceux qui l'ont obtenu le gardent. « holders » compte les talents qui l'ont obtenu.",
     ),
   };
 }
