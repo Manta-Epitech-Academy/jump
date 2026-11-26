@@ -47,8 +47,6 @@ import { MASCOT_MOMENT_KEYS } from '../../../src/lib/domain/mascot';
 import {
   BADGE_COUNTER_KEYS,
   BADGE_GROUP_KEYS,
-  BADGE_ICON_KEYS,
-  BADGE_SHAPES,
 } from '../../../src/lib/domain/badges';
 import {
   REGLEMENT_VERSIONS,
@@ -199,22 +197,6 @@ const CATALOGUES: readonly Catalogue[] = [
       { table: 'Badge_Definition', field: 'groupKey', ownedBy: EVERY_ROW },
     ],
     values: () => BADGE_GROUP_KEYS,
-    requireEveryValue: true,
-  },
-  {
-    vocabulary: 'forme de badge',
-    columns: [
-      { table: 'Badge_Definition', field: 'shape', ownedBy: EVERY_ROW },
-    ],
-    values: () => BADGE_SHAPES,
-    requireEveryValue: true,
-  },
-  {
-    // Each pictogram is a drawing the collection (#551) ships, so each one is
-    // worn by some badge, and none outside the list.
-    vocabulary: 'pictogramme de badge',
-    columns: [{ table: 'Badge_Definition', field: 'icon', ownedBy: EVERY_ROW }],
-    values: () => BADGE_ICON_KEYS,
     requireEveryValue: true,
   },
   {

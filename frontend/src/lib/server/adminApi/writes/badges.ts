@@ -1,9 +1,9 @@
 /**
- * The write on the badge catalogue (#448): create a badge, rename it, restyle
+ * The write on the badge catalogue (#448): create a badge, rename it, redraw
  * it, regroup it, archive or unarchive it, identified by its key.
  *
  * One write for the entity, with patch semantics: a key that does not exist yet
- * creates a badge (its label, condition, look and rule are then required), and
+ * creates a badge (its label, condition, drawing and rule are then required), and
  * on an existing key only the fields given change. Except the rule: a badge's
  * counter, threshold and filters are fixed once it exists, because an award is
  * a fact that says the talent met THIS rule (`fixedBadgeRuleRefusal`). Sending
@@ -30,6 +30,13 @@
  * that: the common case is a badge on an event to come, written with the wrong
  * rule, which nobody can hold yet. A held badge is archived instead: nobody
  * earns it any more, and those who did keep it.
+ *
+ * A badge's drawing (`art`, #551) is drawn straight into talents' pages, so it
+ * is screened before anything else (`screenBadgeArt`), and stored as written or
+ * not at all. To draw one before anybody receives it, it is created archived:
+ * nobody is awarded an archived badge, and nobody is shown one they do not
+ * hold, so its preview can be looked at and its drawing redone until it is
+ * unarchived, which is when the dry run counts who would receive it.
  */
 
 import { prisma } from '#lib/server/db.ts';
@@ -41,10 +48,10 @@ import {
   isBadgeCounterKey,
   sameBadgeRule,
   type BadgeGroupKey,
-  type BadgeIcon,
   type BadgeRule,
-  type BadgeShape,
 } from '#lib/domain/badges.ts';
+import { screenBadgeArt } from '#lib/server/badgeArtSanitize.ts';
+import { badgeStickerPreviewLink } from '#lib/server/services/badgeStickerPreview.ts';
 import { dateKeyToDbDate } from '#lib/domain/eventPresence.ts';
 import type { DateKey } from '#lib/domain/planningTime.ts';
 import {
@@ -65,13 +72,7 @@ export type BadgeState = {
   label: string;
   condition: string;
   group: string;
-  shape: string;
-  icon: string;
-  text: string | null;
-  backgroundColor: string;
-  ringColor: string;
-  ringDashed: boolean;
-  iconColor: string;
+  art: string;
   counter: string;
   threshold: number;
   eventIds: string[];
@@ -87,13 +88,7 @@ export const BADGE_STATE_SELECT = {
   label: true,
   condition: true,
   groupKey: true,
-  shape: true,
-  icon: true,
-  text: true,
-  backgroundColor: true,
-  ringColor: true,
-  ringDashed: true,
-  iconColor: true,
+  art: true,
   archivedAt: true,
 } satisfies Prisma.Badge_DefinitionSelect;
 
@@ -108,13 +103,7 @@ export function badgeState(row: BadgeStateRow): BadgeState {
     label: row.label,
     condition: row.condition,
     group: row.groupKey,
-    shape: row.shape,
-    icon: row.icon,
-    text: row.text,
-    backgroundColor: row.backgroundColor,
-    ringColor: row.ringColor,
-    ringDashed: row.ringDashed,
-    iconColor: row.iconColor,
+    art: row.art,
     counter: rule.counterKey,
     threshold: rule.threshold,
     eventIds: [...rule.eventIds].sort(),
@@ -151,13 +140,7 @@ export type BadgePatch = {
   label?: string;
   condition?: string;
   group?: BadgeGroupKey;
-  shape?: BadgeShape;
-  icon?: BadgeIcon;
-  text?: string | null;
-  backgroundColor?: string;
-  ringColor?: string;
-  ringDashed?: boolean;
-  iconColor?: string;
+  art?: string;
   counter?: string;
   threshold?: number;
   eventIds?: string[];
@@ -175,11 +158,7 @@ const REQUIRED_TO_CREATE = [
   'label',
   'condition',
   'group',
-  'shape',
-  'icon',
-  'backgroundColor',
-  'ringColor',
-  'iconColor',
+  'art',
   'counter',
   'threshold',
 ] as const satisfies readonly (keyof BadgePatch)[];
@@ -210,17 +189,7 @@ function stateAfter(params: BadgePatch, before: BadgeState | null): BadgeState {
     label: pick('label', params.label?.trim(), ''),
     condition: pick('condition', params.condition?.trim(), ''),
     group: pick('group', params.group, ''),
-    shape: pick('shape', params.shape, ''),
-    icon: pick('icon', params.icon, ''),
-    text: pick('text', params.text === null ? null : params.text?.trim(), null),
-    backgroundColor: pick(
-      'backgroundColor',
-      params.backgroundColor?.toLowerCase(),
-      '',
-    ),
-    ringColor: pick('ringColor', params.ringColor?.toLowerCase(), ''),
-    ringDashed: pick('ringDashed', params.ringDashed, false),
-    iconColor: pick('iconColor', params.iconColor?.toLowerCase(), ''),
+    art: pick('art', params.art, ''),
     counter: pick('counter', params.counter, ''),
     threshold: pick('threshold', params.threshold, 0),
     eventIds: pick('eventIds', sorted(params.eventIds), []),
@@ -316,13 +285,7 @@ function definitionData(state: BadgeState) {
     label: state.label,
     condition: state.condition,
     groupKey: state.group,
-    shape: state.shape,
-    icon: state.icon,
-    text: state.text,
-    backgroundColor: state.backgroundColor,
-    ringColor: state.ringColor,
-    ringDashed: state.ringDashed,
-    iconColor: state.iconColor,
+    art: state.art,
   };
 }
 
@@ -379,11 +342,31 @@ async function removeBadge(
   });
 }
 
-export async function writeBadge(params: BadgePatch): Promise<WriteOutcome> {
+/** A badge as an answer carries it: without its drawing, which the caller sent. */
+function withoutArt(state: BadgeState | null) {
+  if (!state) return null;
+  const { art: _art, ...rest } = state;
+  return rest;
+}
+
+export async function writeBadge(
+  params: BadgePatch,
+  ctx: { origin: string },
+): Promise<WriteOutcome> {
   const key = params.badgeKey;
   if (params.remove) return removeBadge(key, params.planDigest);
+  // First, and whatever else the call carries: a drawing lands in talents'
+  // pages, so nothing is weighed, not even a dry run, on one it would refuse.
+  let art = params.art;
+  if (art !== undefined) {
+    const screened = screenBadgeArt(art);
+    if (screened.problems.length > 0) {
+      throw new OperationRefusedError(screened.problems.join(' '));
+    }
+    art = screened.art;
+  }
   const before = await stateOf(key);
-  const after = stateAfter(params, before);
+  const after = stateAfter({ ...params, art }, before);
   const rule = ruleOfState(after);
 
   if (before) {
@@ -473,7 +456,23 @@ export async function writeBadge(params: BadgePatch): Promise<WriteOutcome> {
           }
         }),
       );
-      return { before: plan.replaces, after: await stateOf(key) };
+      const written = await stateOf(key);
+      return {
+        before: plan.replaces,
+        after: written,
+        // A receipt without the drawing, which the caller has just sent and
+        // would otherwise pay to read back twice, and with the link to see it,
+        // which is the next thing it needs (the certificate write's answer).
+        answer: {
+          before: withoutArt(plan.replaces),
+          after: withoutArt(written),
+          ...badgeStickerPreviewLink({
+            badgeKey: key,
+            label: after.label,
+            origin: ctx.origin,
+          }),
+        },
+      };
     },
   });
 }

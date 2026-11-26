@@ -74,14 +74,13 @@ import {
 } from '#lib/domain/eventCategory.ts';
 import { CATALOGUE_KEY_PATTERN } from '#lib/domain/catalogueKey.ts';
 import {
+  BADGE_ART_FONTS,
+  BADGE_ART_MAX,
+  BADGE_ART_SIZE,
   BADGE_CONDITION_MAX,
   BADGE_GROUP_KEYS,
-  BADGE_ICON_KEYS,
-  BADGE_ICONS,
   BADGE_KEY_MAX,
   BADGE_LABEL_MAX,
-  BADGE_SHAPES,
-  BADGE_TEXT_MAX,
 } from '#lib/domain/badges.ts';
 import {
   NOTIONS_MAX,
@@ -188,6 +187,7 @@ import {
   getTalentHomeContent,
 } from '#lib/server/services/adminStats/configuration.ts';
 import { getDiplomaTemplatePreview } from '#lib/server/diplomaTemplates.ts';
+import { getBadgeStickerPreview } from '#lib/server/services/badgeStickerPreview.ts';
 import { getSchoolYearReview } from '#lib/server/services/adminStats/schoolYearReview.ts';
 import { getAdminDigestRecipients } from '#lib/server/services/adminStats/adminDigestRecipients.ts';
 import { writeDiplomaTemplate } from './writes/diplomas';
@@ -923,9 +923,27 @@ export const ADMIN_API_OPERATIONS = {
 
   config_badges: defineOperation({
     description:
-      'The badges talents earn on their journey, archived ones included, each in the shape write_badge takes with how many talents hold it, and the counters a badge rule may name with the filters each one accepts. Takes no parameter.',
-    shape: {},
-    run: () => getBadges(),
+      "The badges talents earn on their journey, archived ones included, each in the shape write_badge takes with how many talents hold it, and the counters a badge rule may name with the filters each one accepts. A badge's drawing (art) comes back only when badgeKey names it.",
+    shape: {
+      badgeKey: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          `${handleDescribe('badgeKey')} Pass one to return that badge alone, with its drawing; omit for every badge without theirs.`,
+        ),
+    },
+    run: (params) => getBadges(params),
+  }),
+
+  config_badge_preview: defineOperation({
+    description:
+      'What one badge actually looks like to talents: its sticker rendered as an image, earned on the left, still to earn on the right, framed as the collection frames it. Reply by quoting the "apercu" sentence, which carries a link to that image, every time, even when you also display the image. Never say how a badge looks in your own words, neither from its drawing nor from the image: send the link and let it be seen.',
+    shape: {
+      badgeKey: z.string().min(1).describe(handleDescribe('badgeKey')),
+    },
+    run: (params, ctx) =>
+      getBadgeStickerPreview({ ...params, origin: ctx.origin }),
   }),
 
   config_admin_digest: defineOperation({
@@ -1878,7 +1896,7 @@ export const ADMIN_API_OPERATIONS = {
     openWorld: false,
     twoStep: true,
     description:
-      'Create a talent badge, or change how it reads and looks, by its key. Every talent whose counter reaches the rule (counter, threshold, filters) earns it on their own and keeps it for good, even once the counter goes back down or the badge is archived. The rule is fixed once the badge exists: to change it, remove the badge if nobody holds it yet and write it again, or else archive it and create another. Without planDigest it answers with the badge as it stands, as it would be, how many talents would receive it now (newHolders) and a planDigest: show that count to the human before applying, since an award is never taken back. remove deletes a badge nobody holds, freeing its key and label; once held, archive it instead: nobody earns it any more and those who did keep it.',
+      'Create a talent badge, or change how it reads and how it is drawn, by its key. Every talent whose counter reaches the rule (counter, threshold, filters) earns it on their own and keeps it for good, even once the counter goes back down or the badge is archived. The rule is fixed once the badge exists: to change it, remove the badge if nobody holds it yet and write it again, or else archive it and create another. Without planDigest it answers with the badge as it stands, as it would be, how many talents would receive it now (newHolders) and a planDigest: show that count to the human before applying, since an award is never taken back. remove deletes a badge nobody holds, freeing its key and label; once held, archive it instead: nobody earns it any more and those who did keep it. To draw a badge before anybody receives it, create it with archived true (nobody is awarded or shown an archived badge they do not hold), check config_badge_preview, redraw it as needed, then unarchive it, which is when newHolders counts who receives it.',
     shape: {
       badgeKey: z
         .string()
@@ -1906,58 +1924,21 @@ export const ADMIN_API_OPERATIONS = {
         .max(BADGE_CONDITION_MAX)
         .optional()
         .describe(
-          'What earns it, in French, as the talent reads it under a badge still to earn: say what the rule counts, e.g. "A participé à 5 Coding Clubs". Required to create one.',
+          'What earns it, in French: what the talent\'s duck says of it when no line of its own is written (write_mascot_line). Say what the rule counts, e.g. "A participé à 5 Coding Clubs". Required to create one.',
         ),
       group: z
         .enum(BADGE_GROUP_KEYS as [string, ...string[]])
         .optional()
         .describe(
-          'Where the collection files it: parcours (the events a talent came to), succes (what they achieved), wtf (the playful ones). Required to create one.',
+          'Its family, which orders the collection without being shown: parcours (the events a talent came to) first, then succes (what they achieved), then wtf (the playful ones), each in the order its badges were created. Required to create one.',
         ),
-      shape: z
-        .enum(BADGE_SHAPES)
-        .optional()
-        .describe('Its outline. Required to create one.'),
-      icon: z
-        .enum(BADGE_ICON_KEYS as [string, ...string[]])
-        .optional()
-        .describe(
-          `Its pictogram: ${BADGE_ICON_KEYS.map((key) => `${key} (${BADGE_ICONS[key]})`).join(', ')}. Required to create one.`,
-        ),
-      text: z
+      art: z
         .string()
-        .trim()
         .min(1)
-        .max(BADGE_TEXT_MAX)
-        .nullable()
+        .max(BADGE_ART_MAX)
         .optional()
         .describe(
-          'A few characters printed on it beside the pictogram, e.g. "×5", "2NDE", "10 J". Null for none. Omit to leave it.',
-        ),
-      backgroundColor: z
-        .string()
-        .regex(EVENT_CATEGORY_COLOR_PATTERN, 'Use #rrggbb, e.g. "#013afb".')
-        .optional()
-        .describe(
-          "Its fill, #rrggbb. The mockup's badges use Epitech's #013afb, #00ff97, #ff1ef7, #ff5f3a, #0b0d14 and #ffffff. Required to create one.",
-        ),
-      ringColor: z
-        .string()
-        .regex(EVENT_CATEGORY_COLOR_PATTERN, 'Use #rrggbb, e.g. "#013afb".')
-        .optional()
-        .describe('Its outline, #rrggbb. Required to create one.'),
-      ringDashed: z
-        .boolean()
-        .optional()
-        .describe(
-          'True for a dashed outline. Omit to leave it, solid on a new one.',
-        ),
-      iconColor: z
-        .string()
-        .regex(EVENT_CATEGORY_COLOR_PATTERN, 'Use #rrggbb, e.g. "#013afb".')
-        .optional()
-        .describe(
-          'Its pictogram and text, #rrggbb, legible on the fill. Required to create one.',
+          `Its sticker, drawn as the inside of an SVG with no <svg> root, in a ${BADGE_ART_SIZE}x${BADGE_ART_SIZE} square that talents see at 64 px. Like the mockup's: one bold flat shape filling the square, outlined in thick white (stroke "#ffffff", stroke-width 5), a pictogram or a few big characters on it, no gradient. Elements: g, path, circle, ellipse, rect, polygon, polyline, line, text, tspan. Attributes: geometry, transform and presentation (fill, stroke..., opacity, font-size, letter-spacing, text-anchor), font-family ${BADGE_ART_FONTS.map((f) => `"${f}"`).join(' or ')} only. No id, style, href, url() or script: refused, naming what. Colours: #013afb, #00ff97, #ff1ef7, #ff5f3a, #0b0d14, #ffffff. Draw it earned: an unearned badge is shown as its silhouette. Required to create one.`,
         ),
       counter: z
         .string()
@@ -2025,7 +2006,8 @@ export const ADMIN_API_OPERATIONS = {
         .optional()
         .describe('Digest returned by the dry run. Omit to get a dry run.'),
     },
-    run: (params) => writeBadge(params as Parameters<typeof writeBadge>[0]),
+    run: (params, ctx) =>
+      writeBadge(params as Parameters<typeof writeBadge>[0], ctx),
   }),
 
   write_email_action: defineWrite({

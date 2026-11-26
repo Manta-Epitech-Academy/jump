@@ -1,8 +1,6 @@
-import createDOMPurify, {
-  type RemovedAttribute,
-  type RemovedElement,
-} from 'dompurify';
+import createDOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
+import { describeRemoved } from './sanitizeRemoved';
 
 /**
  * Guard rails for a certificate design authored at runtime.
@@ -170,35 +168,6 @@ const BODY_CONFIG = {
     'set',
   ],
 };
-
-/**
- * What DOMPurify reports removing that is not the author's: the marker element
- * `FORCE_BODY` inserts and takes out again, and comments, which carry nothing a
- * printed page shows.
- */
-function isAuthored(entry: RemovedElement | RemovedAttribute): boolean {
-  if (!('element' in entry)) return true;
-  const name = entry.element.nodeName.toLowerCase();
-  return name !== 'remove' && name !== '#comment';
-}
-
-/** `<tag>` for a removed element, `name (sur <tag>)` for a removed attribute. */
-function describeRemoved(entries: (RemovedElement | RemovedAttribute)[]): {
-  tags: string[];
-  attributes: string[];
-} {
-  const tags = new Set<string>();
-  const attributes = new Set<string>();
-  for (const entry of entries.filter(isAuthored)) {
-    if ('element' in entry) {
-      tags.add(`<${entry.element.nodeName.toLowerCase()}>`);
-    } else if (entry.attribute) {
-      const on = entry.from.nodeName.toLowerCase();
-      attributes.add(`${entry.attribute.name} (sur <${on}>)`);
-    }
-  }
-  return { tags: [...tags], attributes: [...attributes] };
-}
 
 /**
  * The markup as it will be stored, and what had to be taken out of it to get

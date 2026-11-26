@@ -126,7 +126,12 @@ export async function runTwoStep<Plan>(input: {
   /** The `planDigest` the caller sent, if any. Absent means "dry run". */
   requestedDigest: string | undefined;
   buildPlan: () => Promise<Plan>;
-  apply: (plan: Plan) => Promise<{ before: unknown; after: unknown }>;
+  apply: (plan: Plan) => Promise<{
+    before: unknown;
+    after: unknown;
+    /** What the caller is told instead of both states (`answerOf`). */
+    answer?: Record<string, unknown>;
+  }>;
 }): Promise<WriteOutcome> {
   const plan = await input.buildPlan();
   const digest = planDigest(plan);
