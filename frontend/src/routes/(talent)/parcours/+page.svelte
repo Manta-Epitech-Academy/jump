@@ -7,9 +7,12 @@
   import ParcoursTimeline from '#lib/components/talent/ParcoursTimeline.svelte';
   import EpidexCard from '#lib/components/talent/EpidexCard.svelte';
 
-  // « Mon parcours » after the 2027 mockup (#445): the level, then the badge
-  // collection (#551) and the journey event by event, side by side where
-  // there is room for both, the collection first, as the mockup lays them.
+  // « Mon parcours » after the 2027 mockup (#445): the level, the badge
+  // collection (#551), then the journey event by event. One under the other,
+  // where the mockup sets the last two side by side: its journey is a list of
+  // names and XP that fits a third of the page, ours carries each activity
+  // still to walk as a card with its cover (#445), which a third of the page
+  // squeezed into a column three times taller than the collection beside it.
   // A Jump with no badge yet shows the journey alone: an empty collection
   // would only say « 0 / 0 ».
   let { data }: { data: PageData } = $props();
@@ -30,18 +33,13 @@
     <div in:enter={{ y: -12 }}>
       <LevelCard {xp} />
     </div>
-    <div class="flex flex-wrap items-start gap-6">
-      {#if data.collection.badges.length > 0}
-        <div class="min-w-0 flex-[3_1_400px]" in:enter={{ delay: stagger(1) }}>
-          <EpidexCard collection={data.collection} />
-        </div>
-      {/if}
-      <div class="min-w-0 flex-[2_1_280px]" in:enter={{ delay: stagger(2) }}>
-        <ParcoursTimeline
-          parcours={data.parcours}
-          invitation={data.invitation}
-        />
+    {#if data.collection.badges.length > 0}
+      <div in:enter={{ delay: stagger(1) }}>
+        <EpidexCard collection={data.collection} />
       </div>
+    {/if}
+    <div in:enter={{ delay: stagger(2) }}>
+      <ParcoursTimeline parcours={data.parcours} invitation={data.invitation} />
     </div>
   </div>
 
