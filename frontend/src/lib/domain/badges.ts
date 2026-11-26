@@ -81,8 +81,9 @@ export const BADGE_COUNTERS = {
   dailyFirstPlaces: {
     label: 'Premières places au jeu du jour',
     definition:
-      'Le nombre de jeux du jour que le talent a finis à la première place du classement de son campus, au moment où il a fini : ' +
-      'une première place dépassée plus tard dans la journée compte toujours, comme le bonus d’XP qu’elle a rapporté.',
+      'Le nombre de jeux du jour que le talent a finis à la première place du classement où sa partie a été rangée, au moment où il a fini : ' +
+      'celui de son campus, ou le classement de tous les campus quand aucun campus ne lui était encore rattaché. ' +
+      'Une première place dépassée plus tard dans la journée compte toujours, comme le bonus d’XP qu’elle a rapporté.',
     filters: [],
   },
   signInStreak: {

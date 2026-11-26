@@ -14,10 +14,12 @@
  * taken back: a rule that says something other than what the admin meant would
  * stay in minors' collections for good. So the dry run says how many talents
  * would receive it before anything is written, which is what the admin checks
- * the rule against (AC1), and the apply awards exactly what the plan counted or
- * is refused as stale. The count is in the plan on purpose: a talent who comes
- * to meet the rule between the two calls changes the digest, and the admin
- * approves the number that is awarded, not an older one.
+ * the rule against (AC1). The count is in the plan on purpose: a talent who
+ * comes to meet the rule between the two calls changes the digest, so the
+ * apply is refused as stale rather than award a number nobody approved. The
+ * apply then awards whoever meets the rule as it commits, through
+ * `awardDueBadges` like every award, not a list carried from the plan: a
+ * talent who meets it in the instant between the two is a holder all the same.
  *
  * A badge nobody holds can be removed, and only that one: the shape
  * `write_campus` gives its own `remove`. `config_badges` returns every key, so
