@@ -219,7 +219,8 @@ export function addMinigameAttempt(
     jti: id('jti', attemptId.replace(/^sd_/, '')),
     xpAwarded: finished ? MINIGAME_XP_REWARD : null,
     xpSeenAt: finished && opts.xpSeen ? playedAt : null,
-    // Both written by `rankMinigameFields`, once the field is known.
+    // All three written by `rankMinigameFields`, once the field is known.
+    rankAtFinish: null,
     rankXpAwarded: null,
     rankXpSeenAt: null,
   });

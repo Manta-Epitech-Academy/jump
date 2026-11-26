@@ -25,16 +25,16 @@
 // generated world through the same function.
 
 import type { Prisma } from '@prisma/client';
-import { attendedShownBeforeWhere } from '#lib/domain/attendance.ts';
+import { attendedShownBeforeWhere } from '../../domain/attendance';
 import {
   type BadgeCounterKey,
   type BadgeRule,
   isBadgeCounterKey,
-} from '#lib/domain/badges.ts';
-import { shownEnrolmentWhere } from '#lib/domain/eventReadiness.ts';
-import { dateKeyToDbDate, dbDateToKey } from '#lib/domain/eventPresence.ts';
-import { fromWallClock } from '#lib/domain/planningTime.ts';
-import { finishedActivityWhere } from '#lib/domain/workshops.ts';
+} from '../../domain/badges';
+import { shownEnrolmentWhere } from '../../domain/eventReadiness';
+import { dateKeyToDbDate, dbDateToKey } from '../../domain/eventPresence';
+import { fromWallClock } from '../../domain/planningTime';
+import { finishedActivityWhere } from '../../domain/workshops';
 
 type Tx = Prisma.TransactionClient;
 
