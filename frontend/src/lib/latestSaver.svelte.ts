@@ -13,6 +13,8 @@
  * it, replacing any value already waiting: a burst of clicks sends the first
  * and the last, in that order, and the server ends on the last. Each save
  * carries the whole value, which is why the ones in between can be dropped.
+ * A burst that comes back to what the server holds sends nothing more: there
+ * is nothing to store, and nothing a refusal of it could undo.
  *
  * Nothing the server answers is written back to the screen. Only a refusal of
  * the last save hands back the last value the server did store, for the screen
@@ -27,21 +29,25 @@ export class LatestSaver<T> {
   #pending: { value: T } | null = null;
   #save: (value: T) => Promise<unknown>;
   #onFailed: (saved: T) => void;
+  #same: (a: T, b: T) => boolean;
 
-  /**
-   * @param saved what the server holds now
-   * @param save sends one value; a rejection is a refusal
-   * @param onFailed called with what the server holds when the last save of a
-   *   burst was refused
-   */
-  constructor(
-    saved: T,
-    save: (value: T) => Promise<unknown>,
-    onFailed: (saved: T) => void,
-  ) {
-    this.#saved = saved;
-    this.#save = save;
-    this.#onFailed = onFailed;
+  constructor(options: {
+    /** What the server holds now. */
+    saved: T;
+    /** Sends one value; a rejection is a refusal. */
+    save: (value: T) => Promise<unknown>;
+    /**
+     * Called with what the server holds when the last save of a burst was
+     * refused, the screen showing a value the server does not have.
+     */
+    onFailed: (saved: T) => void;
+    /** Whether two values are the same one; `Object.is` unless given. */
+    same?: (a: T, b: T) => boolean;
+  }) {
+    this.#saved = options.saved;
+    this.#save = options.save;
+    this.#onFailed = options.onFailed;
+    this.#same = options.same ?? Object.is;
   }
 
   push(value: T): void {
@@ -63,8 +69,11 @@ export class LatestSaver<T> {
     }
     const next = this.#pending;
     this.#pending = null;
-    if (next) return this.#run(next.value);
+    if (next && !this.#same(next.value, this.#saved)) {
+      return this.#run(next.value);
+    }
     this.busy = false;
-    if (refused) this.#onFailed(this.#saved);
+    // The screen ends on `next` when there is one, which the server holds.
+    if (refused && !next) this.#onFailed(this.#saved);
   }
 }

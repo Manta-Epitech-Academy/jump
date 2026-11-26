@@ -138,6 +138,21 @@ describe('MascotController, sleep and wake pressed in a row', () => {
     expect(mascot.asleep).toBe(false);
   });
 
+  it('sends nothing more, and says nothing, when the presses come back to what is stored', async () => {
+    const answers = heldSleeps();
+    toastError.mockClear();
+    const mascot = duck();
+    mascot.setAsleep(true);
+    mascot.setAsleep(false);
+    mascot.setAsleep(true);
+
+    answers[0].ok();
+    await settle();
+    expect(putMascotToSleep).toHaveBeenCalledOnce();
+    expect(toastError).not.toHaveBeenCalled();
+    expect(mascot.asleep).toBe(true);
+  });
+
   it('goes back to sleep when the wake that followed a stored sleep is refused', async () => {
     const answers = heldSleeps();
     const mascot = duck();

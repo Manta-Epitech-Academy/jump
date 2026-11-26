@@ -38,6 +38,7 @@ import { typeset } from '#lib/domain/typography.ts';
 import {
   MASCOT_MOMENTS,
   fillLine,
+  sameMascotChoice,
   shownMascotLook,
   type MascotChoice,
   type MascotCue,
@@ -163,19 +164,20 @@ export class MascotController {
   constructor(init: MascotControllerInit) {
     this.#init = init;
     this.choice = $state.raw(init.choice);
-    this.#lookSaver = new LatestSaver(
-      init.choice,
-      (choice) => saveMascotLook(choice),
-      (saved) => {
+    this.#lookSaver = new LatestSaver({
+      saved: init.choice,
+      save: (choice) => saveMascotLook(choice),
+      onFailed: (saved) => {
         this.choice = saved;
         toast.error("Ton canard n'a pas pu être enregistré. Réessaie.");
       },
-    );
-    this.#sleepSaver = new LatestSaver(
-      init.asleep,
-      (asleep) => putMascotToSleep({ asleep }),
-      (stored) => this.#sleepRefused(stored),
-    );
+      same: sameMascotChoice,
+    });
+    this.#sleepSaver = new LatestSaver({
+      saved: init.asleep,
+      save: (asleep) => putMascotToSleep({ asleep }),
+      onFailed: (stored) => this.#sleepRefused(stored),
+    });
     this.look = $derived(shownMascotLook(this.choice));
     this.savingLook = $derived(this.#lookSaver.busy);
     if (init.asleep) this.state = { phase: 'under', reason: 'sleep' };
@@ -210,14 +212,7 @@ export class MascotController {
    */
   choose(change: Partial<MascotChoice>): void {
     const next = { ...this.choice, ...change };
-    if (
-      next.name === this.choice.name &&
-      next.glasses === this.choice.glasses &&
-      next.scarf === this.choice.scarf &&
-      next.hair === this.choice.hair
-    ) {
-      return;
-    }
+    if (sameMascotChoice(next, this.choice)) return;
     this.choice = next;
     this.#lookSaver.push(next);
   }

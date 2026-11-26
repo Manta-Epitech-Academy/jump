@@ -305,6 +305,16 @@ export function shownMascotLook(choice: MascotChoice): MascotLook {
   return { ...choice, name: choice.name.trim() || MASCOT_DEFAULT_NAME };
 }
 
+/** Whether two choices dress him the same, name included. */
+export function sameMascotChoice(a: MascotChoice, b: MascotChoice): boolean {
+  return (
+    a.name === b.name &&
+    a.glasses === b.glasses &&
+    a.scarf === b.scarf &&
+    a.hair === b.hair
+  );
+}
+
 /**
  * Whether the talent's duck hosts a questionnaire: it names no persona of its
  * own (#539). He then speaks its texts, its closing thanks included.
