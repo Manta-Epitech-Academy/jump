@@ -446,4 +446,53 @@ describe('badges (integration)', () => {
     // The game's XP reached the archived badge's threshold: nobody earns it.
     expect(await awardsOf(archived)).toEqual([]);
   });
+
+  it('removes a badge nobody holds, freeing its key, and refuses one somebody holds', async () => {
+    const badgeKey = `bdg-halloween-${stamp}`;
+    badgeKeys.push(badgeKey);
+    const body = {
+      badgeKey,
+      label: `Halloween ${stamp}`,
+      condition: 'A fait le camp à venir',
+      ...look,
+      counter: 'attended',
+      threshold: 1,
+      eventIds: [eventIds.upcoming],
+    };
+    const twoStep = async (payload: Record<string, unknown>) => {
+      const dryRun = await call(postBadge, secret, payload);
+      expect(dryRun.status).toBe(200);
+      return call(postBadge, secret, {
+        ...payload,
+        planDigest: dryRun.payload.planDigest,
+      });
+    };
+    expect((await twoStep(body)).status).toBe(200);
+
+    // A rule written wrong on an event to come: nobody can hold it yet, so the
+    // refusal points at the removal rather than at a new name.
+    const fixed = await call(postBadge, secret, { badgeKey, threshold: 2 });
+    expect(String(fixed.payload.error)).toContain('supprimez-le (remove)');
+
+    const removed = await twoStep({ badgeKey, remove: true });
+    expect(removed.status).toBe(200);
+    expect(removed.payload.after).toBeNull();
+    expect(
+      await prisma.badge_Definition.count({ where: { key: badgeKey } }),
+    ).toBe(0);
+    // Written again under the same key and label, with the right rule.
+    expect((await twoStep({ ...body, threshold: 2 })).status).toBe(200);
+
+    const held = await call(postBadge, secret, {
+      badgeKey: `bdg-addict-${stamp}`,
+      remove: true,
+    });
+    expect(held.status).toBe(400);
+    expect(String(held.payload.error)).toContain('ne peut pas être supprimé');
+    expect(
+      await prisma.badge_Definition.count({
+        where: { key: `bdg-addict-${stamp}` },
+      }),
+    ).toBe(1);
+  });
 });

@@ -250,7 +250,13 @@ export function sameBadgeRule(a: BadgeRule, b: BadgeRule): boolean {
 /**
  * Why a written rule may not change, in the one wording the API gives: an
  * award says the talent met THIS rule, and outlives the counter and the badge.
+ * What to do instead depends on whether anybody holds it: a badge nobody holds
+ * is removed and written again, a held one is archived and replaced.
  */
-export function fixedBadgeRuleRefusal(label: string): string {
-  return `La règle du badge « ${label} » ne change plus une fois le badge créé : les talents qui l'ont obtenu l'ont obtenu sur cette règle, et le gardent. Archivez ce badge et créez-en un autre, sous une autre clé et un autre nom, avec la nouvelle règle ; son nom, sa condition, son groupe et son visuel, eux, se modifient.`;
+export function fixedBadgeRuleRefusal(label: string, holders: number): string {
+  const instead =
+    holders === 0
+      ? "Personne ne l'a encore obtenu : supprimez-le (remove), puis écrivez-le à nouveau avec la nouvelle règle, sous la même clé et le même nom."
+      : `${holders} talent${holders > 1 ? "s l'ont" : " l'a"} obtenu sur cette règle et le garde${holders > 1 ? 'nt' : ''} : archivez ce badge et créez-en un autre, sous une autre clé et un autre nom, avec la nouvelle règle.`;
+  return `La règle du badge « ${label} » ne change plus une fois le badge créé. ${instead} Son nom, sa condition, son groupe et son visuel, eux, se modifient.`;
 }

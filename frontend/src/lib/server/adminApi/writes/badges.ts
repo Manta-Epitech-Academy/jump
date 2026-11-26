@@ -19,9 +19,14 @@
  * to meet the rule between the two calls changes the digest, and the admin
  * approves the number that is awarded, not an older one.
  *
- * There is deliberately no delete: `config_badges` returns every key, so a
- * delete would be a target a model could pick on its own (class C), and it
- * would take back what talents earned. "Remove" is `archived: true`: nobody
+ * A badge nobody holds can be removed, and only that one: the shape
+ * `write_campus` gives its own `remove`. `config_badges` returns every key, so
+ * a delete that took a held badge would be a target a model could pick on its
+ * own (class C), taking back what talents earned. Refused while any talent
+ * holds it, it can only take away a badge nobody has seen on their journey,
+ * which creating it again gives back, and it frees the key and the label for
+ * that: the common case is a badge on an event to come, written with the wrong
+ * rule, which nobody can hold yet. A held badge is archived instead: nobody
  * earns it any more, and those who did keep it.
  */
 
@@ -159,6 +164,7 @@ export type BadgePatch = {
   periodFrom?: DateKey | null;
   periodTo?: DateKey | null;
   archived?: boolean;
+  remove?: true;
   planDigest?: string;
 };
 
@@ -318,15 +324,71 @@ function definitionData(state: BadgeState) {
   };
 }
 
+/** How many talents hold the badge, which is what keeps it from a delete. */
+async function holdersOf(
+  db: Prisma.TransactionClient,
+  key: string,
+): Promise<number> {
+  return db.badge_Award.count({ where: { badgeKey: key } });
+}
+
+function heldRefusal(label: string, holders: number): string {
+  return `Le badge « ${label} » ne peut pas être supprimé : ${holders} talent${holders > 1 ? 's l’ont' : ' l’a'} obtenu, et le supprimer le leur reprendrait. Archivez-le : plus personne ne l'obtient, et ceux qui l'ont le gardent. Seul un badge que personne n'a encore obtenu se supprime.`;
+}
+
+/**
+ * Deletes a badge nobody holds, its rule with it. The row is locked before the
+ * holders are counted: an award inserted meanwhile takes a key-share lock on
+ * it, so it either committed before and is counted, or waits and then fails
+ * its foreign key, and no award is ever deleted with the badge (`Badge_Award`
+ * Restricts onto it besides).
+ */
+async function removeBadge(
+  key: string,
+  planDigest: string | undefined,
+): Promise<WriteOutcome> {
+  const before = await stateOf(key);
+  if (!before) {
+    throw new OperationRefusedError(
+      `Badge introuvable : ${key}. ${handleProvenanceFr('badgeKey')}`,
+    );
+  }
+  return runTwoStep({
+    requestedDigest: planDigest,
+    buildPlan: async () => {
+      const replaces = await stateOf(key);
+      const holders = await holdersOf(prisma, key);
+      if (replaces && holders > 0) {
+        throw new OperationRefusedError(heldRefusal(replaces.label, holders));
+      }
+      return { replaces, removes: true };
+    },
+    apply: async (plan) => {
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT 1 FROM "Badge_Definition" WHERE "key" = ${key} FOR UPDATE`;
+        const holders = await holdersOf(tx, key);
+        if (holders > 0) {
+          throw new OperationRefusedError(heldRefusal(before.label, holders));
+        }
+        await tx.badge_Definition.delete({ where: { key } });
+      });
+      return { before: plan.replaces, after: null };
+    },
+  });
+}
+
 export async function writeBadge(params: BadgePatch): Promise<WriteOutcome> {
   const key = params.badgeKey;
+  if (params.remove) return removeBadge(key, params.planDigest);
   const before = await stateOf(key);
   const after = stateAfter(params, before);
   const rule = ruleOfState(after);
 
   if (before) {
     if (!sameBadgeRule(ruleOfState(before), rule)) {
-      throw new OperationRefusedError(fixedBadgeRuleRefusal(before.label));
+      throw new OperationRefusedError(
+        fixedBadgeRuleRefusal(before.label, await holdersOf(prisma, key)),
+      );
     }
   } else {
     const issues = await ruleIssues(rule);

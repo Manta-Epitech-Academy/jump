@@ -20,9 +20,9 @@ A talent earns a badge on their journey when one of their counters reaches its r
 
 ## An award is a fact
 
-- **`Badge_Award` is never taken back**: not when the counter goes down (a run of days that restarts), not when the badge is archived. So an award has to keep meaning what it says, which is why **a badge's rule is fixed once it exists**: archive it and create another. Its label, condition, group and look stay editable.
+- **`Badge_Award` is never taken back**: not when the counter goes down (a run of days that restarts), not when the badge is archived. So an award has to keep meaning what it says, which is why **a badge's rule is fixed once it exists**. Its label, condition, group and look stay editable.
 - **Creating a badge is two-step (class B).** The apply awards the badge to every talent who already meets the rule, dated that day, and that cannot be undone, so the dry run says how many talents it would reach (`newHolders`) and the admin checks the rule against that number first. The count is in the plan, so a talent who comes to meet the rule between the two calls makes the apply stale rather than award a number nobody approved.
-- **"Remove" is archive**: nobody earns it any more, its holders keep it. There is no delete, which would take back what talents earned.
+- **Only a badge nobody holds is deleted** (`remove`), the shape `write_campus` gives its own: refused while any talent holds it, so it can only take away a badge nobody has seen, which writing it again gives back, and it frees the key and the label to do so. The common case is a badge on an event to come with its rule written wrong. A held badge is archived instead: nobody earns it any more, its holders keep it, and a new rule takes a new badge. A delete of a held badge would take back what talents earned, on a key any model can read, which is class C.
 - **An erased account loses its badges, a reset to import too, a merge keeps the earlier day** of a badge both talents held (`talentScopedData.integration.test.ts`).
 
 ## Who awards, and when

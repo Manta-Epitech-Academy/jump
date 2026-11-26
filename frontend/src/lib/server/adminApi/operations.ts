@@ -1872,13 +1872,13 @@ export const ADMIN_API_OPERATIONS = {
     repeat: {
       safe: true,
       because:
-        'the same fields write the same badge, and a retried apply is refused as stale rather than awarding twice',
+        'the same fields write the same badge, a retried apply is refused as stale rather than awarding twice, and a removed key is refused as unknown',
     },
     destructive: true,
     openWorld: false,
     twoStep: true,
     description:
-      'Create a talent badge, or change how it reads and looks, by its key. Every talent whose counter reaches the rule (counter, threshold, filters) earns it on their own and keeps it for good, even once the counter goes back down or the badge is archived. The rule is fixed once the badge exists: to change it, archive the badge and create another. Without planDigest it answers with the badge as it stands, as it would be, how many talents would receive it now (newHolders) and a planDigest: show that count to the human before applying, since an award is never taken back. There is no delete: archive it, nobody earns it any more and those who did keep it.',
+      'Create a talent badge, or change how it reads and looks, by its key. Every talent whose counter reaches the rule (counter, threshold, filters) earns it on their own and keeps it for good, even once the counter goes back down or the badge is archived. The rule is fixed once the badge exists: to change it, remove the badge if nobody holds it yet and write it again, or else archive it and create another. Without planDigest it answers with the badge as it stands, as it would be, how many talents would receive it now (newHolders) and a planDigest: show that count to the human before applying, since an award is never taken back. remove deletes a badge nobody holds, freeing its key and label; once held, archive it instead: nobody earns it any more and those who did keep it.',
     shape: {
       badgeKey: z
         .string()
@@ -2013,6 +2013,12 @@ export const ADMIN_API_OPERATIONS = {
         .optional()
         .describe(
           'True to archive it, false to unarchive it. Omit to leave it as it stands.',
+        ),
+      remove: z
+        .literal(true)
+        .optional()
+        .describe(
+          'Delete the badge, refused while any talent holds it. Every other field is ignored.',
         ),
       planDigest: z
         .string()
