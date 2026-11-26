@@ -237,6 +237,10 @@ export async function anonymizeTalent(
   await tx.broadcastRecipient.deleteMany({
     where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
   });
+  // Badge_Award: the badges the talent earned go with the account (#448). Not
+  // kept beside the activity above: a collection is the talent's own, shown to
+  // nobody else, and no figure counts it.
+  await tx.badge_Award.deleteMany({ where: { talentId } });
   // Sync_Error: what the Salesforce sync could not do for this person. A login
   // error points at the talent; a nameless-contact error has no talent to point
   // at and carries the contact's Salesforce id, name and address instead, so it

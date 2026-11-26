@@ -3,6 +3,7 @@ import { mintGameJwt } from '#lib/server/jwt.ts';
 import { MINIGAME_XP_REWARD, minigameRankBonus } from '#lib/domain/xp.ts';
 import { formatPeerName } from '#lib/domain/profile.ts';
 import { grantXp } from '#lib/server/services/xpService.ts';
+import { awardDueBadges } from '#lib/server/services/badgeAwards.ts';
 import {
   getGameCatalog,
   scoringTypeFor,
@@ -235,6 +236,7 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
   // Invalid runs finalize without reward. Finalize + grant together so the grant
   // and the audit trail can't drift.
   const xpAwarded = payload.valid ? MINIGAME_XP_REWARD : null;
+  const now = new Date();
 
   await prisma.$transaction(async (tx) => {
     await tx.minigameAttempt.update({
@@ -244,7 +246,7 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
         score: payload.score,
         chrono: payload.chrono,
         valid: payload.valid,
-        finishedAt: new Date(),
+        finishedAt: now,
         eventId,
         campusId,
         xpAwarded,
@@ -278,11 +280,16 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
       attempt.id,
     );
     const rankBonus = minigameRankBonus(rank, fieldSize);
+    // The place is kept whatever it pays: it is the fact the bonus is priced
+    // from, and what a badge counting first places reads (#448).
+    await tx.minigameAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        rankAtFinish: rank,
+        rankXpAwarded: rankBonus > 0 ? rankBonus : null,
+      },
+    });
     if (rankBonus > 0) {
-      await tx.minigameAttempt.update({
-        where: { id: attempt.id },
-        data: { rankXpAwarded: rankBonus },
-      });
       await grantXp(tx, {
         talentId: attempt.talentId,
         source: 'minigame_rank',
@@ -291,6 +298,13 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
         campusId,
       });
     }
+
+    // A badge this finish earns arrives with it, not at the next sweep (#448).
+    await awardDueBadges(tx, {
+      now,
+      talentIds: [attempt.talentId],
+      counters: ['xp', 'dailyFirstPlaces'],
+    });
   });
 }
 

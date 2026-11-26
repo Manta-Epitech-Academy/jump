@@ -441,6 +441,7 @@ model Talent {
   notes               Note_TalentNote[]
   workshopEntries     Workshop_Participation[]
   syncError           Sync_Error?
+  badges              Badge_Award[]
 
   @@index([xp])
   @@index([schoolId])
@@ -1053,6 +1054,7 @@ model Event {
   highlightedBy       TalentHome_Highlight[]
   workshopEntries     Workshop_Participation[]
   syncPruneHold       Sync_PruneHold?
+  badgeRules          Badge_RuleEvent[]
 
   /// Not a second identity - `id` alone is already unique. It exists so the rows
   /// that denormalise `campusId` for one-hop campus scoping can reference the
@@ -1150,8 +1152,9 @@ model EventConfig_Category {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  events    Event[]
-  templates EventConfig_Template[]
+  events     Event[]
+  templates  EventConfig_Template[]
+  badgeRules Badge_RuleCategory[]
 }
 
 // A reusable, named event-configuration preset (global), created by staff from
@@ -2568,6 +2571,13 @@ model MinigameAttempt {
   // in the finish callback, the same way xpAwarded is, from the attempt's rank
   // against the board at that moment, so a retried callback can't double-pay.
   rankXpAwarded Int?
+  // The run's 1-based place on its campus board the moment it finished, the
+  // place `rankXpAwarded` is priced from, kept whatever it pays. Never revised:
+  // a talent overtaken later in the day keeps the place they finished at, which
+  // is what « premier au jeu du jour » means for a badge (#448). Null on an
+  // invalid run, and on runs finished before it was stored beyond the podium,
+  // whose places the migration recovered from their bonus.
+  rankAtFinish  Int?
   // One-shot float gate for the rank bonus, mirroring xpSeenAt. The play page
   // floats only the base finish reward, so the rank bonus is celebrated on the
   // next dashboard visit, independently of the finish float.
@@ -2857,6 +2867,7 @@ model Workshop_Domain {
   updatedAt  DateTime  @updatedAt
 
   activities Workshop_ActivityDomain[]
+  badgeRules Badge_RuleDomain[]
 }
 
 /// A subject in a domain. A pure junction: a subject has several domains and a
@@ -3395,4 +3406,114 @@ model Mascot_Line {
   updatedAt  DateTime  @updatedAt
 
   @@index([momentKey])
+}
+
+/// A badge a talent earns when they meet its rule (#448). Data, not code: an
+/// admin describes one to Claude, which writes it over `write_badge`, so a new
+/// badge needs no deploy. What the talent sees of it is #551.
+///
+/// The rule is a counter, a threshold and the counter's filters. The counters
+/// are a closed catalogue in code (`BADGE_COUNTERS` in `domain/badges.ts`,
+/// named by `counterKey`), because each one is a query somebody wrote: a badge
+/// on an existing counter is data, a new counter is a small development. The
+/// filters are the `Badge_Rule*` rows and `periodFrom` / `periodTo` (both
+/// inclusive, either open), read on the event's first day in its campus.
+///
+/// The rule is fixed once the badge exists. An award is a fact that says the
+/// talent met THIS rule, and it outlives the counter going back down and the
+/// badge being archived, so a rule edited afterwards would leave every earlier
+/// award claiming something nobody checked. Archive it and write another.
+/// Everything a talent reads (label, condition, group, look) may still change.
+///
+/// `label` is the badge's name as the talent reads it, which may be renamed;
+/// `key` is what every operation names, and never changes. `groupKey`, `shape`
+/// and `icon` name closed lists in the same file, `text` is the few characters
+/// printed on the badge (« ×5 », « 2NDE »), and the colours are `#rrggbb`. `condition` is what the talent reads under a badge still to
+/// earn, written by the admin rather than generated from the rule. Archived
+/// (`archivedAt`) rather than deleted: nobody earns it any more, and those who
+/// did keep it.
+model Badge_Definition {
+  key             String    @id
+  label           String    @unique
+  condition       String
+  groupKey        String
+  shape           String
+  icon            String
+  text            String?
+  backgroundColor String
+  ringColor       String
+  ringDashed      Boolean   @default(false)
+  iconColor       String
+  counterKey      String
+  threshold       Int
+  periodFrom      DateTime? @db.Date
+  periodTo        DateTime? @db.Date
+  archivedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  events     Badge_RuleEvent[]
+  categories Badge_RuleCategory[]
+  domains    Badge_RuleDomain[]
+  awards     Badge_Award[]
+}
+
+/// A badge rule counting only these events. Restrict on the event: an event is
+/// never deleted, and a rule that lost one of its events would count wider.
+model Badge_RuleEvent {
+  badgeKey String
+  eventId  String
+
+  badge Badge_Definition @relation(fields: [badgeKey], references: [key], onDelete: Cascade)
+  event Event            @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  @@id([badgeKey, eventId])
+  @@index([eventId])
+}
+
+/// A badge rule counting only the events of these categories. Restrict: a
+/// category is archived, never deleted, and an archived one still counts.
+model Badge_RuleCategory {
+  badgeKey    String
+  categoryKey String
+
+  badge    Badge_Definition     @relation(fields: [badgeKey], references: [key], onDelete: Cascade)
+  category EventConfig_Category @relation(fields: [categoryKey], references: [key], onDelete: Restrict)
+
+  @@id([badgeKey, categoryKey])
+  @@index([categoryKey])
+}
+
+/// A badge rule counting only the activities filed under these domains.
+/// Restrict: a domain is archived, never deleted, and an archived one still
+/// counts.
+model Badge_RuleDomain {
+  badgeKey  String
+  domainKey String
+
+  badge  Badge_Definition @relation(fields: [badgeKey], references: [key], onDelete: Cascade)
+  domain Workshop_Domain  @relation(fields: [domainKey], references: [key], onDelete: Restrict)
+
+  @@id([badgeKey, domainKey])
+  @@index([domainKey])
+}
+
+/// A talent earned a badge: the fact, dated, and never taken back. Written by
+/// `awardDueBadges` alone, when the talent's counter reaches the threshold, and
+/// kept when it goes back down (a run of days that restarts) or when the badge
+/// is archived. A talent who already met the rule when the badge was created
+/// gets it dated that day: nothing says when they first met it.
+///
+/// Restrict on the badge: a badge is archived, never deleted, and deleting one
+/// would take back what talents earned. Cascade on the talent: it is theirs.
+model Badge_Award {
+  talentId  String
+  badgeKey  String
+  awardedAt DateTime
+
+  talent Talent           @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  badge  Badge_Definition @relation(fields: [badgeKey], references: [key], onDelete: Restrict)
+
+  @@id([talentId, badgeKey])
+  @@index([badgeKey])
 }

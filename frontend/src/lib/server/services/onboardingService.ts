@@ -18,6 +18,7 @@ import {
   ONBOARDING_EARLY_BIRD_LIMIT,
 } from '#lib/domain/xp.ts';
 import { grantXp } from '#lib/server/services/xpService.ts';
+import { awardDueBadges } from '#lib/server/services/badgeAwards.ts';
 import {
   resolveTalentCampus,
   countCampusEarlyBirdPosition,
@@ -233,6 +234,8 @@ export async function signOnboardingRules(input: {
         campusId,
       });
     }
+    // An XP badge the arrival reward reaches is earned with it (#448).
+    await awardDueBadges(tx, { now, talentIds: [talentId], counters: ['xp'] });
     return enqueueOnboardingPdfJob(tx, {
       talentId,
       documentType: 'rules',

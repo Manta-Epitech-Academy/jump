@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { EventLifecycleStatus } from './eventLifecycle';
 import {
   eventCalendarDays,
@@ -330,6 +331,18 @@ export function isActivityFinished(
   activity: Pick<WorkshopActivity, 'solvedSteps' | 'totalSteps'>,
 ): boolean {
   return activity.totalSteps > 0 && activity.solvedSteps >= activity.totalSteps;
+}
+
+/**
+ * {@link isActivityFinished} as a `Workshop_Participation` where, for a query
+ * that counts finished activities (a badge rule, #448). A where cannot compare
+ * two columns by itself, so the caller hands in its client's reference to
+ * `totalSteps` (`tx.workshop_Participation.fields.totalSteps`).
+ */
+export function finishedActivityWhere(
+  totalSteps: Prisma.FieldRef<'Workshop_Participation', 'Int'>,
+): Prisma.Workshop_ParticipationWhereInput {
+  return { totalSteps: { gt: 0 }, solvedSteps: { gte: totalSteps } };
 }
 
 /**

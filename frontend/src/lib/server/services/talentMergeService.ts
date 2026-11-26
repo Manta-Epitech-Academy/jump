@@ -64,7 +64,29 @@ const MOVED: readonly MovedRows[] = [
   { table: 'BroadcastRecipient', column: 'parentOfTalentId' },
   // An audit of the repairs made to the login of the person, kept with it.
   { table: 'AuthIdentityRepair' },
+  // A badge both earned is one badge, dated by whichever earned it first
+  // (`keepEarliestAwards`, run before this).
+  { table: 'Badge_Award', sameFact: ['badgeKey'] },
 ];
+
+/**
+ * A badge the survivor and an absorbed talent both earned is the same badge,
+ * and the person earned it on the earlier of the two days: the survivor's row
+ * stands, as every same fact's does, with that day.
+ */
+async function keepEarliestAwards(
+  tx: Prisma.TransactionClient,
+  from: string,
+  to: string,
+): Promise<void> {
+  await tx.$executeRaw`
+    UPDATE "Badge_Award" kept SET "awardedAt" = moved."awardedAt"
+    FROM "Badge_Award" moved
+    WHERE kept."talentId" = ${to} AND moved."talentId" = ${from}
+      AND kept."badgeKey" = moved."badgeKey"
+      AND moved."awardedAt" < kept."awardedAt"
+  `;
+}
 
 /**
  * Set-based on purpose: a merge runs inside the sync, per person, and a talent
@@ -110,6 +132,7 @@ export async function mergeTalents(
       select: { externalId: true, userId: true },
     });
 
+    await keepEarliestAwards(tx, absorbedId, survivorId);
     for (const moved of MOVED)
       await moveRows(tx, moved, absorbedId, survivorId);
     await moveTalentGrants(tx, absorbedId, survivorId);

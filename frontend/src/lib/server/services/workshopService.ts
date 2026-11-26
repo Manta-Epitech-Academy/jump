@@ -43,6 +43,7 @@ import {
   type WorkshopSession,
 } from '#lib/server/workshops/ticket.ts';
 import { grantXp } from './xpService';
+import { awardDueBadges } from './badgeAwards';
 
 export type WorkshopEntry = {
   activityId: string;
@@ -409,6 +410,13 @@ export async function applyWorkshopProgress(
         solvedSteps: payload.solvedSteps,
         totalSteps: payload.totalSteps,
       },
+    });
+
+    // A badge this step earns arrives with it (#448).
+    await awardDueBadges(tx, {
+      now: new Date(),
+      talentIds: [payload.talentId],
+      counters: ['xp', 'finishedActivities'],
     });
   });
 }
