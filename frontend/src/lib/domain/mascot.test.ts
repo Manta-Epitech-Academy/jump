@@ -9,7 +9,8 @@ import {
   fillLine,
   greetingFor,
   streakToday,
-  mascotLookOf,
+  mascotChoiceOf,
+  shownMascotLook,
   unknownMascotTokens,
 } from './mascot';
 
@@ -204,16 +205,23 @@ describe('a line and its tokens', () => {
   });
 });
 
-describe('mascotLookOf', () => {
+describe('the talent’s duck', () => {
+  const talent = {
+    mascotGlasses: 'sun',
+    mascotScarf: 'pink',
+    mascotHair: 'beanie',
+  } as const;
+  const shown = (mascotName: string | null) =>
+    shownMascotLook(mascotChoiceOf({ ...talent, mascotName }));
+
+  it('keeps an unnamed duck’s name empty in the choice the settings edit', () => {
+    expect(mascotChoiceOf({ ...talent, mascotName: null }).name).toBe('');
+  });
+
   it('answers to EpiDuck until the talent names it', () => {
-    const talent = {
-      mascotGlasses: 'sun',
-      mascotScarf: 'pink',
-      mascotHair: 'beanie',
-    } as const;
-    expect(mascotLookOf({ ...talent, mascotName: null }).name).toBe('EpiDuck');
-    expect(mascotLookOf({ ...talent, mascotName: '   ' }).name).toBe('EpiDuck');
-    expect(mascotLookOf({ ...talent, mascotName: ' Gaston ' })).toEqual({
+    expect(shown(null).name).toBe('EpiDuck');
+    expect(shown('   ').name).toBe('EpiDuck');
+    expect(shown(' Gaston ')).toEqual({
       name: 'Gaston',
       glasses: 'sun',
       scarf: 'pink',

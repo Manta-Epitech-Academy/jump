@@ -2,11 +2,12 @@
  * EpiDuck as the talent meets him (#539). His state machine, what he may say
  * and the writes behind both have their own suites; what only a browser shows
  * is that he is in every talent header, that a tap makes him speak, that the
- * name given in the settings reaches the header, and that putting him to sleep
+ * name given in the settings reaches the header, that a burst of accessories
+ * is stored as the last one chosen (#552), and that putting him to sleep
  * survives a change of page, which is the reason his state is not kept in the
  * header that draws him.
  */
-import { test, expect, type Locator } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { E2E, storageStatePath } from './fixtures/identities';
 
 /**
@@ -21,6 +22,15 @@ async function stored(control: Locator): Promise<void> {
   );
   await control.click();
   expect((await answered).ok()).toBe(true);
+}
+
+/**
+ * Waits until « Mon EpiDuck » has saved every choice made on it: the screen
+ * wears a choice at once, so only `aria-busy` says the server has it too, and
+ * a choice still waiting is lost with the page.
+ */
+async function lookSaved(page: Page): Promise<void> {
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
 }
 
 test.describe('le canard EpiDuck d’un talent', () => {
@@ -56,6 +66,19 @@ test.describe('le canard EpiDuck d’un talent', () => {
     await beanie.click();
     await expect(beanie).toHaveAttribute('aria-pressed', 'true');
 
+    // Chosen in a burst, the last choice is the one stored: sent one request
+    // per click, they were stored in any order and rolled him back (#552).
+    for (const choice of ['Rose', 'Verte', 'Orange', 'Mèche', 'Bonnet']) {
+      await page.getByRole('button', { name: choice }).click();
+    }
+    await lookSaved(page);
+    await page.reload();
+    await expect(beanie).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: 'Orange' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
     // Asleep, he stays asleep on the next page, until he is woken.
     await stored(
       page.getByRole('button', { name: 'Endormir ton canard Gaston' }),
@@ -75,6 +98,10 @@ test.describe('le canard EpiDuck d’un talent', () => {
 
     // Back as the fixture left him, for whoever runs next.
     await page.goto('/settings');
+    await page
+      .getByRole('group', { name: 'Écharpe' })
+      .getByRole('button', { name: 'Aucune' })
+      .click();
     await page.getByRole('button', { name: 'Houppe' }).click();
     await expect(page.getByRole('button', { name: 'Houppe' })).toHaveAttribute(
       'aria-pressed',
@@ -85,5 +112,6 @@ test.describe('le canard EpiDuck d’un talent', () => {
     await expect(
       page.getByRole('button', { name: 'Parler à EpiDuck' }),
     ).toBeVisible();
+    await lookSaved(page);
   });
 });

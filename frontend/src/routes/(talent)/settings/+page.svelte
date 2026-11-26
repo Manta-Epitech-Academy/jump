@@ -88,7 +88,7 @@
 
   <div class="min-w-0 flex-1">
     {#if current === 'canard'}
-      <MascotSettingsCard form={data.mascotForm} />
+      <MascotSettingsCard />
     {:else if current === 'compte'}
       <AccountSection account={data.account} />
     {:else if current === 'documents'}

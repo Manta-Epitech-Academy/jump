@@ -25,11 +25,9 @@
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { page } from '$app/state';
   import {
     DEFAULT_MASCOT_LOOK,
     MASCOT_MOMENTS,
-    mascotLookOf,
     type MascotCue,
   } from '#lib/domain/mascot.ts';
   import EpiDuck, { STAGE_ATLAS_URL } from './EpiDuck.svelte';
@@ -56,9 +54,7 @@
 
   const mascot = useMascot()();
 
-  let look = $derived(
-    page.data.talent ? mascotLookOf(page.data.talent) : DEFAULT_MASCOT_LOOK,
-  );
+  let look = $derived(mascot?.look ?? DEFAULT_MASCOT_LOOK);
   let line = $derived(mascot?.lineFor(cue) ?? null);
 </script>
 
