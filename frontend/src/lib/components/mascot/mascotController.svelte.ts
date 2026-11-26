@@ -156,6 +156,9 @@ export class MascotController {
   #phaseTimer: ReturnType<typeof setTimeout> | undefined;
   #joyTimer: ReturnType<typeof setTimeout> | undefined;
   #lookSaver: LatestSaver<MascotChoice>;
+  #sleepSaver: LatestSaver<boolean>;
+  /** Where he was when the presses being saved began, to go back to it. */
+  #beforeSleepChange: MascotPhase = { phase: 'awake' };
 
   constructor(init: MascotControllerInit) {
     this.#init = init;
@@ -167,6 +170,11 @@ export class MascotController {
         this.choice = saved;
         toast.error("Ton canard n'a pas pu être enregistré. Réessaie.");
       },
+    );
+    this.#sleepSaver = new LatestSaver(
+      init.asleep,
+      (asleep) => putMascotToSleep({ asleep }),
+      (stored) => this.#sleepRefused(stored),
     );
     this.look = $derived(shownMascotLook(this.choice));
     this.savingLook = $derived(this.#lookSaver.busy);
@@ -215,31 +223,38 @@ export class MascotController {
   }
 
   /**
-   * The sleep button: optimistic, and put back if the server refuses. He says
+   * The sleep button: optimistic, saved in the order it was pressed
+   * (`LatestSaver`, #552), and put back if the server refuses. He says
    * goodnight only if he is in sight: sent to sleep while sulking under the
    * water, he simply stays there, and a line with no duck under it would come
    * from nowhere.
    */
-  async setAsleep(asleep: boolean): Promise<void> {
+  setAsleep(asleep: boolean): void {
     if (asleep === this.asleep) return;
-    const before = this.state;
-    const inSight = before.phase === 'awake' || before.phase === 'emerging';
+    if (!this.#sleepSaver.busy) this.#beforeSleepChange = this.state;
+    const inSight =
+      this.state.phase === 'awake' || this.state.phase === 'emerging';
     this.#dispatch(asleep ? 'sleep' : 'wake');
     if (!asleep || inSight) this.#sayMoment(asleep ? 'sleep' : 'wake');
-    try {
-      await putMascotToSleep({ asleep });
-    } catch {
-      // Back where he was, and on his way again: a dive, a sulk or a way up
-      // he was in the middle of ends as it would have, so a refused request
-      // never leaves him stranded between two phases.
-      this.#hideBubble();
-      this.#enter(before);
-      toast.error(
-        asleep
-          ? "Ton canard n'a pas pu s'endormir. Réessaie dans un instant."
-          : "Ton canard n'a pas pu se réveiller. Réessaie dans un instant.",
-      );
-    }
+    this.#sleepSaver.push(asleep);
+  }
+
+  /**
+   * The server refused the last press: back to what it stored, and on his way
+   * again. Where he was before the presses, when that is what it stored, so a
+   * dive, a sulk or a way up he was in the middle of ends as it would have and
+   * a refused request never leaves him stranded between two phases.
+   */
+  #sleepRefused(stored: boolean): void {
+    this.#hideBubble();
+    const before = this.#beforeSleepChange;
+    if (isAsleep(before) === stored) this.#enter(before);
+    else this.#dispatch(stored ? 'sleep' : 'wake');
+    toast.error(
+      stored
+        ? "Ton canard n'a pas pu se réveiller. Réessaie dans un instant."
+        : "Ton canard n'a pas pu s'endormir. Réessaie dans un instant.",
+    );
   }
 
   /**

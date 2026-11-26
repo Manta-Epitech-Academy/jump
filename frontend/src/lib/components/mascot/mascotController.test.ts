@@ -102,6 +102,58 @@ describe('MascotController, when the server refuses a sleep', () => {
 });
 
 /**
+ * Pressed quickly, the sleep button is saved in the order it was pressed
+ * (#552): two presses sent at once could be stored in either order and wake
+ * him on the next page.
+ */
+describe('MascotController, sleep and wake pressed in a row', () => {
+  function heldSleeps() {
+    const answers: { ok: () => void; refuse: () => void }[] = [];
+    putMascotToSleep.mockImplementation(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          answers.push({ ok: resolve, refuse: () => reject(new Error('no')) });
+        }),
+    );
+    return answers;
+  }
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    putMascotToSleep.mockReset();
+  });
+
+  it('sends the second press only once the first is stored', async () => {
+    const answers = heldSleeps();
+    const mascot = duck();
+    mascot.setAsleep(true);
+    mascot.setAsleep(false);
+    expect(putMascotToSleep).toHaveBeenCalledOnce();
+    expect(putMascotToSleep).toHaveBeenLastCalledWith({ asleep: true });
+
+    answers[0].ok();
+    await settle();
+    expect(putMascotToSleep).toHaveBeenCalledTimes(2);
+    expect(putMascotToSleep).toHaveBeenLastCalledWith({ asleep: false });
+    expect(mascot.asleep).toBe(false);
+  });
+
+  it('goes back to sleep when the wake that followed a stored sleep is refused', async () => {
+    const answers = heldSleeps();
+    const mascot = duck();
+    mascot.setAsleep(true);
+    answers[0].ok();
+    await vi.advanceTimersByTimeAsync(DIVE_MS);
+    expect(mascot.state).toEqual({ phase: 'under', reason: 'sleep' });
+
+    mascot.setAsleep(false);
+    answers[1].refuse();
+    await settle();
+    expect(mascot.state).toEqual({ phase: 'under', reason: 'sleep' });
+  });
+});
+
+/**
  * What he has to say waits its turn (#540): a reaction never cuts a greeting
  * short, a moment with no line is skipped rather than shown empty, and a
  * celebration holds the queue until he is back in the header.
