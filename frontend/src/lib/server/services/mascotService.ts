@@ -1,8 +1,8 @@
 /**
- * EpiDuck on the talent's side (#539): what he may say today, and whether the
- * talent put him to sleep. What he says is authored over the admin API
- * (`adminApi/writes/mascot.ts`); his look is written from the talent's
- * settings.
+ * EpiDuck on the talent's side (#539): what he may say today, how the talent
+ * dressed him and whether they put him to sleep. What he says is authored over
+ * the admin API (`adminApi/writes/mascot.ts`); his look and his sleep are the
+ * talent's to write, from the settings and the header (`mascot.remote.ts`).
  */
 
 import { prisma } from '#lib/server/db.ts';
@@ -12,6 +12,7 @@ import { eventPublicName, UNNAMED_EVENT_NAME } from '#lib/domain/event.ts';
 import {
   isMascotMoment,
   type EnrolledEventDays,
+  type MascotChoice,
   type MascotVoice,
 } from '#lib/domain/mascot.ts';
 import { enrolledNotOverWhere } from './talentHomeHero';
@@ -43,6 +44,26 @@ export async function loadMascotVoice(day: DateKey): Promise<MascotVoice> {
     (voice[momentKey] ??= []).push(text);
   }
   return voice;
+}
+
+/**
+ * Stores how the talent dressed their duck, whole: every save carries the full
+ * choice, so the last one written is the duck. An empty name stores null,
+ * which is his own name.
+ */
+export async function setMascotLook(
+  talentId: string,
+  choice: MascotChoice,
+): Promise<void> {
+  await prisma.talent.update({
+    where: { id: talentId },
+    data: {
+      mascotName: choice.name || null,
+      mascotGlasses: choice.glasses,
+      mascotScarf: choice.scarf,
+      mascotHair: choice.hair,
+    },
+  });
 }
 
 /**

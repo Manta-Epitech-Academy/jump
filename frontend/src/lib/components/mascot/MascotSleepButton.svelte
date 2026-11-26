@@ -9,20 +9,14 @@
   anything.
 -->
 <script lang="ts">
-  import { page } from '$app/state';
   import { Button } from '#lib/components/ui/button/index.ts';
   import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
-  import { MASCOT_DEFAULT_NAME, mascotLookOf } from '#lib/domain/mascot.ts';
   import Bird from '@lucide/svelte/icons/bird';
   import { useMascot } from './mascotController.svelte.ts';
 
   const mascotOf = useMascot();
   let mascot = $derived(mascotOf());
-  let name = $derived(
-    page.data.talent
-      ? mascotLookOf(page.data.talent).name
-      : MASCOT_DEFAULT_NAME,
-  );
+  let name = $derived(mascot?.look.name);
   let label = $derived(
     mascot?.asleep
       ? `Réveiller ton canard ${name}`

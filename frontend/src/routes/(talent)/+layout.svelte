@@ -8,14 +8,14 @@
     MascotController,
     provideMascot,
   } from '#lib/components/mascot/mascotController.svelte.ts';
-  import { mascotLookOf } from '#lib/domain/mascot.ts';
+  import { mascotChoiceOf } from '#lib/domain/mascot.ts';
 
   let { data, children } = $props();
 
   // The talent's EpiDuck, made once per talent for the layout so he outlives
   // the page (the header that draws him remounts on every navigation). Keyed on
-  // the talent alone: the layout's data reloads after every settings save, and
-  // a duck rebuilt then would forget he was mid-pond. Signing in without
+  // the talent alone: a layout reload must not rebuild him, or he would forget
+  // he was mid-pond, and his look would go back to what the load read. Signing in without
   // leaving the layout makes him; the sign-in page draws no header anyway.
   let talentId = $derived(data.talent?.id ?? null);
   const mascot = $derived.by(() => {
@@ -27,11 +27,9 @@
       return new MascotController({
         talentId: id,
         asleep: data.talent.mascotAsleepAt !== null,
+        choice: mascotChoiceOf(data.talent),
         voice: () => data.mascot?.voice ?? first.voice,
-        tokens: () => ({
-          prenom: data.talent?.prenom ?? '',
-          canard: data.talent ? mascotLookOf(data.talent).name : '',
-        }),
+        tokens: () => ({ prenom: data.talent?.prenom ?? '' }),
         arrival: first.arrival,
         today: first.today,
       });
