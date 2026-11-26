@@ -305,13 +305,6 @@ export function shownMascotLook(choice: MascotChoice): MascotLook {
   return { ...choice, name: choice.name.trim() || MASCOT_DEFAULT_NAME };
 }
 
-/** A talent's duck, read off the `Talent` columns that hold it. */
-export function mascotLookOf(
-  talent: Parameters<typeof mascotChoiceOf>[0],
-): MascotLook {
-  return shownMascotLook(mascotChoiceOf(talent));
-}
-
 /**
  * Whether the talent's duck hosts a questionnaire: it names no persona of its
  * own (#539). He then speaks its texts, its closing thanks included.
