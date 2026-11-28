@@ -51,10 +51,8 @@ import {
   type MascotVoice,
 } from '#lib/domain/mascot.ts';
 import {
-  SULK_POKES,
   isAsleep,
   nextPhase,
-  recentPokes,
   type MascotEvent,
   type MascotPhase,
 } from './mascotPhase';
@@ -64,8 +62,6 @@ import { putMascotToSleep, saveMascotLook } from './mascot.remote';
 export const DIVE_MS = 1800;
 export const EMERGE_MS = 1800;
 const REDUCED_DIVE_MS = 200;
-/** How long he sulks under the water before coming back on his own. */
-export const SULK_MS = 6000;
 /** How long a bubble stays: enough to read a short line twice. */
 export const BUBBLE_MS = 5000;
 /** The breath between two queued lines, so the second reads as a new one. */
@@ -125,7 +121,7 @@ export type MascotControllerInit = {
 };
 
 export class MascotController {
-  state = $state<MascotPhase>({ phase: 'awake' });
+  state = $state<MascotPhase>('awake');
   #expression = $state<Expression | null>(null);
   /** The line he is saying, if he is saying one. */
   bubble = $derived<SpokenLine | null>(
@@ -150,9 +146,7 @@ export class MascotController {
    */
   onStage = $state(false);
   /** He stops and turns to the talent while he speaks or beams. */
-  facingTalent = $derived(
-    this.#expression !== null && this.state.phase === 'awake',
-  );
+  facingTalent = $derived(this.#expression !== null && this.state === 'awake');
   /** Up from his sleep only to answer the talent, then back under. */
   #answering = $state(false);
   /**
@@ -183,7 +177,6 @@ export class MascotController {
   heading: number | null = null;
 
   #init: MascotControllerInit;
-  #pokes: number[] = [];
   #pokeTurn = 0;
   /** How many times each badge was asked about, so its lines take turns. */
   #badgeTurns = new Map<string, number>();
@@ -204,7 +197,7 @@ export class MascotController {
   #lookSaver: LatestSaver<MascotChoice>;
   #sleepSaver: LatestSaver<boolean>;
   /** Where he was when the presses being saved began, to go back to it. */
-  #beforeSleepChange: MascotPhase = { phase: 'awake' };
+  #beforeSleepChange: MascotPhase = 'awake';
 
   constructor(init: MascotControllerInit) {
     this.#init = init;
@@ -229,23 +222,19 @@ export class MascotController {
     });
     this.look = $derived(shownMascotLook(this.choice));
     this.savingLook = $derived(this.#lookSaver.busy);
-    if (init.asleep) this.state = { phase: 'under', reason: 'sleep' };
+    if (init.asleep) this.state = 'under';
   }
 
   get reducedMotion(): boolean {
     return prefersReducedMotion.current;
   }
 
-  /** The talent tapped him. */
-  poke(now = Date.now()): void {
-    if (this.state.phase !== 'awake' || this.onStage) return;
-    this.#pokes = recentPokes(this.#pokes, now);
-    if (this.#pokes.length >= SULK_POKES) {
-      this.#pokes = [];
-      this.#quiet();
-      this.#dispatch('sulk');
-      return;
-    }
+  /**
+   * The talent tapped him: he answers, each tap with the next line, however
+   * many in a row. Playing with him is what he is there for.
+   */
+  poke(): void {
+    if (this.state !== 'awake' || this.onStage) return;
     const lines = this.#init.voice().poke ?? [];
     if (lines.length === 0) return;
     const start = lines.indexOf(
@@ -263,8 +252,8 @@ export class MascotController {
    * Asleep, he still answers: the talent asked him something, and sleep
    * quiets what he does of his own accord, never his answer to what the
    * talent did. He comes up, says it, and goes back under, and the stored
-   * preference is never touched. Under for a sulk, or on his way up, he says
-   * it once he is on the water. On stage, the question goes unanswered: the
+   * preference is never touched. On his way up, he says it once he is on the
+   * water. On stage, the question goes unanswered: the
    * stage is a celebration with its own words, and nothing waits behind it.
    */
   explain(question: BadgeQuestion): void {
@@ -273,7 +262,7 @@ export class MascotController {
       text: this.#spoken(this.#badgeLine(question), question.tokens),
       mood: MASCOT_MOMENTS[question.moment].mood,
     };
-    if (this.state.phase === 'awake') {
+    if (this.state === 'awake') {
       this.#show(answer.text, answer.mood);
       return;
     }
@@ -310,26 +299,22 @@ export class MascotController {
   /**
    * The sleep button: optimistic, saved in the order it was pressed
    * (`LatestSaver`, #552), and put back if the server refuses. He says
-   * goodnight only if he is in sight: sent to sleep while sulking under the
-   * water, he simply stays there, and a line with no duck under it would come
-   * from nowhere.
+   * goodnight or good morning as he goes.
    */
   setAsleep(asleep: boolean): void {
     if (asleep === this.asleep) return;
     // Woken while up to answer: he stays up, and the answer stays said.
     this.#answering = false;
     if (!this.#sleepSaver.busy) this.#beforeSleepChange = this.state;
-    const inSight =
-      this.state.phase === 'awake' || this.state.phase === 'emerging';
     this.#dispatch(asleep ? 'sleep' : 'wake');
-    if (!asleep || inSight) this.#sayMoment(asleep ? 'sleep' : 'wake');
+    this.#sayMoment(asleep ? 'sleep' : 'wake');
     this.#sleepSaver.push(asleep);
   }
 
   /**
    * The server refused the last press: back to what it stored, and on his way
    * again. Where he was before the presses, when that is what it stored, so a
-   * dive, a sulk or a way up he was in the middle of ends as it would have and
+   * dive or a way up he was in the middle of ends as it would have and
    * a refused request never leaves him stranded between two phases.
    */
   #sleepRefused(stored: boolean): void {
@@ -379,7 +364,7 @@ export class MascotController {
    * poke answers, and what is queued waits for it.
    */
   rejoice(): void {
-    if (this.state.phase !== 'awake' || this.onStage) return;
+    if (this.state !== 'awake' || this.onStage) return;
     this.#express({ text: null, mood: 'joy' }, REJOICE_MS);
   }
 
@@ -430,7 +415,7 @@ export class MascotController {
   /** The next queued line, once he is on the water, free and in sight. */
   #next(): void {
     if (this.#expression || this.onStage) return;
-    if (this.state.phase !== 'awake') return;
+    if (this.state !== 'awake') return;
     clearTimeout(this.#nextTimer);
     const cue = this.#queue.shift();
     if (!cue) return;
@@ -522,12 +507,12 @@ export class MascotController {
   #enter(next: MascotPhase): void {
     this.state = next;
     clearTimeout(this.#phaseTimer);
-    if (next.phase === 'awake' && this.#pendingAnswer) {
+    if (next === 'awake' && this.#pendingAnswer) {
       const { text, mood } = this.#pendingAnswer;
       this.#pendingAnswer = null;
       this.#show(text, mood);
     }
-    if (next.phase === 'awake') this.#next();
+    if (next === 'awake') this.#next();
     if (isAsleep(next)) {
       this.#queue = [];
       // Sent to sleep before he was up to answer: the question is gone with him.
@@ -535,13 +520,11 @@ export class MascotController {
     }
     const dive = this.reducedMotion ? REDUCED_DIVE_MS : DIVE_MS;
     const emerge = this.reducedMotion ? REDUCED_DIVE_MS : EMERGE_MS;
-    if (next.phase === 'diving') {
+    if (next === 'diving') {
       this.#phaseTimer = setTimeout(() => this.#dispatch('dove'), dive);
-    } else if (next.phase === 'emerging') {
+    } else if (next === 'emerging') {
       this.#phaseTimer = setTimeout(() => this.#dispatch('emerged'), emerge);
-    } else if (next.phase === 'under' && next.reason === 'sulk') {
-      this.#phaseTimer = setTimeout(() => this.#dispatch('surface'), SULK_MS);
-    } else if (next.phase === 'under') {
+    } else if (next === 'under') {
       // Asleep: the goodnight leaves with him.
       this.#quiet();
     }
