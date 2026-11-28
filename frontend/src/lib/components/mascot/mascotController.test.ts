@@ -473,7 +473,7 @@ describe('MascotController, asked about a badge', () => {
       talentId: 't1',
       asleep,
       choice: UNDRESSED,
-      voice: () => ({}),
+      voice: () => ({ poke: ['Coin !'] }),
       tokens: () => ({ prenom: 'Lina' }),
       arrival: [],
       today: '2026-11-24',
@@ -498,6 +498,21 @@ describe('MascotController, asked about a badge', () => {
     expect([first, mascot.bubble!.text].sort()).toEqual(
       ['Accro depuis mars 2026, Lina !', 'Cinq clubs !'].sort(),
     );
+  });
+
+  // A calm line said over a joyful one left his joy behind, with no timer to
+  // end it: he beamed at the talent, stopped, until a reload (QA, 28/11/2026).
+  it('lets his joy go with the line that brought it', async () => {
+    const mascot = sleepy(false);
+    mascot.explain(addict);
+    expect(mascot.joy).not.toBeNull();
+    mascot.poke();
+    expect(mascot.bubble?.mood).toBe('calm');
+    expect(mascot.joy).toBeNull();
+
+    await after(BUBBLE_MS);
+    expect(mascot.bubble).toBeNull();
+    expect(mascot.facingTalent).toBe(false);
   });
 
   it("says the badge's condition when the PO wrote no line", () => {

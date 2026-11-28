@@ -85,6 +85,16 @@ const GREETED_KEY = 'epiduck:greeted';
 /** A line he is saying in the header, drawn by `MascotBubble`. */
 export type SpokenLine = { text: string; id: number; mood: MascotMood };
 
+/**
+ * What he is showing the talent: a line, or his joy without a word
+ * (`rejoice`). One value, so his bubble, his joy and his turning to the
+ * talent are all read off it and can never disagree: they were three states
+ * kept in step by hand, and a calm line said over a joyful one left his joy
+ * behind with no timer to end it, a duck beaming at the talent until a reload
+ * (QA, 28/11/2026).
+ */
+type Expression = { id: number; mood: MascotMood; text: string | null };
+
 /** A badge the talent clicked, and what the duck may say of it (#551). */
 export type BadgeQuestion = {
   /** The badge's key: its lines rotate on it, click after click. */
@@ -116,13 +126,23 @@ export type MascotControllerInit = {
 
 export class MascotController {
   state = $state<MascotPhase>({ phase: 'awake' });
-  bubble = $state<SpokenLine | null>(null);
+  #expression = $state<Expression | null>(null);
+  /** The line he is saying, if he is saying one. */
+  bubble = $derived<SpokenLine | null>(
+    this.#expression?.text == null
+      ? null
+      : {
+          text: this.#expression.text,
+          id: this.#expression.id,
+          mood: this.#expression.mood,
+        },
+  );
   /**
    * He is beaming, eyes squeezed in joy: for as long as he says good news, or
    * for a moment when he rejoices without a word. An id, so the header hops
    * once per joy and not once per render.
    */
-  joy = $state<number | null>(null);
+  joy = $derived(this.#expression?.mood === 'joy' ? this.#expression.id : null);
   /**
    * He is in the middle of the screen, drawn by a celebration (`enterStage`):
    * the header's duck steps out of sight meanwhile, so there is never two of
@@ -131,7 +151,7 @@ export class MascotController {
   onStage = $state(false);
   /** He stops and turns to the talent while he speaks or beams. */
   facingTalent = $derived(
-    (this.bubble !== null || this.joy !== null) && this.state.phase === 'awake',
+    this.#expression !== null && this.state.phase === 'awake',
   );
   /** Up from his sleep only to answer the talent, then back under. */
   #answering = $state(false);
@@ -169,7 +189,7 @@ export class MascotController {
   #badgeTurns = new Map<string, number>();
   /** An answer he says once he is up, on the water and free. */
   #pendingAnswer: { text: string; mood: MascotMood } | null = null;
-  #bubbleId = 0;
+  #expressionId = 0;
   #arrived = false;
   /** The arrival line, until it is said or a celebration takes its place. */
   #arrival: MascotCue | null = null;
@@ -177,10 +197,10 @@ export class MascotController {
   /** The stage holding him, which alone may let him go (`enterStage`). */
   #stage: object | null = null;
   #queue: MascotCue[] = [];
-  #bubbleTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Ends what he is showing: the one timer an expression has. */
+  #expressionTimer: ReturnType<typeof setTimeout> | undefined;
   #nextTimer: ReturnType<typeof setTimeout> | undefined;
   #phaseTimer: ReturnType<typeof setTimeout> | undefined;
-  #joyTimer: ReturnType<typeof setTimeout> | undefined;
   #lookSaver: LatestSaver<MascotChoice>;
   #sleepSaver: LatestSaver<boolean>;
   /** Where he was when the presses being saved began, to go back to it. */
@@ -222,7 +242,7 @@ export class MascotController {
     this.#pokes = recentPokes(this.#pokes, now);
     if (this.#pokes.length >= SULK_POKES) {
       this.#pokes = [];
-      this.#hideBubble();
+      this.#quiet();
       this.#dispatch('sulk');
       return;
     }
@@ -313,7 +333,7 @@ export class MascotController {
    * a refused request never leaves him stranded between two phases.
    */
   #sleepRefused(stored: boolean): void {
-    this.#hideBubble();
+    this.#quiet();
     const before = this.#beforeSleepChange;
     if (isAsleep(before) === stored) this.#enter(before);
     else this.#dispatch(stored ? 'sleep' : 'wake');
@@ -355,16 +375,12 @@ export class MascotController {
    * A hop of joy and no word: what he does when the page has already said it
    * in his name (a questionnaire he hosted thanks the talent itself, and a
    * second thanks from the header would be the same voice twice). Not while
-   * he is out of sight, asleep or on stage.
+   * he is out of sight, asleep or on stage. Over whatever he was saying, as a
+   * poke answers, and what is queued waits for it.
    */
   rejoice(): void {
     if (this.state.phase !== 'awake' || this.onStage) return;
-    const id = ++this.#bubbleId;
-    this.joy = id;
-    clearTimeout(this.#joyTimer);
-    this.#joyTimer = setTimeout(() => {
-      if (this.joy === id) this.joy = null;
-    }, REJOICE_MS);
+    this.#express({ text: null, mood: 'joy' }, REJOICE_MS);
   }
 
   /**
@@ -402,7 +418,7 @@ export class MascotController {
       this.#arrival = null;
     }
     this.#markArrived();
-    this.#hideBubble();
+    this.#quiet();
     return () => {
       if (this.#stage !== stage) return;
       this.#stage = null;
@@ -413,7 +429,7 @@ export class MascotController {
 
   /** The next queued line, once he is on the water, free and in sight. */
   #next(): void {
-    if (this.bubble || this.onStage) return;
+    if (this.#expression || this.onStage) return;
     if (this.state.phase !== 'awake') return;
     clearTimeout(this.#nextTimer);
     const cue = this.#queue.shift();
@@ -467,12 +483,15 @@ export class MascotController {
   }
 
   #show(text: string, mood: MascotMood): void {
-    clearTimeout(this.#bubbleTimer);
-    const id = ++this.#bubbleId;
-    this.bubble = { text, mood, id };
-    if (mood === 'joy') this.joy = id;
-    this.#bubbleTimer = setTimeout(() => {
-      this.#hideBubble();
+    this.#express({ text, mood }, BUBBLE_MS);
+  }
+
+  /** Shows `shown` over whatever he was showing, for `ms`. */
+  #express(shown: Omit<Expression, 'id'>, ms: number): void {
+    clearTimeout(this.#expressionTimer);
+    this.#expression = { ...shown, id: ++this.#expressionId };
+    this.#expressionTimer = setTimeout(() => {
+      this.#quiet();
       if (this.#answering) {
         // Up only to answer: back to the sleep the talent chose.
         this.#answering = false;
@@ -480,13 +499,12 @@ export class MascotController {
         return;
       }
       this.#nextTimer = setTimeout(() => this.#next(), BETWEEN_LINES_MS);
-    }, BUBBLE_MS);
+    }, ms);
   }
 
-  #hideBubble(): void {
-    clearTimeout(this.#bubbleTimer);
-    if (this.joy === this.bubble?.id) this.joy = null;
-    this.bubble = null;
+  #quiet(): void {
+    clearTimeout(this.#expressionTimer);
+    this.#expression = null;
   }
 
   /** Moves him, if the event moves him at all. */
@@ -525,7 +543,7 @@ export class MascotController {
       this.#phaseTimer = setTimeout(() => this.#dispatch('surface'), SULK_MS);
     } else if (next.phase === 'under') {
       // Asleep: the goodnight leaves with him.
-      this.#hideBubble();
+      this.#quiet();
     }
   }
 }
