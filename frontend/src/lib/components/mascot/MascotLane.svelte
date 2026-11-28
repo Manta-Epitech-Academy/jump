@@ -91,7 +91,7 @@
   let lookingAround = false;
   let bubbleAlign = $state<'start' | 'center' | 'end'>('center');
 
-  let phase = $derived(mascot?.state.phase ?? 'awake');
+  let phase = $derived(mascot?.state ?? 'awake');
   let front = $derived(
     phase === 'awake' && (mascot?.facingTalent || idleFront),
   );

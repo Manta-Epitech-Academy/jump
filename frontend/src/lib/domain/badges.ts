@@ -4,7 +4,7 @@
 // over `write_badge`, and a talent earns it the moment a counter of theirs
 // reaches its threshold, without asking anybody. This file is the closed half
 // of that: the counters a rule may name, the filters each one takes, and the
-// lists a badge's look is chosen from. Everything here is what the API accepts
+// frame a badge's drawing is set in. Everything here is what the API accepts
 // and what the read describes, so a list lives once.
 //
 // Counting is `services/badgeAwards.ts`, which reads each counter off the same
@@ -111,7 +111,31 @@ export function isBadgeCounterKey(key: string): key is BadgeCounterKey {
   return Object.hasOwn(BADGE_COUNTERS, key);
 }
 
-/** The groups a collection is sorted into, in the mockup's order. */
+/** One badge as the talent's collection draws it, and as the duck explains it. */
+export type CollectedBadge = {
+  key: string;
+  label: string;
+  /** What the duck says of it when no line of its own is live. */
+  condition: string;
+  /** The sticker's drawing, screened at write (`screenBadgeArt`). */
+  art: string;
+  /** The month it was earned (« janvier 2026 »), null for one still to earn. */
+  earnedOn: string | null;
+  /** The duck's live lines about it, for the state it is in for this talent. */
+  lines: string[];
+};
+
+/** A talent's collection (#551), what `loadBadgeCollection` hands the page. */
+export type BadgeCollection = {
+  badges: CollectedBadge[];
+  earned: number;
+};
+
+/**
+ * The groups a badge is filed under, in the mockup's order. The collection
+ * (#551) never shows them: they are the order it is drawn in, group by group,
+ * as the mockup lays out its Epidex.
+ */
 export const BADGE_GROUPS = {
   parcours: 'Parcours',
   succes: 'Succès',
@@ -122,45 +146,69 @@ export type BadgeGroupKey = keyof typeof BADGE_GROUPS;
 
 export const BADGE_GROUP_KEYS = Object.keys(BADGE_GROUPS) as BadgeGroupKey[];
 
-/** The mockup's three outlines. */
-export const BADGE_SHAPES = ['circle', 'hexagon', 'shield'] as const;
-
-export type BadgeShape = (typeof BADGE_SHAPES)[number];
+/**
+ * Where a group comes in the collection: its place in `BADGE_GROUPS`, a group
+ * the list no longer names last. Read by the collection and the admin read
+ * alike, so the PO reads the badges in the order talents see them.
+ */
+export function badgeGroupRank(group: string): number {
+  const at = (BADGE_GROUP_KEYS as string[]).indexOf(group);
+  return at === -1 ? BADGE_GROUP_KEYS.length : at;
+}
 
 /**
- * The pictograms a badge is drawn with, the mockup's thirteen, each described
- * for the model choosing one (English: it reads them as instruction). A closed
- * list because each is a drawing the collection (#551) ships: a new one is a
- * drawing first.
+ * The month a badge was earned, as the duck says it (« janvier 2026 »,
+ * `{date}`): the talent's calendar, so a badge earned on the last evening of
+ * a month is not told as the next one.
  */
-export const BADGE_ICONS = {
-  car: 'a car seen from the front',
-  flag: 'a chequered finish flag',
-  zombie: "a zombie's head",
-  code: 'code brackets </>',
-  check: 'a tick',
-  lock: 'a padlock',
-  chip: 'a microchip',
-  robot: 'a robot',
-  app: 'an application window',
-  gamepad: 'a game controller',
-  trophy: 'a trophy cup',
-  duck: 'a duck',
-  flame: 'a flame',
-} as const;
+export function badgeEarnedMonth(awardedAt: Date, timeZone: string): string {
+  return awardedAt.toLocaleDateString('fr-FR', {
+    month: 'long',
+    year: 'numeric',
+    timeZone,
+  });
+}
 
-export type BadgeIcon = keyof typeof BADGE_ICONS;
+/**
+ * Ceiling on a badge's drawing, in characters. The mockup's heaviest sticker,
+ * a run of days in pixels, is about 7 000: room for one like it, not for an
+ * embedded picture.
+ */
+export const BADGE_ART_MAX = 10_000;
 
-export const BADGE_ICON_KEYS = Object.keys(BADGE_ICONS) as BadgeIcon[];
+/**
+ * The faces a drawing may write in, as its `font-family` names them: the two
+ * the mockup's stickers use, both loaded by every page that shows one. Any
+ * other would fall back to whatever the reader's device has.
+ */
+export const BADGE_ART_FONTS = ['Space Mono', 'Anton'] as const;
+
+/**
+ * The square a badge is drawn in, in user units: the sticker fills it, and its
+ * white outline may run past the edge, which the frame leaves room for.
+ */
+export const BADGE_ART_SIZE = 80;
+
+/**
+ * A badge's drawing in its frame, as one `<svg>` element. The drawing is only
+ * what goes inside: the frame is code, so every sticker is the same size, with
+ * the same margin for its outline, whatever its author wrote. Shared by the
+ * collection and by the preview an admin is shown, so the two cannot differ.
+ *
+ * `art` must have been through `screenBadgeArt` (server/badgeArtSanitize.ts),
+ * as every stored drawing has: this concatenates, it does not escape.
+ */
+export function badgeStickerSvg(art: string): string {
+  const margin = 4;
+  const box = BADGE_ART_SIZE + 2 * margin;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-margin} ${-margin} ${box} ${box}" overflow="visible" aria-hidden="true" focusable="false">${art}</svg>`;
+}
 
 /** Ceiling on a label: the badge's name under it, not a sentence. */
 export const BADGE_LABEL_MAX = 40;
 
 /** Ceiling on a condition: one line under a badge still to earn. */
 export const BADGE_CONDITION_MAX = 120;
-
-/** Ceiling on the text printed on the badge (« ×5 », « 2NDE », « 10 J »). */
-export const BADGE_TEXT_MAX = 4;
 
 /** Ceiling on a key: it spells a label, so it gets the label's. */
 export const BADGE_KEY_MAX = BADGE_LABEL_MAX;

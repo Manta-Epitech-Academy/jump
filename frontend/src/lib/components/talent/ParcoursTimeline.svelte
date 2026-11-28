@@ -76,11 +76,15 @@
   color: string | null,
 )}
   <li
-    class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-start sm:gap-4"
+    class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 @md:flex-row @md:items-start @md:gap-4"
   >
-    <!-- Stacked on a phone, beside the words from `sm`, as the hero's
-         choice tiles are: the visual keeps the width its name needs. -->
-    <div class="sm:w-40 sm:shrink-0">
+    <!-- Stacked in a narrow box, beside the words once the list has room
+         (`@md`, the list's own width), as the hero's choice tiles are: the
+         visual keeps the width its name needs. The list's width and not the
+         screen's: drawn in a box narrower than the page, a screen breakpoint
+         put the visual beside words squeezed narrower than their button
+         (#551). -->
+    <div class="@md:w-40 @md:shrink-0">
       <SubjectVisual
         activity={next.activity}
         categoryColor={color}
@@ -166,7 +170,7 @@
           </div>
 
           {#if step.activities.length > 0}
-            <ul class="flex flex-col gap-2">
+            <ul class="@container flex flex-col gap-2">
               {#each step.activities as activity (activity.slug)}
                 {#if activity.next}
                   {@render invitationCard(activity, activity.next, step.color)}

@@ -53,6 +53,8 @@ export const MASCOT_TOKENS = {
   niveau: 'Nom du niveau que le talent vient d’atteindre (Maker, Hacker…).',
   serie: "Nombre de jours d'affilée où le talent est venu dans Jump.",
   evenement: "Nom de l'événement.",
+  badge: 'Nom du badge sur lequel le talent a cliqué.',
+  date: 'Mois et année où le talent a obtenu le badge (« janvier 2026 »).',
 } as const;
 
 export type MascotToken = keyof typeof MASCOT_TOKENS;
@@ -193,6 +195,20 @@ export const MASCOT_MOMENTS = {
     tokens: ['prenom', 'canard', 'evenement'],
     mood: 'joy',
   },
+  badgeEarned: {
+    label: 'Badge obtenu',
+    description:
+      "Le talent clique sur un badge qu'il a obtenu, dans sa collection : le canard lui dit ce qu'il a fait pour l'avoir. Chaque phrase est celle d'un badge ; sans phrase, le canard dit la condition du badge.",
+    tokens: ['prenom', 'canard', 'badge', 'date'],
+    mood: 'joy',
+  },
+  badgeToEarn: {
+    label: 'Badge à obtenir',
+    description:
+      "Le talent clique sur un badge qu'il n'a pas encore, dans sa collection : le canard lui dit ce qui le débloque, comme une invitation, jamais un reproche. Chaque phrase est celle d'un badge ; sans phrase, le canard dit la condition du badge.",
+    tokens: ['prenom', 'canard', 'badge'],
+    mood: 'calm',
+  },
 } as const satisfies Record<string, MascotMoment>;
 
 export type MascotMomentKey = keyof typeof MASCOT_MOMENTS;
@@ -203,6 +219,23 @@ export const MASCOT_MOMENT_KEYS = Object.keys(
 
 export function isMascotMoment(key: string): key is MascotMomentKey {
   return Object.hasOwn(MASCOT_MOMENTS, key);
+}
+
+/**
+ * The moments whose lines each belong to one badge (#551): what he says when
+ * a talent clicks that badge in their collection. Every line of these names
+ * its badge, and no line of another moment names one. With no line, he says
+ * the badge's condition, which is the PO's sentence too: not a fallback in
+ * code, the badge explained by what it asks.
+ */
+export const MASCOT_BADGE_MOMENTS = ['badgeEarned', 'badgeToEarn'] as const;
+
+export type MascotBadgeMoment = (typeof MASCOT_BADGE_MOMENTS)[number];
+
+export function isMascotBadgeMoment(
+  key: MascotMomentKey,
+): key is MascotBadgeMoment {
+  return (MASCOT_BADGE_MOMENTS as readonly string[]).includes(key);
 }
 
 /**

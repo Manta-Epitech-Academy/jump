@@ -86,6 +86,7 @@ describe('no read operation leaks a talent identity (integration)', () => {
     closingQuestionKey: '',
     schoolYear: '',
     closingId: '',
+    badgeKey: `pii-badge-${stamp}`,
   };
 
   beforeAll(async () => {
@@ -254,6 +255,21 @@ describe('no read operation leaks a talent identity (integration)', () => {
     });
     seeded.closingId = closing.id;
 
+    // A badge the seeded talent holds, so the badge reads and the preview have
+    // a holder they could name, and do not.
+    await prisma.badge_Definition.create({
+      data: {
+        key: seeded.badgeKey,
+        label: `Badge PII ${stamp}`,
+        condition: 'A gagné 1 XP',
+        groupKey: 'wtf',
+        art: '<circle cx="40" cy="40" r="36" fill="#013afb"></circle>',
+        counterKey: 'xp',
+        threshold: 1,
+        awards: { create: { talentId: talent.id, awardedAt: new Date() } },
+      },
+    });
+
     // A response from the seeded talent, so the feedback answer has a real
     // submission to aggregate rather than an empty one that could not leak, and
     // a real answer on it so the option tally is exercised too.
@@ -282,6 +298,9 @@ describe('no read operation leaks a talent identity (integration)', () => {
       });
       await prisma.participation.deleteMany({ where: { talentId } });
       await prisma.talent.deleteMany({ where: { id: talentId } });
+      await prisma.badge_Definition.deleteMany({
+        where: { key: seeded.badgeKey },
+      });
       // The staff account too: its profile, and the closing hanging off it,
       // cascade away with it.
       await prisma.bauth_user.deleteMany({
@@ -387,10 +406,12 @@ describe('no read operation leaks a talent identity (integration)', () => {
 const WIDENED_BY: Partial<
   Record<
     AdminApiOperationName,
-    (seeded: { formId: string }) => Record<string, unknown>
+    (seeded: { formId: string; badgeKey: string }) => Record<string, unknown>
   >
 > = {
   config_feedback_forms: (seeded) => ({ formId: seeded.formId }),
+  // By key, a badge comes back with its drawing.
+  config_badges: (seeded) => ({ badgeKey: seeded.badgeKey }),
 };
 
 /**
@@ -407,6 +428,7 @@ function requiredArgsFor(
     questionKey: string;
     closingQuestionKey: string;
     schoolYear: string;
+    badgeKey: string;
   },
 ): Record<string, unknown> {
   switch (name) {
@@ -418,6 +440,10 @@ function requiredArgsFor(
     // with a name on it. It must be a placeholder name, never a seeded talent.
     case 'config_diploma_template_preview':
       return { code: 'stage' };
+    // A badge the seeded talent holds, rendered by the same browser: an image
+    // of a sticker, which names nobody.
+    case 'config_badge_preview':
+      return { badgeKey: seeded.badgeKey };
     // Grouped by campus on purpose: the grouped branch is the one that ranks, and
     // a ranking is where a name would surface if a group were ever labelled by a
     // person rather than by a campus.

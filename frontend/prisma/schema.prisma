@@ -3394,10 +3394,17 @@ enum Mascot_Hair {
 /// open. Archived rather than deleted (`archivedAt`): it stops being said, and
 /// an admin can bring it back. A moment with no live line is silent.
 ///
+/// A line of a badge's moment (`badgeEarned`, `badgeToEarn`, #551) names its
+/// badge (`badgeKey`): it is what he says when a talent clicks that badge, and
+/// the layout's voice never carries it. Every other moment's lines name none.
+/// The write holds that rule, with a message a constraint could not give. The
+/// lines go with their badge, which is only ever deleted while nobody holds it.
+///
 /// Common to every campus, and it names no talent.
 model Mascot_Line {
   id         String    @id @default(cuid())
   momentKey  String
+  badgeKey   String?
   text       String
   startsOn   DateTime? @db.Date
   endsOn     DateTime? @db.Date
@@ -3405,7 +3412,10 @@ model Mascot_Line {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
+  badge Badge_Definition? @relation(fields: [badgeKey], references: [key], onDelete: Cascade)
+
   @@index([momentKey])
+  @@index([badgeKey])
 }
 
 /// A badge a talent earns when they meet its rule (#448). Data, not code: an
@@ -3423,39 +3433,36 @@ model Mascot_Line {
 /// talent met THIS rule, and it outlives the counter going back down and the
 /// badge being archived, so a rule edited afterwards would leave every earlier
 /// award claiming something nobody checked. Archive it and write another.
-/// Everything a talent reads (label, condition, group, look) may still change.
+/// Everything a talent reads (label, condition, group, drawing) may still change.
 ///
 /// `label` is the badge's name as the talent reads it, which may be renamed;
-/// `key` is what every operation names, and never changes. `groupKey`, `shape`
-/// and `icon` name closed lists in the same file, `text` is the few characters
-/// printed on the badge (« ×5 », « 2NDE »), and the colours are `#rrggbb`. `condition` is what the talent reads under a badge still to
-/// earn, written by the admin rather than generated from the rule. Archived
-/// (`archivedAt`) rather than deleted: nobody earns it any more, and those who
-/// did keep it.
+/// `key` is what every operation names, and never changes. `groupKey` names a
+/// closed list in the same file, and orders the collection. `art` is the
+/// sticker's drawing (#551): the inside of an SVG, written over the API and
+/// screened at write by `server/badgeArtSanitize.ts`, since it is drawn
+/// straight into a talent's page; the frame around it is code. `condition` is
+/// what the duck says of a badge that has no line of its own, written by the
+/// admin rather than generated from the rule. Archived (`archivedAt`) rather
+/// than deleted: nobody earns it any more, and those who did keep it.
 model Badge_Definition {
-  key             String    @id
-  label           String    @unique
-  condition       String
-  groupKey        String
-  shape           String
-  icon            String
-  text            String?
-  backgroundColor String
-  ringColor       String
-  ringDashed      Boolean   @default(false)
-  iconColor       String
-  counterKey      String
-  threshold       Int
-  periodFrom      DateTime? @db.Date
-  periodTo        DateTime? @db.Date
-  archivedAt      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  key        String    @id
+  label      String    @unique
+  condition  String
+  groupKey   String
+  art        String
+  counterKey String
+  threshold  Int
+  periodFrom DateTime? @db.Date
+  periodTo   DateTime? @db.Date
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   events     Badge_RuleEvent[]
   categories Badge_RuleCategory[]
   domains    Badge_RuleDomain[]
   awards     Badge_Award[]
+  lines      Mascot_Line[]
 }
 
 /// A badge rule counting only these events. Restrict on the event: an event is

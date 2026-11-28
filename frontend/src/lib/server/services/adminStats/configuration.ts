@@ -95,7 +95,7 @@ import {
   BADGE_COUNTER_KEYS,
   BADGE_COUNTERS,
   BADGE_FILTERS,
-  BADGE_GROUP_KEYS,
+  badgeGroupRank,
 } from '#lib/domain/badges.ts';
 import {
   BADGE_STATE_SELECT,
@@ -1102,7 +1102,7 @@ export async function getMascotLines(): Promise<MascotLines> {
           ({ moment: _moment, ...line }) => line,
         ),
       })),
-      "Les moments où le canard EpiDuck parle, chacun avec les variables que ses phrases peuvent citer entre accolades (« {prenom} ») et ses phrases, archivées comprises, dans l'ordre de leur création. Le code décide quand le canard parle, les phrases disent ce qu'il dit, communes à tous les campus. « mascotLineId » est l'identifiant que prend write_mascot_line. « startsOn » et « endsOn » bornent la période où une phrase est dite, jours compris, null pour une borne ouverte. « archived » vaut vrai pour une phrase que le canard ne dit plus. Quand un moment a plusieurs phrases en cours, elles tournent ; sans aucune, le canard se tait à ce moment-là.",
+      "Les moments où le canard EpiDuck parle, chacun avec les variables que ses phrases peuvent citer entre accolades (« {prenom} ») et ses phrases, archivées comprises, dans l'ordre de leur création. Le code décide quand le canard parle, les phrases disent ce qu'il dit, communes à tous les campus. « mascotLineId » est l'identifiant que prend write_mascot_line. « startsOn » et « endsOn » bornent la période où une phrase est dite, jours compris, null pour une borne ouverte. « archived » vaut vrai pour une phrase que le canard ne dit plus. « badgeKey » nomme le badge qu'explique une phrase des moments badgeEarned et badgeToEarn, et vaut null pour tous les autres moments. Quand un moment a plusieurs phrases en cours, elles tournent ; sans aucune, le canard se tait à ce moment-là, sauf sur un badge, dont il dit alors la condition.",
     ),
     maxLength: metric(
       MASCOT_LINE_MAX,
@@ -1120,7 +1120,15 @@ export type BadgeCounterRow = {
   filters: string[];
 };
 
-export type BadgeRow = BadgeState & { holders: number };
+/**
+ * A badge as the read returns it: its drawing only when it was asked for by
+ * key, since twenty drawings would cost a model a few dozen kilobytes on every
+ * read of the catalogue, to rewrite none of them.
+ */
+export type BadgeRow = Omit<BadgeState, 'art'> & {
+  art?: string;
+  holders: number;
+};
 
 export type Badges = {
   counters: Metric<BadgeCounterRow[]>;
@@ -1132,26 +1140,38 @@ export type Badges = {
  * the filters it takes, and every badge, archived ones included, in the exact
  * shape `write_badge` takes, with how many talents hold it. Sorted the way the
  * collection files them, by group, then in the order they were created.
+ *
+ * With `badgeKey`, that badge alone and with its drawing: what a write
+ * replaces, a read returns, and one badge is what a redraw starts from.
  */
-export async function getBadges(): Promise<Badges> {
+export async function getBadges(
+  params: { badgeKey?: string } = {},
+): Promise<Badges> {
+  const one = params.badgeKey;
   const [rows, held] = await Promise.all([
     prisma.badge_Definition.findMany({
+      where: one === undefined ? {} : { key: one },
       orderBy: [{ createdAt: 'asc' }, { key: 'asc' }],
       select: BADGE_STATE_SELECT,
     }),
     prisma.badge_Award.groupBy({ by: ['badgeKey'], _count: { _all: true } }),
   ]);
+  if (one !== undefined && rows.length === 0) {
+    throw new UnknownScopeError(
+      `Badge introuvable : ${one}. ${handleProvenanceFr('badgeKey')}`,
+    );
+  }
   const holders = new Map(held.map((row) => [row.badgeKey, row._count._all]));
-  const groupRank = (group: string) => {
-    const at = (BADGE_GROUP_KEYS as string[]).indexOf(group);
-    return at === -1 ? BADGE_GROUP_KEYS.length : at;
-  };
   const badges = rows
-    .map((row) => ({
-      ...badgeState(row),
-      holders: holders.get(row.key) ?? 0,
-    }))
-    .sort((a, b) => groupRank(a.group) - groupRank(b.group));
+    .map((row): BadgeRow => {
+      const { art, ...state } = badgeState(row);
+      return {
+        ...state,
+        ...(one === undefined ? {} : { art }),
+        holders: holders.get(row.key) ?? 0,
+      };
+    })
+    .sort((a, b) => badgeGroupRank(a.group) - badgeGroupRank(b.group));
 
   return {
     counters: metric(
@@ -1171,7 +1191,7 @@ export async function getBadges(): Promise<Badges> {
       badges,
       "Les badges, archivés compris, rangés par groupe (parcours, succes, wtf) puis dans l'ordre de leur création. " +
         "« badgeKey » est la clé qui l'identifie et que prend write_badge ; elle ne change jamais, le nom (« label ») se renomme. " +
-        "« condition » est ce que lit le talent sous un badge qu'il n'a pas encore. « shape », « icon », « text », « backgroundColor », « ringColor », « ringDashed » et « iconColor » décrivent son visuel, « text » valant null quand rien n'y est écrit. " +
+        "« condition » est ce que dit le canard du talent d'un badge qui n'a pas de phrase à lui. « group » range la collection sans y être affiché. « art » est le dessin de son autocollant, rendu seulement quand « badgeKey » nomme le badge. " +
         "La règle est « counter », « threshold » et ses filtres : « eventIds », « categoryKeys », « domains » (listes vides quand elle ne filtre pas) et « periodFrom » / « periodTo » (premier jour de l'événement, bornes comprises, null pour une borne ouverte). Elle ne change plus une fois le badge créé. " +
         "« archived » vaut vrai pour un badge que plus personne n'obtient ; ceux qui l'ont obtenu le gardent. « holders » compte les talents qui l'ont obtenu.",
     ),

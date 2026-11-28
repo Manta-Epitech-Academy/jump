@@ -13,12 +13,19 @@
  * chosen at creation, because the tokens it may cite are the moment's: moving
  * it is creating another line and archiving this one.
  *
+ * A badge's two moments (#551) take one more fact at creation, fixed the same
+ * way: the badge the line explains (`badgeKey`). Required there, refused on
+ * every other moment, so a line of the header's voice can never be mistaken
+ * for one about a badge, nor a badge's for the header's.
+ *
  * Not safe to repeat when it creates (each call adds a line); an update sets
  * values rather than adjusting them, so a retried one changes nothing more.
  */
 
 import { prisma } from '#lib/server/db.ts';
 import {
+  isMascotBadgeMoment,
+  MASCOT_BADGE_MOMENTS,
   MASCOT_LINE_MAX,
   MASCOT_MOMENTS,
   unknownMascotTokens,
@@ -35,6 +42,8 @@ import { archivedAtFor } from './catalogue';
 export type MascotLineState = {
   mascotLineId: string;
   moment: string;
+  /** The badge a line of a badge's moment explains; null on every other. */
+  badgeKey: string | null;
   text: string;
   startsOn: DateKey | null;
   endsOn: DateKey | null;
@@ -44,6 +53,7 @@ export type MascotLineState = {
 export const MASCOT_LINE_SELECT = {
   id: true,
   momentKey: true,
+  badgeKey: true,
   text: true,
   startsOn: true,
   endsOn: true,
@@ -53,6 +63,7 @@ export const MASCOT_LINE_SELECT = {
 export function mascotLineState(row: {
   id: string;
   momentKey: string;
+  badgeKey: string | null;
   text: string;
   startsOn: Date | null;
   endsOn: Date | null;
@@ -61,6 +72,7 @@ export function mascotLineState(row: {
   return {
     mascotLineId: row.id,
     moment: row.momentKey,
+    badgeKey: row.badgeKey,
     text: row.text,
     startsOn: row.startsOn ? dbDateToKey(row.startsOn) : null,
     endsOn: row.endsOn ? dbDateToKey(row.endsOn) : null,
@@ -94,6 +106,39 @@ function checkText(moment: MascotMomentKey, text: string): void {
   }
 }
 
+/**
+ * The badge a new line names, checked against its moment: required on a
+ * badge's moment, and a badge Jump holds; refused on any other moment.
+ */
+async function badgeOfNewLine(
+  moment: MascotMomentKey,
+  badgeKey: string | null,
+): Promise<string | null> {
+  if (!isMascotBadgeMoment(moment)) {
+    if (badgeKey !== null) {
+      throw new OperationRefusedError(
+        `Seules les phrases des moments ${MASCOT_BADGE_MOMENTS.map((m) => `« ${m} »`).join(' et ')} nomment un badge : le moment « ${moment} » parle sans badge. Retirez badgeKey.`,
+      );
+    }
+    return null;
+  }
+  if (badgeKey === null) {
+    throw new OperationRefusedError(
+      `Une phrase du moment « ${moment} » explique un badge précis, quand le talent clique dessus : donnez son badgeKey. ${handleProvenanceFr('badgeKey')}`,
+    );
+  }
+  const badge = await prisma.badge_Definition.findUnique({
+    where: { key: badgeKey },
+    select: { key: true },
+  });
+  if (!badge) {
+    throw new OperationRefusedError(
+      `Badge introuvable : ${badgeKey}. ${handleProvenanceFr('badgeKey')}`,
+    );
+  }
+  return badge.key;
+}
+
 /** Refuses a window that ends before it starts. */
 function checkWindow(startsOn: DateKey | null, endsOn: DateKey | null): void {
   if (startsOn && endsOn && endsOn < startsOn) {
@@ -106,6 +151,7 @@ function checkWindow(startsOn: DateKey | null, endsOn: DateKey | null): void {
 export async function writeMascotLine(params: {
   mascotLineId?: string;
   moment?: MascotMomentKey;
+  badgeKey?: string | null;
   text?: string;
   startsOn?: DateKey | null;
   endsOn?: DateKey | null;
@@ -121,9 +167,14 @@ export async function writeMascotLine(params: {
     const startsOn = params.startsOn ?? null;
     const endsOn = params.endsOn ?? null;
     checkWindow(startsOn, endsOn);
+    const badgeKey = await badgeOfNewLine(
+      params.moment,
+      params.badgeKey ?? null,
+    );
     const created = await prisma.mascot_Line.create({
       data: {
         momentKey: params.moment,
+        badgeKey,
         text: params.text,
         startsOn: startsOn ? dateKeyToDbDate(startsOn) : null,
         endsOn: endsOn ? dateKeyToDbDate(endsOn) : null,
@@ -143,6 +194,13 @@ export async function writeMascotLine(params: {
   if (params.moment && params.moment !== before.moment) {
     throw new OperationRefusedError(
       `Une phrase reste au moment où elle a été créée (« ${before.moment} ») : ses variables sont celles de ce moment. Créez-en une au moment « ${params.moment} », puis archivez celle-ci.`,
+    );
+  }
+  if (params.badgeKey !== undefined && params.badgeKey !== before.badgeKey) {
+    throw new OperationRefusedError(
+      before.badgeKey === null
+        ? `La phrase « ${before.mascotLineId} » ne nomme pas de badge, et n'en nommera pas : retirez badgeKey.`
+        : `Une phrase reste au badge pour lequel elle a été écrite (« ${before.badgeKey} »). Créez-en une pour « ${params.badgeKey} », puis archivez celle-ci.`,
     );
   }
   // A line stored before its moment was retired is not checked against it:

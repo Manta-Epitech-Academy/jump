@@ -103,6 +103,7 @@ These three concepts are distinct and must not be confused in code or documentat
 | **Moment** (du canard)  | A point where EpiDuck speaks (a tap, the hello on arrival, going to sleep...). A closed list in code; what he says at each one is data the PO writes.                         | `MASCOT_MOMENTS`, `Mascot_Line`        |
 | **Badge**               | What a talent earns on their journey when a counter of theirs reaches a rule (« A participé à 5 Coding Clubs »), kept for good. Data the PO writes over the admin API (#448). | `Badge_Definition`, `Badge_Award`      |
 | **Compteur** (de badge) | What a badge rule counts (XP, visits, finished activities, first places at the daily game...), with the filters it takes. A closed list in code.                              | `BADGE_COUNTERS`                       |
+| **Epidex**              | A talent's badge collection on Mon parcours, the mockup's name for it: every badge, earned ones in colour, the others as silhouettes. A click asks EpiDuck about one (#551).  | `EpidexCard`, `loadBadgeCollection`    |
 
 ---
 

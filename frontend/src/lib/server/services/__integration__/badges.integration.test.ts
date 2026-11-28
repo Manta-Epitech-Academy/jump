@@ -17,6 +17,7 @@ import { dateKeyToDbDate } from '#lib/domain/eventPresence.ts';
 import { adminApiWrite } from '#lib/server/adminApi/route.ts';
 import { mintToken } from '#lib/server/adminApi/tokens.ts';
 import { getBadges } from '#lib/server/services/adminStats/configuration.ts';
+import { getBadgeStickerPreview } from '#lib/server/services/badgeStickerPreview.ts';
 import { awardDueBadges } from '#lib/server/services/badgeAwards.ts';
 import { applyCallback } from '#lib/server/services/minigameService.ts';
 import { recordSignInDay } from '#lib/server/services/signInStreak.ts';
@@ -51,15 +52,12 @@ const stamp = Date.now();
 const TZ = 'Europe/Paris';
 const at = (day: string) => fromWallClock(day, '00:00', TZ);
 
-/** A badge's look, the same for every badge here. */
-const look = {
-  group: 'parcours',
-  shape: 'hexagon',
-  icon: 'code',
-  backgroundColor: '#013AFB',
-  ringColor: '#00ff97',
-  iconColor: '#ffffff',
-};
+/** A badge's drawing, the same for every badge here. */
+const DISC =
+  '<circle cx="40" cy="40" r="36" fill="#013afb" stroke="#ffffff" stroke-width="5"></circle>';
+
+/** A badge's family and drawing, the same for every badge here. */
+const look = { group: 'parcours', art: DISC };
 
 describe('badges (integration)', () => {
   let adminUserId = '';
@@ -87,11 +85,7 @@ describe('badges (integration)', () => {
         label: `${key} ${stamp}`,
         condition: 'Test',
         groupKey: 'wtf',
-        shape: 'shield',
-        icon: 'flame',
-        backgroundColor: '#ff5f3a',
-        ringColor: '#ffffff',
-        iconColor: '#ffffff',
+        art: DISC,
         ...rule,
       },
     });
@@ -210,7 +204,6 @@ describe('badges (integration)', () => {
       label: `Addict ${stamp}`,
       condition: 'A participé à 2 Coding Clubs',
       ...look,
-      text: '×2',
       counter: 'attended',
       threshold: 2,
       categoryKeys: [categoryKey],
@@ -236,17 +229,26 @@ describe('badges (integration)', () => {
     });
     expect(applied.status).toBe(200);
     expect(applied.payload.applied).toBe(true);
+    // A receipt without the drawing the caller has just sent, and the link to
+    // see it, which is what it needs next.
+    expect(applied.payload.after).not.toHaveProperty('art');
+    expect(applied.payload.apercu).toContain(
+      `/api/admin/config/badge-preview?badgeKey=${badgeKey}`,
+    );
     const awards = await awardsOf(badgeKey);
     expect(awards.map((a) => a.talentId)).toEqual([talent.regular]);
     expect(Date.now() - awards[0].awardedAt.getTime()).toBeLessThan(60_000);
 
-    // The read hands the badge back in the shape the write takes, colours in
-    // lowercase, with its holders; sent back as read, nothing moves.
-    const read = (await getBadges()).badges.value.find(
+    // The catalogue lists it without its drawing; read by its key, it comes
+    // back in the shape the write takes, drawing included, with its holders,
+    // and sent back as read, nothing moves.
+    const listed = (await getBadges()).badges.value.find(
       (b) => b.badgeKey === badgeKey,
     )!;
+    expect(listed).not.toHaveProperty('art');
+    const [read] = (await getBadges({ badgeKey })).badges.value;
     expect(read).toMatchObject({
-      backgroundColor: '#013afb',
+      art: DISC,
       counter: 'attended',
       categoryKeys: [categoryKey],
       eventIds: [],
@@ -356,6 +358,95 @@ describe('badges (integration)', () => {
     });
     expect(fixed.status).toBe(400);
     expect(String(fixed.payload.error)).toContain('ne change plus');
+  });
+
+  // A drawing lands in talents' pages with nothing behind it to contain a
+  // script, so the write refuses one before it counts anybody, and names it.
+  it('refuses a drawing that could run in a talent page, before any dry run', async () => {
+    const badgeKey = `bdg-script-${stamp}`;
+    const { status, payload } = await call(postBadge, secret, {
+      badgeKey,
+      label: `Script ${stamp}`,
+      condition: 'Test',
+      group: 'wtf',
+      art: `${DISC}<circle r="4" onclick="alert(1)"></circle>`,
+      counter: 'xp',
+      threshold: 1,
+    });
+    expect(status).toBe(400);
+    expect(String(payload.error)).toContain('onclick');
+    expect(
+      await prisma.badge_Definition.count({ where: { key: badgeKey } }),
+    ).toBe(0);
+  });
+
+  // How a badge is drawn before anybody receives it: created archived, it is
+  // awarded to nobody, previewed, redrawn, and unarchiving it is what counts
+  // and awards its holders.
+  it('drafts a badge archived, previews it, then awards it on unarchiving', async () => {
+    const badgeKey = `bdg-draft-${stamp}`;
+    badgeKeys.push(badgeKey);
+    const draft = {
+      badgeKey,
+      label: `Brouillon ${stamp}`,
+      condition: 'A participé à 2 Coding Clubs',
+      group: 'succes',
+      art: DISC,
+      counter: 'attended',
+      threshold: 2,
+      categoryKeys: [categoryKey],
+      archived: true,
+    };
+    const dry = await call(postBadge, secret, draft);
+    expect(
+      (dry.payload.plan as { newHolders: { value: number } }).newHolders.value,
+    ).toBe(0);
+    await call(postBadge, secret, {
+      ...draft,
+      planDigest: dry.payload.planDigest,
+    });
+    expect(await awardsOf(badgeKey)).toEqual([]);
+
+    const preview = await getBadgeStickerPreview({
+      badgeKey,
+      origin: 'https://jump.example',
+    });
+    const bytes = Buffer.from(preview.image.base64, 'base64');
+    expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+    expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([
+      preview.widthPx,
+      preview.heightPx,
+    ]);
+    expect(preview.apercu).toContain(
+      `https://jump.example/api/admin/config/badge-preview?badgeKey=${badgeKey}`,
+    );
+
+    // Redrawn while archived: still nobody receives it.
+    const redraw = {
+      badgeKey,
+      art: `${DISC}<text x="40" y="48" text-anchor="middle" fill="#ffffff" font-family="Anton" font-size="24">1</text>`,
+    };
+    const redrawn = await call(postBadge, secret, redraw);
+    await call(postBadge, secret, {
+      ...redraw,
+      planDigest: redrawn.payload.planDigest,
+    });
+    expect(await awardsOf(badgeKey)).toEqual([]);
+
+    // Both talents who came to two clubs by now (the one who came once came
+    // to the April club in an earlier test).
+    const live = await call(postBadge, secret, { badgeKey, archived: false });
+    expect(
+      (live.payload.plan as { newHolders: { value: number } }).newHolders.value,
+    ).toBe(2);
+    await call(postBadge, secret, {
+      badgeKey,
+      archived: false,
+      planDigest: live.payload.planDigest,
+    });
+    expect((await awardsOf(badgeKey)).map((a) => a.talentId).sort()).toEqual(
+      [talent.regular, talent.once].sort(),
+    );
   });
 
   it('awards a run of days on the day it is reached, and keeps it when the run restarts', async () => {

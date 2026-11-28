@@ -1,7 +1,7 @@
 /**
  * The sleep button is optimistic: the duck dives before the server answers,
  * and goes back to where he was if it refuses. Pinned here: going back also
- * puts him back on his way, so a refusal in the middle of a sulk or a way up
+ * puts him back on his way, so a refusal in the middle of a way up
  * never leaves him stranded between two phases, frozen until a reload.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -23,9 +23,7 @@ const {
   EMERGE_MS,
   GREETING_DELAY_MS,
   REJOICE_MS,
-  SULK_MS,
 } = await import('./mascotController.svelte.ts');
-const { SULK_POKES } = await import('./mascotPhase');
 
 /** A duck nobody dressed, as the server holds him. */
 const UNDRESSED = {
@@ -35,10 +33,10 @@ const UNDRESSED = {
   hair: 'tuft',
 } as const;
 
-function duck() {
+function duck(asleep = false) {
   return new MascotController({
     talentId: 't1',
-    asleep: false,
+    asleep,
     choice: UNDRESSED,
     voice: () => ({}),
     tokens: () => ({}),
@@ -60,44 +58,51 @@ describe('MascotController, when the server refuses a sleep', () => {
     putMascotToSleep.mockReset();
   });
 
-  it('ends the sulk he was in, and comes back up', async () => {
-    const mascot = duck();
-    for (let i = 0; i < SULK_POKES; i++) mascot.poke(i);
-    await vi.advanceTimersByTimeAsync(DIVE_MS);
-    expect(mascot.state).toEqual({ phase: 'under', reason: 'sulk' });
-
-    void mascot.setAsleep(true);
-    await settle();
-    expect(mascot.state).toEqual({ phase: 'under', reason: 'sulk' });
-
-    await vi.advanceTimersByTimeAsync(SULK_MS + EMERGE_MS);
-    expect(mascot.state).toEqual({ phase: 'awake' });
-  });
-
   it('finishes the way up he was on', async () => {
-    const mascot = duck();
-    for (let i = 0; i < SULK_POKES; i++) mascot.poke(i);
-    await vi.advanceTimersByTimeAsync(DIVE_MS + SULK_MS);
-    expect(mascot.state).toEqual({ phase: 'emerging' });
+    putMascotToSleep.mockResolvedValueOnce(undefined);
+    const mascot = duck(true);
+    mascot.setAsleep(false);
+    await settle();
+    expect(mascot.state).toBe('emerging');
 
     void mascot.setAsleep(true);
     await settle();
-    expect(mascot.state).toEqual({ phase: 'emerging' });
+    expect(mascot.state).toBe('emerging');
 
     await vi.advanceTimersByTimeAsync(EMERGE_MS);
-    expect(mascot.state).toEqual({ phase: 'awake' });
+    expect(mascot.state).toBe('awake');
   });
 
   it('stays on the water when he was on it', async () => {
     const mascot = duck();
     void mascot.setAsleep(true);
     await settle();
-    expect(mascot.state).toEqual({ phase: 'awake' });
+    expect(mascot.state).toBe('awake');
     expect(mascot.asleep).toBe(false);
 
     // The dive the refusal interrupted never lands him under.
     await vi.advanceTimersByTimeAsync(DIVE_MS);
-    expect(mascot.state).toEqual({ phase: 'awake' });
+    expect(mascot.state).toBe('awake');
+  });
+});
+
+/** Poked over and over, he answers every time: he no longer sulks. */
+describe('MascotController, poked over and over', () => {
+  it('answers every poke and never goes under', () => {
+    const mascot = new MascotController({
+      talentId: 't1',
+      asleep: false,
+      choice: UNDRESSED,
+      voice: () => ({ poke: ['Coin !', 'Coin coin !'] }),
+      tokens: () => ({}),
+      arrival: [],
+      today: '2026-11-24',
+    });
+    for (let i = 0; i < 30; i++) {
+      mascot.poke();
+      expect(mascot.bubble).not.toBeNull();
+    }
+    expect(mascot.state).toBe('awake');
   });
 });
 
@@ -159,12 +164,12 @@ describe('MascotController, sleep and wake pressed in a row', () => {
     mascot.setAsleep(true);
     answers[0].ok();
     await vi.advanceTimersByTimeAsync(DIVE_MS);
-    expect(mascot.state).toEqual({ phase: 'under', reason: 'sleep' });
+    expect(mascot.state).toBe('under');
 
     mascot.setAsleep(false);
     answers[1].refuse();
     await settle();
-    expect(mascot.state).toEqual({ phase: 'under', reason: 'sleep' });
+    expect(mascot.state).toBe('under');
   });
 });
 
@@ -447,5 +452,107 @@ describe('MascotController, the look the talent chooses', () => {
     mascot.choose({ name: 'Gaston' });
     mascot.poke();
     expect(mascot.bubble?.text).toBe('Coin, je suis Gaston\u00A0!');
+  });
+});
+
+/**
+ * A badge the talent clicks in their collection (#551): he answers it, as he
+ * answers a poke, and even asleep, since it is the talent asking. Pinned here:
+ * the answer, its turns and its stand-in, and that asleep he comes up to say
+ * it and goes back under without the talent's choice being saved again.
+ */
+describe('MascotController, asked about a badge', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    putMascotToSleep.mockResolvedValue(undefined);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    putMascotToSleep.mockReset();
+  });
+
+  const after = (ms: number) => vi.advanceTimersByTimeAsync(ms);
+
+  function sleepy(asleep: boolean) {
+    return new MascotController({
+      talentId: 't1',
+      asleep,
+      choice: UNDRESSED,
+      voice: () => ({ poke: ['Coin !'] }),
+      tokens: () => ({ prenom: 'Lina' }),
+      arrival: [],
+      today: '2026-11-24',
+    });
+  }
+
+  const addict = {
+    key: 'addict',
+    moment: 'badgeEarned',
+    lines: ['Accro depuis {date}, {prenom} !', 'Cinq clubs !'],
+    condition: 'A participé à 5 Coding Clubs',
+    tokens: { badge: 'Addict', date: 'mars 2026' },
+  } as const;
+
+  it('answers at once, with joy for a badge earned, its lines taking turns', () => {
+    const mascot = sleepy(false);
+    mascot.explain(addict);
+    const first = mascot.bubble!.text;
+    expect(mascot.bubble!.mood).toBe('joy');
+    mascot.explain(addict);
+    expect(mascot.bubble!.text).not.toBe(first);
+    expect([first, mascot.bubble!.text].sort()).toEqual(
+      ['Accro depuis mars 2026, Lina !', 'Cinq clubs !'].sort(),
+    );
+  });
+
+  // A calm line said over a joyful one left his joy behind, with no timer to
+  // end it: he beamed at the talent, stopped, until a reload (QA, 28/11/2026).
+  it('lets his joy go with the line that brought it', async () => {
+    const mascot = sleepy(false);
+    mascot.explain(addict);
+    expect(mascot.joy).not.toBeNull();
+    mascot.poke();
+    expect(mascot.bubble?.mood).toBe('calm');
+    expect(mascot.joy).toBeNull();
+
+    await after(BUBBLE_MS);
+    expect(mascot.bubble).toBeNull();
+    expect(mascot.facingTalent).toBe(false);
+  });
+
+  it("says the badge's condition when the PO wrote no line", () => {
+    const mascot = sleepy(false);
+    mascot.explain({ ...addict, moment: 'badgeToEarn', lines: [] });
+    expect(mascot.bubble).toMatchObject({
+      text: 'A participé à 5 Coding Clubs',
+      mood: 'calm',
+    });
+  });
+
+  it('comes up from his sleep to answer, then goes back under, saving nothing', async () => {
+    const mascot = sleepy(true);
+    mascot.explain(addict);
+    expect(mascot.asleep).toBe(true);
+    expect(mascot.state).toBe('emerging');
+
+    await after(EMERGE_MS);
+    expect(mascot.state).toBe('awake');
+    expect(mascot.bubble?.mood).toBe('joy');
+    expect(mascot.asleep).toBe(true);
+
+    await after(BUBBLE_MS + DIVE_MS);
+    expect(mascot.bubble).toBeNull();
+    expect(mascot.state).toBe('under');
+    expect(putMascotToSleep).not.toHaveBeenCalled();
+  });
+
+  it('stays up when woken while answering', async () => {
+    const mascot = sleepy(true);
+    mascot.explain(addict);
+    await after(EMERGE_MS);
+    void mascot.setAsleep(false);
+    await after(BUBBLE_MS + DIVE_MS);
+    expect(mascot.state).toBe('awake');
+    expect(putMascotToSleep).toHaveBeenCalledWith({ asleep: false });
   });
 });

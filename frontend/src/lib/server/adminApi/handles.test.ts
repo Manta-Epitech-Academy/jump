@@ -147,16 +147,12 @@ const PARAMS_THAT_NAME_NOTHING = new Set([
   // How to expand a synchronised campaign, and which synchronisation pass to
   // set: closed enums spelled out in their own schema, like 'audience' above.
   'mode',
-  // A badge's words and look, authored rather than picked, and the threshold
-  // and period of its rule. What the rule counts and narrows by are handles.
+  // A badge's words and drawing, authored rather than picked, and the
+  // threshold and period of its rule. What the rule counts and narrows by are
+  // handles.
   'condition',
   'group',
-  'shape',
-  'icon',
-  'backgroundColor',
-  'ringColor',
-  'ringDashed',
-  'iconColor',
+  'art',
   'threshold',
   'periodFrom',
   'periodTo',

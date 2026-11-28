@@ -44,6 +44,7 @@ async function call(
 type LineState = {
   mascotLineId: string;
   moment: string;
+  badgeKey: string | null;
   text: string;
   startsOn: string | null;
   endsOn: string | null;
@@ -55,6 +56,7 @@ describe('write_mascot_line (integration)', () => {
   let adminUserId = '';
   let secret = '';
   const lineIds: string[] = [];
+  const badgeKey = `canard-badge-${stamp}`;
 
   beforeAll(async () => {
     assertTestDatabase();
@@ -63,11 +65,23 @@ describe('write_mascot_line (integration)', () => {
     secret = (
       await mintToken(adminUserId, { label: 'Écriture', writeEnabled: true })
     ).secret;
+    await prisma.badge_Definition.create({
+      data: {
+        key: badgeKey,
+        label: `Badge du canard ${stamp}`,
+        condition: 'A gagné 1 XP',
+        groupKey: 'wtf',
+        art: '<circle cx="40" cy="40" r="36" fill="#013afb"></circle>',
+        counterKey: 'xp',
+        threshold: 1,
+      },
+    });
   });
 
   afterAll(async () => {
     try {
       await prisma.mascot_Line.deleteMany({ where: { id: { in: lineIds } } });
+      await prisma.badge_Definition.deleteMany({ where: { key: badgeKey } });
       await prisma.adminApi_Call.deleteMany({
         where: { actorUserId: adminUserId },
       });
@@ -196,5 +210,48 @@ describe('write_mascot_line (integration)', () => {
     expect(await said('2026-12-24')).toEqual([always.text, december.text]);
     expect(await said('2026-12-25')).toEqual([always.text]);
     expect(await said('2026-12-10')).not.toContain(archived.text);
+  });
+
+  // A badge's lines (#551) are the duck's like any other, but each names the
+  // badge it explains, and none of them is the header's voice.
+  it("ties a badge's line to its badge, and keeps it out of the header's voice", async () => {
+    const earned = await create({
+      moment: 'badgeEarned',
+      badgeKey,
+      text: `Tu l'as depuis {date}, {prenom} ! ${stamp}`,
+    });
+    expect(earned).toMatchObject({ moment: 'badgeEarned', badgeKey });
+
+    const without = await call(postLine, secret, {
+      moment: 'badgeToEarn',
+      text: `Encore un effort ${stamp}`,
+    });
+    expect(without.status).toBe(400);
+    expect(String(without.payload.error)).toContain('badgeKey');
+
+    const misplaced = await call(postLine, secret, {
+      moment: 'poke',
+      badgeKey,
+      text: `Coin ${stamp}`,
+    });
+    expect(misplaced.status).toBe(400);
+
+    const unknown = await call(postLine, secret, {
+      moment: 'badgeToEarn',
+      badgeKey: `nulle-part-${stamp}`,
+      text: `Encore un effort ${stamp}`,
+    });
+    expect(String(unknown.payload.error)).toContain('Badge introuvable');
+
+    // `{date}` belongs to a badge earned: one still to earn has no day.
+    const dated = await call(postLine, secret, {
+      moment: 'badgeToEarn',
+      badgeKey,
+      text: `Depuis {date} ${stamp}`,
+    });
+    expect(String(dated.payload.error)).toContain('{date}');
+
+    const voice = await loadMascotVoice('2026-11-30');
+    expect(voice.badgeEarned ?? []).not.toContain(earned.text);
   });
 });
